@@ -8,5 +8,13 @@ public record AdminSession(
         String username,
         long credentialVersion,
         boolean mfaEnabled,
+        AdminAuthenticationMethod authenticationMethod,
         Instant createdAt
-) {}
+) {
+    public AdminSession {
+        // 배포 전 생성된 Redis 세션 payload에는 인증 수단이 없으므로 최소 권한으로 해석한다.
+        if (authenticationMethod == null) {
+            authenticationMethod = AdminAuthenticationMethod.PASSWORD;
+        }
+    }
+}

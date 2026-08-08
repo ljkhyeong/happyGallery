@@ -51,6 +51,7 @@ import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.domain.user.SocialProvider;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -442,6 +443,24 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("장바구니 병합 API는 상품 100건을 초과한 요청을 거절한다")
+    void merge_guest_cart_rejects_more_than_100_items() throws Exception {
+        String items = "[" + String.join(",", Collections.nCopies(
+                101, "{\"productId\":1,\"qty\":1}")) + "]";
+
+        mockMvc.perform(post("/api/v1/me/cart/merge")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "idempotencyKey": "e3668dc3-fdd1-45a8-ac19-25f5753157b0",
+                                  "items": %s
+                                }
+                                """.formatted(items)))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

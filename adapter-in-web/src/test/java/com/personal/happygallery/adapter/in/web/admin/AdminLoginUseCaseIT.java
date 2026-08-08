@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaCodeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaRecoveryRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaVerificationRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.LoginRequest;
 import com.personal.happygallery.adapter.out.persistence.admin.AdminAuthHistoryRepository;
@@ -153,6 +154,20 @@ class AdminLoginUseCaseIT {
                                 """))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaRecoveryRequest(PASSWORD))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .header("X-Admin-Key", "dev-admin-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaRecoveryRequest(PASSWORD))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
         assertThat(historyRepository.findAllByOrderByIdAsc())
                 .extracting(history -> history.getOutcome())
@@ -260,6 +275,93 @@ class AdminLoginUseCaseIT {
                         AdminAuthOutcome.MFA_REQUIRED,
                         AdminAuthOutcome.RECOVERY_CODE_USED,
                         AdminAuthOutcome.MFA_FAILED);
+    }
+
+    @DisplayName("마지막 복구 코드로 로그인한 세션은 현재 비밀번호 확인 후 MFA를 초기화한다")
+    @Test
+    void recoveryCodeSession_resetsMfaOnce_andRevokesAllSessions() throws Exception {
+        String enrollmentToken = loginAndGetToken();
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/enrollment")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + enrollmentToken))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/enrollment/confirm")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + enrollmentToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaCodeRequest("123456"))))
+                .andExpect(status().isOk());
+
+        AdminUser enrolled = adminUserPort.findByUsername(USERNAME).orElseThrow();
+        var retiredRecoveryCodes = recoveryCodeRepository.findAll().stream()
+                .filter(stored -> !passwordEncoder.matches(
+                        RECOVERY_CODES.get(0), stored.getCodeHash()))
+                .toList();
+        retiredRecoveryCodes.forEach(stored -> stored.use(LocalDateTime.now(clock)));
+        recoveryCodeRepository.saveAllAndFlush(retiredRecoveryCodes);
+        assertThat(recoveryCodeRepository.countUnusedByAdminUserId(enrolled.getId()))
+                .isEqualTo(1);
+
+        String totpToken = verifyMfaAndGetToken(loginAndGetChallenge(), "654321");
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + totpToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recoveryResetAvailable").value(false));
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + totpToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaRecoveryRequest(PASSWORD))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        String recoveryToken = verifyMfaAndGetToken(
+                loginAndGetChallenge(), RECOVERY_CODES.get(0));
+        long credentialVersionBeforeRecovery = adminUserPort.findByUsername(USERNAME)
+                .orElseThrow()
+                .getCredentialVersion();
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + recoveryToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recoveryResetAvailable").value(true))
+                .andExpect(jsonPath("$.recoveryCodesRemaining").value(0));
+
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + recoveryToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaRecoveryRequest("wrong-password"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + recoveryToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new AdminMfaRecoveryRequest(PASSWORD))))
+                .andExpect(status().isNoContent());
+
+        assertProtectedRequestRejected(totpToken);
+        assertProtectedRequestRejected(recoveryToken);
+        AdminUser recovered = adminUserPort.findByUsername(USERNAME).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(recovered.isMfaEnabled()).isFalse();
+            softly.assertThat(recovered.getTotpSecretEnc()).isNull();
+            softly.assertThat(recovered.getCredentialVersion())
+                    .isEqualTo(credentialVersionBeforeRecovery + 1);
+            softly.assertThat(recoveryCodeRepository.findAll()).isEmpty();
+            softly.assertThat(historyRepository.findAllByOrderByIdAsc())
+                    .extracting(history -> history.getOutcome())
+                    .contains(
+                            AdminAuthOutcome.RECOVERY_CODE_USED,
+                            AdminAuthOutcome.MFA_RECOVERY_RESET);
+        });
+
+        String reEnrollmentToken = loginAndGetToken();
+        mockMvc.perform(get("/api/v1/admin/auth/mfa")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + reEnrollmentToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled").value(false))
+                .andExpect(jsonPath("$.recoveryResetAvailable").value(false));
     }
 
     @DisplayName("서로 다른 MFA challenge가 같은 TOTP 시간 구간을 동시에 검증해도 한 요청만 성공한다")

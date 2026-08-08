@@ -10,6 +10,7 @@ import {
   confirmAdminMfaEnrollment,
   disableAdminMfa,
   getAdminMfaStatus,
+  recoverAdminMfa,
   startAdminMfaEnrollment,
   type AdminMfaEnrollmentResponse,
   type AdminMfaStatusResponse,
@@ -61,6 +62,7 @@ export function AdminMfaSettings({
         enabled: true,
         enrollmentPending: false,
         recoveryCodesRemaining: result.recoveryCodes.length,
+        recoveryResetAvailable: false,
       });
     },
   });
@@ -78,9 +80,19 @@ export function AdminMfaSettings({
     },
   });
 
+  const recoverMfa = useAdminMutation(onAuthError, {
+    mutationFn: () => recoverAdminMfa(adminKey, currentPassword),
+    onSuccess: () => {
+      onCredentialChanged(
+        "2단계 인증이 초기화되었습니다. 다시 로그인해 인증 앱을 등록해 주세요.",
+      );
+    },
+  });
+
   const actionError = startEnrollment.error
     ?? confirmEnrollment.error
-    ?? disableMfa.error;
+    ?? disableMfa.error
+    ?? recoverMfa.error;
 
   if (statusQuery.isLoading) {
     return <LoadingSpinner text="2단계 인증 상태 확인 중..." />;
@@ -140,9 +152,56 @@ export function AdminMfaSettings({
   if (!status) return null;
 
   if (status.enabled) {
+    const canRecover = currentPassword.length > 0
+      && isPasswordWithinByteLimit(currentPassword);
     const canDisable = currentPassword.length > 0
       && isPasswordWithinByteLimit(currentPassword)
       && disableCode.trim().length > 0;
+
+    if (status.recoveryResetAvailable) {
+      return (
+        <div>
+          <Alert variant="warning">
+            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없다면 현재 비밀번호를
+            확인한 뒤 2단계 인증을 초기화할 수 있습니다. 초기화하면 이 세션과 기존
+            복구 코드가 모두 폐기되며, 다시 로그인해 인증 앱을 등록해야 합니다.
+          </Alert>
+          <Form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (canRecover && !recoverMfa.isPending) recoverMfa.mutate();
+            }}
+          >
+            <div className="row g-3 align-items-end">
+              <div className="col-md-8">
+                <Form.Group controlId="admin-mfa-recovery-password">
+                  <Form.Label>현재 비밀번호</Form.Label>
+                  <Form.Control
+                    type="password"
+                    autoComplete="current-password"
+                    maxLength={72}
+                    value={currentPassword}
+                    disabled={recoverMfa.isPending}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                  />
+                </Form.Group>
+              </div>
+              <div className="col-md-4">
+                <Button
+                  type="submit"
+                  variant="danger"
+                  className="w-100"
+                  disabled={!canRecover || recoverMfa.isPending}
+                >
+                  {recoverMfa.isPending ? "초기화 중..." : "2단계 인증 초기화"}
+                </Button>
+              </div>
+            </div>
+            <ErrorAlert error={actionError} />
+          </Form>
+        </div>
+      );
+    }
 
     return (
       <div>

@@ -18,9 +18,9 @@ import static org.mockito.Mockito.when;
 
 class DefaultBookingReminderBatchServiceTest {
 
-    @DisplayName("D-1 배치는 당일 7시 전 재기동 시 놓친 오늘 예약까지 후보로 보충한다")
+    @DisplayName("D-1 배치는 오전 7시 전에도 메시지 의미에 맞는 내일 예약만 조회한다")
     @Test
-    void sendD1Reminders_beforeSameDayReminder_includesTodayCatchUpWindow() {
+    void sendD1Reminders_beforeSameDayReminder_checksTomorrowOnly() {
         BookingReminderCandidatePort candidatePort =
                 mock(BookingReminderCandidatePort.class);
         NotificationOutboxService outboxService = mock(NotificationOutboxService.class);
@@ -28,8 +28,9 @@ class DefaultBookingReminderBatchServiceTest {
                 ZonedDateTime.of(2026, 3, 1, 6, 0, 0, 0, Clocks.SEOUL).toInstant(),
                 Clocks.SEOUL);
         when(candidatePort.findUnnotifiedBookedAfterId(
-                LocalDateTime.of(2026, 3, 1, 6, 0),
+                LocalDateTime.of(2026, 3, 2, 0, 0),
                 LocalDateTime.of(2026, 3, 3, 0, 0),
+                true,
                 NotificationEventType.REMINDER_D1,
                 0L,
                 100))
@@ -41,8 +42,9 @@ class DefaultBookingReminderBatchServiceTest {
 
         assertThat(result.successCount()).isZero();
         verify(candidatePort).findUnnotifiedBookedAfterId(
-                LocalDateTime.of(2026, 3, 1, 6, 0),
+                LocalDateTime.of(2026, 3, 2, 0, 0),
                 LocalDateTime.of(2026, 3, 3, 0, 0),
+                true,
                 NotificationEventType.REMINDER_D1,
                 0L,
                 100);

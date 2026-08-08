@@ -48,6 +48,9 @@ public class NotificationOutboxDispatcher {
                 switch (dispatchReserved(claimed)) {
                     case SENT -> successCount++;
                     case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
+                    case OBSOLETE -> log.info(
+                            "[알림 outbox] 현재 상태와 맞지 않는 리마인드 종결 [outboxId={}]",
+                            claimed.outboxId());
                     case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
                             claimed.outboxId());
                 }
@@ -64,12 +67,20 @@ public class NotificationOutboxDispatcher {
     }
 
     private DispatchOutcome dispatchReserved(NotificationOutboxReservation reservation) {
-        var request = transactionService.loadRequest(
+        var preparation = transactionService.prepareDelivery(
                 reservation.outboxId(), reservation.processingToken());
-        if (request.isEmpty()) {
-            return DispatchOutcome.STALE;
+        switch (preparation.status()) {
+            case OBSOLETE -> {
+                return DispatchOutcome.OBSOLETE;
+            }
+            case STALE -> {
+                return DispatchOutcome.STALE;
+            }
+            case READY -> {
+                // 아래 외부 발송은 prepareDelivery 트랜잭션 커밋 뒤 실행한다.
+            }
         }
-        NotificationOutboxDeliveryRequest delivery = request.get();
+        NotificationOutboxDeliveryRequest delivery = preparation.delivery();
         NotificationSendResult result;
         try {
             result = switch (delivery.recipientType()) {
@@ -148,6 +159,7 @@ public class NotificationOutboxDispatcher {
     private enum DispatchOutcome {
         SENT,
         FAILED,
+        OBSOLETE,
         STALE
     }
 }

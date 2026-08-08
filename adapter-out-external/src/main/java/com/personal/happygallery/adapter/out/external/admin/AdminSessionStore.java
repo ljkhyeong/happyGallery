@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.admin;
 
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import com.personal.happygallery.application.admin.port.AdminSession;
 import com.personal.happygallery.application.admin.port.out.AdminSessionPort;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
@@ -79,11 +80,17 @@ public class AdminSessionStore implements AdminSessionPort {
             Long adminUserId,
             String username,
             long credentialVersion,
-            boolean mfaEnabled) {
+            boolean mfaEnabled,
+            AdminAuthenticationMethod authenticationMethod) {
         String token = UUID.randomUUID().toString();
         String tokenHash = blindIndexer.index(token);
         AdminSession session = new AdminSession(
-                adminUserId, username, credentialVersion, mfaEnabled, Instant.now(clock));
+                adminUserId,
+                username,
+                credentialVersion,
+                mfaEnabled,
+                authenticationMethod,
+                Instant.now(clock));
         String encryptedSession = serializeAndEncrypt(session);
         String sessionKey = sessionKey(tokenHash);
         String indexKey = adminIndexKey(adminUserId, credentialVersion);

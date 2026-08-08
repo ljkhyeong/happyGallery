@@ -51,13 +51,11 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
     public BatchResult sendD1Reminders() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDate tomorrow = now.toLocalDate().plusDays(1);
-        LocalDateTime start = now.toLocalTime().isBefore(SAME_DAY_REMINDER_START)
-                ? now
-                : tomorrow.atStartOfDay();
+        LocalDateTime start = tomorrow.atStartOfDay();
         LocalDateTime end = tomorrow.plusDays(1).atStartOfDay();
 
         return sendReminders(
-                start, end, NotificationEventType.REMINDER_D1, "D-1 예약 리마인드");
+                start, end, true, NotificationEventType.REMINDER_D1, "D-1 예약 리마인드");
     }
 
     /**
@@ -74,17 +72,18 @@ public class DefaultBookingReminderBatchService implements BookingReminderBatchU
         LocalDateTime end = now.toLocalDate().plusDays(1).atStartOfDay();
 
         return sendReminders(
-                now, end, NotificationEventType.REMINDER_SAME_DAY, "당일 예약 리마인드");
+                now, end, false, NotificationEventType.REMINDER_SAME_DAY, "당일 예약 리마인드");
     }
 
     private BatchResult sendReminders(
             LocalDateTime start,
             LocalDateTime end,
+            boolean startInclusive,
             NotificationEventType eventType,
             String label) {
         return BatchExecutor.executeByIdCursor(
                 afterId -> reminderCandidatePort.findUnnotifiedBookedAfterId(
-                        start, end, eventType, afterId, PAGE_SIZE),
+                        start, end, startInclusive, eventType, afterId, PAGE_SIZE),
                 BookingReminderTarget::bookingId,
                 target -> requestReminder(target, eventType),
                 label);

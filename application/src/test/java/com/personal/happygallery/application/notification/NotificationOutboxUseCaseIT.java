@@ -70,8 +70,8 @@ class NotificationOutboxUseCaseIT {
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                         user.getId(),
-                        NotificationEventType.PASS_EXPIRY_SOON,
-                        "PASS_PURCHASE",
+                        NotificationEventType.ORDER_PAID,
+                        "ORDER",
                         1L)));
 
         awaitLogCount(notificationLogProbe, 1);
@@ -131,8 +131,8 @@ class NotificationOutboxUseCaseIT {
         User user = userStorePort.save(new User("outbox-rollback@example.com", "hash", "회원", "01087654321"));
         NotificationRequestedEvent rolledBackEvent = NotificationRequestedEvent.forUser(
                 user.getId(),
-                NotificationEventType.PASS_EXPIRY_SOON,
-                "PASS_PURCHASE",
+                NotificationEventType.ORDER_PAID,
+                "ORDER",
                 2L);
 
         assertThatThrownBy(() -> new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
@@ -143,14 +143,14 @@ class NotificationOutboxUseCaseIT {
                 .hasMessage("rollback");
 
         await().during(300, TimeUnit.MILLISECONDS)
-                .atMost(500, TimeUnit.MILLISECONDS)
+                .atMost(2, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     assertThat(outboxRepository.findAll())
                             .noneMatch(outbox -> rolledBackEvent.idempotencyKey()
                                     .equals(outbox.getIdempotencyKey()));
                     assertThat(notificationLogProbe.all())
                             .noneMatch(log -> user.getId().equals(log.getUserId())
-                                    && log.getEventType() == NotificationEventType.PASS_EXPIRY_SOON);
+                                    && log.getEventType() == NotificationEventType.ORDER_PAID);
                 });
     }
 
@@ -160,7 +160,7 @@ class NotificationOutboxUseCaseIT {
         User user = userStorePort.save(new User(
                 "outbox-concurrent@example.com", "hash", "회원", "01022223333"));
         NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
-                user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 20L);
+                user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 20L);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
         Callable<Boolean> enqueue = () -> {
@@ -207,7 +207,7 @@ class NotificationOutboxUseCaseIT {
                 "outbox-exception@example.com", "hash", "회원", "01011112222"));
         NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 3L),
+                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 3L),
                 LocalDateTime.now(clock)));
         jdbcTemplate.update("UPDATE users SET phone_enc = 'invalid' WHERE id = ?", user.getId());
 
@@ -236,7 +236,7 @@ class NotificationOutboxUseCaseIT {
                 "outbox-fencing@example.com", "hash", "회원", "01033334444"));
         NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.PASS_EXPIRY_SOON, "PASS_PURCHASE", 4L),
+                        user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 4L),
                 LocalDateTime.now(clock)));
 
         NotificationOutboxReservation first = outboxTransactionService

@@ -98,6 +98,10 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
   type: OrderPayloadType;
   cartCheckout: boolean;
   fulfillmentType: OrderPayloadFulfillmentType;
+  /**
+     * @minItems 0
+     * @maxItems 100
+     */
   items: OrderItemRef[];
   madeToOrderConsent: boolean;
   /** @nullable */

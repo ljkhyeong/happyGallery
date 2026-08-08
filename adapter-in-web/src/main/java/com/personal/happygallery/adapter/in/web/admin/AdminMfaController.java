@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaCodeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaDisableRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaEnrollmentResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaRecoveryCodesResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaRecoveryRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminMfaStatusResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase;
@@ -34,7 +35,8 @@ public class AdminMfaController {
     public AdminMfaStatusResponse getStatus(
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminMfaStatusResponse.from(
-                adminMfaUseCase.getStatus(admin.requireBearerAdminUserId()));
+                adminMfaUseCase.getStatus(admin.requireBearerAdminUserId()),
+                admin.isRecoveryCodeAuthenticated());
     }
 
     @PostMapping("/enrollment")
@@ -63,5 +65,17 @@ public class AdminMfaController {
             @RequestBody @Valid AdminMfaDisableRequest request) {
         adminMfaUseCase.disable(
                 admin.requireBearerAdminUserId(), request.currentPassword(), request.code());
+    }
+
+    @PostMapping("/recovery")
+    @Operation(operationId = "recoverAdminMfa")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void recover(
+            @AuthenticationPrincipal AdminPrincipal admin,
+            @RequestBody @Valid AdminMfaRecoveryRequest request) {
+        adminMfaUseCase.recover(
+                admin.requireBearerAdminUserId(),
+                request.currentPassword(),
+                admin.authenticationMethod());
     }
 }

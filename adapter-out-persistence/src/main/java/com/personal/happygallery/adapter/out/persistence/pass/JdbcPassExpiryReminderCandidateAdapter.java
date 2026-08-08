@@ -39,6 +39,7 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
                               WHERE n.event_type = :eventType
                                 AND n.aggregate_type = :aggregateType
                                 AND n.aggregate_id = p.id
+                                AND n.status <> 'OBSOLETE'
                           )
                         ORDER BY p.id
                         LIMIT :limit

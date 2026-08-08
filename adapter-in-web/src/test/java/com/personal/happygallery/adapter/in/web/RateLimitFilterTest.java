@@ -144,6 +144,26 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("MFA 복구도 일반 관리자 API보다 엄격한 로그인 처리율 제한을 적용한다")
+    @Test
+    void returns429_whenAdminMfaRecoveryLimitExceeded() throws Exception {
+        RateLimitFilter filter = filter(new TestRateLimits()
+                .adminLogin(1)
+                .adminApi(100)
+                .build(), mockRedis());
+
+        MockHttpServletResponse firstResponse = perform(
+                filter, "POST", "/api/v1/admin/auth/mfa/recovery");
+        MockHttpServletResponse secondResponse = perform(
+                filter, "POST", "/api/v1/admin/auth/mfa/recovery");
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(firstResponse.getHeader("X-RateLimit-Limit")).isEqualTo("1");
+            softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
     @DisplayName("최초 관리자 setup 경로는 일반 admin API보다 별도 rate limit이 적용된다")
     @Test
     void returns429_whenAdminSetupLimitExceeded() throws Exception {
@@ -351,6 +371,7 @@ class RateLimitFilterTest {
                 "/api/v1/payments/confirm",
                 "/api/v1/auth/password/reset",
                 "/api/v1/me/reauthentication/password",
+                "/api/v1/admin/auth/mfa/recovery",
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/guest-records/recovery",
                 "/api/v1/guest-records/payment-status-recovery",
@@ -448,6 +469,7 @@ class RateLimitFilterTest {
 
         private TestRateLimits highRiskPosts(long capacity) {
             customerLogin = capacity;
+            adminLogin = capacity;
             paymentPrepare = capacity;
             paymentConfirm = capacity;
             guestClaimVerify = capacity;
@@ -483,6 +505,7 @@ class RateLimitFilterTest {
                             perMinute(orderCustomerAction)
                     ),
                     new SubjectRules(
+                            perMinute(100),
                             perMinute(100),
                             perMinute(100),
                             perMinute(100),

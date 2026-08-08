@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from "react";
-import { Button, Container, Form, Nav } from "react-bootstrap";
+import { Alert, Button, Container, Form, Nav } from "react-bootstrap";
 import { useSearchParams } from "react-router";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminLoginGate } from "@/features/admin-auth/AdminLoginGate";
@@ -241,6 +241,26 @@ export function AdminPage() {
           {loggingOut ? "로그아웃 중..." : "로그아웃"}
         </Button>
       </header>
+
+      {productionMfaStatus.data?.recoveryResetAvailable && (
+        <Alert
+          variant="warning"
+          className="d-flex flex-wrap align-items-center justify-content-between gap-3"
+        >
+          <span>
+            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없다면 세션이 만료되기 전에
+            2단계 인증을 초기화하고 다시 등록해 주세요.
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline-dark"
+            onClick={() => selectView("settings")}
+          >
+            복구 진행
+          </Button>
+        </Alert>
+      )}
 
       <Form.Select
         className="admin-workspace-mobile-nav d-sm-none"

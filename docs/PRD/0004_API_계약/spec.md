@@ -45,6 +45,8 @@
 - 세션 저장소는 Redis 기반 `AdminSessionStore`를 사용한다. 여러 인스턴스가 떠 있어도 같은 세션을 본다.
 - Redis에는 관리자 토큰 원문을 키로 쓰지 않고 토큰 HMAC을 사용하며, 세션 JSON도 AES-GCM 암호문으로 저장한다.
 - 세션에는 발급 당시 `credentialVersion`을 저장한다. 비밀번호 또는 MFA 설정 변경으로 DB 버전이 증가하면 기존 버전의 모든 세션은 즉시 인증에 실패하고, Redis 세션 키는 커밋 후 일괄 삭제한다.
+- 세션에는 마지막 인증 수단도 저장한다. 복구 코드로 로그인한 세션만 MFA 복구 초기화 권한을 가지며,
+  인증 수단이 없던 기존 세션 payload는 비밀번호 전용 최소 권한으로 처리한다.
 - 로그인과 MFA 결과는 사용자명이나 challenge 원문 대신 HMAC을 사용한 감사 이력으로 남기고 180일 뒤 삭제한다.
 
 #### 인증 엔드포인트
@@ -96,9 +98,12 @@ Authorization: Bearer {token}
 {
   "enabled": false,
   "enrollmentPending": false,
-  "recoveryCodesRemaining": 0
+  "recoveryCodesRemaining": 0,
+  "recoveryResetAvailable": false
 }
 ```
+
+- `recoveryResetAvailable`은 현재 Bearer 세션이 복구 코드로 로그인해 MFA 초기화를 호출할 수 있을 때만 `true`다.
 
 ```http
 POST /api/v1/admin/auth/mfa/enrollment
@@ -143,6 +148,23 @@ Content-Type: application/json
 ```
 
 - 현재 비밀번호와 유효한 TOTP 또는 미사용 복구 코드를 모두 확인한 뒤 `204 No Content`로 MFA를 해제하고 기존 세션을 모두 무효화한다.
+
+```http
+POST /api/v1/admin/auth/mfa/recovery
+Authorization: Bearer {recovery-code-authenticated-token}
+Content-Type: application/json
+
+{ "currentPassword": "..." }
+```
+
+- 미사용 복구 코드로 MFA 로그인을 완료한 같은 Bearer 세션과 현재 비밀번호를 모두 확인한 뒤
+  `204 No Content`로 MFA를 초기화한다. 성공하면 TOTP 비밀키와 모든 복구 코드를 삭제하고
+  `credentialVersion`을 증가시켜 현재 세션을 포함한 기존 관리자 세션을 모두 무효화한다.
+- TOTP·비밀번호 전용 Bearer 세션과 local API key는 `403 FORBIDDEN`, 현재 비밀번호가 틀리면
+  `401 INVALID_CREDENTIALS`다. 관리 화면은 `recoveryResetAvailable=true`일 때만 복구 폼을 표시하고,
+  성공 응답을 받으면 로컬 토큰과 관리자 캐시를 먼저 제거한 뒤 새 로그인·MFA 등록을 안내한다.
+- 로그인·MFA 확인과 같은 fail-closed IP 처리율 제한을 공유하며 기본값은 분당 5회다. Redis 제한 상태를
+  확인할 수 없으면 현재 비밀번호 BCrypt 검증과 관리자 행 잠금에 진입하지 않고 `503`으로 거절한다.
 - 인증 앱과 모든 복구 코드를 함께 잃었을 때의 자동 복구는 지원하지 않는다. `ADMIN_SETUP_TOKEN`을 재사용하거나 DB에서 MFA를 직접 해제하지 않는다. 별도 검토된 오프라인 복구 기능을 배포하기 전까지 관리자 접근을 복구할 수 없으므로 복구 코드는 MFA 등록 직후 별도 장소에 보관한다.
 
 ```http
@@ -281,6 +303,7 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 - 회원가입 전화번호는 공백·하이픈을 제거한 숫자 형식으로 통일하며, 회원 응답의 `phone`도 같은 형식을 사용한다.
 - 휴대폰 인증과 비회원 결제 payload의 표준 전화번호 형식은 `^01[0-9]{8,9}$`이다.
 - 서버 로그에는 전화번호, 인증 코드, 결제 키, 관리자 세션 토큰과 외부 서비스 오류 원문을 남기지 않는다.
+- JSON 요청 본문은 파싱 단계에서 문서 2MiB, 토큰 50,000개, 단일 문자열 1MiB를 상한으로 두며 초과하면 `400 INVALID_INPUT`으로 거절한다. 개별 DTO의 더 작은 문자열·목록 상한은 이 공통 파싱 한도보다 우선한다.
 - 모든 `/api/v1/**` 요청은 IP 기준 기본 처리율 제한을 적용하고, 인증·결제·검증처럼 비용이 큰 경로는 더 엄격한 독립 버킷을 사용한다.
 - 휴대폰·이메일 인증 코드 발송과 확인 시도, 고객 로그인, 결제 확정과 비회원 이력 인증은 검증 대상 전화번호·정규화 이메일·주문번호·회원 ID 기준 제한도 함께 적용한다.
 - Redis 처리율 제한 버킷은 IP, 전화번호, 이메일, 주문번호 또는 회원 ID 원문 대신 HMAC 식별자를 사용한다.
@@ -1197,6 +1220,7 @@ POST 요청:
 - 성공: POST `200 OK` 단건, GET `200 OK` 최신 접수순 목록
 - 정책:
   - `DELIVERED`, `PICKED_UP`, `COMPLETED` 주문만 접수한다.
+  - 한 요청의 `items`는 1~100건이다.
   - 거절되지 않은 기존 접수 수량을 제외해 주문 항목의 결제 수량을 초과할 수 없다.
   - 응답은 클레임 상태, 관리자 메모, 품목명·단가·수량, 최대 환불액, nullable 환불 금액·상태·교환 배송 정보를 포함한다.
   - 상태는 `REQUESTED`, `REFUND_REQUESTED`, `EXCHANGE_APPROVED`, `REJECTED`, `COMPLETED`다.
@@ -2098,12 +2122,16 @@ Authorization: Bearer {token}
 
 - `GET /api/v1/admin/notifications/failed`
   - 자동 재시도를 모두 소진한 `FAILED` outbox를 오래된 순서로 최대 100건 반환한다.
+  - 현재 도메인 상태와 맞지 않아 발송 없이 종결된 `OBSOLETE` 리마인드는 실패 목록에 포함하지 않는다.
   - `createdAt`은 UTC 오프셋을 포함한 ISO-8601 시각으로 반환한다.
 - `POST /api/v1/admin/notifications/{outboxId}/retry`
   - 성공: `200 OK`, 기존 outbox를 `PENDING`으로 다시 연 결과를 반환한다.
   - 에러: `404 NOT_FOUND`, `400 INVALID_INPUT`(최종 실패가 아닌 outbox)
 
 재처리는 새 알림 요청을 만들지 않고 기존 outbox와 멱등키를 그대로 사용한다. 다음 scheduler 주기 또는 dispatcher가 발송을 다시 시도한다.
+`OBSOLETE`는 재처리할 수 없고 기존과 동일하게 `400 INVALID_INPUT`으로 거절한다.
+다만 일정 재변경·마감 연장으로 같은 시간 의존 리마인드가 미래 유효 구간에 다시 들어온 경우에는 정기 배치가
+같은 outbox와 멱등키를 자동으로 `PENDING`으로 재활성화하며, 이는 관리자 API 동작이 아니다.
 
 #### 2.11.5 결제 대사 목록과 PG 조회
 
@@ -2714,6 +2742,7 @@ Cookie: HG_SESSION={sessionToken}
 - `POST /api/v1/me/cart/merge`
   - 요청: `{ "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
   - 각 항목의 `productId`, `qty`는 필수다.
+  - `items`는 1~100건이다.
   - 응답: `204 No Content`
   - 로그인 직전의 비회원 장바구니를 한 번에 합친다. 같은 회원과 멱등키의 재요청은 수량을 다시 더하지 않는다.
   - 같은 회원과 멱등키로 다른 상품·수량을 보내면 `409 CONFLICT`로 거절한다.
@@ -2728,6 +2757,7 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 같은 회원의 모든 장바구니 변경은 소유자 잠금을 먼저 획득한다. 최초 추가가 동시에 실행돼 기존 항목 행이 아직 없어도 한 행에 수량을 합산한다.
 - 추가·수정·병합 수량은 상품별 1~99개다. 병합 요청에서 같은 상품이 여러 번 나오면 합산 수량에도 같은 상한을 적용한다.
 - 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
 - 장바구니 병합 멱등 응답은 요청 생성 후 7일간 보장한다. 클라이언트는 이 기간을 넘겨 같은 키를 재사용하지 않으며 서버는 보존 배치에서 오래된 기록을 정리한다.
@@ -2770,7 +2800,7 @@ Cookie: HG_SESSION={sessionToken}
 - `readAt != null`이면 `read=true`로 본다.
 - 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
 - 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
-- 발송 완료 알림과 최종 실패로 종결된 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
+- 발송 완료, 현재 의미가 사라져 발송 없이 종결된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
 
 ### 2.13 공개 Product Q&A API
 #### 2.13.1 상품 Q&A 목록 조회
@@ -2885,7 +2915,7 @@ Content-Type: application/json
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
-    - `ORDER`: 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
+    - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
   - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.

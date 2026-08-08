@@ -44,6 +44,11 @@ class JpaNotificationPersistenceAdapter implements NotificationLogStorePort, Not
     }
 
     @Override
+    public Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(String idempotencyKey) {
+        return notificationOutboxRepository.findByIdempotencyKeyForUpdate(idempotencyKey);
+    }
+
+    @Override
     public List<NotificationOutbox> findDispatchable(
             LocalDateTime now, LocalDateTime staleBefore, int limit) {
         return notificationOutboxRepository.findDispatchable(now, staleBefore, limit);

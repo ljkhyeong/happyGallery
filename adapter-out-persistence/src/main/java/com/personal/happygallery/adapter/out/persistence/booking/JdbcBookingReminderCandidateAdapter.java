@@ -22,6 +22,7 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
     public List<BookingReminderTarget> findUnnotifiedBookedAfterId(
             LocalDateTime start,
             LocalDateTime end,
+            boolean startInclusive,
             NotificationEventType eventType,
             Long afterId,
             int limit) {
@@ -30,7 +31,8 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                         FROM bookings b
                         JOIN slots s ON s.id = b.slot_id
                         WHERE b.status = 'BOOKED'
-                          AND s.start_at >= :start
+                          AND ((:startInclusive = TRUE AND s.start_at >= :start)
+                               OR (:startInclusive = FALSE AND s.start_at > :start))
                           AND s.start_at < :end
                           AND b.id > :afterId
                           AND NOT EXISTS (
@@ -39,12 +41,14 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                               WHERE n.event_type = :eventType
                                 AND n.aggregate_type = :aggregateType
                                 AND n.aggregate_id = b.id
+                                AND n.status <> 'OBSOLETE'
                           )
                         ORDER BY b.id
                         LIMIT :limit
                         """)
                 .param("start", start)
                 .param("end", end)
+                .param("startInclusive", startInclusive)
                 .param("afterId", afterId)
                 .param("eventType", eventType.name())
                 .param("aggregateType", AGGREGATE_TYPE)

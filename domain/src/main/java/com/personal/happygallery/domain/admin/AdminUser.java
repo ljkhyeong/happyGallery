@@ -64,6 +64,9 @@ public class AdminUser {
     }
 
     public void beginMfaEnrollment(String encryptedSecret) {
+        if (mfaEnabled) {
+            throw new IllegalStateException("MFA가 이미 활성화되어 있습니다.");
+        }
         totpSecretEnc = encryptedSecret;
         mfaEnabled = false;
         lastAcceptedTotpStep = null;
@@ -78,6 +81,9 @@ public class AdminUser {
     }
 
     public long enableMfa() {
+        if (mfaEnabled) {
+            throw new IllegalStateException("MFA가 이미 활성화되어 있습니다.");
+        }
         if (totpSecretEnc == null) {
             throw new IllegalStateException("등록 중인 MFA 비밀키가 없습니다.");
         }
@@ -88,6 +94,9 @@ public class AdminUser {
     }
 
     public long disableMfa() {
+        if (!mfaEnabled) {
+            throw new IllegalStateException("MFA가 활성화되어 있지 않습니다.");
+        }
         long invalidatedCredentialVersion = credentialVersion;
         totpSecretEnc = null;
         mfaEnabled = false;

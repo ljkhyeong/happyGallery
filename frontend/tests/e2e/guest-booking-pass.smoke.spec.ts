@@ -21,7 +21,8 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
-  test.skip(classes.length === 0, "P8 booking flow requires at least one class in the local DB");
+  expect(classes.length, "P8 booking flow requires at least one class in the local DB")
+    .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
   const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 4, 10, 7);
@@ -108,9 +109,11 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
-  test.skip(classes.length === 0, "P8 pass flow requires at least one class in the local DB");
+  expect(classes.length, "P8 pass flow requires at least one class in the local DB")
+    .toBeGreaterThan(0);
   const bookingClass = classes.find((candidate) => candidate.passEligible);
-  test.skip(!bookingClass, "P8 pass flow requires a pass-eligible class in the local DB");
+  expect(bookingClass, "P8 pass flow requires a pass-eligible class in the local DB")
+    .toBeDefined();
 
   const slotStart = await findUniqueSlotStart(request, bookingClass!.id, 5, 11, 11);
   const slot = await createAdminSlot(request, {

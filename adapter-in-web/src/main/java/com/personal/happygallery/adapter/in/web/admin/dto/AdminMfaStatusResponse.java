@@ -9,12 +9,17 @@ public record AdminMfaStatusResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         boolean enrollmentPending,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0")
-        long recoveryCodesRemaining
+        long recoveryCodesRemaining,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        boolean recoveryResetAvailable
 ) {
-    public static AdminMfaStatusResponse from(MfaStatus status) {
+    public static AdminMfaStatusResponse from(
+            MfaStatus status,
+            boolean recoveryResetAvailable) {
         return new AdminMfaStatusResponse(
                 status.enabled(),
                 status.enrollmentPending(),
-                status.recoveryCodesRemaining());
+                status.recoveryCodesRemaining(),
+                recoveryResetAvailable);
     }
 }

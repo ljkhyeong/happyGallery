@@ -1,7 +1,8 @@
 package com.personal.happygallery.application.admin;
 
-import com.personal.happygallery.application.admin.port.out.AdminMfaChallengePort;
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot;
+import com.personal.happygallery.application.admin.port.out.AdminMfaChallengePort;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.admin.AdminAuthOutcome;
 import com.personal.happygallery.domain.admin.AdminMfaChallenge;
@@ -69,7 +70,8 @@ class AdminAuthenticationTransactionService {
             adminUserPort.save(admin);
         }
         if (!admin.isMfaEnabled()) {
-            return AuthenticationDecision.authenticated(admin);
+            return AuthenticationDecision.authenticated(
+                    admin, AdminAuthenticationMethod.PASSWORD);
         }
 
         LocalDateTime now = LocalDateTime.now(clock);
@@ -137,7 +139,12 @@ class AdminAuthenticationTransactionService {
             auditService.record(
                     admin.getId(), admin.getUsername(), AdminAuthOutcome.RECOVERY_CODE_USED);
         }
-        return AuthenticationDecision.authenticated(admin);
+        AdminAuthenticationMethod authenticationMethod = switch (verification) {
+            case TOTP -> AdminAuthenticationMethod.TOTP;
+            case RECOVERY_CODE -> AdminAuthenticationMethod.RECOVERY_CODE;
+            case INVALID -> throw new IllegalStateException("검증 실패 인증 수단은 세션을 만들 수 없습니다.");
+        };
+        return AuthenticationDecision.authenticated(admin, authenticationMethod);
     }
 
     record AuthenticationDecision(
@@ -146,24 +153,29 @@ class AdminAuthenticationTransactionService {
             String username,
             long credentialVersion,
             boolean mfaEnabled,
+            AdminAuthenticationMethod authenticationMethod,
             String challengeToken
     ) {
-        static AuthenticationDecision authenticated(AdminUser admin) {
+        static AuthenticationDecision authenticated(
+                AdminUser admin,
+                AdminAuthenticationMethod authenticationMethod) {
             return new AuthenticationDecision(
                     true,
                     admin.getId(),
                     admin.getUsername(),
                     admin.getCredentialVersion(),
                     admin.isMfaEnabled(),
+                    authenticationMethod,
                     null);
         }
 
         static AuthenticationDecision mfaRequired(String challengeToken) {
-            return new AuthenticationDecision(false, null, null, 0, false, challengeToken);
+            return new AuthenticationDecision(
+                    false, null, null, 0, false, null, challengeToken);
         }
 
         static AuthenticationDecision rejected() {
-            return new AuthenticationDecision(false, null, null, 0, false, null);
+            return new AuthenticationDecision(false, null, null, 0, false, null, null);
         }
 
         boolean requiresMfa() {

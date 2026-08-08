@@ -3,11 +3,15 @@ package com.personal.happygallery.application.pass;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.notification.NotificationOutboxDispatcher;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxInsertPort;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
+import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.NotificationLogProbe;
@@ -40,6 +44,7 @@ import static org.mockito.Mockito.doThrow;
 class PassExpiryNotificationUseCaseIT {
 
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
+    @Autowired NotificationOutboxDispatcher notificationOutboxDispatcher;
     @Autowired UserStorePort userStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -188,6 +193,37 @@ class PassExpiryNotificationUseCaseIT {
                     .singleElement()
                     .satisfies(outbox -> softly.assertThat(outbox.getAggregateId())
                             .isEqualTo(successfulPass.getId()));
+        });
+    }
+
+    @DisplayName("발송 전에 잔여 횟수가 사라진 8회권 만료 알림은 외부 발송 없이 종결한다")
+    @Test
+    void dispatchExpiryReminder_withoutRemainingCredits_marksObsolete() {
+        User user = userStorePort.save(new User(
+                "pass-expiry-obsolete@example.com", "hashed-password", "회원", "01012121212"));
+        LocalDateTime now = LocalDateTime.now(clock);
+        PassPurchase pass = passPurchaseStorePort.save(
+                passPurchase(user.getId(), now.plusDays(7), 0L));
+        NotificationOutbox outbox = notificationOutboxRepository.save(NotificationOutbox.from(
+                NotificationRequestedEvent.forUser(
+                        user.getId(),
+                        NotificationEventType.PASS_EXPIRY_SOON,
+                        "PASS_PURCHASE",
+                        pass.getId()),
+                now));
+        pass.expire();
+        passPurchaseStorePort.save(pass);
+
+        BatchResult result = notificationOutboxDispatcher.dispatchPending();
+
+        NotificationOutbox obsolete = notificationOutboxRepository.findById(outbox.getId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(result.successCount()).isZero();
+            softly.assertThat(result.failureCount()).isZero();
+            softly.assertThat(obsolete.getStatus()).isEqualTo(NotificationOutboxStatus.OBSOLETE);
+            softly.assertThat(obsolete.getLastError()).isEqualTo("REMINDER_NO_LONGER_ELIGIBLE");
+            softly.assertThat(obsolete.getProcessedAt()).isEqualTo(now);
+            softly.assertThat(notificationLogProbe.all()).isEmpty();
         });
     }
 }

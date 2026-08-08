@@ -8,5 +8,6 @@ public enum AdminAuthOutcome {
     MFA_FAILED,
     MFA_ENABLED,
     MFA_DISABLED,
+    MFA_RECOVERY_RESET,
     RECOVERY_CODE_USED
 }

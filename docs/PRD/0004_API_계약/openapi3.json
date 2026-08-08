@@ -406,6 +406,17 @@
         "required" : [ "recoveryCodes" ],
         "type" : "object"
       },
+      "AdminMfaRecoveryRequest" : {
+        "properties" : {
+          "currentPassword" : {
+            "maxLength" : 72,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "currentPassword" ],
+        "type" : "object"
+      },
       "AdminMfaStatusResponse" : {
         "properties" : {
           "enabled" : {
@@ -418,9 +429,12 @@
             "format" : "int64",
             "minimum" : 0,
             "type" : "integer"
+          },
+          "recoveryResetAvailable" : {
+            "type" : "boolean"
           }
         },
-        "required" : [ "enabled", "enrollmentPending", "recoveryCodesRemaining" ],
+        "required" : [ "enabled", "enrollmentPending", "recoveryCodesRemaining", "recoveryResetAvailable" ],
         "type" : "object"
       },
       "AdminMfaVerificationRequest" : {
@@ -2468,6 +2482,7 @@
             "items" : {
               "$ref" : "#/components/schemas/MergeCartItemRequest"
             },
+            "maxItems" : 100,
             "minItems" : 1,
             "type" : "array"
           }
@@ -2764,6 +2779,7 @@
             "items" : {
               "$ref" : "#/components/schemas/ClaimItemRequest"
             },
+            "maxItems" : 100,
             "minItems" : 1,
             "type" : "array"
           },
@@ -2997,6 +3013,8 @@
               "items" : {
                 "$ref" : "#/components/schemas/OrderItemRef"
               },
+              "maxItems" : 100,
+              "minItems" : 0,
               "type" : "array"
             },
             "madeToOrderConsent" : {
@@ -4680,6 +4698,27 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-mfa-controller" ]
+      }
+    },
+    "/api/v1/admin/auth/mfa/recovery" : {
+      "post" : {
+        "operationId" : "recoverAdminMfa",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/AdminMfaRecoveryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "admin-mfa-controller" ]

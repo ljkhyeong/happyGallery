@@ -6,6 +6,7 @@ import {
   confirmAdminMfaEnrollment as confirmAdminMfaEnrollmentRequest,
   disableAdminMfa as disableAdminMfaRequest,
   getAdminMfaStatus as getAdminMfaStatusRequest,
+  recoverAdminMfa as recoverAdminMfaRequest,
   verifyAdminMfa as verifyAdminMfaRequest,
   type AdminMfaEnrollmentResponse,
   type AdminMfaRecoveryCodesResponse,
@@ -74,6 +75,15 @@ export function disableAdminMfa(
   code: string,
 ): Promise<void> {
   return disableAdminMfaRequest({ currentPassword, code }, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function recoverAdminMfa(
+  adminKey: string,
+  currentPassword: string,
+): Promise<void> {
+  return recoverAdminMfaRequest({ currentPassword }, {
     headers: adminHeaders(adminKey),
   });
 }

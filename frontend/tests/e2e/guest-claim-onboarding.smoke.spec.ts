@@ -20,7 +20,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
 
   const productName = makeUniqueLabel("P8-claim-order");
   const classes = await fetchClasses(request);
-  test.skip(classes.length === 0, "P8 guest claim flow requires at least one class in the local DB");
+  expect(classes.length, "P8 guest claim flow requires at least one class in the local DB")
+    .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
   const slotStart = await findUniqueSlotStart(request, bookingClass.id, 7, 13, 5);

@@ -47,6 +47,7 @@ export interface AdminMfaStatusResponse {
   enrollmentPending: boolean;
   /** @minimum 0 */
   recoveryCodesRemaining: number;
+  recoveryResetAvailable: boolean;
 }
 
 export interface AdminMfaEnrollmentResponse {
@@ -64,6 +65,14 @@ export interface AdminMfaCodeRequest {
 
 export interface AdminMfaRecoveryCodesResponse {
   recoveryCodes: string[];
+}
+
+export interface AdminMfaRecoveryRequest {
+  /**
+     * @minLength 1
+     * @maxLength 72
+     */
+  currentPassword: string;
 }
 
 export interface AdminMfaVerificationRequest {
@@ -213,6 +222,27 @@ export const confirmAdminMfaEnrollment = async (adminMfaCodeRequest: AdminMfaCod
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(adminMfaCodeRequest)
+  }
+);}
+
+
+
+export const getRecoverAdminMfaUrl = () => {
+
+
+
+
+  return `/api/v1/admin/auth/mfa/recovery`
+}
+
+export const recoverAdminMfa = async (adminMfaRecoveryRequest: AdminMfaRecoveryRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRecoverAdminMfaUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminMfaRecoveryRequest)
   }
 );}
 

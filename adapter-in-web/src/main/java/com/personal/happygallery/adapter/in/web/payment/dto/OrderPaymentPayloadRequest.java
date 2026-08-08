@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.util.List;
 
 @Schema(name = "OrderPayload")
@@ -25,7 +26,7 @@ public record OrderPaymentPayloadRequest(
         @Schema(nullable = true) String phone,
         @Schema(nullable = true) String verificationCode,
         @Schema(nullable = true) String name,
-        @NotNull List<@Valid OrderItemRefRequest> items,
+        @NotNull @Size(max = 100) List<@NotNull @Valid OrderItemRefRequest> items,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean cartCheckout,
         @NotNull FulfillmentType fulfillmentType,
         @Valid @Schema(nullable = true) ShippingAddressRequest shippingAddress,

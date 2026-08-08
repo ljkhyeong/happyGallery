@@ -22,6 +22,11 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     @Query("SELECT n FROM NotificationOutbox n WHERE n.id = :id")
     Optional<NotificationOutbox> findByIdForUpdate(@Param("id") Long id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT n FROM NotificationOutbox n WHERE n.idempotencyKey = :idempotencyKey")
+    Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(
+            @Param("idempotencyKey") String idempotencyKey);
+
     @Query("""
             SELECT n
             FROM NotificationOutbox n

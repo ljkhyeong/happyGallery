@@ -46,7 +46,8 @@ public record RateLimitProperties(
             @Valid @NotNull Rule paymentConfirm,
             @Valid @NotNull Rule guestClaimVerify,
             @Valid @NotNull Rule guestRecordRecovery,
-            @Valid @NotNull Rule passRefund
+            @Valid @NotNull Rule passRefund,
+            @Valid @NotNull Rule adminMfaRecovery
     ) {}
 
     public record Rule(

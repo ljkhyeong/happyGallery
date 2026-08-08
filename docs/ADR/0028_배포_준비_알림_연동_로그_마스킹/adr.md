@@ -39,6 +39,8 @@
 - `FulfillmentPort.findPickupsApproachingDeadline(from, to)`: `PICKUP_READY` 상태이고 `pickupDeadlineAt`이 `now~now+2h` 범위인 fulfillment를 조회.
 - `DefaultPickupDeadlineReminderBatchService`: 주문의 guest/user 분기 발송, `ORDER + orderId` outbox 멱등키로 주문별 중복 방지.
 - `BatchScheduler`에 매시간 정각 cron 등록.
+- outbox dispatch 직전 주문 상태와 현재 마감 구간을 다시 확인하며, 이미 픽업 완료·만료됐거나 마감이 지난 요청은
+  외부 발송 없이 `OBSOLETE`로 종결한다.
 
 ### 3. 세션 쿠키 Secure 플래그
 

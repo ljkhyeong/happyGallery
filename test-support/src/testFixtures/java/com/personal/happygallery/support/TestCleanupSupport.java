@@ -182,6 +182,11 @@ public class TestCleanupSupport {
         TestDataCleaner.clearProductData(inventoryAdjustmentRepository, inventoryRepository, productRepository);
     }
 
+    public void clearCartData() {
+        jdbcTemplate.update("DELETE FROM cart_merge_requests");
+        jdbcTemplate.update("DELETE FROM cart_items");
+    }
+
     public void clearPassData() {
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();

@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.order.OrderClaimResolution;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderClaimType;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -64,6 +65,43 @@ class OrderClaimApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content(requestBody()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 클레임 접수 API는 품목 100건을 초과한 요청을 거절한다")
+    void request_member_order_claim_rejects_more_than_100_items() throws Exception {
+        String items = "[" + String.join(",", Collections.nCopies(
+                101, "{\"orderItemId\":300,\"quantity\":1}")) + "]";
+
+        mockMvc.perform(post("/api/v1/me/orders/200/claims")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "DAMAGED",
+                                  "requestedResolution": "REFUND",
+                                  "reason": "수령한 상품이 파손되었습니다.",
+                                  "items": %s
+                                }
+                                """.formatted(items)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("주문 클레임 접수 API는 null 품목을 검증 오류로 거절한다")
+    void request_member_order_claim_rejects_null_item() throws Exception {
+        mockMvc.perform(post("/api/v1/me/orders/200/claims")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "type": "DAMAGED",
+                                  "requestedResolution": "REFUND",
+                                  "reason": "수령한 상품이 파손되었습니다.",
+                                  "items": [null]
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

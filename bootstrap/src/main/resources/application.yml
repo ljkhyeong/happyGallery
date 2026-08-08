@@ -29,6 +29,13 @@ spring:
       "[mail.smtp.starttls.enable]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
       "[mail.smtp.starttls.required]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
       "[mail.smtp.ssl.checkserveridentity]": true
+  jackson:
+    factory:
+      constraints:
+        read:
+          max-document-length: 2097152
+          max-token-count: 50000
+          max-string-length: 1048576
   servlet:
     multipart:
       max-file-size: 5MB
@@ -270,6 +277,7 @@ app:
       guest-claim-verify: { capacity: 5, window: 1m }
       guest-record-recovery: { capacity: 5, window: 10m }
       pass-refund: { capacity: 3, window: 10m }
+      admin-mfa-recovery: { capacity: 5, window: 10m }
 
 management:
   server:

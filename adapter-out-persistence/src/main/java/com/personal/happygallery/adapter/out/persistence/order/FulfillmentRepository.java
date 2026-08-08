@@ -48,6 +48,8 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long> 
                       com.personal.happygallery.domain.notification.NotificationEventType.PICKUP_DEADLINE_REMINDER
                     AND n.aggregateType = 'ORDER'
                     AND n.aggregateId = f.orderId
+                    AND n.status <>
+                        com.personal.happygallery.domain.notification.NotificationOutboxStatus.OBSOLETE
               )
             """)
     List<PickupReminderTarget> findPickupReminderTargets(@Param("from") LocalDateTime from,

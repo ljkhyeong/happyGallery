@@ -47,6 +47,7 @@ import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -432,6 +433,55 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("결제 prepare API는 주문 상품 100건을 초과한 요청을 거절한다")
+    void prepare_payment_rejects_more_than_100_order_items() throws Exception {
+        String items = "[" + String.join(",", Collections.nCopies(
+                101, "{\"productId\":1,\"qty\":1}")) + "]";
+
+        mockMvc.perform(post("/api/v1/payments/prepare")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "context": "ORDER",
+                                  "payload": {
+                                    "type": "ORDER",
+                                    "userId": 11,
+                                    "items": %s,
+                                    "cartCheckout": false,
+                                    "fulfillmentType": "PICKUP",
+                                    "shippingAddress": null,
+                                    "madeToOrderConsent": false
+                                  }
+                                }
+                                """.formatted(items)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("결제 prepare API는 null 주문 상품을 검증 오류로 거절한다")
+    void prepare_payment_rejects_null_order_item() throws Exception {
+        mockMvc.perform(post("/api/v1/payments/prepare")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "context": "ORDER",
+                                  "payload": {
+                                    "type": "ORDER",
+                                    "userId": 11,
+                                    "items": [null],
+                                    "cartCheckout": false,
+                                    "fulfillmentType": "PICKUP",
+                                    "shippingAddress": null,
+                                    "madeToOrderConsent": false
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

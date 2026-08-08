@@ -56,7 +56,10 @@ export interface MergeCartItemRequest {
 
 export interface MergeCartRequest {
   idempotencyKey: string;
-  /** @minItems 1 */
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
   items: MergeCartItemRequest[];
 }
 

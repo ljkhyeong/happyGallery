@@ -8,6 +8,7 @@ import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.cart.port.out.CartMergeRequestStorePort;
 import com.personal.happygallery.application.cart.port.out.CartMergeRequestStorePort.Registration;
+import com.personal.happygallery.application.cart.port.out.CartOwnerLockPort;
 import com.personal.happygallery.application.cart.port.out.CartReadModelPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.cart.CartItem;
@@ -40,6 +41,7 @@ public class DefaultCartService implements CartUseCase {
     private final CartItemReaderPort cartItemReader;
     private final CartItemStorePort cartItemStore;
     private final CartMergeRequestStorePort cartMergeRequestStore;
+    private final CartOwnerLockPort cartOwnerLock;
     private final CartReadModelPort cartReadModel;
     private final ProductReaderPort productReader;
     private final Clock clock;
@@ -47,12 +49,14 @@ public class DefaultCartService implements CartUseCase {
     public DefaultCartService(CartItemReaderPort cartItemReader,
                               CartItemStorePort cartItemStore,
                               CartMergeRequestStorePort cartMergeRequestStore,
+                              CartOwnerLockPort cartOwnerLock,
                               CartReadModelPort cartReadModel,
                               ProductReaderPort productReader,
                               Clock clock) {
         this.cartItemReader = cartItemReader;
         this.cartItemStore = cartItemStore;
         this.cartMergeRequestStore = cartMergeRequestStore;
+        this.cartOwnerLock = cartOwnerLock;
         this.cartReadModel = cartReadModel;
         this.productReader = productReader;
         this.clock = clock;
@@ -92,6 +96,7 @@ public class DefaultCartService implements CartUseCase {
                 .orElseThrow(NotFoundException.supplier("상품"));
         LocalDateTime changedAt = LocalDateTime.now(clock);
 
+        cartOwnerLock.lock(userId);
         addItem(userId, productId, qty, changedAt);
     }
 
@@ -107,6 +112,7 @@ public class DefaultCartService implements CartUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 수량이 너무 큽니다.");
         }
         LocalDateTime changedAt = LocalDateTime.now(clock);
+        cartOwnerLock.lock(userId);
         Registration registration = cartMergeRequestStore.register(
                 userId, idempotencyKey, payloadHash(quantitiesByProductId), changedAt);
         if (registration == Registration.REPLAY) {
@@ -158,6 +164,7 @@ public class DefaultCartService implements CartUseCase {
 
     @Override
     public void updateItemQty(Long userId, Long productId, int qty) {
+        cartOwnerLock.lock(userId);
         CartItem item = cartItemReader.findByUserIdAndProductIdForUpdate(userId, productId)
                 .orElseThrow(NotFoundException.supplier("장바구니 항목"));
         LocalDateTime updatedAt = LocalDateTime.now(clock);
@@ -166,6 +173,7 @@ public class DefaultCartService implements CartUseCase {
 
     @Override
     public void removeItem(Long userId, Long productId) {
+        cartOwnerLock.lock(userId);
         CartItem item = cartItemReader.findByUserIdAndProductIdForUpdate(userId, productId)
                 .orElseThrow(NotFoundException.supplier("장바구니 항목"));
         cartItemStore.delete(item);
@@ -180,6 +188,7 @@ public class DefaultCartService implements CartUseCase {
         if (purchasedQuantities.isEmpty()) {
             return;
         }
+        cartOwnerLock.lock(userId);
         List<CartItem> purchasedCartItems = cartItemReader.findAllByUserIdAndIdInOrderByIdAsc(
                 userId, purchasedQuantities.keySet());
         for (CartItem cartItem : purchasedCartItems) {

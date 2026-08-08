@@ -1,7 +1,7 @@
 # ADR-0032: 알림 Outbox 전달 보장
 
 **날짜**: 2026-07-04
-**최종 갱신**: 2026-08-02
+**최종 갱신**: 2026-08-08
 **상태**: Accepted
 
 ---
@@ -31,7 +31,7 @@
   전파하지 않고, 다음 `NotificationOutboxScheduler` 주기가 같은 pending 행을 회수한다.
 - `NotificationOutboxDispatcher#dispatchPending`은 `Propagation.NEVER`로 외부 알림 호출이 활성 트랜잭션 안에서
   실행되지 않도록 선언적으로 강제한다.
-- outbox 예약과 결과 갱신은 짧은 `REQUIRES_NEW` 트랜잭션으로 처리하고, 발송 요청 조회는 `readOnly` 기본 전파를 사용한다.
+- outbox 예약, 발송 준비, 결과 갱신은 각각 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   한 실행은 최대 50건을 처리하되 한 건씩 선점하고 결과를 확정한 뒤 다음 건을 선점한다. 아직 외부 호출 순서를 기다리는 행까지
   미리 `PROCESSING`으로 바꾸지 않아 같은 실행 안의 대기 시간 때문에 lease가 만료되는 일을 막는다.
 - outbox를 선점할 때마다 새 `processing_token`을 발급하고 요청 조회와 결과 반영에 함께 전달한다. `@Version`과 토큰이 오래된 실행의 성공·실패 결과가 최신 재선점 상태를 덮지 않게 한다.
@@ -39,6 +39,27 @@
 - `PROCESSING`이 1분 넘게 유지된 outbox는 오래된 실행으로 보고 재선점한다. 정상 알림 transport 상한 5초보다 충분히 길고 NHN 멱등키의 10분 중복 차단 창보다 짧아, 중단된 실행의 복구를 중복 차단 창 안에서 시작한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
+- 예약 D-1·당일, 8회권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
+  짧은 `REQUIRES_NEW` 트랜잭션에서 outbox 행을 `FOR UPDATE`로 잠근다. 현재 token을 확인한 뒤 aggregate별 SQL 한 번으로
+  상태·시간 구간·현재 회원/비회원 소유자를 같은 DB snapshot에서 읽는다. 부적격이면 `OBSOLETE`로 종결하고, 적격이면 outbox의
+  수신자와 `locked_at` lease를 갱신한 delivery request를 반환한다. dispatcher는 이 트랜잭션이 커밋된 뒤 그 request로 외부 채널을 호출한다.
+- 이 aggregate 조회 snapshot과 `prepareDelivery` 커밋을 발송 결정의 선형화 지점으로 정의한다. 외부 호출 동안 aggregate나 outbox의
+  DB 잠금을 유지하지 않는다. 따라서 커밋 직후 발생한 취소·상태 변경까지 절대 차단하는 프로토콜은 아니지만, 준비 시점 이전에 완료된
+  claim·취소·소진·픽업 완료는 상태와 현재 수신자 중 일부만 섞이지 않고 한 snapshot으로 반영된다.
+- 발송 로그와 `SENT` outbox 기반 알림함은 `prepareDelivery`가 갱신한 현재 소유자에게 귀속한다. 비회원 예약·주문이 발송 대기 중
+  회원에게 귀속됐으면 과거 Guest 전화번호나 Guest 알림함으로 보내지 않는다.
+- 현재 적격성 판단에는 `event_type + aggregate_type + aggregate_id`와 주입된 `Clock`을 사용한다.
+  예약이 취소·완료·변경됐거나, 8회권이 만료·소진·환불됐거나, 주문이 픽업 완료·만료 상태가 된 경우처럼
+  현재 의미가 사라진 요청은 sender와 `notification_log`를 호출하지 않고 `OBSOLETE`로 종결한다.
+- `REMINDER_D1`은 발송 시점 기준 내일 `[tomorrowStart, dayAfterStart)`의 `BOOKED` 예약에만,
+  `REMINDER_SAME_DAY`는 07:00 이후 `(now, tomorrowStart)`의 아직 시작하지 않은 오늘 `BOOKED` 예약에만 유효하다.
+  즉 D-1의 날짜 시작 경계는 포함(`>=`)하고 당일의 현재 시각 경계는 제외(`>`)한다. 8회권은 `(now, now+7d]`에 만료되고 잔여 횟수가 있을 때,
+  픽업은 `PICKUP_READY`이며 마감이 `(now, now+2h]`에 있을 때만 유효하다.
+- `OBSOLETE` 전이도 `PROCESSING` 상태와 현재 `processing_token`을 확인하고 `processed_at`을 기록한다.
+  관리자는 `FAILED`만 다시 열 수 있으므로, 의미가 사라진 리마인드를 수동 재처리해 뒤늦게 발송할 수 없다.
+- 예약 재변경이나 픽업 마감 연장처럼 같은 aggregate가 미래 유효 구간에 다시 들어오면 정기 리마인드 후보 조회는
+  `OBSOLETE` 행을 미발송 이력으로 보고 같은 멱등키 행을 잠근 뒤 `PENDING`으로 재활성화한다. 새 outbox를 만들지 않고
+  현재 회원·비회원 수신자를 갱신하며, 이 자동 전이는 시간 의존 리마인드에만 허용한다.
 - Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 408·425·429·5xx, NHN SMS
   `-9999` 시스템 오류와 `-2021` 발송 큐 저장 실패, DNS·라우팅·TCP 연결·TLS handshake/peer 검증·연결 풀 대기 실패처럼 제공자에 요청을 전달하기 전 확정된 실패는 다음 채널
   fallback 및 최대 5회 백오프 재시도 대상으로 둔다. 요청을 쓴 뒤 응답 대기 timeout처럼 제공자 수락 여부를 알 수
@@ -88,7 +109,7 @@
   자동 중복 가능성은 낮추지만, 실제 미발송이었다면 운영 확인 전까지 전달이 지연되는 가용성 비용을 감수한다.
 - `notification_outbox`의 `SENT` 행은 회원 알림함 목록·읽지 않은 건수·읽음 처리의 원본이자 동일 도메인 이벤트의 멱등 기록이다. 알림함의 전달 시각은 도메인 이벤트 발생 시각이 아니라 외부 채널 전달 성공 후 로컬 `SENT`가 확정된 `processed_at`이다. `notification_log`는 카카오톡·SMS fallback을 포함한 채널별 감사 이력으로만 사용하므로 한 outbox에서 로그가 여러 건 생겨도 알림함은 중복되지 않는다.
 - 알림함 원본 전환 migration 이전에 이미 `SENT`였던 outbox는 `read_at=processed_at`으로 이관해 과거 알림 전체가 새 미확인 알림으로 보이지 않게 한다.
-- 발송 완료 `SENT`와 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
+- 발송 완료 `SENT`, 현재 의미가 사라진 `OBSOLETE`, 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
 
 ---
 
@@ -99,6 +120,7 @@
 | 장점 | 도메인 상태 변경과 알림 요청 저장이 같은 트랜잭션에 묶인다 |
 | 장점 | 커밋 이후 프로세스 종료/재시작 상황에서도 pending outbox를 재처리할 수 있다 |
 | 장점 | 기존 Alimtalk 우선, SMS fallback, `notification_log` 성공/실패 이력 정책을 유지한다 |
+| 장점 | 큐 지연·관리자 재시도 전에 도메인 상태가 바뀌어도 취소·소진·픽업 완료된 리마인드를 발송하지 않는다 |
 | 장점 | 외부 채널 장애와 로컬 대기열 포화가 무제한 적재로 번지지 않고 서킷·메트릭에 반영된다 |
 | 장점 | 이미 성공한 외부 메시지는 감사 로그 장애 때문에 다시 보내지 않고 별도 경고로 추적한다 |
 | 단점 | 알림 발송은 최종적으로 비동기 처리되므로 사용자 응답 시점에는 아직 발송 전일 수 있다 |
@@ -111,6 +133,9 @@
 
 - `notification_outbox` 테이블과 dispatch/unique 인덱스 추가
 - `NotificationOutbox`, `NotificationOutboxStatus`, `NotificationRecipientType` 추가
+- 시간 의존 리마인드의 발송 직전 적격성 조회와 `OBSOLETE` terminal 상태 추가
+- `prepareDelivery`에서 token·현재 적격성·현재 수신자·lease를 한 트랜잭션으로 확정하고 커밋 뒤 외부 발송
+- 미래 유효 구간에 다시 들어온 `OBSOLETE` 리마인드의 동일 행·멱등키 자동 재활성화 추가
 - `NotificationOutboxService`, `NotificationOutboxDispatcher`, `NotificationOutboxTransactionService`, `NotificationOutboxScheduler` 추가
 - `NotificationEventListener`를 outbox 저장용 동기 리스너와 내부 이벤트의 `AFTER_COMMIT` 비동기 dispatch 리스너로 분리
 - `NotificationOutboxDispatcher#dispatchPending`에 `Propagation.NEVER` 적용

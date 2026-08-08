@@ -77,7 +77,8 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
-  test.skip(classes.length === 0, "P8 member booking flow requires at least one class in the local DB");
+  expect(classes.length, "P8 member booking flow requires at least one class in the local DB")
+    .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
   const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 15, 5);

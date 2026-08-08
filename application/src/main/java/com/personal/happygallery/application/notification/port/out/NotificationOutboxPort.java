@@ -13,6 +13,8 @@ public interface NotificationOutboxPort {
 
     Optional<NotificationOutbox> findByIdForUpdate(Long id);
 
+    Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(String idempotencyKey);
+
     List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit);
 
     List<NotificationOutbox> findFailed(int limit);

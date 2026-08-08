@@ -141,7 +141,10 @@ export interface ClaimItemRequest {
 }
 
 export interface OrderClaimRequest {
-  /** @minItems 1 */
+  /**
+     * @minItems 1
+     * @maxItems 100
+     */
   items: ClaimItemRequest[];
   /**
      * @minLength 0

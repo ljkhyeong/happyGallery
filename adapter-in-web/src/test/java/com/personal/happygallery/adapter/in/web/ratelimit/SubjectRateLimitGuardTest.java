@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.config.properties.RateLimitPrope
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 
 class SubjectRateLimitGuardTest {
 
@@ -86,6 +89,41 @@ class SubjectRateLimitGuardTest {
                 .isEqualTo("test:rate:PASS_REFUND_USER:" + BLIND_INDEXER.index("42"));
     }
 
+    @DisplayName("동일 관리자의 MFA 복구 시도가 한도를 넘으면 원문 ID 없이 거절한다")
+    @Test
+    void rejectsRepeatedAdminMfaRecoveryWithoutExposingAdminId() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkAdminMfaRecovery(42L);
+
+        assertThatThrownBy(() -> guard.checkAdminMfaRecovery(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:ADMIN_MFA_RECOVERY_USER:"
+                        + BLIND_INDEXER.index("42"))
+                .doesNotEndWith(":42");
+    }
+
+    @DisplayName("관리자 MFA 복구 버킷을 확인할 수 없으면 fail-closed로 거절한다")
+    @Test
+    void rejectsAdminMfaRecoveryWhenRateLimiterUnavailable() {
+        RateLimitProperties properties = properties();
+        RedisRateLimiter rateLimiter = Mockito.mock(RedisRateLimiter.class);
+        when(rateLimiter.tryConsume(
+                eq("ADMIN_MFA_RECOVERY_USER"),
+                eq("42"),
+                eq(properties.subject().adminMfaRecovery())))
+                .thenReturn(Optional.empty());
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(properties, rateLimiter);
+
+        assertThatThrownBy(() -> guard.checkAdminMfaRecovery(42L))
+                .isInstanceOf(RateLimitUnavailableException.class);
+    }
+
     @SuppressWarnings("unchecked")
     private static StringRedisTemplate mockRedis(AtomicReference<String> redisKey) {
         AtomicLong count = new AtomicLong();
@@ -130,6 +168,7 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
+                        new Rule(1, Duration.ofMinutes(10)),
                         new Rule(1, Duration.ofMinutes(10))
                 )
         );

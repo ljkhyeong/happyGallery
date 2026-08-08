@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
+import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -74,6 +75,82 @@ class NotificationOutboxPolicyTest {
 
         assertConflict(() -> outbox.markProcessing(NOW.plusMinutes(2)));
         assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.FAILED);
+    }
+
+    @DisplayName("현재 의미가 사라진 리마인드는 실행권 소유자만 재시도 없는 종결 상태로 바꾼다")
+    @Test
+    void markObsolete_requiresCurrentProcessingTokenAndTerminatesOutbox() {
+        NotificationOutbox outbox = newOutbox();
+        String token = outbox.markProcessing(NOW);
+
+        boolean staleAccepted = outbox.markObsolete(
+                "stale-token", NOW.plusSeconds(1), "REMINDER_NO_LONGER_ELIGIBLE");
+        boolean currentAccepted = outbox.markObsolete(
+                token, NOW.plusSeconds(2), "REMINDER_NO_LONGER_ELIGIBLE");
+
+        assertSoftly(softly -> {
+            softly.assertThat(staleAccepted).isFalse();
+            softly.assertThat(currentAccepted).isTrue();
+            softly.assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.OBSOLETE);
+            softly.assertThat(outbox.getProcessedAt()).isEqualTo(NOW.plusSeconds(2));
+            softly.assertThat(outbox.getLastError()).isEqualTo("REMINDER_NO_LONGER_ELIGIBLE");
+            softly.assertThat(outbox.getProcessingToken()).isNull();
+            softly.assertThat(outbox.getLockedAt()).isNull();
+        });
+        assertConflict(() -> outbox.markProcessing(NOW.plusMinutes(2)));
+    }
+
+    @DisplayName("발송 준비는 현재 실행권만 게스트 수신자를 회원으로 바꾸고 lease를 연장한다")
+    @Test
+    void refreshRecipient_requiresCurrentTokenAndRenewsLease() {
+        NotificationOutbox outbox = NotificationOutbox.from(
+                NotificationRequestedEvent.forGuestOncePerAggregate(
+                        10L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                NOW.minusMinutes(1));
+        String token = outbox.markProcessing(NOW);
+
+        boolean staleAccepted = outbox.refreshRecipient(
+                "stale-token", NotificationRecipientType.USER, null, 30L, NOW.plusSeconds(1));
+        boolean currentAccepted = outbox.refreshRecipient(
+                token, NotificationRecipientType.USER, null, 30L, NOW.plusSeconds(2));
+
+        assertSoftly(softly -> {
+            softly.assertThat(staleAccepted).isFalse();
+            softly.assertThat(currentAccepted).isTrue();
+            softly.assertThat(outbox.getRecipientType()).isEqualTo(NotificationRecipientType.USER);
+            softly.assertThat(outbox.getGuestId()).isNull();
+            softly.assertThat(outbox.getUserId()).isEqualTo(30L);
+            softly.assertThat(outbox.getLockedAt()).isEqualTo(NOW.plusSeconds(2));
+            softly.assertThat(outbox.getProcessingToken()).isEqualTo(token);
+        });
+    }
+
+    @DisplayName("일정이 다시 유효해진 리마인드는 같은 멱등 행을 새 수신자로 다시 연다")
+    @Test
+    void reactivateObsolete_reusesAggregateIdempotencyAndRefreshesRecipient() {
+        NotificationOutbox outbox = NotificationOutbox.from(
+                NotificationRequestedEvent.forGuestOncePerAggregate(
+                        10L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                NOW);
+        String token = outbox.markProcessing(NOW);
+        outbox.markObsolete(token, NOW.plusSeconds(1), "REMINDER_NO_LONGER_ELIGIBLE");
+
+        boolean reactivated = outbox.reactivateObsolete(
+                NotificationRequestedEvent.forUserOncePerAggregate(
+                        30L, NotificationEventType.REMINDER_D1, "BOOKING", 20L),
+                NOW.plusDays(1));
+
+        assertSoftly(softly -> {
+            softly.assertThat(reactivated).isTrue();
+            softly.assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.PENDING);
+            softly.assertThat(outbox.getRecipientType().name()).isEqualTo("USER");
+            softly.assertThat(outbox.getGuestId()).isNull();
+            softly.assertThat(outbox.getUserId()).isEqualTo(30L);
+            softly.assertThat(outbox.getAttemptCount()).isZero();
+            softly.assertThat(outbox.getNextAttemptAt()).isEqualTo(NOW.plusDays(1));
+            softly.assertThat(outbox.getProcessedAt()).isNull();
+            softly.assertThat(outbox.getLastError()).isNull();
+        });
     }
 
     private NotificationOutbox newOutbox() {

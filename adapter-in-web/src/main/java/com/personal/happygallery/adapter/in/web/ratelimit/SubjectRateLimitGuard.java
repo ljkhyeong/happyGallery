@@ -76,6 +76,11 @@ public class SubjectRateLimitGuard {
                 properties.subject().passRefund(), FAIL_CLOSED);
     }
 
+    public void checkAdminMfaRecovery(long adminUserId) {
+        check("ADMIN_MFA_RECOVERY_USER", String.valueOf(adminUserId),
+                properties.subject().adminMfaRecovery(), FAIL_CLOSED);
+    }
+
     private void check(String ruleId, String subject, Rule rule, RateLimitFailureMode failureMode) {
         if (!properties.enabled()) {
             return;

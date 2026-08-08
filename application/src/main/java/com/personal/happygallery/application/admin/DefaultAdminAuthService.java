@@ -85,6 +85,7 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
                         session.username(),
                         session.credentialVersion(),
                         user.isMfaEnabled(),
+                        session.authenticationMethod(),
                         session.createdAt()))
                 .or(() -> {
                     sessionPort.remove(token);
@@ -108,7 +109,8 @@ public class DefaultAdminAuthService implements AdminAuthUseCase {
                 decision.adminUserId(),
                 decision.username(),
                 decision.credentialVersion(),
-                decision.mfaEnabled());
+                decision.mfaEnabled(),
+                decision.authenticationMethod());
         try {
             auditService.record(
                     decision.adminUserId(), decision.username(), AdminAuthOutcome.LOGIN_SUCCEEDED);

@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.admin;
 
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase;
+import com.personal.happygallery.application.admin.port.out.AdminMfaRecoveryAttemptGuard;
 import com.personal.happygallery.application.admin.port.out.AdminMfaRecoveryCodePort;
 import com.personal.happygallery.application.admin.port.out.AdminTotpPort;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
@@ -17,6 +19,7 @@ import java.util.List;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -29,6 +32,9 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
     private final AdminTotpPort totpPort;
     private final AdminMfaCodeVerifier mfaCodeVerifier;
     private final AdminAuthAuditService auditService;
+    private final AdminMfaRecoveryAttemptGuard recoveryAttemptGuard;
+    private final AdminMfaRecoveryTransactionService recoveryTransactionService;
+    private final AdminMfaResetService mfaResetService;
     private final FieldEncryptor fieldEncryptor;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
@@ -40,6 +46,9 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
             AdminTotpPort totpPort,
             AdminMfaCodeVerifier mfaCodeVerifier,
             AdminAuthAuditService auditService,
+            AdminMfaRecoveryAttemptGuard recoveryAttemptGuard,
+            AdminMfaRecoveryTransactionService recoveryTransactionService,
+            AdminMfaResetService mfaResetService,
             FieldEncryptor fieldEncryptor,
             PasswordEncoder passwordEncoder,
             ApplicationEventPublisher eventPublisher,
@@ -49,6 +58,9 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
         this.totpPort = totpPort;
         this.mfaCodeVerifier = mfaCodeVerifier;
         this.auditService = auditService;
+        this.recoveryAttemptGuard = recoveryAttemptGuard;
+        this.recoveryTransactionService = recoveryTransactionService;
+        this.mfaResetService = mfaResetService;
         this.fieldEncryptor = fieldEncryptor;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
@@ -135,12 +147,23 @@ public class DefaultAdminMfaService implements AdminMfaUseCase {
             throw invalidCredentials();
         }
 
-        long invalidatedCredentialVersion = admin.disableMfa();
-        recoveryCodePort.deleteByAdminUserId(adminUserId);
-        adminUserPort.save(admin);
-        auditService.record(admin.getId(), admin.getUsername(), AdminAuthOutcome.MFA_DISABLED);
-        eventPublisher.publishEvent(new AdminCredentialsChangedEvent(
-                admin.getId(), invalidatedCredentialVersion));
+        mfaResetService.resetAfterDisable(admin);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void recover(
+            Long adminUserId,
+            String currentPassword,
+            AdminAuthenticationMethod authenticationMethod) {
+        if (authenticationMethod != AdminAuthenticationMethod.RECOVERY_CODE) {
+            throw new HappyGalleryException(
+                    ErrorCode.FORBIDDEN,
+                    "복구 코드로 로그인한 관리자 세션이 필요한 작업입니다.");
+        }
+
+        recoveryAttemptGuard.check(adminUserId);
+        recoveryTransactionService.recover(adminUserId, currentPassword);
     }
 
     private static HappyGalleryException invalidCredentials() {

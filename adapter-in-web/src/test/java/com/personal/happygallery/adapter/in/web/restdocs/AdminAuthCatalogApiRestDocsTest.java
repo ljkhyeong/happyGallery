@@ -10,6 +10,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase;
 import com.personal.happygallery.application.admin.port.in.AdminAuthUseCase.LoginResult;
 import com.personal.happygallery.application.admin.port.in.AdminCredentialUseCase;
@@ -226,6 +227,17 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "code": "123456"
                                 }
                                 """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("복구 코드 로그인 세션의 관리자 MFA 복구 API를 문서화한다")
+    void admin_recover_mfa() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/auth/mfa/recovery")
+                        .with(adminUser(AdminAuthenticationMethod.RECOVERY_CODE))
+                        .header("Authorization", "Bearer recovery-admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"currentPassword\":\"admin123456\"}"))
                 .andExpect(status().isNoContent());
     }
 

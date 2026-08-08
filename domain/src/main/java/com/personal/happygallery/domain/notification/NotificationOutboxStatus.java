@@ -4,5 +4,6 @@ public enum NotificationOutboxStatus {
     PENDING,
     PROCESSING,
     SENT,
+    OBSOLETE,
     FAILED
 }

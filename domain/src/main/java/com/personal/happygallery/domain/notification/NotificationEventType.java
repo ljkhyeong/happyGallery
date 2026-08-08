@@ -41,5 +41,27 @@ public enum NotificationEventType {
     /** 8회권 만료 7일 전 알림 (배치) */
     PASS_EXPIRY_SOON,
     /** 픽업 마감 2시간 전 알림 (배치) */
-    PICKUP_DEADLINE_REMINDER
+    PICKUP_DEADLINE_REMINDER;
+
+    public boolean isTimeSensitiveReminder() {
+        return switch (this) {
+            case REMINDER_D1, REMINDER_SAME_DAY, PASS_EXPIRY_SOON, PICKUP_DEADLINE_REMINDER -> true;
+            case BOOKING_CONFIRMED,
+                    BOOKING_RESCHEDULED,
+                    BOOKING_CANCELED,
+                    DEPOSIT_REFUNDED,
+                    ORDER_PAID,
+                    ORDER_APPROVED,
+                    ORDER_PICKUP_READY,
+                    ORDER_SHIPPED,
+                    ORDER_DELAY_REQUESTED,
+                    ORDER_REFUNDED,
+                    ORDER_CLAIM_RESOLVED,
+                    ORDER_EXCHANGE_COMPLETED,
+                    PASS_PURCHASED,
+                    PASS_REFUNDED,
+                    INQUIRY_ANSWERED,
+                    PRODUCT_QNA_ANSWERED -> false;
+        };
+    }
 }

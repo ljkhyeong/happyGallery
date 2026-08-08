@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.GlobalExceptionHandler;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.security.authentication.TestingAuthenticationToken;
@@ -70,7 +71,15 @@ abstract class RestDocsTestSupport {
     }
 
     protected static RequestPostProcessor adminUser() {
+        return adminUser(AdminAuthenticationMethod.PASSWORD);
+    }
+
+    protected static RequestPostProcessor adminUser(
+            AdminAuthenticationMethod authenticationMethod) {
         return authentication(new TestingAuthenticationToken(
-                AdminPrincipal.bearerSession(ADMIN_USER_ID, "admin"), null, "ROLE_ADMIN"));
+                AdminPrincipal.bearerSession(
+                        ADMIN_USER_ID, "admin", false, authenticationMethod),
+                null,
+                "ROLE_ADMIN"));
     }
 }

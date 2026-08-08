@@ -78,6 +78,13 @@ class NotificationRetentionUseCaseIT {
                 retryableToken, "TEMPORARY", cutoff.minusDays(1), cutoff.minusSeconds(1), 2);
         retryablePending = outboxRepository.save(retryablePending);
 
+        NotificationOutbox obsolete = outboxRepository.save(
+                newOutbox(user.getId(), 8L, cutoff.minusDays(1)));
+        String obsoleteToken = obsolete.markProcessing(cutoff.minusDays(1));
+        obsolete.markObsolete(
+                obsoleteToken, cutoff.minusSeconds(1), "REMINDER_NO_LONGER_ELIGIBLE");
+        obsolete = outboxRepository.save(obsolete);
+
         NotificationLog expiredLog = logRepository.save(NotificationLog.success(
                 null, user.getId(), NotificationChannel.SMS,
                 NotificationEventType.ORDER_PAID, cutoff.minusSeconds(1)));
@@ -94,9 +101,10 @@ class NotificationRetentionUseCaseIT {
         Long failedId = failed.getId();
         Long retainedFailedId = retainedFailed.getId();
         Long retryablePendingId = retryablePending.getId();
+        Long obsoleteId = obsolete.getId();
         assertSoftly(softly -> {
             softly.assertThat(deletedLogs).isOne();
-            softly.assertThat(deletedOutboxes).isEqualTo(2);
+            softly.assertThat(deletedOutboxes).isEqualTo(3);
             softly.assertThat(logRepository.findById(expiredLog.getId())).isEmpty();
             softly.assertThat(logRepository.findById(retainedLog.getId())).isPresent();
             softly.assertThat(outboxRepository.findById(expiredSentId)).isEmpty();
@@ -105,6 +113,7 @@ class NotificationRetentionUseCaseIT {
             softly.assertThat(outboxRepository.findById(processingId)).isPresent();
             softly.assertThat(outboxRepository.findById(failedId)).isEmpty();
             softly.assertThat(outboxRepository.findById(retainedFailedId)).isPresent();
+            softly.assertThat(outboxRepository.findById(obsoleteId)).isEmpty();
             softly.assertThat(outboxRepository.findById(retryablePendingId))
                     .hasValueSatisfying(outbox -> softly.assertThat(outbox.getStatus())
                             .isEqualTo(NotificationOutboxStatus.PENDING));

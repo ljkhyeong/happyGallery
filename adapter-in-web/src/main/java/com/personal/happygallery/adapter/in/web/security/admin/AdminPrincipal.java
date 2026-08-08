@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.security.admin;
 
+import com.personal.happygallery.application.admin.port.AdminAuthenticationMethod;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.security.Principal;
@@ -15,16 +16,19 @@ public final class AdminPrincipal implements Principal {
     private final String username;
     private final AuthenticationSource authenticationSource;
     private final boolean mfaEnrollmentRequired;
+    private final AdminAuthenticationMethod authenticationMethod;
 
     private AdminPrincipal(
             Long adminUserId,
             String username,
             AuthenticationSource authenticationSource,
-            boolean mfaEnrollmentRequired) {
+            boolean mfaEnrollmentRequired,
+            AdminAuthenticationMethod authenticationMethod) {
         this.adminUserId = adminUserId;
         this.username = username;
         this.authenticationSource = authenticationSource;
         this.mfaEnrollmentRequired = mfaEnrollmentRequired;
+        this.authenticationMethod = authenticationMethod;
     }
 
     public static AdminPrincipal bearerSession(Long adminUserId, String username) {
@@ -35,15 +39,29 @@ public final class AdminPrincipal implements Principal {
             Long adminUserId,
             String username,
             boolean mfaEnrollmentRequired) {
+        return bearerSession(
+                adminUserId,
+                username,
+                mfaEnrollmentRequired,
+                AdminAuthenticationMethod.PASSWORD);
+    }
+
+    public static AdminPrincipal bearerSession(
+            Long adminUserId,
+            String username,
+            boolean mfaEnrollmentRequired,
+            AdminAuthenticationMethod authenticationMethod) {
         return new AdminPrincipal(
                 adminUserId,
                 username,
                 AuthenticationSource.BEARER_SESSION,
-                mfaEnrollmentRequired);
+                mfaEnrollmentRequired,
+                authenticationMethod);
     }
 
     public static AdminPrincipal apiKey() {
-        return new AdminPrincipal(null, null, AuthenticationSource.API_KEY, false);
+        return new AdminPrincipal(
+                null, null, AuthenticationSource.API_KEY, false, null);
     }
 
     public AuthenticationSource authenticationSource() {
@@ -59,6 +77,15 @@ public final class AdminPrincipal implements Principal {
 
     public boolean isMfaEnrollmentRequired() {
         return mfaEnrollmentRequired;
+    }
+
+    public boolean isRecoveryCodeAuthenticated() {
+        return authenticationSource == AuthenticationSource.BEARER_SESSION
+                && authenticationMethod == AdminAuthenticationMethod.RECOVERY_CODE;
+    }
+
+    public AdminAuthenticationMethod authenticationMethod() {
+        return authenticationMethod;
     }
 
     public Long requireBearerAdminUserId() {

@@ -31,7 +31,7 @@ public class JdbcNotificationRetentionAdapter implements NotificationRetentionPo
     public int deleteTerminalOutboxesBefore(LocalDateTime cutoff, int limit) {
         return jdbc.sql("""
                         DELETE FROM notification_outbox
-                        WHERE status IN ('SENT', 'FAILED')
+                        WHERE status IN ('SENT', 'OBSOLETE', 'FAILED')
                           AND processed_at < :cutoff
                         ORDER BY processed_at, id
                         LIMIT :limit

@@ -73,7 +73,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     "ADMIN_LOGIN_IP",
                     new OrRequestMatcher(
                             pathPattern(POST, "/api/v1/admin/auth/login"),
-                            pathPattern(POST, "/api/v1/admin/auth/mfa/verify")),
+                            pathPattern(POST, "/api/v1/admin/auth/mfa/verify"),
+                            pathPattern(POST, "/api/v1/admin/auth/mfa/recovery")),
                     FAIL_CLOSED,
                     IpRules::adminLogin),
             new RouteRule(

@@ -229,7 +229,7 @@ class NotificationServiceTest {
                 mock(NotificationOutboxTransactionService.class);
         NotificationService notificationService = mock(NotificationService.class);
         NotificationOutboxDispatcher dispatcher =
-                new NotificationOutboxDispatcher(transactionService, notificationService);
+                newDispatcher(transactionService, notificationService);
         var reservation = new NotificationOutboxReservation(99L, "processing-token");
         var delivery = new NotificationOutboxDeliveryRequest(
                 99L,
@@ -237,10 +237,13 @@ class NotificationServiceTest {
                 null,
                 10L,
                 NotificationEventType.BOOKING_CONFIRMED,
+                "BOOKING",
+                99L,
                 IDEMPOTENCY_KEY);
         when(transactionService.reserveNextDispatchable(1))
                 .thenReturn(Optional.of(reservation), Optional.empty());
-        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(delivery));
+        when(transactionService.prepareDelivery(99L, "processing-token"))
+                .thenReturn(NotificationOutboxDeliveryPreparation.ready(delivery));
         when(notificationService.sendByUserId(
                 10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
                 .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
@@ -268,17 +271,19 @@ class NotificationServiceTest {
                 mock(NotificationOutboxTransactionService.class);
         NotificationService notificationService = mock(NotificationService.class);
         NotificationOutboxDispatcher dispatcher =
-                new NotificationOutboxDispatcher(transactionService, notificationService);
+                newDispatcher(transactionService, notificationService);
         var reservation = new NotificationOutboxReservation(99L, "processing-token");
         when(transactionService.reserveNextDispatchable(1))
                 .thenReturn(Optional.of(reservation), Optional.empty());
-        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
-                new NotificationOutboxDeliveryRequest(
+        when(transactionService.prepareDelivery(99L, "processing-token")).thenReturn(
+                NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
                         99L,
                         NotificationRecipientType.USER,
                         null,
                         10L,
                         NotificationEventType.BOOKING_CONFIRMED,
+                        "BOOKING",
+                        99L,
                         IDEMPOTENCY_KEY)));
         when(notificationService.sendByUserId(
                 10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
@@ -319,18 +324,20 @@ class NotificationServiceTest {
                 metrics,
                 CLOCK);
         NotificationOutboxDispatcher dispatcher =
-                new NotificationOutboxDispatcher(transactionService, service);
+                newDispatcher(transactionService, service);
         User user = new User("audit@example.com", "hash", "회원", "01012345678");
         var reservation = new NotificationOutboxReservation(99L, "processing-token");
         when(transactionService.reserveNextDispatchable(1))
                 .thenReturn(Optional.of(reservation), Optional.empty());
-        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
-                new NotificationOutboxDeliveryRequest(
+        when(transactionService.prepareDelivery(99L, "processing-token")).thenReturn(
+                NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
                         99L,
                         NotificationRecipientType.USER,
                         null,
                         10L,
                         NotificationEventType.BOOKING_CONFIRMED,
+                        "BOOKING",
+                        99L,
                         IDEMPOTENCY_KEY)));
         when(userReader.findById(10L)).thenReturn(Optional.of(user));
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
@@ -373,18 +380,20 @@ class NotificationServiceTest {
                 mock(AppMetrics.class),
                 CLOCK);
         NotificationOutboxDispatcher dispatcher =
-                new NotificationOutboxDispatcher(transactionService, service);
+                newDispatcher(transactionService, service);
         User user = new User("unknown-audit@example.com", "hash", "회원", "01012345678");
         var reservation = new NotificationOutboxReservation(99L, "processing-token");
         when(transactionService.reserveNextDispatchable(1))
                 .thenReturn(Optional.of(reservation), Optional.empty());
-        when(transactionService.loadRequest(99L, "processing-token")).thenReturn(Optional.of(
-                new NotificationOutboxDeliveryRequest(
+        when(transactionService.prepareDelivery(99L, "processing-token")).thenReturn(
+                NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
                         99L,
                         NotificationRecipientType.USER,
                         null,
                         10L,
                         NotificationEventType.BOOKING_CONFIRMED,
+                        "BOOKING",
+                        99L,
                         IDEMPOTENCY_KEY)));
         when(userReader.findById(10L)).thenReturn(Optional.of(user));
         when(sender.channel()).thenReturn(NotificationChannel.SMS);
@@ -411,6 +420,12 @@ class NotificationServiceTest {
             softly.assertThat(result.successCount()).isZero();
             softly.assertThat(result.failureCount()).isOne();
         });
+    }
+
+    private static NotificationOutboxDispatcher newDispatcher(
+            NotificationOutboxTransactionService transactionService,
+            NotificationService notificationService) {
+        return new NotificationOutboxDispatcher(transactionService, notificationService);
     }
 
     private static NotificationService service(List<NotificationSenderPort> senders,

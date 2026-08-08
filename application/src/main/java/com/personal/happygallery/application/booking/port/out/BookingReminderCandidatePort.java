@@ -9,6 +9,7 @@ public interface BookingReminderCandidatePort {
     List<BookingReminderTarget> findUnnotifiedBookedAfterId(
             LocalDateTime start,
             LocalDateTime end,
+            boolean startInclusive,
             NotificationEventType eventType,
             Long afterId,
             int limit);

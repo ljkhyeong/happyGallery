@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -174,6 +175,37 @@ public class NotificationOutbox {
         return processingToken;
     }
 
+    /** 발송 준비 시점의 현재 aggregate 소유자로 수신자를 갱신하고 실행권 lease를 연장한다. */
+    public boolean refreshRecipient(String token,
+                                    NotificationRecipientType recipientType,
+                                    Long guestId,
+                                    Long userId,
+                                    LocalDateTime now) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
+        switch (recipientType) {
+            case GUEST -> {
+                if (guestId == null || userId != null) {
+                    throw new IllegalArgumentException("비회원 알림 수신자 정보가 올바르지 않습니다.");
+                }
+                this.recipientType = NotificationRecipientType.GUEST;
+                this.guestId = guestId;
+                this.userId = null;
+            }
+            case USER -> {
+                if (userId == null || guestId != null) {
+                    throw new IllegalArgumentException("회원 알림 수신자 정보가 올바르지 않습니다.");
+                }
+                this.recipientType = NotificationRecipientType.USER;
+                this.guestId = null;
+                this.userId = userId;
+            }
+        }
+        this.lockedAt = now;
+        return true;
+    }
+
     public boolean markSent(String token, LocalDateTime now) {
         return completeSent(token, now, null);
     }
@@ -189,6 +221,52 @@ public class NotificationOutbox {
         this.status = NotificationOutboxStatus.SENT;
         this.processedAt = now;
         this.lastError = lastError;
+        clearProcessing();
+        return true;
+    }
+
+    /** 발송 직전 현재 도메인 상태를 다시 확인해 의미가 사라진 리마인드를 종결한다. */
+    public boolean markObsolete(String token, LocalDateTime now, String reason) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
+        this.status = NotificationOutboxStatus.OBSOLETE;
+        this.processedAt = now;
+        this.lastError = truncate(reason);
+        clearProcessing();
+        return true;
+    }
+
+    /** 변경된 일정이 이후 유효 구간에 다시 들어오면 배치가 같은 멱등 행을 재사용한다. */
+    public boolean reactivateObsolete(NotificationRequestedEvent event, LocalDateTime now) {
+        if (status != NotificationOutboxStatus.OBSOLETE) {
+            return false;
+        }
+        if (!eventType.isTimeSensitiveReminder()
+                || !idempotencyKey.equals(event.idempotencyKey())
+                || eventType != event.eventType()
+                || !Objects.equals(aggregateType, event.aggregateType())
+                || !Objects.equals(aggregateId, event.aggregateId())) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 요청만 다시 열 수 있습니다.");
+        }
+        switch (event) {
+            case ForGuest e -> {
+                this.recipientType = NotificationRecipientType.GUEST;
+                this.guestId = e.guestId();
+                this.userId = null;
+            }
+            case ForUser e -> {
+                this.recipientType = NotificationRecipientType.USER;
+                this.guestId = null;
+                this.userId = e.userId();
+            }
+        }
+        this.status = NotificationOutboxStatus.PENDING;
+        this.attemptCount = 0;
+        this.nextAttemptAt = now;
+        this.processedAt = null;
+        this.readAt = null;
+        this.lastError = null;
         clearProcessing();
         return true;
     }

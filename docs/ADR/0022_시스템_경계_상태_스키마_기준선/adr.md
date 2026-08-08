@@ -296,8 +296,10 @@ HAVING COUNT(*) > 1;
 
 - `notification_outbox`
   - `id`, 수신자 식별자, `event_type`, `aggregate_type`, `aggregate_id`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`
+  - 상태는 `PENDING → PROCESSING → SENT|OBSOLETE|FAILED`를 기본 흐름으로 사용한다. `OBSOLETE`는 발송 직전 현재 도메인 상태·시간 구간과 맞지 않아 외부 채널 호출 없이 종결된 시간 의존 리마인드다. 같은 aggregate가 미래 유효 구간에 다시 들어오면 배치만 같은 행을 `OBSOLETE → PENDING`으로 재활성화할 수 있다.
   - `processing_token`, `locked_at`, `version`으로 재선점 전 실행의 오래된 결과 반영을 차단한다.
   - 리마인드 후보는 `(event_type, aggregate_type, aggregate_id)`로 이미 접수된 도메인 이벤트를 제외한다. 멱등키 문자열 형식이 달라도 같은 이력으로 인식한다.
+  - `V108`은 영속 enum 확장에 맞춰 `status` 컬럼 comment에 `OBSOLETE`를 반영한다.
 
 #### 8회권
 
@@ -326,7 +328,7 @@ HAVING COUNT(*) > 1;
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
-- `notification_outbox(status, processed_at, id)` 발송 완료 보존 정리
+- `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리
 - `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·8회권·픽업 리마인드 접수 이력 조회
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인

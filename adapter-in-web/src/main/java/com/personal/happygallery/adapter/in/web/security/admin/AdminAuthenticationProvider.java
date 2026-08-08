@@ -46,7 +46,8 @@ public final class AdminAuthenticationProvider implements AuthenticationProvider
                 AdminPrincipal.bearerSession(
                         session.adminUserId(),
                         session.username(),
-                        mfaEnrollmentRequired)
+                        mfaEnrollmentRequired,
+                        session.authenticationMethod())
         );
     }
 
