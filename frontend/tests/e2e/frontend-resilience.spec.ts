@@ -377,6 +377,138 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
   await expect(claimSection.getByText("접수 가능 1개")).toBeVisible();
 });
 
+test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대로 구분해 표시한다", async ({
+  page,
+}) => {
+  const order = {
+    approvalDeadlineAt: null,
+    couponDiscountAmount: 2000,
+    fulfillment: null,
+    issuedCouponId: 71,
+    items: [{
+      careInstructions: null,
+      couponDiscountAmount: 2000,
+      grossAmount: 12000,
+      netPaidAmount: 7000,
+      orderItemId: 751,
+      productId: 44,
+      productName: "혜택 적용 작품",
+      productType: "READY_STOCK",
+      productionLeadDays: null,
+      qty: 1,
+      rewardUsedAmount: 3000,
+      specification: null,
+      unitPrice: 12000,
+    }],
+    orderId: 75,
+    orderNumber: "HG-BENEFIT-75",
+    paidAt: "2026-08-08T10:00:00",
+    pgPaidAmount: 7000,
+    productAmount: 12000,
+    refund: {
+      amount: 10000,
+      pgRefundAmount: 7000,
+      restoreCoupon: true,
+      rewardRestoreAmount: 3000,
+      rewardRevokeAmount: 70,
+      status: "SUCCEEDED",
+    },
+    rewardEarnBase: 7000,
+    rewardUsedAmount: 3000,
+    shippingFee: 0,
+    status: "CUSTOMER_CANCELED",
+    totalAmount: 10000,
+  };
+
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 106,
+        email: "benefit-display@example.com",
+        name: "혜택 표시 회원",
+        phone: "01012345678",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await fulfillJson(route, { count: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/me/orders/75") {
+      await fulfillJson(route, order);
+      return;
+    }
+    if (pathname === "/api/v1/me/orders/76") {
+      await fulfillJson(route, {
+        ...order,
+        couponDiscountAmount: 12000,
+        issuedCouponId: 72,
+        orderId: 76,
+        orderNumber: "HG-COUPON-ONLY-76",
+        pgPaidAmount: 0,
+        refund: {
+          amount: 0,
+          pgRefundAmount: 0,
+          restoreCoupon: true,
+          rewardRestoreAmount: 0,
+          rewardRevokeAmount: 0,
+          status: "SUCCEEDED",
+        },
+        rewardEarnBase: 0,
+        rewardUsedAmount: 0,
+        totalAmount: 0,
+        items: order.items.map((item) => ({
+          ...item,
+          couponDiscountAmount: 12000,
+          netPaidAmount: 0,
+          rewardUsedAmount: 0,
+        })),
+      });
+      return;
+    }
+
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/my/orders/75");
+  const orderCard = page.locator(".card").filter({ hasText: "HG-BENEFIT-75" }).first();
+  await expect(orderCard.getByText("PG 결제액", { exact: true }).first().locator("..")).toContainText(
+    "₩7,000",
+  );
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("₩12,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-₩2,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-₩3,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "PG 결제액" })).toContainText("₩7,000");
+
+  const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
+  await expect(refundAlert).toContainText("₩10,000의 고객 반환 처리가 완료되었습니다.");
+  await expect(refundAlert.getByText(/결제사 환불 ₩7,000 · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/적립금 복원 3,000P · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/지급 적립금 회수 70P · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/쿠폰 사용 상태 정리 · 완료/)).toBeVisible();
+
+  await page.goto("/my/orders/76");
+  const couponOnlyCard = page.locator(".card").filter({ hasText: "HG-COUPON-ONLY-76" }).first();
+  await expect(couponOnlyCard.getByRole("alert").getByText(
+    "결제 금액 반환 없이 쿠폰 사용 상태 정리가 완료되었습니다.",
+  )).toBeVisible();
+  await expect(couponOnlyCard.getByRole("alert").getByText(
+    /쿠폰 사용 상태 정리 · 완료/,
+  )).toBeVisible();
+});
+
 test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 표시하고 재시도를 허용한다", async ({
   baseURL,
   context,

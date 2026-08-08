@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvents } from "./api";
-import { isEventAvailable, isEventOngoing } from "./time";
+import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
 import { queryKeys } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { formatDateTime } from "@/shared/lib";
@@ -11,8 +11,9 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 export function FeaturedEventWidget() {
   const eventsQuery = useQuery({
     queryKey: queryKeys.events.all,
-    queryFn: fetchEvents,
+    queryFn: ({ signal }) => fetchEvents(signal),
     staleTime: PUBLIC_DATA_STALE_TIME,
+    refetchInterval: ({ state }) => eventRefetchInterval(state.data),
   });
   const featuredEvents = eventsQuery.data?.filter(
     (event) => event.featured && isEventAvailable(event),

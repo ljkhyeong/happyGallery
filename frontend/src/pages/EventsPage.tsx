@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Col, Container, Row } from "react-bootstrap";
 import { EventCard } from "@/features/event/EventCard";
 import { fetchEvents } from "@/features/event/api";
-import { isEventAvailable } from "@/features/event/time";
+import { eventRefetchInterval, isEventAvailable } from "@/features/event/time";
 import { queryKeys } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -10,8 +10,9 @@ import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 export function EventsPage() {
   const eventsQuery = useQuery({
     queryKey: queryKeys.events.all,
-    queryFn: fetchEvents,
+    queryFn: ({ signal }) => fetchEvents(signal),
     staleTime: PUBLIC_DATA_STALE_TIME,
+    refetchInterval: ({ state }) => eventRefetchInterval(state.data),
   });
   const events = eventsQuery.data?.filter((event) => isEventAvailable(event));
 

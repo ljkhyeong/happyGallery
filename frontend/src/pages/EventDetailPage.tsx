@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Container } from "react-bootstrap";
 import { Link, useParams } from "react-router";
 import { fetchEvent } from "@/features/event/api";
-import { eventTimingLabel } from "@/features/event/time";
-import { queryKeys } from "@/shared/api";
+import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
+import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime, isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -14,11 +14,15 @@ export function EventDetailPage() {
   const validEventId = isPositiveSafeIntegerString(id);
   const eventQuery = useQuery({
     queryKey: queryKeys.events.detail(eventId),
-    queryFn: () => fetchEvent(eventId),
+    queryFn: ({ signal }) => fetchEvent(eventId, signal),
     enabled: validEventId,
+    retry: (failureCount, error) => !isNotFoundError(error) && failureCount < 3,
+    refetchInterval: ({ state }) => state.error
+      ? false
+      : eventRefetchInterval(state.data ? [state.data] : undefined),
   });
 
-  if (!validEventId) return <NotFoundPage />;
+  if (!validEventId || isNotFoundError(eventQuery.error)) return <NotFoundPage />;
 
   const event = eventQuery.data;
 
@@ -79,4 +83,8 @@ export function EventDetailPage() {
       )}
     </Container>
   );
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
 }

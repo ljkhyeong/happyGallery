@@ -11,8 +11,6 @@ interface Props {
 }
 
 export function OrderDetailCard({ order }: Props) {
-  const itemTotal = order.items.reduce((total, item) => total + item.unitPrice * item.qty, 0);
-
   return (
     <Card>
       <Card.Header className="d-flex justify-content-between align-items-center">
@@ -22,8 +20,8 @@ export function OrderDetailCard({ order }: Props) {
       <Card.Body>
         <Row className="g-3 mb-3">
           <Col xs={6}>
-            <small className="text-muted-soft d-block">결제 금액</small>
-            <span>{formatKRW(order.totalAmount)}</span>
+            <small className="text-muted-soft d-block">PG 결제액</small>
+            <span>{formatKRW(order.pgPaidAmount)}</span>
           </Col>
           <Col xs={6}>
             <small className="text-muted-soft d-block">결제일</small>
@@ -65,22 +63,38 @@ export function OrderDetailCard({ order }: Props) {
                 </td>
                 <td className="text-end">{item.qty}</td>
                 <td className="text-end">{formatKRW(item.unitPrice)}</td>
-                <td className="text-end">{formatKRW(item.unitPrice * item.qty)}</td>
+                <td className="text-end">{formatKRW(item.grossAmount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr>
-              <th colSpan={3} className="text-end">상품 합계</th>
-              <td className="text-end">{formatKRW(itemTotal)}</td>
+              <th colSpan={3} className="text-end">상품 금액</th>
+              <td className="text-end">{formatKRW(order.productAmount)}</td>
             </tr>
             <tr>
               <th colSpan={3} className="text-end">배송비</th>
               <td className="text-end">{order.shippingFee === 0 ? "무료" : formatKRW(order.shippingFee)}</td>
             </tr>
             <tr>
-              <th colSpan={3} className="text-end">결제 금액</th>
-              <td className="text-end fw-semibold">{formatKRW(order.totalAmount)}</td>
+              <th colSpan={3} className="text-end">쿠폰 할인</th>
+              <td className="text-end text-success">
+                {order.couponDiscountAmount > 0
+                  ? `-${formatKRW(order.couponDiscountAmount)}`
+                  : formatKRW(0)}
+              </td>
+            </tr>
+            <tr>
+              <th colSpan={3} className="text-end">적립금 사용</th>
+              <td className="text-end text-success">
+                {order.rewardUsedAmount > 0
+                  ? `-${formatKRW(order.rewardUsedAmount)}`
+                  : formatKRW(0)}
+              </td>
+            </tr>
+            <tr>
+              <th colSpan={3} className="text-end">PG 결제액</th>
+              <td className="text-end fw-semibold">{formatKRW(order.pgPaidAmount)}</td>
             </tr>
           </tfoot>
         </Table>
