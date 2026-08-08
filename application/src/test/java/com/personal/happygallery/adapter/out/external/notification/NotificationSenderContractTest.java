@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -286,11 +287,11 @@ class NotificationSenderContractTest {
                 "secret-key",
                 "sender-key",
                 "https://kakaotalk-bizmessage.api.nhncloudservice.com",
-                5_000,
-                2_000,
-                1_000,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(2),
+                Duration.ofSeconds(1),
                 20,
-                30_000);
+                Duration.ofSeconds(30));
     }
 
     private static SmsNotificationProperties smsProperties() {
@@ -299,10 +300,10 @@ class NotificationSenderContractTest {
                 "api-secret",
                 "0212345678",
                 "https://sms.api.nhncloudservice.com",
-                5_000,
-                2_000,
-                1_000,
+                Duration.ofSeconds(5),
+                Duration.ofSeconds(2),
+                Duration.ofSeconds(1),
                 20,
-                30_000);
+                Duration.ofSeconds(30));
     }
 }

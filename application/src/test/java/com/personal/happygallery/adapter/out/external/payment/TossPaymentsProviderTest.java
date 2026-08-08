@@ -7,6 +7,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentConfirmResu
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
+import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -32,11 +33,11 @@ class TossPaymentsProviderTest {
     private static final TossPaymentsProperties PROPERTIES = new TossPaymentsProperties(
             "test_secret",
             "https://api.tosspayments.com",
-            3_000,
-            1_000,
-            500,
+            Duration.ofSeconds(3),
+            Duration.ofSeconds(1),
+            Duration.ofMillis(500),
             10,
-            30_000);
+            Duration.ofSeconds(30));
 
     @DisplayName("Toss 결제 확정은 Basic 인증과 서버 금액으로 confirm 요청을 보낸다")
     @Test

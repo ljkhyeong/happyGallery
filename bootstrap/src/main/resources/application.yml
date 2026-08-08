@@ -11,6 +11,24 @@ server:
 spring:
   application:
     name: happygallery
+  mail:
+    host: ${EMAIL_VERIFICATION_SMTP_HOST:}
+    port: ${EMAIL_VERIFICATION_SMTP_PORT:587}
+    username: ${EMAIL_VERIFICATION_SMTP_USERNAME:}
+    password: ${EMAIL_VERIFICATION_SMTP_PASSWORD:}
+    protocol: smtp
+    default-encoding: UTF-8
+    ssl:
+      enabled: ${EMAIL_VERIFICATION_SSL_ENABLED:false}
+      verify-hostname: true
+    properties:
+      "[mail.smtp.auth]": true
+      "[mail.smtp.connectiontimeout]": ${EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS:1000}
+      "[mail.smtp.timeout]": ${EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS:2000}
+      "[mail.smtp.writetimeout]": ${EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS:2000}
+      "[mail.smtp.starttls.enable]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
+      "[mail.smtp.starttls.required]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
+      "[mail.smtp.ssl.checkserveridentity]": true
   servlet:
     multipart:
       max-file-size: 5MB
@@ -134,7 +152,7 @@ app:
   external:
     notification:
       # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
-      timeout-millis: ${NOTIFICATION_TIMEOUT_MILLIS:5000}
+      timeout: ${NOTIFICATION_TIMEOUT_MILLIS:5000}ms
       alimtalk-thread-pool:
         pool-size: ${ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE:2}
         queue-capacity: ${ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:5}
@@ -151,56 +169,47 @@ app:
         failure-rate-threshold: ${NOTIFICATION_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${NOTIFICATION_CB_SLIDING_WINDOW_SIZE:20}
         minimum-number-of-calls: ${NOTIFICATION_CB_MINIMUM_CALLS:10}
-        wait-duration-open-seconds: ${NOTIFICATION_CB_WAIT_OPEN_SECONDS:30}
+        wait-duration-open: ${NOTIFICATION_CB_WAIT_OPEN_SECONDS:30}s
         permitted-calls-in-half-open-state: ${NOTIFICATION_CB_HALF_OPEN_CALLS:3}
     alimtalk:
       app-key: ${ALIMTALK_APP_KEY:}
       secret-key: ${ALIMTALK_SECRET_KEY:}
       sender-key: ${ALIMTALK_SENDER_KEY:}
       base-url: ${ALIMTALK_BASE_URL:https://kakaotalk-bizmessage.api.nhncloudservice.com}
-      timeout-millis: ${ALIMTALK_TIMEOUT_MILLIS:2000}
-      connect-timeout-millis: ${ALIMTALK_CONNECT_TIMEOUT_MILLIS:1000}
-      acquire-timeout-millis: ${ALIMTALK_ACQUIRE_TIMEOUT_MILLIS:500}
+      timeout: ${ALIMTALK_TIMEOUT_MILLIS:2000}ms
+      connect-timeout: ${ALIMTALK_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${ALIMTALK_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${ALIMTALK_MAX_CONNECTIONS:20}
-      keep-alive-millis: ${ALIMTALK_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${ALIMTALK_KEEP_ALIVE_MILLIS:30000}ms
     sms:
       api-key: ${SMS_API_KEY:}
       api-secret: ${SMS_API_SECRET:}
       sender-number: ${SMS_SENDER_NUMBER:}
       base-url: ${SMS_BASE_URL:https://sms.api.nhncloudservice.com}
-      timeout-millis: ${SMS_TIMEOUT_MILLIS:2000}
-      connect-timeout-millis: ${SMS_CONNECT_TIMEOUT_MILLIS:1000}
-      acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:500}
+      timeout: ${SMS_TIMEOUT_MILLIS:2000}ms
+      connect-timeout: ${SMS_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${SMS_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${SMS_MAX_CONNECTIONS:20}
-      keep-alive-millis: ${SMS_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${SMS_KEEP_ALIVE_MILLIS:30000}ms
     email-verification:
-      host: ${EMAIL_VERIFICATION_SMTP_HOST:}
-      port: ${EMAIL_VERIFICATION_SMTP_PORT:587}
-      username: ${EMAIL_VERIFICATION_SMTP_USERNAME:}
-      password: ${EMAIL_VERIFICATION_SMTP_PASSWORD:}
       from: ${EMAIL_VERIFICATION_FROM:}
       subject: ${EMAIL_VERIFICATION_SUBJECT:[해피갤러리] 이메일 인증번호}
-      timeout-millis: ${EMAIL_VERIFICATION_TIMEOUT_MILLIS:7000}
-      connection-timeout-millis: ${EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS:1000}
-      read-timeout-millis: ${EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS:2000}
-      write-timeout-millis: ${EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS:2000}
-      start-tls-enabled: ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
-      ssl-enabled: ${EMAIL_VERIFICATION_SSL_ENABLED:false}
+      timeout: ${EMAIL_VERIFICATION_TIMEOUT_MILLIS:7000}ms
     google-oauth:
-      timeout-millis: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}
+      timeout: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms
+      acquire-timeout: ${GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}ms
       max-connections: ${GOOGLE_OAUTH_MAX_CONNECTIONS:10}
-      keep-alive-millis: ${GOOGLE_OAUTH_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${GOOGLE_OAUTH_KEEP_ALIVE_MILLIS:30000}ms
     naver-oauth:
-      timeout-millis: ${NAVER_OAUTH_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${NAVER_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${NAVER_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}
+      timeout: ${NAVER_OAUTH_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${NAVER_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms
+      acquire-timeout: ${NAVER_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}ms
       max-connections: ${NAVER_OAUTH_MAX_CONNECTIONS:10}
-      keep-alive-millis: ${NAVER_OAUTH_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${NAVER_OAUTH_KEEP_ALIVE_MILLIS:30000}ms
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
-      timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:5000}
+      timeout: ${PAYMENT_TIMEOUT_MILLIS:5000}ms
       thread-pool:
         pool-size: ${PAYMENT_EXECUTOR_POOL_SIZE:4}
         queue-capacity: ${PAYMENT_EXECUTOR_QUEUE_CAPACITY:20}
@@ -208,22 +217,22 @@ app:
         failure-rate-threshold: ${PAYMENT_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${PAYMENT_CB_SLIDING_WINDOW_SIZE:20}
         minimum-number-of-calls: ${PAYMENT_CB_MINIMUM_CALLS:10}
-        wait-duration-open-seconds: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}
+        wait-duration-open: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}s
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
       toss:
         # prod 프로필에서만 실제 키 주입. FakePaymentProvider는 !prod 프로필에서만 등록된다.
         secret-key: ${TOSS_SECRET_KEY:}
         base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
-        timeout-millis: ${TOSS_TIMEOUT_MILLIS:3000}
-        connect-timeout-millis: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}
-        acquire-timeout-millis: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}
+        timeout: ${TOSS_TIMEOUT_MILLIS:3000}ms
+        connect-timeout: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}ms
+        acquire-timeout: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}ms
         max-connections: ${TOSS_MAX_CONNECTIONS:10}
-        keep-alive-millis: ${TOSS_KEEP_ALIVE_MILLIS:30000}
+        keep-alive: ${TOSS_KEEP_ALIVE_MILLIS:30000}ms
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}
-    expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:720}
-    recovery-expiry-hours: ${GUEST_TOKEN_RECOVERY_EXPIRY_HOURS:24}
+    access-expiry: ${GUEST_TOKEN_EXPIRY_HOURS:720}h
+    recovery-expiry: ${GUEST_TOKEN_RECOVERY_EXPIRY_HOURS:24}h
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}
   payment:
@@ -265,6 +274,9 @@ app:
 management:
   server:
     port: ${MANAGEMENT_PORT:8081}
+  health:
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

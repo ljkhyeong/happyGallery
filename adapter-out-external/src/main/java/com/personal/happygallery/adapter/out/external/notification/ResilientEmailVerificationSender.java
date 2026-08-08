@@ -5,6 +5,7 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** 이메일 인증 SMTP 호출에 제한 큐·타임아웃·서킷 브레이커를 적용한다. */
@@ -18,11 +19,11 @@ public class ResilientEmailVerificationSender implements EmailVerificationSender
             CircuitBreaker circuitBreaker,
             TimeLimiter timeLimiter,
             Executor executor,
-            long timeoutMillis
+            Duration timeout
     ) {
         this.delegate = delegate;
         this.resilientCall = new ResilientNotificationCall(
-                circuitBreaker, timeLimiter, executor, timeoutMillis);
+                circuitBreaker, timeLimiter, executor, timeout);
     }
 
     @Override

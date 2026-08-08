@@ -43,7 +43,8 @@ class ResilientPaymentProviderTest {
             throw new RuntimeException("PG error");
         });
 
-        provider = createProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 20, 10, Duration.ofSeconds(30), 3));
 
         RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
@@ -66,7 +67,8 @@ class ResilientPaymentProviderTest {
             return RefundResult.success("late-ref");
         });
 
-        provider = createProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
+        provider = createProvider(delegate, properties(
+                Duration.ofMillis(50), 50f, 20, 10, Duration.ofSeconds(30), 3));
 
         RefundResult result = provider.refund("payment-key", 10_000, "refund-idempotency-key");
 
@@ -93,7 +95,15 @@ class ResilientPaymentProviderTest {
         });
         provider = createProvider(
                 delegate,
-                properties(3_000, 50f, 20, 10, 30, 3, 1, 1));
+                properties(
+                        Duration.ofSeconds(3),
+                        50f,
+                        20,
+                        10,
+                        Duration.ofSeconds(30),
+                        3,
+                        1,
+                        1));
 
         CompletableFuture<RefundResult> running = CompletableFuture.supplyAsync(
                 () -> provider.refund("payment-key-1", 10_000, "idempotency-key-1"));
@@ -128,7 +138,8 @@ class ResilientPaymentProviderTest {
         PaymentProvider delegate = refundOnlyDelegate(
                 (paymentKey, amount) -> RefundResult.retryableFailure("PG down"));
 
-        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
         provider.refund("payment-key", 10_000, "refund-idempotency-key");
         provider.refund("payment-key", 10_000, "refund-idempotency-key");
@@ -147,7 +158,8 @@ class ResilientPaymentProviderTest {
             throw new RuntimeException("PG confirm error");
         });
 
-        provider = createProvider(delegate, properties(3_000, 50f, 20, 10, 30, 3));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 20, 10, Duration.ofSeconds(30), 3));
 
         PaymentConfirmResult result = provider.confirm(
                 "payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -171,7 +183,8 @@ class ResilientPaymentProviderTest {
             return PaymentConfirmResult.success("late-ref", "CARD", "2026-04-23T10:00:00+09:00");
         });
 
-        provider = createProvider(delegate, properties(50, 50f, 20, 10, 30, 3));
+        provider = createProvider(delegate, properties(
+                Duration.ofMillis(50), 50f, 20, 10, Duration.ofSeconds(30), 3));
 
         PaymentConfirmResult result = provider.confirm(
                 "payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -189,7 +202,8 @@ class ResilientPaymentProviderTest {
         PaymentProvider delegate = confirmOnlyDelegate(
                 (paymentKey, orderId, amount) -> PaymentConfirmResult.retryableFailure("PG confirm down"));
 
-        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
         provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
         provider.confirm("payment-key", "order-id", 10_000, "confirm-idempotency-key");
@@ -208,7 +222,8 @@ class ResilientPaymentProviderTest {
     void lookup_reviewRequired_doesNotOpenSharedCircuit() {
         PaymentProvider delegate = lookupOnlyDelegate(orderId ->
                 PaymentLookupResult.reviewRequired(orderId, "PG 결제가 처리 중입니다."));
-        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
         provider.lookupByOrderId("order-id-1");
         provider.lookupByOrderId("order-id-2");
@@ -222,7 +237,8 @@ class ResilientPaymentProviderTest {
     void lookupRefund_unavailableAccumulates_circuitOpenFastFail() {
         PaymentProvider delegate = refundLookupOnlyDelegate((paymentKey, amount, idempotencyKey) ->
                 RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패"));
-        provider = createProvider(delegate, properties(3_000, 50f, 2, 2, 30, 1));
+        provider = createProvider(delegate, properties(
+                Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
         provider.lookupRefund("payment-key-1", 10_000L, "idempotency-key-1");
         provider.lookupRefund("payment-key-2", 10_000L, "idempotency-key-2");
@@ -239,14 +255,22 @@ class ResilientPaymentProviderTest {
     @Test
     void paymentTimeLimiter_requiresLongerTimeoutThanTossTransportBudget() {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
-        ExternalPaymentProperties valid = properties(5_000, 50f, 20, 10, 30, 3);
-        TossPaymentsProperties transport = tossProperties(3_000, 1_000, 500);
+        ExternalPaymentProperties valid = properties(
+                Duration.ofSeconds(5), 50f, 20, 10, Duration.ofSeconds(30), 3);
+        TossPaymentsProperties transport = tossProperties(
+                Duration.ofSeconds(3), Duration.ofSeconds(1), Duration.ofMillis(500));
 
         assertThat(config.paymentTimeLimiter(valid, transport)
                 .getTimeLimiterConfig()
                 .getTimeoutDuration()).isEqualTo(Duration.ofMillis(5_000));
         assertThatThrownBy(() -> config.paymentTimeLimiter(
-                properties(4_500, 50f, 20, 10, 30, 3),
+                properties(
+                        Duration.ofMillis(4_500),
+                        50f,
+                        20,
+                        10,
+                        Duration.ofSeconds(30),
+                        3),
                 transport))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("acquire + connect + response");
@@ -263,59 +287,62 @@ class ResilientPaymentProviderTest {
         return config.resilientPaymentProvider(
                 delegate,
                 config.paymentCircuitBreaker(properties, CircuitBreakerRegistry.ofDefaults()),
-                config.paymentTimeLimiter(properties, tossPropertiesFor(properties.timeoutMillis())),
+                config.paymentTimeLimiter(properties, tossPropertiesFor(properties.timeout())),
                 timeoutExecutor,
                 properties);
     }
 
-    private static ExternalPaymentProperties properties(long timeoutMillis,
+    private static ExternalPaymentProperties properties(Duration timeout,
                                                         float failureRateThreshold,
                                                         int slidingWindowSize,
                                                         int minimumNumberOfCalls,
-                                                        long waitDurationOpenSeconds,
+                                                        Duration waitDurationOpen,
                                                         int permittedCallsInHalfOpenState) {
         return properties(
-                timeoutMillis,
+                timeout,
                 failureRateThreshold,
                 slidingWindowSize,
                 minimumNumberOfCalls,
-                waitDurationOpenSeconds,
+                waitDurationOpen,
                 permittedCallsInHalfOpenState,
                 4,
                 20);
     }
 
-    private static ExternalPaymentProperties properties(long timeoutMillis,
+    private static ExternalPaymentProperties properties(Duration timeout,
                                                         float failureRateThreshold,
                                                         int slidingWindowSize,
                                                         int minimumNumberOfCalls,
-                                                        long waitDurationOpenSeconds,
+                                                        Duration waitDurationOpen,
                                                         int permittedCallsInHalfOpenState,
                                                         int poolSize,
                                                         int queueCapacity) {
         var circuitBreaker = new ExternalPaymentProperties.CircuitBreaker(
                 failureRateThreshold, slidingWindowSize, minimumNumberOfCalls,
-                waitDurationOpenSeconds, permittedCallsInHalfOpenState);
+                waitDurationOpen, permittedCallsInHalfOpenState);
         var threadPool = new ExternalPaymentProperties.ThreadPool(poolSize, queueCapacity);
-        return new ExternalPaymentProperties(timeoutMillis, threadPool, circuitBreaker);
+        return new ExternalPaymentProperties(timeout, threadPool, circuitBreaker);
     }
 
-    private static TossPaymentsProperties tossPropertiesFor(long outerTimeoutMillis) {
-        long phaseTimeoutMillis = Math.max(1, outerTimeoutMillis / 4);
-        return tossProperties(phaseTimeoutMillis, phaseTimeoutMillis, phaseTimeoutMillis);
+    private static TossPaymentsProperties tossPropertiesFor(Duration outerTimeout) {
+        Duration phaseTimeout = outerTimeout.dividedBy(4);
+        if (!phaseTimeout.isPositive()) {
+            phaseTimeout = Duration.ofMillis(1);
+        }
+        return tossProperties(phaseTimeout, phaseTimeout, phaseTimeout);
     }
 
-    private static TossPaymentsProperties tossProperties(long responseTimeoutMillis,
-                                                          long connectTimeoutMillis,
-                                                          long acquireTimeoutMillis) {
+    private static TossPaymentsProperties tossProperties(Duration responseTimeout,
+                                                          Duration connectTimeout,
+                                                          Duration acquireTimeout) {
         return new TossPaymentsProperties(
                 "",
                 "https://api.tosspayments.com",
-                responseTimeoutMillis,
-                connectTimeoutMillis,
-                acquireTimeoutMillis,
+                responseTimeout,
+                connectTimeout,
+                acquireTimeout,
                 10,
-                30_000);
+                Duration.ofSeconds(30));
     }
 
     private static PaymentProvider refundOnlyDelegate(RefundBehavior refundBehavior) {

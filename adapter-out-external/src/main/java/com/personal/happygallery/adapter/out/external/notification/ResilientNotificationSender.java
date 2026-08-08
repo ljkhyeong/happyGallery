@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /**
@@ -26,10 +27,10 @@ public class ResilientNotificationSender implements NotificationSender {
                                        CircuitBreaker circuitBreaker,
                                        TimeLimiter timeLimiter,
                                        Executor executor,
-                                       long timeoutMillis) {
+                                       Duration timeout) {
         this.delegate = delegate;
         this.resilientCall = new ResilientNotificationCall(
-                circuitBreaker, timeLimiter, executor, timeoutMillis);
+                circuitBreaker, timeLimiter, executor, timeout);
     }
 
     @Override

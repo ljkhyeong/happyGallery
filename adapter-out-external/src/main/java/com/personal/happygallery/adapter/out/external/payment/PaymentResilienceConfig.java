@@ -31,7 +31,7 @@ class PaymentResilienceConfig {
                 .failureRateThreshold(cb.failureRateThreshold())
                 .slidingWindowSize(cb.slidingWindowSize())
                 .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
+                .waitDurationInOpenState(cb.waitDurationOpen())
                 .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
                 .recordResult(PaymentResilienceConfig::isFailureResult)
                 .build();
@@ -43,7 +43,7 @@ class PaymentResilienceConfig {
                                    TossPaymentsProperties tossProperties) {
         validateTimeoutHierarchy(properties, tossProperties);
         return TimeLimiter.of(TimeLimiterConfig.custom()
-                .timeoutDuration(Duration.ofMillis(properties.timeoutMillis()))
+                .timeoutDuration(properties.timeout())
                 .cancelRunningFuture(true)
                 .build());
     }
@@ -74,7 +74,7 @@ class PaymentResilienceConfig {
                 circuitBreaker,
                 timeLimiter,
                 executor,
-                properties.timeoutMillis());
+                properties.timeout());
     }
 
     private static boolean isFailureResult(Object result) {
@@ -95,10 +95,10 @@ class PaymentResilienceConfig {
 
     private static void validateTimeoutHierarchy(ExternalPaymentProperties resilience,
                                                  TossPaymentsProperties transport) {
-        long transportBudgetMillis = Math.addExact(
-                Math.addExact(transport.acquireTimeoutMillis(), transport.connectTimeoutMillis()),
-                transport.timeoutMillis());
-        Assert.isTrue(resilience.timeoutMillis() > transportBudgetMillis,
+        Duration transportBudget = transport.acquireTimeout()
+                .plus(transport.connectTimeout())
+                .plus(transport.timeout());
+        Assert.isTrue(resilience.timeout().compareTo(transportBudget) > 0,
                 "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }

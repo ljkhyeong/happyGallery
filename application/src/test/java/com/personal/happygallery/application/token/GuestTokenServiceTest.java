@@ -109,7 +109,8 @@ class GuestTokenServiceTest {
     }
 
     private GuestTokenService serviceAt(String activeSecret, String previousSecret, Instant now) {
-        GuestTokenProperties properties = new GuestTokenProperties(activeSecret, previousSecret, 720, 24);
+        GuestTokenProperties properties = new GuestTokenProperties(
+                activeSecret, previousSecret, Duration.ofHours(720), Duration.ofHours(24));
         return new GuestTokenService(properties, Clock.fixed(now, UTC));
     }
 }

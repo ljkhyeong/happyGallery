@@ -1,9 +1,10 @@
 package com.personal.happygallery.application.token;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.Duration;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -13,8 +14,8 @@ import org.springframework.validation.annotation.Validated;
 public record GuestTokenProperties(
         @NotBlank @Size(min = 32) String hmacSecret,
         @DefaultValue("") String previousHmacSecret,
-        @Min(1) @DefaultValue("720") long expiryHours,
-        @Min(1) @DefaultValue("24") long recoveryExpiryHours
+        @NotNull @DurationMin(hours = 1) @DefaultValue("720h") Duration accessExpiry,
+        @NotNull @DurationMin(hours = 1) @DefaultValue("24h") Duration recoveryExpiry
 ) {
 
     public GuestTokenProperties {
@@ -26,9 +27,5 @@ public record GuestTokenProperties(
         if (hmacSecret != null && !hmacSecret.isBlank() && hmacSecret.equals(previousHmacSecret)) {
             throw new IllegalArgumentException("활성 키와 이전 게스트 토큰 HMAC 키는 달라야 합니다.");
         }
-    }
-
-    public Duration accessExpiry() {
-        return Duration.ofHours(expiryHours);
     }
 }

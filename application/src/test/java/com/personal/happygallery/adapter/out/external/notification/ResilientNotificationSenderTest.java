@@ -17,8 +17,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.mail.autoconfigure.MailProperties;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,7 +50,8 @@ class ResilientNotificationSenderTest {
             }
             return NotificationSendResult.SUCCESS;
         });
-        NotificationResilienceProperties properties = properties(30, 2, 2, 1, 1);
+        NotificationResilienceProperties properties = properties(
+                Duration.ofMillis(30), 2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         ResilientNotificationSender resilientSender = createSender(
                 delegate,
@@ -199,29 +200,29 @@ class ResilientNotificationSenderTest {
         });
     }
 
-    @DisplayName("이메일 인증 SMTP는 TLS와 transport보다 큰 외부 타임아웃을 강제한다")
+    @DisplayName("Spring Boot SMTP 설정은 TLS와 transport보다 큰 외부 타임아웃을 강제한다")
     @Test
     void emailVerificationSmtp_requiresTlsAndTimeoutHierarchy() {
         NotificationResilienceConfig config = new NotificationResilienceConfig();
-        EmailVerificationProperties properties = emailProperties(true, false, 7_000);
-
-        JavaMailSenderImpl mailSender =
-                (JavaMailSenderImpl) config.emailVerificationMailSender(properties);
+        EmailVerificationProperties properties = emailProperties(Duration.ofSeconds(7));
+        MailProperties mailProperties = mailProperties(true, false);
 
         assertSoftly(softly -> {
-            softly.assertThat(mailSender.getJavaMailProperties())
+            softly.assertThat(mailProperties.getProperties())
                     .containsEntry("mail.smtp.starttls.required", "true")
                     .containsEntry("mail.smtp.ssl.checkserveridentity", "true");
-            softly.assertThat(config.emailVerificationTimeLimiter(properties)
+            softly.assertThat(config.emailVerificationTimeLimiter(properties, mailProperties)
                             .getTimeLimiterConfig()
                             .getTimeoutDuration())
                     .isEqualTo(Duration.ofMillis(7_000));
         });
         assertThatThrownBy(() ->
-                config.emailVerificationTimeLimiter(emailProperties(false, false, 7_000)))
+                config.emailVerificationTimeLimiter(
+                        emailProperties(Duration.ofSeconds(7)), mailProperties(false, false)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() ->
-                config.emailVerificationTimeLimiter(emailProperties(true, false, 5_000)))
+                config.emailVerificationTimeLimiter(
+                        emailProperties(Duration.ofSeconds(5)), mailProperties(true, false)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -238,26 +239,31 @@ class ResilientNotificationSenderTest {
                 circuitBreaker,
                 config.notificationTimeLimiter(properties),
                 timeoutExecutor,
-                properties.timeoutMillis());
+                properties.timeout());
     }
 
     private static NotificationResilienceProperties properties(int slidingWindowSize,
                                                                 int minimumNumberOfCalls,
                                                                 int poolSize,
                                                                 int queueCapacity) {
-        return properties(3_000, slidingWindowSize, minimumNumberOfCalls, poolSize, queueCapacity);
+        return properties(
+                Duration.ofSeconds(3),
+                slidingWindowSize,
+                minimumNumberOfCalls,
+                poolSize,
+                queueCapacity);
     }
 
-    private static NotificationResilienceProperties properties(long timeoutMillis,
+    private static NotificationResilienceProperties properties(Duration timeout,
                                                                 int slidingWindowSize,
                                                                 int minimumNumberOfCalls,
                                                                 int poolSize,
                                                                 int queueCapacity) {
         var threadPool = new NotificationResilienceProperties.ThreadPool(poolSize, queueCapacity);
         var circuitBreaker = new NotificationResilienceProperties.CircuitBreaker(
-                50f, slidingWindowSize, minimumNumberOfCalls, 30, 1);
+                50f, slidingWindowSize, minimumNumberOfCalls, Duration.ofSeconds(30), 1);
         return new NotificationResilienceProperties(
-                timeoutMillis,
+                timeout,
                 threadPool,
                 threadPool,
                 threadPool,
@@ -265,24 +271,29 @@ class ResilientNotificationSenderTest {
                 circuitBreaker);
     }
 
-    private static EmailVerificationProperties emailProperties(
-            boolean startTlsEnabled,
-            boolean sslEnabled,
-            long timeoutMillis
-    ) {
+    private static EmailVerificationProperties emailProperties(Duration timeout) {
         return new EmailVerificationProperties(
-                "smtp.example.com",
-                587,
-                "smtp-user",
-                "smtp-password",
                 "no-reply@example.com",
                 "이메일 인증번호",
-                timeoutMillis,
-                1_000,
-                2_000,
-                2_000,
-                startTlsEnabled,
-                sslEnabled);
+                timeout);
+    }
+
+    private static MailProperties mailProperties(boolean startTlsEnabled, boolean sslEnabled) {
+        MailProperties properties = new MailProperties();
+        properties.setHost("smtp.example.com");
+        properties.setPort(587);
+        properties.setUsername("smtp-user");
+        properties.setPassword("smtp-password");
+        properties.getSsl().setEnabled(sslEnabled);
+        properties.getSsl().setVerifyHostname(true);
+        properties.getProperties().put("mail.smtp.auth", "true");
+        properties.getProperties().put("mail.smtp.connectiontimeout", "1000");
+        properties.getProperties().put("mail.smtp.timeout", "2000");
+        properties.getProperties().put("mail.smtp.writetimeout", "2000");
+        properties.getProperties().put("mail.smtp.starttls.enable", String.valueOf(startTlsEnabled));
+        properties.getProperties().put("mail.smtp.starttls.required", String.valueOf(startTlsEnabled));
+        properties.getProperties().put("mail.smtp.ssl.checkserveridentity", "true");
+        return properties;
     }
 
     private ThreadPoolTaskExecutor register(ThreadPoolTaskExecutor executor) {

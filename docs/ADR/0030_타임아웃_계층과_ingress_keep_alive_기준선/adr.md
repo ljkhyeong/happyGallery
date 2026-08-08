@@ -1,7 +1,7 @@
 # ADR-0030: 타임아웃 계층과 ingress keep-alive 운영 기준
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-08-02
+**최종 갱신**: 2026-08-08
 **상태**: Accepted
 
 ---
@@ -50,6 +50,7 @@ Hikari 커넥션 수명은 기본 `idle timeout 5분 < max lifetime 9분 < DB wa
 - OAuth 외부 HTTP는 `pool acquire 1s < connect 2s < read 5s`
 - Toss는 `acquire 0.5s + connect 1s + response 3s < payment TimeLimiter 5s`를 유지하고 역전된 설정은 기동을 거부한다.
 - 서비스별 연결 풀과 세부 설정은 `ADR-0029`에서 관리한다.
+- 애플리케이션 소유 외부 호출·CircuitBreaker·게스트 토큰 시간 설정은 `Duration`으로 바인딩해 계층 비교와 라이브러리 전달까지 단위를 보존한다. 기존 단위 접미사 환경 변수는 `application.yml`에서 명시 단위를 붙여 호환한다.
 
 ---
 

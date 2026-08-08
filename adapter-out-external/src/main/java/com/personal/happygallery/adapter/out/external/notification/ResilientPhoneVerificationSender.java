@@ -5,6 +5,7 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
+import java.time.Duration;
 import java.util.concurrent.Executor;
 
 /** 인증 SMS에도 일반 SMS와 같은 장애 격리 정책을 적용한다. */
@@ -17,10 +18,10 @@ public class ResilientPhoneVerificationSender implements PhoneVerificationSender
                                             CircuitBreaker circuitBreaker,
                                             TimeLimiter timeLimiter,
                                             Executor executor,
-                                            long timeoutMillis) {
+                                            Duration timeout) {
         this.delegate = delegate;
         this.resilientCall = new ResilientNotificationCall(
-                circuitBreaker, timeLimiter, executor, timeoutMillis);
+                circuitBreaker, timeLimiter, executor, timeout);
     }
 
     @Override

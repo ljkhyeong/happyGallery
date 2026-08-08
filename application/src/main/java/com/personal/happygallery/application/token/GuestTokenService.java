@@ -34,7 +34,7 @@ public class GuestTokenService {
 
     /** 휴대폰 재인증 뒤 사용할 수명이 짧은 관리 토큰을 발급한다. */
     public IssuedToken issueRecoveryToken() {
-        return issue(Duration.ofHours(properties.recoveryExpiryHours()));
+        return issue(properties.recoveryExpiry());
     }
 
     /** 결제 결과 보존 기간 동안 비회원이 결제·보상환불 상태를 조회할 토큰을 발급한다. */

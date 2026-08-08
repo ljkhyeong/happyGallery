@@ -1,7 +1,7 @@
 # ADR-0029: 외부 HTTP 클라이언트 풀 설정
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-07-30
+**최종 갱신**: 2026-08-08
 **상태**: Accepted
 
 ---
@@ -43,6 +43,8 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 - 알림(Alimtalk, SMS) max connections: 20
 - Google/Naver OAuth provider별 max connections: 10
 - Toss Payments max connections: 10
+- acquire·connect·response·keep-alive는 각 `@ConfigurationProperties`에서 `Duration`으로 바인딩한다. `PooledHttpClientFactory`는 임의의 밀리초 변환 없이 Apache HttpClient 5의 `Timeout.of(Duration)`와 `TimeValue.of(Duration)`에 전달한다.
+- 기존 `*_TIMEOUT_MILLIS`·`*_KEEP_ALIVE_MILLIS` 환경 변수는 숫자 계약을 유지하고 `application.yml`에서 `ms` 단위를 붙인다.
 
 ### 3. 외부 HTTP 설정도 전체 타임아웃 계층 안에서 정렬한다
 
@@ -62,6 +64,7 @@ Toss Payments confirm/cancel 호출도 같은 외부 HTTP 경계에 포함된다
 - 한 서비스의 지연이 다른 서비스로 번지는 범위를 줄일 수 있다.
 - 운영 튜닝 포인트가 분명해진다.
 - 외부 호출의 공통 Micrometer 관측성과 Boot HTTP client customization이 서비스별 풀에도 유지된다.
+- 시간 단위를 설정 이름과 산술에 중복 표현하지 않아 단위 변환 오류와 설정 관리 지점이 줄어든다.
 
 ### 단점
 

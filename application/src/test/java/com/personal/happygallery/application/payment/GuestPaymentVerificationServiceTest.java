@@ -5,6 +5,7 @@ import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +24,11 @@ class GuestPaymentVerificationServiceTest {
                 PhoneVerificationConsumptionService.class);
         GuestPaymentVerificationService service = new GuestPaymentVerificationService(
                 phoneVerification,
-                new GuestTokenProperties("active-secret-must-be-at-least-32-characters", "", 720, 24));
+                new GuestTokenProperties(
+                        "active-secret-must-be-at-least-32-characters",
+                        "",
+                        Duration.ofHours(720),
+                        Duration.ofHours(24)));
         String orderId = "1e3f9d80-c482-4aa6-86c8-c0f8d0951463";
         String phone = "01012345678";
 

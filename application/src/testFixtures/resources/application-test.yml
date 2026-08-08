@@ -15,7 +15,7 @@ app:
     enable-api-key-auth: true
   guest-token:
     hmac-secret: "test-hmac-secret-key-at-least-32-bytes-long-for-security"
-    expiry-hours: 720
+    access-expiry: 720h
   rate-limit:
     enabled: false
   field-encryption:

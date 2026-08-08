@@ -1,6 +1,6 @@
 # ADR-0024: 비회원 접근 토큰 강화
 
-**최종 갱신**: 2026-07-21
+**최종 갱신**: 2026-08-08
 
 ## 상태
 Accepted
@@ -36,7 +36,7 @@ Accepted
 - `AccessTokenSigner` 유틸: `sign(expiry, hmacSecret)` → 서명 토큰, `verify(token, hmacSecret, now)` → 클레임 검증
 - 토큰 형식: `base64url(nonce:expiryEpochSeconds).base64url(signature)` — nonce는 16바이트 랜덤 hex
 - DB에는 서명 토큰 전체의 SHA-256 해시를 저장한다. 서명 없는 토큰은 거절해 토큰의 nonce만 제출하는 방식으로 서명·만료 검사를 우회할 수 없게 한다. 기존 VARCHAR(64) 컬럼은 그대로 사용한다.
-- 기본 만료: 30일 (`app.guest-token.expiry-hours: 720`)
+- 기본 만료: 30일 (`app.guest-token.access-expiry: 720h`)
 - HMAC 비밀키: `app.guest-token.hmac-secret` 환경변수로 주입
 - `GuestTokenService`가 발급(`issue()`)과 검증(`resolveTokenHash()`)을 담당
 - 검증은 모든 토큰에 HMAC 서명과 만료 시각을 요구하며, 검증이 끝난 원문 전체의 SHA-256 해시만 DB 조회에 사용한다.
@@ -48,7 +48,7 @@ Accepted
 - 클라이언트는 기존 휴대폰 인증 API로 코드를 발송한 뒤 `POST /api/v1/guest-records/recovery`에 정규화된 휴대폰 번호와 6자리 인증 코드를 전달한다. 발송 성공 상태이고 아직 소모되지 않았으며 만료 전인 코드만 인정하고, 성공한 코드는 같은 트랜잭션에서 소모한다.
 - 복구 API는 기본적으로 IP당 분당 10회, 휴대폰 번호당 10분에 5회로 제한하며 Redis 처리율 제한을 사용할 수 없을 때도 요청을 허용하지 않는다.
 - 휴대폰 번호는 평문 검색하지 않고 HMAC 인덱스로 비회원 식별자를 찾는다. 일치하는 비회원이 없으면 별도 존재 여부 오류를 내지 않고 빈 주문·예약 목록을 반환한다.
-- 복구용 토큰은 일반 720시간 토큰과 같은 HMAC 서명 형식을 사용하되 `app.guest-token.recovery-expiry-hours`를 따르며 기본 수명은 24시간이다. 원문은 응답에서 한 번 반환하고, 주문·예약에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
+- 복구용 토큰은 일반 720시간 토큰과 같은 HMAC 서명 형식을 사용하되 `app.guest-token.recovery-expiry`를 따르며 기본 수명은 `24h`다. 원문은 응답에서 한 번 반환하고, 주문·예약에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
 - 해당 비회원에 연결된 모든 주문과 예약의 기존 토큰 해시를 새 복구 토큰 해시 하나로 교체한다. 인증 코드 소모와 전체 해시 교체는 `DefaultGuestRecordRecoveryService`의 한 트랜잭션에서 완료되므로 일부 레코드만 교체된 상태를 남기지 않는다.
 - 별도 토큰 denylist는 두지 않는다. 해시 교체가 곧 회수이며, 교체 직후 기존 일반 토큰과 이전 복구 토큰은 더 이상 어떤 대상과도 일치하지 않는다. 다시 복구하면 직전 복구 토큰도 같은 방식으로 회수된다.
 - 새 토큰은 응답에 함께 반환된 모든 주문·예약에 공통으로 사용하며 기존과 동일하게 `X-Access-Token` 헤더로 전달한다.
@@ -59,6 +59,7 @@ Accepted
 - 신규 토큰은 항상 active 키로만 서명한다. 검증은 active 키를 먼저 시도하고 실패하면 previous 키를 시도한다.
 - 두 키는 서로 달라야 하며 각각 32자 이상이어야 한다.
 - 일반 접근 토큰과 결제 상태 조회 토큰은 같은 720시간 설정과 서명 키를 사용하고, 복구 토큰도 같은 키에서 별도 24시간 설정을 사용한다. 회전 스크립트는 두 설정 중 최댓값에 1시간의 운영 여유를 더한 제거 가능 시각을 기록하므로 기본값에서는 previous 키를 최소 721시간 유지한다.
+- 토큰 수명 설정은 `Duration`으로 바인딩해 발급·보존 계산까지 단위를 보존한다. 기존 `GUEST_TOKEN_EXPIRY_HOURS`와 `GUEST_TOKEN_RECOVERY_EXPIRY_HOURS` 환경 변수는 `application.yml`에서 각각 `h` 단위를 붙여 호환한다.
 - previous 키 제거는 필드 키와 별개의 유예 조건을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)에서 수행한다. 같은 키로 서명된 비회원 결제 인증 증거가 있으므로 finalizer는 회전 경계 전에 생성된 `PENDING/PROCESSING/RETRYABLE/APPROVED/RECONCILIATION_REQUIRED` 비회원 결제가 없는지도 확인한다. 유예 중에는 active/previous를 함께 백업하고, finalizer 이후 신규 active 키만 runtime Secret에 남긴다.
 
 배경 및 설계 검토는 [Idea-0005](../../Idea/0005_비회원_토큰_Signed_만료/idea.md), 운영 키 교체 순서는 [ADR-0037](../0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 참조한다.

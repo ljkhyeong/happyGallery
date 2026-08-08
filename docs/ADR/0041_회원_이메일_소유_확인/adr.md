@@ -1,6 +1,7 @@
 # ADR-0041: 회원 기준 이메일 소유 확인
 
 **날짜**: 2026-07-29
+**최종 갱신**: 2026-08-08
 **상태**: Accepted
 
 ---
@@ -63,6 +64,7 @@ Google OIDC는 `email_verified=true`인 프로필을 제공하지만 Naver 프�
 
 - 운영은 회원 이메일 소유 확인 전용 SMTP sender를 사용한다. 별도 제한 큐 executor와 CircuitBreaker,
   SMTP transport 제한 합보다 큰 전용 TimeLimiter로 보호한다.
+- SMTP host·port·자격 증명·transport·TLS는 Spring Boot `spring.mail.*`에 바인딩하고 Boot가 자동 구성한 단일 `JavaMailSender`를 주입한다. 애플리케이션 전용 설정에는 발신 주소·제목·바깥 `Duration` timeout만 둔다.
 - STARTTLS와 직접 SSL 중 정확히 하나를 필수로 하고, STARTTLS downgrade를 허용하지 않으며
   서버 인증서의 호스트명을 검증한다.
 - 이 즉시 검증 흐름은 일반 업무 알림의 `notification_outbox`, Alimtalk/SMS fallback과 분리한다. 일반 영수증·보조 이메일 채널 구현 여부와도 별개다.

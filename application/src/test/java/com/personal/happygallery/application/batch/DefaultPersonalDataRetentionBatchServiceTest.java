@@ -10,6 +10,7 @@ import com.personal.happygallery.application.payment.PaymentAttemptSensitiveData
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -45,7 +46,8 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 mock(AdminAuthHistoryRetentionService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-03-01T00:00:00Z"), ZoneOffset.UTC);
         GuestTokenProperties tokenProperties =
-                new GuestTokenProperties("s".repeat(32), "", 720, 24);
+                new GuestTokenProperties(
+                        "s".repeat(32), "", Duration.ofHours(720), Duration.ofHours(24));
         when(attemptReader.findSensitiveDataCleanupCandidateIds(any(), eq(0L), eq(100)))
                 .thenReturn(List.of(1L, 2L));
         when(attemptReader.findSensitiveDataCleanupCandidateIds(any(), eq(2L), eq(100)))

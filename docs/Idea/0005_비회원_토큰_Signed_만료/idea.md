@@ -39,4 +39,4 @@
 - 프론트엔드 성공 화면 1회 표시 + 복사 + 자동 연결 (T1-T4)
 - HMAC-SHA256 서명 + 만료 타임스탬프 토큰 발급 (`AccessTokenSigner`, `GuestTokenService`)
 - 서명 없는 토큰 거절과 휴대폰 소유 확인 기반 복구
-- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, `expiry-hours: 720`)
+- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, 현재 키 `access-expiry: 720h`; 기존 `expiry-hours` 표기는 Duration 전환으로 대체됨)

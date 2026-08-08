@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.notification.NotificationChannel;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -21,16 +22,16 @@ final class ResilientNotificationCall {
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
     private final Executor executor;
-    private final long timeoutMillis;
+    private final Duration timeout;
 
     ResilientNotificationCall(CircuitBreaker circuitBreaker,
                               TimeLimiter timeLimiter,
                               Executor executor,
-                              long timeoutMillis) {
+                              Duration timeout) {
         this.circuitBreaker = circuitBreaker;
         this.timeLimiter = timeLimiter;
         this.executor = executor;
-        this.timeoutMillis = timeoutMillis;
+        this.timeout = timeout;
     }
 
     <T> T execute(NotificationChannel channel,
@@ -46,7 +47,7 @@ final class ResilientNotificationCall {
             return unavailableResult;
         } catch (TimeoutException e) {
             log.warn("[{}] 발송 타임아웃 [timeoutMs={} operation={}]",
-                    channel, timeoutMillis, operation);
+                    channel, timeout.toMillis(), operation);
             return unknownResult;
         } catch (RejectedExecutionException e) {
             log.warn("[{}] 발송 대기열 포화 [operation={}]", channel, operation);
@@ -55,7 +56,7 @@ final class ResilientNotificationCall {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
                 log.warn("[{}] 발송 타임아웃 [timeoutMs={} operation={}]",
-                        channel, timeoutMillis, operation);
+                        channel, timeout.toMillis(), operation);
                 return unknownResult;
             }
             if (cause instanceof RejectedExecutionException) {

@@ -91,6 +91,7 @@
 - Prometheus는 결제 `RECONCILIATION_REQUIRED` DB backlog, 환불 `FAILED`·`RECONCILIATION_REQUIRED`, 상태별 처리 기준 시각을 5분 넘긴 자동 복구 backlog, 알림 outbox `FAILED`, 선점 후 2분 넘은 `PROCESSING`, 재시도 예정 시각을 1분 넘긴 `PENDING`, 1분 넘게 중단된 스냅샷 갱신을 각각 알린다. future `next_attempt_at`의 age는 0이므로 정상 백오프는 정체로 보지 않는다. Grafana system dashboard도 같은 상태별 건수·처리 기준 경과 시간·스냅샷 갱신 나이를 표시한다.
 - HTTP 5xx 경보는 최근 5분 요청이 20건 이상이면 전체 요청 대비 10% 초과 비율을 사용하고, 저트래픽에서는 최근 15분 3건 이상을 별도 warning으로 감지한다.
 - 결제와 알림 CircuitBreaker는 공용 `CircuitBreakerRegistry`에 등록하고 Resilience4j Micrometer tagged metrics를 노출한다. `/actuator/prometheus`와 Grafana에서 `name`·`state`·`kind`별 상태, 실패율, 호출 결과와 차단 호출을 확인한다. 서킷 자체의 최소 호출 수·실패율 판정 뒤 `OPEN` 상태 또는 최근 2분의 차단 호출을 즉시 평가해 결제는 critical, 알림 채널은 warning으로 알린다.
+- Spring Mail health indicator는 기본 비활성화한다. SMTP는 이메일 인증 채널의 외부 의존성이므로 장애가 주문·예약 API의 전역 readiness를 내리지 않게 하고, 알림 CircuitBreaker·실패 로그로 분리 관측한다. 독립 SMTP health가 필요한 환경에서만 `MAIL_HEALTH_ENABLED=true`로 활성화한다.
 - 커밋 후 알림·환불 실행 신호 거절은 `happygallery.async.executor.rejected`로, 저장된 관리자 세션
   복호화·역직렬화 실패는 `happygallery.admin.session.validation.failures`로 계측한다. 전자는 DB 복구 경로를
   유지한 warning, 후자는 키·저장 데이터 이상을 뜻하는 critical 경보로 운영자가 확인한다.
