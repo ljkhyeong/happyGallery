@@ -24,7 +24,19 @@ public record OrderDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long totalAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        long productAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         long shippingFee,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        long couponDiscountAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        long rewardUsedAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        long pgPaidAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+        long rewardEarnBase,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        Long issuedCouponId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         LocalDateTime paidAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
@@ -49,6 +61,14 @@ public record OrderDetailResponse(
             int qty,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             long unitPrice,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long grossAmount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long couponDiscountAmount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long rewardUsedAmount,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long netPaidAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String specification,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
@@ -64,6 +84,10 @@ public record OrderDetailResponse(
                     item.getProductType(),
                     item.getQty(),
                     item.getUnitPrice(),
+                    item.getGrossAmount(),
+                    item.getCouponDiscountAmount(),
+                    item.getRewardUsedAmount(),
+                    item.getNetPaidAmount(),
                     item.getSpecification(),
                     item.getCareInstructions(),
                     item.getProductionLeadDays());
@@ -124,7 +148,13 @@ public record OrderDetailResponse(
                 "ORD-%08d".formatted(order.getId()),
                 order.getStatus(),
                 order.getTotalAmount(),
+                order.getProductAmount(),
                 order.getShippingFee(),
+                order.getCouponDiscountAmount(),
+                order.getRewardUsedAmount(),
+                order.getPgPaidAmount(),
+                order.getRewardEarnBase(),
+                order.getIssuedCouponId(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
                 detail.items().stream().map(ItemDto::from).toList(),

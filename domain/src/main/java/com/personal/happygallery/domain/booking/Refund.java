@@ -43,6 +43,18 @@ public class Refund {
     @Column(nullable = false)
     private long amount;
 
+    @Column(name = "customer_refund_amount", nullable = false)
+    private long customerRefundAmount;
+
+    @Column(name = "reward_restore_amount", nullable = false)
+    private long rewardRestoreAmount;
+
+    @Column(name = "reward_revoke_amount", nullable = false)
+    private long rewardRevokeAmount;
+
+    @Column(name = "restore_coupon", nullable = false)
+    private boolean restoreCoupon;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private RefundStatus status;
@@ -91,54 +103,131 @@ public class Refund {
 
     private Refund(Long bookingId, Long orderId, Long orderClaimId,
                    Long passPurchaseId, Long paymentAttemptId,
-                   long amount, String paymentKey) {
-        if (amount <= 0) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "환불 금액은 1원 이상이어야 합니다.");
-        }
+                   long amount, long customerRefundAmount,
+                   long rewardRestoreAmount, long rewardRevokeAmount,
+                   boolean restoreCoupon, String paymentKey) {
+        validateAmounts(
+                orderId, orderClaimId, amount, customerRefundAmount,
+                rewardRestoreAmount, rewardRevokeAmount, restoreCoupon);
         this.bookingId = bookingId;
         this.orderId = orderId;
         this.orderClaimId = orderClaimId;
         this.passPurchaseId = passPurchaseId;
         this.paymentAttemptId = paymentAttemptId;
         this.amount = amount;
+        this.customerRefundAmount = customerRefundAmount;
+        this.rewardRestoreAmount = rewardRestoreAmount;
+        this.rewardRevokeAmount = rewardRevokeAmount;
+        this.restoreCoupon = restoreCoupon;
         this.paymentKey = paymentKey;
         this.idempotencyKey = UUID.randomUUID().toString();
         this.status = RefundStatus.REQUESTED;
+    }
+
+    private static void validateAmounts(
+            Long orderId, Long orderClaimId,
+            long amount, long customerRefundAmount,
+            long rewardRestoreAmount, long rewardRevokeAmount,
+            boolean restoreCoupon) {
+        long composedCustomerRefundAmount;
+        try {
+            composedCustomerRefundAmount = Math.addExact(amount, rewardRestoreAmount);
+        } catch (ArithmeticException exception) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "환불 금액과 혜택 복원 정보가 올바르지 않습니다.");
+        }
+        boolean invalidAmount = amount < 0L
+                || customerRefundAmount < 0L
+                || rewardRestoreAmount < 0L
+                || rewardRevokeAmount < 0L
+                || customerRefundAmount != composedCustomerRefundAmount;
+        boolean noRefundEffect = customerRefundAmount == 0L
+                && rewardRevokeAmount == 0L
+                && !restoreCoupon;
+        boolean invalidOrderBenefit = orderId == null
+                && (rewardRestoreAmount > 0L || rewardRevokeAmount > 0L || restoreCoupon);
+        boolean invalidClaimCoupon = orderClaimId != null && restoreCoupon;
+        if (invalidAmount || noRefundEffect || invalidOrderBenefit || invalidClaimCoupon) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "환불 금액과 혜택 복원 정보가 올바르지 않습니다.");
+        }
     }
 
     /** 예약금 환불 요청 생성 (booking 취소 시). */
     public static Refund forBooking(Booking booking, long amount) {
         Objects.requireNonNull(booking, "booking must not be null");
         Long bookingId = Objects.requireNonNull(booking.getId(), "bookingId must not be null");
-        return new Refund(bookingId, null, null, null, null, amount, booking.getPaymentKey());
+        return monetaryRefund(
+                bookingId, null, null, null, null, amount, booking.getPaymentKey());
     }
 
     /** 주문 환불 요청 생성 (주문 거절/자동환불 시). bookingId는 null. */
     public static Refund forOrder(Long orderId, long amount, String paymentKey) {
-        return new Refund(null, Objects.requireNonNull(orderId, "orderId must not be null"),
-                null, null, null, amount, paymentKey);
+        return forOrder(orderId, amount, amount, 0L, 0L, false, paymentKey);
+    }
+
+    /** 주문의 PG 취소액과 고객 반환 혜택을 환불 요청 시점 값으로 고정한다. */
+    public static Refund forOrder(
+            Long orderId,
+            long pgRefundAmount,
+            long customerRefundAmount,
+            long rewardRestoreAmount,
+            long rewardRevokeAmount,
+            boolean restoreCoupon,
+            String paymentKey) {
+        return new Refund(
+                null, Objects.requireNonNull(orderId, "orderId must not be null"),
+                null, null, null,
+                pgRefundAmount, customerRefundAmount,
+                rewardRestoreAmount, rewardRevokeAmount, restoreCoupon, paymentKey);
     }
 
     /** 배송·픽업 완료 후 주문 클레임 환불 요청 생성. */
     public static Refund forOrderClaim(Long orderId, Long orderClaimId, long amount, String paymentKey) {
+        return forOrderClaim(
+                orderId, orderClaimId, amount, amount, 0L, 0L, paymentKey);
+    }
+
+    /** 클레임의 PG 취소액과 적립금 복원·회수액을 승인 시점 값으로 고정한다. */
+    public static Refund forOrderClaim(
+            Long orderId,
+            Long orderClaimId,
+            long pgRefundAmount,
+            long customerRefundAmount,
+            long rewardRestoreAmount,
+            long rewardRevokeAmount,
+            String paymentKey) {
         return new Refund(null,
                 Objects.requireNonNull(orderId, "orderId must not be null"),
                 Objects.requireNonNull(orderClaimId, "orderClaimId must not be null"),
-                null, null, amount, paymentKey);
+                null, null,
+                pgRefundAmount, customerRefundAmount,
+                rewardRestoreAmount, rewardRevokeAmount, false, paymentKey);
     }
 
     /** 8회권 환불 요청 생성. bookingId/orderId는 null. */
     public static Refund forPass(Long passPurchaseId, long amount, String paymentKey) {
-        return new Refund(null, null, null,
+        return monetaryRefund(null, null, null,
                 Objects.requireNonNull(passPurchaseId, "passPurchaseId must not be null"),
                 null, amount, paymentKey);
     }
 
     /** PG 승인 후 도메인 생성 실패를 보상하는 환불 요청. */
     public static Refund forPaymentAttempt(Long paymentAttemptId, long amount, String paymentKey) {
-        return new Refund(null, null, null, null,
+        return monetaryRefund(null, null, null, null,
                 Objects.requireNonNull(paymentAttemptId, "paymentAttemptId must not be null"),
                 amount, paymentKey);
+    }
+
+    private static Refund monetaryRefund(
+            Long bookingId, Long orderId, Long orderClaimId,
+            Long passPurchaseId, Long paymentAttemptId,
+            long amount, String paymentKey) {
+        if (amount <= 0L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "환불 금액은 1원 이상이어야 합니다.");
+        }
+        return new Refund(
+                bookingId, orderId, orderClaimId, passPurchaseId, paymentAttemptId,
+                amount, amount, 0L, 0L, false, paymentKey);
     }
 
     /** 실행 가능한 환불을 선점한다. 선점할 수 없으면 null을 반환한다. */
@@ -176,8 +265,30 @@ public class Refund {
         if (!ownsProcessing(token)) {
             return false;
         }
+        if (refundTransactionKey == null || refundTransactionKey.isBlank()) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "PG 환불 결과의 transactionKey가 누락되었습니다.");
+        }
+        Objects.requireNonNull(succeededAt, "succeededAt must not be null");
         this.status = RefundStatus.SUCCEEDED;
         this.refundTransactionKey = refundTransactionKey;
+        this.succeededAt = succeededAt;
+        this.failReason = null;
+        clearProcessing();
+        return true;
+    }
+
+    /** PG 취소액이 없는 주문 환불을 외부 호출 없이 성공 처리한다. */
+    public boolean markLocallySucceeded(String token, LocalDateTime succeededAt) {
+        if (!ownsProcessing(token)) {
+            return false;
+        }
+        if (amount != 0L) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "PG 취소액이 있는 환불은 로컬 성공 처리할 수 없습니다.");
+        }
+        this.status = RefundStatus.SUCCEEDED;
+        this.refundTransactionKey = null;
         this.succeededAt = Objects.requireNonNull(succeededAt, "succeededAt must not be null");
         this.failReason = null;
         clearProcessing();
@@ -256,6 +367,11 @@ public class Refund {
     public Long getPassPurchaseId() { return passPurchaseId; }
     public Long getPaymentAttemptId() { return paymentAttemptId; }
     public long getAmount() { return amount; }
+    public long getCustomerRefundAmount() { return customerRefundAmount; }
+    public long getRewardRestoreAmount() { return rewardRestoreAmount; }
+    public long getRewardRevokeAmount() { return rewardRevokeAmount; }
+    public boolean isRestoreCoupon() { return restoreCoupon; }
+    public boolean requiresPgCancellation() { return amount > 0L; }
     public RefundStatus getStatus() { return status; }
     public LocalDateTime getProcessingAt() { return processingAt; }
     public String getProcessingToken() { return processingToken; }

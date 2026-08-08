@@ -11,4 +11,6 @@ public interface OrderClaimItemPort {
     List<OrderClaimItem> findByClaimIdIn(Collection<Long> claimIds);
 
     List<OrderItemClaimedQuantity> sumNonRejectedQuantities(Collection<Long> orderItemIds);
+
+    List<OrderItemApprovedRefundState> summarizeApprovedRefunds(Collection<Long> orderItemIds);
 }

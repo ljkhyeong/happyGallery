@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity;
+import com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState;
 import com.personal.happygallery.domain.order.OrderClaimItem;
 import java.util.Collection;
 import java.util.List;
@@ -26,5 +27,19 @@ public interface OrderClaimItemRepository extends JpaRepository<OrderClaimItem, 
             GROUP BY item.orderItemId
             """)
     List<OrderItemClaimedQuantity> sumNonRejectedQuantities(
+            @Param("orderItemIds") Collection<Long> orderItemIds);
+
+    @Query("""
+            SELECT new com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState(
+                item.orderItemId,
+                SUM(item.quantity),
+                SUM(item.approvedRefundAmount),
+                SUM(item.approvedRewardRestoreAmount))
+            FROM OrderClaimItem item
+            WHERE item.orderItemId IN :orderItemIds
+              AND item.approvedRefundAmount IS NOT NULL
+            GROUP BY item.orderItemId
+            """)
+    List<OrderItemApprovedRefundState> summarizeApprovedRefunds(
             @Param("orderItemIds") Collection<Long> orderItemIds);
 }

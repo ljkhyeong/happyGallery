@@ -8,6 +8,8 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
+import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
@@ -44,7 +46,8 @@ public sealed interface PreparedPaymentPayload {
             FulfillmentType fulfillmentType,
             ShippingAddress shippingAddress,
             long shippingFee,
-            MadeToOrderConsent madeToOrderConsent
+            MadeToOrderConsent madeToOrderConsent,
+            OrderPricingSnapshot pricing
     ) implements PreparedPaymentPayload {
 
         public PreparedOrderPayload {
@@ -60,7 +63,7 @@ public sealed interface PreparedPaymentPayload {
                                     String name,
                                     List<PreparedOrderItem> items) {
             this(userId, phone, guestVerificationProof, name, items,
-                    false, FulfillmentType.PICKUP, null, 0L);
+                    false, FulfillmentType.PICKUP, null, 0L, null, null);
         }
 
         public PreparedOrderPayload(Long userId,
@@ -73,7 +76,22 @@ public sealed interface PreparedPaymentPayload {
                                     ShippingAddress shippingAddress,
                                     long shippingFee) {
             this(userId, phone, guestVerificationProof, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, shippingFee, null);
+                    fulfillmentType, shippingAddress, shippingFee, null, null);
+        }
+
+        /** 혜택 스냅샷 도입 전에 생성된 호출부·저장 JSON 호환 생성자. */
+        public PreparedOrderPayload(Long userId,
+                                    String phone,
+                                    String guestVerificationProof,
+                                    String name,
+                                    List<PreparedOrderItem> items,
+                                    boolean cartCheckout,
+                                    FulfillmentType fulfillmentType,
+                                    ShippingAddress shippingAddress,
+                                    long shippingFee,
+                                    MadeToOrderConsent madeToOrderConsent) {
+            this(userId, phone, guestVerificationProof, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress, shippingFee, madeToOrderConsent, null);
         }
     }
 
@@ -86,18 +104,34 @@ public sealed interface PreparedPaymentPayload {
             String specification,
             String careInstructions,
             Integer productionLeadDays,
-            ProductType productType
+            ProductType productType,
+            OrderItemPricing pricing
     ) {
 
         /** V97 이전 저장 JSON과 테스트 fixture는 구매 조건과 상품 유형이 모두 null이다. */
         public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
-            this(null, productId, productName, qty, unitPrice, null, null, null, null);
+            this(null, productId, productName, qty, unitPrice, null, null, null, null, null);
         }
 
         /** V97 이전 장바구니 결제 스냅샷 호환 생성자. */
         public PreparedOrderItem(
                 Long cartItemId, Long productId, String productName, int qty, long unitPrice) {
-            this(cartItemId, productId, productName, qty, unitPrice, null, null, null, null);
+            this(cartItemId, productId, productName, qty, unitPrice, null, null, null, null, null);
+        }
+
+        /** 혜택 스냅샷 도입 전 호출부·저장 JSON 호환 생성자. */
+        public PreparedOrderItem(
+                Long cartItemId,
+                Long productId,
+                String productName,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays,
+                ProductType productType) {
+            this(cartItemId, productId, productName, qty, unitPrice,
+                    specification, careInstructions, productionLeadDays, productType, null);
         }
     }
 

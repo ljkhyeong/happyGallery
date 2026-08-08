@@ -33,17 +33,20 @@ class PaymentConfirmClaimTransactionService {
     private final PaymentAttemptStorePort attemptStore;
     private final PaymentAttemptAccessVerifier accessVerifier;
     private final PaymentConfirmAttemptResolver attemptResolver;
+    private final OrderPaymentBenefitReservationService benefitReservationService;
     private final Clock clock;
 
     PaymentConfirmClaimTransactionService(PaymentAttemptReaderPort attemptReader,
                                           PaymentAttemptStorePort attemptStore,
                                           PaymentAttemptAccessVerifier accessVerifier,
                                           PaymentConfirmAttemptResolver attemptResolver,
+                                          OrderPaymentBenefitReservationService benefitReservationService,
                                           Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
         this.accessVerifier = accessVerifier;
         this.attemptResolver = attemptResolver;
+        this.benefitReservationService = benefitReservationService;
         this.clock = clock;
     }
 
@@ -58,8 +61,14 @@ class PaymentConfirmClaimTransactionService {
         LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
         LocalDateTime prepareExpiredBeforeUtc = LocalDateTime.ofInstant(
                 nowInstant.minus(DefaultPaymentAttemptExpiryBatchService.PREPARE_TTL), ZoneOffset.UTC);
+        PreparedPaymentPayload expiryPayload = attempt.getStatus() == PaymentAttemptStatus.PENDING
+                ? benefitReservationService.readPayloadForRelease(attempt)
+                : null;
         if (attempt.expirePendingBefore(prepareExpiredBeforeUtc)) {
             attemptStore.save(attempt);
+            if (expiryPayload != null) {
+                benefitReservationService.release(attempt, expiryPayload, now);
+            }
             return new Expired();
         }
         validateAttempt(attempt, command);
@@ -88,6 +97,7 @@ class PaymentConfirmClaimTransactionService {
                 throw paymentFailure(attempt);
             }
             case PENDING, PROCESSING, RETRYABLE -> {
+                boolean priorPgCallPossible = attempt.getStatus() != PaymentAttemptStatus.PENDING;
                 String processingToken;
                 if (attempt.getStatus() == PaymentAttemptStatus.PROCESSING) {
                     if (!isStale(attempt, now)) {
@@ -105,7 +115,7 @@ class PaymentConfirmClaimTransactionService {
                 }
                 yield new PgConfirmationRequired(
                         attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
-                        attempt.getPaymentKey(), processingToken);
+                        attempt.getPaymentKey(), processingToken, priorPgCallPossible);
             }
             case COMPENSATION_REQUESTED, COMPENSATION_FAILED, COMPENSATED ->
                     throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 처리된 결제입니다.");
@@ -171,7 +181,12 @@ class PaymentConfirmClaimTransactionService {
     public boolean tryRecordPgFailure(Long attemptId,
                                       String processingToken,
                                       String reason,
-                                      boolean retryable) {
+                                      boolean retryable,
+                                      boolean priorPgCallPossible) {
+        if (!retryable && priorPgCallPossible) {
+            throw new IllegalArgumentException(
+                    "이전 PG 호출 가능성이 있는 최종 실패는 대사 확인으로 종결해야 합니다.");
+        }
         PaymentAttempt attempt = findForUpdate(attemptId);
         boolean changed = retryable
                 ? attempt.markRetryable(processingToken, reason)
@@ -180,6 +195,9 @@ class PaymentConfirmClaimTransactionService {
             return false;
         }
         attemptStore.save(attempt);
+        if (!retryable) {
+            benefitReservationService.release(attempt, LocalDateTime.now(clock));
+        }
         return true;
     }
 
@@ -292,7 +310,17 @@ class PaymentConfirmClaimTransactionService {
                                   String orderId,
                                   long amount,
                                   String paymentKey,
-                                  String processingToken) implements ConfirmationStep {
+                                  String processingToken,
+                                  boolean priorPgCallPossible) implements ConfirmationStep {
+
+        PgConfirmationRequired(Long attemptId,
+                               String orderId,
+                               long amount,
+                               String paymentKey,
+                               String processingToken) {
+            this(attemptId, orderId, amount, paymentKey, processingToken, false);
+        }
+
         String idempotencyKey() {
             return orderId;
         }

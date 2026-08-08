@@ -88,8 +88,19 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                             step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
                             continue;
                         }
+                        if (!pg.retryable() && required.priorPgCallPossible()) {
+                            if (claimTransactionService.tryRecordPgReconciliationRequired(
+                                    required.attemptId(), required.processingToken(), reason)) {
+                                appMetrics.incrementPaymentConfirmReconciliationRequired();
+                                throw new HappyGalleryException(
+                                        ErrorCode.PAYMENT_RECONCILIATION_REQUIRED, reason);
+                            }
+                            step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
+                            continue;
+                        }
                         if (claimTransactionService.tryRecordPgFailure(
-                                required.attemptId(), required.processingToken(), reason, pg.retryable())) {
+                                required.attemptId(), required.processingToken(), reason,
+                                pg.retryable(), required.priorPgCallPossible())) {
                             ErrorCode errorCode = pg.retryable()
                                     ? ErrorCode.PAYMENT_CONFIRM_RETRYABLE
                                     : ErrorCode.PAYMENT_FAILED;

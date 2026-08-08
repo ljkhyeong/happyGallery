@@ -68,6 +68,8 @@ public class SecurityConfig {
             "/api/v1/payments/{orderId}",
             "/api/v1/payments/pass-policy",
             "/api/v1/bookings/{bookingId}",
+            "/api/v1/guest-records/recovery/orders",
+            "/api/v1/guest-records/recovery/bookings",
             "/api/v1/orders/policy",
             "/api/v1/orders/{id}",
             "/api/v1/orders/{orderId}/claims",
@@ -75,6 +77,7 @@ public class SecurityConfig {
             "/api/v1/products/categories",
             "/api/v1/products/{id}",
             "/api/v1/products/{productId}/qna",
+            "/api/v1/products/{productId}/qna/page",
             "/api/v1/products/{productId}/qna/{id}",
             "/api/v1/media/images/{fileName}",
             "/api/v1/workshop",
@@ -82,7 +85,9 @@ public class SecurityConfig {
             "/api/v1/slots",
             "/api/v1/slots/upcoming",
             "/api/v1/notices",
-            "/api/v1/notices/{id}"
+            "/api/v1/notices/{id}",
+            "/api/v1/events",
+            "/api/v1/events/{id}"
     };
 
     @Bean

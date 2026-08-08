@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -25,13 +26,16 @@ class OrderRefundSupport {
     private final OrderItemPort orderItemPort;
     private final InventoryService inventoryService;
     private final RefundExecutionService refundExecutionService;
+    private final RewardBenefitService rewardBenefitService;
 
     OrderRefundSupport(OrderItemPort orderItemPort,
                        InventoryService inventoryService,
-                       RefundExecutionService refundExecutionService) {
+                       RefundExecutionService refundExecutionService,
+                       RewardBenefitService rewardBenefitService) {
         this.orderItemPort = orderItemPort;
         this.inventoryService = inventoryService;
         this.refundExecutionService = refundExecutionService;
+        this.rewardBenefitService = rewardBenefitService;
     }
 
     /**
@@ -44,7 +48,16 @@ class OrderRefundSupport {
                 .map(item -> new InventoryAdjustment(item.getProductId(), item.getQty()))
                 .toList());
 
+        long rewardRevokeAmount = order.getUserId() == null
+                ? 0L
+                : rewardBenefitService.getEarnedSnapshot(order.getId()).remainingAmount();
         return refundExecutionService.requestOrderRefund(
-                order.getId(), order.getTotalAmount(), order.getPaymentKey());
+                order.getId(),
+                order.getPgPaidAmount(),
+                order.getTotalAmount(),
+                order.getRewardUsedAmount(),
+                rewardRevokeAmount,
+                order.getIssuedCouponId() != null,
+                order.getPaymentKey());
     }
 }

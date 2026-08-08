@@ -5,6 +5,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
@@ -32,8 +34,42 @@ public record OrderPaymentPayloadRequest(
         @Valid @Schema(nullable = true) ShippingAddressRequest shippingAddress,
         @Schema(nullable = true) String madeToOrderConsentVersion,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean madeToOrderConsent,
-        @Valid @Schema(nullable = true) PolicyAcceptanceRequest policyAcceptance
+        @Valid @Schema(nullable = true) PolicyAcceptanceRequest policyAcceptance,
+        @Pattern(regexp = "^[0-9a-f]{64}$")
+        @Schema(
+                nullable = true,
+                description = "GET /api/v1/me/cart가 반환한 불투명 장바구니 스냅샷 버전")
+        String expectedCartVersion,
+        @Positive @Schema(nullable = true) Long issuedCouponId,
+        @PositiveOrZero
+        @Max(PaymentAmountPolicy.MAX_AMOUNT)
+        @Schema(
+                nullable = true,
+                defaultValue = "0",
+                minimum = "0",
+                maximum = "9007199254740991")
+        Long rewardAmount
 ) implements PaymentPayloadRequest {
+
+    /** 혜택 요청 필드 도입 전 호출부 호환 생성자. */
+    public OrderPaymentPayloadRequest(
+            String type,
+            Long userId,
+            String phone,
+            String verificationCode,
+            String name,
+            List<OrderItemRefRequest> items,
+            boolean cartCheckout,
+            FulfillmentType fulfillmentType,
+            ShippingAddressRequest shippingAddress,
+            String madeToOrderConsentVersion,
+            boolean madeToOrderConsent,
+            PolicyAcceptanceRequest policyAcceptance,
+            String expectedCartVersion) {
+        this(type, userId, phone, verificationCode, name, items, cartCheckout,
+                fulfillmentType, shippingAddress, madeToOrderConsentVersion,
+                madeToOrderConsent, policyAcceptance, expectedCartVersion, null, null);
+    }
 
     @Override
     public PaymentPayload.OrderPayload toCommand() {
@@ -48,7 +84,10 @@ public record OrderPaymentPayloadRequest(
                 shippingAddress == null ? null : shippingAddress.toCommand(),
                 madeToOrderConsentVersion,
                 madeToOrderConsent,
-                policyAcceptance == null ? null : policyAcceptance.toCommand());
+                policyAcceptance == null ? null : policyAcceptance.toCommand(),
+                expectedCartVersion,
+                issuedCouponId,
+                rewardAmount == null ? 0L : rewardAmount);
     }
 
     @Schema(name = "OrderItemRef")

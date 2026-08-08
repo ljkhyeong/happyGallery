@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
@@ -27,6 +28,8 @@ public interface OrderQueryUseCase {
     }
 
     List<Order> listMyOrders(Long userId);
+
+    CursorPage<Order> listMyOrders(Long userId, String cursor, int size);
 
     OrderDetail findMyOrder(Long id, Long userId);
 

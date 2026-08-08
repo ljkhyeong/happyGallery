@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.OrderClaimItemPort;
 import com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity;
+import com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState;
 import com.personal.happygallery.domain.order.OrderClaimItem;
 import java.util.Collection;
 import java.util.List;
@@ -30,5 +31,11 @@ class JpaOrderClaimItemPersistenceAdapter implements OrderClaimItemPort {
     public List<OrderItemClaimedQuantity> sumNonRejectedQuantities(
             Collection<Long> orderItemIds) {
         return repository.sumNonRejectedQuantities(orderItemIds);
+    }
+
+    @Override
+    public List<OrderItemApprovedRefundState> summarizeApprovedRefunds(
+            Collection<Long> orderItemIds) {
+        return repository.summarizeApprovedRefunds(orderItemIds);
     }
 }

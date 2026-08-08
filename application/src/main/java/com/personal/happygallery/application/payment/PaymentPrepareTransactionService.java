@@ -18,6 +18,8 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +39,8 @@ class PaymentPrepareTransactionService {
     private final GuestTokenService guestTokenService;
     private final MemberAccountGuard memberAccountGuard;
     private final PolicyConsentService policyConsentService;
+    private final OrderPaymentBenefitReservationService benefitReservationService;
+    private final Clock clock;
 
     PaymentPrepareTransactionService(
             List<PaymentPreparer> preparers,
@@ -46,7 +50,9 @@ class PaymentPrepareTransactionService {
             BlindIndexKeyRing blindIndexKeyRing,
             GuestTokenService guestTokenService,
             MemberAccountGuard memberAccountGuard,
-            PolicyConsentService policyConsentService
+            PolicyConsentService policyConsentService,
+            OrderPaymentBenefitReservationService benefitReservationService,
+            Clock clock
     ) {
         this.preparers = new EnumMap<>(PaymentContext.class);
         for (PaymentPreparer preparer : preparers) {
@@ -62,6 +68,8 @@ class PaymentPrepareTransactionService {
         this.guestTokenService = guestTokenService;
         this.memberAccountGuard = memberAccountGuard;
         this.policyConsentService = policyConsentService;
+        this.benefitReservationService = benefitReservationService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -94,6 +102,8 @@ class PaymentPrepareTransactionService {
                         blindIndexKeyRing.activeKeyId(),
                         issuedToken.tokenHash());
         PaymentAttempt savedAttempt = attemptStore.save(attempt);
+        benefitReservationService.reserve(
+                savedAttempt, prepared.payload(), LocalDateTime.now(clock));
         if (!command.auth().isMember()) {
             policyConsentService.recordForPaymentAttempt(
                     savedAttempt.getId(),

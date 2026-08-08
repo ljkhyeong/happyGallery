@@ -6,6 +6,8 @@ import com.personal.happygallery.adapter.in.web.admin.dto.QnaReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,9 +32,22 @@ public class AdminProductQnaController {
     @GetMapping
     @Operation(operationId = "listAdminProductQna")
     public List<AdminQnaResponse> list(@RequestParam Long productId) {
-        return qnaUseCase.listByProduct(productId).stream()
+        return qnaUseCase.listByProductForAdmin(productId).stream()
                 .map(AdminQnaResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/page")
+    @Operation(operationId = "listAdminProductQnaPage")
+    public AdminQnaPageResponse listPage(
+            @RequestParam Long productId,
+            @RequestParam(required = false) String cursor,
+            @Parameter(schema = @Schema(
+                    type = "integer", format = "int32", defaultValue = "20",
+                    minimum = "1", maximum = "100"))
+            @RequestParam(defaultValue = "20") int size) {
+        return AdminQnaPageResponse.from(
+                qnaUseCase.listByProductForAdmin(productId, cursor, size));
     }
 
     @GetMapping("/unanswered")

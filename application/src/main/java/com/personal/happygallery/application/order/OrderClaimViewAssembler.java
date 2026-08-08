@@ -92,7 +92,7 @@ class OrderClaimViewAssembler {
                 claim.getReplacementCarrier(),
                 claim.getReplacementTrackingNumber(),
                 OrderClaimRefundCalculator.maximumRefundAmount(order, lines, allOrderItems),
-                refund == null ? null : refund.getAmount(),
+                refund == null ? null : refund.getCustomerRefundAmount(),
                 refund == null ? null : refund.getStatus(),
                 claim.getRequestedAt(),
                 claim.getResolvedAt(),

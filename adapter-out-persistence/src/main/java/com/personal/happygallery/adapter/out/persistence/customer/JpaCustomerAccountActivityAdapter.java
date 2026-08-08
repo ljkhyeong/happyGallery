@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.RefundRepositor
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderClaimRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
+import com.personal.happygallery.adapter.out.persistence.reward.RewardAccountRepository;
 import com.personal.happygallery.application.customer.port.out.CustomerAccountActivityPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ class JpaCustomerAccountActivityAdapter implements CustomerAccountActivityPort {
     private final PassPurchaseRepository passPurchaseRepository;
     private final RefundRepository refundRepository;
     private final PaymentAttemptReaderPort paymentAttemptReader;
+    private final RewardAccountRepository rewardAccountRepository;
 
     JpaCustomerAccountActivityAdapter(OrderRepository orderRepository,
                                       OrderClaimRepository orderClaimRepository,
@@ -28,7 +30,8 @@ class JpaCustomerAccountActivityAdapter implements CustomerAccountActivityPort {
                                       BookingCancellationTaskRepository bookingCancellationTaskRepository,
                                       PassPurchaseRepository passPurchaseRepository,
                                       RefundRepository refundRepository,
-                                      PaymentAttemptReaderPort paymentAttemptReader) {
+                                      PaymentAttemptReaderPort paymentAttemptReader,
+                                      RewardAccountRepository rewardAccountRepository) {
         this.orderRepository = orderRepository;
         this.orderClaimRepository = orderClaimRepository;
         this.bookingRepository = bookingRepository;
@@ -36,6 +39,7 @@ class JpaCustomerAccountActivityAdapter implements CustomerAccountActivityPort {
         this.passPurchaseRepository = passPurchaseRepository;
         this.refundRepository = refundRepository;
         this.paymentAttemptReader = paymentAttemptReader;
+        this.rewardAccountRepository = rewardAccountRepository;
     }
 
     @Override
@@ -46,6 +50,7 @@ class JpaCustomerAccountActivityAdapter implements CustomerAccountActivityPort {
                 || bookingCancellationTaskRepository.existsPendingByUserId(userId)
                 || passPurchaseRepository.existsUsableByUserId(userId, now)
                 || refundRepository.existsUnresolvedByUserId(userId)
-                || paymentAttemptReader.existsNonTerminalByOwnerUserId(userId);
+                || paymentAttemptReader.existsNonTerminalByOwnerUserId(userId)
+                || rewardAccountRepository.existsBlockingWithdrawal(userId);
     }
 }

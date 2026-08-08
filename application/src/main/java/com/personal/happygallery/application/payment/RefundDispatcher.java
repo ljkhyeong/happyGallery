@@ -40,6 +40,8 @@ class RefundDispatcher {
         return switch (refundCall) {
             case RefundCall.CancelRequired required -> dispatchCancel(required, target);
             case RefundCall.LookupRequired required -> dispatchLookup(required, target);
+            case RefundCall.LocalOnlyRequired required -> transactionService.markLocallySucceeded(
+                    required.refundId(), required.processingToken());
             case RefundCall.Skipped skipped -> skipped.refund();
         };
     }

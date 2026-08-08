@@ -25,6 +25,7 @@ class PaymentConfirmFulfillmentTransactionService {
     private final PaymentAttemptStorePort attemptStore;
     private final RefundExecutionService refundExecutionService;
     private final PaymentConfirmAttemptResolver attemptResolver;
+    private final OrderPaymentBenefitReservationService benefitReservationService;
     private final FieldEncryptor fieldEncryptor;
     private final Clock clock;
 
@@ -32,12 +33,14 @@ class PaymentConfirmFulfillmentTransactionService {
                                                 PaymentAttemptStorePort attemptStore,
                                                 RefundExecutionService refundExecutionService,
                                                 PaymentConfirmAttemptResolver attemptResolver,
+                                                OrderPaymentBenefitReservationService benefitReservationService,
                                                 FieldEncryptor fieldEncryptor,
                                                 Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
         this.refundExecutionService = refundExecutionService;
         this.attemptResolver = attemptResolver;
+        this.benefitReservationService = benefitReservationService;
         this.fieldEncryptor = fieldEncryptor;
         this.clock = clock;
     }
@@ -94,8 +97,13 @@ class PaymentConfirmFulfillmentTransactionService {
         if (attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
             return false;
         }
+        PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
         attempt.markFailed(reason);
         attemptStore.save(attempt);
+        if (payload != null) {
+            benefitReservationService.release(
+                    attempt, payload, LocalDateTime.now(clock));
+        }
         return true;
     }
 

@@ -48,6 +48,7 @@ public enum ErrorCode {
     DUPLICATE_BOOKING(409, "이미 예약된 슬롯입니다."),
     SLOT_NOT_AVAILABLE(409, "예약할 수 없는 슬롯입니다."),
     BOOKING_CONFLICT(409, "동시 변경 요청이 감지되었습니다. 잠시 후 다시 시도해주세요."),
+    CART_SNAPSHOT_CHANGED(409, "장바구니가 변경되었습니다. 최신 장바구니를 확인한 뒤 다시 결제해 주세요."),
     PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
     PAYMENT_RECONCILIATION_REQUIRED(409, "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
@@ -65,6 +66,7 @@ public enum ErrorCode {
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),
     PASS_CREDIT_INSUFFICIENT(422, "이용권 잔여 횟수가 부족합니다."),
+    REWARD_BALANCE_INSUFFICIENT(422, "사용 가능한 적립금이 부족합니다."),
     PASS_NOT_APPLICABLE(422, "선택한 클래스에는 이 이용권을 사용할 수 없습니다."),
     CLASS_INACTIVE(422, "현재 운영하지 않는 클래스입니다."),
     PHONE_VERIFICATION_REQUIRED(422, "휴대폰 인증을 완료한 뒤 다시 시도해주세요."),
@@ -72,7 +74,7 @@ public enum ErrorCode {
     ACCOUNT_WITHDRAWAL_BLOCKED(
             422,
             "처리가 끝나지 않은 결제 시도·주문·주문 클레임·예약·예약 취소 후속 작업·환불 또는 "
-                    + "사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
+                    + "적립금 예약·부채나 사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
     PASSWORD_UNCHANGED(422, "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다."),
 

@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.booking;
 import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,7 +24,7 @@ public class BookingClass {
     public static final long MIN_PRICE = 10L;
     public static final int MAX_NAME_LENGTH = 100;
     public static final int MAX_DESCRIPTION_LENGTH = 5_000;
-    public static final int MAX_IMAGE_URL_LENGTH = 500;
+    public static final int MAX_IMAGE_URL_LENGTH = ImageReferencePolicy.MAX_LENGTH;
     public static final int MAX_PREPARATION_INFO_LENGTH = 2_000;
     public static final int MAX_TARGET_AUDIENCE_LENGTH = 1_000;
 
@@ -134,7 +135,7 @@ public class BookingClass {
         this.price = price;
         this.passEligible = passEligible;
         this.description = optionalText(description, "클래스 설명", MAX_DESCRIPTION_LENGTH);
-        this.imageUrl = optionalText(imageUrl, "대표 이미지 URL", MAX_IMAGE_URL_LENGTH);
+        this.imageUrl = ImageReferencePolicy.optional(imageUrl);
         this.preparationInfo = optionalText(
                 preparationInfo, "준비물 안내", MAX_PREPARATION_INFO_LENGTH);
         this.targetAudience = optionalText(

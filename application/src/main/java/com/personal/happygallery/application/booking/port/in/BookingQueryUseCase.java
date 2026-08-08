@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import java.util.List;
@@ -16,6 +17,8 @@ public interface BookingQueryUseCase {
     BookingDetail getBookingByToken(Long bookingId, String accessToken);
 
     List<Booking> listMyBookings(Long userId);
+
+    CursorPage<Booking> listMyBookings(Long userId, String cursor, int size);
 
     BookingDetail findMyBooking(Long id, Long userId);
 }

@@ -45,12 +45,16 @@ public class ImageMediaReferenceGuard {
         if (!StringUtils.hasText(imageUrl)) {
             return null;
         }
-        String path;
+        URI uri;
         try {
-            path = URI.create(imageUrl).getPath();
+            uri = URI.create(imageUrl);
         } catch (IllegalArgumentException exception) {
             return null;
         }
+        if (uri.isAbsolute() || uri.getRawAuthority() != null) {
+            return null;
+        }
+        String path = uri.getPath();
         if (path == null || !path.startsWith(IMAGE_PATH_PREFIX)) {
             return null;
         }

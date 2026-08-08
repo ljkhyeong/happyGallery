@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.customer.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
 import java.time.Instant;
@@ -12,6 +13,12 @@ import java.util.List;
 public interface GuestRecordRecoveryUseCase {
 
     RecoveryResult recover(String phone, String verificationCode);
+
+    CursorPage<RecoveredOrder> listRecoveredOrders(
+            String accessToken, String cursor, int size);
+
+    CursorPage<RecoveredBooking> listRecoveredBookings(
+            String accessToken, String cursor, int size);
 
     record RecoveryResult(String accessToken,
                           Instant expiresAt,

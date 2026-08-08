@@ -3,6 +3,9 @@ package com.personal.happygallery.application.pass;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -31,7 +34,30 @@ public class DefaultPassQueryService implements PassQueryUseCase {
     /** 회원 — 자기 8회권 목록 조회 */
     @Override
     public List<PassView> listMyPasses(Long userId) {
-        List<PassPurchase> passes = passPurchaseReader.findByUserIdOrderByPurchasedAtDesc(userId);
+        return listMyPasses(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<PassView> listMyPasses(Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<PassPurchase> passes;
+        if (cursor == null) {
+            passes = passPurchaseReader.findByUserIdOrderByPurchasedAtDesc(userId, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            passes = passPurchaseReader.findByUserIdOrderByPurchasedAtDescAfter(
+                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        List<PassView> views = withRefunds(passes);
+        return CursorPage.of(
+                views,
+                pageSize,
+                view -> CursorUtils.encode(
+                        view.pass().getPurchasedAt(), view.pass().getId()));
+    }
+
+    private List<PassView> withRefunds(List<PassPurchase> passes) {
         if (passes.isEmpty()) {
             return List.of();
         }

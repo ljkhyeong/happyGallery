@@ -3,6 +3,9 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
 import java.util.List;
@@ -37,7 +40,26 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     /** 회원 — 자기 예약 목록 조회 */
     @Override
     public List<Booking> listMyBookings(Long userId) {
-        return bookingReaderPort.findByUserIdWithDetails(userId);
+        return listMyBookings(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<Booking> listMyBookings(Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<Booking> bookings;
+        if (cursor == null) {
+            bookings = bookingReaderPort.findByUserIdWithDetails(userId, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            bookings = bookingReaderPort.findByUserIdWithDetailsAfter(
+                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                bookings,
+                pageSize,
+                booking -> CursorUtils.encode(
+                        booking.getCreatedAt(), booking.getId()));
     }
 
     /** 회원 — 자기 예약 상세 조회 */

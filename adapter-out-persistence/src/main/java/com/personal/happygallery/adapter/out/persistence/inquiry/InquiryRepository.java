@@ -23,7 +23,20 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long>, Inquiry
     @Query("SELECT i FROM Inquiry i WHERE i.id = :id")
     Optional<Inquiry> findByIdForUpdate(@Param("id") Long id);
 
-    List<Inquiry> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Inquiry> findByUserIdOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT i FROM Inquiry i
+            WHERE i.userId = :userId
+              AND (i.createdAt < :createdAt
+                   OR (i.createdAt = :createdAt AND i.id < :id))
+            ORDER BY i.createdAt DESC, i.id DESC
+            """)
+    List<Inquiry> findByUserIdAfterPage(
+            @Param("userId") Long userId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
 
     List<Inquiry> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
@@ -38,8 +51,16 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long>, Inquiry
                                       Pageable pageable);
 
     @Override
-    default List<Inquiry> findByUserId(Long userId) {
-        return findByUserIdOrderByCreatedAtDesc(userId);
+    default List<Inquiry> findByUserId(Long userId, int limit) {
+        return findByUserIdOrderByCreatedAtDescIdDesc(
+                userId, PageRequest.ofSize(limit));
+    }
+
+    @Override
+    default List<Inquiry> findByUserIdAfter(
+            Long userId, LocalDateTime createdAt, Long id, int limit) {
+        return findByUserIdAfterPage(
+                userId, createdAt, id, PageRequest.ofSize(limit));
     }
 
     @Override

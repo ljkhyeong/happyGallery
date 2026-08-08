@@ -5,6 +5,9 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
@@ -45,7 +48,25 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 회원 — 자기 주문 목록 조회 */
     @Override
     public List<Order> listMyOrders(Long userId) {
-        return orderReader.findByUserIdOrderByCreatedAtDesc(userId);
+        return listMyOrders(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<Order> listMyOrders(Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<Order> orders;
+        if (cursor == null) {
+            orders = orderReader.findByUserIdOrderByCreatedAtDesc(userId, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            orders = orderReader.findByUserIdOrderByCreatedAtDescAfterCursor(
+                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                orders,
+                pageSize,
+                order -> CursorUtils.encode(order.getCreatedAt(), order.getId()));
     }
 
     /** 회원 — 자기 주문 상세 조회 (소유권 검증 포함) */

@@ -73,6 +73,11 @@ class JpaRefundPersistenceAdapter implements RefundPort {
     }
 
     @Override
+    public long sumRewardRevokeAmountByOrderId(Long orderId) {
+        return repository.sumRewardRevokeAmountByOrderId(orderId);
+    }
+
+    @Override
     public List<Refund> findActionRequired(int limit) {
         return repository.findActionRequired(limit);
     }

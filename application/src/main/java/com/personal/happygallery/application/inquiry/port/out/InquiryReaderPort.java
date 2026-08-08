@@ -11,7 +11,10 @@ public interface InquiryReaderPort {
 
     Optional<Inquiry> findByIdForUpdate(Long id);
 
-    List<Inquiry> findByUserId(Long userId);
+    List<Inquiry> findByUserId(Long userId, int limit);
+
+    List<Inquiry> findByUserIdAfter(
+            Long userId, LocalDateTime createdAt, Long id, int limit);
 
     List<Inquiry> findRecent(int limit);
 

@@ -6,7 +6,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 /** 목록 조회의 페이지 번호와 크기 경계를 관리한다. */
 public final class PageParams {
 
-    private static final int MAX_SIZE = 100;
+    public static final int MAX_SIZE = 100;
 
     private PageParams() {}
 

@@ -1,12 +1,14 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.coupon.port.in.CouponRedemptionUseCase;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -40,6 +42,9 @@ class RefundTransactionService {
     private final OrderReaderPort orderReader;
     private final OrderClaimPort orderClaimPort;
     private final PassPurchaseReaderPort passPurchaseReader;
+    private final CouponRedemptionUseCase couponRedemptionUseCase;
+    private final RewardBenefitService rewardBenefitService;
+    private final OrderPaymentBenefitReservationService benefitReservationService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -50,6 +55,9 @@ class RefundTransactionService {
                              OrderReaderPort orderReader,
                              OrderClaimPort orderClaimPort,
                              PassPurchaseReaderPort passPurchaseReader,
+                             CouponRedemptionUseCase couponRedemptionUseCase,
+                             RewardBenefitService rewardBenefitService,
+                             OrderPaymentBenefitReservationService benefitReservationService,
                              ApplicationEventPublisher eventPublisher,
                              Clock clock) {
         this.refundPort = refundPort;
@@ -59,6 +67,9 @@ class RefundTransactionService {
         this.orderReader = orderReader;
         this.orderClaimPort = orderClaimPort;
         this.passPurchaseReader = passPurchaseReader;
+        this.couponRedemptionUseCase = couponRedemptionUseCase;
+        this.rewardBenefitService = rewardBenefitService;
+        this.benefitReservationService = benefitReservationService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -83,6 +94,9 @@ class RefundTransactionService {
         }
         if (recovery) {
             refund.recordRecoveryAttempt(now);
+        }
+        if (!refund.requiresPgCancellation()) {
+            return new RefundCall.LocalOnlyRequired(refund.getId(), processingToken);
         }
         if (!StringUtils.hasText(refund.getPaymentKey())) {
             refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
@@ -121,10 +135,16 @@ class RefundTransactionService {
             return refund;
         }
         Refund savedRefund = refundPort.save(refund);
-        markPaymentAttemptCompensated(savedRefund);
-        markOrderClaimCompleted(savedRefund);
-        publishRefundSucceededNotification(savedRefund);
-        return savedRefund;
+        return completeSuccessfulRefund(savedRefund);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Refund markLocallySucceeded(Long refundId, String processingToken) {
+        Refund refund = findRefundForUpdate(refundId);
+        if (!refund.markLocallySucceeded(processingToken, LocalDateTime.now(clock))) {
+            return refund;
+        }
+        return completeSuccessfulRefund(refundPort.save(refund));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -184,7 +204,41 @@ class RefundTransactionService {
         var attempt = paymentAttemptReader.findByIdForUpdate(refund.getPaymentAttemptId())
                 .orElseThrow(NotFoundException.supplier("결제 시도"));
         attempt.markCompensated();
+        benefitReservationService.release(attempt, LocalDateTime.now(clock));
         paymentAttemptStore.save(attempt);
+    }
+
+    private Refund completeSuccessfulRefund(Refund refund) {
+        markPaymentAttemptCompensated(refund);
+        restoreOrderBenefits(refund);
+        markOrderClaimCompleted(refund);
+        publishRefundSucceededNotification(refund);
+        return refund;
+    }
+
+    private void restoreOrderBenefits(Refund refund) {
+        if (refund.getOrderId() == null) {
+            return;
+        }
+        var order = orderReader.findByIdForUpdate(refund.getOrderId())
+                .orElseThrow(NotFoundException.supplier("주문"));
+        LocalDateTime now = LocalDateTime.now(clock);
+        if (order.getUserId() != null) {
+            rewardBenefitService.restoreUsed(
+                    order.getId(),
+                    refund.getRewardRestoreAmount(),
+                    "reward:restore:refund:" + refund.getId(),
+                    now);
+            rewardBenefitService.revokeEarned(
+                    order.getUserId(),
+                    order.getId(),
+                    refund.getRewardRevokeAmount(),
+                    "reward:revoke:refund:" + refund.getId());
+        }
+        if (refund.isRestoreCoupon()) {
+            couponRedemptionUseCase.restoreAfterFullCancellation(
+                    order.getIssuedCouponId(), order.getId(), now);
+        }
     }
 
     private void markOrderClaimCompleted(Refund refund) {
@@ -262,7 +316,8 @@ class RefundTransactionService {
                         refund.getId())));
     }
 
-    sealed interface RefundCall permits RefundCall.CancelRequired, RefundCall.LookupRequired, RefundCall.Skipped {
+    sealed interface RefundCall permits RefundCall.CancelRequired, RefundCall.LookupRequired,
+            RefundCall.LocalOnlyRequired, RefundCall.Skipped {
 
         record CancelRequired(Long refundId,
                               String paymentKey,
@@ -275,6 +330,8 @@ class RefundTransactionService {
                               long amount,
                               String idempotencyKey,
                               String processingToken) implements RefundCall {}
+
+        record LocalOnlyRequired(Long refundId, String processingToken) implements RefundCall {}
 
         record Skipped(Refund refund) implements RefundCall {}
     }

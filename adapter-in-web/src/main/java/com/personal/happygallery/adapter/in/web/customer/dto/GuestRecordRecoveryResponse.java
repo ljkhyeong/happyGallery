@@ -40,7 +40,7 @@ public record GuestRecordRecoveryResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long totalAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt
     ) {
-        private static OrderSummary from(RecoveredOrder order) {
+        public static OrderSummary from(RecoveredOrder order) {
             return new OrderSummary(order.orderId(), order.status(), order.totalAmount(), order.createdAt());
         }
     }
@@ -56,7 +56,7 @@ public record GuestRecordRecoveryResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt
     ) {
-        private static BookingSummary from(RecoveredBooking booking) {
+        public static BookingSummary from(RecoveredBooking booking) {
             return new BookingSummary(
                     booking.bookingId(), booking.status(), booking.className(),
                     booking.startAt(), booking.endAt());

@@ -24,6 +24,10 @@ class JdbcImageMediaReferenceReaderAdapter implements ImageMediaReferenceReaderP
                         SELECT image_url
                         FROM classes
                         WHERE image_url IS NOT NULL
+                        UNION
+                        SELECT image_url
+                        FROM events
+                        WHERE image_url IS NOT NULL
                         """)
                 .query(String.class)
                 .list();

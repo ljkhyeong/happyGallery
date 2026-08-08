@@ -2,6 +2,8 @@ package com.personal.happygallery.application.cart;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartPurchaseItem;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.CartItemView;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.PurchasableCart;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.PurchasedItem;
 import com.personal.happygallery.application.cart.port.out.CartItemDetail;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
@@ -65,29 +67,37 @@ public class DefaultCartService implements CartUseCase {
     @Override
     @Transactional(readOnly = true)
     public CartView getCart(Long userId) {
-        List<CartItemView> views = cartReadModel.findDetailsByUserId(userId).stream()
+        CartSnapshot snapshot = readSnapshot(userId);
+
+        long total = 0L;
+        for (CartItemView item : snapshot.views()) {
+            if (item.available()) {
+                total = OrderAmountCalculator.addLine(total, item.qty(), item.price());
+            }
+        }
+        return new CartView(snapshot.views(), total, snapshot.version());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PurchasableCart getPurchasableCart(Long userId) {
+        CartSnapshot snapshot = readSnapshot(userId);
+        List<CartPurchaseItem> items = snapshot.details().stream()
+                .filter(DefaultCartService::isAvailable)
+                .map(item -> new CartPurchaseItem(item.cartItemId(), item.productId(), item.qty()))
+                .toList();
+        return new PurchasableCart(items, snapshot.version());
+    }
+
+    private CartSnapshot readSnapshot(Long userId) {
+        List<CartItemDetail> details = cartReadModel.findDetailsByUserId(userId);
+        List<CartItemView> views = details.stream()
                 .map(item -> new CartItemView(
                         item.productId(), item.productName(), item.productType(),
                         item.price(), item.specification(), item.careInstructions(),
                         item.productionLeadDays(), item.qty(), isAvailable(item)))
                 .toList();
-
-        long total = 0L;
-        for (CartItemView item : views) {
-            if (item.available()) {
-                total = OrderAmountCalculator.addLine(total, item.qty(), item.price());
-            }
-        }
-        return new CartView(views, total);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<CartPurchaseItem> getPurchasableItems(Long userId) {
-        return cartReadModel.findDetailsByUserId(userId).stream()
-                .filter(DefaultCartService::isAvailable)
-                .map(item -> new CartPurchaseItem(item.cartItemId(), item.productId(), item.qty()))
-                .toList();
+        return new CartSnapshot(details, views, CartSnapshotVersion.from(views));
     }
 
     @Override
@@ -212,4 +222,10 @@ public class DefaultCartService implements CartUseCase {
                 && item.inventoryQuantity() != null
                 && item.inventoryQuantity() >= item.qty();
     }
+
+    private record CartSnapshot(
+            List<CartItemDetail> details,
+            List<CartItemView> views,
+            String version
+    ) {}
 }

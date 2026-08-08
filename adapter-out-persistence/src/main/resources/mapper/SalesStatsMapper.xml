@@ -14,7 +14,7 @@
                           WHERE balance_paid_at >= #{todayFrom} AND balance_paid_at &lt; #{todayTo}), 0)
               + COALESCE((SELECT SUM(total_price) FROM pass_purchases
                           WHERE purchased_at >= #{todayFrom} AND purchased_at &lt; #{todayTo}), 0)
-              - COALESCE((SELECT SUM(amount) FROM refunds
+              - COALESCE((SELECT SUM(customer_refund_amount) FROM refunds
                           WHERE status = 'SUCCEEDED'
                             AND succeeded_at >= #{todayFrom} AND succeeded_at &lt; #{todayTo}
                             AND payment_attempt_id IS NULL), 0) AS todayRevenue,
@@ -33,7 +33,7 @@
                           WHERE balance_paid_at >= #{rangeFrom} AND balance_paid_at &lt; #{rangeTo}), 0)
               + COALESCE((SELECT SUM(total_price) FROM pass_purchases
                           WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}), 0)
-              - COALESCE((SELECT SUM(amount) FROM refunds
+              - COALESCE((SELECT SUM(customer_refund_amount) FROM refunds
                           WHERE status = 'SUCCEEDED'
                             AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
                             AND payment_attempt_id IS NULL), 0) AS monthRevenue,
@@ -62,7 +62,7 @@
             FROM orders
             WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}
             UNION ALL
-            SELECT succeeded_at AS occurredAt, -amount AS amount, 0 AS orderCount
+            SELECT succeeded_at AS occurredAt, -customer_refund_amount AS amount, 0 AS orderCount
             FROM refunds
             WHERE status = 'SUCCEEDED'
               AND order_id IS NOT NULL
@@ -83,13 +83,13 @@
             SELECT
                 COALESCE((SELECT SUM(total_amount) FROM orders
                           WHERE paid_at >= #{rangeFrom} AND paid_at &lt; #{rangeTo}), 0)
-                  - COALESCE((SELECT SUM(amount) FROM refunds
+                  - COALESCE((SELECT SUM(customer_refund_amount) FROM refunds
                               WHERE status = 'SUCCEEDED' AND order_id IS NOT NULL
                                 AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
                     AS orderRevenue,
                 COALESCE((SELECT SUM(deposit_amount) FROM bookings
                           WHERE deposit_paid_at >= #{rangeFrom} AND deposit_paid_at &lt; #{rangeTo}), 0)
-                  - COALESCE((SELECT SUM(amount) FROM refunds
+                  - COALESCE((SELECT SUM(customer_refund_amount) FROM refunds
                               WHERE status = 'SUCCEEDED' AND booking_id IS NOT NULL
                                 AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
                     AS bookingDepositRevenue,
@@ -98,7 +98,7 @@
                     AS bookingBalanceRevenue,
                 COALESCE((SELECT SUM(total_price) FROM pass_purchases
                           WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}), 0)
-                  - COALESCE((SELECT SUM(amount) FROM refunds
+                  - COALESCE((SELECT SUM(customer_refund_amount) FROM refunds
                               WHERE status = 'SUCCEEDED' AND pass_purchase_id IS NOT NULL
                                 AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}), 0)
                     AS passPurchaseRevenue
@@ -117,7 +117,7 @@
                refunded.amount AS totalRefundedAmount,
                COALESCE(ROUND(refunded.amount / NULLIF(gross.amount, 0), 4), 0) AS refundRate
         FROM (
-            SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS amount
+            SELECT COUNT(*) AS cnt, COALESCE(SUM(customer_refund_amount), 0) AS amount
             FROM refunds
             WHERE status = 'SUCCEEDED'
               AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}
@@ -143,7 +143,7 @@
                SUM(flow.quantity) AS totalQuantity
         FROM (
             SELECT oi.product_id AS productId,
-                   oi.unit_price * oi.qty AS amount,
+                   oi.gross_amount - oi.coupon_discount_amount AS amount,
                    oi.qty AS quantity,
                    o.paid_at AS occurredAt
             FROM order_items oi
@@ -151,7 +151,7 @@
             WHERE o.paid_at >= #{rangeFrom} AND o.paid_at &lt; #{rangeTo}
             UNION ALL
             SELECT oi.product_id AS productId,
-                   -(oi.unit_price * oi.qty) AS amount,
+                   -(oi.gross_amount - oi.coupon_discount_amount) AS amount,
                    -oi.qty AS quantity,
                    r.succeeded_at AS occurredAt
             FROM refunds r
@@ -202,7 +202,7 @@
             FROM pass_purchases
             WHERE purchased_at >= #{rangeFrom} AND purchased_at &lt; #{rangeTo}
             UNION ALL
-            SELECT succeeded_at AS occurredAt, -amount AS amount
+            SELECT succeeded_at AS occurredAt, -customer_refund_amount AS amount
             FROM refunds
             WHERE status = 'SUCCEEDED'
               AND succeeded_at >= #{rangeFrom} AND succeeded_at &lt; #{rangeTo}

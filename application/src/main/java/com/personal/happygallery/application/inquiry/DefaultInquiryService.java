@@ -53,7 +53,26 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<Inquiry> listByUser(Long userId) {
-        return inquiryReader.findByUserId(userId);
+        return listByUser(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage<Inquiry> listByUser(Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<Inquiry> inquiries;
+        if (cursor == null) {
+            inquiries = inquiryReader.findByUserId(userId, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            inquiries = inquiryReader.findByUserIdAfter(
+                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                inquiries,
+                pageSize,
+                inquiry -> CursorUtils.encode(inquiry.getCreatedAt(), inquiry.getId()));
     }
 
     @Override

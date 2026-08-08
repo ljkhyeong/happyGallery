@@ -36,7 +36,28 @@ public class RefundExecutionService {
     /** 환불 요청 이력을 저장하고 커밋 이후 PG 환불 실행을 예약한다. 반환값은 PG 결과 반영 전 요청 이력이다. */
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestOrderRefund(Long orderId, long amount, String paymentKey) {
-        Refund refund = refundPort.save(Refund.forOrder(orderId, amount, paymentKey));
+        return requestOrderRefund(
+                orderId, amount, amount, 0L, 0L, false, paymentKey);
+    }
+
+    /** 주문의 PG 취소액과 고객 혜택 반환 스냅샷을 저장하고 실행을 예약한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Refund requestOrderRefund(
+            Long orderId,
+            long pgRefundAmount,
+            long customerRefundAmount,
+            long rewardRestoreAmount,
+            long rewardRevokeAmount,
+            boolean restoreCoupon,
+            String paymentKey) {
+        Refund refund = refundPort.save(Refund.forOrder(
+                orderId,
+                pgRefundAmount,
+                customerRefundAmount,
+                rewardRestoreAmount,
+                rewardRevokeAmount,
+                restoreCoupon,
+                paymentKey));
         publishExecutionRequested(refund.getId(), "orderId=" + orderId);
         return refund;
     }
@@ -45,8 +66,29 @@ public class RefundExecutionService {
     @Transactional(propagation = Propagation.MANDATORY)
     public Refund requestOrderClaimRefund(
             Long orderId, Long orderClaimId, long amount, String paymentKey) {
+        return requestOrderClaimRefund(
+                orderId, orderClaimId, amount, amount, 0L, 0L, paymentKey);
+    }
+
+    /** 클레임 승인 시 계산된 PG·적립금 반환과 적립 회수액을 저장하고 실행을 예약한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Refund requestOrderClaimRefund(
+            Long orderId,
+            Long orderClaimId,
+            long pgRefundAmount,
+            long customerRefundAmount,
+            long rewardRestoreAmount,
+            long rewardRevokeAmount,
+            String paymentKey) {
         Refund refund = refundPort.save(
-                Refund.forOrderClaim(orderId, orderClaimId, amount, paymentKey));
+                Refund.forOrderClaim(
+                        orderId,
+                        orderClaimId,
+                        pgRefundAmount,
+                        customerRefundAmount,
+                        rewardRestoreAmount,
+                        rewardRevokeAmount,
+                        paymentKey));
         publishExecutionRequested(refund.getId(), "orderClaimId=" + orderClaimId);
         return refund;
     }

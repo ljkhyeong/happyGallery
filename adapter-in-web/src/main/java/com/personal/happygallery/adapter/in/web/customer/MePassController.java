@@ -1,18 +1,22 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.MyPassSummary;
+import com.personal.happygallery.adapter.in.web.customer.dto.MyPassPageResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberPassRefundResponse;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCase;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -40,6 +44,19 @@ public class MePassController {
     @Operation(operationId = "listMyPasses")
     public List<MyPassSummary> myPasses(@AuthenticationPrincipal CustomerPrincipal customer) {
         return MyPassSummary.fromAll(passQueryUseCase.listMyPasses(customer.userId()));
+    }
+
+    @GetMapping("/page")
+    @Operation(operationId = "listMyPassesPage")
+    public MyPassPageResponse myPassesPage(
+            @AuthenticationPrincipal CustomerPrincipal customer,
+            @RequestParam(required = false) String cursor,
+            @Parameter(schema = @Schema(
+                    type = "integer", format = "int32", defaultValue = "20",
+                    minimum = "1", maximum = "100"))
+            @RequestParam(defaultValue = "20") int size) {
+        return MyPassPageResponse.from(
+                passQueryUseCase.listMyPasses(customer.userId(), cursor, size));
     }
 
     @GetMapping("/{id}")

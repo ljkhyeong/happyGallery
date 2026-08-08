@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.qna;
 
 import com.personal.happygallery.application.qna.port.out.ProductQnaReaderPort;
+import com.personal.happygallery.application.qna.port.out.ProductQnaListView;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,14 +19,97 @@ public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, P
 
     @Override Optional<ProductQna> findByIdAndProductId(Long id, Long productId);
     @Override Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
-    List<ProductQna> findByProductIdAndUserIdOrderByCreatedAtDesc(Long productId, Long userId);
-
     @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("SELECT q FROM ProductQna q WHERE q.id = :id")
     Optional<ProductQna> findByIdForUpdate(@Param("id") Long id);
 
-    List<ProductQna> findByProductIdOrderByCreatedAtDesc(Long productId);
+    @Query("""
+            SELECT q.id AS id,
+                   q.userId AS userId,
+                   q.title AS title,
+                   q.secret AS secret,
+                   CASE WHEN q.replyContent IS NULL THEN false ELSE true END AS hasReply,
+                   q.createdAt AS createdAt
+            FROM ProductQna q
+            WHERE q.productId = :productId
+            ORDER BY q.createdAt DESC, q.id DESC
+            """)
+    List<ProductQnaListProjection> findListByProductId(
+            @Param("productId") Long productId, Pageable pageable);
+
+    @Query("""
+            SELECT q.id AS id,
+                   q.userId AS userId,
+                   q.title AS title,
+                   q.secret AS secret,
+                   CASE WHEN q.replyContent IS NULL THEN false ELSE true END AS hasReply,
+                   q.createdAt AS createdAt
+            FROM ProductQna q
+            WHERE q.productId = :productId
+              AND (q.createdAt < :createdAt
+                   OR (q.createdAt = :createdAt AND q.id < :id))
+            ORDER BY q.createdAt DESC, q.id DESC
+            """)
+    List<ProductQnaListProjection> findListByProductIdAfter(
+            @Param("productId") Long productId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
+
+    @Query("""
+            SELECT q.id AS id,
+                   q.userId AS userId,
+                   q.title AS title,
+                   q.secret AS secret,
+                   CASE WHEN q.replyContent IS NULL THEN false ELSE true END AS hasReply,
+                   q.createdAt AS createdAt
+            FROM ProductQna q
+            WHERE q.productId = :productId
+              AND q.userId = :userId
+            ORDER BY q.createdAt DESC, q.id DESC
+            """)
+    List<ProductQnaListProjection> findOwnedListByProductId(
+            @Param("productId") Long productId,
+            @Param("userId") Long userId,
+            Pageable pageable);
+
+    @Query("""
+            SELECT q.id AS id,
+                   q.userId AS userId,
+                   q.title AS title,
+                   q.secret AS secret,
+                   CASE WHEN q.replyContent IS NULL THEN false ELSE true END AS hasReply,
+                   q.createdAt AS createdAt
+            FROM ProductQna q
+            WHERE q.productId = :productId
+              AND q.userId = :userId
+              AND (q.createdAt < :createdAt
+                   OR (q.createdAt = :createdAt AND q.id < :id))
+            ORDER BY q.createdAt DESC, q.id DESC
+            """)
+    List<ProductQnaListProjection> findOwnedListByProductIdAfter(
+            @Param("productId") Long productId,
+            @Param("userId") Long userId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
+
+    List<ProductQna> findByProductIdOrderByCreatedAtDescIdDesc(
+            Long productId, Pageable pageable);
+
+    @Query("""
+            SELECT q FROM ProductQna q
+            WHERE q.productId = :productId
+              AND (q.createdAt < :createdAt
+                   OR (q.createdAt = :createdAt AND q.id < :id))
+            ORDER BY q.createdAt DESC, q.id DESC
+            """)
+    List<ProductQna> findByProductIdForAdminAfterPage(
+            @Param("productId") Long productId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
 
     List<ProductQna> findByRepliedAtIsNullOrderByCreatedAtDescIdDesc(Pageable pageable);
 
@@ -42,13 +126,42 @@ public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, P
             Pageable pageable);
 
     @Override
-    default List<ProductQna> findByProductId(Long productId) {
-        return findByProductIdOrderByCreatedAtDesc(productId);
+    default List<ProductQnaListView> findByProductId(Long productId, int limit) {
+        return toViews(findListByProductId(productId, PageRequest.ofSize(limit)));
     }
 
     @Override
-    default List<ProductQna> findOwnedByProduct(Long productId, Long userId) {
-        return findByProductIdAndUserIdOrderByCreatedAtDesc(productId, userId);
+    default List<ProductQnaListView> findByProductIdAfter(
+            Long productId, LocalDateTime createdAt, Long id, int limit) {
+        return toViews(findListByProductIdAfter(
+                productId, createdAt, id, PageRequest.ofSize(limit)));
+    }
+
+    @Override
+    default List<ProductQnaListView> findOwnedByProduct(
+            Long productId, Long userId, int limit) {
+        return toViews(findOwnedListByProductId(
+                productId, userId, PageRequest.ofSize(limit)));
+    }
+
+    @Override
+    default List<ProductQnaListView> findOwnedByProductAfter(
+            Long productId, Long userId, LocalDateTime createdAt, Long id, int limit) {
+        return toViews(findOwnedListByProductIdAfter(
+                productId, userId, createdAt, id, PageRequest.ofSize(limit)));
+    }
+
+    @Override
+    default List<ProductQna> findByProductIdForAdmin(Long productId, int limit) {
+        return findByProductIdOrderByCreatedAtDescIdDesc(
+                productId, PageRequest.ofSize(limit));
+    }
+
+    @Override
+    default List<ProductQna> findByProductIdForAdminAfter(
+            Long productId, LocalDateTime createdAt, Long id, int limit) {
+        return findByProductIdForAdminAfterPage(
+                productId, createdAt, id, PageRequest.ofSize(limit));
     }
 
     @Override
@@ -60,4 +173,22 @@ public interface ProductQnaRepository extends JpaRepository<ProductQna, Long>, P
     default List<ProductQna> findUnansweredAfter(LocalDateTime createdAt, Long id, int limit) {
         return findUnansweredAfterPage(createdAt, id, PageRequest.ofSize(limit));
     }
+
+    private static List<ProductQnaListView> toViews(
+            List<ProductQnaListProjection> projections) {
+        return projections.stream()
+                .map(item -> new ProductQnaListView(
+                        item.getId(), item.getUserId(), item.getTitle(), item.isSecret(),
+                        item.getHasReply(), item.getCreatedAt()))
+                .toList();
+    }
+}
+
+interface ProductQnaListProjection {
+    Long getId();
+    Long getUserId();
+    String getTitle();
+    boolean isSecret();
+    boolean getHasReply();
+    LocalDateTime getCreatedAt();
 }

@@ -32,6 +32,9 @@ public class OrderClaimItem {
     @Column(name = "approved_refund_amount")
     private Long approvedRefundAmount;
 
+    @Column(name = "approved_reward_restore_amount")
+    private Long approvedRewardRestoreAmount;
+
     protected OrderClaimItem() {}
 
     public OrderClaimItem(Long claimId, Long orderId, Long orderItemId, int quantity) {
@@ -45,10 +48,18 @@ public class OrderClaimItem {
     }
 
     public void allocateApprovedRefundAmount(long amount) {
-        if (amount < 0L) {
-            throw new IllegalArgumentException("승인 환불 배분액은 0원 이상이어야 합니다.");
+        allocateApprovedRefund(amount, 0L);
+    }
+
+    /** 승인된 고객 반환액과 그중 적립금 복원액을 상품 단위로 함께 고정한다. */
+    public void allocateApprovedRefund(long customerRefundAmount, long rewardRestoreAmount) {
+        if (customerRefundAmount < 0L
+                || rewardRestoreAmount < 0L
+                || rewardRestoreAmount > customerRefundAmount) {
+            throw new IllegalArgumentException("승인 환불 배분액과 적립금 복원액을 확인해주세요.");
         }
-        this.approvedRefundAmount = amount;
+        this.approvedRefundAmount = customerRefundAmount;
+        this.approvedRewardRestoreAmount = rewardRestoreAmount;
     }
 
     public Long getId() { return id; }
@@ -57,4 +68,5 @@ public class OrderClaimItem {
     public Long getOrderItemId() { return orderItemId; }
     public int getQuantity() { return quantity; }
     public Long getApprovedRefundAmount() { return approvedRefundAmount; }
+    public Long getApprovedRewardRestoreAmount() { return approvedRewardRestoreAmount; }
 }

@@ -18,9 +18,11 @@ public interface CartUseCase {
         public long subtotal() { return OrderAmountCalculator.addLine(0L, qty, price); }
     }
 
-    record CartView(List<CartItemView> items, long totalAmount) {}
+    record CartView(List<CartItemView> items, long totalAmount, String cartVersion) {}
 
     record CartPurchaseItem(Long cartItemId, Long productId, int qty) {}
+
+    record PurchasableCart(List<CartPurchaseItem> items, String cartVersion) {}
 
     record PurchasedItem(Long cartItemId, int qty) {}
 
@@ -28,7 +30,7 @@ public interface CartUseCase {
 
     CartView getCart(Long userId);
 
-    List<CartPurchaseItem> getPurchasableItems(Long userId);
+    PurchasableCart getPurchasableCart(Long userId);
 
     void addItem(Long userId, Long productId, int qty);
 

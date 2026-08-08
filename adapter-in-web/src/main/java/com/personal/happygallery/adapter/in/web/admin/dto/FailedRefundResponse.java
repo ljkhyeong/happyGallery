@@ -13,6 +13,10 @@ public record FailedRefundResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long passPurchaseId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long paymentAttemptId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long amount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long pgRefundAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long rewardRestoreAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long rewardRevokeAmount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean restoreCoupon,
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 allowableValues = {"FAILED", "RETRYABLE", "RECONCILIATION_REQUIRED"})
@@ -30,7 +34,11 @@ public record FailedRefundResponse(
                 refund.getOrderClaimId(),
                 refund.getPassPurchaseId(),
                 refund.getPaymentAttemptId(),
+                refund.getCustomerRefundAmount(),
                 refund.getAmount(),
+                refund.getRewardRestoreAmount(),
+                refund.getRewardRevokeAmount(),
+                refund.isRestoreCoupon(),
                 refund.getStatus(),
                 refund.getAttemptCount(),
                 refund.getFailReason() != null ? refund.getFailReason() : "",

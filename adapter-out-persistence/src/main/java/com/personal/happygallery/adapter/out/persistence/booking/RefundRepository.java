@@ -28,6 +28,13 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     List<Refund> findByOrderClaimIdIn(List<Long> orderClaimIds);
 
     @Query("""
+            SELECT COALESCE(SUM(r.rewardRevokeAmount), 0)
+            FROM Refund r
+            WHERE r.orderId = :orderId
+            """)
+    long sumRewardRevokeAmountByOrderId(@Param("orderId") Long orderId);
+
+    @Query("""
             SELECT CASE WHEN COUNT(r) > 0 THEN true ELSE false END
             FROM Refund r
             WHERE r.status <> com.personal.happygallery.domain.payment.RefundStatus.SUCCEEDED

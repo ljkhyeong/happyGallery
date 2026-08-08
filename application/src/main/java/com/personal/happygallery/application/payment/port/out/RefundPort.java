@@ -29,6 +29,8 @@ public interface RefundPort {
 
     List<Refund> findByOrderClaimIdIn(List<Long> orderClaimIds);
 
+    long sumRewardRevokeAmountByOrderId(Long orderId);
+
     List<Refund> findActionRequired(int limit);
 
     List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit);

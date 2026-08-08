@@ -13,9 +13,20 @@ public interface ProductQnaReaderPort {
 
     Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
 
-    List<ProductQna> findOwnedByProduct(Long productId, Long userId);
+    List<ProductQnaListView> findOwnedByProduct(Long productId, Long userId, int limit);
 
-    List<ProductQna> findByProductId(Long productId);
+    List<ProductQnaListView> findOwnedByProductAfter(
+            Long productId, Long userId, LocalDateTime createdAt, Long id, int limit);
+
+    List<ProductQnaListView> findByProductId(Long productId, int limit);
+
+    List<ProductQnaListView> findByProductIdAfter(
+            Long productId, LocalDateTime createdAt, Long id, int limit);
+
+    List<ProductQna> findByProductIdForAdmin(Long productId, int limit);
+
+    List<ProductQna> findByProductIdForAdminAfter(
+            Long productId, LocalDateTime createdAt, Long id, int limit);
 
     List<ProductQna> findUnanswered(int limit);
 

@@ -12,11 +12,12 @@ public interface BookingReaderPort {
 
     Optional<Booking> findDetailByIdAndAccessToken(Long id, String accessToken);
 
-    List<Booking> findByUserIdWithDetails(Long userId);
+    List<Booking> findByUserIdWithDetails(Long userId, int limit);
+
+    List<Booking> findByUserIdWithDetailsAfter(
+            Long userId, LocalDateTime createdAt, Long id, int limit);
 
     Optional<Booking> findByIdAndUserIdWithDetails(Long id, Long userId);
-
-    List<Booking> findByGuestIdWithDetails(Long guestId);
 
     List<Long> findBookedPassIdsBySlotId(Long slotId);
 

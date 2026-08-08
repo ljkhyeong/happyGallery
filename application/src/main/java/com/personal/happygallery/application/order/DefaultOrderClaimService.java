@@ -8,10 +8,14 @@ import com.personal.happygallery.application.order.port.out.OrderClaimItemPort;
 import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity;
+import com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
+import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.reward.RewardBenefitService;
+import com.personal.happygallery.application.reward.RewardBenefitService.RewardEarnedSnapshot;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -50,6 +54,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     private final OrderClaimItemPort orderClaimItemPort;
     private final OrderClaimViewAssembler viewAssembler;
     private final RefundExecutionService refundExecutionService;
+    private final RefundPort refundPort;
+    private final RewardBenefitService rewardBenefitService;
     private final InventoryService inventoryService;
     private final GuestTokenService guestTokenService;
     private final ApplicationEventPublisher eventPublisher;
@@ -62,6 +68,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                                     OrderClaimItemPort orderClaimItemPort,
                                     OrderClaimViewAssembler viewAssembler,
                                     RefundExecutionService refundExecutionService,
+                                    RefundPort refundPort,
+                                    RewardBenefitService rewardBenefitService,
                                     InventoryService inventoryService,
                                     GuestTokenService guestTokenService,
                                     ApplicationEventPublisher eventPublisher,
@@ -73,6 +81,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         this.orderClaimItemPort = orderClaimItemPort;
         this.viewAssembler = viewAssembler;
         this.refundExecutionService = refundExecutionService;
+        this.refundPort = refundPort;
+        this.rewardBenefitService = rewardBenefitService;
         this.inventoryService = inventoryService;
         this.guestTokenService = guestTokenService;
         this.eventPublisher = eventPublisher;
@@ -175,15 +185,50 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         if (command.restoreInventory()) {
             inventoryService.restoreAll(inventoryAdjustments);
         }
+        List<OrderItem> allOrderItems = orderItemPort.findByOrder(order);
+        Map<Long, OrderItemApprovedRefundState> approvedStateByItemId =
+                approvedRefundStateByItemId(allOrderItems);
+        lines = lines.stream()
+                .map(line -> new OrderClaimLine(
+                        line.claimItem(),
+                        line.orderItem(),
+                        approvedStateByItemId.getOrDefault(
+                                line.orderItem().getId(), emptyApprovedState(line.orderItem().getId()))
+                                .quantity()))
+                .toList();
+        boolean fullOrderClaim = isFullOrderRefundClaim(
+                lines, allOrderItems, approvedStateByItemId);
         long maximumRefundAmount = OrderClaimRefundCalculator.maximumRefundAmount(
-                order, lines, orderItemPort.findByOrder(order));
+                order, lines, fullOrderClaim);
         long refundAmount = requireRefundAmount(command.refundAmount(), maximumRefundAmount);
-        OrderClaimRefundCalculator.allocateRefundAmount(lines, refundAmount);
+        long previousProductPgRefundAmount = approvedStateByItemId.values().stream()
+                .mapToLong(OrderItemApprovedRefundState::pgRefundAmount)
+                .reduce(0L, Math::addExact);
+        RewardEarnedSnapshot earnedSnapshot = order.getUserId() == null
+                ? RewardEarnedSnapshot.none()
+                : rewardBenefitService.getEarnedSnapshot(order.getId());
+        long reservedRewardRevokeAmount = Math.max(
+                earnedSnapshot.revokedAmount(),
+                refundPort.sumRewardRevokeAmountByOrderId(order.getId()));
+        var allocation = OrderClaimRefundCalculator.allocateRefundAmount(
+                order,
+                lines,
+                refundAmount,
+                previousProductPgRefundAmount,
+                earnedSnapshot.earnedAmount(),
+                reservedRewardRevokeAmount);
+        validateCumulativeBenefits(order, approvedStateByItemId, allocation);
         orderClaimItemPort.saveAll(lines.stream().map(OrderClaimLine::claimItem).toList());
         claim.approveRefund(adminId, command.note(), now());
         OrderClaim saved = orderClaimPort.save(claim);
         refundExecutionService.requestOrderClaimRefund(
-                order.getId(), claim.getId(), refundAmount, order.getPaymentKey());
+                order.getId(),
+                claim.getId(),
+                allocation.pgRefundAmount(),
+                allocation.customerRefundAmount(),
+                allocation.rewardRestoreAmount(),
+                allocation.rewardRevokeAmount(),
+                order.getPaymentKey());
         notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
         return viewAssembler.assemble(saved);
     }
@@ -271,6 +316,61 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                 .map(item -> new OrderClaimLine(
                         item, requireOrderItem(orderItemsById, item.getOrderItemId())))
                 .toList();
+    }
+
+    private Map<Long, OrderItemApprovedRefundState> approvedRefundStateByItemId(
+            List<OrderItem> allOrderItems) {
+        if (allOrderItems.isEmpty()) {
+            return Map.of();
+        }
+        return orderClaimItemPort.summarizeApprovedRefunds(
+                        allOrderItems.stream().map(OrderItem::getId).toList()).stream()
+                .collect(Collectors.toMap(
+                        OrderItemApprovedRefundState::orderItemId,
+                        Function.identity()));
+    }
+
+    private boolean isFullOrderRefundClaim(
+            List<OrderClaimLine> lines,
+            List<OrderItem> allOrderItems,
+            Map<Long, OrderItemApprovedRefundState> approvedStateByItemId) {
+        Map<Long, Integer> currentQuantityByItemId = lines.stream()
+                .collect(Collectors.toMap(
+                        line -> line.orderItem().getId(),
+                        line -> line.claimItem().getQuantity()));
+        return allOrderItems.stream().allMatch(item -> {
+            long approvedQuantity = approvedStateByItemId.getOrDefault(
+                    item.getId(), emptyApprovedState(item.getId())).quantity();
+            return approvedQuantity + currentQuantityByItemId.getOrDefault(item.getId(), 0)
+                    == item.getQty();
+        });
+    }
+
+    private void validateCumulativeBenefits(
+            Order order,
+            Map<Long, OrderItemApprovedRefundState> approvedStateByItemId,
+            OrderClaimRefundCalculator.RefundAllocation allocation) {
+        long previousCustomerRefundAmount = approvedStateByItemId.values().stream()
+                .mapToLong(OrderItemApprovedRefundState::customerRefundAmount)
+                .reduce(0L, Math::addExact);
+        long previousRewardRestoreAmount = approvedStateByItemId.values().stream()
+                .mapToLong(OrderItemApprovedRefundState::rewardRestoreAmount)
+                .reduce(0L, Math::addExact);
+        long currentProductCustomerRefund = allocation.customerRefundAmount()
+                - allocation.shippingRefundAmount();
+        long refundableProductAmount = Math.addExact(
+                order.getRewardEarnBase(), order.getRewardUsedAmount());
+        if (Math.addExact(previousCustomerRefundAmount, currentProductCustomerRefund)
+                    > refundableProductAmount
+                || Math.addExact(previousRewardRestoreAmount, allocation.rewardRestoreAmount())
+                    > order.getRewardUsedAmount()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "클레임 환불 누계가 주문의 결제·혜택 금액을 초과합니다.");
+        }
+    }
+
+    private OrderItemApprovedRefundState emptyApprovedState(Long orderItemId) {
+        return new OrderItemApprovedRefundState(orderItemId, 0L, 0L, 0L);
     }
 
     private Order requireOrder(Long orderId) {

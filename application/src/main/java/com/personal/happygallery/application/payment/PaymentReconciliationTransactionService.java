@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.payment;
 
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
@@ -21,13 +22,16 @@ class PaymentReconciliationTransactionService {
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptStorePort attemptStore;
+    private final OrderPaymentBenefitReservationService benefitReservationService;
     private final Clock clock;
 
     PaymentReconciliationTransactionService(PaymentAttemptReaderPort attemptReader,
                                             PaymentAttemptStorePort attemptStore,
+                                            OrderPaymentBenefitReservationService benefitReservationService,
                                             Clock clock) {
         this.attemptReader = attemptReader;
         this.attemptStore = attemptStore;
+        this.benefitReservationService = benefitReservationService;
         this.clock = clock;
     }
 
@@ -61,8 +65,14 @@ class PaymentReconciliationTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     PaymentAttempt recordNotApproved(Long attemptId, String reason) {
         PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
+        PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
         attempt.markReconciledNotApproved(reason);
-        return attemptStore.save(attempt);
+        PaymentAttempt savedAttempt = attemptStore.save(attempt);
+        if (payload != null) {
+            benefitReservationService.release(
+                    savedAttempt, payload, LocalDateTime.now(clock));
+        }
+        return savedAttempt;
     }
 
     private PaymentAttempt requireReconciliationAttempt(Long attemptId) {

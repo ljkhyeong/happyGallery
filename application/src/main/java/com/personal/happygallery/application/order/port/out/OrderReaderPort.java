@@ -14,7 +14,9 @@ public interface OrderReaderPort {
     List<Order> findPaidApprovalPendingBeforeAfterId(
             LocalDateTime deadline, Long afterId, int limit);
     OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
-    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
+    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId, int limit);
+    List<Order> findByUserIdOrderByCreatedAtDescAfterCursor(
+            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
     /** 커서 기반 전체 주문 조회 — 첫 페이지 */
     List<Order> findAllOrderByCreatedAtDesc(int limit);
 

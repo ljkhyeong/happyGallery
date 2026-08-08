@@ -1,7 +1,18 @@
 package com.personal.happygallery.application.payment.port.out;
 
+import java.util.Objects;
+
 /** PG 환불 호출 결과 (port 계약) */
 public record RefundResult(Outcome outcome, String refundTransactionKey, String failReason) {
+
+    public RefundResult {
+        Objects.requireNonNull(outcome, "outcome must not be null");
+        if (outcome == Outcome.SUCCESS
+                && (refundTransactionKey == null || refundTransactionKey.isBlank())) {
+            throw new IllegalArgumentException(
+                    "successful refund result must have a refundTransactionKey");
+        }
+    }
 
     public static RefundResult success(String refundTransactionKey) {
         return new RefundResult(Outcome.SUCCESS, refundTransactionKey, null);

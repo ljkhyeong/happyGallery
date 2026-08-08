@@ -6,10 +6,13 @@ import com.personal.happygallery.application.booking.port.in.BookingCancelUseCas
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingDetail;
+import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingPageResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingSummary;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.booking.Booking;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.util.List;
@@ -20,6 +23,7 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -50,6 +54,19 @@ public class MeBookingController {
     @Operation(operationId = "listMyBookings")
     public List<MyBookingSummary> myBookings(@AuthenticationPrincipal CustomerPrincipal customer) {
         return MyBookingSummary.fromAll(bookingQueryUseCase.listMyBookings(customer.userId()));
+    }
+
+    @GetMapping("/page")
+    @Operation(operationId = "listMyBookingsPage")
+    public MyBookingPageResponse myBookingsPage(
+            @AuthenticationPrincipal CustomerPrincipal customer,
+            @RequestParam(required = false) String cursor,
+            @Parameter(schema = @Schema(
+                    type = "integer", format = "int32", defaultValue = "20",
+                    minimum = "1", maximum = "100"))
+            @RequestParam(defaultValue = "20") int size) {
+        return MyBookingPageResponse.from(
+                bookingQueryUseCase.listMyBookings(customer.userId(), cursor, size));
     }
 
     @GetMapping("/{id}")

@@ -47,8 +47,26 @@ public class Order {
     @Column(name = "total_amount", nullable = false)
     private long totalAmount;
 
+    @Column(name = "product_amount", nullable = false)
+    private long productAmount;
+
     @Column(name = "shipping_fee", nullable = false)
     private long shippingFee;
+
+    @Column(name = "coupon_discount_amount", nullable = false)
+    private long couponDiscountAmount;
+
+    @Column(name = "reward_used_amount", nullable = false)
+    private long rewardUsedAmount;
+
+    @Column(name = "pg_paid_amount", nullable = false)
+    private long pgPaidAmount;
+
+    @Column(name = "reward_earn_base", nullable = false)
+    private long rewardEarnBase;
+
+    @Column(name = "issued_coupon_id")
+    private Long issuedCouponId;
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
@@ -74,18 +92,21 @@ public class Order {
 
     protected Order() {}
 
-    private Order(Long userId, Long guestId, String accessToken, long totalAmount, long shippingFee,
+    private Order(Long userId, Long guestId, String accessToken, OrderPricingSnapshot pricing,
                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
                   MadeToOrderConsent madeToOrderConsent) {
         requireExactlyOneOwner(userId, guestId);
-        if (shippingFee < 0L || shippingFee > totalAmount) {
-            throw new IllegalArgumentException("배송비는 0원 이상이며 총 결제 금액을 넘을 수 없습니다.");
-        }
         this.userId = userId;
         this.guestId = guestId;
         this.accessToken = accessToken;
-        this.totalAmount = totalAmount;
-        this.shippingFee = shippingFee;
+        this.totalAmount = pricing.totalAmount();
+        this.productAmount = pricing.productAmount();
+        this.shippingFee = pricing.shippingFee();
+        this.couponDiscountAmount = pricing.couponDiscountAmount();
+        this.rewardUsedAmount = pricing.rewardUsedAmount();
+        this.pgPaidAmount = pricing.pgPaidAmount();
+        this.rewardEarnBase = pricing.rewardEarnBase();
+        this.issuedCouponId = pricing.issuedCouponId();
         this.paidAt = paidAt;
         this.approvalDeadlineAt = approvalDeadlineAt;
         this.status = OrderStatus.PAID_APPROVAL_PENDING;
@@ -118,7 +139,7 @@ public class Order {
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
                                  MadeToOrderConsent madeToOrderConsent) {
         return new Order(
-                null, guestId, accessToken, totalAmount, shippingFee,
+                null, guestId, accessToken, legacyPricing(totalAmount, shippingFee),
                 paidAt, approvalDeadlineAt, madeToOrderConsent);
     }
 
@@ -137,8 +158,25 @@ public class Order {
                                   LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
                                   MadeToOrderConsent madeToOrderConsent) {
         return new Order(
-                userId, null, null, totalAmount, shippingFee,
+                userId, null, null, legacyPricing(totalAmount, shippingFee),
                 paidAt, approvalDeadlineAt, madeToOrderConsent);
+    }
+
+    public static Order forMember(Long userId,
+                                  OrderPricingSnapshot pricing,
+                                  LocalDateTime paidAt,
+                                  LocalDateTime approvalDeadlineAt,
+                                  MadeToOrderConsent madeToOrderConsent) {
+        return new Order(
+                userId, null, null, pricing,
+                paidAt, approvalDeadlineAt, madeToOrderConsent);
+    }
+
+    private static OrderPricingSnapshot legacyPricing(long totalAmount, long shippingFee) {
+        if (shippingFee < 0L || shippingFee > totalAmount) {
+            throw new IllegalArgumentException("배송비는 0원 이상이며 총 결제 금액을 넘을 수 없습니다.");
+        }
+        return OrderPricingSnapshot.fullPrice(totalAmount - shippingFee, shippingFee);
     }
 
     /**
@@ -341,7 +379,13 @@ public class Order {
     public String getPaymentKey() { return paymentKey; }
     public OrderStatus getStatus() { return status; }
     public long getTotalAmount() { return totalAmount; }
+    public long getProductAmount() { return productAmount; }
     public long getShippingFee() { return shippingFee; }
+    public long getCouponDiscountAmount() { return couponDiscountAmount; }
+    public long getRewardUsedAmount() { return rewardUsedAmount; }
+    public long getPgPaidAmount() { return pgPaidAmount; }
+    public long getRewardEarnBase() { return rewardEarnBase; }
+    public Long getIssuedCouponId() { return issuedCouponId; }
     public LocalDateTime getPaidAt() { return paidAt; }
     public LocalDateTime getApprovalDeadlineAt() { return approvalDeadlineAt; }
     public String getMadeToOrderConsentVersion() { return madeToOrderConsentVersion; }

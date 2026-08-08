@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -44,16 +45,43 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     Optional<Booking> findDetailByIdAndAccessToken(@Param("id") Long id,
                                                    @Param("accessToken") String accessToken);
 
-    /** 회원 — 자기 예약 조회 (슬롯 시작 시간 내림차순) */
-    @Override
+    /** 회원 — 자기 예약 조회 (생성 시각 내림차순) */
     @Query("""
             SELECT b FROM Booking b
             JOIN FETCH b.bookingClass
             JOIN FETCH b.slot
             WHERE b.userId = :userId
-            ORDER BY b.slot.startAt DESC
+            ORDER BY b.createdAt DESC, b.id DESC
             """)
-    List<Booking> findByUserIdWithDetails(@Param("userId") Long userId);
+    List<Booking> findByUserIdWithDetailsPage(
+            @Param("userId") Long userId, Pageable pageable);
+
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.userId = :userId
+              AND (b.createdAt < :createdAt
+                   OR (b.createdAt = :createdAt AND b.id < :id))
+            ORDER BY b.createdAt DESC, b.id DESC
+            """)
+    List<Booking> findByUserIdWithDetailsAfterPage(
+            @Param("userId") Long userId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
+
+    @Override
+    default List<Booking> findByUserIdWithDetails(Long userId, int limit) {
+        return findByUserIdWithDetailsPage(userId, PageRequest.ofSize(limit));
+    }
+
+    @Override
+    default List<Booking> findByUserIdWithDetailsAfter(
+            Long userId, LocalDateTime createdAt, Long id, int limit) {
+        return findByUserIdWithDetailsAfterPage(
+                userId, createdAt, id, PageRequest.ofSize(limit));
+    }
 
     @Query("""
             SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
@@ -81,14 +109,47 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             JOIN FETCH b.bookingClass
             JOIN FETCH b.slot
             WHERE b.guest.id = :guestId
-            ORDER BY b.slot.startAt DESC
+            ORDER BY b.slot.startAt DESC, b.id DESC
             """)
     List<Booking> findByGuestIdWithDetails(@Param("guestId") Long guestId, Pageable pageable);
 
-    @Override
-    default List<Booking> findByGuestIdWithDetails(Long guestId) {
-        return findByGuestIdWithDetails(guestId, Pageable.unpaged());
-    }
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Booking b
+            SET b.accessToken = :accessToken,
+                b.version = b.version + 1
+            WHERE b.guest.id = :guestId
+            """)
+    int replaceAccessTokenByGuestId(
+            @Param("guestId") Long guestId,
+            @Param("accessToken") String accessToken);
+
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.accessToken = :accessToken
+            ORDER BY b.createdAt DESC, b.id DESC
+            """)
+    List<Booking> findByAccessTokenWithDetails(
+            @Param("accessToken") String accessToken, Pageable pageable);
+
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.accessToken = :accessToken
+              AND (b.createdAt < :createdAt
+                   OR (b.createdAt = :createdAt AND b.id < :id))
+            ORDER BY b.createdAt DESC, b.id DESC
+            """)
+    List<Booking> findByAccessTokenWithDetailsAfter(
+            @Param("accessToken") String accessToken,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("id") Long id,
+            Pageable pageable);
 
     /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 8회권 ID를 PK 순으로 조회한다. */
     @Override

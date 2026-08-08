@@ -29,6 +29,7 @@ public sealed interface PaymentPayload {
      * <p>{@code phone/code/name}이 채워지면 비회원 휴대폰 인증 경로,
      * {@code userId}가 채워지면 회원 경로다. {@code cartCheckout=true}이면
      * 클라이언트의 {@code items} 대신 서버 장바구니의 구매 가능한 항목을 사용한다.
+     * {@code expectedCartVersion}이 있으면 조회한 장바구니 스냅샷과 일치할 때만 준비한다.
      */
     record OrderPayload(
             Long userId,
@@ -41,7 +42,10 @@ public sealed interface PaymentPayload {
             ShippingAddress shippingAddress,
             String madeToOrderConsentVersion,
             boolean madeToOrderConsent,
-            PolicyAcceptance policyAcceptance
+            PolicyAcceptance policyAcceptance,
+            String expectedCartVersion,
+            Long issuedCouponId,
+            long rewardAmount
     ) implements PaymentPayload {
 
         public OrderPayload {
@@ -74,7 +78,7 @@ public sealed interface PaymentPayload {
                             FulfillmentType fulfillmentType,
                             ShippingAddress shippingAddress) {
             this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, null, false, null);
+                    fulfillmentType, shippingAddress, null, false, null, null, null, 0L);
         }
 
         public OrderPayload(Long userId,
@@ -89,7 +93,41 @@ public sealed interface PaymentPayload {
                             boolean madeToOrderConsent) {
             this(userId, phone, verificationCode, name, items, cartCheckout,
                     fulfillmentType, shippingAddress,
-                    madeToOrderConsentVersion, madeToOrderConsent, null);
+                    madeToOrderConsentVersion, madeToOrderConsent, null, null, null, 0L);
+        }
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items,
+                            boolean cartCheckout,
+                            FulfillmentType fulfillmentType,
+                            ShippingAddress shippingAddress,
+                            String madeToOrderConsentVersion,
+                            boolean madeToOrderConsent,
+                            PolicyAcceptance policyAcceptance) {
+            this(userId, phone, verificationCode, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress,
+                    madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance, null, null, 0L);
+        }
+
+        public OrderPayload(Long userId,
+                            String phone,
+                            String verificationCode,
+                            String name,
+                            List<OrderItemRef> items,
+                            boolean cartCheckout,
+                            FulfillmentType fulfillmentType,
+                            ShippingAddress shippingAddress,
+                            String madeToOrderConsentVersion,
+                            boolean madeToOrderConsent,
+                            PolicyAcceptance policyAcceptance,
+                            String expectedCartVersion) {
+            this(userId, phone, verificationCode, name, items, cartCheckout,
+                    fulfillmentType, shippingAddress,
+                    madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance,
+                    expectedCartVersion, null, 0L);
         }
     }
 

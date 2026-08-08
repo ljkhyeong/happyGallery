@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.product;
 import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,7 +14,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import java.net.URI;
 import java.time.LocalDateTime;
 
 /** 판매 상품 — products 테이블 */
@@ -24,7 +24,7 @@ public class Product {
     public static final long MAX_PRICE = PaymentAmountPolicy.MAX_AMOUNT;
     public static final int MAX_NAME_LENGTH = 100;
     public static final int MAX_DESCRIPTION_LENGTH = 5_000;
-    public static final int MAX_IMAGE_URL_LENGTH = 500;
+    public static final int MAX_IMAGE_URL_LENGTH = ImageReferencePolicy.MAX_LENGTH;
     public static final int MAX_SPECIFICATION_LENGTH = 2_000;
     public static final int MAX_CARE_INSTRUCTIONS_LENGTH = 2_000;
     public static final int MIN_PRODUCTION_LEAD_DAYS = 1;
@@ -142,7 +142,7 @@ public class Product {
         this.category = CategoryName.optional(category);
         this.price = price;
         this.description = optionalText(description, "상품 설명", MAX_DESCRIPTION_LENGTH);
-        this.imageUrl = optionalImageUrl(imageUrl);
+        this.imageUrl = ImageReferencePolicy.optional(imageUrl);
         this.specification = optionalText(
                 specification, "상품 사양", MAX_SPECIFICATION_LENGTH);
         this.careInstructions = optionalText(
@@ -192,24 +192,6 @@ public class Product {
                     ErrorCode.INVALID_INPUT, fieldName + "은 " + maxLength + "자 이하여야 합니다.");
         }
         return normalized;
-    }
-
-    private static String optionalImageUrl(String value) {
-        String normalized = optionalText(value, "대표 이미지 URL", MAX_IMAGE_URL_LENGTH);
-        if (normalized == null || normalized.startsWith("/")) {
-            return normalized;
-        }
-        try {
-            URI uri = URI.create(normalized);
-            if (("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
-                    && uri.getHost() != null) {
-                return normalized;
-            }
-        } catch (IllegalArgumentException ignored) {
-            // 아래의 일관된 도메인 오류로 변환한다.
-        }
-        throw new HappyGalleryException(
-                ErrorCode.INVALID_INPUT, "대표 이미지 URL은 http(s) 주소 또는 /로 시작하는 경로여야 합니다.");
     }
 
     /** 상품을 비활성화한다. */

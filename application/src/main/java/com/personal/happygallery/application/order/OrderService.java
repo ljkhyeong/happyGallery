@@ -12,6 +12,8 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -143,14 +145,24 @@ public class OrderService {
                                    ShippingAddress shippingAddress,
                                    long shippingFee,
                                    MadeToOrderConsent madeToOrderConsent) {
+        return createMemberOrder(
+                userId, items, fulfillmentType, shippingAddress, madeToOrderConsent,
+                OrderPricingSnapshot.fullPrice(productAmount(items), shippingFee));
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   MadeToOrderConsent madeToOrderConsent,
+                                   OrderPricingSnapshot pricing) {
         memberAccountGuard.requireActiveForUpdate(userId);
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = totalAmount(items, shippingFee);
-        requireMatchingShippingFee(fulfillmentType, shippingFee);
+        requirePricingMatchesItems(items, pricing);
+        requireMatchingShippingFee(fulfillmentType, pricing.shippingFee());
 
         Order order = orderStore.save(
                 Order.forMember(
-                        userId, totalAmount, shippingFee,
+                        userId, pricing,
                         paidAt, paidAt.plusHours(24), madeToOrderConsent));
 
         saveItemsAndDeductInventory(order, items);
@@ -189,16 +201,41 @@ public class OrderService {
                     item.unitPrice(),
                     item.specification(),
                     item.careInstructions(),
-                    item.productionLeadDays()));
+                    item.productionLeadDays(),
+                    item.pricing()));
         }
     }
 
     private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {
+        return OrderAmountCalculator.addShippingFee(productAmount(items), shippingFee);
+    }
+
+    private static long productAmount(List<OrderItemRequest> items) {
         long total = 0L;
         for (OrderItemRequest item : items) {
             total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
         }
-        return OrderAmountCalculator.addShippingFee(total, shippingFee);
+        return total;
+    }
+
+    private static void requirePricingMatchesItems(
+            List<OrderItemRequest> items, OrderPricingSnapshot pricing) {
+        long productAmount = productAmount(items);
+        long couponDiscount = 0L;
+        long rewardUsed = 0L;
+        long netPaid = 0L;
+        for (OrderItemRequest item : items) {
+            couponDiscount = Math.addExact(
+                    couponDiscount, item.pricing().couponDiscountAmount());
+            rewardUsed = Math.addExact(rewardUsed, item.pricing().rewardUsedAmount());
+            netPaid = Math.addExact(netPaid, item.pricing().netPaidAmount());
+        }
+        if (pricing.productAmount() != productAmount
+                || pricing.couponDiscountAmount() != couponDiscount
+                || pricing.rewardUsedAmount() != rewardUsed
+                || pricing.rewardEarnBase() != netPaid) {
+            throw new IllegalArgumentException("주문 가격과 품목별 혜택 배분이 일치하지 않습니다.");
+        }
     }
 
     private static void requireMatchingShippingFee(FulfillmentType fulfillmentType, long shippingFee) {
@@ -227,11 +264,13 @@ public class OrderService {
             long unitPrice,
             String specification,
             String careInstructions,
-            Integer productionLeadDays
+            Integer productionLeadDays,
+            OrderItemPricing pricing
     ) {
         public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
             this(productId, productName, ProductType.READY_STOCK,
-                    qty, unitPrice, null, null, null);
+                    qty, unitPrice, null, null, null,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
         }
 
         public OrderItemRequest(
@@ -245,12 +284,31 @@ public class OrderService {
         ) {
             this(productId, productName,
                     productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
-                    qty, unitPrice, specification, careInstructions, productionLeadDays);
+                    qty, unitPrice, specification, careInstructions, productionLeadDays,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                ProductType productType,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays
+        ) {
+            this(productId, productName, productType, qty, unitPrice,
+                    specification, careInstructions, productionLeadDays,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
         }
 
         public OrderItemRequest {
             if (productType == null) {
                 throw new IllegalArgumentException("신규 주문 상품의 상품 유형은 필수입니다.");
+            }
+            if (pricing == null) {
+                throw new IllegalArgumentException("주문 품목 가격 스냅샷은 필수입니다.");
             }
         }
     }

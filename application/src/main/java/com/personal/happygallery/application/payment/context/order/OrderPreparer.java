@@ -2,6 +2,11 @@ package com.personal.happygallery.application.payment.context.order;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase.CartPurchaseItem;
+import com.personal.happygallery.application.cart.port.in.CartUseCase.PurchasableCart;
+import com.personal.happygallery.application.coupon.port.in.CouponQuote;
+import com.personal.happygallery.application.coupon.port.in.CouponRedemptionUseCase;
+import com.personal.happygallery.application.order.OrderPriceProperties;
+import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
@@ -9,16 +14,18 @@ import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
-import com.personal.happygallery.application.order.OrderPriceProperties;
-import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
+import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
+import com.personal.happygallery.domain.order.ProportionalAmountAllocator;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -26,11 +33,12 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import java.util.function.Function;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -45,6 +53,8 @@ public class OrderPreparer implements PaymentPreparer {
     private final CartUseCase cartUseCase;
     private final OrderPriceProperties orderPriceProperties;
     private final GuestPaymentVerificationService guestPaymentVerification;
+    private final CouponRedemptionUseCase couponRedemptionUseCase;
+    private final RewardBenefitService rewardBenefitService;
     private final Clock clock;
 
     public OrderPreparer(ProductReaderPort productReader,
@@ -52,12 +62,16 @@ public class OrderPreparer implements PaymentPreparer {
                          CartUseCase cartUseCase,
                          OrderPriceProperties orderPriceProperties,
                          GuestPaymentVerificationService guestPaymentVerification,
+                         CouponRedemptionUseCase couponRedemptionUseCase,
+                         RewardBenefitService rewardBenefitService,
                          Clock clock) {
         this.productReader = productReader;
         this.inventoryReader = inventoryReader;
         this.cartUseCase = cartUseCase;
         this.orderPriceProperties = orderPriceProperties;
         this.guestPaymentVerification = guestPaymentVerification;
+        this.couponRedemptionUseCase = couponRedemptionUseCase;
+        this.rewardBenefitService = rewardBenefitService;
         this.clock = clock;
     }
 
@@ -76,17 +90,33 @@ public class OrderPreparer implements PaymentPreparer {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
             }
         } else {
+            if (op.userId() != null) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 주문에 회원 정보를 지정할 수 없습니다.");
+            }
             if (op.cartCheckout()) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 결제는 회원만 사용할 수 있습니다.");
+            }
+            if (op.issuedCouponId() != null || op.rewardAmount() != 0L) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "쿠폰과 적립금은 회원 주문에만 사용할 수 있습니다.");
             }
             if (op.phone() == null || op.verificationCode() == null || op.name() == null) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 주문은 휴대폰 인증이 필요합니다.");
             }
         }
+        if (op.issuedCouponId() != null && op.issuedCouponId() < 1L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "사용할 쿠폰이 올바르지 않습니다.");
+        }
+        if (op.rewardAmount() < 0L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "사용할 적립금은 0원 이상이어야 합니다.");
+        }
+        if (!op.cartCheckout() && op.expectedCartVersion() != null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "장바구니 버전은 장바구니 결제에만 사용할 수 있습니다.");
+        }
 
         List<ItemToPrepare> items;
         if (op.cartCheckout()) {
-            items = cartItems(auth.userId());
+            items = cartItems(auth.userId(), op.expectedCartVersion());
         } else if (CollectionUtils.isEmpty(op.items())) {
             items = List.of();
         } else {
@@ -106,18 +136,32 @@ public class OrderPreparer implements PaymentPreparer {
         Map<Long, Inventory> inventoriesByProductId = inventoryReader.findByProductIdIn(productIds)
                 .stream()
                 .collect(toMap(Inventory::getProductId, Function.identity()));
-        List<PreparedOrderItem> preparedItems = items.stream()
+        List<PreparedOrderItem> grossPreparedItems = items.stream()
                 .map(item -> prepareItem(item, productsById, inventoriesByProductId))
                 .toList();
         MadeToOrderConsent madeToOrderConsent = madeToOrderConsent(op, productsById);
-        long total = 0L;
-        for (PreparedOrderItem item : preparedItems) {
-            total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
+        long productAmount = 0L;
+        for (PreparedOrderItem item : grossPreparedItems) {
+            productAmount = OrderAmountCalculator.addLine(productAmount, item.qty(), item.unitPrice());
         }
         long shippingFee = op.fulfillmentType() == FulfillmentType.SHIPPING
                 ? orderPriceProperties.shippingFee()
                 : 0L;
-        total = OrderAmountCalculator.addShippingFee(total, shippingFee);
+        LocalDateTime quotedAt = LocalDateTime.now(clock);
+        CouponQuote couponQuote = couponRedemptionUseCase.quoteAndLock(
+                op.userId(), op.issuedCouponId(), productAmount, quotedAt);
+        long rewardAmount = rewardBenefitService.quoteAndLock(
+                op.userId(), op.rewardAmount(), couponQuote.discountedProductAmount(), quotedAt);
+        OrderPricingSnapshot pricing = new OrderPricingSnapshot(
+                productAmount,
+                shippingFee,
+                couponQuote.discountAmount(),
+                rewardAmount,
+                OrderAmountCalculator.addShippingFee(
+                        couponQuote.discountedProductAmount() - rewardAmount, shippingFee),
+                couponQuote.issuedCouponId());
+        List<PreparedOrderItem> preparedItems = allocateBenefits(
+                grossPreparedItems, couponQuote.discountAmount(), rewardAmount);
 
         String phone = auth.isMember() ? null : KoreanPhoneNumber.required(op.phone());
         String name = auth.isMember() ? null : PersonalName.required(op.name());
@@ -125,9 +169,48 @@ public class OrderPreparer implements PaymentPreparer {
                 ? null
                 : guestPaymentVerification.consumeAndIssue(
                         PaymentContext.ORDER, paymentOrderId, phone, op.verificationCode());
-        return new PreparedPayment(total, new PreparedOrderPayload(
+        return new PreparedPayment(pricing.pgPaidAmount(), new PreparedOrderPayload(
                 op.userId(), phone, guestVerificationProof, name, preparedItems, op.cartCheckout(),
-                op.fulfillmentType(), op.shippingAddress(), shippingFee, madeToOrderConsent));
+                op.fulfillmentType(), op.shippingAddress(), shippingFee, madeToOrderConsent, pricing));
+    }
+
+    private static List<PreparedOrderItem> allocateBenefits(
+            List<PreparedOrderItem> items, long couponDiscount, long rewardAmount) {
+        List<Long> grossAmounts = items.stream()
+                .map(item -> OrderAmountCalculator.addLine(0L, item.qty(), item.unitPrice()))
+                .toList();
+        List<Long> couponAllocations = ProportionalAmountAllocator.allocate(
+                couponDiscount, grossAmounts);
+        List<Long> afterCouponAmounts = new ArrayList<>(items.size());
+        for (int index = 0; index < items.size(); index++) {
+            afterCouponAmounts.add(grossAmounts.get(index) - couponAllocations.get(index));
+        }
+        List<Long> rewardAllocations = ProportionalAmountAllocator.allocate(
+                rewardAmount, afterCouponAmounts);
+
+        List<PreparedOrderItem> allocated = new ArrayList<>(items.size());
+        for (int index = 0; index < items.size(); index++) {
+            PreparedOrderItem item = items.get(index);
+            long grossAmount = grossAmounts.get(index);
+            long itemCouponDiscount = couponAllocations.get(index);
+            long itemRewardAmount = rewardAllocations.get(index);
+            allocated.add(new PreparedOrderItem(
+                    item.cartItemId(),
+                    item.productId(),
+                    item.productName(),
+                    item.qty(),
+                    item.unitPrice(),
+                    item.specification(),
+                    item.careInstructions(),
+                    item.productionLeadDays(),
+                    item.productType(),
+                    new OrderItemPricing(
+                            grossAmount,
+                            itemCouponDiscount,
+                            itemRewardAmount,
+                            grossAmount - itemCouponDiscount - itemRewardAmount)));
+        }
+        return List.copyOf(allocated);
     }
 
     private MadeToOrderConsent madeToOrderConsent(
@@ -148,8 +231,12 @@ public class OrderPreparer implements PaymentPreparer {
         return MadeToOrderConsent.current(LocalDateTime.now(clock));
     }
 
-    private List<ItemToPrepare> cartItems(Long userId) {
-        return cartUseCase.getPurchasableItems(userId).stream()
+    private List<ItemToPrepare> cartItems(Long userId, String expectedCartVersion) {
+        PurchasableCart cart = cartUseCase.getPurchasableCart(userId);
+        if (expectedCartVersion != null && !expectedCartVersion.equals(cart.cartVersion())) {
+            throw new HappyGalleryException(ErrorCode.CART_SNAPSHOT_CHANGED);
+        }
+        return cart.items().stream()
                 .map(ItemToPrepare::from)
                 .toList();
     }

@@ -1,15 +1,16 @@
 package com.personal.happygallery.application.qna;
 
-import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.qna.port.out.ProductQnaListView;
 import com.personal.happygallery.application.qna.port.out.ProductQnaReaderPort;
 import com.personal.happygallery.application.qna.port.out.ProductQnaStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -61,15 +62,71 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProductQna> listOwnedByProduct(Long productId, Long userId) {
-        return qnaReader.findOwnedByProduct(productId, userId);
+    public List<OwnedQnaListView> listOwnedByProduct(Long productId, Long userId) {
+        return listOwnedByProduct(productId, userId, null, PageParams.MAX_SIZE).content();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<QnaWithAuthor> listByProduct(Long productId) {
-        List<ProductQna> qnaList = qnaReader.findByProductId(productId);
-        return withAuthors(qnaList);
+    public CursorPage<OwnedQnaListView> listOwnedByProduct(
+            Long productId, Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        List<ProductQnaListView> qnaList = findOwnedList(
+                productId, userId, cursor, pageSize + 1);
+        return CursorPage.of(
+                qnaList.stream().map(DefaultProductQnaService::toOwnedView).toList(),
+                pageSize,
+                item -> CursorUtils.encode(item.createdAt(), item.id()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PublicQnaListView> listByProduct(Long productId) {
+        return listByProduct(productId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage<PublicQnaListView> listByProduct(
+            Long productId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        List<ProductQnaListView> qnaList = findPublicList(productId, cursor, pageSize + 1);
+        Map<Long, User> userMap = batchFetchListUsers(qnaList);
+        List<PublicQnaListView> items = qnaList.stream()
+                .map(qna -> new PublicQnaListView(
+                        qna.id(), qna.title(), userName(userMap, qna.userId()),
+                        qna.secret(), qna.hasReply(), qna.createdAt()))
+                .toList();
+        return CursorPage.of(
+                items,
+                pageSize,
+                item -> CursorUtils.encode(item.createdAt(), item.id()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<QnaWithAuthor> listByProductForAdmin(Long productId) {
+        return listByProductForAdmin(productId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage<QnaWithAuthor> listByProductForAdmin(
+            Long productId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<ProductQna> qnaList;
+        if (cursor == null) {
+            qnaList = qnaReader.findByProductIdForAdmin(productId, fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            qnaList = qnaReader.findByProductIdForAdminAfter(
+                    productId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(
+                withAuthors(qnaList),
+                pageSize,
+                item -> CursorUtils.encode(item.qna().getCreatedAt(), item.qna().getId()));
     }
 
     @Override
@@ -143,6 +200,39 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         List<Long> userIds = qnaList.stream().map(ProductQna::getUserId).distinct().toList();
         return userReader.findAllById(userIds).stream()
                 .collect(toMap(User::getId, Function.identity()));
+    }
+
+    private Map<Long, User> batchFetchListUsers(List<ProductQnaListView> qnaList) {
+        List<Long> userIds = qnaList.stream()
+                .map(ProductQnaListView::userId)
+                .distinct()
+                .toList();
+        return userReader.findAllById(userIds).stream()
+                .collect(toMap(User::getId, Function.identity()));
+    }
+
+    private List<ProductQnaListView> findOwnedList(
+            Long productId, Long userId, String cursor, int limit) {
+        if (cursor == null) {
+            return qnaReader.findOwnedByProduct(productId, userId, limit);
+        }
+        var cursorParam = CursorUtils.decode(cursor);
+        return qnaReader.findOwnedByProductAfter(
+                productId, userId, cursorParam.timestamp(), cursorParam.id(), limit);
+    }
+
+    private List<ProductQnaListView> findPublicList(Long productId, String cursor, int limit) {
+        if (cursor == null) {
+            return qnaReader.findByProductId(productId, limit);
+        }
+        var cursorParam = CursorUtils.decode(cursor);
+        return qnaReader.findByProductIdAfter(
+                productId, cursorParam.timestamp(), cursorParam.id(), limit);
+    }
+
+    private static OwnedQnaListView toOwnedView(ProductQnaListView qna) {
+        return new OwnedQnaListView(
+                qna.id(), qna.title(), qna.secret(), qna.hasReply(), qna.createdAt());
     }
 
     private List<QnaWithAuthor> withAuthors(List<ProductQna> qnaList) {
