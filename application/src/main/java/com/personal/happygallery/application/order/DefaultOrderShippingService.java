@@ -6,16 +6,12 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.reward.RewardAccrualPolicy;
-import java.time.Clock;
-import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,23 +31,20 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderNotificationSupport orderNotificationSupport;
-    private final RewardBenefitService rewardBenefitService;
-    private final Clock clock;
+    private final OrderRewardAccrualService rewardAccrualService;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
                                        OrderStorePort orderStore,
                                        FulfillmentPort fulfillmentPort,
                                        OrderHistoryPort orderHistoryPort,
                                        OrderNotificationSupport orderNotificationSupport,
-                                       RewardBenefitService rewardBenefitService,
-                                       Clock clock) {
+                                       OrderRewardAccrualService rewardAccrualService) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderNotificationSupport = orderNotificationSupport;
-        this.rewardBenefitService = rewardBenefitService;
-        this.clock = clock;
+        this.rewardAccrualService = rewardAccrualService;
     }
 
     /**
@@ -109,19 +102,8 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
         orderStore.save(order);
-        accrueMemberReward(order);
+        rewardAccrualService.accrueForCompletion(order);
 
         return ShippingResult.of(order, fulfillment);
-    }
-
-    private void accrueMemberReward(Order order) {
-        if (order.getUserId() == null) {
-            return;
-        }
-        rewardBenefitService.accrue(
-                order.getUserId(),
-                order.getId(),
-                RewardAccrualPolicy.calculate(order.getRewardEarnBase()),
-                LocalDateTime.now(clock));
     }
 }
