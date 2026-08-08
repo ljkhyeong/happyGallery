@@ -39,7 +39,9 @@ export function QnaCreateForm({ productId }: Props) {
         setContent("");
         setSecret(false);
         setOpen(false);
-        void queryClient.invalidateQueries({ queryKey: ["product-qna", productId] });
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.productQna.byProduct(productId),
+        });
         void queryClient.invalidateQueries({
           queryKey: queryKeys.member.productQna.byProduct(productId),
         });

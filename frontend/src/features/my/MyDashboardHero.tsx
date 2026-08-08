@@ -20,7 +20,7 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             <div className="my-section-kicker mb-2">내 정보</div>
             <h3 className="mb-2">{user.name}님, 다시 오셨네요</h3>
             <p className="text-muted-soft mb-3">
-              최근 주문, 예약, 8회권 현황을 이 페이지에서 바로 관리할 수 있습니다.
+              최근 주문, 예약, 8회권과 쿠폰·적립금 현황을 내 정보에서 관리할 수 있습니다.
             </p>
             <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
               <Badge bg={user.phoneVerified ? "success" : "secondary"}>
@@ -35,7 +35,7 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             </div>
             {nextBooking && (
               <div className="my-dashboard-note">
-                다음 예약: <strong>{nextBooking.className}</strong> · {formatDateTime(nextBooking.startAt)}
+                최근 조회에서 확인한 다음 예약: <strong>{nextBooking.className}</strong> · {formatDateTime(nextBooking.startAt)}
               </div>
             )}
           </div>
@@ -48,6 +48,9 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             </LinkButton>
             <LinkButton to="/passes/purchase" variant="outline-primary" size="sm">
               8회권 구매
+            </LinkButton>
+            <LinkButton to="/my/benefits" variant="outline-primary" size="sm">
+              쿠폰·적립금
             </LinkButton>
             <Button variant="outline-secondary" size="sm" onClick={onLogout} disabled={loggingOut}>
               {loggingOut ? "로그아웃 중..." : "로그아웃"}

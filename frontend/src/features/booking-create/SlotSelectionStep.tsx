@@ -12,7 +12,7 @@ import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
 interface Props {
   initialClassId?: number | null;
-  selectedSlotId: number | null;
+  selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
   onClassChange?: (bookingClass: ClassResponse | null) => void;
@@ -22,14 +22,15 @@ const UPCOMING_DAYS = 14;
 
 export function SlotSelectionStep({
   initialClassId,
-  selectedSlotId,
+  selectedSlot,
   onSelect,
   onDeselect,
   onClassChange,
 }: Props) {
   const appliedInitialClassId = useRef<number | null | undefined>(undefined);
+  const appliedInitialClass = useRef<ClassResponse | null | undefined>(undefined);
   const [classId, setClassId] = useState(() => initialClassId ? String(initialClassId) : "");
-  const [date, setDate] = useState("");
+  const [date, setDate] = useState(() => selectedSlot?.startAt.slice(0, 10) ?? "");
   const [inquiryDate, setInquiryDate] = useState("");
 
   const {
@@ -48,17 +49,25 @@ export function SlotSelectionStep({
   const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;
 
   useEffect(() => {
-    if (classes === undefined || appliedInitialClassId.current === initialClassId) {
+    if (classes === undefined) return;
+    const initialClass = classes.find((bookingClass) => bookingClass.id === initialClassId) ?? null;
+    if (
+      appliedInitialClassId.current === initialClassId
+      && appliedInitialClass.current === initialClass
+    ) {
       return;
     }
     appliedInitialClassId.current = initialClassId;
-    const initialClass = classes.find((bookingClass) => bookingClass.id === initialClassId) ?? null;
+    appliedInitialClass.current = initialClass;
+    const keepsSelectedSlot = selectedSlot?.classId === initialClass?.id;
     setClassId(initialClass ? String(initialClass.id) : "");
-    setDate("");
+    setDate(keepsSelectedSlot ? selectedSlot?.startAt.slice(0, 10) ?? "" : "");
     setInquiryDate("");
     onClassChange?.(initialClass);
-    onDeselect?.();
-  }, [classes, initialClassId, onClassChange, onDeselect]);
+    if (!keepsSelectedSlot) {
+      onDeselect?.();
+    }
+  }, [classes, initialClassId, onClassChange, onDeselect, selectedSlot]);
 
   const {
     data: upcomingSlots,
@@ -90,9 +99,18 @@ export function SlotSelectionStep({
   useEffect(() => {
     if (activeDate !== date) {
       setDate(activeDate);
-      onDeselect?.();
     }
-  }, [activeDate, date, onDeselect]);
+  }, [activeDate, date]);
+
+  useEffect(() => {
+    if (selectedSlot === null || upcomingSlots === undefined) return;
+    const refreshedSlot = upcomingSlots.find((slot) => slot.id === selectedSlot.id);
+    if (!refreshedSlot) {
+      onDeselect?.();
+    } else if (refreshedSlot !== selectedSlot) {
+      onSelect(refreshedSlot);
+    }
+  }, [onDeselect, onSelect, selectedSlot, upcomingSlots]);
 
   return (
     <div>
@@ -219,7 +237,7 @@ export function SlotSelectionStep({
               key={slot.id}
               data-slot-id={slot.id}
               action
-              active={selectedSlotId === slot.id}
+              active={selectedSlot?.id === slot.id}
               onClick={() => onSelect(slot)}
               className="d-flex justify-content-between align-items-center"
             >
@@ -234,7 +252,7 @@ export function SlotSelectionStep({
         </ListGroup>
       )}
 
-      {selectedSlotId != null && <WorkshopVisitInfo compact />}
+      {selectedSlot !== null && <WorkshopVisitInfo compact />}
     </div>
   );
 }

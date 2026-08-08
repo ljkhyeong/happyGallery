@@ -24,6 +24,7 @@ export interface CartItemResponse {
 }
 
 export interface CartResponse {
+  cartVersion: string;
   items: CartItemResponse[];
   totalAmount: number;
 }
@@ -165,6 +166,13 @@ export interface CreateInquiryRequest {
   title: string;
 }
 
+export interface MyInquiryPageResponse {
+  content: InquiryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export type MyOrderSummaryStatus = typeof MyOrderSummaryStatus[keyof typeof MyOrderSummaryStatus];
 
 
@@ -195,6 +203,13 @@ export interface MyOrderSummary {
   paidAt: string | null;
   status: MyOrderSummaryStatus;
   totalAmount: number;
+}
+
+export interface MyOrderPageResponse {
+  content: MyOrderSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export type OrderCustomerActionResponseStatus = typeof OrderCustomerActionResponseStatus[keyof typeof OrderCustomerActionResponseStatus];
@@ -234,6 +249,10 @@ export const RefundProgressResponseStatus = {
 
 export interface RefundProgressResponse {
   amount: number;
+  pgRefundAmount: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: RefundProgressResponseStatus;
 }
 
@@ -310,6 +329,9 @@ export const ItemDtoProductType = {
 export interface ItemDto {
   /** @nullable */
   careInstructions: string | null;
+  couponDiscountAmount: number;
+  grossAmount: number;
+  netPaidAmount: number;
   orderItemId: number;
   productId: number;
   productName: string;
@@ -318,6 +340,7 @@ export interface ItemDto {
   /** @nullable */
   productionLeadDays: number | null;
   qty: number;
+  rewardUsedAmount: number;
   /** @nullable */
   specification: string | null;
   unitPrice: number;
@@ -326,13 +349,20 @@ export interface ItemDto {
 export interface OrderDetailResponse {
   /** @nullable */
   approvalDeadlineAt: string | null;
+  couponDiscountAmount: number;
   fulfillment: FulfillmentDto | null;
+  /** @nullable */
+  issuedCouponId: number | null;
   items: ItemDto[];
   orderId: number;
   orderNumber: string;
   /** @nullable */
   paidAt: string | null;
+  pgPaidAmount: number;
+  productAmount: number;
   refund: RefundProgressResponse | null;
+  rewardEarnBase: number;
+  rewardUsedAmount: number;
   shippingFee: number;
   status: OrderDetailResponseStatus;
   totalAmount: number;
@@ -370,6 +400,13 @@ export interface MyPassSummary {
   totalPrice: number;
 }
 
+export interface MyPassPageResponse {
+  content: MyPassSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 /**
  * @nullable
  */
@@ -392,6 +429,33 @@ export interface MemberPassRefundResponse {
   /** @nullable */
   refundStatus: MemberPassRefundResponseRefundStatus;
 }
+
+export type ListMyInquiriesPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListMyOrdersPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListMyPassesPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
 
 export const getGetMyCartUrl = () => {
 
@@ -604,6 +668,34 @@ export const createMyInquiry = async (createInquiryRequest: CreateInquiryRequest
 
 
 
+export const getListMyInquiriesPageUrl = (params?: ListMyInquiriesPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/inquiries/page?${stringifiedParams}` : `/api/v1/me/inquiries/page`
+}
+
+export const listMyInquiriesPage = async (params?: ListMyInquiriesPageParams, options?: RequestInit): Promise<MyInquiryPageResponse> => {
+
+  return generatedApiClient<MyInquiryPageResponse>(getListMyInquiriesPageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getGetMyInquiryUrl = (id: number,) => {
 
 
@@ -636,6 +728,34 @@ export const getListMyOrdersUrl = () => {
 export const listMyOrders = async ( options?: RequestInit): Promise<MyOrderSummary[]> => {
 
   return generatedApiClient<MyOrderSummary[]>(getListMyOrdersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListMyOrdersPageUrl = (params?: ListMyOrdersPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/orders/page?${stringifiedParams}` : `/api/v1/me/orders/page`
+}
+
+export const listMyOrdersPage = async (params?: ListMyOrdersPageParams, options?: RequestInit): Promise<MyOrderPageResponse> => {
+
+  return generatedApiClient<MyOrderPageResponse>(getListMyOrdersPageUrl(params),
   {
     ...options,
     method: 'GET'
@@ -721,6 +841,34 @@ export const getListMyPassesUrl = () => {
 export const listMyPasses = async ( options?: RequestInit): Promise<MyPassSummary[]> => {
 
   return generatedApiClient<MyPassSummary[]>(getListMyPassesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListMyPassesPageUrl = (params?: ListMyPassesPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/passes/page?${stringifiedParams}` : `/api/v1/me/passes/page`
+}
+
+export const listMyPassesPage = async (params?: ListMyPassesPageParams, options?: RequestInit): Promise<MyPassPageResponse> => {
+
+  return generatedApiClient<MyPassPageResponse>(getListMyPassesPageUrl(params),
   {
     ...options,
     method: 'GET'

@@ -1,8 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Container, Card, Badge } from "react-bootstrap";
+import { Container, Card, Badge, Button } from "react-bootstrap";
 import { Link } from "react-router";
-import { useQuery } from "@tanstack/react-query";
-import { fetchMyInquiries } from "@/features/my-inquiry/api";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
@@ -13,11 +13,25 @@ export function MyInquiriesPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries" });
 
-  const { data: inquiries, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: queryKeys.member.inquiries,
-    queryFn: fetchMyInquiries,
+  const {
+    data: inquiriesData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.inquiryHistory,
+    queryFn: ({ pageParam, signal }) => fetchMyInquiriesPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
   });
+  const inquiries = inquiriesData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedInquiries = inquiriesData !== undefined;
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -46,14 +60,18 @@ export function MyInquiriesPage() {
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
-        retrying={isFetching}
+        retrying={isFetching && !isFetchingNextPage}
       />
 
-      {inquiries && inquiries.length === 0 && (
+      {hasLoadedInquiries && inquiries.length === 0 && (
         <EmptyState message="등록된 문의가 없습니다." />
       )}
 
-      {inquiries?.map((inquiry) => (
+      {inquiries.length > 0 && (
+        <p className="text-muted-soft small">불러온 문의 {inquiries.length}건</p>
+      )}
+
+      {inquiries.map((inquiry) => (
         <Card key={inquiry.id} className="mb-2">
           <Card.Body className="py-2 px-3">
             <div className="d-flex justify-content-between align-items-start">
@@ -81,6 +99,19 @@ export function MyInquiriesPage() {
           </Card.Body>
         </Card>
       ))}
+
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "문의 불러오는 중..." : "문의 더 보기"}
+          </Button>
+        </div>
+      )}
 
       <div className="mt-3">
         <Link to="/my" className="text-decoration-none">&larr; 마이페이지</Link>

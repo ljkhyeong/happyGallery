@@ -1,9 +1,9 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, Card, Col, Container, Modal, Row } from "react-bootstrap";
 import { Link } from "react-router";
-import { fetchMyPasses, refundMyPass, type MyPassSummary } from "@/features/my/api";
+import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import {
@@ -52,12 +52,26 @@ function MyPassesContent() {
     updateFilters,
     resetFilters,
   } = useMyListFilters({ defaultSort: DEFAULT_SORT, legacyStatusParam: "filter" });
-  const { data: passes, isLoading, error } = useQuery({
-    queryKey: queryKeys.member.passes,
-    queryFn: fetchMyPasses,
+  const {
+    data: passesData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.passHistory,
+    queryFn: ({ pageParam, signal }) => fetchMyPassesPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
     refetchInterval: ({ state }) => {
-      const pendingRefund = state.data?.find(({ refund }) =>
+      const pendingRefund = state.data?.pages
+        .flatMap((page) => page.content)
+        .find(({ refund }) =>
         refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED");
       return customerRefundPollingInterval(
         pendingRefund?.refund?.status,
@@ -65,8 +79,10 @@ function MyPassesContent() {
       );
     },
   });
+  const passes = passesData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedPasses = passesData !== undefined;
   const normalizedQuery = searchQuery.trim();
-  const filteredPasses = (passes ?? []).filter((pass) => {
+  const filteredPasses = passes.filter((pass) => {
     const matchesFilter = passFilter === "ALL" || getPassFilterKey(pass) === passFilter;
     const matchesQuery = normalizedQuery === "" || String(pass.passId).includes(normalizedQuery);
     return matchesFilter && matchesQuery;
@@ -82,13 +98,13 @@ function MyPassesContent() {
         return parseApiDateTime(left.expiresAt) - parseApiDateTime(right.expiresAt);
     }
   });
-  const quickTabs = buildPassTabs(passes ?? []);
-  const activePassCount = (passes ?? []).filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
-  const expiringSoonCount = (passes ?? []).filter((pass) => {
+  const quickTabs = buildPassTabs(passes);
+  const activePassCount = passes.filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
+  const expiringSoonCount = passes.filter((pass) => {
     const expiresIn = parseApiDateTime(pass.expiresAt) - Date.now();
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
-  const remainingCredits = (passes ?? []).reduce((sum, pass) => sum + pass.remainingCredits, 0);
+  const remainingCredits = passes.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const refundMutation = useMutation({
     mutationFn: (passId: number) =>
       runForCurrentCustomer(
@@ -146,15 +162,19 @@ function MyPassesContent() {
         </p>
       </div>
 
-      <ErrorAlert error={error} />
-      {passes && passes.length > 0 && (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching && !isFetchingNextPage}
+      />
+      {passes.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">사용 가능 {activePassCount}건</span>
-          <span className="my-summary-chip">잔여 총 {remainingCredits}회</span>
-          <span className="my-summary-chip">7일 내 만료 {expiringSoonCount}건</span>
+          <span className="my-summary-chip">불러온 8회권 중 사용 가능 {activePassCount}건</span>
+          <span className="my-summary-chip">불러온 8회권 잔여 {remainingCredits}회</span>
+          <span className="my-summary-chip">불러온 8회권 중 7일 내 만료 {expiringSoonCount}건</span>
         </div>
       )}
-      {passes && passes.length > 0 && (
+      {passes.length > 0 && (
         <MyListFilterBar
           idPrefix="my-passes"
           searchLabel="8회권 번호 검색"
@@ -178,12 +198,12 @@ function MyPassesContent() {
           sortOptions={PASS_SORT_OPTIONS}
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedPasses.length} / ${passes.length}건 표시 중`}
+          resultText={`${sortedPasses.length}건 표시 중 · 불러온 8회권 ${passes.length}건`}
           onReset={resetFilters}
         />
       )}
-      {passes && passes.length === 0 && <EmptyState message="8회권이 없습니다." />}
-      {passes && passes.length > 0 && sortedPasses.length === 0 && (
+      {hasLoadedPasses && passes.length === 0 && <EmptyState message="8회권이 없습니다." />}
+      {passes.length > 0 && sortedPasses.length === 0 && (
         <EmptyState message="필터 조건에 맞는 8회권이 없습니다." />
       )}
       {sortedPasses.length > 0 && sortedPasses.map((pass) => (
@@ -232,6 +252,18 @@ function MyPassesContent() {
           </Card.Body>
         </Card>
       ))}
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "8회권 불러오는 중..." : "8회권 더 보기"}
+          </Button>
+        </div>
+      )}
 
       <Modal
         show={refundTarget !== null}

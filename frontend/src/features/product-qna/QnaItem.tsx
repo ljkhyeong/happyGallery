@@ -20,7 +20,7 @@ export function QnaItem({ item, productId, owned }: Props) {
   const detailQuery = useQuery({
     queryKey: item.secret
       ? queryKeys.member.productQna.detail(productId, item.id)
-      : ["product-qna", productId, item.id],
+      : queryKeys.productQna.detail(productId, item.id),
     queryFn: ({ signal }) => item.secret
       ? fetchMyProductQnaDetail(productId, item.id, signal)
       : fetchProductQnaDetail(productId, item.id, signal),

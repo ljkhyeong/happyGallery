@@ -236,7 +236,11 @@ export interface FailedRefundResponse {
   passPurchaseId: number | null;
   /** @nullable */
   paymentAttemptId: number | null;
+  pgRefundAmount: number;
   refundId: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: FailedRefundResponseStatus;
 }
 
@@ -264,7 +268,11 @@ export interface RefundStatusResponse {
   attemptCount: number;
   /** @nullable */
   failReason: string | null;
+  pgRefundAmount: number;
   refundId: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: RefundStatusResponseStatus;
 }
 

@@ -9,8 +9,12 @@ import { MemberPhoneUpdateModal } from "@/features/customer-auth/MemberPhoneUpda
 import { PasswordChangeModal } from "@/features/customer-auth/PasswordChangeModal";
 import { SOCIAL_PROVIDER_DETAILS, type SocialProvider } from "@/features/customer-auth/socialAuth";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { fetchMyBookings, fetchMyOrders, fetchMyPasses } from "@/features/my/api";
-import { fetchMyInquiries } from "@/features/my-inquiry/api";
+import {
+  fetchRecentMyBookings,
+  fetchRecentMyOrders,
+  fetchRecentMyPasses,
+} from "@/features/my/api";
+import { fetchRecentMyInquiries } from "@/features/my-inquiry/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyDashboardHero } from "@/features/my/MyDashboardHero";
 import { MyStatsRow } from "@/features/my/MyStatsRow";
@@ -56,7 +60,7 @@ function MyPageContent() {
     refetch: refetchOrders,
   } = useQuery({
     queryKey: queryKeys.member.orders.all,
-    queryFn: fetchMyOrders,
+    queryFn: ({ signal }) => fetchRecentMyOrders(signal),
     enabled: isAuthenticated,
   });
 
@@ -68,7 +72,7 @@ function MyPageContent() {
     refetch: refetchBookings,
   } = useQuery({
     queryKey: queryKeys.member.bookings.all,
-    queryFn: fetchMyBookings,
+    queryFn: ({ signal }) => fetchRecentMyBookings(signal),
     enabled: isAuthenticated,
   });
 
@@ -80,7 +84,7 @@ function MyPageContent() {
     refetch: refetchPasses,
   } = useQuery({
     queryKey: queryKeys.member.passes,
-    queryFn: fetchMyPasses,
+    queryFn: ({ signal }) => fetchRecentMyPasses(signal),
     enabled: isAuthenticated,
   });
 
@@ -92,7 +96,7 @@ function MyPageContent() {
     refetch: refetchInquiries,
   } = useQuery({
     queryKey: queryKeys.member.inquiries,
-    queryFn: fetchMyInquiries,
+    queryFn: ({ signal }) => fetchRecentMyInquiries(signal),
     enabled: isAuthenticated,
   });
 
@@ -222,7 +226,7 @@ function MyPageContent() {
         <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
         <MyAuthGateCard
           title="로그인하고 주문, 예약, 8회권을 한 곳에서 관리하세요"
-          description="회원은 추가 휴대폰 인증 없이 내 주문과 예약, 8회권을 바로 확인할 수 있습니다. 비회원 주문과 예약도 별도 조회 화면에서 확인할 수 있습니다."
+          description="회원은 추가 휴대폰 인증 없이 내 주문과 예약, 8회권, 쿠폰·적립금을 바로 확인할 수 있습니다. 비회원 주문과 예약도 별도 조회 화면에서 확인할 수 있습니다."
           showGuestLinks
         />
       </Container>

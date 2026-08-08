@@ -24,10 +24,10 @@ export function MyBookingsSection({
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h6 className="mb-1">내 예약</h6>
-          <p className="text-muted-soft small mb-0">다가오는 클래스와 예약 상태를 확인하고 상세로 이동합니다.</p>
+          <p className="text-muted-soft small mb-0">최근 조회한 예약 상태를 확인하고 상세로 이동합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {bookings && <span className="text-muted-soft small">총 {bookings.length}건</span>}
+          {bookings && <span className="text-muted-soft small">최근 조회 {bookings.length}건</span>}
           <Link to="/my/bookings" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>

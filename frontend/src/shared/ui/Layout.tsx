@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { path: "/classes", label: "클래스" },
   { path: "/group-classes", label: "단체수업" },
   { path: "/products", label: "작품" },
+  { path: "/events", label: "이벤트" },
   { path: "/passes/purchase", label: "8회권" },
 ] as const;
 
@@ -70,7 +71,10 @@ export function Layout() {
           <div className="d-flex flex-wrap align-items-center gap-3">
             {!isLoading && (
               isAuthenticated ? (
-                <Link to="/my" className="app-utility-link">내 정보</Link>
+                <>
+                  <Link to="/my/benefits" className="app-utility-link">쿠폰·적립금</Link>
+                  <Link to="/my" className="app-utility-link">내 정보</Link>
+                </>
               ) : (
                 <>
                   <Link to="/login" className="app-utility-link">로그인</Link>

@@ -80,6 +80,13 @@ export default defineConfig({
   noticeApi: generatedApi("./src/generated/api/notice.ts", [
     "notice-controller",
   ]),
+  eventApi: generatedApi("./src/generated/api/event.ts", [
+    "event-controller",
+  ]),
+  memberBenefitApi: generatedApi("./src/generated/api/memberBenefit.ts", [
+    "me-coupon-controller",
+    "me-reward-controller",
+  ]),
   monitoringApi: generatedApi("./src/generated/api/monitoring.ts", [
     "client-monitoring-controller",
   ]),
@@ -93,6 +100,12 @@ export default defineConfig({
   ]),
   adminNoticeApi: generatedApi("./src/generated/api/adminNotice.ts", [
     "admin-notice-controller",
+  ]),
+  adminEventApi: generatedApi("./src/generated/api/adminEvent.ts", [
+    "admin-event-controller",
+  ]),
+  adminCouponApi: generatedApi("./src/generated/api/adminCoupon.ts", [
+    "admin-coupon-controller",
   ]),
   adminCatalogApi: generatedApi("./src/generated/api/adminCatalog.ts", [
     "admin-class-controller",

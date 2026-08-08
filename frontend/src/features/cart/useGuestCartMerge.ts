@@ -159,6 +159,7 @@ export function useGuestCartMerge({
     mergeBlocked.current = false;
     mergeGeneration.current += 1;
     setIssue(null);
+    setIsMerging(true);
     setMergeRevision((revision) => revision + 1);
   }, [userId]);
 
@@ -172,11 +173,11 @@ export function useGuestCartMerge({
       mergedUserId.current = null;
       mergeBlocked.current = false;
       mergeGeneration.current += 1;
-      setIsMerging(false);
+      setIsMerging(userId !== null);
       setIssue(null);
       setMergeRevision((revision) => revision + 1);
     });
-  }, [consumeMergedItemsWhileLocked]);
+  }, [consumeMergedItemsWhileLocked, userId]);
 
   return {
     isMerging,

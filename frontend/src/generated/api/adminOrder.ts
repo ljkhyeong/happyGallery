@@ -176,7 +176,11 @@ export interface RefundStatusResponse {
   attemptCount: number;
   /** @nullable */
   failReason: string | null;
+  pgRefundAmount: number;
   refundId: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: RefundStatusResponseStatus;
 }
 

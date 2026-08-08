@@ -26,10 +26,10 @@ export function MyPassesSection({
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h6 className="mb-1">내 8회권</h6>
-          <p className="text-muted-soft small mb-0">남은 횟수와 만료일을 기준으로 현재 사용 가능한 8회권을 확인합니다.</p>
+          <p className="text-muted-soft small mb-0">최근 조회한 8회권의 남은 횟수와 만료일을 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {passes && <span className="text-muted-soft small">총 {passes.length}건</span>}
+          {passes && <span className="text-muted-soft small">최근 조회 {passes.length}건</span>}
           <Link to="/my/passes" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>

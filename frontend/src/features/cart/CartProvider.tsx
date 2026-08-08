@@ -25,6 +25,7 @@ type CartItemView = Omit<CartItemResponse, "productType"> & {
 interface CartContextValue {
   items: CartItemView[];
   totalAmount: number;
+  cartVersion: string | null;
   itemCount: number;
   isLoading: boolean;
   error: unknown;
@@ -98,11 +99,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
   let value: CartContextValue;
   if (userId !== null) {
     const items = memberQuery.data?.items ?? [];
-    const itemMutationError = updateMutation.error ?? removeMutation.error;
-    const isItemMutationPending = updateMutation.isPending || removeMutation.isPending;
+    const itemMutationError = addMutation.error ?? updateMutation.error ?? removeMutation.error;
+    const isItemMutationPending = addMutation.isPending
+      || updateMutation.isPending
+      || removeMutation.isPending;
     value = {
       items,
       totalAmount: memberQuery.data?.totalAmount ?? 0,
+      cartVersion: memberQuery.data?.cartVersion || null,
       itemCount: items.reduce((sum, item) => sum + item.qty, 0),
       isLoading: memberQuery.isLoading || isMerging,
       error: memberQuery.error,
@@ -138,6 +142,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         productionLeadDays: null,
       })),
       totalAmount: 0,
+      cartVersion: null,
       itemCount: guestItemCount,
       isLoading: false,
       error: null,

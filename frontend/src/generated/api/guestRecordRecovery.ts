@@ -118,6 +118,38 @@ export interface GuestRecordRecoveryResponse {
   orders: GuestRecordRecoveryOrderSummary[];
 }
 
+export interface GuestRecoveredBookingPageResponse {
+  content: GuestRecordRecoveryBookingSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface GuestRecoveredOrderPageResponse {
+  content: GuestRecordRecoveryOrderSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export type ListRecoveredGuestBookingsParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListRecoveredGuestOrdersParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
 export const getRecoverGuestPaymentStatusesUrl = () => {
 
 
@@ -155,5 +187,61 @@ export const recoverGuestRecords = async (recoverGuestRecordsRequest: RecoverGue
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(recoverGuestRecordsRequest)
+  }
+);}
+
+
+
+export const getListRecoveredGuestBookingsUrl = (params?: ListRecoveredGuestBookingsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/guest-records/recovery/bookings?${stringifiedParams}` : `/api/v1/guest-records/recovery/bookings`
+}
+
+export const listRecoveredGuestBookings = async (params?: ListRecoveredGuestBookingsParams, options?: RequestInit): Promise<GuestRecoveredBookingPageResponse> => {
+
+  return generatedApiClient<GuestRecoveredBookingPageResponse>(getListRecoveredGuestBookingsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListRecoveredGuestOrdersUrl = (params?: ListRecoveredGuestOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/guest-records/recovery/orders?${stringifiedParams}` : `/api/v1/guest-records/recovery/orders`
+}
+
+export const listRecoveredGuestOrders = async (params?: ListRecoveredGuestOrdersParams, options?: RequestInit): Promise<GuestRecoveredOrderPageResponse> => {
+
+  return generatedApiClient<GuestRecoveredOrderPageResponse>(getListRecoveredGuestOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}

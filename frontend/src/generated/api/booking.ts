@@ -49,6 +49,10 @@ export const RefundProgressResponseStatus = {
 
 export interface RefundProgressResponse {
   amount: number;
+  pgRefundAmount: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: RefundProgressResponseStatus;
 }
 
@@ -185,6 +189,13 @@ export interface MyBookingSummary {
   status: MyBookingSummaryStatus;
 }
 
+export interface MyBookingPageResponse {
+  content: MyBookingSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export type MyBookingDetailBalanceStatus = typeof MyBookingDetailBalanceStatus[keyof typeof MyBookingDetailBalanceStatus];
 
 
@@ -237,6 +248,15 @@ export interface PublicSlotResponse {
   remainingCapacity: number;
   startAt: string;
 }
+
+export type ListMyBookingsPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
 
 export type ListAvailableSlotsParams = {
 classId: number;
@@ -369,6 +389,34 @@ export const getListMyBookingsUrl = () => {
 export const listMyBookings = async ( options?: RequestInit): Promise<MyBookingSummary[]> => {
 
   return generatedApiClient<MyBookingSummary[]>(getListMyBookingsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListMyBookingsPageUrl = (params?: ListMyBookingsPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/bookings/page?${stringifiedParams}` : `/api/v1/me/bookings/page`
+}
+
+export const listMyBookingsPage = async (params?: ListMyBookingsPageParams, options?: RequestInit): Promise<MyBookingPageResponse> => {
+
+  return generatedApiClient<MyBookingPageResponse>(getListMyBookingsPageUrl(params),
   {
     ...options,
     method: 'GET'

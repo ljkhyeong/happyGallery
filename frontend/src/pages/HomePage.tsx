@@ -8,6 +8,7 @@ import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
+import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
@@ -86,6 +87,8 @@ export function HomePage() {
           </div>
         </Container>
       </section>
+
+      <FeaturedEventWidget />
 
       <section className="home-band home-class-section anim-fade-up">
         <Container>

@@ -1,8 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Col, Container, Row } from "react-bootstrap";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { Button, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router";
-import { fetchMyBookings } from "@/features/my/api";
+import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
@@ -23,19 +23,33 @@ export function MyBookingsPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
     useMyListFilters({ defaultSort: DEFAULT_SORT });
-  const { data: bookings, isLoading, error } = useQuery({
-    queryKey: queryKeys.member.bookings.all,
-    queryFn: fetchMyBookings,
+  const {
+    data: bookingsData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.bookings.history,
+    queryFn: ({ pageParam, signal }) => fetchMyBookingsPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
   });
+  const bookings = bookingsData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedBookings = bookingsData !== undefined;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const statuses = (bookings ?? []).map((booking) => booking.status);
+  const statuses = bookings.map((booking) => booking.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
     ...buildStatusFilterOptions(statuses),
   ];
   const quickTabs = buildQuickStatusTabs(statuses);
-  const filteredBookings = (bookings ?? []).filter((booking) => {
+  const filteredBookings = bookings.filter((booking) => {
     const matchesStatus = statusFilter === "ALL" || booking.status === statusFilter;
     const matchesQuery =
       normalizedQuery === "" ||
@@ -54,10 +68,10 @@ export function MyBookingsPage() {
         return parseApiDateTime(left.startAt) - parseApiDateTime(right.startAt);
     }
   });
-  const upcomingCount = (bookings ?? []).filter((booking) =>
+  const upcomingCount = bookings.filter((booking) =>
     booking.status === "BOOKED" && parseApiDateTime(booking.startAt) >= Date.now(),
   ).length;
-  const finishedCount = (bookings ?? []).filter((booking) =>
+  const finishedCount = bookings.filter((booking) =>
     ["COMPLETED", "CANCELED", "NO_SHOW"].includes(booking.status),
   ).length;
 
@@ -94,17 +108,21 @@ export function MyBookingsPage() {
         </p>
       </div>
 
-      <ErrorAlert error={error} />
-      {bookings && bookings.length > 0 && (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching && !isFetchingNextPage}
+      />
+      {bookings.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">다가오는 예약 {upcomingCount}건</span>
-          <span className="my-summary-chip">종료/취소 {finishedCount}건</span>
+          <span className="my-summary-chip">불러온 예약 중 다가오는 예약 {upcomingCount}건</span>
+          <span className="my-summary-chip">불러온 예약 중 종료/취소 {finishedCount}건</span>
           <span className="my-summary-chip">
             현재 필터 {statusFilter === "ALL" ? "전체 상태" : getStatusLabel(statusFilter)}
           </span>
         </div>
       )}
-      {bookings && bookings.length > 0 && (
+      {bookings.length > 0 && (
         <MyListFilterBar
           idPrefix="my-bookings"
           searchLabel="예약 검색"
@@ -123,12 +141,12 @@ export function MyBookingsPage() {
           sortOptions={BOOKING_SORT_OPTIONS}
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedBookings.length} / ${bookings.length}건 표시 중`}
+          resultText={`${sortedBookings.length}건 표시 중 · 불러온 예약 ${bookings.length}건`}
           onReset={resetFilters}
         />
       )}
-      {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
-      {bookings && bookings.length > 0 && sortedBookings.length === 0 && (
+      {hasLoadedBookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
+      {bookings.length > 0 && sortedBookings.length === 0 && (
         <EmptyState message="필터 조건에 맞는 예약이 없습니다." />
       )}
       {sortedBookings.length > 0 && sortedBookings.map((booking) => (
@@ -156,6 +174,18 @@ export function MyBookingsPage() {
           </Card.Body>
         </Card>
       ))}
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "예약 불러오는 중..." : "예약 더 보기"}
+          </Button>
+        </div>
+      )}
     </Container>
   );
 }

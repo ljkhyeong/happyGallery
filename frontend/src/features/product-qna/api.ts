@@ -2,17 +2,27 @@ import {
   createProductQna,
   getMyProductQna,
   getPublicProductQna,
-  listMyProductQna,
-  listProductQna,
+  listMyProductQnaPage,
+  listProductQnaPage,
   type CreateQnaRequest,
+  type MyProductQnaPageResponse,
   type ProductQnaDetail,
-  type ProductQnaListItem,
-  type MyProductQnaListItem,
+  type ProductQnaPageResponse,
   type QnaCreatedResponse,
 } from "@/generated/api/productQna";
 
-export function fetchProductQna(productId: number): Promise<ProductQnaListItem[]> {
-  return listProductQna(productId);
+export const PRODUCT_QNA_PAGE_SIZE = 20;
+
+export function fetchProductQnaPage(
+  productId: number,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ProductQnaPageResponse> {
+  return listProductQnaPage(
+    productId,
+    { cursor, size: PRODUCT_QNA_PAGE_SIZE },
+    { signal },
+  );
 }
 
 export function createQna(
@@ -22,11 +32,16 @@ export function createQna(
   return createProductQna(productId, body);
 }
 
-export function fetchMyProductQna(
+export function fetchMyProductQnaPage(
   productId: number,
+  cursor?: string,
   signal?: AbortSignal,
-): Promise<MyProductQnaListItem[]> {
-  return listMyProductQna(productId, { signal });
+): Promise<MyProductQnaPageResponse> {
+  return listMyProductQnaPage(
+    productId,
+    { cursor, size: PRODUCT_QNA_PAGE_SIZE },
+    { signal },
+  );
 }
 
 export function fetchProductQnaDetail(

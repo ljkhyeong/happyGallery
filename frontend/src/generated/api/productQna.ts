@@ -59,6 +59,13 @@ export interface QnaCreatedResponse {
   title: string;
 }
 
+export interface MyProductQnaPageResponse {
+  content: MyProductQnaListItem[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export interface ProductQnaDetail {
   authorName: string;
   content: string;
@@ -82,12 +89,47 @@ export interface ProductQnaListItem {
   title: string;
 }
 
+export interface ProductQnaPageResponse {
+  content: ProductQnaListItem[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export type ListAdminProductQnaParams = {
 productId: number;
 };
 
+export type ListAdminProductQnaPageParams = {
+productId: number;
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
 export type ListUnansweredAdminProductQnaParams = {
 cursor?: string;
+size?: number;
+};
+
+export type ListMyProductQnaPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListProductQnaPageParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
 size?: number;
 };
 
@@ -109,6 +151,34 @@ export const getListAdminProductQnaUrl = (params: ListAdminProductQnaParams,) =>
 export const listAdminProductQna = async (params: ListAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaResponse[]> => {
 
   return generatedApiClient<AdminQnaResponse[]>(getListAdminProductQnaUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListAdminProductQnaPageUrl = (params: ListAdminProductQnaPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/qna/page?${stringifiedParams}` : `/api/v1/admin/qna/page`
+}
+
+export const listAdminProductQnaPage = async (params: ListAdminProductQnaPageParams, options?: RequestInit): Promise<AdminQnaPageResponse> => {
+
+  return generatedApiClient<AdminQnaPageResponse>(getListAdminProductQnaPageUrl(params),
   {
     ...options,
     method: 'GET'
@@ -212,6 +282,36 @@ export const createProductQna = async (productId: number,
 
 
 
+export const getListMyProductQnaPageUrl = (productId: number,
+    params?: ListMyProductQnaPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/products/${productId}/qna/page?${stringifiedParams}` : `/api/v1/me/products/${productId}/qna/page`
+}
+
+export const listMyProductQnaPage = async (productId: number,
+    params?: ListMyProductQnaPageParams, options?: RequestInit): Promise<MyProductQnaPageResponse> => {
+
+  return generatedApiClient<MyProductQnaPageResponse>(getListMyProductQnaPageUrl(productId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getGetMyProductQnaUrl = (productId: number,
     id: number,) => {
 
@@ -246,6 +346,36 @@ export const getListProductQnaUrl = (productId: number,) => {
 export const listProductQna = async (productId: number, options?: RequestInit): Promise<ProductQnaListItem[]> => {
 
   return generatedApiClient<ProductQnaListItem[]>(getListProductQnaUrl(productId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListProductQnaPageUrl = (productId: number,
+    params?: ListProductQnaPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/products/${productId}/qna/page?${stringifiedParams}` : `/api/v1/products/${productId}/qna/page`
+}
+
+export const listProductQnaPage = async (productId: number,
+    params?: ListProductQnaPageParams, options?: RequestInit): Promise<ProductQnaPageResponse> => {
+
+  return generatedApiClient<ProductQnaPageResponse>(getListProductQnaPageUrl(productId,params),
   {
     ...options,
     method: 'GET'

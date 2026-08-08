@@ -1,16 +1,22 @@
-import { useMutation } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Alert, Card, Col, ListGroup, Row } from "react-bootstrap";
+import { Alert, Button, Card, Col, ListGroup, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import {
   captureCustomerSession,
+  queryKeys,
+  runForCustomerSession,
   runForCurrentCustomer,
   type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, StatusBadge } from "@/shared/ui";
-import { recoverGuestRecords } from "./api";
+import { ErrorAlert, LoadingSpinner, StatusBadge } from "@/shared/ui";
+import {
+  fetchRecoveredGuestBookings,
+  fetchRecoveredGuestOrders,
+  recoverGuestRecords,
+} from "./api";
 import {
   clearGuestRecordRecovery,
   loadGuestRecordRecovery,
@@ -31,26 +37,105 @@ function loadRecoveryView(): RecoveryView | null {
 }
 
 export function GuestRecordRecoverySection() {
+  const queryClient = useQueryClient();
   const [recoveryView, setRecoveryView] = useState(loadRecoveryView);
   const recovery = useMutation({
-    mutationFn: ({ phone, code }: { phone: string; code: string }) =>
-      runForCurrentCustomer(
-        () => recoverGuestRecords(phone, code),
-        (result, requireCurrent) => {
-          requireCurrent();
-          const customerSession = captureCustomerSession();
-          const storage = saveGuestRecordRecovery(result, customerSession);
-          requireCurrent();
-          if (storage) {
-            setRecoveryView({ customerSession, storage });
-          }
-          return result;
-        },
-      ),
+    mutationFn: async ({ phone, code }: { phone: string; code: string }) => {
+      let storedRecovery: GuestRecordRecoverySession | null = null;
+      try {
+        return await runForCurrentCustomer(
+          () => recoverGuestRecords(phone, code),
+          async (result, requireCurrent) => {
+            requireCurrent();
+            const customerSession = captureCustomerSession();
+            storedRecovery = saveGuestRecordRecovery(result, customerSession);
+            requireCurrent();
+            if (storedRecovery) {
+              await queryClient.cancelQueries({
+                queryKey: queryKeys.member.guestRecovery.all,
+              });
+              queryClient.removeQueries({
+                queryKey: queryKeys.member.guestRecovery.all,
+              });
+              requireCurrent();
+              setRecoveryView({ customerSession, storage: storedRecovery });
+            }
+            return result;
+          },
+        );
+      } catch (error) {
+        if (storedRecovery) {
+          const expectedRecovery = storedRecovery;
+          clearGuestRecordRecovery(expectedRecovery);
+          setRecoveryView((current) =>
+            current?.storage === expectedRecovery ? null : current);
+        }
+        throw error;
+      }
+    },
   });
 
   const result = recoveryView?.storage.value ?? null;
-  const hasRecords = result && (result.orders.length > 0 || result.bookings.length > 0);
+  const owner = recoveryView?.storage.owner;
+  const recoverySessionVersion = recoveryView?.customerSession.version ?? -1;
+  const recoveryExpiresAt = result?.expiresAt ?? "inactive";
+  const ordersQuery = useInfiniteQuery({
+    queryKey: queryKeys.member.guestRecovery.orders(
+      owner?.boundaryEpoch ?? null,
+      owner?.boundaryCustomerId ?? null,
+      recoverySessionVersion,
+      recoveryExpiresAt,
+    ),
+    queryFn: ({ pageParam, signal }) => {
+      if (!recoveryView) {
+        return Promise.reject(new Error("복구 세션이 없습니다."));
+      }
+      return runForCustomerSession(
+        recoveryView.customerSession,
+        () => fetchRecoveredGuestOrders(
+          recoveryView.storage.value.accessToken,
+          pageParam,
+          signal,
+        ),
+      );
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    enabled: recoveryView !== null,
+  });
+  const bookingsQuery = useInfiniteQuery({
+    queryKey: queryKeys.member.guestRecovery.bookings(
+      owner?.boundaryEpoch ?? null,
+      owner?.boundaryCustomerId ?? null,
+      recoverySessionVersion,
+      recoveryExpiresAt,
+    ),
+    queryFn: ({ pageParam, signal }) => {
+      if (!recoveryView) {
+        return Promise.reject(new Error("복구 세션이 없습니다."));
+      }
+      return runForCustomerSession(
+        recoveryView.customerSession,
+        () => fetchRecoveredGuestBookings(
+          recoveryView.storage.value.accessToken,
+          pageParam,
+          signal,
+        ),
+      );
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    enabled: recoveryView !== null,
+  });
+  const orders = ordersQuery.data?.pages.flatMap((page) => page.content) ?? [];
+  const bookings = bookingsQuery.data?.pages.flatMap((page) => page.content) ?? [];
+  const recoveryPagesLoading = recoveryView !== null
+    && (ordersQuery.isLoading || bookingsQuery.isLoading);
+  const recoveryPagesLoaded = ordersQuery.data !== undefined
+    && bookingsQuery.data !== undefined;
+  const hasRecords = orders.length > 0 || bookings.length > 0;
 
   return (
     <Card className="mb-4">
@@ -64,6 +149,12 @@ export function GuestRecordRecoverySection() {
           onReset={() => {
             recovery.reset();
             clearGuestRecordRecovery(recoveryView?.storage);
+            void queryClient.cancelQueries({
+              queryKey: queryKeys.member.guestRecovery.all,
+            });
+            queryClient.removeQueries({
+              queryKey: queryKeys.member.guestRecovery.all,
+            });
             setRecoveryView(null);
           }}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
@@ -71,24 +162,41 @@ export function GuestRecordRecoverySection() {
 
         <ErrorAlert error={recovery.error} />
 
-        {result && !hasRecords && (
+        {recoveryPagesLoading && (
+          <div className="mt-4">
+            <LoadingSpinner text="복구한 주문·예약을 불러오는 중..." />
+          </div>
+        )}
+
+        <ErrorAlert
+          error={ordersQuery.error}
+          onRetry={() => { void ordersQuery.refetch(); }}
+          retrying={ordersQuery.isFetching && !ordersQuery.isFetchingNextPage}
+        />
+        <ErrorAlert
+          error={bookingsQuery.error}
+          onRetry={() => { void bookingsQuery.refetch(); }}
+          retrying={bookingsQuery.isFetching && !bookingsQuery.isFetchingNextPage}
+        />
+
+        {result && recoveryPagesLoaded && !hasRecords && (
           <Alert variant="light" className="mt-4 mb-0">
             인증한 번호로 확인할 수 있는 비회원 주문이나 예약이 없습니다.
           </Alert>
         )}
 
-        {hasRecords && recoveryView && (
+        {result && hasRecords && recoveryView && (
           <div className="mt-4">
             <Alert variant="success">
               조회 정보를 복구했습니다. 새 조회 코드는 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
             </Alert>
 
             <Row className="g-4">
-              {result.orders.length > 0 && (
+              {orders.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 주문</h6>
+                  <h6>비회원 주문 · 불러온 {orders.length}건</h6>
                   <ListGroup>
-                    {result.orders.map((order) => (
+                    {orders.map((order) => (
                       <ListGroup.Item
                         key={order.orderId}
                         as={Link}
@@ -111,14 +219,28 @@ export function GuestRecordRecoverySection() {
                       </ListGroup.Item>
                     ))}
                   </ListGroup>
+                  {ordersQuery.hasNextPage && (
+                    <div className="d-grid mt-2">
+                      <Button
+                        type="button"
+                        variant="outline-primary"
+                        disabled={ordersQuery.isFetchingNextPage}
+                        onClick={() => { void ordersQuery.fetchNextPage(); }}
+                      >
+                        {ordersQuery.isFetchingNextPage
+                          ? "주문 불러오는 중..."
+                          : "비회원 주문 더 보기"}
+                      </Button>
+                    </div>
+                  )}
                 </Col>
               )}
 
-              {result.bookings.length > 0 && (
+              {bookings.length > 0 && (
                 <Col xs={12} lg={6}>
-                  <h6>비회원 예약</h6>
+                  <h6>비회원 예약 · 불러온 {bookings.length}건</h6>
                   <ListGroup>
-                    {result.bookings.map((booking) => (
+                    {bookings.map((booking) => (
                       <ListGroup.Item
                         key={booking.bookingId}
                         as={Link}
@@ -141,6 +263,20 @@ export function GuestRecordRecoverySection() {
                       </ListGroup.Item>
                     ))}
                   </ListGroup>
+                  {bookingsQuery.hasNextPage && (
+                    <div className="d-grid mt-2">
+                      <Button
+                        type="button"
+                        variant="outline-primary"
+                        disabled={bookingsQuery.isFetchingNextPage}
+                        onClick={() => { void bookingsQuery.fetchNextPage(); }}
+                      >
+                        {bookingsQuery.isFetchingNextPage
+                          ? "예약 불러오는 중..."
+                          : "비회원 예약 더 보기"}
+                      </Button>
+                    </div>
+                  )}
                 </Col>
               )}
             </Row>

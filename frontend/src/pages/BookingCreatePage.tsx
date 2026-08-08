@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
-import { fetchMyPasses } from "@/features/my/api";
+import { fetchAllMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
   confirmPayment,
@@ -32,30 +32,134 @@ interface GuestInfo {
 }
 
 interface PaymentActor {
-  member?: CustomerUser;
   guest?: GuestInfo;
 }
 
-export function BookingCreatePage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <BookingCreateContent key={sessionVersion} />;
+interface BookingDraft {
+  selectedSlot: PublicSlotResponse;
+  selectedClass: ClassResponse | null;
+  paymentPath: PaymentPath;
+  paymentMethod: DepositPaymentMethod;
+  participantCount: number;
+  passId: string;
+  passFallbackAccepted: boolean;
 }
 
-function BookingCreateContent() {
+interface MemberBookingResume {
+  boundMemberId: number | null;
+  draft: BookingDraft;
+}
+
+export function BookingCreatePage() {
+  const { sessionVersion, user } = useCustomerAuth();
+  const [memberResume, setMemberResume] = useState<MemberBookingResume | null>(null);
+  const boundMemberId = memberResume?.boundMemberId ?? null;
+
+  useEffect(() => {
+    if (boundMemberId === null || user === null || boundMemberId === user.id) {
+      return;
+    }
+    setMemberResume((current) => {
+      if (current?.boundMemberId === null || current?.boundMemberId === user.id) {
+        return current;
+      }
+      return null;
+    });
+  }, [boundMemberId, user]);
+
+  return (
+    <BookingCreateContent
+      key={`${sessionVersion}:${boundMemberId ?? "unbound"}`}
+      memberResume={memberResume}
+      onMemberAuthenticationStarted={(draft) => {
+        setMemberResume({ boundMemberId: null, draft });
+      }}
+      onMemberAuthenticated={(member) => {
+        setMemberResume((current) => {
+          if (!current) return null;
+          if (
+            current.boundMemberId !== null
+            && current.boundMemberId !== member.id
+          ) {
+            return null;
+          }
+          return { ...current, boundMemberId: member.id };
+        });
+      }}
+      onMemberResumeHandled={() => setMemberResume(null)}
+    />
+  );
+}
+
+interface BookingCreateContentProps {
+  memberResume: MemberBookingResume | null;
+  onMemberAuthenticationStarted: (draft: BookingDraft) => void;
+  onMemberAuthenticated: (member: CustomerUser) => void;
+  onMemberResumeHandled: () => void;
+}
+
+function BookingCreateContent({
+  memberResume,
+  onMemberAuthenticationStarted,
+  onMemberAuthenticated,
+  onMemberResumeHandled,
+}: BookingCreateContentProps) {
   const toast = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
+  const matchingResume = memberResume !== null
+    && memberResume.boundMemberId !== null
+    && memberResume.boundMemberId === user?.id
+    ? memberResume
+    : null;
+  const [isResumeRevalidating, setIsResumeRevalidating] = useState(
+    () => matchingResume !== null,
+  );
 
-  const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(null);
-  const [selectedClass, setSelectedClass] = useState<ClassResponse | null>(null);
-  const [paymentPath, setPaymentPath] = useState<PaymentPath>("deposit");
-  const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>("CARD");
-  const [participantCount, setParticipantCount] = useState(1);
-  const [passId, setPassId] = useState("");
-  const [passFallbackAccepted, setPassFallbackAccepted] = useState(false);
+  const resumeDraft = matchingResume?.draft;
+  const [selectedSlot, setSelectedSlot] = useState<PublicSlotResponse | null>(
+    () => resumeDraft?.selectedSlot ?? null,
+  );
+  const [selectedClass, setSelectedClass] = useState<ClassResponse | null>(
+    () => resumeDraft?.selectedClass ?? null,
+  );
+  const [paymentPath, setPaymentPath] = useState<PaymentPath>(
+    () => resumeDraft?.paymentPath ?? "deposit",
+  );
+  const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>(
+    () => resumeDraft?.paymentMethod ?? "CARD",
+  );
+  const [participantCount, setParticipantCount] = useState(
+    () => resumeDraft?.participantCount ?? 1,
+  );
+  const [passId, setPassId] = useState(() => resumeDraft?.passId ?? "");
+  const [passFallbackAccepted, setPassFallbackAccepted] = useState(
+    () => resumeDraft?.passFallbackAccepted ?? false,
+  );
   const [showGate, setShowGate] = useState(false);
+
+  useEffect(() => {
+    if (matchingResume === null) {
+      setIsResumeRevalidating(false);
+      return;
+    }
+
+    let current = true;
+    setIsResumeRevalidating(true);
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.slotAvailability.upcoming.all,
+      }),
+    ]).finally(() => {
+      if (current) setIsResumeRevalidating(false);
+    });
+    return () => {
+      current = false;
+    };
+  }, [matchingResume, queryClient]);
 
   const {
     data: passes,
@@ -64,8 +168,8 @@ function BookingCreateContent() {
     error: passesError,
     refetch: refetchPasses,
   } = useQuery({
-    queryKey: queryKeys.member.passes,
-    queryFn: fetchMyPasses,
+    queryKey: queryKeys.member.passCandidates,
+    queryFn: ({ signal }) => fetchAllMyPasses(signal),
     enabled: isAuthenticated,
   });
   const availablePasses = (passes ?? [])
@@ -75,9 +179,10 @@ function BookingCreateContent() {
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
   const requestedClassId = Number(searchParams.get("classId"));
-  const initialClassId = Number.isSafeInteger(requestedClassId) && requestedClassId > 0
-    ? requestedClassId
-    : null;
+  const initialClassId = selectedClass?.id
+    ?? (Number.isSafeInteger(requestedClassId) && requestedClassId > 0
+      ? requestedClassId
+      : null);
   const requestedPassCompatible = hasRequestedPass
     && availablePasses.some((pass) => pass.passId === requestedPassId);
   const requestedPassNeedsFallback = hasRequestedPass
@@ -163,7 +268,10 @@ function BookingCreateContent() {
   const startPayment = useMutation({
     mutationFn: async (actor?: PaymentActor) => {
       const guest = actor?.guest;
-      const member = actor?.member ?? user;
+      const member = user;
+      if (!guest && !member) {
+        throw new Error("로그인 상태를 다시 확인해 주세요.");
+      }
       const payload: BookingPayload =
         guest
           ? {
@@ -232,6 +340,18 @@ function BookingCreateContent() {
     },
   });
 
+  const captureBookingDraft = (): BookingDraft | null => selectedSlot
+    ? {
+        selectedSlot,
+        selectedClass,
+        paymentPath,
+        paymentMethod,
+        participantCount,
+        passId,
+        passFallbackAccepted,
+      }
+    : null;
+
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
       <h4 className="mb-4">체험 예약</h4>
@@ -240,7 +360,7 @@ function BookingCreateContent() {
         <Card.Body>
           <SlotSelectionStep
             initialClassId={initialClassId}
-            selectedSlotId={selectedSlot?.id ?? null}
+            selectedSlot={selectedSlot}
             onSelect={(slot) => setSelectedSlot(slot)}
             onDeselect={() => setSelectedSlot(null)}
             onClassChange={setSelectedClass}
@@ -403,30 +523,47 @@ function BookingCreateContent() {
 
       <ErrorAlert error={startPayment.error} />
 
+      {matchingResume !== null && (
+        <Alert variant="info" role="status">
+          {isResumeRevalidating
+            ? "로그인이 완료되었습니다. 클래스와 일정의 최신 정보를 확인하고 있습니다."
+            : "로그인이 완료되었습니다. 선택한 클래스와 일정을 다시 확인한 뒤 결제를 계속해 주세요."}
+        </Alert>
+      )}
+
       <Button
         variant="primary" size="lg" className="w-100"
-        disabled={!formReady || startPayment.isPending}
+        disabled={!formReady || isResumeRevalidating || startPayment.isPending}
         onClick={() => {
           if (isAuthenticated) {
+            onMemberResumeHandled();
             startPayment.mutate(undefined);
           } else {
+            const draft = captureBookingDraft();
+            if (!draft) return;
+            onMemberAuthenticationStarted(draft);
             setShowGate(true);
           }
         }}
       >
-        {startPayment.isPending
+        {isResumeRevalidating
+          ? "선택 내용 확인 중..."
+          : startPayment.isPending
           ? paymentPath === "pass" ? "예약 처리 중..." : "결제창 여는 중..."
           : paymentPath === "pass" ? "8회권으로 예약하기" : "결제 진행하기"}
       </Button>
 
       <AuthGateModal
         show={showGate}
-        onClose={() => setShowGate(false)}
-        onMemberConfirm={(member) => {
+        onClose={() => {
+          onMemberResumeHandled();
           setShowGate(false);
-          startPayment.mutate({ member });
+        }}
+        onMemberAuthenticated={(member: CustomerUser) => {
+          onMemberAuthenticated(member);
         }}
         onGuestConfirm={(info) => {
+          onMemberResumeHandled();
           setShowGate(false);
           startPayment.mutate({ guest: info });
         }}

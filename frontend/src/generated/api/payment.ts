@@ -97,7 +97,15 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      */
   type: OrderPayloadType;
   cartCheckout: boolean;
+  /**
+     * GET /api/v1/me/cart가 반환한 불투명 장바구니 스냅샷 버전
+     * @nullable
+     * @pattern ^[0-9a-f]{64}$
+     */
+  expectedCartVersion?: string | null;
   fulfillmentType: OrderPayloadFulfillmentType;
+  /** @nullable */
+  issuedCouponId?: number | null;
   /**
      * @minItems 0
      * @maxItems 100
@@ -111,6 +119,12 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
   /** @nullable */
   phone?: string | null;
   policyAcceptance?: PolicyAcceptanceRequest | null;
+  /**
+     * @minimum 0
+     * @maximum 9007199254740991
+     * @nullable
+     */
+  rewardAmount?: number | null;
   shippingAddress?: ShippingAddress | null;
   /** @nullable */
   userId?: number | null;

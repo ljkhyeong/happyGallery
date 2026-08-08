@@ -1,5 +1,5 @@
 import {
-  listAdminProductQna,
+  listAdminProductQnaPage,
   listUnansweredAdminProductQna,
   replyProductQna,
   type AdminQnaPageResponse,
@@ -9,8 +9,12 @@ import { adminHeaders } from "@/shared/api";
 
 export type { AdminQnaResponse } from "@/generated/api/productQna";
 
-export function fetchAdminQna(productId: number, token: string): Promise<AdminQnaResponse[]> {
-  return listAdminProductQna({ productId }, {
+export function fetchAdminQnaPage(
+  productId: number,
+  token: string,
+  cursor?: string,
+): Promise<AdminQnaPageResponse> {
+  return listAdminProductQnaPage({ productId, cursor, size: 20 }, {
     headers: adminHeaders(token),
   });
 }

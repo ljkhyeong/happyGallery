@@ -5,6 +5,7 @@ import { fetchNotice } from "@/features/notice/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { formatDateTime, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { queryKeys } from "@/shared/api";
 
 export function NoticeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -12,7 +13,7 @@ export function NoticeDetailPage() {
   const validNoticeId = isPositiveSafeIntegerString(id);
 
   const { data: notice, isLoading, error } = useQuery({
-    queryKey: ["notices", noticeId],
+    queryKey: queryKeys.notices.detail(noticeId),
     queryFn: () => fetchNotice(noticeId),
     enabled: validNoticeId,
   });

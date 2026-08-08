@@ -42,6 +42,10 @@ export const RefundProgressResponseStatus = {
 
 export interface RefundProgressResponse {
   amount: number;
+  pgRefundAmount: number;
+  restoreCoupon: boolean;
+  rewardRestoreAmount: number;
+  rewardRevokeAmount: number;
   status: RefundProgressResponseStatus;
 }
 
@@ -118,6 +122,9 @@ export const ItemDtoProductType = {
 export interface ItemDto {
   /** @nullable */
   careInstructions: string | null;
+  couponDiscountAmount: number;
+  grossAmount: number;
+  netPaidAmount: number;
   orderItemId: number;
   productId: number;
   productName: string;
@@ -126,6 +133,7 @@ export interface ItemDto {
   /** @nullable */
   productionLeadDays: number | null;
   qty: number;
+  rewardUsedAmount: number;
   /** @nullable */
   specification: string | null;
   unitPrice: number;
@@ -134,13 +142,20 @@ export interface ItemDto {
 export interface OrderDetailResponse {
   /** @nullable */
   approvalDeadlineAt: string | null;
+  couponDiscountAmount: number;
   fulfillment: FulfillmentDto | null;
+  /** @nullable */
+  issuedCouponId: number | null;
   items: ItemDto[];
   orderId: number;
   orderNumber: string;
   /** @nullable */
   paidAt: string | null;
+  pgPaidAmount: number;
+  productAmount: number;
   refund: RefundProgressResponse | null;
+  rewardEarnBase: number;
+  rewardUsedAmount: number;
   shippingFee: number;
   status: OrderDetailResponseStatus;
   totalAmount: number;

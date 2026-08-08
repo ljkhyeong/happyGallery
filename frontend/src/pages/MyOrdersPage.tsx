@@ -1,8 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useQuery } from "@tanstack/react-query";
-import { Card, Col, Container, Row } from "react-bootstrap";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { Button, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router";
-import { fetchMyOrders } from "@/features/my/api";
+import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
@@ -24,19 +24,33 @@ export function MyOrdersPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
     useMyListFilters({ defaultSort: DEFAULT_SORT });
-  const { data: orders, isLoading, error } = useQuery({
-    queryKey: queryKeys.member.orders.all,
-    queryFn: fetchMyOrders,
+  const {
+    data: ordersData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.orders.history,
+    queryFn: ({ pageParam, signal }) => fetchMyOrdersPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
   });
+  const orders = ordersData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedOrders = ordersData !== undefined;
   const normalizedQuery = searchQuery.trim();
-  const statuses = (orders ?? []).map((order) => order.status);
+  const statuses = orders.map((order) => order.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
     ...buildStatusFilterOptions(statuses),
   ];
   const quickTabs = buildQuickStatusTabs(statuses);
-  const filteredOrders = (orders ?? []).filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
     const matchesQuery = normalizedQuery === "" || String(order.orderId).includes(normalizedQuery);
     return matchesStatus && matchesQuery;
@@ -54,7 +68,7 @@ export function MyOrdersPage() {
         return parseApiDateTime(right.createdAt) - parseApiDateTime(left.createdAt);
     }
   });
-  const activeCount = (orders ?? []).filter((order) =>
+  const activeCount = orders.filter((order) =>
     ![
       "PICKED_UP",
       "DELIVERED",
@@ -66,7 +80,7 @@ export function MyOrdersPage() {
       "DELAY_REJECTED_CANCELED",
     ].includes(order.status),
   ).length;
-  const completedCount = (orders ?? []).filter((order) =>
+  const completedCount = orders.filter((order) =>
     ["PICKED_UP", "DELIVERED"].includes(order.status),
   ).length;
 
@@ -103,17 +117,21 @@ export function MyOrdersPage() {
         </p>
       </div>
 
-      <ErrorAlert error={error} />
-      {orders && orders.length > 0 && (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching && !isFetchingNextPage}
+      />
+      {orders.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">진행 중 {activeCount}건</span>
-          <span className="my-summary-chip">완료 {completedCount}건</span>
+          <span className="my-summary-chip">불러온 주문 중 진행 중 {activeCount}건</span>
+          <span className="my-summary-chip">불러온 주문 중 완료 {completedCount}건</span>
           <span className="my-summary-chip">
             현재 필터 {statusFilter === "ALL" ? "전체 상태" : getStatusLabel(statusFilter)}
           </span>
         </div>
       )}
-      {orders && orders.length > 0 && (
+      {orders.length > 0 && (
         <MyListFilterBar
           idPrefix="my-orders"
           searchLabel="주문 번호 검색"
@@ -132,12 +150,12 @@ export function MyOrdersPage() {
           sortOptions={ORDER_SORT_OPTIONS}
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedOrders.length} / ${orders.length}건 표시 중`}
+          resultText={`${sortedOrders.length}건 표시 중 · 불러온 주문 ${orders.length}건`}
           onReset={resetFilters}
         />
       )}
-      {orders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
-      {orders && orders.length > 0 && sortedOrders.length === 0 && (
+      {hasLoadedOrders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
+      {orders.length > 0 && sortedOrders.length === 0 && (
         <EmptyState message="필터 조건에 맞는 주문이 없습니다." />
       )}
       {sortedOrders.length > 0 && sortedOrders.map((order) => (
@@ -165,6 +183,18 @@ export function MyOrdersPage() {
             </Card.Body>
           </Card>
       ))}
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "주문 불러오는 중..." : "주문 더 보기"}
+          </Button>
+        </div>
+      )}
     </Container>
   );
 }

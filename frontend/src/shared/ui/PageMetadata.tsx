@@ -35,6 +35,14 @@ const PUBLIC_ROUTES: Array<[RegExp, Omit<Metadata, "indexable">]> = [
     title: "해피갤러리 소식",
     description: "해피갤러리의 클래스와 공방 운영 소식을 확인하세요.",
   }],
+  [/^\/events$/, {
+    title: "이벤트 | 해피갤러리",
+    description: "해피갤러리에서 진행 중이거나 곧 시작할 이벤트를 확인하세요.",
+  }],
+  [/^\/events\/\d+$/, {
+    title: "이벤트 상세 | 해피갤러리",
+    description: "해피갤러리 이벤트 일정과 참여 내용을 확인하세요.",
+  }],
   [/^\/terms(?:\/[^/]+)?$/, { title: "이용약관 | 해피갤러리", description: "해피갤러리 서비스 이용약관입니다." }],
   [/^\/privacy(?:\/[^/]+)?$/, { title: "개인정보처리방침 | 해피갤러리", description: "해피갤러리 개인정보처리방침입니다." }],
   [/^\/business-info$/, { title: "사업자 정보 | 해피갤러리", description: "해피갤러리 사업자와 공방 정보를 확인하세요." }],

@@ -7,6 +7,7 @@ import {
 } from "@/shared/api/customerSession";
 import { sanitizeTelemetryPath } from "@/shared/lib/sentryUrl";
 import type { ErrorResponse } from "@/shared/types/error";
+import { waitForPromiseWithSignal } from "./abort";
 
 const BASE_URL = "/api/v1";
 const REQUEST_TIMEOUT_MS = 35_000;
@@ -47,27 +48,29 @@ async function getCsrfToken(signal: AbortSignal): Promise<string> {
   const cookieToken = readCookie(CSRF_COOKIE_NAME);
   if (cookieToken) return cookieToken;
 
-  csrfTokenRequest ??= fetch(buildUrl("/auth/csrf"), {
-    cache: "no-store",
-    credentials: "include",
-    signal,
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`CSRF token request failed: ${response.status}`);
-      }
-      await response.json();
-      const issuedToken = readCookie(CSRF_COOKIE_NAME);
-      if (!issuedToken) {
-        throw new Error("CSRF token cookie was not issued");
-      }
-      return issuedToken;
+  if (!csrfTokenRequest) {
+    csrfTokenRequest = fetch(buildUrl("/auth/csrf"), {
+      cache: "no-store",
+      credentials: "include",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
-    .finally(() => {
-      csrfTokenRequest = undefined;
-    });
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`CSRF token request failed: ${response.status}`);
+        }
+        await response.json();
+        const issuedToken = readCookie(CSRF_COOKIE_NAME);
+        if (!issuedToken) {
+          throw new Error("CSRF token cookie was not issued");
+        }
+        return issuedToken;
+      })
+      .finally(() => {
+        csrfTokenRequest = undefined;
+      });
+  }
 
-  return csrfTokenRequest;
+  return waitForPromiseWithSignal(csrfTokenRequest, signal);
 }
 
 function requiresCsrf(path: string, method: string | undefined): boolean {
@@ -105,11 +108,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     headers.set("Content-Type", "application/json");
   }
 
-  const controller = new AbortController();
+  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
   const signal = externalSignal
-    ? AbortSignal.any([controller.signal, externalSignal])
-    : controller.signal;
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    ? AbortSignal.any([timeoutSignal, externalSignal])
+    : timeoutSignal;
 
   let response: Response;
   try {
@@ -129,8 +131,6 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       requireCurrentCustomerSession(customerSessionSnapshot);
     }
     throw error;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   if (!response.ok) {

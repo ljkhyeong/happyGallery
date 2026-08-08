@@ -22,6 +22,8 @@ import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
+import { AdminEventSection } from "@/features/admin-event/AdminEventSection";
+import { AdminCouponSection } from "@/features/admin-coupon/AdminCouponSection";
 import { AdminPasswordChangeForm } from "@/features/admin-auth/AdminPasswordChangeForm";
 import { getAdminMfaStatus } from "@/features/admin-auth/api";
 import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboardSection";
@@ -53,6 +55,16 @@ const ADMIN_VIEWS = [
     value: "classes",
     label: "클래스·슬롯",
     description: "클래스와 예약 가능한 일정을 관리합니다.",
+  },
+  {
+    value: "events",
+    label: "이벤트",
+    description: "진행·예정 이벤트의 공개 일정과 홈 추천, 연관 상품을 관리합니다.",
+  },
+  {
+    value: "coupons",
+    label: "쿠폰",
+    description: "회원 상품 주문 쿠폰의 할인 조건, 공개 발급 여부와 사용 기간을 관리합니다.",
   },
   {
     value: "support",
@@ -414,6 +426,18 @@ export function AdminPage() {
             <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>
+      )}
+
+      {activeView === "events" && (
+        <AdminPanel title="이벤트 관리">
+          <AdminEventSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </AdminPanel>
+      )}
+
+      {activeView === "coupons" && (
+        <AdminPanel title="쿠폰 관리">
+          <AdminCouponSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </AdminPanel>
       )}
 
       {activeView === "settings" && (

@@ -27,7 +27,9 @@ export function MyStatsRow({
             <div className="my-section-kicker mb-2">Orders</div>
             <div className="my-stat-value">{orderCount}</div>
             <div className="text-muted-soft small">
-              {latestOrder ? `최근 주문 ${formatDateTime(latestOrder.createdAt)}` : "아직 주문이 없습니다."}
+              {latestOrder
+                ? `최근 조회 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
+                : `최근 조회 주문 ${orderCount}건`}
             </div>
           </Card.Body>
         </Card>
@@ -38,7 +40,9 @@ export function MyStatsRow({
             <div className="my-section-kicker mb-2">Bookings</div>
             <div className="my-stat-value">{bookingCount}</div>
             <div className="text-muted-soft small">
-              {nextBooking ? `다음 일정 ${formatDateTime(nextBooking.startAt)}` : "예정된 예약이 없습니다."}
+              {nextBooking
+                ? `최근 조회 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
+                : `최근 조회 예약 ${bookingCount}건 · 예정된 예약 없음`}
             </div>
           </Card.Body>
         </Card>
@@ -49,7 +53,9 @@ export function MyStatsRow({
             <div className="my-section-kicker mb-2">Passes</div>
             <div className="my-stat-value">{remainingCredits}</div>
             <div className="text-muted-soft small">
-              {activePassCount > 0 ? `활성 8회권 ${activePassCount}건` : "사용 가능한 8회권이 없습니다."}
+              {activePassCount > 0
+                ? `최근 조회한 활성 8회권 ${activePassCount}건의 잔여 횟수`
+                : "최근 조회한 활성 8회권 0건의 잔여 횟수"}
             </div>
           </Card.Body>
         </Card>

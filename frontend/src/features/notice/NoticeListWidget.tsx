@@ -2,6 +2,7 @@ import { Badge } from "react-bootstrap";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchNotices } from "./api";
+import { queryKeys } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
@@ -14,7 +15,7 @@ export function NoticeListWidget() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: ["notices"],
+    queryKey: queryKeys.notices.all,
     queryFn: fetchNotices,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });

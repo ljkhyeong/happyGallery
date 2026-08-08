@@ -24,10 +24,10 @@ export function MyInquiriesSection({
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h6 className="mb-1">내 문의</h6>
-          <p className="text-muted-soft small mb-0">1:1 문의 내역을 확인합니다.</p>
+          <p className="text-muted-soft small mb-0">최근 조회한 1:1 문의 내역을 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {inquiries && <span className="text-muted-soft small">총 {inquiries.length}건</span>}
+          {inquiries && <span className="text-muted-soft small">최근 조회 {inquiries.length}건</span>}
           <Link to="/my/inquiries" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>

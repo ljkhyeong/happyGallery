@@ -21,11 +21,11 @@ interface GuestInfo {
 interface Props {
   show: boolean;
   onClose: () => void;
-  onMemberConfirm: (member: CustomerUser) => void;
+  onMemberAuthenticated: (member: CustomerUser) => void;
   onGuestConfirm: (info: GuestInfo) => void;
 }
 
-export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }: Props) {
+export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestConfirm }: Props) {
   const { isAuthenticated, login, signup, user } = useCustomerAuth();
   const [tab, setTab] = useState<AuthPath>("login");
 
@@ -65,7 +65,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>취소</Button>
-          <Button variant="primary" onClick={() => onMemberConfirm(user!)}>확인</Button>
+          <Button variant="primary" onClick={() => onMemberAuthenticated(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
     );
@@ -78,7 +78,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
     setSubmitting(true);
     try {
       const member = await login(email, password);
-      onMemberConfirm(member);
+      onMemberAuthenticated(member);
     } catch (requestError) {
       setError(requestError);
     } finally {
@@ -102,7 +102,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
         signupVerificationCode,
         policyConsent.acceptance,
       );
-      onMemberConfirm(member);
+      onMemberAuthenticated(member);
     } catch (requestError) {
       setError(requestError);
     } finally {
@@ -170,7 +170,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               size="sm"
               disabled={submitting || !isPasswordWithinByteLimit(password)}
             >
-              {submitting ? "로그인 중..." : "로그인하고 진행"}
+              {submitting ? "로그인 중..." : "로그인 후 내용 확인"}
             </Button>
           </Form>
         )}
@@ -231,7 +231,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                 || submitting
               }
             >
-              {submitting ? "가입 중..." : "가입하고 진행"}
+              {submitting ? "가입 중..." : "가입 후 내용 확인"}
             </Button>
           </Form>
         )}

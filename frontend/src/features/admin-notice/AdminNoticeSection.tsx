@@ -10,7 +10,7 @@ import {
   type NoticeDetailResponse,
   type NoticeListResponse,
 } from "./api";
-import { ApiError } from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -32,9 +32,16 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const toast = useToast();
 
   const { data: notices, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "notices"],
+    queryKey: queryKeys.admin.notices,
     queryFn: () => fetchAdminNotices(adminKey),
   });
+
+  const invalidateSavedNotices = () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.notices.all }),
+    ]);
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -73,7 +80,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     onSuccess: () => {
       toast.show("공지사항이 등록되었습니다.");
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
     },
     onError: setActionError,
   });
@@ -88,7 +95,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     onSuccess: () => {
       toast.show("공지사항이 수정되었습니다.");
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
     },
     onError: async (error) => {
       if (!(error instanceof ApiError) || error.status !== 409 || editId === null) {
@@ -103,7 +110,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
         if (requestId !== editRequestId.current) return;
         setConflict(latest);
         setActionError(null);
-        queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
       } catch (refreshError) {
         if (requestId !== editRequestId.current) return;
         if (isAdminSessionUnauthorized(refreshError)) onAuthError();
@@ -124,12 +131,12 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
     onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 삭제되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
     },
     onError: (error) => {
       setActionError(error);
       if (error instanceof ApiError && error.status === 409) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
       }
     },
   });
