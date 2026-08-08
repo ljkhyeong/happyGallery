@@ -32,6 +32,18 @@ test("정률 쿠폰은 원 단위로 내림하고 최대 할인 금액을 적용
   assert.equal(calculateCouponDiscount(coupon, 30000), 3000);
 });
 
+test("원 단위 내림 결과가 0원인 정률 쿠폰은 할인 혜택이 없다", () => {
+  const coupon = {
+    discountType: "PERCENT",
+    discountValue: 1,
+    minOrderAmount: 0,
+    maxDiscountAmount: 1000,
+  };
+
+  assert.equal(calculateCouponDiscount(coupon, 99), 0);
+  assert.equal(calculateCouponDiscount(coupon, 100), 1);
+});
+
 test("정률 쿠폰은 안전한 정수 경계에서도 중간곱 오차 없이 계산한다", () => {
   const maximumSafeAmount = Number.MAX_SAFE_INTEGER;
   const expected = Number(BigInt(maximumSafeAmount) * 15n / 100n);

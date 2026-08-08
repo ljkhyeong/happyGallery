@@ -12,7 +12,5 @@ public interface IssuedCouponReaderPort {
 
     boolean existsByDefinitionId(Long definitionId);
 
-    List<IssuedCoupon> findByUserIdOrderByClaimedAtDescIdDesc(Long userId);
-
     List<IssuedCoupon> findTop100ByUserIdOrderByClaimedAtDescIdDesc(Long userId);
 }

@@ -50,7 +50,9 @@ export function MemberOrderBenefits({
 
   const selectableCoupons = useMemo(
     () => couponsQuery.data?.filter((coupon) => (
-      coupon.status === "AVAILABLE" && productAmount >= coupon.minOrderAmount
+      coupon.status === "AVAILABLE"
+      && productAmount >= coupon.minOrderAmount
+      && calculateCouponDiscount(coupon, productAmount) > 0
     )) ?? [],
     [couponsQuery.data, productAmount],
   );

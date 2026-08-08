@@ -25,8 +25,5 @@ public interface IssuedCouponRepository
     boolean existsByDefinitionId(Long definitionId);
 
     @Override
-    List<IssuedCoupon> findByUserIdOrderByClaimedAtDescIdDesc(Long userId);
-
-    @Override
     List<IssuedCoupon> findTop100ByUserIdOrderByClaimedAtDescIdDesc(Long userId);
 }

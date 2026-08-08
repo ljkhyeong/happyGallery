@@ -68,8 +68,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
         if (issuedCouponReader.existsByDefinitionId(definitionId)
                 && changesIssuedCouponTerms(definition, command)) {
             throw new HappyGalleryException(
-                    ErrorCode.CONFLICT,
-                    "이미 발급된 쿠폰은 이름·할인 조건·유효기간을 변경할 수 없습니다.");
+                    ErrorCode.COUPON_TERMS_IMMUTABLE);
         }
         definition.update(
                 command.name(),

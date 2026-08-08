@@ -3408,7 +3408,7 @@ file={JPEG|PNG|WebP binary}
 
 #### 2.20.3 회원 쿠폰
 
-- `GET /api/v1/me/coupons/claimable` — 현재 공개 발급 가능하고 이 회원이 아직 발급받지 않은 쿠폰 정의
+- `GET /api/v1/me/coupons/claimable` — 현재 공개 발급 가능하고 이 회원이 아직 발급받지 않은 쿠폰 정의를 최신순 최대 100개 조회
 - `GET /api/v1/me/coupons` — 회원에게 발급된 쿠폰 최근 100개
 - `POST /api/v1/me/coupons` + `{ "definitionId": 10 }` — 공개 쿠폰 1장 발급
 
@@ -3431,7 +3431,7 @@ file={JPEG|PNG|WebP binary}
 ```
 
 - 한 쿠폰 정의는 회원당 한 번만 발급한다. 상태는 `AVAILABLE|RESERVED|REDEEMED|EXPIRED|CANCELED`다.
-- `FIXED`는 고정 원화 할인이고 `maxDiscountAmount=null`이다. `PERCENT`는 1~100%이며 양수 `maxDiscountAmount`를 반드시 둔다.
+- `FIXED`는 고정 원화 할인이고 `maxDiscountAmount=null`이다. `PERCENT`는 1~100%이며 양수 `maxDiscountAmount`를 반드시 둔다. 주문 상품액에 정률을 적용해 원 미만을 버린 결과가 0원이면 `422 CHANGE_NOT_ALLOWED`로 거절한다.
 - 관리자가 정의를 비활성화한 뒤 아직 예약·사용하지 않은 발급 쿠폰은 회원 조회 시 `CANCELED`로 정리해 화면의 사용 가능 표시와 prepare 검증을 일치시킨다.
 - 발급 기간·활성·공개 발급 조건을 만족하지 않으면 `422 CHANGE_NOT_ALLOWED`, 중복 발급은 `409 CONFLICT`다.
 
@@ -3470,7 +3470,7 @@ file={JPEG|PNG|WebP binary}
 - `PUT /api/v1/admin/coupons/{id}` — `expectedVersion`을 포함한 전체 수정
 - `DELETE /api/v1/admin/coupons/{id}?expectedVersion={version}` — 신규 발급만 막도록 비활성화
 
-생성·수정 바디는 `name`, `discountType`, `discountValue`, `minOrderAmount`, nullable `maxDiscountAmount`, `validFrom`, `validUntil`, `active`, `publiclyClaimable`을 사용한다. 한 장이라도 발급된 뒤에는 기존 권리와 표시를 소급 변경하지 않도록 이름·할인 조건·유효기간을 바꿀 수 없고 `active`, `publiclyClaimable`만 변경할 수 있다. 이미 발급된 쿠폰은 정의를 비활성화해도 감사 이력과 주문 스냅샷을 유지한다. 버전 또는 불변 조건 충돌은 `409 CONFLICT`다.
+생성·수정 바디는 `name`, `discountType`, `discountValue`, `minOrderAmount`, nullable `maxDiscountAmount`, `validFrom`, `validUntil`, `active`, `publiclyClaimable`을 사용한다. 한 장이라도 발급된 뒤에는 기존 권리와 표시를 소급 변경하지 않도록 이름·할인 조건·유효기간을 바꿀 수 없고 `active`, `publiclyClaimable`만 변경할 수 있다. 이미 발급된 쿠폰은 정의를 비활성화해도 감사 이력과 주문 스냅샷을 유지한다. 버전 충돌은 `409 CONFLICT`, 발급 뒤 경제 조건 변경은 `409 COUPON_TERMS_IMMUTABLE`로 구분한다.
 
 ---
 
@@ -3515,6 +3515,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `CART_SNAPSHOT_CHANGED` | 장바구니 결제의 `expectedCartVersion`과 현재 장바구니 스냅샷이 다름 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
+| 409 | `COUPON_TERMS_IMMUTABLE` | 한 장 이상 발급된 쿠폰의 이름·할인 조건·유효기간 변경 시도 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |

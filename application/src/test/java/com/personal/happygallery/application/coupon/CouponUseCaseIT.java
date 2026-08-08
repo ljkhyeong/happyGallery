@@ -26,11 +26,16 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -49,6 +54,7 @@ class CouponUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
+    @Autowired PlatformTransactionManager transactionManager;
 
     @AfterEach
     void tearDown() {
@@ -121,7 +127,8 @@ class CouponUseCaseIT {
                         true,
                         true)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
-                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+                    assertThat(exception.getErrorCode())
+                            .isEqualTo(ErrorCode.COUPON_TERMS_IMMUTABLE);
                     assertThat(exception).hasMessageContaining("이미 발급된 쿠폰");
                 });
 
@@ -177,6 +184,106 @@ class CouponUseCaseIT {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
                     assertThat(exception).hasMessage("이미 발급받은 쿠폰입니다.");
                 });
+    }
+
+    @DisplayName("발급 가능 쿠폰은 이미 발급한 정의를 제외한 최신 100개만 조회한다")
+    @Test
+    void listClaimableCoupons_excludesClaimedBeforeLimitingToRecentHundred() {
+        LocalDateTime now = now();
+        User user = createUser("coupon-claimable@example.com", "01010002100");
+        List<CouponDefinition> definitions = definitionRepository.saveAllAndFlush(
+                IntStream.rangeClosed(1, 102)
+                        .mapToObj(index -> new CouponDefinition(
+                                "발급 가능 쿠폰 " + index,
+                                CouponDiscountType.FIXED,
+                                1_000L,
+                                0L,
+                                null,
+                                now.minusDays(1),
+                                now.plusDays(30),
+                                true,
+                                true))
+                        .toList());
+        CouponDefinition newest = definitions.getLast();
+        couponMemberUseCase.claim(user.getId(), newest.getId());
+        List<Long> expectedIds = definitions.stream()
+                .map(CouponDefinition::getId)
+                .filter(id -> !id.equals(newest.getId()))
+                .sorted(Comparator.reverseOrder())
+                .limit(100)
+                .toList();
+
+        List<Long> actualIds = couponMemberUseCase.listClaimableCoupons(user.getId()).stream()
+                .map(CouponDefinition::getId)
+                .toList();
+
+        assertThat(actualIds).containsExactlyElementsOf(expectedIds);
+    }
+
+    @DisplayName("한 발급 트랜잭션이 정의 공유 잠금을 보유해도 다른 회원은 같은 쿠폰을 발급받는다")
+    @Test
+    void claim_differentMemberProceedsWhileSharedDefinitionLockIsHeld() throws Exception {
+        LocalDateTime now = now();
+        User user = createUser("coupon-parallel@example.com", "01010002150");
+        CouponDefinition definition = couponAdminUseCase.create(fixedCommand(now, 5_000L));
+        CountDownLatch sharedLockHeld = new CountDownLatch(1);
+        CountDownLatch releaseSharedLock = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var lockHolder = executor.submit(() ->
+                    new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                        definitionRepository.findByIdForClaim(definition.getId()).orElseThrow();
+                        sharedLockHeld.countDown();
+                        await(releaseSharedLock);
+                    }));
+
+            assertThat(sharedLockHeld.await(10, TimeUnit.SECONDS)).isTrue();
+            var parallelClaim = executor.submit(
+                    () -> couponMemberUseCase.claim(user.getId(), definition.getId()));
+            try {
+                assertThat(parallelClaim.get(5, TimeUnit.SECONDS).issuedCoupon().getUserId())
+                        .isEqualTo(user.getId());
+            } finally {
+                releaseSharedLock.countDown();
+            }
+            lockHolder.get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @DisplayName("같은 회원이 쿠폰을 동시에 발급해도 한 건만 생성되고 중복 요청은 충돌로 수렴한다")
+    @Test
+    void claim_sameMemberConcurrently_issuesOnlyOnce() throws Exception {
+        LocalDateTime now = now();
+        User user = createUser("coupon-same-member@example.com", "01010002160");
+        CouponDefinition definition = couponAdminUseCase.create(fixedCommand(now, 5_000L));
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var attempts = IntStream.range(0, 2)
+                    .mapToObj(ignored -> executor.submit(() -> {
+                        ready.countDown();
+                        await(start);
+                        try {
+                            couponMemberUseCase.claim(user.getId(), definition.getId());
+                            return "ISSUED";
+                        } catch (HappyGalleryException exception) {
+                            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+                            return "CONFLICT";
+                        }
+                    }))
+                    .toList();
+
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            assertThat(List.of(
+                    attempts.get(0).get(10, TimeUnit.SECONDS),
+                    attempts.get(1).get(10, TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder("ISSUED", "CONFLICT");
+        }
+
+        assertThat(issuedCouponRepository.count()).isEqualTo(1L);
     }
 
     @DisplayName("비활성화된 정의의 미사용 쿠폰은 내 목록 조회 시 취소 상태로 정리한다")
@@ -358,5 +465,16 @@ class CouponUseCaseIT {
 
     private LocalDateTime now() {
         return LocalDateTime.now(clock);
+    }
+
+    private static void await(CountDownLatch latch) {
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("쿠폰 동시성 테스트 신호를 기다리지 못했습니다.");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("쿠폰 발급 잠금 대기가 중단되었습니다.", exception);
+        }
     }
 }

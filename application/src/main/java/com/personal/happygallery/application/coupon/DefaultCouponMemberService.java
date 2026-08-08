@@ -20,10 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
 
 @Service
 public class DefaultCouponMemberService implements CouponMemberUseCase {
+
+    private static final int MAX_CLAIMABLE_COUPONS = 100;
 
     private final CouponDefinitionReaderPort definitionReader;
     private final IssuedCouponReaderPort issuedCouponReader;
@@ -44,7 +45,7 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
     @Transactional
     public IssuedCouponView claim(Long userId, Long definitionId) {
         requireUserId(userId);
-        CouponDefinition definition = definitionReader.findByIdForUpdate(definitionId)
+        CouponDefinition definition = definitionReader.findByIdForClaim(definitionId)
                 .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
         LocalDateTime now = LocalDateTime.now(clock);
         definition.requirePubliclyClaimableAt(now);
@@ -57,18 +58,12 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public List<CouponDefinition> listClaimableCoupons(Long userId) {
         requireUserId(userId);
         LocalDateTime now = LocalDateTime.now(clock);
-        var claimedDefinitionIds = issuedCouponReader
-                .findByUserIdOrderByClaimedAtDescIdDesc(userId).stream()
-                .map(IssuedCoupon::getDefinitionId)
-                .collect(toSet());
-        return definitionReader.findAllByOrderByIdDesc().stream()
-                .filter(definition -> definition.isPubliclyClaimableAt(now))
-                .filter(definition -> !claimedDefinitionIds.contains(definition.getId()))
-                .toList();
+        return definitionReader.findClaimableByUserId(
+                userId, now, MAX_CLAIMABLE_COUPONS);
     }
 
     @Override

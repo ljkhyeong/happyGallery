@@ -51,6 +51,7 @@ public enum ErrorCode {
     CART_SNAPSHOT_CHANGED(409, "장바구니가 변경되었습니다. 최신 장바구니를 확인한 뒤 다시 결제해 주세요."),
     PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
     PAYMENT_RECONCILIATION_REQUIRED(409, "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요."),
+    COUPON_TERMS_IMMUTABLE(409, "이미 발급된 쿠폰의 이름·할인 조건·유효기간은 변경할 수 없습니다."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
 
     // 410 Gone — 유효기간이 끝난 리소스

@@ -25,6 +25,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   SLOT_NOT_AVAILABLE: "선택하신 슬롯은 예약할 수 없습니다.",
   BOOKING_CONFLICT: "예약 처리 중 충돌이 발생했습니다. 다시 시도해 주세요.",
   CART_SNAPSHOT_CHANGED: "장바구니가 변경되었습니다. 최신 장바구니를 확인한 뒤 다시 결제해 주세요.",
+  COUPON_TERMS_IMMUTABLE: "이미 발급된 쿠폰의 이름·할인 조건·유효기간은 변경할 수 없습니다.",
   CONFLICT: "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해 주세요.",
   TOO_MANY_REQUESTS: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
   REFUND_NOT_ALLOWED: "현재 상태에서는 환불할 수 없습니다.",

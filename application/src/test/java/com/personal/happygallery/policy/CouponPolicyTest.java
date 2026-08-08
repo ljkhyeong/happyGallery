@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.coupon.CouponDefinition;
 import com.personal.happygallery.domain.coupon.CouponDiscountType;
 import com.personal.happygallery.domain.coupon.IssuedCoupon;
 import com.personal.happygallery.domain.coupon.IssuedCouponStatus;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
@@ -42,6 +43,27 @@ class CouponPolicyTest {
                             .discountedProductAmount())
                     .isZero();
         });
+    }
+
+    @DisplayName("정률 계산 결과가 1원 미만이면 쿠폰 정책 위반으로 거절한다")
+    @Test
+    void percentDiscount_rejectsZeroWonResult() {
+        CouponDefinition percent = new CouponDefinition(
+                "1% 할인",
+                CouponDiscountType.PERCENT,
+                1L,
+                0L,
+                10_000L,
+                NOW.minusDays(1),
+                NOW.plusDays(1),
+                true,
+                true);
+
+        assertThatThrownBy(() -> percent.calculateDiscount(99L, NOW))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CHANGE_NOT_ALLOWED);
+                    assertThat(exception).hasMessageContaining("1원 이상");
+                });
     }
 
     @DisplayName("정률 쿠폰은 1에서 100 사이 할인율과 최대 할인 금액을 필수로 가진다")

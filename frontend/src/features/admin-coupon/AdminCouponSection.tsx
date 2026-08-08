@@ -182,7 +182,12 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
       invalidateCoupons();
     },
     onError: async (error) => {
-      if (!(error instanceof ApiError) || error.status !== 409 || editId === null) {
+      if (
+        !(error instanceof ApiError)
+        || error.status !== 409
+        || error.code !== "CONFLICT"
+        || editId === null
+      ) {
         setActionError(error);
         return;
       }

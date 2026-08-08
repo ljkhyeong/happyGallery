@@ -164,7 +164,11 @@ public class CouponDefinition {
                     Math.multiplyExact(productAmount, discountValue) / 100L,
                     maxDiscountAmount);
         };
-        return Math.min(productAmount, calculated);
+        long discount = Math.min(productAmount, calculated);
+        if (discount == 0L) {
+            throw unavailable("쿠폰 할인 금액은 1원 이상이어야 합니다.");
+        }
+        return discount;
     }
 
     public boolean isWithinValidity(LocalDateTime now) {
