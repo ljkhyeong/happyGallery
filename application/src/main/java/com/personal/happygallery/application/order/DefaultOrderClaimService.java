@@ -91,8 +91,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView requestMemberClaim(Long orderId, Long userId, RequestCommand command) {
-        memberAccountGuard.requireActiveForUpdate(userId);
         Order order = requireOrderForUpdate(orderId);
+        memberAccountGuard.requireActiveForUpdate(userId);
         if (!Objects.equals(order.getUserId(), userId)) {
             throw new NotFoundException("주문");
         }
@@ -156,8 +156,13 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command) {
+        Long expectedOrderId = requireClaimOrderId(claimId);
+        Order order = requireOrderForUpdate(expectedOrderId);
         OrderClaim claim = requireClaimForUpdate(claimId);
-        Order order = requireOrderForUpdate(claim.getOrderId());
+        if (!Objects.equals(claim.getOrderId(), expectedOrderId)) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "주문 클레임의 주문 연결이 변경되었습니다.");
+        }
         List<OrderClaimLine> lines = claimLines(claim);
 
         if (!command.approved()) {
@@ -384,6 +389,11 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private OrderClaim requireClaimForUpdate(Long claimId) {
         return orderClaimPort.findByIdForUpdate(claimId)
+                .orElseThrow(NotFoundException.supplier("주문 클레임"));
+    }
+
+    private Long requireClaimOrderId(Long claimId) {
+        return orderClaimPort.findOrderIdById(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
     }
 

@@ -15,6 +15,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long> {
 
+    @Query("SELECT c.orderId FROM OrderClaim c WHERE c.id = :id")
+    Optional<Long> findOrderIdById(@Param("id") Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM OrderClaim c WHERE c.id = :id")
     Optional<OrderClaim> findByIdForUpdate(@Param("id") Long id);

@@ -212,6 +212,7 @@ public class DefaultRewardService implements RewardQueryUseCase, RewardBenefitSe
         RewardAccount account = accountForUpdate(reservation.getUserId());
         expireLots(account, now);
         List<RewardReservationAllocation> allocations = persistence.findAllocations(reservation.getId());
+        Map<Long, RewardLot> sourceLots = lotsById(allocations);
         List<RewardLot> restoredLots = new ArrayList<>();
         long remaining = amount;
         for (RewardReservationAllocation allocation : allocations) {
@@ -221,11 +222,12 @@ public class DefaultRewardService implements RewardQueryUseCase, RewardBenefitSe
             }
             long credited = account.credit(restored);
             if (credited > 0L) {
-                LocalDateTime expiresAt = allocation.getOriginalExpiry().isAfter(now)
-                        ? allocation.getOriginalExpiry()
+                RewardLot sourceLot = sourceLots.get(allocation.getRewardLotId());
+                LocalDateTime expiresAt = sourceLot.getExpiresAt().isAfter(now)
+                        ? sourceLot.getExpiresAt()
                         : now.plusDays(RESTORE_MINIMUM_DAYS);
                 restoredLots.add(new RewardLot(
-                        reservation.getUserId(), orderId, credited, expiresAt));
+                        reservation.getUserId(), sourceLot.getSourceOrderId(), credited, expiresAt));
             }
             remaining -= restored;
             if (remaining == 0L) {

@@ -1,7 +1,9 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.external.payment.FakePaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.coupon.CouponDefinitionRepository;
 import com.personal.happygallery.adapter.out.persistence.coupon.IssuedCouponRepository;
+import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
@@ -18,6 +20,7 @@ import com.personal.happygallery.application.order.port.out.OrderClaimItemPort;
 import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -44,24 +47,35 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mockingDetails;
 
 @UseCaseIT
 class OrderClaimUseCaseIT {
@@ -88,6 +102,9 @@ class OrderClaimUseCaseIT {
     @Autowired UserReaderPort userReaderPort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired PlatformTransactionManager transactionManager;
+    @MockitoSpyBean OrderRepository orderRepository;
+    @MockitoSpyBean(name = "paymentProviderDelegate") FakePaymentProvider paymentProvider;
 
     OrderTestHelper orderHelper;
 
@@ -441,6 +458,126 @@ class OrderClaimUseCaseIT {
         }
     }
 
+    @DisplayName("환불 완료와 신규 클레임이 같은 주문에서 경합해도 교착 없이 수량과 상태를 보존한다")
+    @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
+    void refundCompletion_concurrentMemberClaim_preservesClaimInvariants() throws Exception {
+        Product product = orderHelper.createReadyStockProduct("환불 완료 경합 상품", 20_000L, 2);
+        User member = orderHelper.createMemberOwner();
+        Order order = orderService.createMemberOrder(
+                member.getId(),
+                List.of(new OrderService.OrderItemRequest(
+                        product.getId(), product.getName(), 2, product.getPrice())),
+                FulfillmentType.SHIPPING,
+                new ShippingAddress(
+                        "주문 테스트 회원", "01012345678", "06236", "서울시 강남구 테헤란로 1", null),
+                3_000L);
+        order.recordPaymentKey("claim-race-payment-key");
+        orderStorePort.save(order);
+        orderApprovalUseCase.approve(order.getId(), 1L);
+        orderShippingUseCase.prepareShipping(order.getId(), 1L);
+        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "CLAIM-RACE-TRACK", 1L);
+        orderShippingUseCase.markDelivered(order.getId(), 1L);
+        Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
+
+        var refundClaim = orderClaimUseCase.requestMemberClaim(
+                order.getId(),
+                member.getId(),
+                new OrderClaimUseCase.RequestCommand(
+                        OrderClaimType.DAMAGED,
+                        OrderClaimResolution.REFUND,
+                        "첫 번째 수량을 환불합니다.",
+                        List.of(new OrderClaimUseCase.Item(orderItemId, 1))));
+
+        CountDownLatch paymentCallEntered = new CountDownLatch(1);
+        CountDownLatch allowPaymentResult = new CountDownLatch(1);
+        CountDownLatch refundOrderLockAttempted = new CountDownLatch(1);
+        CountDownLatch memberOrderLockAttempted = new CountDownLatch(1);
+        AtomicReference<Thread> memberClaimThread = new AtomicReference<>();
+        Answer<?> orderRepositoryDelegate = mockingDetails(orderRepository)
+                .getMockCreationSettings()
+                .getDefaultAnswer();
+        doAnswer(invocation -> {
+            paymentCallEntered.countDown();
+            awaitSignal(allowPaymentResult, "PG 환불 완료 허용 신호를 기다리지 못했습니다.");
+            return RefundResult.success("claim-race-refund-transaction-key");
+        }).when(paymentProvider).refund(any(), anyLong(), any());
+        doAnswer(invocation -> {
+            Thread currentThread = Thread.currentThread();
+            if (currentThread.getName().startsWith("refund-")) {
+                refundOrderLockAttempted.countDown();
+            } else if (currentThread == memberClaimThread.get()) {
+                memberOrderLockAttempted.countDown();
+            }
+            return orderRepositoryDelegate.answer(invocation);
+        }).when(orderRepository).findByIdForUpdate(order.getId());
+
+        adminOrderClaimUseCase.resolve(
+                refundClaim.id(),
+                1L,
+                new AdminOrderClaimUseCase.ResolveCommand(
+                        true, 20_000L, true, "첫 번째 수량 환불 승인"));
+        awaitSignal(paymentCallEntered, "비동기 PG 환불 호출이 시작되지 않았습니다.");
+
+        AtomicReference<Future<OrderClaimView>> memberClaimFuture = new AtomicReference<>();
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            try {
+                new TransactionTemplate(transactionManager).executeWithoutResult(ignored -> {
+                    orderRepository.findByIdForUpdate(order.getId()).orElseThrow();
+
+                    allowPaymentResult.countDown();
+                    awaitSignal(
+                            refundOrderLockAttempted,
+                            "환불 완료 트랜잭션이 주문 잠금을 시도하지 않았습니다.");
+
+                    memberClaimFuture.set(executor.submit(() -> {
+                        memberClaimThread.set(Thread.currentThread());
+                        return orderClaimUseCase.requestMemberClaim(
+                                order.getId(),
+                                member.getId(),
+                                new OrderClaimUseCase.RequestCommand(
+                                        OrderClaimType.OTHER,
+                                        OrderClaimResolution.EXCHANGE,
+                                        "남은 한 수량을 교환합니다.",
+                                        List.of(new OrderClaimUseCase.Item(orderItemId, 1))));
+                    }));
+                    awaitSignal(
+                            memberOrderLockAttempted,
+                            "신규 클레임 트랜잭션이 주문 잠금을 시도하지 않았습니다.");
+                });
+            } finally {
+                allowPaymentResult.countDown();
+            }
+
+            OrderClaimView memberClaim = memberClaimFuture.get().get(5, TimeUnit.SECONDS);
+            await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                List<OrderClaimView> claims = orderClaimUseCase.listMemberClaims(
+                        order.getId(), member.getId());
+                Map<Long, OrderClaimStatus> statusesByClaimId = claims.stream()
+                        .collect(Collectors.toMap(OrderClaimView::id, OrderClaimView::status));
+                List<Long> claimIds = claims.stream().map(OrderClaimView::id).toList();
+                var claimItems = orderClaimItemPort.findByClaimIdIn(claimIds);
+
+                assertSoftly(softly -> {
+                    softly.assertThat(statusesByClaimId)
+                            .hasSize(2)
+                            .containsEntry(refundClaim.id(), OrderClaimStatus.COMPLETED)
+                            .containsEntry(memberClaim.id(), OrderClaimStatus.REQUESTED);
+                    softly.assertThat(claimItems)
+                            .hasSize(2)
+                            .allMatch(item -> item.getOrderItemId().equals(orderItemId));
+                    softly.assertThat(claimItems.stream()
+                                    .mapToInt(item -> item.getQuantity())
+                                    .sum())
+                            .isEqualTo(2);
+                    softly.assertThat(orderStateProbe.getInventoryByProductId(product.getId())
+                                    .getQuantity())
+                            .isEqualTo(1);
+                });
+            });
+        }
+    }
+
     @DisplayName("관리자는 같은 상태의 오래된 주문 클레임까지 커서로 이어서 조회한다")
     @Test
     void listAdminClaims_usesStableCursorWithinStatus() {
@@ -482,5 +619,16 @@ class OrderClaimUseCaseIT {
                         OrderClaimResolution.REFUND,
                         "관리자 커서 조회를 확인합니다.",
                         List.of(new OrderClaimUseCase.Item(orderItemId, 1))));
+    }
+
+    private static void awaitSignal(CountDownLatch latch, String failureMessage) {
+        try {
+            assertThat(latch.await(5, TimeUnit.SECONDS))
+                    .as(failureMessage)
+                    .isTrue();
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("동시 경합 신호 대기가 중단되었습니다.", exception);
+        }
     }
 }

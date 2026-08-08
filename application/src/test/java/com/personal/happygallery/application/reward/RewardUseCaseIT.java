@@ -31,6 +31,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @UseCaseIT
 class RewardUseCaseIT {
@@ -40,6 +41,7 @@ class RewardUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired OrderRepository orderRepository;
     @Autowired PaymentAttemptRepository paymentAttemptRepository;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
@@ -83,6 +85,114 @@ class RewardUseCaseIT {
                     .contains(RewardLedgerType.EARN, RewardLedgerType.RESERVE,
                             RewardLedgerType.RELEASE, RewardLedgerType.USE,
                             RewardLedgerType.RESTORE);
+        });
+    }
+
+    @Test
+    @DisplayName("복원한 적립금은 원천 주문과 만료를 보존해 환불 주문 적립금 회수와 섞이지 않는다")
+    void restoreUsed_preservesSourceLotBeforeRevokingEarnedReward() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        User user = createUser("reward-restore-source@example.com", "01024001200");
+        Order sourceOrder = saveOrder(user.getId(), 100_000L, now.minusYears(1).plusDays(1));
+        rewardBenefitService.accrue(
+                user.getId(), sourceOrder.getId(), 100L, now.minusYears(1).plusDays(1));
+
+        PaymentAttempt attempt = saveAttempt(user.getId(), "reward-restore-source", 99_900L);
+        rewardBenefitService.reserve(user.getId(), 100L, attempt.getId(), now);
+        Order refundOrder = saveOrder(user.getId(), 100_000L, now);
+        rewardBenefitService.consume(attempt.getId(), refundOrder.getId(), 100L, now);
+        rewardBenefitService.accrue(user.getId(), refundOrder.getId(), 150L, now);
+
+        rewardBenefitService.restoreUsed(
+                refundOrder.getId(), 100L, "test:reward:restore-source", now.plusDays(2));
+        rewardBenefitService.revokeEarned(
+                user.getId(), refundOrder.getId(), 150L, "test:reward:revoke-refund-order");
+
+        assertThatThrownBy(() -> rewardBenefitService.quoteAndLock(
+                user.getId(), 1L, 1L, now.plusDays(33)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.REWARD_BALANCE_INSUFFICIENT));
+    }
+
+    @Test
+    @DisplayName("여러 원천 적립금 복원은 주문별 계보와 만료를 보존하고 부채를 먼저 상환한다")
+    void restoreUsed_preservesMultiLotMetadataAndRepaysDebtFirst() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime shortEarnedAt = now.minusYears(1).plusDays(1);
+        LocalDateTime longEarnedAt = now.minusMonths(6);
+        LocalDateTime shortOriginalExpiry = shortEarnedAt.plusYears(1);
+        LocalDateTime longOriginalExpiry = longEarnedAt.plusYears(1);
+        LocalDateTime restoredAt = now.plusDays(2);
+        User user = createUser("reward-restore-multi-lot@example.com", "01024001300");
+        Order shortLivedOrder = saveOrder(user.getId(), 40_000L, shortEarnedAt);
+        Order longLivedOrder = saveOrder(user.getId(), 60_000L, longEarnedAt);
+        rewardBenefitService.accrue(user.getId(), shortLivedOrder.getId(), 40L, shortEarnedAt);
+        rewardBenefitService.accrue(user.getId(), longLivedOrder.getId(), 60L, longEarnedAt);
+
+        PaymentAttempt spendingAttempt = saveAttempt(
+                user.getId(), "reward-restore-multi-lot", 99_900L);
+        rewardBenefitService.reserve(user.getId(), 100L, spendingAttempt.getId(), now);
+        Order spendingOrder = saveOrder(user.getId(), 100_000L, now);
+        rewardBenefitService.consume(spendingAttempt.getId(), spendingOrder.getId(), 100L, now);
+
+        Order debtSourceOrder = saveOrder(user.getId(), 15_000L, now);
+        rewardBenefitService.accrue(user.getId(), debtSourceOrder.getId(), 15L, now);
+        PaymentAttempt debtSpendingAttempt = saveAttempt(
+                user.getId(), "reward-restore-debt-source", 14_985L);
+        rewardBenefitService.reserve(
+                user.getId(), 15L, debtSpendingAttempt.getId(), now.plusMinutes(1));
+        Order debtSpendingOrder = saveOrder(user.getId(), 15_000L, now.plusMinutes(1));
+        rewardBenefitService.consume(
+                debtSpendingAttempt.getId(), debtSpendingOrder.getId(), 15L, now.plusMinutes(1));
+        rewardBenefitService.revokeEarned(
+                user.getId(), debtSourceOrder.getId(), 15L, "test:reward:create-restore-debt");
+
+        assertThat(rewardQueryUseCase.getWallet(user.getId()).debtBalance()).isEqualTo(15L);
+
+        rewardBenefitService.restoreUsed(
+                spendingOrder.getId(), 100L, "test:reward:restore-multi-lot", restoredAt);
+
+        RewardQueryUseCase.RewardWallet wallet = rewardQueryUseCase.getWallet(user.getId());
+        List<RewardLotSnapshot> shortLivedLots = findRemainingLotsBySourceOrder(
+                shortLivedOrder.getId());
+        List<RewardLotSnapshot> longLivedLots = findRemainingLotsBySourceOrder(
+                longLivedOrder.getId());
+        List<RewardAllocationSnapshot> allocations = findAllocationsByOrder(spendingOrder.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(wallet.availableBalance()).isEqualTo(85L);
+            softly.assertThat(wallet.reservedBalance()).isZero();
+            softly.assertThat(wallet.debtBalance()).isZero();
+            softly.assertThat(wallet.history())
+                    .filteredOn(history -> history.type() == RewardLedgerType.RESTORE)
+                    .singleElement()
+                    .satisfies(history -> {
+                        softly.assertThat(history.amount()).isEqualTo(100L);
+                        softly.assertThat(history.availableAfter()).isEqualTo(85L);
+                        softly.assertThat(history.debtAfter()).isZero();
+                        softly.assertThat(history.orderId()).isEqualTo(spendingOrder.getId());
+            });
+            softly.assertThat(allocations)
+                    .extracting(RewardAllocationSnapshot::amount)
+                    .containsExactly(40L, 60L);
+            softly.assertThat(allocations)
+                    .extracting(RewardAllocationSnapshot::restoredAmount)
+                    .containsExactly(40L, 60L);
+            softly.assertThat(shortLivedLots).singleElement().satisfies(lot -> {
+                softly.assertThat(lot.sourceOrderId()).isEqualTo(shortLivedOrder.getId());
+                softly.assertThat(lot.earnedAmount()).isEqualTo(25L);
+                softly.assertThat(lot.remainingAmount()).isEqualTo(25L);
+                softly.assertThat(lot.expiresAt())
+                        .isEqualTo(restoredAt.plusDays(30));
+                softly.assertThat(lot.expiresAt()).isNotEqualTo(shortOriginalExpiry);
+            });
+            softly.assertThat(longLivedLots).singleElement().satisfies(lot -> {
+                softly.assertThat(lot.sourceOrderId()).isEqualTo(longLivedOrder.getId());
+                softly.assertThat(lot.earnedAmount()).isEqualTo(60L);
+                softly.assertThat(lot.remainingAmount()).isEqualTo(60L);
+                softly.assertThat(lot.expiresAt()).isEqualTo(longOriginalExpiry);
+            });
         });
     }
 
@@ -338,6 +448,37 @@ class RewardUseCaseIT {
                 externalOrderId, PaymentContext.ORDER, amount, "{}", userId));
     }
 
+    private List<RewardLotSnapshot> findRemainingLotsBySourceOrder(Long orderId) {
+        return jdbcTemplate.query("""
+                        SELECT source_order_id, earned_amount, remaining_amount, expires_at
+                        FROM reward_lots
+                        WHERE source_order_id = ?
+                          AND remaining_amount > 0
+                        ORDER BY id
+                        """,
+                (resultSet, rowNumber) -> new RewardLotSnapshot(
+                        resultSet.getLong("source_order_id"),
+                        resultSet.getLong("earned_amount"),
+                        resultSet.getLong("remaining_amount"),
+                        resultSet.getTimestamp("expires_at").toLocalDateTime()),
+                orderId);
+    }
+
+    private List<RewardAllocationSnapshot> findAllocationsByOrder(Long orderId) {
+        return jdbcTemplate.query("""
+                        SELECT allocation.amount, allocation.restored_amount
+                        FROM reward_reservation_allocations allocation
+                        JOIN reward_reservations reservation
+                          ON reservation.id = allocation.reservation_id
+                        WHERE reservation.order_id = ?
+                        ORDER BY allocation.id
+                        """,
+                (resultSet, rowNumber) -> new RewardAllocationSnapshot(
+                        resultSet.getLong("amount"),
+                        resultSet.getLong("restored_amount")),
+                orderId);
+    }
+
     private void runConcurrently(int requestCount, Runnable command) throws Exception {
         CountDownLatch ready = new CountDownLatch(requestCount);
         CountDownLatch start = new CountDownLatch(1);
@@ -368,4 +509,12 @@ class RewardUseCaseIT {
             throw new AssertionError("동시 실행 대기가 중단되었습니다.", exception);
         }
     }
+
+    private record RewardLotSnapshot(
+            Long sourceOrderId,
+            long earnedAmount,
+            long remainingAmount,
+            LocalDateTime expiresAt) {}
+
+    private record RewardAllocationSnapshot(long amount, long restoredAmount) {}
 }

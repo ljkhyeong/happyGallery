@@ -56,6 +56,11 @@ class JpaOrderPersistenceAdapter implements OrderStorePort,
     }
 
     @Override
+    public Optional<Long> findOrderIdById(Long id) {
+        return orderClaimRepository.findOrderIdById(id);
+    }
+
+    @Override
     public Optional<OrderClaim> findByIdForUpdate(Long id) {
         return orderClaimRepository.findByIdForUpdate(id);
     }

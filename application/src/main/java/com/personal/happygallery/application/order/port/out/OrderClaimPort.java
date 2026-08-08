@@ -10,6 +10,8 @@ public interface OrderClaimPort {
 
     OrderClaim save(OrderClaim claim);
 
+    Optional<Long> findOrderIdById(Long id);
+
     Optional<OrderClaim> findByIdForUpdate(Long id);
 
     List<OrderClaim> findByOrderIdOrderByRequestedAtDesc(Long orderId);
