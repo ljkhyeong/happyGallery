@@ -1,5 +1,7 @@
 import { expect, test, type Route } from "@playwright/test";
 
+const EMPTY_CART_VERSION = "0".repeat(64);
+
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     status,
@@ -132,7 +134,7 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -188,7 +190,7 @@ test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예�
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -231,24 +233,28 @@ test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예�
       }]);
       return;
     }
-    if (pathname === "/api/v1/me/passes") {
+    if (pathname === "/api/v1/me/passes/page") {
       passAttempts += 1;
       await fulfillJson(
         route,
-        passAttempts <= 2
+        passAttempts <= 3
           ? temporaryError
-          : [{
-              expiresAt: "2099-12-31T00:00:00",
-              passId: 9,
-              planCode: "REGULAR_CRAFT_8",
-              planName: "정규 공예 8회권",
-              purchasedAt: "2098-12-01T00:00:00",
-              refund: null,
-              remainingCredits: 7,
-              totalCredits: 8,
-              totalPrice: 240000,
-            }],
-        passAttempts <= 2 ? 503 : 200,
+          : {
+              content: [{
+                expiresAt: "2099-12-31T00:00:00",
+                passId: 9,
+                planCode: "REGULAR_CRAFT_8",
+                planName: "정규 공예 8회권",
+                purchasedAt: "2098-12-01T00:00:00",
+                refund: null,
+                remainingCredits: 7,
+                totalCredits: 8,
+                totalPrice: 240000,
+              }],
+              hasMore: false,
+              nextCursor: null,
+            },
+        passAttempts <= 3 ? 503 : 200,
       );
       return;
     }
@@ -291,7 +297,7 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -351,18 +357,22 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
       }]);
       return;
     }
-    if (pathname === "/api/v1/me/passes") {
-      await fulfillJson(route, [{
-        expiresAt: "2099-12-31T00:00:00",
-        passId: 9,
-        planCode: "REGULAR_CRAFT_8",
-        planName: "정규 공예 8회권",
-        purchasedAt: "2098-12-01T00:00:00",
-        refund: null,
-        remainingCredits: 7,
-        totalCredits: 8,
-        totalPrice: 240000,
-      }]);
+    if (pathname === "/api/v1/me/passes/page") {
+      await fulfillJson(route, {
+        content: [{
+          expiresAt: "2099-12-31T00:00:00",
+          passId: 9,
+          planCode: "REGULAR_CRAFT_8",
+          planName: "정규 공예 8회권",
+          purchasedAt: "2098-12-01T00:00:00",
+          refund: null,
+          remainingCredits: 7,
+          totalCredits: 8,
+          totalPrice: 240000,
+        }],
+        hasMore: false,
+        nextCursor: null,
+      });
       return;
     }
 

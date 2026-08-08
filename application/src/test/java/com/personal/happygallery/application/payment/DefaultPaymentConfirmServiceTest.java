@@ -124,7 +124,7 @@ class DefaultPaymentConfirmServiceTest {
         assertThatThrownBy(() -> service.confirm(COMMAND)).isSameAs(unexpected);
 
         verify(claimTransactionService, never()).tryRecordPgFailure(
-                anyLong(), anyString(), anyString(), anyBoolean());
+                anyLong(), anyString(), anyString(), anyBoolean(), anyBoolean());
     }
 
     @DisplayName("늦게 도착한 PG 실패는 새 실행권이 완료한 결과를 반환한다")
@@ -135,7 +135,7 @@ class DefaultPaymentConfirmServiceTest {
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.failure("PG 거절"));
-        when(claimTransactionService.tryRecordPgFailure(1L, "token", "PG 거절", false))
+        when(claimTransactionService.tryRecordPgFailure(1L, "token", "PG 거절", false, false))
                 .thenReturn(false);
         when(claimTransactionService.resolveAfterLostProcessingOwnership(COMMAND))
                 .thenReturn(new PaymentConfirmClaimTransactionService.Completed(completed));
@@ -160,7 +160,28 @@ class DefaultPaymentConfirmServiceTest {
 
         verify(appMetrics).incrementPaymentConfirmReconciliationRequired();
         verify(claimTransactionService, never()).tryRecordPgFailure(
-                anyLong(), anyString(), anyString(), anyBoolean());
+                anyLong(), anyString(), anyString(), anyBoolean(), anyBoolean());
+    }
+
+    @DisplayName("이전 PG 호출이 있을 수 있는 최종 실패는 혜택을 풀지 않고 대상 상태로 격리한다")
+    @Test
+    void confirm_finalFailureAfterPriorCall_recordsReconciliationRequired() {
+        PgConfirmationRequired required = new PgConfirmationRequired(
+                1L, "order-id", 10_000L, "payment-key", "token", true);
+        when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
+        when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
+                .thenReturn(PaymentConfirmResult.failure("PG 최종 거절"));
+        when(claimTransactionService.tryRecordPgReconciliationRequired(
+                1L, "token", "PG 최종 거절")).thenReturn(true);
+
+        assertThatThrownBy(() -> service.confirm(COMMAND))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.PAYMENT_RECONCILIATION_REQUIRED));
+
+        verify(appMetrics).incrementPaymentConfirmReconciliationRequired();
+        verify(claimTransactionService, never()).tryRecordPgFailure(
+                anyLong(), anyString(), anyString(), anyBoolean(), anyBoolean());
     }
 
     @DisplayName("늦게 도착한 PG 식별자 불일치 결과는 최신 실행권이 완료한 결과를 반환한다")

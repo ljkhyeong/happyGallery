@@ -1,13 +1,16 @@
 package com.personal.happygallery.adapter.in.web.openapi;
 
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.support.UseCaseIT;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.servers.Server;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +42,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OpenApiSpecGenerator {
 
     private static final Pattern UNSTABLE_NUMERIC_SUFFIX = Pattern.compile(".+_\\d+$");
+    private static final Set<String> CURSOR_PAGE_OPERATION_IDS = Set.of(
+            "listProductQnaPage",
+            "listMyProductQnaPage",
+            "listMyInquiriesPage",
+            "listMyOrdersPage",
+            "listMyBookingsPage",
+            "listMyPassesPage",
+            "listAdminProductQnaPage",
+            "listRecoveredGuestOrders",
+            "listRecoveredGuestBookings");
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,6 +70,7 @@ class OpenApiSpecGenerator {
         Map<?, ?> document = objectMapper.readValue(openApi, Map.class);
         assertStableOperationIds(document);
         assertPaymentAndCartRequestContracts(document);
+        assertCursorPageSizeContracts(document);
 
         String canonicalOpenApi = objectMapper.writerWithDefaultPrettyPrinter()
                 .writeValueAsString(sortObjectKeys(objectMapper.readValue(openApi, Object.class))) + "\n";
@@ -86,6 +100,7 @@ class OpenApiSpecGenerator {
         assertRequiredProperties(document, "AddCartItemRequest", "productId", "qty");
         assertRequiredProperties(document, "UpdateCartItemRequest", "qty");
         assertRequiredProperties(document, "MergeCartItemRequest", "productId", "qty");
+        assertRequiredProperties(document, "CartResponse", "items", "totalAmount", "cartVersion");
 
         assertRequiredProperties(
                 document,
@@ -110,17 +125,114 @@ class OpenApiSpecGenerator {
                 "phone",
                 "postalCode",
                 "addressLine1");
+        assertRequiredProperties(
+                document,
+                "OrderDetailResponse",
+                "productAmount",
+                "couponDiscountAmount",
+                "rewardUsedAmount",
+                "pgPaidAmount",
+                "rewardEarnBase",
+                "issuedCouponId");
+        assertRequiredProperties(
+                document,
+                "RefundProgressResponse",
+                "amount",
+                "pgRefundAmount",
+                "rewardRestoreAmount",
+                "rewardRevokeAmount",
+                "restoreCoupon",
+                "status");
+        assertRequiredProperties(
+                document,
+                "EventResponse",
+                "id",
+                "title",
+                "startAt",
+                "endAt",
+                "published",
+                "featured",
+                "relatedProductIds",
+                "version");
+        assertRequiredProperties(
+                document,
+                "RewardWalletResponse",
+                "availableBalance",
+                "reservedBalance",
+                "debtBalance",
+                "history");
         assertPaymentPayloadDiscriminator(document);
         assertEnumProperty(document, "OrderPayload", "type", "ORDER");
         assertEnumProperty(document, "BookingPayload", "type", "BOOKING");
         assertEnumProperty(document, "BookingPayload", "paymentMethod", "CARD", "EASY_PAY");
         assertEnumProperty(document, "PassPayload", "type", "PASS");
+        assertPatternProperty(
+                document, "OrderPayload", "expectedCartVersion", "^[0-9a-f]{64}$");
+        assertIntegerRangeProperty(
+                document,
+                "OrderPayload",
+                "rewardAmount",
+                0L,
+                9_007_199_254_740_991L);
+        assertMaximumProperty(
+                document, "OrderPayload", "rewardAmount", PaymentAmountPolicy.MAX_AMOUNT);
         assertNullableReferenceProperty(
                 document, "OrderPayload", "shippingAddress", "ShippingAddress");
         assertNullableReferenceProperty(
                 document, "OrderPayload", "policyAcceptance", "PolicyAcceptanceRequest");
         assertNullableReferenceProperty(
                 document, "BookingPayload", "policyAcceptance", "PolicyAcceptanceRequest");
+    }
+
+    private void assertCursorPageSizeContracts(Map<?, ?> document) {
+        Set<String> missingOperationIds = new HashSet<>(CURSOR_PAGE_OPERATION_IDS);
+        Map<?, ?> paths = (Map<?, ?>) document.get("paths");
+        for (Object pathValue : paths.values()) {
+            if (!(pathValue instanceof Map<?, ?> pathItem)) {
+                continue;
+            }
+            for (Object operationValue : pathItem.values()) {
+                if (!(operationValue instanceof Map<?, ?> operation)
+                        || !(operation.get("operationId") instanceof String operationId)
+                        || !CURSOR_PAGE_OPERATION_IDS.contains(operationId)) {
+                    continue;
+                }
+                assertPageSizeParameter(operationId, operation);
+                missingOperationIds.remove(operationId);
+            }
+        }
+        if (!missingOperationIds.isEmpty()) {
+            throw new IllegalStateException(
+                    "커서 페이지 OpenAPI operation이 누락되었습니다: " + missingOperationIds);
+        }
+    }
+
+    private void assertPageSizeParameter(String operationId, Map<?, ?> operation) {
+        Object parametersValue = operation.get("parameters");
+        if (!(parametersValue instanceof List<?> parameters)) {
+            throw new IllegalStateException(operationId + "의 query parameter가 없습니다.");
+        }
+        Map<?, ?> sizeParameter = parameters.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .filter(parameter -> "size".equals(parameter.get("name")))
+                .filter(parameter -> "query".equals(parameter.get("in")))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        operationId + "의 size query parameter가 없습니다."));
+        if (!(sizeParameter.get("schema") instanceof Map<?, ?> schema)
+                || !(schema.get("minimum") instanceof Number minimum)
+                || !(schema.get("maximum") instanceof Number maximum)
+                || !"integer".equals(schema.get("type"))
+                || !"int32".equals(schema.get("format"))
+                || !(schema.get("default") instanceof Number defaultValue)
+                || minimum.intValue() != 1
+                || maximum.intValue() != 100
+                || defaultValue.intValue() != 20) {
+            throw new IllegalStateException(
+                    operationId + "의 size 계약은 int32 기본값 20, 범위 1~100이어야 합니다: "
+                            + sizeParameter);
+        }
     }
 
     private void assertRequiredProperties(
@@ -200,6 +312,54 @@ class OpenApiSpecGenerator {
         }
     }
 
+    private void assertPatternProperty(
+            Map<?, ?> document,
+            String schemaName,
+            String propertyName,
+            String expectedPattern
+    ) {
+        Map<?, ?> property = property(document, schemaName, propertyName);
+        if (!expectedPattern.equals(property.get("pattern"))) {
+            throw new IllegalStateException(
+                    "%s.%s pattern이 올바르지 않습니다. expected=%s, actual=%s"
+                            .formatted(
+                                    schemaName,
+                                    propertyName,
+                                    expectedPattern,
+                                    property.get("pattern")));
+        }
+    }
+
+    private void assertIntegerRangeProperty(
+            Map<?, ?> document,
+            String schemaName,
+            String propertyName,
+            long expectedMinimum,
+            long expectedMaximum
+    ) {
+        Map<?, ?> property = property(document, schemaName, propertyName);
+        Object type = property.get("type");
+        boolean nullableInteger = "integer".equals(type)
+                || (type instanceof List<?> types
+                && types.contains("integer")
+                && types.contains("null"));
+        if (!nullableInteger
+                || !"int64".equals(property.get("format"))
+                || !(property.get("minimum") instanceof Number minimum)
+                || !(property.get("maximum") instanceof Number maximum)
+                || minimum.longValue() != expectedMinimum
+                || maximum.longValue() != expectedMaximum) {
+            throw new IllegalStateException(
+                    "%s.%s 범위가 올바르지 않습니다. expected=%d..%d, actual=%s"
+                            .formatted(
+                                    schemaName,
+                                    propertyName,
+                                    expectedMinimum,
+                                    expectedMaximum,
+                                    property));
+        }
+    }
+
     private void assertNullableReferenceProperty(
             Map<?, ?> document,
             String schemaName,
@@ -226,6 +386,21 @@ class OpenApiSpecGenerator {
             throw new IllegalStateException(
                     "%s.%s는 %s 참조와 null을 모두 허용해야 합니다: %s"
                             .formatted(schemaName, propertyName, referenceSchemaName, oneOfValue));
+        }
+    }
+
+    private void assertMaximumProperty(
+            Map<?, ?> document,
+            String schemaName,
+            String propertyName,
+            long expectedMaximum) {
+        Map<?, ?> property = property(document, schemaName, propertyName);
+        Object maximum = property.get("maximum");
+        if (maximum == null
+                || new BigDecimal(maximum.toString()).compareTo(BigDecimal.valueOf(expectedMaximum)) != 0) {
+            throw new IllegalStateException(
+                    "%s.%s maximum이 올바르지 않습니다. expected=%s, actual=%s"
+                            .formatted(schemaName, propertyName, expectedMaximum, maximum));
         }
     }
 

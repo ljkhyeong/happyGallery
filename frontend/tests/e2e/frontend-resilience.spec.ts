@@ -1,5 +1,7 @@
 import { expect, test, type Route } from "@playwright/test";
 
+const EMPTY_CART_VERSION = "0".repeat(64);
+
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
     status,
@@ -151,9 +153,15 @@ test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시�
       });
       return;
     }
-    if (pathname === "/api/v1/products/42/qna") {
+    if (pathname === "/api/v1/products/42/qna/page") {
       qnaAttempts += 1;
-      await fulfillJson(route, qnaAttempts <= 2 ? temporaryError : [], qnaAttempts <= 2 ? 503 : 200);
+      await fulfillJson(
+        route,
+        qnaAttempts <= 3
+          ? temporaryError
+          : { content: [], hasMore: false, nextCursor: null },
+        qnaAttempts <= 3 ? 503 : 200,
+      );
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -204,6 +212,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
     "/api/v1/me/bookings",
     "/api/v1/me/passes",
     "/api/v1/me/inquiries",
+    "/api/v1/me/inquiries/page",
     "/api/v1/me/social-accounts",
   ]);
 
@@ -226,7 +235,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -248,6 +257,10 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
       || pathname === "/api/v1/me/inquiries"
     ) {
       await fulfillJson(route, []);
+      return;
+    }
+    if (pathname === "/api/v1/me/inquiries/page") {
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       return;
     }
 
@@ -279,7 +292,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
   await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();
   await expect(page.getByText("등록된 문의가 없습니다.")).toHaveCount(0);
 
-  failingPaths.delete("/api/v1/me/inquiries");
+  failingPaths.delete("/api/v1/me/inquiries/page");
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByText("등록된 문의가 없습니다.")).toBeVisible();
 });
@@ -308,7 +321,7 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -395,7 +408,7 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -502,6 +515,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
         return;
       }
       await fulfillJson(route, {
+        cartVersion: "a".repeat(64),
         items: [{
           available: true,
           careInstructions: null,
@@ -556,13 +570,17 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
 
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "매장 픽업" }).click();
 
   const increaseButton = page.getByRole("button", { name: "+", exact: true });
   const deleteButton = page.getByRole("button", { name: "삭제", exact: true });
+  const checkoutButton = page.getByRole("button", { name: "결제하기", exact: true });
+  await expect(checkoutButton).toBeEnabled();
   await increaseButton.click();
   await expect(page.getByRole("status")).toContainText("장바구니 변경을 반영하고 있습니다.");
   await expect(increaseButton).toBeDisabled();
   await expect(deleteButton).toBeDisabled();
+  await expect(checkoutButton).toBeDisabled();
   expect(updateAttempts).toBe(1);
 
   releaseUpdate?.();
@@ -571,11 +589,13 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
     "서비스를 일시적으로 사용할 수 없습니다.",
   );
   await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
+  await expect(checkoutButton).toBeEnabled();
 
   await deleteButton.click();
   await expect(page.getByRole("status")).toContainText("장바구니 변경을 반영하고 있습니다.");
   await expect(increaseButton).toBeDisabled();
   await expect(deleteButton).toBeDisabled();
+  await expect(checkoutButton).toBeDisabled();
   expect(deleteAttempts).toBe(1);
 
   releaseDelete?.();

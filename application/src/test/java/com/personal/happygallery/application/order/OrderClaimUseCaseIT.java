@@ -1,5 +1,8 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.coupon.CouponDefinitionRepository;
+import com.personal.happygallery.adapter.out.persistence.coupon.IssuedCouponRepository;
+import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -18,6 +21,9 @@ import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.domain.coupon.CouponDefinition;
+import com.personal.happygallery.domain.coupon.CouponDiscountType;
+import com.personal.happygallery.domain.coupon.IssuedCoupon;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderClaimResolution;
@@ -26,6 +32,8 @@ import com.personal.happygallery.domain.order.OrderClaimType;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.payment.PaymentAttempt;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.OrderStateProbe;
@@ -34,6 +42,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -71,6 +80,9 @@ class OrderClaimUseCaseIT {
     @Autowired OrderClaimPort orderClaimPort;
     @Autowired OrderClaimItemPort orderClaimItemPort;
     @Autowired SalesAnalyticsPort salesAnalyticsPort;
+    @Autowired CouponDefinitionRepository couponDefinitionRepository;
+    @Autowired IssuedCouponRepository issuedCouponRepository;
+    @Autowired PaymentAttemptRepository paymentAttemptRepository;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired UserReaderPort userReaderPort;
@@ -223,6 +235,80 @@ class OrderClaimUseCaseIT {
         });
     }
 
+    @DisplayName("쿠폰·적립금 혼합 주문의 전액 환불은 상품 순매출에서 쿠폰 후 고객 반환액을 차감한다")
+    @Test
+    void topProducts_mixedFullRefund_usesCouponAdjustedCustomerAmount() {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createReadyStockPaidShippingOrder("혼합 환불 상품", 40_000L, 3_000L);
+        Order order = fixture.order();
+        Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
+        LocalDateTime usedAt = LocalDate.of(2026, 3, 1).atTime(10, 0);
+        CouponDefinition couponDefinition = couponDefinitionRepository.saveAndFlush(
+                new CouponDefinition(
+                        "혼합 환불 분석 쿠폰",
+                        CouponDiscountType.FIXED,
+                        10_000L,
+                        0L,
+                        null,
+                        usedAt.minusDays(1),
+                        usedAt.plusDays(30),
+                        true,
+                        false));
+        IssuedCoupon issuedCoupon = issuedCouponRepository.saveAndFlush(
+                new IssuedCoupon(couponDefinition.getId(), order.getUserId(), usedAt.minusHours(1)));
+        PaymentAttempt paymentAttempt = paymentAttemptRepository.saveAndFlush(
+                PaymentAttempt.startForMember(
+                        "mixed-refund-analytics-attempt",
+                        PaymentContext.ORDER,
+                        28_000L,
+                        "{}",
+                        order.getUserId()));
+        issuedCoupon.reserve(paymentAttempt.getId(), usedAt.minusMinutes(30));
+        issuedCoupon.redeem(paymentAttempt.getId(), order.getId(), usedAt);
+        issuedCouponRepository.saveAndFlush(issuedCoupon);
+        jdbcTemplate.update("""
+                UPDATE orders
+                SET total_amount = 33000,
+                    product_amount = 40000,
+                    coupon_discount_amount = 10000,
+                    reward_used_amount = 5000,
+                    pg_paid_amount = 28000,
+                    reward_earn_base = 25000,
+                    issued_coupon_id = ?
+                WHERE id = ?
+                """, issuedCoupon.getId(), order.getId());
+        jdbcTemplate.update("""
+                UPDATE order_items
+                SET gross_amount = 40000,
+                    coupon_discount_amount = 10000,
+                    reward_used_amount = 5000,
+                    net_paid_amount = 25000
+                WHERE id = ?
+                """, orderItemId);
+        jdbcTemplate.update("""
+                INSERT INTO refunds
+                    (order_id, amount, customer_refund_amount,
+                     reward_restore_amount, reward_revoke_amount, restore_coupon,
+                     status, payment_key, refund_transaction_key, succeeded_at, idempotency_key)
+                VALUES (?, 28000, 33000, 5000, 0, TRUE,
+                        'SUCCEEDED', 'mixed-payment-key', 'mixed-refund-key', ?, 'mixed-refund-idempotency')
+                """, order.getId(), LocalDate.of(2026, 3, 1).atTime(12, 0));
+
+        var topProduct = salesAnalyticsPort.findTopProducts(
+                LocalDate.of(2026, 3, 1),
+                LocalDate.of(2026, 3, 1),
+                10,
+                TopProductSort.REVENUE).stream()
+                .filter(product -> product.productId().equals(fixture.product().getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertSoftly(softly -> {
+            softly.assertThat(topProduct.totalRevenue()).isZero();
+            softly.assertThat(topProduct.totalQuantity()).isZero();
+        });
+    }
+
     @DisplayName("DB는 다른 주문의 상품과 클레임 환불을 교차 연결하지 못하게 막는다")
     @Test
     void orderClaimDatabaseConstraints_rejectCrossOrderReferences() {
@@ -256,9 +342,12 @@ class OrderClaimUseCaseIT {
                     .isInstanceOf(DataIntegrityViolationException.class);
             softly.assertThatThrownBy(() -> jdbcTemplate.update("""
                             INSERT INTO refunds
-                                (order_id, order_claim_id, amount, status, idempotency_key)
-                            VALUES (?, ?, ?, 'REQUESTED', ?)
-                            """, secondOrder.getId(), claim.id(), 1_000L, "cross-order-claim-refund"))
+                                (order_id, order_claim_id, amount, customer_refund_amount,
+                                 reward_restore_amount, reward_revoke_amount, restore_coupon,
+                                 status, idempotency_key)
+                            VALUES (?, ?, ?, ?, 0, 0, FALSE, 'REQUESTED', ?)
+                            """, secondOrder.getId(), claim.id(), 1_000L, 1_000L,
+                            "cross-order-claim-refund"))
                     .isInstanceOf(DataIntegrityViolationException.class);
         });
     }

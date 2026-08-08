@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
+import com.personal.happygallery.application.dashboard.dto.Granularity;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
@@ -184,6 +185,35 @@ class RefundExecutionServiceUseCaseIT {
             softly.assertThat(revenue.totalRevenue()).isEqualTo(55_000L);
             softly.assertThat(refundStats.totalRefundCount()).isZero();
             softly.assertThat(refundStats.totalRefundedAmount()).isZero();
+        });
+    }
+
+    @DisplayName("혼합 결제 주문 환불 집계는 PG 취소액이 아니라 고객 총 반환액을 순매출에서 차감한다")
+    @Test
+    void dashboardMixedRefund_usesCustomerRefundAmount() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        Order order = saveMemberOrder(now);
+        Refund refund = Refund.forOrder(
+                order.getId(), 30_000L, 55_000L, 25_000L, 0L, false, "payment-key");
+        String processingToken = refund.startProcessing(now, now.minusMinutes(1));
+        refund.markSucceeded(processingToken, "mixed-refund-transaction-key", now);
+        refundRepository.saveAndFlush(refund);
+        LocalDate today = LocalDate.now(clock);
+
+        var overview = dashboardQueryUseCase.getOverview(today, today);
+        var sales = dashboardQueryUseCase.getSalesSummary(
+                today, today, Granularity.DAILY).getFirst();
+        var revenue = dashboardQueryUseCase.getRevenueBreakdown(today, today);
+        var refundStats = dashboardQueryUseCase.getRefundStats(today, today);
+        var daily = dashboardQueryUseCase.getDailyRevenueSeries(today, today).getFirst();
+
+        assertSoftly(softly -> {
+            softly.assertThat(overview.todayRevenue()).isZero();
+            softly.assertThat(sales.totalRevenue()).isZero();
+            softly.assertThat(revenue.orderRevenue()).isZero();
+            softly.assertThat(refundStats.totalRefundedAmount()).isEqualTo(55_000L);
+            softly.assertThat(refundStats.refundRate()).isEqualTo(1.0d);
+            softly.assertThat(daily.revenue()).isZero();
         });
     }
 

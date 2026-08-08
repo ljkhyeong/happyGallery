@@ -113,7 +113,7 @@ class CustomerAuthUseCaseIT {
                                     .isEqualTo(PolicyConsentType.TERMS_OF_SERVICE);
                             softly.assertThat(consent.getPurpose())
                                     .isEqualTo(PolicyConsentPurpose.MEMBER_SIGNUP);
-                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-08-08-v1");
                             softly.assertThat(consent.getAcceptedAt()).isNotNull();
                         }),
                         consent -> assertSoftly(softly -> {
@@ -121,7 +121,7 @@ class CustomerAuthUseCaseIT {
                                     .isEqualTo(PolicyConsentType.PRIVACY_POLICY);
                             softly.assertThat(consent.getPurpose())
                                     .isEqualTo(PolicyConsentPurpose.MEMBER_SIGNUP);
-                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-08-08-v1");
                             softly.assertThat(consent.getAcceptedAt()).isNotNull();
                         }));
     }
@@ -411,9 +411,9 @@ class CustomerAuthUseCaseIT {
                 principal, principal.getAuthorities(), "google");
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setSession(new MockHttpSession());
-        request.addParameter("termsVersion", "2026-07-21-v1");
+        request.addParameter("termsVersion", "2026-08-08-v1");
         request.addParameter("termsAccepted", "true");
-        request.addParameter("privacyVersion", "2026-07-21-v1");
+        request.addParameter("privacyVersion", "2026-08-08-v1");
         request.addParameter("privacyAccepted", "true");
         request.addParameter("state", "unbound-state");
         MockHttpServletResponse response = new MockHttpServletResponse();
@@ -479,7 +479,7 @@ class CustomerAuthUseCaseIT {
 
     private PolicyAcceptanceRequest acceptedPolicies() {
         return new PolicyAcceptanceRequest(
-                "2026-07-21-v1", true, "2026-07-21-v1", true);
+                "2026-08-08-v1", true, "2026-08-08-v1", true);
     }
 
     private String issueVerificationCode(String phone) throws Exception {

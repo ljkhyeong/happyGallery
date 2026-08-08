@@ -100,6 +100,13 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$[0].planCode").value("REGULAR_CRAFT_8"))
                 .andExpect(jsonPath("$[0].planName").value("정규 공예 8회권"))
                 .andExpect(jsonPath("$[0].totalCredits").value(8));
+
+        mockMvc.perform(get("/api/v1/me/passes/page")
+                        .cookie(sessionCookie)
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passId").isNumber())
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @DisplayName("회원 8회권 상세를 조회한다")

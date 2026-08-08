@@ -90,12 +90,13 @@ class GlobalExceptionHandlerTest {
         });
     }
 
-    @DisplayName("회원과 소셜 계정 유니크 제약은 해당 충돌 코드로 매핑된다")
+    @DisplayName("회원·소셜 계정·쿠폰 유니크 제약은 해당 충돌 코드로 매핑된다")
     @ParameterizedTest
     @CsvSource({
             "uq_users_phone_hmac, PHONE_ALREADY_IN_USE",
             "uq_user_social_accounts_provider_identity, SOCIAL_ACCOUNT_ALREADY_LINKED",
-            "uq_user_social_accounts_user_provider, SOCIAL_PROVIDER_ALREADY_LINKED"
+            "uq_user_social_accounts_user_provider, SOCIAL_PROVIDER_ALREADY_LINKED",
+            "uq_issued_coupons_user_definition, CONFLICT"
     })
     void dataIntegrity_knownUserConstraint_mapsToSpecificConflict(
             String constraint,

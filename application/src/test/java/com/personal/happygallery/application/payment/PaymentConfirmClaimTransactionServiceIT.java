@@ -64,9 +64,12 @@ class PaymentConfirmClaimTransactionServiceIT {
                 claimTransactionService.resolveConfirmationStep(command);
 
         assertSoftly(softly -> {
+            softly.assertThat(first.priorPgCallPossible()).isFalse();
+            softly.assertThat(second.priorPgCallPossible()).isTrue();
             softly.assertThat(second.processingToken()).isNotEqualTo(first.processingToken());
             softly.assertThat(claimTransactionService.tryRecordPgFailure(
-                    first.attemptId(), first.processingToken(), "늦게 도착한 실패", true)).isFalse();
+                    first.attemptId(), first.processingToken(), "늦게 도착한 실패", true,
+                    first.priorPgCallPossible())).isFalse();
             softly.assertThat(claimTransactionService.tryMarkApproved(
                     first.attemptId(), first.processingToken(), "confirmed-payment-key")).isFalse();
         });
@@ -120,7 +123,8 @@ class PaymentConfirmClaimTransactionServiceIT {
         PgConfirmationRequired second = (PgConfirmationRequired)
                 claimTransactionService.resolveConfirmationStep(command);
         assertThat(claimTransactionService.tryRecordPgFailure(
-                second.attemptId(), second.processingToken(), "새 실행권의 타임아웃", true)).isTrue();
+                second.attemptId(), second.processingToken(), "새 실행권의 타임아웃", true,
+                second.priorPgCallPossible())).isTrue();
         assertThatThrownBy(() -> claimTransactionService.resolveAfterLostProcessingOwnership(command))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
                     assertSoftly(softly -> {

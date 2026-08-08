@@ -200,6 +200,10 @@ class CustomerGuestClaimUseCaseIT {
                 guest.getId(),
                 List.of(new OrderService.OrderItemRequest(
                         product.getId(), product.getName(), 1, 29_000L)));
+        OrderService.OrderCreationResult secondCreatedOrder = orderService.createPaidOrder(
+                guest.getId(),
+                List.of(new OrderService.OrderItemRequest(
+                        product.getId(), product.getName(), 1, 29_000L)));
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -211,6 +215,15 @@ class CustomerGuestClaimUseCaseIT {
                 guest, slot, 10_000L, 40_000L,
                 DepositPaymentMethod.CARD,
                 oldBookingToken.tokenHash()));
+        Slot secondSlot = slotStorePort.save(TestFixtures.slot(
+                bookingClass,
+                BookingTestHelper.FUTURE.plusDays(1),
+                BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
+        GuestTokenService.IssuedToken secondOldBookingToken = guestTokenService.issue();
+        Booking secondBooking = bookingStorePort.save(Booking.forGuestDeposit(
+                guest, secondSlot, 10_000L, 40_000L,
+                DepositPaymentMethod.CARD,
+                secondOldBookingToken.tokenHash()));
 
         BookingTestHelper bookingHelper = new BookingTestHelper(
                 mockMvc, phoneVerificationReaderPort, objectMapper);
@@ -235,11 +248,45 @@ class CustomerGuestClaimUseCaseIT {
             softly.assertThat(recovered.expiresAt()).isNotNull();
             softly.assertThat(recovered.orders())
                     .extracting(GuestRecordRecoveryResponse.OrderSummary::orderId)
-                    .containsExactly(createdOrder.order().getId());
+                    .containsExactly(
+                            secondCreatedOrder.order().getId(), createdOrder.order().getId());
             softly.assertThat(recovered.bookings())
                     .extracting(GuestRecordRecoveryResponse.BookingSummary::bookingId)
-                    .containsExactly(booking.getId());
+                    .containsExactly(secondBooking.getId(), booking.getId());
         });
+
+        String firstOrderPage = mockMvc.perform(get("/api/v1/guest-records/recovery/orders")
+                        .header("X-Access-Token", recovered.accessToken())
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String orderCursor = objectMapper.readTree(firstOrderPage).get("nextCursor").asText();
+        mockMvc.perform(get("/api/v1/guest-records/recovery/orders")
+                        .header("X-Access-Token", recovered.accessToken())
+                        .param("size", "1")
+                        .param("cursor", orderCursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.hasMore").value(false));
+
+        String firstBookingPage = mockMvc.perform(get("/api/v1/guest-records/recovery/bookings")
+                        .header("X-Access-Token", recovered.accessToken())
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String bookingCursor = objectMapper.readTree(firstBookingPage).get("nextCursor").asText();
+        mockMvc.perform(get("/api/v1/guest-records/recovery/bookings")
+                        .header("X-Access-Token", recovered.accessToken())
+                        .param("size", "1")
+                        .param("cursor", bookingCursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.hasMore").value(false));
 
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.order().getId())
                         .header("X-Access-Token", recovered.accessToken()))
@@ -248,11 +295,23 @@ class CustomerGuestClaimUseCaseIT {
                         .header("X-Access-Token", recovered.accessToken()))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
+        mockMvc.perform(get("/api/v1/orders/{id}", secondCreatedOrder.order().getId())
+                        .header("X-Access-Token", recovered.accessToken()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/bookings/{id}", secondBooking.getId())
+                        .header("X-Access-Token", recovered.accessToken()))
+                .andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.order().getId())
                         .header("X-Access-Token", createdOrder.rawAccessToken()))
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/bookings/{id}", booking.getId())
                         .header("X-Access-Token", oldBookingToken.rawToken()))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/orders/{id}", secondCreatedOrder.order().getId())
+                        .header("X-Access-Token", secondCreatedOrder.rawAccessToken()))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/bookings/{id}", secondBooking.getId())
+                        .header("X-Access-Token", secondOldBookingToken.rawToken()))
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/v1/guest-records/recovery")

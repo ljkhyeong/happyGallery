@@ -38,6 +38,7 @@ import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCas
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase.PassRefundResult;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
@@ -66,6 +67,7 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -130,6 +132,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         PassPurchase pass = RestDocsFixtures.passPurchase();
         Inquiry inquiry = RestDocsFixtures.inquiry();
         ProductQna qna = RestDocsFixtures.productQna();
+        ProductQnaUseCase.OwnedQnaListView ownedQna =
+                new ProductQnaUseCase.OwnedQnaListView(
+                        qna.getId(), qna.getTitle(), qna.isSecret(),
+                        qna.hasReply(), qna.getCreatedAt());
 
         when(customerAuthUseCase.signup(any())).thenReturn(user);
         when(customerAuthUseCase.login(any())).thenReturn(user);
@@ -137,8 +143,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(
                                 1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true)),
-                        39000L));
+                        39000L,
+                        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
+        when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(booking), "cursor-next", true));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
         when(bookingRescheduleUseCase.rescheduleMemberBooking(100L, CUSTOMER_USER_ID, 42L))
@@ -146,9 +155,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(bookingCancelUseCase.cancelMemberBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund, false));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
+        when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null);
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
+        when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
@@ -172,10 +185,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(SocialProvider.GOOGLE));
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
         when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
+        when(inquiryUseCase.listByUser(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(inquiry), "cursor-next", true));
         when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false)))
                 .thenReturn(qna);
-        when(qnaUseCase.listOwnedByProduct(1L, CUSTOMER_USER_ID)).thenReturn(List.of(qna));
+        when(qnaUseCase.listOwnedByProduct(1L, CUSTOMER_USER_ID))
+                .thenReturn(List.of(ownedQna));
+        when(qnaUseCase.listOwnedByProduct(
+                eq(1L), eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(ownedQna), "cursor-next", true));
         when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
                 .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
 
@@ -233,9 +252,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "phone": "01012345678",
                                   "verificationCode": "123456",
                                   "policyAcceptance": {
-                                    "termsVersion": "2026-07-21-v1",
+                                    "termsVersion": "2026-08-08-v1",
                                     "termsAccepted": true,
-                                    "privacyVersion": "2026-07-21-v1",
+                                    "privacyVersion": "2026-08-08-v1",
                                     "privacyAccepted": true
                                   }
                                 }
@@ -490,6 +509,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("내 예약 커서 페이지 API를 문서화한다")
+    void list_my_bookings_page() throws Exception {
+        mockMvc.perform(get("/api/v1/me/bookings/page")
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(100))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
     @DisplayName("내 예약 상세 API를 문서화한다")
     void get_my_booking() throws Exception {
         mockMvc.perform(get("/api/v1/me/bookings/{id}", 100L).with(customerUser()))
@@ -526,6 +557,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("내 주문 커서 페이지 API를 문서화한다")
+    void list_my_orders_page() throws Exception {
+        mockMvc.perform(get("/api/v1/me/orders/page")
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").value(200))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
     @DisplayName("내 주문 상세 API를 문서화한다")
     void get_my_order() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/{id}", 200L).with(customerUser()))
@@ -538,6 +581,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_passes() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes").with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("내 8회권 커서 페이지 API를 문서화한다")
+    void list_my_passes_page() throws Exception {
+        mockMvc.perform(get("/api/v1/me/passes/page")
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passId").value(300))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test
@@ -647,6 +702,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("내 문의 커서 페이지 API를 문서화한다")
+    void list_my_inquiries_page() throws Exception {
+        mockMvc.perform(get("/api/v1/me/inquiries/page")
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
     @DisplayName("내 문의 상세 API를 문서화한다")
     void get_my_inquiry() throws Exception {
         mockMvc.perform(get("/api/v1/me/inquiries/{id}", 9L).with(customerUser()))
@@ -675,6 +742,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/me/products/{productId}/qna", 1L)
                         .with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("내 상품 QNA 커서 페이지 API를 문서화한다")
+    void list_my_product_qna_page() throws Exception {
+        mockMvc.perform(get("/api/v1/me/products/{productId}/qna/page", 1L)
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(5))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test

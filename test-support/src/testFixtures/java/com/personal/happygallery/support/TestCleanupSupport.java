@@ -128,6 +128,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingWithPassAndRefundData() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         bookingCancellationTaskRepository.deleteAllInBatch();
@@ -145,6 +146,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingReminderData() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
@@ -162,6 +164,7 @@ public class TestCleanupSupport {
     }
 
     public void clearOrderData() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         TestDataCleaner.clearOrderData(
@@ -188,6 +191,7 @@ public class TestCleanupSupport {
     }
 
     public void clearPassData() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
@@ -197,6 +201,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingData() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
@@ -210,6 +215,7 @@ public class TestCleanupSupport {
     }
 
     public void clearUsers() {
+        clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         jdbcTemplate.update("DELETE FROM cart_merge_requests");
         emailVerificationRepository.deleteAllInBatch();
@@ -221,5 +227,25 @@ public class TestCleanupSupport {
     public void clearNotificationLogs() {
         notificationOutboxRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
+    }
+
+    /** 쿠폰·적립금은 주문·결제 시도·회원 모두를 참조하므로 공통 부모보다 먼저 지운다. */
+    private void clearOrderBenefitData() {
+        jdbcTemplate.update("DELETE FROM reward_ledger");
+        jdbcTemplate.update("DELETE FROM reward_reservation_allocations");
+        jdbcTemplate.update("DELETE FROM reward_reservations");
+        jdbcTemplate.update("DELETE FROM reward_lots");
+        jdbcTemplate.update("DELETE FROM reward_accounts");
+        jdbcTemplate.update("""
+                UPDATE orders
+                SET total_amount = total_amount + coupon_discount_amount,
+                    pg_paid_amount = pg_paid_amount + coupon_discount_amount,
+                    reward_earn_base = reward_earn_base + coupon_discount_amount,
+                    coupon_discount_amount = 0,
+                    issued_coupon_id = NULL
+                WHERE issued_coupon_id IS NOT NULL
+                """);
+        jdbcTemplate.update("DELETE FROM issued_coupons");
+        jdbcTemplate.update("DELETE FROM coupon_definitions");
     }
 }

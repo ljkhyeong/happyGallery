@@ -168,6 +168,7 @@ final class RestDocsFixtures {
         when(refund.getId()).thenReturn(900L);
         when(refund.getBookingId()).thenReturn(100L);
         when(refund.getAmount()).thenReturn(15000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(15000L);
         when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
         when(refund.getUpdatedAt()).thenReturn(NOW);
         return refund;
@@ -178,6 +179,7 @@ final class RestDocsFixtures {
         when(refund.getId()).thenReturn(901L);
         when(refund.getOrderId()).thenReturn(200L);
         when(refund.getAmount()).thenReturn(39000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(39000L);
         when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
         when(refund.getUpdatedAt()).thenReturn(NOW);
         return refund;

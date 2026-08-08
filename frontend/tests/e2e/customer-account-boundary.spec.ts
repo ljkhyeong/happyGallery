@@ -9,6 +9,8 @@ interface Customer {
   localPasswordEnabled: boolean;
 }
 
+const EMPTY_CART_VERSION = "0".repeat(64);
+
 const customerA: Customer = {
   id: 101,
   email: "customer-a@example.com",
@@ -104,15 +106,19 @@ test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력
       });
       return;
     }
-    if (pathname === "/api/v1/products/42/qna") {
-      await fulfillJson(route, [{
-        id: 92,
-        title: "공개 질문",
-        authorName: "공개 작성자",
-        secret: false,
-        hasReply: false,
-        createdAt: "2026-07-28T12:00:00",
-      }]);
+    if (pathname === "/api/v1/products/42/qna/page") {
+      await fulfillJson(route, {
+        content: [{
+          id: 92,
+          title: "공개 질문",
+          authorName: "공개 작성자",
+          secret: false,
+          hasReply: false,
+          createdAt: "2026-07-28T12:00:00",
+        }],
+        hasMore: false,
+        nextCursor: null,
+      });
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -246,13 +252,13 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
       });
       return;
     }
-    if (pathname === "/api/v1/products/42/qna"
-      || pathname === "/api/v1/me/products/42/qna") {
-      await fulfillJson(route, []);
+    if (pathname === "/api/v1/products/42/qna/page"
+      || pathname === "/api/v1/me/products/42/qna/page") {
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -426,7 +432,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -552,7 +558,7 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -711,14 +717,14 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       return;
     }
     if (
-      pathname === "/api/v1/products/42/qna"
-      || pathname === "/api/v1/me/products/42/qna"
+      pathname === "/api/v1/products/42/qna/page"
+      || pathname === "/api/v1/me/products/42/qna/page"
     ) {
-      await fulfillJson(route, []);
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -853,6 +859,23 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       });
       return;
     }
+    if (pathname === "/api/v1/guest-records/recovery/orders") {
+      await fulfillJson(route, {
+        content: [{
+          orderId: 701,
+          status: "PAID_APPROVAL_PENDING",
+          totalAmount: 30000,
+          createdAt: "2026-07-29T12:00:00",
+        }],
+        hasMore: false,
+        nextCursor: null,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/guest-records/recovery/bookings") {
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      return;
+    }
     if (pathname === "/api/v1/orders/701") {
       await fulfillJson(route, {
         code: "NOT_FOUND",
@@ -861,7 +884,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -964,7 +987,7 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -1127,7 +1150,7 @@ test("@identity 소셜 재인증 뒤 실제 연결 callback에도 같은 회원 
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -1199,7 +1222,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
@@ -1247,15 +1270,19 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       });
       return;
     }
-    if (pathname === "/api/v1/products/42/qna") {
-      await fulfillJson(route, [{
-        id: 91,
-        title: "비밀 질문",
-        authorName: "회원 A",
-        secret: true,
-        hasReply: true,
-        createdAt: "2026-07-28T12:00:00",
-      }]);
+    if (pathname === "/api/v1/products/42/qna/page") {
+      await fulfillJson(route, {
+        content: [{
+          id: 91,
+          title: "비밀 질문",
+          authorName: "회원 A",
+          secret: true,
+          hasReply: true,
+          createdAt: "2026-07-28T12:00:00",
+        }],
+        hasMore: false,
+        nextCursor: null,
+      });
       return;
     }
     if (pathname === "/api/v1/me/products/42/qna/91") {
@@ -1272,16 +1299,20 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       });
       return;
     }
-    if (pathname === "/api/v1/me/products/42/qna") {
-      await fulfillJson(route, currentCustomer?.id === customerA.id
-        ? [{
-            id: 91,
-            title: "비밀 질문",
-            secret: true,
-            hasReply: true,
-            createdAt: "2026-07-28T12:00:00",
-          }]
-        : []);
+    if (pathname === "/api/v1/me/products/42/qna/page") {
+      await fulfillJson(route, {
+        content: currentCustomer?.id === customerA.id
+          ? [{
+              id: 91,
+              title: "비밀 질문",
+              secret: true,
+              hasReply: true,
+              createdAt: "2026-07-28T12:00:00",
+            }]
+          : [],
+        hasMore: false,
+        nextCursor: null,
+      });
       return;
     }
     if (pathname === "/api/v1/products") {

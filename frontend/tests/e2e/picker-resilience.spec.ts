@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "picker-resilience-admin-token";
+const EMPTY_CART_VERSION = "0".repeat(64);
 const EMPTY_CURSOR_PAGE = {
   content: [],
   nextCursor: null,
@@ -270,7 +271,7 @@ test("@identity 소셜 provider 조회 실패 중에는 동작하지 않는 step
       return;
     }
     if (pathname === "/api/v1/me/cart") {
-      await fulfillJson(route, { items: [], totalAmount: 0 });
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {

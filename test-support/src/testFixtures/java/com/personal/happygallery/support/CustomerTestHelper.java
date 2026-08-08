@@ -54,9 +54,9 @@ public final class CustomerTestHelper {
                                         phone,
                                         verificationCode,
                                         new PolicyAcceptanceRequest(
-                                                "2026-07-21-v1",
+                                                "2026-08-08-v1",
                                                 true,
-                                                "2026-07-21-v1",
+                                                "2026-08-08-v1",
                                                 true)))))
                 .andExpect(status().isCreated())
                 .andReturn();

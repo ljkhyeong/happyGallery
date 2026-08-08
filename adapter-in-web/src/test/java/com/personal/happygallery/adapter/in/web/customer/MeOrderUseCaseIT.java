@@ -90,6 +90,13 @@ class MeOrderUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].orderId").isNumber())
                 .andExpect(jsonPath("$[0].status").value("PAID_APPROVAL_PENDING"));
+
+        mockMvc.perform(get("/api/v1/me/orders/page")
+                        .cookie(sessionCookie)
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").isNumber())
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @DisplayName("회원 주문 상세를 조회한다")

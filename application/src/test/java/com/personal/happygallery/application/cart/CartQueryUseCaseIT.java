@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -62,6 +63,44 @@ class CartQueryUseCaseIT {
                             unavailableProduct.getId(), "재고 없는 상품", unavailableProduct.getType(),
                             15_000L, 1, false));
             softly.assertThat(cart.totalAmount()).isEqualTo(78_000L);
+            softly.assertThat(cart.cartVersion()).matches("[0-9a-f]{64}");
+        });
+    }
+
+    @DisplayName("장바구니 스냅샷 버전은 조회 결과가 같으면 유지되고 수량이 바뀌면 변경된다")
+    @Test
+    void getCart_cartVersionTracksVisibleSnapshot() {
+        User user = userStore.save(new User(
+                "cart-version@example.com", "hashed", "버전 회원", "01011112222"));
+        Product product = productStore.save(readyStockProduct("버전 상품", 19_000L));
+        Inventory inventory = inventoryStore.save(inventory(product, 5));
+        cartItemStore.save(new CartItem(
+                user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+
+        String firstVersion = cartUseCase.getCart(user.getId()).cartVersion();
+        String repeatedVersion = cartUseCase.getCart(user.getId()).cartVersion();
+        cartUseCase.updateItemQty(user.getId(), product.getId(), 2);
+        CartUseCase.CartView quantityChanged = cartUseCase.getCart(user.getId());
+        product.updateDetails("버전 상품", null, 20_000L, null, null);
+        productStore.save(product);
+        CartUseCase.CartView priceChanged = cartUseCase.getCart(user.getId());
+        inventory.deduct(4);
+        inventoryStore.save(inventory);
+        CartUseCase.CartView availabilityChanged = cartUseCase.getCart(user.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(repeatedVersion).isEqualTo(firstVersion);
+            softly.assertThat(quantityChanged.cartVersion()).isNotEqualTo(firstVersion);
+            softly.assertThat(quantityChanged.items()).singleElement()
+                    .extracting(CartUseCase.CartItemView::qty)
+                    .isEqualTo(2);
+            softly.assertThat(priceChanged.cartVersion())
+                    .isNotEqualTo(quantityChanged.cartVersion());
+            softly.assertThat(availabilityChanged.cartVersion())
+                    .isNotEqualTo(priceChanged.cartVersion());
+            softly.assertThat(availabilityChanged.items()).singleElement()
+                    .extracting(CartUseCase.CartItemView::available)
+                    .isEqualTo(false);
         });
     }
 

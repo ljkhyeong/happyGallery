@@ -2,6 +2,8 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
+import com.personal.happygallery.application.cart.port.in.CartUseCase;
+import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
@@ -29,6 +31,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -94,6 +97,8 @@ class PaymentPrepareUseCaseTest {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserStorePort userStorePort;
+    @Autowired CartUseCase cartUseCase;
+    @Autowired CartItemStorePort cartItemStorePort;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
@@ -105,6 +110,7 @@ class PaymentPrepareUseCaseTest {
 
     @AfterEach
     void tearDown() {
+        cleanupSupport.clearCartData();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();
@@ -205,11 +211,11 @@ class PaymentPrepareUseCaseTest {
                             tuple(
                                     PolicyConsentType.TERMS_OF_SERVICE,
                                     PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
-                                    "2026-07-21-v1"),
+                                    "2026-08-08-v1"),
                             tuple(
                                     PolicyConsentType.PRIVACY_POLICY,
                                     PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
-                                    "2026-07-21-v1"));
+                                    "2026-08-08-v1"));
         });
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
                 prepared.orderId(), AuthContext.guest(), "wrong-token"))
@@ -309,6 +315,36 @@ class PaymentPrepareUseCaseTest {
                 AuthContext.member(user.getId()))))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("판매 중인 상품");
+    }
+
+    @DisplayName("장바구니 결제 prepare는 화면 조회 뒤 수량이 바뀐 오래된 스냅샷을 거절한다")
+    @Test
+    void prepare_cartCheckoutRejectsStaleSnapshot() {
+        User user = userStorePort.save(new User(
+                "cart-snapshot@example.com", "hashed", "장바구니 회원", "01012123434"));
+        Product product = productStorePort.save(readyStockProduct("스냅샷 상품", 29_000L));
+        inventoryStorePort.save(inventory(product, 5));
+        cartItemStorePort.save(new CartItem(
+                user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        String staleVersion = cartUseCase.getCart(user.getId()).cartVersion();
+        cartUseCase.updateItemQty(user.getId(), product.getId(), 2);
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                cartOrderPayload(user.getId(), staleVersion),
+                AuthContext.member(user.getId()))))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(
+                                ErrorCode.CART_SNAPSHOT_CHANGED));
+        assertThat(paymentAttemptRepository.count()).isZero();
+
+        String currentVersion = cartUseCase.getCart(user.getId()).cartVersion();
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                cartOrderPayload(user.getId(), currentVersion),
+                AuthContext.member(user.getId())));
+
+        assertThat(prepared.amount()).isEqualTo(58_000L);
     }
 
     @DisplayName("주문 prepare는 상품별 수량과 재고 및 안전 결제 금액 상한을 우회할 수 없다")
@@ -574,5 +610,21 @@ class PaymentPrepareUseCaseTest {
                 null,
                 false,
                 acceptedPolicies());
+    }
+
+    private OrderPayload cartOrderPayload(Long userId, String expectedCartVersion) {
+        return new OrderPayload(
+                userId,
+                null,
+                null,
+                null,
+                List.of(),
+                true,
+                FulfillmentType.PICKUP,
+                null,
+                null,
+                false,
+                null,
+                expectedCartVersion);
     }
 }

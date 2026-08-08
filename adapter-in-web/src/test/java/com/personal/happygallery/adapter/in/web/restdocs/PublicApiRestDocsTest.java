@@ -34,6 +34,7 @@ import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -59,6 +60,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -118,6 +120,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
+        ProductQnaUseCase.PublicQnaListView publicQna =
+                new ProductQnaUseCase.PublicQnaListView(
+                        qna.qna().getId(), qna.qna().getTitle(), qna.authorName(),
+                        qna.qna().isSecret(), qna.qna().hasReply(), qna.qna().getCreatedAt());
         BookingClass bookingClass = RestDocsFixtures.bookingClass();
         Slot slot = RestDocsFixtures.slot();
         PhoneVerification phoneVerification = RestDocsFixtures.phoneVerification();
@@ -130,7 +136,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(product));
         when(productQueryUseCase.listActiveCategories()).thenReturn(List.of("CANDLE", "PERFUME"));
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
-        when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
+        when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(publicQna));
+        when(qnaUseCase.listByProduct(eq(1L), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(publicQna), "cursor-next", true));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
@@ -176,6 +184,21 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 100L, "BOOKED", "향수 클래스",
                                 LocalDateTime.parse("2026-05-07T10:00:00"),
                                 LocalDateTime.parse("2026-05-07T12:00:00")))));
+        when(guestRecordRecoveryUseCase.listRecoveredOrders(
+                eq("guest-recovery-token"), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(
+                        new GuestRecordRecoveryUseCase.RecoveredOrder(
+                                200L, "PAID_APPROVAL_PENDING", 39_000L,
+                                OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
+                        "cursor-next", true));
+        when(guestRecordRecoveryUseCase.listRecoveredBookings(
+                eq("guest-recovery-token"), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(
+                        new GuestRecordRecoveryUseCase.RecoveredBooking(
+                                100L, "BOOKED", "향수 클래스",
+                                LocalDateTime.parse("2026-05-07T10:00:00"),
+                                LocalDateTime.parse("2026-05-07T12:00:00"))),
+                        "cursor-next", true));
         WorkshopProfile workshop = new WorkshopProfile("해피갤러리");
         workshop.update(
                 "해피갤러리", "010-9635-5608", null,
@@ -240,6 +263,17 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void list_product_qna() throws Exception {
         mockMvc.perform(get("/api/v1/products/{productId}/qna", 1L))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("공개 상품 QNA 커서 페이지 API를 문서화한다")
+    void list_product_qna_page() throws Exception {
+        mockMvc.perform(get("/api/v1/products/{productId}/qna/page", 1L)
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(5))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test
@@ -396,6 +430,30 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("복구한 비회원 주문 커서 페이지 API를 문서화한다")
+    void list_recovered_guest_orders() throws Exception {
+        mockMvc.perform(get("/api/v1/guest-records/recovery/orders")
+                        .header("X-Access-Token", "guest-recovery-token")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").value(200))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("복구한 비회원 예약 커서 페이지 API를 문서화한다")
+    void list_recovered_guest_bookings() throws Exception {
+        mockMvc.perform(get("/api/v1/guest-records/recovery/bookings")
+                        .header("X-Access-Token", "guest-recovery-token")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(100))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
     @DisplayName("비회원 결제 상태 조회 권한 복구 API를 문서화한다")
     void recover_guest_payment_statuses() throws Exception {
         mockMvc.perform(post("/api/v1/guest-records/payment-status-recovery")
@@ -426,6 +484,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                     "userId": 11,
                                     "items": [],
                                     "cartCheckout": true,
+                                    "expectedCartVersion": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                                     "fulfillmentType": "PICKUP",
                                     "shippingAddress": null,
                                     "madeToOrderConsent": false
@@ -458,6 +517,30 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   }
                                 }
                                 """.formatted(items)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("결제 prepare API는 안전 정수 상한을 넘는 적립금 사용 요청을 거절한다")
+    void prepare_payment_rejects_reward_amount_above_safe_integer_maximum() throws Exception {
+        mockMvc.perform(post("/api/v1/payments/prepare")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "context": "ORDER",
+                                  "payload": {
+                                    "type": "ORDER",
+                                    "userId": 11,
+                                    "items": [{"productId": 1, "qty": 1}],
+                                    "cartCheckout": false,
+                                    "fulfillmentType": "PICKUP",
+                                    "shippingAddress": null,
+                                    "madeToOrderConsent": false,
+                                    "rewardAmount": 9007199254740992
+                                  }
+                                }
+                                """))
                 .andExpect(status().isBadRequest());
     }
 

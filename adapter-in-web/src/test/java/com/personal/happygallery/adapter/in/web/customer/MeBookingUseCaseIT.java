@@ -55,6 +55,7 @@ class MeBookingUseCaseIT {
     Long classId;
     Long slotId;
     Long slot2Id;
+    Long slot3Id;
     Cookie sessionCookie;
     Long userId;
     PaymentTestHelper paymentHelper;
@@ -73,8 +74,10 @@ class MeBookingUseCaseIT {
         classId = cls.getId();
         Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
         Slot s2 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
+        Slot s3 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(2), BookingTestHelper.FUTURE.plusDays(2).plusHours(2)));
         slotId = s1.getId();
         slot2Id = s2.getId();
+        slot3Id = s3.getId();
 
         sessionCookie = customerHelper.signupAndGetSessionCookie("member@test.com", "010-1111-2222");
         userId = userReaderPort.findByEmail("member@test.com").orElseThrow().getId();
@@ -100,6 +103,47 @@ class MeBookingUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bookingId").isNumber())
                 .andExpect(jsonPath("$[0].status").value("BOOKED"));
+
+        mockMvc.perform(get("/api/v1/me/bookings/page")
+                        .cookie(sessionCookie)
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").isNumber())
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @DisplayName("회원 예약 페이지는 예약 변경 뒤에도 생성 시각 커서로 다음 항목을 이어 조회한다")
+    @Test
+    void listMyBookings_afterReschedule_continuesWithStableCursor() throws Exception {
+        Long olderBookingId = createBooking(slotId);
+        Long newerBookingId = createBooking(slot2Id);
+
+        var firstPage = mockMvc.perform(get("/api/v1/me/bookings/page")
+                        .cookie(sessionCookie)
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(newerBookingId))
+                .andExpect(jsonPath("$.hasMore").value(true))
+                .andReturn();
+        String cursor = objectMapper.readTree(firstPage.getResponse().getContentAsString())
+                .get("nextCursor")
+                .asText();
+
+        mockMvc.perform(patch("/api/v1/me/bookings/{id}/reschedule", olderBookingId)
+                        .with(csrf())
+                        .cookie(sessionCookie)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new MemberRescheduleRequest(slot3Id))))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/me/bookings/page")
+                        .cookie(sessionCookie)
+                        .param("cursor", cursor)
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(olderBookingId))
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @DisplayName("회원 예약 상세를 조회한다")

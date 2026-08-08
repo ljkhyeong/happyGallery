@@ -73,7 +73,7 @@ class SocialAuthUseCaseIT {
                     .hasSize(2)
                     .allSatisfy(consent -> {
                         assertThat(consent.getPurpose()).isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
-                        assertThat(consent.getPolicyVersion()).isEqualTo("2026-07-21-v1");
+                        assertThat(consent.getPolicyVersion()).isEqualTo("2026-08-08-v1");
                     });
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()

@@ -43,7 +43,8 @@ public final class PaymentRequestFixtures {
                     shippingAddress(order.shippingAddress()),
                     order.madeToOrderConsentVersion(),
                     order.madeToOrderConsent(),
-                    policyAcceptance(order.policyAcceptance()));
+                    policyAcceptance(order.policyAcceptance()),
+                    order.expectedCartVersion());
             case BookingPayload booking -> new BookingPaymentPayloadRequest(
                     "BOOKING",
                     booking.userId(),

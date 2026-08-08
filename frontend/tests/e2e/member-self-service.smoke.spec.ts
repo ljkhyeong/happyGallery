@@ -14,6 +14,8 @@ import {
   toDateInput,
 } from "./support";
 
+const EMPTY_CART_VERSION = "0".repeat(64);
+
 test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
   let interruptedConfirm = false;
@@ -156,16 +158,27 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
 
-test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미복구 경고를 한국어로 표시한다", async ({ page }) => {
+test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미복구 경고를 한국어로 표시한다", async ({
+  baseURL,
+  context,
+  page,
+}) => {
+  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
+
   const bookingId = 990001;
   let canceled = false;
+  await context.addCookies([{
+    name: "XSRF-TOKEN",
+    value: "pass-cancel-warning-token",
+    url: baseURL,
+  }]);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.route(/\/api\/v1\/me\/cart$/, async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ items: [], totalAmount: 0 }),
+      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
     });
   });
 

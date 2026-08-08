@@ -80,7 +80,7 @@ public final class TestFixtures {
     }
 
     public static PolicyAcceptance acceptedPolicies() {
-        return new PolicyAcceptance("2026-07-21-v1", true, "2026-07-21-v1", true);
+        return new PolicyAcceptance("2026-08-08-v1", true, "2026-08-08-v1", true);
     }
 
     /** 32자 hex access token (테스트용). */

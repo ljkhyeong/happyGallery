@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
 const GUEST_CART_LOCK_NAME = "hg_guest_cart";
+const EMPTY_CART_VERSION = "0".repeat(64);
 
 interface MergeRequest {
   idempotencyKey: string;
@@ -55,7 +56,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ items: [], totalAmount: 0 }),
+      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
     });
   });
   await context.route(/\/api\/v1\/me\/cart\/merge$/, async (route) => {

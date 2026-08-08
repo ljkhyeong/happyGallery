@@ -75,7 +75,9 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         when(noticeAdminUseCase.getForEdit(1L)).thenReturn(notice);
         when(noticeAdminUseCase.create(any(), any(), anyBoolean())).thenReturn(notice);
         when(noticeAdminUseCase.update(eq(1L), anyLong(), any(), any(), anyBoolean())).thenReturn(notice);
-        when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(qna));
+        when(qnaUseCase.listByProductForAdmin(1L)).thenReturn(List.of(qna));
+        when(qnaUseCase.listByProductForAdmin(eq(1L), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(qna), "cursor-next", true));
         when(qnaUseCase.listUnanswered(isNull(), anyInt()))
                 .thenReturn(new CursorPage<>(List.of(qna), null, false));
         when(qnaUseCase.replyAndGet(eq(5L), any(), eq(ADMIN_USER_ID))).thenReturn(qna);
@@ -236,6 +238,19 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .param("productId", "1"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 상품별 QNA 커서 페이지 API를 문서화한다")
+    void admin_list_qna_page() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/qna/page")
+                        .with(adminUser())
+                        .param("productId", "1")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(5))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test
