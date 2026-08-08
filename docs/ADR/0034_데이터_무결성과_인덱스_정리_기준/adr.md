@@ -2,7 +2,7 @@
 
 **날짜**: 2026-07-17
 **상태**: Accepted
-**갱신**: 2026-07-26
+**갱신**: 2026-08-08
 
 ---
 
@@ -39,6 +39,13 @@
 - `guests.phone_hmac`를 UNIQUE로 두어 전화번호 하나당 Guest 한 건을 보장한다.
 - 애플리케이션은 선조회 후 INSERT하지 않고 DB UNIQUE를 이용한 원자적 get-or-create를 수행한다.
 - 기존 Guest가 존재하면 이름과 암호문을 덮어쓰지 않고 현재 이력 소유자를 그대로 재사용한다.
+
+### 비회원 복구 토큰
+
+- 접근 토큰 자체의 유일성은 소유권 불변식이 아니다. 개별 조회는 주문·예약 ID와 검증된 토큰 해시를 함께 확인한다.
+- 휴대폰 소유 확인 뒤 발급한 복구 토큰은 같은 Guest의 여러 주문·예약에 1:N으로 공유한다.
+- V109·V110에서 주문·예약의 기존 `access_token` UNIQUE를 각각 제거하고
+  `(access_token, created_at DESC, id DESC)` 비유일 인덱스로 대체해 전체 복구 이력의 최신순 커서 조회를 지원한다.
 
 ### 활성 예약 중복
 
@@ -104,6 +111,9 @@
 - `V44__enforce_identity_and_transaction_consistency.sql`
 - `V98__enforce_booking_phone_identity.sql`
 - `V94__index_notification_outbox_event_aggregate.sql`
+- `V109__allow_shared_guest_recovery_order_token.sql`
+- `V110__allow_shared_guest_recovery_booking_token.sql`
+- `V111__index_member_order_cursor.sql`부터 `V115__index_product_qna_cursors.sql`까지의 고객 이력 커서 인덱스
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
 - 전화번호 HMAC 기준 활성 예약 조회와 계정별 활성 예약 DB 제약
 - 예약 UNIQUE 제약 이름 기준 예외 변환

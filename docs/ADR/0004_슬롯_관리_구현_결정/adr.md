@@ -47,6 +47,7 @@ Spring Data repository 또는 persistence adapter가 이 값을 `PageRequest`로
 
 - 2026-06-22: `java-library`를 적용하고, 공개 API에 드러나는 의존성은 `api`, 구현 전용 의존성은 `implementation`으로 정리했다.
 - 2026-07-30: 고정 의도 조회 port를 `limit`·커서 기반으로 바꾸고 Spring Data pagination 타입을 persistence adapter 내부로 이동했다.
+- 2026-08-08: 회원 주문·예약·8회권·문의, 공개/작성자 Q&A, 관리자 상품별 Q&A와 비회원 복구 이력도 같은 `CursorPage`·`CursorUtils` 경계를 사용한다. 기존 `/api/v1` 배열 응답은 최신 100건으로 제한해 호환을 유지하고, 신규 `/page` 응답이 `content`·`nextCursor`·`hasMore`를 제공한다. repository만 `PageRequest.ofSize(limit)`를 사용한다.
 
 ---
 

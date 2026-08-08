@@ -364,7 +364,7 @@ Authorization: Bearer {token}
 - 정책:
   - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - `price`는 10원 이상 `9,007,199,254,740,991원` 이하의 정수다. 10% 일반 예약금이 최소 1원이 되는 하한이다.
-  - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 관리자 미디어 업로드 응답 경로 또는 유효한 URL을 사용한다.
+  - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 상품과 같은 공용 도메인 정책을 적용해 `/`로 시작하되 `//`가 아닌 서비스 경로 또는 호스트가 있는 `http(s)` URL만 허용한다.
   - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 
 #### 2.1.2 슬롯 생성
@@ -1109,8 +1109,14 @@ X-Access-Token: {accessToken}
   "orderId": 12,
   "orderNumber": "ORD-00000012",
   "status": "PAID_APPROVAL_PENDING",
-  "totalAmount": 121000,
+  "totalAmount": 111000,
+  "productAmount": 118000,
   "shippingFee": 3000,
+  "couponDiscountAmount": 10000,
+  "rewardUsedAmount": 5000,
+  "pgPaidAmount": 106000,
+  "rewardEarnBase": 103000,
+  "issuedCouponId": 81,
   "paidAt": "2026-03-08T20:30:00",
   "approvalDeadlineAt": "2026-03-09T20:30:00",
   "items": [
@@ -1121,6 +1127,10 @@ X-Access-Token: {accessToken}
       "productType": "READY_STOCK",
       "qty": 2,
       "unitPrice": 39000,
+      "grossAmount": 78000,
+      "couponDiscountAmount": 6610,
+      "rewardUsedAmount": 3305,
+      "netPaidAmount": 68085,
       "specification": "소이 왁스 200g · 유리 용기",
       "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
       "productionLeadDays": null
@@ -1132,6 +1142,10 @@ X-Access-Token: {accessToken}
       "productType": "MADE_TO_ORDER",
       "qty": 1,
       "unitPrice": 40000,
+      "grossAmount": 40000,
+      "couponDiscountAmount": 3390,
+      "rewardUsedAmount": 1695,
+      "netPaidAmount": 34915,
       "specification": "월넛 300×200mm",
       "careInstructions": "물에 오래 담가 두지 마세요.",
       "productionLeadDays": 14
@@ -1162,9 +1176,12 @@ X-Access-Token: {accessToken}
   - 비회원 접근 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명 토큰 전체의 SHA-256 해시를 DB 저장값과 비교한다. 서명 없는 32자 16진수 토큰은 허용하지 않으며, 신규 토큰에서 추출한 nonce만으로 서명·만료 검사를 우회할 수 없다.
   - 비회원·회원 주문 상세는 수령인 이름·전화·주소를 포함하므로 `Cache-Control: no-store`로 반환한다.
   - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감, 배송 추적 정보와 배송지를 반환한다. 배송지는 소유권이 확인된 상세에서만 복호화하며 `PICKUP`은 `shippingAddress=null`이다.
-  - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `totalAmount`에는 상품 합계와 배송비가 모두 포함되며 픽업 주문의 배송비는 0원이다.
+  - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `productAmount`는 할인 전 상품 합계, `totalAmount`는 상품 합계와 배송비에서 쿠폰만 차감한 금액, `pgPaidAmount`는 여기서 적립금까지 차감해 PG로 승인한 금액이다. 픽업 주문의 배송비는 0원이다.
+  - 쿠폰은 배송비를 제외한 상품 금액에 회원당 1장만 적용한다. `rewardEarnBase`는 상품 금액에서 쿠폰 할인과 적립금 사용을 뺀 신규 적립 기준이며, `issuedCouponId`는 쿠폰을 쓰지 않은 주문에서 `null`이다.
+  - 각 항목의 `grossAmount`, `couponDiscountAmount`, `rewardUsedAmount`, `netPaidAmount`는 주문 전체 혜택을 원 단위로 비례 배분한 불변 스냅샷이다. 항목 합계는 주문의 상품·쿠폰·적립금·적립 기준 금액과 각각 일치한다.
   - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
-  - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
+  - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
+  - 주문 전액 취소는 PG 결제액과 사용 적립금을 각각 취소·복원하고, 취소 시점에도 유효한 쿠폰만 다시 사용할 수 있게 한다. 사용 쿠폰이 이미 만료됐다면 상태를 `EXPIRED`로 바꾸되 원 결제 시도·주문 연결과 사용 시각은 감사 이력으로 유지한다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
   - `DELETE /api/v1/orders/{id}`는 비회원 접근 토큰으로, `DELETE /api/v1/me/orders/{id}`는 회원 세션으로 본인 주문을 확인한다. `PAID_APPROVAL_PENDING`만 `CUSTOMER_CANCELED`로 전이하고 재고 복구·이력·환불 요청을 함께 처리한다.
   - `POST /api/v1/orders/{id}/delay-response`와 `POST /api/v1/me/orders/{id}/delay-response`는 `{ "decision": "ACCEPT|REJECT" }`를 받는다. `DELAY_CONSENT_PENDING`에서 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`와 전액 환불 요청으로 전이한다.
@@ -1689,6 +1706,7 @@ GET /api/v1/notices/{id}
   비교 직후 다른 관리자 변경이 먼저 반영된 동시 처리 충돌
 - 관리자 화면은 `409 CONFLICT`가 발생하면 상세를 다시 조회한다. 사용자의 편집 초안은 유지한 채
   최신 `version`으로 다시 시도하거나 서버의 최신 내용으로 교체할 수 있어야 한다.
+- 관리자 공지 생성·수정·삭제가 성공하면 프론트는 관리자 목록뿐 아니라 `notices` 공개 목록·상세 query key도 함께 무효화해 같은 탭의 홈·공지 화면에 이전 내용을 남기지 않는다.
 
 ### 2.9 관리자 예약 목록 API
 
@@ -2050,6 +2068,10 @@ Authorization: Bearer {token}
       "passPurchaseId": null,
       "paymentAttemptId": null,
       "amount": 5000,
+      "pgRefundAmount": 4000,
+      "rewardRestoreAmount": 1000,
+      "rewardRevokeAmount": 50,
+      "restoreCoupon": false,
       "status": "RECONCILIATION_REQUIRED",
       "attemptCount": 1,
       "failReason": "PG 응답 지연으로 환불 상태 확인이 필요합니다.",
@@ -2077,6 +2099,10 @@ Authorization: Bearer {token}
 {
   "refundId": 42,
   "amount": 5000,
+  "pgRefundAmount": 4000,
+  "rewardRestoreAmount": 1000,
+  "rewardRevokeAmount": 50,
+  "restoreCoupon": false,
   "status": "SUCCEEDED",
   "attemptCount": 1,
   "failReason": null
@@ -2085,7 +2111,7 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - 에러: `404 NOT_FOUND` — refundId 미존재
-- 주문 거절·지연 거절 취소·8회권 환불 시작 응답의 `refundId`로 실제 PG 상태를 조회한다.
+- 주문 거절·지연 거절 취소·8회권 환불 시작 응답의 `refundId`로 실제 처리 상태를 조회한다. `amount`는 고객 반환 총액이고, `pgRefundAmount`와 `rewardRestoreAmount`의 합과 일치한다. `rewardRevokeAmount`는 환불 상품에서 이미 지급된 적립금 회수액이다.
 
 #### 2.11.3 환불 재시도
 
@@ -2098,6 +2124,10 @@ Authorization: Bearer {token}
 {
   "refundId": 42,
   "amount": 5000,
+  "pgRefundAmount": 4000,
+  "rewardRestoreAmount": 1000,
+  "rewardRevokeAmount": 50,
+  "restoreCoupon": false,
   "status": "SUCCEEDED",
   "attemptCount": 2,
   "failReason": null
@@ -2167,8 +2197,8 @@ GET /api/v1/policies/current
 
 ```json
 {
-  "terms": { "version": "2026-07-21-v1", "documentPath": "/terms/2026-07-21-v1" },
-  "privacy": { "version": "2026-07-21-v1", "documentPath": "/privacy/2026-07-21-v1" }
+  "terms": { "version": "2026-08-08-v1", "documentPath": "/terms/2026-08-08-v1" },
+  "privacy": { "version": "2026-08-08-v1", "documentPath": "/privacy/2026-08-08-v1" }
 }
 ```
 
@@ -2204,9 +2234,9 @@ POST /api/v1/auth/signup
   "phone": "01012345678",
   "verificationCode": "483921",
   "policyAcceptance": {
-    "termsVersion": "2026-07-21-v1",
+    "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-07-21-v1",
+    "privacyVersion": "2026-08-08-v1",
     "privacyAccepted": true
   }
 }
@@ -2266,9 +2296,9 @@ Cookie: HG_SESSION={anonymousSession}
 X-XSRF-TOKEN: {csrfToken}
 
 {
-  "termsVersion": "2026-07-21-v1",
+  "termsVersion": "2026-08-08-v1",
   "termsAccepted": true,
-  "privacyVersion": "2026-07-21-v1",
+  "privacyVersion": "2026-08-08-v1",
   "privacyAccepted": true
 }
 ```
@@ -2573,10 +2603,13 @@ Cookie: HG_SESSION={sessionToken}
 #### 2.12.3 회원 목록/상세 조회
 
 - `GET /api/v1/me/bookings` — 회원 예약 목록
+- `GET /api/v1/me/bookings/page?cursor={cursor}&size=20` — 회원 예약 커서 페이지
 - `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
 - `GET /api/v1/me/orders` — 회원 주문 목록
+- `GET /api/v1/me/orders/page?cursor={cursor}&size=20` — 회원 주문 커서 페이지
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세
 - `GET /api/v1/me/passes` — 회원 8회권 목록
+- `GET /api/v1/me/passes/page?cursor={cursor}&size=20` — 회원 8회권 커서 페이지
 - `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
 - `POST /api/v1/me/passes/{id}/refund` — 소유한 8회권 잔여 횟수 정산 환불
 - `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
@@ -2632,6 +2665,7 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
+- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다.
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
 - 신규 `REGULAR_CRAFT_8`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
 - 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
@@ -2667,6 +2701,9 @@ GET /api/v1/me/products/{productId}/qna
 Cookie: HG_SESSION={sessionToken}
 ```
 
+신규 화면은 `GET /api/v1/me/products/{productId}/qna/page?cursor={cursor}&size=20`의
+`{content,nextCursor,hasMore}` 응답으로 다음 작성글을 이어서 조회한다. 기존 배열 경로는 최신 100건으로 제한한다.
+
 - 성공: `200 OK`
 - 응답 항목: `id`, `title`, `secret`, `hasReply`, `createdAt`
 - 정책:
@@ -2693,6 +2730,7 @@ Cookie: HG_SESSION={sessionToken}
 
 - `POST /api/v1/me/inquiries` — 회원 문의 생성
 - `GET /api/v1/me/inquiries` — 내 문의 목록
+- `GET /api/v1/me/inquiries/page?cursor={cursor}&size=20` — 내 문의 커서 페이지
 - `GET /api/v1/me/inquiries/{id}` — 내 문의 상세
 
 ```http
@@ -2713,6 +2751,7 @@ Cookie: HG_SESSION={sessionToken}
   - 문의 작성/조회는 본인 리소스로만 제한한다.
   - 생성 요청의 `title`은 공백이 아닌 200자 이하, `content`는 공백이 아닌 16,000자 이하로 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
+  - 기존 배열 목록은 최신 100건으로 제한하고 신규 화면은 `(createdAt,id)` 내림차순의 `{content,nextCursor,hasMore}` 페이지를 사용한다.
 
 #### 2.12.6 회원 장바구니
 
@@ -2731,7 +2770,8 @@ Cookie: HG_SESSION={sessionToken}
       "available": true
     }
   ],
-  "totalAmount": 78000
+  "totalAmount": 78000,
+  "cartVersion": "f3029b77e4e6080fcb48f1ac6f15fa76c27d2c44f748c8f772b705bf7fe79c76"
 }
 ```
 
@@ -2764,7 +2804,8 @@ Cookie: HG_SESSION={sessionToken}
 - 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 로컬 항목은 요청 당시 계보를 함께 보존하고 성공 후 같은 계보의 스냅샷 수량만 차감한다. 도중에 추가된 수량은 새 멱등키로 이어서 병합하며, 로그아웃 뒤 상품을 삭제하고 다시 담아 새 계보가 된 수량은 이전 계정의 늦은 성공 응답이 차감하지 않는다. 계보 식별자는 브라우저 내부 값이며 API 요청에는 보내지 않는다.
 - 같은 브라우저의 여러 탭은 비회원 장바구니 추가·수량 변경·삭제와 병합의 최신 로컬 조회부터 성공분 제거까지를 같은 탭 간 잠금으로 직렬화한다. 한 탭의 로컬 변경은 다른 탭에도 반영하며, 병합 응답 뒤 보류 요청이 이미 정리됐더라도 응답을 받은 탭은 자신이 전송한 계보 스냅샷을 제거한다.
 - 상품이 `ACTIVE`가 아니거나 재고가 없으면 `available=false`로 표시되며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
-- 장바구니 prepare는 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
+- `cartVersion`은 항목 순서·표시 정보·수량·구매 가능 여부를 SHA-256으로 만든 불투명 스냅샷 식별자다. 클라이언트는 값을 해석하거나 직접 만들지 않고 결제 준비의 `expectedCartVersion`으로 그대로 돌려보낸다.
+- 장바구니 prepare는 같은 회원의 장바구니 변경과 직렬화한 뒤 `expectedCartVersion`을 현재 스냅샷과 비교한다. 다르면 `409 CART_SNAPSHOT_CHANGED`로 최신 장바구니 확인을 요구하고 결제 시도를 만들지 않는다. 일치하면 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 
 #### 2.12.7 회원 알림함
 
@@ -2809,11 +2850,15 @@ Cookie: HG_SESSION={sessionToken}
 GET /api/v1/products/{productId}/qna
 ```
 
+신규 화면은 `GET /api/v1/products/{productId}/qna/page?cursor={cursor}&size=20`의
+`{content,nextCursor,hasMore}` 응답으로 다음 글을 조회한다. 기존 배열 경로는 최신 100건으로 제한한다.
+
 - 성공: `200 OK`
 - 정책:
   - 작성자 이름은 마스킹해 반환한다.
   - `secret=true`인 글은 제목을 `[비밀글입니다]`로 가려서 반환한다.
   - 공개 목록에는 본문/답변 전문을 포함하지 않는다.
+  - 목록 쿼리는 제목·비밀 여부·답변 존재 여부·작성 시각만 projection으로 읽고 `TEXT` 본문과 답변 전문을 로드하지 않는다.
 
 #### 2.13.2 상품 Q&A 상세 조회
 
@@ -2836,16 +2881,19 @@ GET /api/v1/products/{productId}/qna/{id}
 #### 2.14.1 관리자 상품 Q&A 조회/답변
 
 - `GET /api/v1/admin/qna?productId={productId}` — 특정 상품의 Q&A 목록 조회
+- `GET /api/v1/admin/qna/page?productId={productId}&cursor={cursor}&size=20` — 특정 상품의 Q&A 커서 페이지 조회
 - `GET /api/v1/admin/qna/unanswered?cursor={cursor}&size=20` — 전체 미답변 Q&A 최신순 커서 조회
 - `POST /api/v1/admin/qna/{id}/reply` — Q&A 답변 등록
 
 정책:
 - 인증: `Authorization: Bearer {token}`
-- 미답변 목록 응답은 `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
+- 기존 상품별 배열 목록은 최신 100건으로 제한한다. 상품별 페이지와 미답변 목록 응답은
+  `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
 - `replyContent`는 공백이 아닌 16,000자 이하로 제한한다.
 - 이미 답변이 있는 글에 재답변을 시도하면 `409 CONFLICT`로 거절하고 기존 답변과 알림 outbox를 변경하지 않는다.
 - 답변 저장과 `PRODUCT_QNA_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 멱등키는 회원·이벤트·`PRODUCT_QNA`·Q&A ID 조합이다.
+- 관리자 화면은 답변 성공 뒤 관리자 목록뿐 아니라 같은 상품의 공개·회원 Q&A 목록과 상세 캐시를 상품 접두사로 함께 무효화한다.
 
 #### 2.14.2 관리자 1:1 문의 조회/답변
 
@@ -2888,6 +2936,8 @@ Content-Type: application/json
       { "productId": 1, "qty": 2 }
     ],
     "cartCheckout": false,
+    "issuedCouponId": 81,
+    "rewardAmount": 5000,
     "fulfillmentType": "PICKUP",
     "shippingAddress": null,
     "madeToOrderConsent": false
@@ -2909,16 +2959,20 @@ Content-Type: application/json
   - `400 INVALID_INPUT` — payload context와 `context` 필드 불일치, 항목 누락, 상품별 수량 1~99 범위 위반, 주문 금액 안전 정수 범위 초과 또는 overflow, 회원/비회원 정보 불일치 등
   - `400 PHONE_VERIFICATION_FAILED` — 비회원 전화번호와 인증 코드가 일치하지 않거나, 코드가 만료·소모됨
   - `404 NOT_FOUND` — 상품/슬롯 미존재
+  - `409 CART_SNAPSHOT_CHANGED` — 장바구니 결제의 `expectedCartVersion`이 현재 장바구니와 다름
+  - `409 CONFLICT` — 이미 예약·사용된 쿠폰, 중복 쿠폰 발급 또는 동시 혜택 변경 충돌
+  - `422 CHANGE_NOT_ALLOWED` — 만료·비활성·최소 주문 금액 미달 등 현재 주문에 적용할 수 없는 쿠폰
+  - `422 REWARD_BALANCE_INSUFFICIENT` — 사용할 수 있는 적립금보다 큰 금액 요청
   - `422 PAYMENT_METHOD_NOT_ALLOWED` — `BookingPayload.paymentMethod=BANK_TRANSFER`
   - `422 POLICY_CONSENT_REQUIRED` — 비회원 주문·예약의 현재 정책 동의가 없거나 버전이 일치하지 않음
 - 정책:
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
-  - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약처럼 외부 PG 호출이 없는 내부 승인에만 사용한다.
+  - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약 또는 픽업 상품 금액을 적립금으로 모두 지불한 주문처럼 외부 PG 호출이 없는 내부 승인에 사용한다.
     - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비·쿠폰 할인·적립금 사용·품목별 배분, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
@@ -2926,7 +2980,9 @@ Content-Type: application/json
   - V97 이전 구형 prepare 중 상품 유형이 없고 주문제작 동의도 없는 항목은 당시 기성품으로 해석해 `READY_STOCK` 주문 항목으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남은 prepare는 구매조건을 재현할 수 없으므로 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다. 이미 PG 승인이 저장된 구형 주문제작 시도가 자동 복구되면 주문을 만들지 않고 기존 보상 환불 경계로 격리한다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
-  - 회원 장바구니는 `cartCheckout=true`를 지정한다. 이때 서버는 클라이언트의 `items`를 사용하지 않고 장바구니에서 구매 가능한 항목을 확정한다.
+  - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 `/api/v1` 클라이언트 호환을 위해 필드는 선택형이지만 현재 웹 클라이언트는 항상 전송한다.
+  - `issuedCouponId`와 `rewardAmount`는 회원 `ORDER`에서만 사용할 수 있다. 쿠폰은 공개 발급으로 회원이 보유한 미사용 쿠폰 1장만 허용하고, 상품 합계가 최소 주문 금액 이상일 때 배송비를 제외한 상품 금액에서 할인한다. 적립금은 쿠폰 적용 뒤 상품 금액까지만 1P=1원으로 사용할 수 있어 배송비에는 적용되지 않는다.
+  - prepare는 결제 시도와 같은 트랜잭션에서 쿠폰과 적립금을 30분 동안 예약한다. confirm 성공 시 쿠폰을 사용 완료하고 적립금을 차감하며, prepare 만료·PG 최종 거절·보상 환불 완료처럼 결제가 최종적으로 성립하지 않은 경우 예약을 멱등 해제한다. 결과가 불명확한 재시도·대사 상태에서는 중복 사용을 막기 위해 예약을 유지한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
@@ -2936,7 +2992,7 @@ Content-Type: application/json
   - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`도 필수다.
   - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 8회권 사용 예약에서 사용한다.
   - `PassPayload`의 필수 필드는 `type`, `userId`다.
-  - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
+  - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의, `expectedCartVersion`, `issuedCouponId`, `rewardAmount`는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
   - 회원 응답의 `statusToken`은 `null`이다. 비회원 응답에는 30일 만료 HMAC 서명 토큰을 반환하며 프론트는 URL이 아닌 session storage에 보관한다. DB에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
 
@@ -2952,12 +3008,14 @@ Content-Type: application/json
   "name": "홍길동",
   "items": [{ "productId": 1, "qty": 2 }],
   "cartCheckout": false,
+  "issuedCouponId": 81,
+  "rewardAmount": 5000,
   "madeToOrderConsentVersion": "2026-07-21-v1",
   "madeToOrderConsent": true,
   "policyAcceptance": {
-    "termsVersion": "2026-07-21-v1",
+    "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-07-21-v1",
+    "privacyVersion": "2026-08-08-v1",
     "privacyAccepted": true
   },
   "fulfillmentType": "SHIPPING",
@@ -2976,6 +3034,7 @@ Content-Type: application/json
   "userId": 7,
   "items": [],
   "cartCheckout": true,
+  "expectedCartVersion": "f3029b77e4e6080fcb48f1ac6f15fa76c27d2c44f748c8f772b705bf7fe79c76",
   "madeToOrderConsentVersion": null,
   "madeToOrderConsent": false,
   "fulfillmentType": "PICKUP",
@@ -2993,9 +3052,9 @@ Content-Type: application/json
   "paymentMethod": "CARD",     // CARD | EASY_PAY (BANK_TRANSFER 거절)
   "participantCount": 3,
   "policyAcceptance": {
-    "termsVersion": "2026-07-21-v1",
+    "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-07-21-v1",
+    "privacyVersion": "2026-08-08-v1",
     "privacyAccepted": true
   }
 }
@@ -3075,7 +3134,7 @@ Content-Type: application/json
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.
   - confirm 요청 `paymentKey`는 `payment_attempt.payment_key`, PG 승인 응답의 `paymentKey`는 `payment_attempt.confirmed_payment_key`와 생성된 도메인 레코드의 `payment_key`에 저장한다. 이후 환불은 승인 응답의 `paymentKey`를 PG cancel 호출의 원결제 식별자로 사용한다.
-  - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
+  - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. PG port의 성공 결과와 도메인의 `SUCCEEDED` 전이는 공백이 아닌 `transactionKey`를 필수로 검증하고, 잘못된 성공 응답은 성공으로 저장하지 않고 대사 대상으로 격리한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
   - 비회원 경로의 `accessToken`은 HMAC-SHA256 서명과 기본 30일 만료 시각을 포함한다. 주문·예약에는 서명 토큰 전체의 SHA-256 해시만 저장하며, 서명 없는 토큰은 허용하지 않는다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 재호출 시에도 토큰 서명·만료와 현재 주문·예약의 비회원 소유권·저장 해시를 다시 확인한다. 이미 회원에게 귀속됐거나 토큰이 교체·만료된 경우 `accessToken=null`, `accessRecoveryRequired=true`를 반환한다. 회원 경로는 두 값이 각각 `null`, `false`다.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
   - 내부 결제 귀속 증거가 없거나 위조·재사용되어 현재 결제 시도와 일치하지 않으면 fulfillment를 중단하고 `400 INVALID_INPUT`으로 처리한다. PG가 이미 승인됐다면 기존 보상 환불 경계를 따른다.
@@ -3242,8 +3301,10 @@ Content-Type: application/json
 
 - 기존 인증 코드 발송 API로 SMS 소유 확인을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
 - 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
-- 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환한다.
-- 프론트는 복구 결과와 토큰을 만료 시각까지만 현재 브라우저 탭의 `sessionStorage`에 보관한다. 주문·예약 ID는 URL 쿼리로 전달하고 토큰은 URL에 넣지 않아, 목록 이동과 새로고침 뒤에도 같은 복구 세션을 이어간다.
+- 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환하며, 기존 응답 배열은 유형별 최신 100건으로 제한한다.
+- 전체 복구 이력은 같은 토큰을 `X-Access-Token`으로 보내 `GET /api/v1/guest-records/recovery/orders?cursor={cursor}&size=20`와 `GET /api/v1/guest-records/recovery/bookings?cursor={cursor}&size=20`에서 `{content,nextCursor,hasMore}`로 조회한다. `size`는 1~100이고 `(createdAt,id)` 내림차순 커서를 사용한다.
+- 토큰 교체는 주문·예약 엔티티를 전부 로드하지 않고 guest ID 기준 bulk update로 수행하며 낙관적 락 버전도 함께 증가시킨다. 하나의 복구 토큰은 같은 비회원의 여러 이력에 공유되므로 DB는 토큰을 UNIQUE로 제한하지 않고 `(access_token,created_at,id)` 조회 인덱스를 둔다.
+- 프론트는 복구 결과와 토큰을 만료 시각까지만 현재 브라우저 탭의 `sessionStorage`에 보관하고 현재 고객 세션 경계에 결합한다. 저장 도중 로그인·로그아웃·계정 전환으로 경계가 바뀌면 방금 저장한 값과 일치할 때만 compare-and-delete로 제거하며 메모리의 복구 화면도 폐기한다. 주문·예약 ID는 URL 쿼리로 전달하고 토큰은 URL에 넣지 않아, 같은 고객 세션의 목록 이동과 새로고침 뒤에만 복구 세션을 이어간다.
 - 같은 전화번호의 비회원이 없어도 존재 여부 오류 대신 새 토큰과 빈 목록을 반환한다.
 - IP와 전화번호별 처리율 제한은 Redis 장애 시 fail-closed로 동작한다.
 
@@ -3309,6 +3370,108 @@ file={JPEG|PNG|WebP binary}
 - `GET /api/v1/media/images/{fileName}`은 인증 없이 실제 이미지 MIME으로 반환하고 `Cache-Control: public, max-age=31536000, immutable`을 적용한다.
 - 허용된 UUID 파일명 형식이 아니거나 파일이 없으면 `404 NOT_FOUND`다.
 
+### 2.20 이벤트·쿠폰·적립금 API
+
+#### 2.20.1 공개 이벤트
+
+- `GET /api/v1/events` — 현재 게시된 이벤트 목록
+- `GET /api/v1/events/{id}` — 현재 게시된 이벤트 상세
+
+```json
+{
+  "id": 1,
+  "title": "여름 공방전",
+  "summary": "여름 작품과 회원 혜택을 만나는 행사",
+  "content": "행사 기간과 관련 작품을 확인해 주세요.",
+  "imageUrl": "/api/v1/media/images/11111111-1111-4111-8111-111111111111.jpg",
+  "startAt": "2026-08-01T00:00:00",
+  "endAt": "2026-08-31T23:59:00",
+  "published": true,
+  "featured": true,
+  "relatedProductIds": [1, 2],
+  "version": 2
+}
+```
+
+- 공개 목록은 `published=true`이고 `[startAt, endAt)` 경계에서 아직 끝나지 않은 현재·예정 이벤트를 반환한다. 진행 중 이벤트를 먼저, 예정 이벤트를 다음에 두고 각 그룹은 시작 시각과 ID 오름차순으로 안정 정렬한다. 홈은 이 중 `featured=true`인 이벤트를 노출한다.
+- 이벤트 노출 경계는 서버 `Clock` 기준이며 공개 응답은 예약 게시 변경을 즉시 반영하도록 `Cache-Control: no-store`다.
+- 상세에서 미게시·종료 이벤트는 존재 여부를 구분하지 않고 `404 NOT_FOUND`다. 게시된 시작 전 이벤트는 사전 안내를 위해 조회할 수 있다.
+
+#### 2.20.2 관리자 이벤트
+
+- `GET /api/v1/admin/events`, `GET /api/v1/admin/events/{id}` — 게시 여부와 무관한 전체 조회
+- `POST /api/v1/admin/events` — 이벤트 생성
+- `PUT /api/v1/admin/events/{id}` — `expectedVersion`을 포함한 전체 수정
+- `DELETE /api/v1/admin/events/{id}?expectedVersion={version}` — 낙관적 잠금 버전 확인 뒤 삭제
+
+생성·수정 바디는 `title`, `summary`, `content`, nullable `imageUrl`, `startAt`, `endAt`, `published`, `featured`, nullable `relatedProductIds`를 사용한다. 수정은 `expectedVersion`을 추가한다. 기간은 `startAt < endAt`이어야 하며 관련 상품 ID는 실제 상품만 허용한다. 버전 충돌은 `409 CONFLICT`다.
+
+#### 2.20.3 회원 쿠폰
+
+- `GET /api/v1/me/coupons/claimable` — 현재 공개 발급 가능하고 이 회원이 아직 발급받지 않은 쿠폰 정의
+- `GET /api/v1/me/coupons` — 회원에게 발급된 쿠폰 최근 100개
+- `POST /api/v1/me/coupons` + `{ "definitionId": 10 }` — 공개 쿠폰 1장 발급
+
+```json
+{
+  "id": 81,
+  "definitionId": 10,
+  "name": "여름 10% 할인",
+  "discountType": "PERCENT",
+  "discountValue": 10,
+  "minOrderAmount": 30000,
+  "maxDiscountAmount": 10000,
+  "validFrom": "2026-08-01T00:00:00",
+  "validUntil": "2026-08-31T23:59:00",
+  "status": "AVAILABLE",
+  "claimedAt": "2026-08-08T12:00:00",
+  "reservedAt": null,
+  "usedAt": null
+}
+```
+
+- 한 쿠폰 정의는 회원당 한 번만 발급한다. 상태는 `AVAILABLE|RESERVED|REDEEMED|EXPIRED|CANCELED`다.
+- `FIXED`는 고정 원화 할인이고 `maxDiscountAmount=null`이다. `PERCENT`는 1~100%이며 양수 `maxDiscountAmount`를 반드시 둔다.
+- 관리자가 정의를 비활성화한 뒤 아직 예약·사용하지 않은 발급 쿠폰은 회원 조회 시 `CANCELED`로 정리해 화면의 사용 가능 표시와 prepare 검증을 일치시킨다.
+- 발급 기간·활성·공개 발급 조건을 만족하지 않으면 `422 CHANGE_NOT_ALLOWED`, 중복 발급은 `409 CONFLICT`다.
+
+#### 2.20.4 회원 적립금
+
+- `GET /api/v1/me/rewards` — 현재 잔액과 최근 원장 100건 조회
+
+```json
+{
+  "availableBalance": 1200,
+  "reservedBalance": 300,
+  "debtBalance": 0,
+  "history": [
+    {
+      "id": 30,
+      "type": "EARN",
+      "amount": 1500,
+      "availableAfter": 1500,
+      "reservedAfter": 0,
+      "debtAfter": 0,
+      "orderId": 20,
+      "createdAt": "2026-08-08T12:00:00"
+    }
+  ]
+}
+```
+
+- 1P는 주문에서 1원으로 사용한다. `availableBalance`는 즉시 사용 가능, `reservedBalance`는 결제 prepare 중 예약, `debtBalance`는 이미 쓴 적립금을 환불로 회수할 때 잔액이 부족해 이후 적립에서 먼저 상계할 금액이다.
+- 원장 유형은 `EARN|RESERVE|RELEASE|USE|RESTORE|EXPIRE|REVOKE|ADJUST`다. 만료·예약·사용·복원·회수는 원장과 잔액을 같은 트랜잭션으로 갱신한다.
+- 배송 완료 또는 픽업 완료 시 배송비·쿠폰·사용 적립금을 제외한 상품 순결제액의 1%를 원 미만 버림으로 한 번 적립하고, 적립분은 1년 뒤 만료한다.
+
+#### 2.20.5 관리자 쿠폰
+
+- `GET /api/v1/admin/coupons`, `GET /api/v1/admin/coupons/{id}` — 쿠폰 정의 조회
+- `POST /api/v1/admin/coupons` — 쿠폰 정의 생성
+- `PUT /api/v1/admin/coupons/{id}` — `expectedVersion`을 포함한 전체 수정
+- `DELETE /api/v1/admin/coupons/{id}?expectedVersion={version}` — 신규 발급만 막도록 비활성화
+
+생성·수정 바디는 `name`, `discountType`, `discountValue`, `minOrderAmount`, nullable `maxDiscountAmount`, `validFrom`, `validUntil`, `active`, `publiclyClaimable`을 사용한다. 한 장이라도 발급된 뒤에는 기존 권리와 표시를 소급 변경하지 않도록 이름·할인 조건·유효기간을 바꿀 수 없고 `active`, `publiclyClaimable`만 변경할 수 있다. 이미 발급된 쿠폰은 정의를 비활성화해도 감사 이력과 주문 스냅샷을 유지한다. 버전 또는 불변 조건 충돌은 `409 CONFLICT`다.
+
 ---
 
 ## 3. API 에러 계약
@@ -3349,6 +3512,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `DUPLICATE_BOOKING` | 동일 예약자 + 동일 슬롯 활성 예약 중복 |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |
+| 409 | `CART_SNAPSHOT_CHANGED` | 장바구니 결제의 `expectedCartVersion`과 현재 장바구니 스냅샷이 다름 |
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
@@ -3365,12 +3529,13 @@ file={JPEG|PNG|WebP binary}
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
 | 422 | `PASS_NOT_APPLICABLE` | 이용권 계획이 선택 클래스 카테고리 또는 `passEligible` 조건을 충족하지 않음 |
+| 422 | `REWARD_BALANCE_INSUFFICIENT` | 주문에 요청한 적립금이 현재 사용 가능 잔액보다 큼 |
 | 422 | `CLASS_INACTIVE` | 비활성 클래스로 슬롯 생성 또는 예약·결제 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
 | 422 | `POLICY_CONSENT_REQUIRED` | 현재 이용약관·개인정보처리방침 버전 동의가 없거나 일치하지 않음 |
-| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불 또는 사용 가능한 8회권이 있어 탈퇴할 수 없음 |
+| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불, 사용 가능한 8회권, 예약 적립금 또는 적립금 부채가 있어 탈퇴할 수 없음 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |

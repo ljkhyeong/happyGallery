@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-07-28
+**갱신**: 2026-08-08
 
 ---
 
@@ -152,13 +152,15 @@
 - `orders`
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_orders_exactly_one_owner` `CHECK` 제약으로 강제한다.
-  - `access_token VARCHAR(64)` — SHA-256 hex 해시 저장
-  - `status`, `total_amount`, `shipping_fee`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
+  - `access_token VARCHAR(64) nullable` — 비회원 접근 토큰의 SHA-256 hex 해시 저장. 복구 토큰 하나를 같은 비회원의 여러 주문이 공유할 수 있어 UNIQUE가 아니다.
+  - `status`, `total_amount`, `product_amount`, `shipping_fee`, `coupon_discount_amount`, `reward_used_amount`, `pg_paid_amount`, `reward_earn_base_amount`, `issued_coupon_id nullable`, `paid_at`, `approval_deadline_at`, `bundle_id nullable`, `payment_key nullable`, `version`
   - `made_to_order_consent_version`, `made_to_order_consent_disclosure`, `made_to_order_consent_at` nullable — 주문제작 상품 결제 전 별도 고지·동의 스냅샷
-  - `total_amount`는 상품 합계와 배송비를 포함한다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
+  - `total_amount`는 쿠폰 할인 전 상품 합계와 배송비를 포함한다. 고객 결제 총액은 `total_amount - coupon_discount_amount`이고, 이를 적립금과 PG로 나눈 값이 각각 `reward_used_amount`, `pg_paid_amount`다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
+  - `issued_coupon_id`는 `issued_coupons.id`를 FK로 참조하며, 쿠폰 할인액이 0원보다 큰 주문만 발급 쿠폰을 참조한다.
 - `order_items`
-  - `id`, `order_id`, `product_id`, `product_name`, `product_type nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `qty`, `unit_price`
+  - `id`, `order_id`, `product_id`, `product_name`, `product_type nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `qty`, `unit_price`, `gross_amount`, `coupon_discount_amount`, `reward_used_amount`, `net_paid_amount`
   - 상품명·유형·단가와 구매조건은 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. `product_type=null`인 기존 주문 항목은 알 수 없는 당시 조건을 현재 상품 값으로 역보정하지 않는다.
+  - `qty`는 1~99, `unit_price`는 1원 이상이고 `gross_amount = qty * unit_price`이며, V121 `CHECK`가 도메인 산술 불변식을 DB에서도 강제한다.
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
@@ -167,8 +169,8 @@
   - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 `amount > 0`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
-  - 환불 금액은 도메인 생성과 `chk_refunds_amount_positive`에서 이중 강제한다. 0원 내부 승인과 수동 보상 작업은 환불 행을 만들지 않는다.
+  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 고객 반환 총액은 도메인 생성과 `chk_refunds_amount_positive`에서 이중 강제한다. PG 반환액이 0원인 적립금 전액 결제 주문도 환불 행과 후처리를 유지하되 외부 결제사 호출만 건너뛴다.
   - `V106`은 기존 0원 이하 환불 행을 자동 보정하지 않고 atomic `ALTER TABLE`을 실패시킨다. 배포 전 `refunds.amount <= 0` 데이터를 확인하고 근거에 따라 정리해야 한다.
   - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `last_recovery_at`, `created_at`, `updated_at`, `version`
@@ -183,6 +185,25 @@
   - 자동 복구 전에 `confirm_recovery_attempted_at`을 저장해 1분 backoff와 후보 순환을 보장한다.
   - `CONFIRMED` 결과의 도메인 ID와 비회원 접근 토큰 암호문을 저장해 동일 confirm 재호출에 같은 결과를 반환한다.
   - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | RECONCILIATION_REQUIRED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
+  - PG 호출 전 확정 실패만 혜택 예약을 즉시 해제한다. PG 호출 가능성이 있는 실패는 `RECONCILIATION_REQUIRED`에서 쿠폰·적립금 예약을 보존하고 조회로 미승인이 확인된 뒤 해제한다.
+
+#### 이벤트, 쿠폰과 적립금
+
+- `events`
+  - 제목·설명·이미지·게시 시작/종료·게시 여부·홈 추천 여부·낙관적 락 버전을 저장한다. 공개 조회는 게시되었고 종료되지 않은 이벤트만 반환한다.
+- `event_products`
+  - 이벤트와 연관 상품의 다대다 연결 및 표시 순서를 저장한다.
+- `coupon_definitions`
+  - 쿠폰 이름, 정액/정률 할인 조건, 최소 주문 금액, 발급 시작/종료와 사용 기한, 활성·공개 발급 여부를 저장한다. 한 장이라도 발급된 뒤에는 경제 조건을 변경하지 않는다.
+- `issued_coupons`
+  - 회원별 발급 쿠폰의 `AVAILABLE | RESERVED | REDEEMED | EXPIRED | CANCELED` 상태, 예약 결제 시도, 사용 주문과 시각을 저장한다. `(user_id, coupon_definition_id)` 유일 제약으로 공개 쿠폰 중복 발급을 막는다.
+- `reward_accounts`, `reward_lots`
+  - 계정은 사용 가능·예약·부채 합계를, 적립 단위는 원래/잔여 금액과 만료 시각을 저장한다. 만료가 가까운 lot부터 예약·사용한다.
+- `reward_reservations`, `reward_reservation_allocations`
+  - 결제 시도별 적립금 예약과 lot별 배분을 저장해 prepare/confirm/만료/대사를 멱등 처리한다.
+  - `RESERVED`는 주문·해결 시각이 없고 복원액이 0원이다. `USED`는 주문·해결 시각이 있고 복원액이 예약액 범위에 있으며, `RELEASED`는 주문이 없는 해결 상태이고 복원액이 0원이다. V121 `CHECK`가 이 상태별 조합을 강제한다.
+- `reward_ledger`
+  - 적립·예약·사용·복원·만료·부채 상환의 모든 증감을 멱등키와 함께 보존한다.
 
 #### 클래스, 슬롯, 예약
 
@@ -200,7 +221,7 @@
     `BOOKED` 상태에서는 반드시 존재하고 취소·완료·노쇼 상태에서는 제거한다.
   - `active_owner_phone_hmac generated` — `BOOKED`일 때만 `owner_phone_hmac`를 노출하고 `(slot_id, active_owner_phone_hmac)` UNIQUE로 회원·비회원 교차 중복을 막는다.
   - `active_user_id generated`, `active_guest_id generated`의 슬롯별 UNIQUE도 유지해 전화번호를 바꾼 같은 계정의 중복 예약을 막는다.
-  - `access_token VARCHAR(64)` — 게스트 예약 조회용 SHA-256 hex 해시 저장
+  - `access_token VARCHAR(64) nullable` — 게스트 예약 조회용 SHA-256 hex 해시 저장. 복구 토큰 하나를 같은 비회원의 여러 예약이 공유할 수 있어 UNIQUE가 아니다.
   - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
@@ -314,6 +335,15 @@ HAVING COUNT(*) > 1;
 #### 주요 인덱스
 
 - `orders(status, created_at, id)` 커서 조회
+- `orders(user_id, created_at DESC, id DESC)` 회원 주문 커서 조회
+- `orders(access_token, created_at DESC, id DESC)` 비회원 복구 주문 커서 조회
+- `bookings(user_id, created_at DESC, id DESC)` 회원 예약 커서 조회
+- `bookings(access_token, created_at DESC, id DESC)` 비회원 복구 예약 커서 조회
+- `pass_purchases(user_id, purchased_at DESC, id DESC)` 회원 8회권 커서 조회
+- `inquiry(user_id, created_at DESC, id DESC)` 회원 문의 커서 조회
+- `inquiry(created_at DESC, id DESC)` 관리자 문의 커서 조회
+- `product_qna(product_id, created_at DESC, id DESC)` 공개·관리자 상품 Q&A 커서 조회
+- `product_qna(product_id, user_id, created_at DESC, id DESC)` 작성자 상품 Q&A 커서 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회

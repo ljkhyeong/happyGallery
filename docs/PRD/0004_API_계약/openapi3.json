@@ -302,6 +302,53 @@
         "required" : [ "bufferMin", "category", "description", "durationMin", "id", "imageUrl", "name", "passEligible", "preparationInfo", "price", "status", "targetAudience" ],
         "type" : "object"
       },
+      "AdminCouponResponse" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "discountType" : {
+            "enum" : [ "FIXED", "PERCENT" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "maxDiscountAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "minOrderAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "publiclyClaimable" : {
+            "type" : "boolean"
+          },
+          "validFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "active", "discountType", "discountValue", "id", "maxDiscountAmount", "minOrderAmount", "name", "publiclyClaimable", "validFrom", "validUntil", "version" ],
+        "type" : "object"
+      },
       "AdminInquiryPageResponse" : {
         "properties" : {
           "content" : {
@@ -1440,6 +1487,9 @@
       },
       "CartResponse" : {
         "properties" : {
+          "cartVersion" : {
+            "type" : "string"
+          },
           "items" : {
             "items" : {
               "$ref" : "#/components/schemas/CartItemResponse"
@@ -1451,7 +1501,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "items", "totalAmount" ],
+        "required" : [ "cartVersion", "items", "totalAmount" ],
         "type" : "object"
       },
       "ChangePasswordRequest" : {
@@ -1468,6 +1518,16 @@
           }
         },
         "required" : [ "currentPassword", "newPassword" ],
+        "type" : "object"
+      },
+      "ClaimCouponRequest" : {
+        "properties" : {
+          "definitionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "definitionId" ],
         "type" : "object"
       },
       "ClaimGuestRecordsRequest" : {
@@ -1505,6 +1565,43 @@
           }
         },
         "required" : [ "orderItemId", "quantity" ],
+        "type" : "object"
+      },
+      "ClaimableCouponResponse" : {
+        "properties" : {
+          "definitionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "discountType" : {
+            "enum" : [ "FIXED", "PERCENT" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "maxDiscountAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "minOrderAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "validFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "definitionId", "discountType", "discountValue", "maxDiscountAmount", "minOrderAmount", "name", "validFrom", "validUntil" ],
         "type" : "object"
       },
       "ClaimedItemResponse" : {
@@ -1721,6 +1818,98 @@
           }
         },
         "required" : [ "bufferMin", "category", "durationMin", "name", "passEligible", "price" ],
+        "type" : "object"
+      },
+      "CreateCouponRequest" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "discountType" : {
+            "enum" : [ "FIXED", "PERCENT" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : "integer"
+          },
+          "maxDiscountAmount" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : [ "integer", "null" ]
+          },
+          "minOrderAmount" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : "integer"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "publiclyClaimable" : {
+            "type" : "boolean"
+          },
+          "validFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "discountType", "discountValue", "minOrderAmount", "name", "publiclyClaimable", "validFrom", "validUntil" ],
+        "type" : "object"
+      },
+      "CreateEventRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "featured" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "published" : {
+            "type" : "boolean"
+          },
+          "relatedProductIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : [ "array", "null" ],
+            "uniqueItems" : true
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "summary" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "content", "endAt", "featured", "published", "startAt", "summary", "title" ],
         "type" : "object"
       },
       "CreateInquiryRequest" : {
@@ -1984,6 +2173,53 @@
         "required" : [ "monthOrderCount", "monthRevenue", "pendingApprovalCount", "todayBookingCount", "todayOrderCount", "todayRevenue" ],
         "type" : "object"
       },
+      "EventResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "featured" : {
+            "type" : "boolean"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "imageUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "published" : {
+            "type" : "boolean"
+          },
+          "relatedProductIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : "array"
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "endAt", "featured", "id", "imageUrl", "published", "relatedProductIds", "startAt", "summary", "title", "version" ],
+        "type" : "object"
+      },
       "FailedNotificationResponse" : {
         "properties" : {
           "aggregateId" : {
@@ -2083,7 +2319,22 @@
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
+          "pgRefundAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "refundId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "restoreCoupon" : {
+            "type" : "boolean"
+          },
+          "rewardRestoreAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rewardRevokeAmount" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -2092,7 +2343,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "attemptCount", "bookingId", "createdAt", "failReason", "orderClaimId", "orderId", "passPurchaseId", "paymentAttemptId", "refundId", "status" ],
+        "required" : [ "amount", "attemptCount", "bookingId", "createdAt", "failReason", "orderClaimId", "orderId", "passPurchaseId", "paymentAttemptId", "pgRefundAmount", "refundId", "restoreCoupon", "rewardRestoreAmount", "rewardRevokeAmount", "status" ],
         "type" : "object"
       },
       "FulfillmentDto" : {
@@ -2233,6 +2484,42 @@
         "required" : [ "accessToken", "bookings", "expiresAt", "orders" ],
         "type" : "object"
       },
+      "GuestRecoveredBookingPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GuestRecordRecoveryBookingSummary"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "GuestRecoveredOrderPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GuestRecordRecoveryOrderSummary"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
       "ImageUploadResponse" : {
         "properties" : {
           "url" : {
@@ -2332,6 +2619,18 @@
           "careInstructions" : {
             "type" : [ "string", "null" ]
           },
+          "couponDiscountAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "grossAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "netPaidAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "orderItemId" : {
             "format" : "int64",
             "type" : "integer"
@@ -2355,6 +2654,10 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "rewardUsedAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "specification" : {
             "type" : [ "string", "null" ]
           },
@@ -2363,7 +2666,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "careInstructions", "orderItemId", "productId", "productName", "productType", "productionLeadDays", "qty", "specification", "unitPrice" ],
+        "required" : [ "careInstructions", "couponDiscountAmount", "grossAmount", "netPaidAmount", "orderItemId", "productId", "productName", "productType", "productionLeadDays", "qty", "rewardUsedAmount", "specification", "unitPrice" ],
         "type" : "object"
       },
       "LoginRequest" : {
@@ -2554,6 +2857,24 @@
         "required" : [ "balanceAmount", "balanceStatus", "bookingId", "cancelPolicy", "classId", "className", "depositAmount", "endAt", "participantCount", "passBooking", "refund", "slotId", "startAt", "status" ],
         "type" : "object"
       },
+      "MyBookingPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyBookingSummary"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
       "MyBookingSummary" : {
         "properties" : {
           "bookingId" : {
@@ -2589,6 +2910,99 @@
         "required" : [ "bookingId", "className", "depositAmount", "endAt", "participantCount", "startAt", "status" ],
         "type" : "object"
       },
+      "MyCouponResponse" : {
+        "properties" : {
+          "claimedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "definitionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "discountType" : {
+            "enum" : [ "FIXED", "PERCENT" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "maxDiscountAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "minOrderAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "reservedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "AVAILABLE", "RESERVED", "REDEEMED", "EXPIRED", "CANCELED" ],
+            "type" : "string"
+          },
+          "usedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "validFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "claimedAt", "definitionId", "discountType", "discountValue", "id", "maxDiscountAmount", "minOrderAmount", "name", "reservedAt", "status", "usedAt", "validFrom", "validUntil" ],
+        "type" : "object"
+      },
+      "MyInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InquiryResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "MyOrderPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyOrderSummary"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
       "MyOrderSummary" : {
         "properties" : {
           "createdAt" : {
@@ -2613,6 +3027,24 @@
           }
         },
         "required" : [ "createdAt", "orderId", "paidAt", "status", "totalAmount" ],
+        "type" : "object"
+      },
+      "MyPassPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyPassSummary"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
         "type" : "object"
       },
       "MyPassSummary" : {
@@ -2680,6 +3112,24 @@
           }
         },
         "required" : [ "createdAt", "hasReply", "id", "secret", "title" ],
+        "type" : "object"
+      },
+      "MyProductQnaPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyProductQnaListItem"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
         "type" : "object"
       },
       "NoticeDetailResponse" : {
@@ -2934,12 +3384,20 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
+          "couponDiscountAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "fulfillment" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/FulfillmentDto"
             }, {
               "type" : "null"
             } ]
+          },
+          "issuedCouponId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
           },
           "items" : {
             "items" : {
@@ -2958,12 +3416,28 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
+          "pgPaidAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
             }, {
               "type" : "null"
             } ]
+          },
+          "rewardEarnBase" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rewardUsedAmount" : {
+            "format" : "int64",
+            "type" : "integer"
           },
           "shippingFee" : {
             "format" : "int64",
@@ -2978,7 +3452,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "approvalDeadlineAt", "fulfillment", "items", "orderId", "orderNumber", "paidAt", "refund", "shippingFee", "status", "totalAmount" ],
+        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
         "type" : "object"
       },
       "OrderItemRef" : {
@@ -3005,9 +3479,18 @@
             "cartCheckout" : {
               "type" : "boolean"
             },
+            "expectedCartVersion" : {
+              "description" : "GET /api/v1/me/cart가 반환한 불투명 장바구니 스냅샷 버전",
+              "pattern" : "^[0-9a-f]{64}$",
+              "type" : [ "string", "null" ]
+            },
             "fulfillmentType" : {
               "enum" : [ "SHIPPING", "PICKUP" ],
               "type" : "string"
+            },
+            "issuedCouponId" : {
+              "format" : "int64",
+              "type" : [ "integer", "null" ]
             },
             "items" : {
               "items" : {
@@ -3035,6 +3518,13 @@
               }, {
                 "type" : "null"
               } ]
+            },
+            "rewardAmount" : {
+              "default" : 0,
+              "format" : "int64",
+              "maximum" : 9007199254740991,
+              "minimum" : 0,
+              "type" : [ "integer", "null" ]
             },
             "shippingAddress" : {
               "oneOf" : [ {
@@ -3559,6 +4049,24 @@
         "required" : [ "authorName", "createdAt", "hasReply", "id", "secret", "title" ],
         "type" : "object"
       },
+      "ProductQnaPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ProductQnaListItem"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
       "ProductResponse" : {
         "properties" : {
           "available" : {
@@ -3717,12 +4225,27 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "pgRefundAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "restoreCoupon" : {
+            "type" : "boolean"
+          },
+          "rewardRestoreAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rewardRevokeAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "status" : {
             "enum" : [ "REQUESTED", "PROCESSING", "RETRYABLE", "RECONCILIATION_REQUIRED", "SUCCEEDED", "FAILED" ],
             "type" : "string"
           }
         },
-        "required" : [ "amount", "status" ],
+        "required" : [ "amount", "pgRefundAmount", "restoreCoupon", "rewardRestoreAmount", "rewardRevokeAmount", "status" ],
         "type" : "object"
       },
       "RefundStatsResponse" : {
@@ -3756,7 +4279,22 @@
           "failReason" : {
             "type" : [ "string", "null" ]
           },
+          "pgRefundAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "refundId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "restoreCoupon" : {
+            "type" : "boolean"
+          },
+          "rewardRestoreAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rewardRevokeAmount" : {
             "format" : "int64",
             "type" : "integer"
           },
@@ -3765,7 +4303,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "attemptCount", "failReason", "refundId", "status" ],
+        "required" : [ "amount", "attemptCount", "failReason", "pgRefundAmount", "refundId", "restoreCoupon", "rewardRestoreAmount", "rewardRevokeAmount", "status" ],
         "type" : "object"
       },
       "RegisterEmailRequest" : {
@@ -3903,6 +4441,68 @@
           }
         },
         "required" : [ "bookingBalanceRevenue", "bookingDepositRevenue", "orderRevenue", "passPurchaseRevenue", "totalRevenue" ],
+        "type" : "object"
+      },
+      "RewardHistoryResponse" : {
+        "properties" : {
+          "amount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "availableAfter" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "debtAfter" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "orderId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "reservedAfter" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "type" : {
+            "enum" : [ "EARN", "RESERVE", "RELEASE", "USE", "RESTORE", "EXPIRE", "REVOKE", "ADJUST" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "availableAfter", "createdAt", "debtAfter", "id", "orderId", "reservedAfter", "type" ],
+        "type" : "object"
+      },
+      "RewardWalletResponse" : {
+        "properties" : {
+          "availableBalance" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "debtBalance" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "history" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RewardHistoryResponse"
+            },
+            "type" : "array"
+          },
+          "reservedBalance" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "availableBalance", "debtBalance", "history", "reservedBalance" ],
         "type" : "object"
       },
       "SendEmailVerificationRequest" : {
@@ -4275,6 +4875,106 @@
           }
         },
         "required" : [ "status" ],
+        "type" : "object"
+      },
+      "UpdateCouponRequest" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "discountType" : {
+            "enum" : [ "FIXED", "PERCENT" ],
+            "type" : "string"
+          },
+          "discountValue" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : "integer"
+          },
+          "expectedVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "maxDiscountAmount" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : [ "integer", "null" ]
+          },
+          "minOrderAmount" : {
+            "format" : "int64",
+            "maximum" : 9007199254740991,
+            "type" : "integer"
+          },
+          "name" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "publiclyClaimable" : {
+            "type" : "boolean"
+          },
+          "validFrom" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "validUntil" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "discountType", "discountValue", "expectedVersion", "minOrderAmount", "name", "publiclyClaimable", "validFrom", "validUntil" ],
+        "type" : "object"
+      },
+      "UpdateEventRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "expectedVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "featured" : {
+            "type" : "boolean"
+          },
+          "imageUrl" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "published" : {
+            "type" : "boolean"
+          },
+          "relatedProductIds" : {
+            "items" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "type" : [ "array", "null" ],
+            "uniqueItems" : true
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "summary" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "title" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "content", "endAt", "expectedVersion", "featured", "published", "startAt", "summary", "title" ],
         "type" : "object"
       },
       "UpdateMemberPhoneRequest" : {
@@ -5229,6 +5929,142 @@
         "tags" : [ "admin-class-controller" ]
       }
     },
+    "/api/v1/admin/coupons" : {
+      "get" : {
+        "operationId" : "listAdminCoupons",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/AdminCouponResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-coupon-controller" ]
+      },
+      "post" : {
+        "operationId" : "createAdminCoupon",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateCouponRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminCouponResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "admin-coupon-controller" ]
+      }
+    },
+    "/api/v1/admin/coupons/{id}" : {
+      "delete" : {
+        "operationId" : "deleteAdminCoupon",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "expectedVersion",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-coupon-controller" ]
+      },
+      "get" : {
+        "operationId" : "getAdminCoupon",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminCouponResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-coupon-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateAdminCoupon",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateCouponRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminCouponResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-coupon-controller" ]
+      }
+    },
     "/api/v1/admin/dashboard/daily-revenue" : {
       "get" : {
         "operationId" : "dailyRevenue",
@@ -5532,6 +6368,142 @@
           }
         },
         "tags" : [ "admin-dashboard-controller" ]
+      }
+    },
+    "/api/v1/admin/events" : {
+      "get" : {
+        "operationId" : "listAdminEvents",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EventResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-event-controller" ]
+      },
+      "post" : {
+        "operationId" : "createAdminEvent",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateEventRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EventResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "admin-event-controller" ]
+      }
+    },
+    "/api/v1/admin/events/{id}" : {
+      "delete" : {
+        "operationId" : "deleteAdminEvent",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "expectedVersion",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-event-controller" ]
+      },
+      "get" : {
+        "operationId" : "getAdminEvent",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EventResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-event-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateAdminEvent",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateEventRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EventResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-event-controller" ]
       }
     },
     "/api/v1/admin/inquiries" : {
@@ -6881,6 +7853,51 @@
         "tags" : [ "admin-product-qna-controller" ]
       }
     },
+    "/api/v1/admin/qna/page" : {
+      "get" : {
+        "operationId" : "listAdminProductQnaPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminQnaPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-qna-controller" ]
+      }
+    },
     "/api/v1/admin/qna/unanswered" : {
       "get" : {
         "operationId" : "listUnansweredAdminProductQna",
@@ -7638,6 +8655,54 @@
         "tags" : [ "class-controller" ]
       }
     },
+    "/api/v1/events" : {
+      "get" : {
+        "operationId" : "listPublicEvents",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/EventResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "event-controller" ]
+      }
+    },
+    "/api/v1/events/{id}" : {
+      "get" : {
+        "operationId" : "getPublicEvent",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/EventResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "event-controller" ]
+      }
+    },
     "/api/v1/guest-records/payment-status-recovery" : {
       "post" : {
         "operationId" : "recoverGuestPaymentStatuses",
@@ -7694,6 +8759,94 @@
         "tags" : [ "guest-record-recovery-controller" ]
       }
     },
+    "/api/v1/guest-records/recovery/bookings" : {
+      "get" : {
+        "operationId" : "listRecoveredGuestBookings",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GuestRecoveredBookingPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "guest-record-recovery-controller" ]
+      }
+    },
+    "/api/v1/guest-records/recovery/orders" : {
+      "get" : {
+        "operationId" : "listRecoveredGuestOrders",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GuestRecoveredOrderPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "guest-record-recovery-controller" ]
+      }
+    },
     "/api/v1/me" : {
       "delete" : {
         "operationId" : "withdrawMyAccount",
@@ -7733,6 +8886,43 @@
                     "$ref" : "#/components/schemas/MyBookingSummary"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-booking-controller" ]
+      }
+    },
+    "/api/v1/me/bookings/page" : {
+      "get" : {
+        "operationId" : "listMyBookingsPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyBookingPageResponse"
                 }
               }
             },
@@ -7939,6 +9129,74 @@
         "tags" : [ "me-cart-controller" ]
       }
     },
+    "/api/v1/me/coupons" : {
+      "get" : {
+        "operationId" : "listMyCoupons",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MyCouponResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-coupon-controller" ]
+      },
+      "post" : {
+        "operationId" : "claimMyCoupon",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ClaimCouponRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyCouponResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-coupon-controller" ]
+      }
+    },
+    "/api/v1/me/coupons/claimable" : {
+      "get" : {
+        "operationId" : "listClaimableCoupons",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ClaimableCouponResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-coupon-controller" ]
+      }
+    },
     "/api/v1/me/email" : {
       "patch" : {
         "operationId" : "registerMyVerifiedEmail",
@@ -8102,6 +9360,43 @@
         "tags" : [ "me-inquiry-controller" ]
       }
     },
+    "/api/v1/me/inquiries/page" : {
+      "get" : {
+        "operationId" : "listMyInquiriesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-inquiry-controller" ]
+      }
+    },
     "/api/v1/me/inquiries/{id}" : {
       "get" : {
         "operationId" : "getMyInquiry",
@@ -8230,6 +9525,43 @@
                     "$ref" : "#/components/schemas/MyOrderSummary"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-order-controller" ]
+      }
+    },
+    "/api/v1/me/orders/page" : {
+      "get" : {
+        "operationId" : "listMyOrdersPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyOrderPageResponse"
                 }
               }
             },
@@ -8414,6 +9746,43 @@
         "tags" : [ "me-pass-controller" ]
       }
     },
+    "/api/v1/me/passes/page" : {
+      "get" : {
+        "operationId" : "listMyPassesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyPassPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-pass-controller" ]
+      }
+    },
     "/api/v1/me/passes/{id}" : {
       "get" : {
         "operationId" : "getMyPass",
@@ -8582,6 +9951,51 @@
         "tags" : [ "me-product-qna-controller" ]
       }
     },
+    "/api/v1/me/products/{productId}/qna/page" : {
+      "get" : {
+        "operationId" : "listMyProductQnaPage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyProductQnaPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-product-qna-controller" ]
+      }
+    },
     "/api/v1/me/products/{productId}/qna/{id}" : {
       "get" : {
         "operationId" : "getMyProductQna",
@@ -8636,6 +10050,24 @@
           }
         },
         "tags" : [ "customer-credential-controller" ]
+      }
+    },
+    "/api/v1/me/rewards" : {
+      "get" : {
+        "operationId" : "getMyRewardWallet",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RewardWalletResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-reward-controller" ]
       }
     },
     "/api/v1/me/social-accounts" : {
@@ -9287,6 +10719,51 @@
                     "$ref" : "#/components/schemas/ProductQnaListItem"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-qna-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}/qna/page" : {
+      "get" : {
+        "operationId" : "listProductQnaPage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ProductQnaPageResponse"
                 }
               }
             },

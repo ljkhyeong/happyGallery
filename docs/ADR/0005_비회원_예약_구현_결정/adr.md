@@ -1,6 +1,7 @@
 # ADR-0005: §5.2 게스트 예약 구현 결정
 
 - **날짜**: 2026-02-22
+- **최종 갱신**: 2026-08-08
 - **상태**: 확정
 
 ---
@@ -43,12 +44,12 @@
 
 ## 결정 3 — 접근 토큰 해시를 bookings 컬럼으로 관리
 
-**선택**: 비회원 예약의 신규 접근 토큰은 HMAC-SHA256 서명과 만료 시각을 포함하고, `bookings.access_token_hash`에는 서명 토큰 전체의 SHA-256 해시만 저장한다. 결제 confirm 응답 유실 뒤 동일 요청을 재현하기 위해 원문 토큰은 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로 저장한다.
+**선택**: 비회원 예약의 신규 접근 토큰은 HMAC-SHA256 서명과 만료 시각을 포함하고, `bookings.access_token`에는 서명 토큰 전체의 SHA-256 해시만 저장한다. 결제 confirm 응답 유실 뒤 동일 요청을 재현하기 위해 원문 토큰은 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로 저장한다.
 
 **이유**:
-- 비회원 조회는 항상 booking과 1:1 관계 → 별도 테이블 불필요
-- 애플리케이션에서 요청 토큰을 해시한 뒤 `findDetailByIdAndAccessTokenHash` 단일 fetch join 쿼리로 bookingId + token 동시 검증과 상세 연관 조회를 수행한다.
-- UNIQUE 인덱스로 충돌 방지
+- 개별 예약 조회는 요청 토큰을 해시한 뒤 예약 ID와 토큰 해시를 함께 검증하므로 별도 토큰 테이블이 필요하지 않다.
+- 휴대폰 소유 확인으로 발급한 복구 토큰은 같은 비회원의 여러 예약에 공유될 수 있다. 따라서 토큰 자체를 UNIQUE로 제한하지 않고 예약 ID와 함께 소유권을 확인한다.
+- 전체 복구 이력은 `(access_token, created_at DESC, id DESC)` 비유일 인덱스로 커서 조회한다.
 
 **형식**: 토큰은 `base64url(nonce:expiry).base64url(signature)` 형식이다. 서명 없는 토큰은 허용하지 않는다. 현재 발급·검증 기준은 ADR-0024를 따른다.
 

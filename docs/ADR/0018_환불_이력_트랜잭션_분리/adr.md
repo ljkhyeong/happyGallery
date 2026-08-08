@@ -3,6 +3,8 @@
 **날짜**: 2026-03-06  
 **상태**: Accepted
 
+**갱신**: 2026-08-08
+
 ---
 
 ## 컨텍스트
@@ -54,6 +56,7 @@
   예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
 - 환불 생성 시 UUID 멱등키를 저장하고 최초 PG 호출과 모든 재시도에서 동일하게 사용한다.
 - 환불 거래 식별자 `refund_transaction_key`와 요청 식별자 `idempotency_key`는 각각 DB UNIQUE로 보장한다.
+- `PaymentPort` 성공 결과와 `Refund.markSucceeded`는 공백이 아닌 `refund_transaction_key`를 각각 입구와 최종 상태 전이에서 검증한다. 외부 구현이 잘못된 성공 결과를 반환하면 성공 저장 대신 `RECONCILIATION_REQUIRED`로 격리한다.
 - 예약·직접 주문·주문 클레임·8회권·결제 시도 보상 source는 각각 한 환불 요청만 가진다. 직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 보장한다. 재시도는 새 행이 아니라 기존 환불 행과 멱등키를 사용한다.
 - 부분·분할 환불을 도입할 때는 source UNIQUE와 환불 금액 모델을 함께 재설계한다.
 
