@@ -52,6 +52,9 @@ public enum ErrorCode {
     PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
     PAYMENT_RECONCILIATION_REQUIRED(409, "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요."),
     COUPON_TERMS_IMMUTABLE(409, "이미 발급된 쿠폰의 이름·할인 조건·유효기간은 변경할 수 없습니다."),
+    REVIEW_ALREADY_EXISTS(409, "해당 주문 품목 또는 예약에 이미 후기를 작성했습니다."),
+    REVIEW_RECREATION_BLOCKED(409, "운영 정책으로 숨김 처리된 이력이 있어 같은 거래에 후기를 다시 작성할 수 없습니다."),
+    REVIEW_REPORT_ALREADY_EXISTS(409, "이미 신고한 후기입니다."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
 
     // 410 Gone — 유효기간이 끝난 리소스
@@ -78,6 +81,12 @@ public enum ErrorCode {
                     + "적립금 예약·부채나 사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
     PASSWORD_UNCHANGED(422, "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다."),
+    REVIEW_NOT_ALLOWED(422, "완료된 주문 품목 또는 예약에만 후기를 작성할 수 있습니다."),
+    REVIEW_DELETED(422, "삭제된 후기는 변경할 수 없습니다."),
+    REVIEW_INTERACTION_NOT_ALLOWED(422, "공개 중인 후기에만 이 작업을 수행할 수 있습니다."),
+    REVIEW_SELF_INTERACTION_NOT_ALLOWED(422, "본인이 작성한 후기에는 이 작업을 수행할 수 없습니다."),
+    REVIEW_IMAGE_LIMIT_EXCEEDED(422, "후기 사진은 최대 5장까지 등록할 수 있습니다."),
+    REVIEW_REPORT_DECISION_NOT_ALLOWED(422, "처리 대기 중인 신고만 결정할 수 있습니다."),
 
     // 500 Internal Server Error — 서버 오류
     INTERNAL_ERROR(500, "서버 내부 오류가 발생했습니다."),

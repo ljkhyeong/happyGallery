@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
+import com.personal.happygallery.adapter.in.web.booking.ClassReviewController;
 import com.personal.happygallery.adapter.in.web.booking.SlotController;
 import com.personal.happygallery.adapter.in.web.customer.GuestRecordRecoveryController;
 import com.personal.happygallery.adapter.in.web.monitoring.ClientMonitoringController;
@@ -11,6 +12,7 @@ import com.personal.happygallery.adapter.in.web.payment.PaymentController;
 import com.personal.happygallery.adapter.in.web.payment.PaymentQueryController;
 import com.personal.happygallery.adapter.in.web.product.ProductController;
 import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
+import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.workshop.WorkshopProfileController;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
@@ -34,6 +36,7 @@ import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
@@ -44,6 +47,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.review.ReviewSort;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -78,6 +82,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
 
     private ProductQueryUseCase productQueryUseCase;
     private ProductQnaUseCase qnaUseCase;
+    private ReviewUseCase reviewUseCase;
     private ClassQueryUseCase classQueryUseCase;
     private SlotQueryUseCase slotQueryUseCase;
     private GuestBookingUseCase guestBookingUseCase;
@@ -100,6 +105,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void setUp(RestDocumentationContextProvider restDocumentation) {
         productQueryUseCase = mock(ProductQueryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
+        reviewUseCase = mock(ReviewUseCase.class);
         classQueryUseCase = mock(ClassQueryUseCase.class);
         slotQueryUseCase = mock(SlotQueryUseCase.class);
         guestBookingUseCase = mock(GuestBookingUseCase.class);
@@ -131,6 +137,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         Refund bookingRefund = RestDocsFixtures.bookingRefund();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         Notice notice = RestDocsFixtures.notice();
+        ReviewUseCase.ReviewItem productReview = RestDocsFixtures.productReviewItem();
+        ReviewUseCase.ReviewItem classReview = RestDocsFixtures.classReviewItem();
 
         when(productQueryUseCase.listActiveProducts(any(ProductFilter.class)))
                 .thenReturn(List.of(product));
@@ -140,7 +148,26 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.listByProduct(eq(1L), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(publicQna), "cursor-next", true));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
+        when(reviewUseCase.listProductReviews(
+                eq(1L), eq(5), eq(ReviewSort.RATING_HIGH), isNull(), eq(20)))
+                .thenReturn(new ReviewUseCase.PublicReviewPage(
+                        new ReviewUseCase.ReviewSummary(
+                                5L,
+                                4.2,
+                                new ReviewUseCase.RatingHistogram(0L, 0L, 1L, 2L, 2L)),
+                        2L,
+                        new CursorPage<>(List.of(productReview), "cursor-next", true)));
+        when(reviewUseCase.listClassReviews(
+                eq(1L), isNull(), eq(ReviewSort.LATEST), isNull(), eq(20)))
+                .thenReturn(new ReviewUseCase.PublicReviewPage(
+                        new ReviewUseCase.ReviewSummary(
+                                1L,
+                                4.0,
+                                new ReviewUseCase.RatingHistogram(0L, 0L, 0L, 1L, 0L)),
+                        1L,
+                        new CursorPage<>(List.of(classReview), null, false)));
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
+        when(classQueryUseCase.getActive(1L)).thenReturn(bookingClass);
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
         when(slotQueryUseCase.listUpcoming(any(), anyInt())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any(), any())).thenReturn(phoneVerification);
@@ -218,7 +245,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc = mockMvc(restDocumentation,
                 new ProductController(productQueryUseCase),
                 new ProductQnaController(qnaUseCase),
+                new ProductReviewController(reviewUseCase),
                 new ClassController(classQueryUseCase),
+                new ClassReviewController(reviewUseCase),
                 new SlotController(slotQueryUseCase),
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
@@ -284,10 +313,61 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("공개 상품 후기 목록과 요약 API를 문서화한다")
+    void list_product_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/products/{productId}/reviews", 1L)
+                        .param("rating", "5")
+                        .param("sort", "RATING_HIGH")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.reviewCount").value(5))
+                .andExpect(jsonPath("$.summary.averageRating").value(4.2))
+                .andExpect(jsonPath("$.summary.histogram.rating5").value(2))
+                .andExpect(jsonPath("$.filteredCount").value(2))
+                .andExpect(jsonPath("$.content[0].id").value(31))
+                .andExpect(jsonPath("$.content[0].authorName").value("홍**"))
+                .andExpect(jsonPath("$.content[0].sourceType").value("ORDER_ITEM"))
+                .andExpect(jsonPath("$.content[0].verifiedTransaction").value(true))
+                .andExpect(jsonPath("$.content[0].helpfulCount").value(3))
+                .andExpect(jsonPath("$.content[0].officialReply.content")
+                        .value("소중한 후기 감사합니다."))
+                .andExpect(jsonPath("$.content[0].images[0].id").value(51))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
     @DisplayName("공개 클래스 목록 API를 문서화한다")
     void list_classes() throws Exception {
         mockMvc.perform(get("/api/v1/classes"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("공개 클래스 상세 API를 문서화한다")
+    void get_public_class() throws Exception {
+        mockMvc.perform(get("/api/v1/classes/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("향수 원데이"));
+    }
+
+    @Test
+    @DisplayName("공개 클래스 후기 목록과 요약 API를 문서화한다")
+    void list_class_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/classes/{classId}/reviews", 1L)
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.reviewCount").value(1))
+                .andExpect(jsonPath("$.summary.averageRating").value(4.0))
+                .andExpect(jsonPath("$.summary.histogram.rating4").value(1))
+                .andExpect(jsonPath("$.filteredCount").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(32))
+                .andExpect(jsonPath("$.content[0].authorName").value("홍**"))
+                .andExpect(jsonPath("$.content[0].edited").value(true))
+                .andExpect(jsonPath("$.content[0].editedAt").exists())
+                .andExpect(jsonPath("$.nextCursor").doesNotExist())
+                .andExpect(jsonPath("$.hasMore").value(false));
     }
 
     @Test

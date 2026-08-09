@@ -141,4 +141,10 @@ export default defineConfig({
     "me-product-qna-controller",
     "admin-product-qna-controller",
   ]),
+  reviewApi: generatedApi("./src/generated/api/review.ts", [
+    "product-review-controller",
+    "class-review-controller",
+    "me-review-controller",
+    "admin-review-controller",
+  ]),
 });

@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -36,6 +37,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderNotificationSupport orderNotificationSupport;
+    private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final OrderRewardAccrualService rewardAccrualService;
     private final Clock clock;
 
@@ -44,6 +46,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
                                      FulfillmentPort fulfillmentPort,
                                      OrderHistoryPort orderHistoryPort,
                                      OrderNotificationSupport orderNotificationSupport,
+                                     ReviewNotificationPublisher reviewNotificationPublisher,
                                      OrderRewardAccrualService rewardAccrualService,
                                      Clock clock) {
         this.orderReader = orderReader;
@@ -51,6 +54,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderNotificationSupport = orderNotificationSupport;
+        this.reviewNotificationPublisher = reviewNotificationPublisher;
         this.rewardAccrualService = rewardAccrualService;
         this.clock = clock;
     }
@@ -102,6 +106,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PICKUP_COMPLETE, adminId, null));
         orderStore.save(order);
         rewardAccrualService.accrueForCompletion(order);
+        reviewNotificationPublisher.requestForOrder(order.getUserId(), order.getId());
 
         return PickupResult.of(order, fulfillment);
     }

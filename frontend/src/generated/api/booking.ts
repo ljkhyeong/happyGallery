@@ -378,6 +378,27 @@ export const listPublicClasses = async ( options?: RequestInit): Promise<ClassRe
 
 
 
+export const getGetPublicClassUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/classes/${id}`
+}
+
+export const getPublicClass = async (id: number, options?: RequestInit): Promise<ClassResponse> => {
+
+  return generatedApiClient<ClassResponse>(getGetPublicClassUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getListMyBookingsUrl = () => {
 
 

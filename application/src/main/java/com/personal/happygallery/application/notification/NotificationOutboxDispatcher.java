@@ -49,7 +49,7 @@ public class NotificationOutboxDispatcher {
                     case SENT -> successCount++;
                     case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
                     case OBSOLETE -> log.info(
-                            "[알림 outbox] 현재 상태와 맞지 않는 리마인드 종결 [outboxId={}]",
+                            "[알림 outbox] 현재 상태와 맞지 않는 알림 종결 [outboxId={}]",
                             claimed.outboxId());
                     case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
                             claimed.outboxId());

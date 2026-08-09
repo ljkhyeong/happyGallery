@@ -38,6 +38,14 @@ public final class SmsMessageCatalog {
             case PASS_REFUNDED -> PREFIX + recipientName + "님, 8회권 환불이 완료되었습니다.";
             case INQUIRY_ANSWERED -> PREFIX + recipientName + "님, 1:1 문의에 답변이 등록되었습니다.";
             case PRODUCT_QNA_ANSWERED -> PREFIX + recipientName + "님, 상품 Q&A에 답변이 등록되었습니다.";
+            case REVIEW_REQUEST -> PREFIX + recipientName
+                    + "님, 완료 거래 후기를 남겨 주세요.";
+            case REVIEW_HIDDEN -> PREFIX + recipientName
+                    + "님, 후기가 숨김 처리됐습니다.";
+            case REVIEW_REPUBLISHED -> PREFIX + recipientName
+                    + "님, 후기가 다시 공개됐습니다.";
+            case REVIEW_OWNER_REPLIED -> PREFIX + recipientName
+                    + "님, 후기에 공방 답글이 등록됐습니다.";
             case REMINDER_D1 -> PREFIX + recipientName + "님, 내일 체험이 예정되어 있습니다.";
             case REMINDER_SAME_DAY -> PREFIX + recipientName + "님, 오늘 체험이 예정되어 있습니다.";
             case PASS_EXPIRY_SOON -> PREFIX + recipientName + "님, 8회권 만료가 7일 남았습니다.";

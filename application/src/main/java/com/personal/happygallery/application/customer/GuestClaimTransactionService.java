@@ -8,6 +8,7 @@ import com.personal.happygallery.application.customer.port.out.GuestClaimTargetP
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
@@ -45,6 +46,7 @@ class GuestClaimTransactionService {
     private final GuestClaimTargetPort claimTargets;
     private final ClientMonitoringUseCase clientMonitoringService;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
+    private final ReviewNotificationPublisher reviewNotificationPublisher;
 
     GuestClaimTransactionService(
             UserReaderPort userReader,
@@ -52,7 +54,8 @@ class GuestClaimTransactionService {
             PhoneVerificationConsumptionService phoneVerification,
             GuestClaimTargetPort claimTargets,
             ClientMonitoringUseCase clientMonitoringService,
-            GuestPersonalDataProtector guestPersonalDataProtector
+            GuestPersonalDataProtector guestPersonalDataProtector,
+            ReviewNotificationPublisher reviewNotificationPublisher
     ) {
         this.userReader = userReader;
         this.guestReader = guestReader;
@@ -60,6 +63,7 @@ class GuestClaimTransactionService {
         this.claimTargets = claimTargets;
         this.clientMonitoringService = clientMonitoringService;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
+        this.reviewNotificationPublisher = reviewNotificationPublisher;
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +129,9 @@ class GuestClaimTransactionService {
                 throw new NotFoundException("claim 주문");
             }
             order.claimToUser(userId);
+            if (order.getStatus().isReviewable()) {
+                reviewNotificationPublisher.requestForOrder(userId, order.getId());
+            }
         }
     }
 
@@ -152,7 +159,11 @@ class GuestClaimTransactionService {
         }
 
         for (Long bookingId : bookingIds) {
-            bookingMap.get(bookingId).claimToUser(userId);
+            Booking booking = bookingMap.get(bookingId);
+            booking.claimToUser(userId);
+            if (booking.getStatus().isReviewable()) {
+                reviewNotificationPublisher.requestForBooking(userId, booking.getId());
+            }
         }
     }
 

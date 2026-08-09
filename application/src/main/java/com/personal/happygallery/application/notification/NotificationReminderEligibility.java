@@ -44,7 +44,11 @@ class NotificationReminderEligibility {
                     PASS_PURCHASED,
                     PASS_REFUNDED,
                     INQUIRY_ANSWERED,
-                    PRODUCT_QNA_ANSWERED -> throw new IllegalArgumentException(
+                    PRODUCT_QNA_ANSWERED,
+                    REVIEW_REQUEST,
+                    REVIEW_HIDDEN,
+                    REVIEW_REPUBLISHED,
+                    REVIEW_OWNER_REPLIED -> throw new IllegalArgumentException(
                             "시간 의존 리마인드만 현재 적격성을 조회할 수 있습니다.");
         };
     }

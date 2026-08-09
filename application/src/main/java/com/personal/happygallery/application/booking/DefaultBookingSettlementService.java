@@ -3,6 +3,7 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
@@ -19,15 +20,18 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
     private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
     private final BookingSupport bookingSupport;
+    private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final Clock clock;
 
     DefaultBookingSettlementService(BookingReaderPort bookingReaderPort,
                                     BookingStorePort bookingStorePort,
                                     BookingSupport bookingSupport,
+                                    ReviewNotificationPublisher reviewNotificationPublisher,
                                     Clock clock) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
         this.bookingSupport = bookingSupport;
+        this.reviewNotificationPublisher = reviewNotificationPublisher;
         this.clock = clock;
     }
 
@@ -68,7 +72,9 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
         booking.complete(LocalDateTime.now(clock));
         bookingSupport.recordHistory(
                 booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null, "ADMIN", adminId, null);
-        return bookingStorePort.save(booking);
+        Booking completed = bookingStorePort.save(booking);
+        reviewNotificationPublisher.requestForBooking(completed.getUserId(), completed.getId());
+        return completed;
     }
 
     private Booking findBooking(Long bookingId) {

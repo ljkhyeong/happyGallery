@@ -266,6 +266,8 @@ app:
       guest-claim-verify: { capacity: 10, window: 1m }
       guest-record-recovery: { capacity: 10, window: 1m }
       client-monitoring: { capacity: 60, window: 1m }
+      review-report: { capacity: 10, window: 10m }
+      review-image-upload: { capacity: 20, window: 10m }
       order-customer-action: { capacity: 30, window: 1m }
     subject:
       customer-login: { capacity: 10, window: 10m }
@@ -277,6 +279,8 @@ app:
       guest-claim-verify: { capacity: 5, window: 1m }
       guest-record-recovery: { capacity: 5, window: 10m }
       pass-refund: { capacity: 3, window: 10m }
+      review-report: { capacity: 10, window: 10m }
+      review-image-upload: { capacity: 20, window: 10m }
       admin-mfa-recovery: { capacity: 5, window: 10m }
 
 management:

@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.in.web.customer.MeOrderController;
 import com.personal.happygallery.adapter.in.web.customer.MePassController;
 import com.personal.happygallery.adapter.in.web.customer.MePhoneController;
 import com.personal.happygallery.adapter.in.web.customer.MeProductQnaController;
+import com.personal.happygallery.adapter.in.web.customer.MeReviewController;
 import com.personal.happygallery.adapter.in.web.customer.MeSocialAccountController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
@@ -38,6 +39,7 @@ import com.personal.happygallery.application.pass.port.in.MemberPassRefundUseCas
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase.PassRefundResult;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
@@ -48,6 +50,11 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
+import com.personal.happygallery.domain.review.ReviewCreationStatus;
+import com.personal.happygallery.domain.review.ReviewReportReason;
+import com.personal.happygallery.domain.review.ReviewReportStatus;
+import com.personal.happygallery.domain.review.ReviewStatus;
+import com.personal.happygallery.domain.review.ReviewTargetType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.domain.user.SocialProvider;
 import java.time.LocalDateTime;
@@ -61,6 +68,7 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -73,6 +81,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -100,6 +109,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
+    private ReviewUseCase reviewUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
     private CustomerStepUpAuthenticationStore stepUpStore;
 
@@ -122,6 +132,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         accountLifecycleUseCase = mock(CustomerAccountLifecycleUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
+        reviewUseCase = mock(ReviewUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
 
         User user = RestDocsFixtures.user();
@@ -136,6 +147,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new ProductQnaUseCase.OwnedQnaListView(
                         qna.getId(), qna.getTitle(), qna.isSecret(),
                         qna.hasReply(), qna.getCreatedAt());
+        ReviewUseCase.ReviewItem productReview = RestDocsFixtures.productReviewItem();
+        ReviewUseCase.ReviewItem classReview = RestDocsFixtures.classReviewItem();
 
         when(customerAuthUseCase.signup(any())).thenReturn(user);
         when(customerAuthUseCase.login(any())).thenReturn(user);
@@ -197,6 +210,70 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(ownedQna), "cursor-next", true));
         when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
                 .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
+        when(reviewUseCase.createProductReview(
+                eq(CUSTOMER_USER_ID), eq(201L), eq(5), any()))
+                .thenReturn(productReview);
+        when(reviewUseCase.createClassReview(
+                eq(CUSTOMER_USER_ID), eq(100L), eq(4), any()))
+                .thenReturn(classReview);
+        when(reviewUseCase.getProductReviewCreationState(CUSTOMER_USER_ID, 202L))
+                .thenReturn(new ReviewUseCase.ReviewCreationState(
+                        ReviewTargetType.PRODUCT, 202L, ReviewCreationStatus.AVAILABLE));
+        when(reviewUseCase.getClassReviewCreationState(CUSTOMER_USER_ID, 100L))
+                .thenReturn(new ReviewUseCase.ReviewCreationState(
+                        ReviewTargetType.CLASS, 100L, ReviewCreationStatus.RECREATION_BLOCKED));
+        when(reviewUseCase.listMyReviews(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(
+                        List.of(productReview, classReview), "cursor-next", true));
+        when(reviewUseCase.listMyOrderReviews(CUSTOMER_USER_ID, 200L))
+                .thenReturn(List.of(productReview));
+        when(reviewUseCase.listMyBookingReviews(CUSTOMER_USER_ID, 100L))
+                .thenReturn(List.of(classReview));
+        when(reviewUseCase.updateReview(
+                eq(CUSTOMER_USER_ID), eq(31L), eq(4), any()))
+                .thenReturn(productReview);
+        when(reviewUseCase.listMyReviewOpportunities(CUSTOMER_USER_ID))
+                .thenReturn(List.of(new ReviewUseCase.ReviewOpportunity(
+                        ReviewTargetType.PRODUCT,
+                        202L,
+                        1L,
+                        "시그니처 캔들",
+                        200L,
+                        null,
+                        LocalDateTime.of(2026, 4, 30, 18, 0))));
+        when(reviewUseCase.markHelpful(CUSTOMER_USER_ID, 32L))
+                .thenReturn(new ReviewUseCase.HelpfulResult(32L, 2L, true));
+        when(reviewUseCase.unmarkHelpful(CUSTOMER_USER_ID, 32L))
+                .thenReturn(new ReviewUseCase.HelpfulResult(32L, 1L, false));
+        when(reviewUseCase.listMyReviewReactions(
+                CUSTOMER_USER_ID, List.of(31L, 32L)))
+                .thenReturn(List.of(
+                        new ReviewUseCase.ReviewReaction(31L, false, false),
+                        new ReviewUseCase.ReviewReaction(32L, true, false)));
+        when(reviewUseCase.createReport(
+                eq(CUSTOMER_USER_ID), eq(32L), eq(ReviewReportReason.SPAM), any()))
+                .thenReturn(new ReviewUseCase.ReviewReportItem(
+                        71L,
+                        32L,
+                        CUSTOMER_USER_ID,
+                        ReviewReportReason.SPAM,
+                        "홍보성 링크가 포함되어 있습니다.",
+                        4,
+                        "설명이 친절해서 즐겁게 참여했습니다.",
+                        ReviewStatus.PUBLISHED,
+                        LocalDateTime.of(2026, 5, 1, 11, 0),
+                        ReviewReportStatus.PENDING,
+                        null,
+                        null,
+                        null,
+                        LocalDateTime.of(2026, 5, 1, 21, 0)));
+        when(reviewUseCase.addReviewImage(
+                eq(CUSTOMER_USER_ID), eq(31L), any(byte[].class), eq("image/png")))
+                .thenReturn(new ReviewUseCase.ReviewImageItem(
+                        52L,
+                        "/api/v1/media/images/review-added.png",
+                        1,
+                        LocalDateTime.of(2026, 5, 1, 21, 0)));
 
         SessionStateCodec sessionStateCodec =
                 new SessionStateCodec(JsonMapper.builder().build());
@@ -236,7 +313,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         customerSessionBinder,
                         stepUpStore),
                 new MeInquiryController(inquiryUseCase),
-                new MeProductQnaController(qnaUseCase));
+                new MeProductQnaController(qnaUseCase),
+                new MeReviewController(reviewUseCase, rateLimitGuard));
     }
 
     @Test
@@ -762,6 +840,225 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/me/products/{productId}/qna/{id}", 1L, 5L)
                         .with(customerUser()))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("완료 주문 품목으로 상품 후기를 작성하는 API를 문서화한다")
+    void create_product_review() throws Exception {
+        mockMvc.perform(post("/api/v1/me/reviews/products")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "orderItemId": 201,
+                                  "rating": 5,
+                                  "content": "마감이 깔끔하고 선물하기 좋았습니다."
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(31))
+                .andExpect(jsonPath("$.targetType").value("PRODUCT"))
+                .andExpect(jsonPath("$.sourceType").value("ORDER_ITEM"))
+                .andExpect(jsonPath("$.verifiedTransaction").value(true))
+                .andExpect(jsonPath("$.officialReply.content").value("소중한 후기 감사합니다."))
+                .andExpect(jsonPath("$.helpfulCount").value(3))
+                .andExpect(jsonPath("$.images[0].id").value(51));
+    }
+
+    @Test
+    @DisplayName("완료 예약으로 클래스 후기를 작성하는 API를 문서화한다")
+    void create_class_review() throws Exception {
+        mockMvc.perform(post("/api/v1/me/reviews/classes")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "bookingId": 100,
+                                  "rating": 4,
+                                  "content": "설명이 친절해서 즐겁게 참여했습니다."
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(32))
+                .andExpect(jsonPath("$.targetType").value("CLASS"))
+                .andExpect(jsonPath("$.sourceType").value("BOOKING"))
+                .andExpect(jsonPath("$.edited").value(true))
+                .andExpect(jsonPath("$.editedAt").exists());
+    }
+
+    @Test
+    @DisplayName("주문 품목의 후기 작성 가능 상태 API를 문서화한다")
+    void get_product_review_creation_state() throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/me/reviews/products/{orderItemId}/creation-state", 202L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetType").value("PRODUCT"))
+                .andExpect(jsonPath("$.sourceType").value("ORDER_ITEM"))
+                .andExpect(jsonPath("$.sourceId").value(202))
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("숨김 이력 후기 삭제 뒤에도 클래스 후기 재작성 차단 상태를 반환한다")
+    void get_class_review_creation_state() throws Exception {
+        mockMvc.perform(get(
+                        "/api/v1/me/reviews/classes/{bookingId}/creation-state", 100L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.targetType").value("CLASS"))
+                .andExpect(jsonPath("$.sourceType").value("BOOKING"))
+                .andExpect(jsonPath("$.sourceId").value(100))
+                .andExpect(jsonPath("$.status").value("RECREATION_BLOCKED"));
+    }
+
+    @Test
+    @DisplayName("내 후기 커서 페이지 API를 문서화한다")
+    void list_my_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews")
+                        .with(customerUser())
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(31))
+                .andExpect(jsonPath("$.content[1].id").value(32))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("작성 가능한 후기 목록 API를 문서화한다")
+    void list_my_review_opportunities() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews/opportunities")
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].targetType").value("PRODUCT"))
+                .andExpect(jsonPath("$[0].sourceType").value("ORDER_ITEM"))
+                .andExpect(jsonPath("$[0].sourceId").value(202))
+                .andExpect(jsonPath("$[0].orderId").value(200))
+                .andExpect(jsonPath("$[0].bookingId").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("후기별 내 반응을 한 번에 조회하는 API를 문서화한다")
+    void list_my_review_reactions() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews/reactions")
+                        .with(customerUser())
+                        .param("reviewIds", "31", "32"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].reviewId").value(31))
+                .andExpect(jsonPath("$[0].helpfulByMe").value(false))
+                .andExpect(jsonPath("$[1].reviewId").value(32))
+                .andExpect(jsonPath("$[1].helpfulByMe").value(true));
+    }
+
+    @Test
+    @DisplayName("주문 품목별 내 후기 배열 API를 문서화한다")
+    void list_my_order_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews/orders/{orderId}", 200L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(31))
+                .andExpect(jsonPath("$[0].sourceType").value("ORDER_ITEM"));
+    }
+
+    @Test
+    @DisplayName("예약의 내 후기 배열 API를 문서화한다")
+    void list_my_booking_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/me/reviews/bookings/{bookingId}", 100L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(32))
+                .andExpect(jsonPath("$[0].sourceType").value("BOOKING"));
+    }
+
+    @Test
+    @DisplayName("내 후기 수정 API를 문서화한다")
+    void update_my_review() throws Exception {
+        mockMvc.perform(patch("/api/v1/me/reviews/{reviewId}", 31L)
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "rating": 4,
+                                  "content": "사용 후기를 수정했습니다."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(31));
+    }
+
+    @Test
+    @DisplayName("공개 후기에 도움돼요를 표시하는 API를 문서화한다")
+    void mark_review_helpful() throws Exception {
+        mockMvc.perform(put("/api/v1/me/reviews/{reviewId}/helpful", 32L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewId").value(32))
+                .andExpect(jsonPath("$.helpfulCount").value(2))
+                .andExpect(jsonPath("$.helpfulByMe").value(true));
+    }
+
+    @Test
+    @DisplayName("후기 도움돼요 표시를 취소하는 API를 문서화한다")
+    void unmark_review_helpful() throws Exception {
+        mockMvc.perform(delete("/api/v1/me/reviews/{reviewId}/helpful", 32L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reviewId").value(32))
+                .andExpect(jsonPath("$.helpfulCount").value(1))
+                .andExpect(jsonPath("$.helpfulByMe").value(false));
+    }
+
+    @Test
+    @DisplayName("공개 후기를 신고하는 API를 문서화한다")
+    void report_review() throws Exception {
+        mockMvc.perform(post("/api/v1/me/reviews/{reviewId}/reports", 32L)
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "reason": "SPAM",
+                                  "detail": "홍보성 링크가 포함되어 있습니다."
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(71))
+                .andExpect(jsonPath("$.reviewId").value(32))
+                .andExpect(jsonPath("$.reason").value("SPAM"))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("내 후기에 이미지를 추가하는 multipart API를 문서화한다")
+    void add_my_review_image() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "review.png", "image/png", new byte[]{1, 2, 3});
+
+        mockMvc.perform(multipart("/api/v1/me/reviews/{reviewId}/images", 31L)
+                        .file(file)
+                        .with(customerUser()))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(52))
+                .andExpect(jsonPath("$.imageUrl")
+                        .value("/api/v1/media/images/review-added.png"))
+                .andExpect(jsonPath("$.sortOrder").value(1));
+    }
+
+    @Test
+    @DisplayName("내 후기 이미지를 삭제하는 API를 문서화한다")
+    void delete_my_review_image() throws Exception {
+        mockMvc.perform(delete(
+                        "/api/v1/me/reviews/{reviewId}/images/{imageId}", 31L, 52L)
+                        .with(customerUser()))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("내 후기 삭제 API를 문서화한다")
+    void delete_my_review() throws Exception {
+        mockMvc.perform(delete("/api/v1/me/reviews/{reviewId}", 31L)
+                        .with(customerUser()))
+                .andExpect(status().isNoContent());
     }
 
     private MockHttpSession recentlyAuthenticatedSession() {

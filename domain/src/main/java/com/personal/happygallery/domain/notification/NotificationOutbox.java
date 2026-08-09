@@ -225,7 +225,7 @@ public class NotificationOutbox {
         return true;
     }
 
-    /** 발송 직전 현재 도메인 상태를 다시 확인해 의미가 사라진 리마인드를 종결한다. */
+    /** 발송 직전 현재 도메인 상태를 다시 확인해 의미가 사라진 알림을 종결한다. */
     public boolean markObsolete(String token, LocalDateTime now, String reason) {
         if (!isProcessingOwnedBy(token)) {
             return false;

@@ -573,6 +573,9 @@ GET /api/v1/classes
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
+공개 클래스 상세는 `GET /api/v1/classes/{id}`로 같은 `ClassResponse` 한 건을 반환한다.
+없는 클래스는 `404 NOT_FOUND`, 비활성 클래스는 `422 CLASS_INACTIVE`로 거절한다.
+
 #### 2.2.4 공개 예약 가능 슬롯 조회
 
 ```http
@@ -2909,6 +2912,124 @@ GET /api/v1/products/{productId}/qna/{id}
 - 이미 답변이 있는 문의에 재답변을 시도하면 `409 CONFLICT`로 거절하고 기존 답변과 알림 outbox를 변경하지 않는다.
 - 답변 저장과 `INQUIRY_ANSWERED` 회원 알림 outbox insert를 같은 트랜잭션으로 처리한다. 외부 Alimtalk/SMS 발송은 커밋 뒤 실행하며 같은 문의의 중복 발송 요청은 멱등키로 합친다.
 
+#### 2.14.3 상품·클래스 후기 API
+
+공개 조회:
+
+- `GET /api/v1/products/{productId}/reviews?rating={1..5}&sort={LATEST|RATING_HIGH|RATING_LOW}&cursor={cursor}&size=20`
+- `GET /api/v1/classes/{classId}/reviews?rating={1..5}&sort={LATEST|RATING_HIGH|RATING_LOW}&cursor={cursor}&size=20`
+
+응답:
+
+```json
+{
+  "summary": {
+    "reviewCount": 2,
+    "averageRating": 4.5,
+    "histogram": {
+      "rating1": 0,
+      "rating2": 0,
+      "rating3": 0,
+      "rating4": 1,
+      "rating5": 1
+    }
+  },
+  "filteredCount": 2,
+  "content": [
+    {
+      "id": 31,
+      "rating": 5,
+      "content": "마감이 깔끔하고 선물하기 좋았습니다.",
+      "authorName": "홍**",
+      "sourceType": "ORDER_ITEM",
+      "verifiedTransaction": true,
+      "createdAt": "2026-08-08T15:30:00",
+      "updatedAt": "2026-08-08T15:30:00",
+      "edited": false,
+      "editedAt": null,
+      "officialReply": {
+        "content": "정성스러운 후기 고맙습니다.",
+        "createdAt": "2026-08-08T16:00:00",
+        "edited": false,
+        "editedAt": null
+      },
+      "helpfulCount": 3,
+      "images": [
+        {
+          "id": 11,
+          "imageUrl": "/api/v1/media/images/00000000-0000-0000-0000-000000000011.jpg",
+          "sortOrder": 0,
+          "createdAt": "2026-08-08T15:31:00"
+        }
+      ]
+    }
+  ],
+  "nextCursor": null,
+  "hasMore": false
+}
+```
+
+- 공개 목록과 요약은 삭제되지 않은 `PUBLISHED`만 포함한다. 작성자 이름은 마스킹한다.
+- `summary`의 수·평균·별점 분포는 현재 `rating` 필터와 무관한 전체 공개 후기 기준이고, `filteredCount`는 현재 필터 결과 수다.
+- 최신순은 `(createdAt,id)`, 별점순은 `(rating,createdAt,id)`를 사용한다. `cursor`는 정렬 종류를 포함하는 opaque 값이며 다른 정렬에 재사용하면 `400 INVALID_INPUT`이다.
+- 공개 응답은 검증된 거래·수정 표식, 공방 답글, 도움돼요 수와 사진만 포함한다. 현재 회원의 반응 여부는 포함하지 않는다.
+- 공개 후기가 없으면 `reviewCount=0`, `averageRating=0.0`, 모든 분포 `0`, `filteredCount=0`, `content=[]`를 반환한다.
+- 상품이나 클래스가 없으면 `404 NOT_FOUND`다. 비활성 클래스는 공개 클래스 상세와 같이 `422 CLASS_INACTIVE`로 거절한다.
+
+회원 작성·조회·수정·삭제:
+
+- `POST /api/v1/me/reviews/products` — `{orderItemId,rating,content}`로 상품 후기 작성
+- `POST /api/v1/me/reviews/classes` — `{bookingId,rating,content}`로 클래스 후기 작성
+- `GET /api/v1/me/reviews/products/{orderItemId}/creation-state` — 주문 품목의 현재 작성 상태
+- `GET /api/v1/me/reviews/classes/{bookingId}/creation-state` — 예약의 현재 작성 상태
+- `GET /api/v1/me/reviews?cursor={cursor}&size=20` — 내 후기 커서 페이지
+- `GET /api/v1/me/reviews/opportunities` — 작성 가능한 완료 주문 품목·예약
+- `GET /api/v1/me/reviews/reactions?reviewIds=31,32` — 공개 후기 최대 100건의 도움돼요·신고 여부
+- `GET /api/v1/me/reviews/orders/{orderId}` — 주문 품목별 내 후기 배열
+- `GET /api/v1/me/reviews/bookings/{bookingId}` — 예약의 내 후기 배열(0~1건)
+- `PATCH /api/v1/me/reviews/{reviewId}` — `{rating,content}` 수정
+- `DELETE /api/v1/me/reviews/{reviewId}` — `204 No Content` 삭제
+- `PUT /api/v1/me/reviews/{reviewId}/helpful` — 도움돼요 멱등 등록
+- `DELETE /api/v1/me/reviews/{reviewId}/helpful` — 도움돼요 멱등 해제
+- `POST /api/v1/me/reviews/{reviewId}/reports` — `{reason,detail}` 신고
+- `POST /api/v1/me/reviews/{reviewId}/images` — multipart `file` 사진 첨부
+- `DELETE /api/v1/me/reviews/{reviewId}/images/{imageId}` — 사진 삭제
+
+회원 후기 응답은 `id`, `targetType(PRODUCT|CLASS)`, `targetId`, `targetName`,
+`sourceType(ORDER_ITEM|BOOKING)`, `sourceId`, `rating`, `content`,
+`status(PUBLISHED|HIDDEN)`, nullable 숨김 사유, 작성·수정 시각, `edited`,
+`verifiedTransaction`, nullable `officialReply`, `helpfulCount`, 최대 5건의 `images`를 포함한다.
+
+- 상품 후기는 현재 회원 소유 주문 품목의 주문이 `DELIVERED`, `PICKED_UP`, `COMPLETED`일 때만 `201 Created`다.
+- 클래스 후기는 현재 회원 소유 예약이 `COMPLETED`일 때만 `201 Created`다.
+- 다른 회원의 작성 근거나 후기는 `404 NOT_FOUND`, 미완료 근거는 `422 REVIEW_NOT_ALLOWED`다.
+- 주문·예약별 내 후기 조회도 먼저 현재 회원 소유를 확인한다. 본인 원천에 후기가 없을 때만 빈 배열을 반환하고, 타인·미존재 원천은 `404 NOT_FOUND`다.
+- 작성 상태는 `AVAILABLE`, `REVIEW_EXISTS`, `RECREATION_BLOCKED`, `NOT_REVIEWABLE`이다. 화면은 이 서버 값으로 작성 폼 노출을 결정한다.
+- 같은 주문 품목·예약에 활성 후기가 있으면 `409 REVIEW_ALREADY_EXISTS`다. 한 번이라도 숨겨졌던 후기를 삭제한 원천은 `409 REVIEW_RECREATION_BLOCKED`다.
+- `rating`은 1~5 정수, `content`는 공백이 아닌 16,000자 이하다.
+- 삭제는 사용자 내용과 사진 참조를 지우는 soft-delete다. 숨김 이력이 없을 때만 원천을 해제해 재작성을 허용한다.
+- 후기 사진은 JPEG·PNG, 원본 5MB 이하와 가로·세로 4,096px·총 1,600만 픽셀 이하만 허용한다. 표준 디코더로 실제 형식을 검증한 뒤 메타데이터 없는 새 파일로 재인코딩하며 후기당 5장까지다. 검증 가능한 서버 디코더가 없는 WebP는 관리자 자산 업로드와 달리 회원 후기에서는 받지 않는다. 업로드는 IP와 회원별 10분에 20회로 제한한다.
+- 회원은 자기 후기이나 숨김·삭제 후기에 도움돼요·신고를 할 수 없다. 신고 사유는 `SPAM|ABUSIVE|PRIVACY|FALSE_INFORMATION|OTHER`이며 후기·회원당 한 번, IP와 회원별 10분에 10회다.
+- 작성자는 숨김 후기도 수정·삭제할 수 있지만 수정만으로 공개 상태가 바뀌지 않는다.
+
+관리자 운영:
+
+- `GET /api/v1/admin/reviews?targetType={PRODUCT|CLASS}&status={PUBLISHED|HIDDEN}&cursor={cursor}&size=20`
+- `PATCH /api/v1/admin/reviews/{reviewId}/status` — `{status,reason}`
+- `GET /api/v1/admin/reviews/{reviewId}/moderation-actions` — 숨김·재공개 감사 이력
+- `PUT /api/v1/admin/reviews/{reviewId}/reply` — `{content}` 공방 공식 답글 작성·수정
+- `DELETE /api/v1/admin/reviews/{reviewId}/reply` — 공방 공식 답글 삭제
+- `GET /api/v1/admin/review-reports?status={PENDING|ACCEPTED|REJECTED}&cursor={cursor}&size=20`
+- `PATCH /api/v1/admin/review-reports/{reportId}` — `{decision: ACCEPTED|REJECTED,note}`
+
+- 관리자 목록은 작성자 회원 ID·이름, 대상·원천, 상태와 숨김 메타데이터를 포함한다.
+- 상태 변경은 계정 기반 `Authorization: Bearer` 관리자 세션만 허용한다. local API key는 `403 FORBIDDEN`이다.
+- `HIDDEN` 전환에는 공백이 아닌 사유가 필요하고 관리자 ID·시각을 기록한다. `PUBLISHED` 재전환은 숨김 메타데이터를 제거한다.
+- 상태가 실제로 바뀐 때만 append-only moderation action과 회원 알림 outbox를 같은 트랜잭션으로 저장한다. 중간 전환이 더 최신 전환으로 대체되면 발송 직전 재검증에서 `OBSOLETE`로 종료한다.
+- 공식 답글은 후기당 하나를 작성·수정·삭제하며 첫 작성에만 회원 알림을 요청한다. 본문은 공백이 아닌 16,000자 이하다.
+- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각을 불변 snapshot으로 포함한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다.
+- 상태·답글·신고 변경 후 관리자, 같은 공개 대상과 회원 후기 cache를 함께 무효화한다.
+
 ### 2.15 결제 API (`/api/v1/payments`)
 
 주문/예약/8회권의 표준 결제 생성 경로는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`이다.
@@ -3516,6 +3637,9 @@ file={JPEG|PNG|WebP binary}
 | 409 | `PAYMENT_CONFIRM_IN_PROGRESS` | 동일 결제의 confirm 요청이 이미 처리 중 |
 | 409 | `PAYMENT_RECONCILIATION_REQUIRED` | PG 승인 여부가 불명확해 운영자 확인이 필요하며 새 결제를 시작하면 안 됨 |
 | 409 | `COUPON_TERMS_IMMUTABLE` | 한 장 이상 발급된 쿠폰의 이름·할인 조건·유효기간 변경 시도 |
+| 409 | `REVIEW_ALREADY_EXISTS` | 같은 주문 품목 또는 예약에 활성 후기 중복 작성 |
+| 409 | `REVIEW_RECREATION_BLOCKED` | 숨김 이력이 있는 삭제 후기의 원천으로 재작성 시도 |
+| 409 | `REVIEW_REPORT_ALREADY_EXISTS` | 같은 회원이 같은 후기를 다시 신고 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
@@ -3537,6 +3661,12 @@ file={JPEG|PNG|WebP binary}
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
 | 422 | `POLICY_CONSENT_REQUIRED` | 현재 이용약관·개인정보처리방침 버전 동의가 없거나 일치하지 않음 |
 | 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불, 사용 가능한 8회권, 예약 적립금 또는 적립금 부채가 있어 탈퇴할 수 없음 |
+| 422 | `REVIEW_NOT_ALLOWED` | 배송·픽업 또는 수강이 완료되지 않은 거래로 후기 작성 시도 |
+| 422 | `REVIEW_DELETED` | 삭제된 후기 변경 시도 |
+| 422 | `REVIEW_INTERACTION_NOT_ALLOWED` | 숨김·삭제 후기에 도움돼요 또는 신고 시도 |
+| 422 | `REVIEW_SELF_INTERACTION_NOT_ALLOWED` | 작성자가 자기 후기에 도움돼요 또는 신고 시도 |
+| 422 | `REVIEW_IMAGE_LIMIT_EXCEEDED` | 후기에 5장을 넘는 사진 첨부 시도 |
+| 422 | `REVIEW_REPORT_DECISION_NOT_ALLOWED` | 대기 상태가 아닌 신고를 재판단하거나 대기 값으로 전환 시도 |
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |

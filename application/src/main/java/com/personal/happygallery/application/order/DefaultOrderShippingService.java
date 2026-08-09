@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -31,6 +32,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderNotificationSupport orderNotificationSupport;
+    private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final OrderRewardAccrualService rewardAccrualService;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
@@ -38,12 +40,14 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
                                        FulfillmentPort fulfillmentPort,
                                        OrderHistoryPort orderHistoryPort,
                                        OrderNotificationSupport orderNotificationSupport,
+                                       ReviewNotificationPublisher reviewNotificationPublisher,
                                        OrderRewardAccrualService rewardAccrualService) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderNotificationSupport = orderNotificationSupport;
+        this.reviewNotificationPublisher = reviewNotificationPublisher;
         this.rewardAccrualService = rewardAccrualService;
     }
 
@@ -103,6 +107,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
         orderStore.save(order);
         rewardAccrualService.accrueForCompletion(order);
+        reviewNotificationPublisher.requestForOrder(order.getUserId(), order.getId());
 
         return ShippingResult.of(order, fulfillment);
     }

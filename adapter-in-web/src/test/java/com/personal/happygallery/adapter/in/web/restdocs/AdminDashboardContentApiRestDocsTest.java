@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminDashboardController;
 import com.personal.happygallery.adapter.in.web.admin.AdminInquiryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminNoticeController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
+import com.personal.happygallery.adapter.in.web.admin.AdminReviewController;
 import com.personal.happygallery.application.dashboard.dto.DailyRevenue;
 import com.personal.happygallery.application.dashboard.dto.DashboardOverview;
 import com.personal.happygallery.application.dashboard.dto.Granularity;
@@ -18,9 +19,16 @@ import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeAdminUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.notice.Notice;
+import com.personal.happygallery.domain.review.ReviewStatus;
+import com.personal.happygallery.domain.review.ReviewTargetType;
+import com.personal.happygallery.domain.review.ReviewModerationActionType;
+import com.personal.happygallery.domain.review.ReviewReportReason;
+import com.personal.happygallery.domain.review.ReviewReportStatus;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +47,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +63,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     private NoticeQueryUseCase noticeQueryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private InquiryUseCase inquiryUseCase;
+    private ReviewUseCase reviewUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -62,12 +72,67 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
+        reviewUseCase = mock(ReviewUseCase.class);
 
         Notice notice = RestDocsFixtures.notice();
         ProductQnaUseCase.QnaWithAuthor qna =
                 new ProductQnaUseCase.QnaWithAuthor(RestDocsFixtures.productQna(), "홍길동");
         InquiryUseCase.InquiryWithUser inquiry =
                 new InquiryUseCase.InquiryWithUser(RestDocsFixtures.inquiry(), "홍길동");
+        ReviewUseCase.ReviewItem productReview = RestDocsFixtures.productReviewItem();
+        ReviewUseCase.ReviewItem hiddenProductReview = RestDocsFixtures.hiddenProductReviewItem();
+        ReviewUseCase.ReviewItem productReviewWithoutReply = new ReviewUseCase.ReviewItem(
+                productReview.id(),
+                productReview.userId(),
+                productReview.authorName(),
+                productReview.targetType(),
+                productReview.sourceId(),
+                productReview.targetId(),
+                productReview.targetName(),
+                productReview.rating(),
+                productReview.content(),
+                productReview.status(),
+                productReview.hiddenReason(),
+                productReview.hiddenAt(),
+                productReview.hiddenByAdminId(),
+                productReview.createdAt(),
+                productReview.updatedAt(),
+                productReview.editedAt(),
+                productReview.edited(),
+                productReview.verifiedTransaction(),
+                null,
+                productReview.helpfulCount(),
+                productReview.images());
+        ReviewUseCase.ReviewReportItem pendingReport = new ReviewUseCase.ReviewReportItem(
+                71L,
+                31L,
+                CUSTOMER_USER_ID,
+                ReviewReportReason.PRIVACY,
+                "개인 연락처가 노출되어 있습니다.",
+                5,
+                "마감이 깔끔하고 선물하기 좋았습니다.",
+                ReviewStatus.PUBLISHED,
+                null,
+                ReviewReportStatus.PENDING,
+                null,
+                null,
+                null,
+                LocalDateTime.of(2026, 5, 1, 20, 0));
+        ReviewUseCase.ReviewReportItem acceptedReport = new ReviewUseCase.ReviewReportItem(
+                pendingReport.id(),
+                pendingReport.reviewId(),
+                pendingReport.reporterUserId(),
+                pendingReport.reason(),
+                pendingReport.detail(),
+                pendingReport.snapshotRating(),
+                pendingReport.snapshotContent(),
+                pendingReport.snapshotStatus(),
+                pendingReport.snapshotEditedAt(),
+                ReviewReportStatus.ACCEPTED,
+                "개인정보 노출을 확인하여 숨김 처리했습니다.",
+                ADMIN_USER_ID,
+                LocalDateTime.of(2026, 5, 1, 21, 0),
+                pendingReport.createdAt());
 
         stubDashboard();
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
@@ -85,12 +150,42 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(inquiry), null, false));
         when(inquiryUseCase.findByIdForAdmin(9L)).thenReturn(inquiry);
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
+        when(reviewUseCase.listAdminReviews(
+                eq(ReviewTargetType.PRODUCT),
+                eq(ReviewStatus.PUBLISHED),
+                isNull(),
+                eq(20)))
+                .thenReturn(new CursorPage<>(List.of(productReview), "cursor-next", true));
+        when(reviewUseCase.updateStatus(
+                eq(31L), eq(ReviewStatus.HIDDEN), any(), eq(ADMIN_USER_ID)))
+                .thenReturn(hiddenProductReview);
+        when(reviewUseCase.listModerationActions(31L))
+                .thenReturn(List.of(new ReviewUseCase.ModerationActionItem(
+                        61L,
+                        31L,
+                        ReviewModerationActionType.HIDE,
+                        ReviewStatus.PUBLISHED,
+                        ReviewStatus.HIDDEN,
+                        "운영 정책 위반 내용",
+                        ADMIN_USER_ID,
+                        LocalDateTime.of(2026, 5, 1, 21, 0))));
+        when(reviewUseCase.upsertOfficialReply(eq(31L), any(), eq(ADMIN_USER_ID)))
+                .thenReturn(productReview);
+        when(reviewUseCase.deleteOfficialReply(31L, ADMIN_USER_ID))
+                .thenReturn(productReviewWithoutReply);
+        when(reviewUseCase.listAdminReports(
+                eq(ReviewReportStatus.PENDING), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(pendingReport), "report-cursor-next", true));
+        when(reviewUseCase.decideReport(
+                eq(71L), eq(ReviewReportStatus.ACCEPTED), any(), eq(ADMIN_USER_ID)))
+                .thenReturn(acceptedReport);
 
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
                 new AdminProductQnaController(qnaUseCase),
-                new AdminInquiryController(inquiryUseCase));
+                new AdminInquiryController(inquiryUseCase),
+                new AdminReviewController(reviewUseCase));
     }
 
     @Test
@@ -298,6 +393,119 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("{\"replyContent\":\"마이페이지에서 변경할 수 있습니다.\"}"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 후기 필터 커서 페이지 API를 문서화한다")
+    void admin_list_reviews() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/reviews")
+                        .with(adminUser())
+                        .param("targetType", "PRODUCT")
+                        .param("status", "PUBLISHED")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(31))
+                .andExpect(jsonPath("$.content[0].userId").value(CUSTOMER_USER_ID))
+                .andExpect(jsonPath("$.content[0].authorName").value("홍길동"))
+                .andExpect(jsonPath("$.content[0].verifiedTransaction").value(true))
+                .andExpect(jsonPath("$.content[0].officialReply.adminUserId")
+                        .value(ADMIN_USER_ID))
+                .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("관리자 후기 숨김 상태 변경 API를 문서화한다")
+    void admin_update_review_status() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/reviews/{reviewId}/status", 31L)
+                        .with(adminUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "HIDDEN",
+                                  "reason": "운영 정책 위반 내용"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("HIDDEN"))
+                .andExpect(jsonPath("$.hiddenReason").value("운영 정책 위반 내용"))
+                .andExpect(jsonPath("$.hiddenByAdminId").value(ADMIN_USER_ID));
+    }
+
+    @Test
+    @DisplayName("관리자 후기 공개 상태 감사 이력 API를 문서화한다")
+    void admin_list_review_moderation_actions() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/reviews/{reviewId}/moderation-actions", 31L)
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(61))
+                .andExpect(jsonPath("$[0].action").value("HIDE"))
+                .andExpect(jsonPath("$[0].previousStatus").value("PUBLISHED"))
+                .andExpect(jsonPath("$[0].newStatus").value("HIDDEN"))
+                .andExpect(jsonPath("$[0].adminUserId").value(ADMIN_USER_ID));
+    }
+
+    @Test
+    @DisplayName("관리자가 후기 공식 답글을 작성하거나 수정하는 API를 문서화한다")
+    void admin_upsert_review_reply() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/reviews/{reviewId}/reply", 31L)
+                        .with(adminUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "content": "소중한 후기 감사합니다."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.officialReply.content")
+                        .value("소중한 후기 감사합니다."))
+                .andExpect(jsonPath("$.officialReply.adminUserId").value(ADMIN_USER_ID));
+    }
+
+    @Test
+    @DisplayName("관리자가 후기 공식 답글을 삭제하는 API를 문서화한다")
+    void admin_delete_review_reply() throws Exception {
+        mockMvc.perform(delete("/api/v1/admin/reviews/{reviewId}/reply", 31L)
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(31))
+                .andExpect(jsonPath("$.officialReply").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("관리자 후기 신고 커서 페이지 API를 문서화한다")
+    void admin_list_review_reports() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/review-reports")
+                        .with(adminUser())
+                        .param("status", "PENDING")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(71))
+                .andExpect(jsonPath("$.content[0].reason").value("PRIVACY"))
+                .andExpect(jsonPath("$.content[0].snapshotRating").value(5))
+                .andExpect(jsonPath("$.content[0].snapshotStatus").value("PUBLISHED"))
+                .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.nextCursor").value("report-cursor-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("관리자가 후기 신고를 승인하거나 기각하는 API를 문서화한다")
+    void admin_decide_review_report() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/review-reports/{reportId}", 71L)
+                        .with(adminUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "decision": "ACCEPTED",
+                                  "note": "개인정보 노출을 확인하여 숨김 처리했습니다."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(71))
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.decidedByAdminId").value(ADMIN_USER_ID))
+                .andExpect(jsonPath("$.decidedAt").exists());
     }
 
     private void stubDashboard() {

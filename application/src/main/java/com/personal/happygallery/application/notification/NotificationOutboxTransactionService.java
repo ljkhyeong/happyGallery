@@ -19,18 +19,22 @@ class NotificationOutboxTransactionService {
 
     private static final int MAX_BACKOFF_EXPONENT = 5;
     private static final String REMINDER_NO_LONGER_ELIGIBLE = "REMINDER_NO_LONGER_ELIGIBLE";
+    private static final String REVIEW_NO_LONGER_RELEVANT = "REVIEW_NO_LONGER_RELEVANT";
 
     private final NotificationOutboxPort outboxPort;
     private final NotificationReminderEligibility reminderEligibility;
+    private final ReviewNotificationEligibility reviewEligibility;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     NotificationOutboxTransactionService(NotificationOutboxPort outboxPort,
                                          NotificationReminderEligibility reminderEligibility,
+                                         ReviewNotificationEligibility reviewEligibility,
                                          ApplicationEventPublisher eventPublisher,
                                          Clock clock) {
         this.outboxPort = outboxPort;
         this.reminderEligibility = reminderEligibility;
+        this.reviewEligibility = reviewEligibility;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -59,6 +63,14 @@ class NotificationOutboxTransactionService {
             var eligibleRecipient = reminderEligibility.findEligibleRecipient(outbox, now);
             if (eligibleRecipient.isEmpty()) {
                 return outbox.markObsolete(processingToken, now, REMINDER_NO_LONGER_ELIGIBLE)
+                        ? NotificationOutboxDeliveryPreparation.obsolete()
+                        : NotificationOutboxDeliveryPreparation.stale();
+            }
+            recipient = eligibleRecipient.get();
+        } else if (outbox.getEventType().requiresReviewRelevanceCheck()) {
+            var eligibleRecipient = reviewEligibility.findEligibleRecipient(outbox);
+            if (eligibleRecipient.isEmpty()) {
+                return outbox.markObsolete(processingToken, now, REVIEW_NO_LONGER_RELEVANT)
                         ? NotificationOutboxDeliveryPreparation.obsolete()
                         : NotificationOutboxDeliveryPreparation.stale();
             }

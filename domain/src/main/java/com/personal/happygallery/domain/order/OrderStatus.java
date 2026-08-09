@@ -53,6 +53,20 @@ public enum OrderStatus {
 		}
 	}
 
+	/** 배송 또는 픽업이 완료되어 상품 후기를 작성할 수 있는지 확인한다. */
+	public void requireReviewable() {
+		if (!isReviewable()) {
+			throw new HappyGalleryException(
+					ErrorCode.REVIEW_NOT_ALLOWED,
+					"배송 또는 픽업이 완료된 주문 품목에만 후기를 작성할 수 있습니다.");
+		}
+	}
+
+	/** 배송 또는 픽업이 완료되어 상품 후기 작성 기회가 생긴 상태인지 반환한다. */
+	public boolean isReviewable() {
+		return this == DELIVERED || this == PICKED_UP || this == COMPLETED;
+	}
+
 	/**
 	 * 환불/취소 가능한 상태인지 확인한다.
 	 * 제작 중({@link #IN_PRODUCTION}) 또는 지연 수락({@link #DELAY_ACCEPTED}) 상태는

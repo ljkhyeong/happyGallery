@@ -31,6 +31,10 @@ public final class KakaoTemplateCatalog {
             case PASS_REFUNDED -> "HG_PASS_REFUNDED";
             case INQUIRY_ANSWERED -> "HG_INQUIRY_ANSWERED";
             case PRODUCT_QNA_ANSWERED -> "HG_QNA_ANSWERED";
+            case REVIEW_REQUEST -> "HG_REVIEW_REQUEST";
+            case REVIEW_HIDDEN -> "HG_REVIEW_HIDDEN";
+            case REVIEW_REPUBLISHED -> "HG_REVIEW_REOPENED";
+            case REVIEW_OWNER_REPLIED -> "HG_REVIEW_REPLY";
             case REMINDER_D1 -> "HG_REMINDER_D1";
             case REMINDER_SAME_DAY -> "HG_REMINDER_SAME_DAY";
             case PASS_EXPIRY_SOON -> "HG_PASS_EXPIRY_SOON";

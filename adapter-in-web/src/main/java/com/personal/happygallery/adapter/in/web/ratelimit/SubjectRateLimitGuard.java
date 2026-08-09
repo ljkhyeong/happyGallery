@@ -76,6 +76,16 @@ public class SubjectRateLimitGuard {
                 properties.subject().passRefund(), FAIL_CLOSED);
     }
 
+    public void checkReviewReport(long userId) {
+        check("REVIEW_REPORT_USER", String.valueOf(userId),
+                properties.subject().reviewReport(), FAIL_CLOSED);
+    }
+
+    public void checkReviewImageUpload(long userId) {
+        check("REVIEW_IMAGE_UPLOAD_USER", String.valueOf(userId),
+                properties.subject().reviewImageUpload(), FAIL_CLOSED);
+    }
+
     public void checkAdminMfaRecovery(long adminUserId) {
         check("ADMIN_MFA_RECOVERY_USER", String.valueOf(adminUserId),
                 properties.subject().adminMfaRecovery(), FAIL_CLOSED);

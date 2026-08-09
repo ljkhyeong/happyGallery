@@ -500,6 +500,30 @@
         "required" : [ "challengeToken", "code" ],
         "type" : "object"
       },
+      "AdminOfficialReviewReplyResponse" : {
+        "properties" : {
+          "adminUserId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "editedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "adminUserId", "content", "createdAt", "edited", "editedAt" ],
+        "type" : "object"
+      },
       "AdminOrderClaimPageResponse" : {
         "properties" : {
           "content" : {
@@ -914,6 +938,200 @@
           }
         },
         "required" : [ "authorName", "content", "createdAt", "id", "productId", "repliedAt", "replyContent", "secret", "title", "userId" ],
+        "type" : "object"
+      },
+      "AdminReviewPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AdminReviewResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "AdminReviewReportPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AdminReviewReportResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "AdminReviewReportResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "decidedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "decidedByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "decisionNote" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "SPAM", "ABUSIVE", "PRIVACY", "FALSE_INFORMATION", "OTHER" ],
+            "type" : "string"
+          },
+          "reporterUserId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "snapshotContent" : {
+            "type" : "string"
+          },
+          "snapshotEditedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "snapshotRating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "snapshotStatus" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "decidedAt", "decidedByAdminId", "decisionNote", "detail", "id", "reason", "reporterUserId", "reviewId", "snapshotContent", "snapshotEditedAt", "snapshotRating", "snapshotStatus", "status" ],
+        "type" : "object"
+      },
+      "AdminReviewResponse" : {
+        "properties" : {
+          "authorName" : {
+            "type" : "string"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "editedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "helpfulCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "hiddenAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "hiddenByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "hiddenReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "images" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewImageResponse"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "officialReply" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/AdminOfficialReviewReplyResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceType" : {
+            "enum" : [ "ORDER_ITEM", "BOOKING" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetName" : {
+            "type" : "string"
+          },
+          "targetType" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "userId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "verifiedTransaction" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "authorName", "content", "createdAt", "edited", "editedAt", "helpfulCount", "hiddenAt", "hiddenByAdminId", "hiddenReason", "id", "images", "officialReply", "rating", "sourceId", "sourceType", "status", "targetId", "targetName", "targetType", "updatedAt", "userId", "verifiedTransaction" ],
         "type" : "object"
       },
       "AdminSetupRequest" : {
@@ -1820,6 +2038,27 @@
         "required" : [ "bufferMin", "category", "durationMin", "name", "passEligible", "price" ],
         "type" : "object"
       },
+      "CreateClassReviewRequest" : {
+        "properties" : {
+          "bookingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "bookingId", "content", "rating" ],
+        "type" : "object"
+      },
       "CreateCouponRequest" : {
         "properties" : {
           "active" : {
@@ -2003,6 +2242,27 @@
         "required" : [ "name", "price", "quantity", "type" ],
         "type" : "object"
       },
+      "CreateProductReviewRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "orderItemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "orderItemId", "rating" ],
+        "type" : "object"
+      },
       "CreateQnaRequest" : {
         "properties" : {
           "content" : {
@@ -2020,6 +2280,21 @@
           }
         },
         "required" : [ "content", "secret", "title" ],
+        "type" : "object"
+      },
+      "CreateReviewReportRequest" : {
+        "properties" : {
+          "detail" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "reason" : {
+            "enum" : [ "SPAM", "ABUSIVE", "PRIVACY", "FALSE_INFORMATION", "OTHER" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ],
         "type" : "object"
       },
       "CreateSlotRequest" : {
@@ -2173,6 +2448,21 @@
         "required" : [ "monthOrderCount", "monthRevenue", "pendingApprovalCount", "todayBookingCount", "todayOrderCount", "todayRevenue" ],
         "type" : "object"
       },
+      "DecideReviewReportRequest" : {
+        "properties" : {
+          "decision" : {
+            "enum" : [ "ACCEPTED", "REJECTED" ],
+            "type" : "string"
+          },
+          "note" : {
+            "maxLength" : 1000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "decision" ],
+        "type" : "object"
+      },
       "EventResponse" : {
         "properties" : {
           "content" : {
@@ -2238,7 +2528,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "lastError" : {
@@ -2759,6 +3049,135 @@
         "required" : [ "newSlotId" ],
         "type" : "object"
       },
+      "MemberReviewPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MemberReviewResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "MemberReviewReportResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "SPAM", "ABUSIVE", "PRIVACY", "FALSE_INFORMATION", "OTHER" ],
+            "type" : "string"
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "detail", "id", "reason", "reviewId", "status" ],
+        "type" : "object"
+      },
+      "MemberReviewResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "editedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "helpfulCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "hiddenReason" : {
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "images" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewImageResponse"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "officialReply" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/OfficialReviewReplyResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceType" : {
+            "enum" : [ "ORDER_ITEM", "BOOKING" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetName" : {
+            "type" : "string"
+          },
+          "targetType" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "verifiedTransaction" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "content", "createdAt", "edited", "editedAt", "helpfulCount", "hiddenReason", "id", "images", "officialReply", "rating", "sourceId", "sourceType", "status", "targetId", "targetName", "targetType", "updatedAt", "verifiedTransaction" ],
+        "type" : "object"
+      },
       "MergeCartItemRequest" : {
         "properties" : {
           "productId" : {
@@ -3205,7 +3624,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "id" : {
@@ -3221,6 +3640,26 @@
           }
         },
         "required" : [ "aggregateId", "aggregateType", "deliveredAt", "eventType", "id", "read", "readAt" ],
+        "type" : "object"
+      },
+      "OfficialReviewReplyResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "editedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "createdAt", "edited", "editedAt" ],
         "type" : "object"
       },
       "OrderClaimRequest" : {
@@ -4118,6 +4557,95 @@
         "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "price", "productionLeadDays", "quantity", "specification", "status", "type" ],
         "type" : "object"
       },
+      "PublicReviewPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PublicReviewResponse"
+            },
+            "type" : "array"
+          },
+          "filteredCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/ReviewSummaryResponse"
+          }
+        },
+        "required" : [ "content", "filteredCount", "hasMore", "nextCursor", "summary" ],
+        "type" : "object"
+      },
+      "PublicReviewResponse" : {
+        "properties" : {
+          "authorName" : {
+            "type" : "string"
+          },
+          "content" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "edited" : {
+            "type" : "boolean"
+          },
+          "editedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "helpfulCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "images" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReviewImageResponse"
+            },
+            "maxItems" : 5,
+            "type" : "array"
+          },
+          "officialReply" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/OfficialReviewReplyResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "sourceType" : {
+            "enum" : [ "ORDER_ITEM", "BOOKING" ],
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "verifiedTransaction" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "authorName", "content", "createdAt", "edited", "editedAt", "helpfulCount", "id", "images", "officialReply", "rating", "sourceType", "updatedAt", "verifiedTransaction" ],
+        "type" : "object"
+      },
       "PublicSlotResponse" : {
         "properties" : {
           "bookedCount" : {
@@ -4441,6 +4969,210 @@
           }
         },
         "required" : [ "bookingBalanceRevenue", "bookingDepositRevenue", "orderRevenue", "passPurchaseRevenue", "totalRevenue" ],
+        "type" : "object"
+      },
+      "ReviewCreationStateResponse" : {
+        "properties" : {
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceType" : {
+            "enum" : [ "ORDER_ITEM", "BOOKING" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "AVAILABLE", "REVIEW_EXISTS", "RECREATION_BLOCKED", "NOT_REVIEWABLE" ],
+            "type" : "string"
+          },
+          "targetType" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "sourceId", "sourceType", "status", "targetType" ],
+        "type" : "object"
+      },
+      "ReviewHelpfulResponse" : {
+        "properties" : {
+          "helpfulByMe" : {
+            "type" : "boolean"
+          },
+          "helpfulCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "helpfulByMe", "helpfulCount", "reviewId" ],
+        "type" : "object"
+      },
+      "ReviewImageResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "imageUrl" : {
+            "type" : "string"
+          },
+          "sortOrder" : {
+            "format" : "int32",
+            "maximum" : 4,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "createdAt", "id", "imageUrl", "sortOrder" ],
+        "type" : "object"
+      },
+      "ReviewModerationActionResponse" : {
+        "properties" : {
+          "action" : {
+            "enum" : [ "HIDE", "REPUBLISH" ],
+            "type" : "string"
+          },
+          "adminUserId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "newStatus" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "previousStatus" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "action", "adminUserId", "createdAt", "id", "newStatus", "previousStatus", "reason", "reviewId" ],
+        "type" : "object"
+      },
+      "ReviewOpportunityResponse" : {
+        "properties" : {
+          "bookingId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "completedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "orderId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "sourceId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "sourceType" : {
+            "enum" : [ "ORDER_ITEM", "BOOKING" ],
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetName" : {
+            "type" : "string"
+          },
+          "targetType" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "bookingId", "completedAt", "orderId", "sourceId", "sourceType", "targetId", "targetName", "targetType" ],
+        "type" : "object"
+      },
+      "ReviewRatingHistogramResponse" : {
+        "properties" : {
+          "rating1" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "rating2" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "rating3" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "rating4" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "rating5" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "rating1", "rating2", "rating3", "rating4", "rating5" ],
+        "type" : "object"
+      },
+      "ReviewReactionResponse" : {
+        "properties" : {
+          "helpfulByMe" : {
+            "type" : "boolean"
+          },
+          "reportedByMe" : {
+            "type" : "boolean"
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "helpfulByMe", "reportedByMe", "reviewId" ],
+        "type" : "object"
+      },
+      "ReviewSummaryResponse" : {
+        "properties" : {
+          "averageRating" : {
+            "format" : "double",
+            "maximum" : 5,
+            "minimum" : 0,
+            "type" : "number"
+          },
+          "histogram" : {
+            "$ref" : "#/components/schemas/ReviewRatingHistogramResponse"
+          },
+          "reviewCount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "averageRating", "histogram", "reviewCount" ],
         "type" : "object"
       },
       "RewardHistoryResponse" : {
@@ -5072,6 +5804,39 @@
         "required" : [ "status" ],
         "type" : "object"
       },
+      "UpdateReviewRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "rating" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "rating" ],
+        "type" : "object"
+      },
+      "UpdateReviewStatusRequest" : {
+        "properties" : {
+          "reason" : {
+            "description" : "HIDDEN 전환 시 필수이며 PUBLISHED 전환 시 무시됩니다.",
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "status" ],
+        "type" : "object"
+      },
       "UpdateWorkshopProfileRequest" : {
         "properties" : {
           "addressLine1" : {
@@ -5180,6 +5945,17 @@
           }
         },
         "required" : [ "expectedVersion", "name" ],
+        "type" : "object"
+      },
+      "UpsertReviewReplyRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "content" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {
@@ -8059,6 +8835,270 @@
         "tags" : [ "admin-refund-controller" ]
       }
     },
+    "/api/v1/admin/review-reports" : {
+      "get" : {
+        "operationId" : "listAdminReviewReports",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewReportPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
+    "/api/v1/admin/review-reports/{reportId}" : {
+      "patch" : {
+        "operationId" : "decideAdminReviewReport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DecideReviewReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewReportResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
+    "/api/v1/admin/reviews" : {
+      "get" : {
+        "operationId" : "listAdminReviews",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "targetType",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
+    "/api/v1/admin/reviews/{reviewId}/moderation-actions" : {
+      "get" : {
+        "operationId" : "listReviewModerationActions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReviewModerationActionResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
+    "/api/v1/admin/reviews/{reviewId}/reply" : {
+      "delete" : {
+        "operationId" : "deleteOfficialReviewReply",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      },
+      "put" : {
+        "operationId" : "upsertOfficialReviewReply",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpsertReviewReplyRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
+    "/api/v1/admin/reviews/{reviewId}/status" : {
+      "patch" : {
+        "operationId" : "updateAdminReviewStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateReviewStatusRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-review-controller" ]
+      }
+    },
     "/api/v1/admin/setup" : {
       "post" : {
         "operationId" : "setup",
@@ -8646,6 +9686,97 @@
                     "$ref" : "#/components/schemas/ClassResponse"
                   },
                   "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "class-controller" ]
+      }
+    },
+    "/api/v1/classes/{classId}/reviews" : {
+      "get" : {
+        "operationId" : "listClassReviews",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "classId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "rating",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "LATEST",
+            "enum" : [ "LATEST", "RATING_HIGH", "RATING_LOW" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicReviewPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "class-review-controller" ]
+      }
+    },
+    "/api/v1/classes/{id}" : {
+      "get" : {
+        "operationId" : "getPublicClass",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ClassResponse"
                 }
               }
             },
@@ -10052,6 +11183,487 @@
         "tags" : [ "customer-credential-controller" ]
       }
     },
+    "/api/v1/me/reviews" : {
+      "get" : {
+        "operationId" : "listMyReviews",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberReviewPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/bookings/{bookingId}" : {
+      "get" : {
+        "operationId" : "listMyBookingReviews",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "bookingId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MemberReviewResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/classes" : {
+      "post" : {
+        "operationId" : "createClassReview",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateClassReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberReviewResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/classes/{bookingId}/creation-state" : {
+      "get" : {
+        "operationId" : "getClassReviewCreationState",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "bookingId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewCreationStateResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/opportunities" : {
+      "get" : {
+        "operationId" : "listMyReviewOpportunities",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReviewOpportunityResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/orders/{orderId}" : {
+      "get" : {
+        "operationId" : "listMyOrderReviews",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/MemberReviewResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/products" : {
+      "post" : {
+        "operationId" : "createProductReview",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateProductReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberReviewResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/products/{orderItemId}/creation-state" : {
+      "get" : {
+        "operationId" : "getProductReviewCreationState",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderItemId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewCreationStateResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/reactions" : {
+      "get" : {
+        "operationId" : "listMyReviewReactions",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "reviewIds",
+          "required" : true,
+          "schema" : {
+            "items" : {
+              "format" : "int64",
+              "minimum" : 1,
+              "type" : "integer"
+            },
+            "maxItems" : 100,
+            "minItems" : 1,
+            "type" : "array"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/ReviewReactionResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/{reviewId}" : {
+      "delete" : {
+        "operationId" : "deleteMyReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      },
+      "patch" : {
+        "operationId" : "updateMyReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateReviewRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberReviewResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/{reviewId}/helpful" : {
+      "delete" : {
+        "operationId" : "unmarkReviewHelpful",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewHelpfulResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      },
+      "put" : {
+        "operationId" : "markReviewHelpful",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewHelpfulResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/{reviewId}/images" : {
+      "post" : {
+        "operationId" : "addMyReviewImage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "multipart/form-data" : {
+              "schema" : {
+                "properties" : {
+                  "file" : {
+                    "description" : "JPEG 또는 PNG 후기 이미지",
+                    "format" : "binary",
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "file" ],
+                "type" : "object"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReviewImageResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/{reviewId}/images/{imageId}" : {
+      "delete" : {
+        "operationId" : "deleteMyReviewImage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "imageId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
+    "/api/v1/me/reviews/{reviewId}/reports" : {
+      "post" : {
+        "operationId" : "reportReview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reviewId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateReviewReportRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberReviewReportResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-review-controller" ]
+      }
+    },
     "/api/v1/me/rewards" : {
       "get" : {
         "operationId" : "getMyRewardWallet",
@@ -10806,6 +12418,70 @@
           }
         },
         "tags" : [ "product-qna-controller" ]
+      }
+    },
+    "/api/v1/products/{productId}/reviews" : {
+      "get" : {
+        "operationId" : "listProductReviews",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "rating",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "maximum" : 5,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "LATEST",
+            "enum" : [ "LATEST", "RATING_HIGH", "RATING_LOW" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PublicReviewPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "product-review-controller" ]
       }
     },
     "/api/v1/slots" : {

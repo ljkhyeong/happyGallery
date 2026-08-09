@@ -122,6 +122,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     FAIL_CLOSED,
                     IpRules::clientMonitoring),
             new RouteRule(
+                    "REVIEW_REPORT_IP",
+                    pathPattern(POST, "/api/v1/me/reviews/{reviewId}/reports"),
+                    FAIL_CLOSED,
+                    IpRules::reviewReport),
+            new RouteRule(
+                    "REVIEW_IMAGE_UPLOAD_IP",
+                    pathPattern(POST, "/api/v1/me/reviews/{reviewId}/images"),
+                    FAIL_CLOSED,
+                    IpRules::reviewImageUpload),
+            new RouteRule(
                     "ORDER_CUSTOMER_ACTION_IP",
                     new OrRequestMatcher(
                             pathPattern(DELETE, "/api/v1/orders/{id}"),

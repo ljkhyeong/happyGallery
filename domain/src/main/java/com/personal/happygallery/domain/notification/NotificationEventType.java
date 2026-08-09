@@ -34,6 +34,14 @@ public enum NotificationEventType {
     INQUIRY_ANSWERED,
     /** 상품 Q&A 답변 등록 */
     PRODUCT_QNA_ANSWERED,
+    /** 완료 거래 후기 작성 요청 */
+    REVIEW_REQUEST,
+    /** 작성한 후기 숨김 안내 */
+    REVIEW_HIDDEN,
+    /** 작성한 후기 재공개 안내 */
+    REVIEW_REPUBLISHED,
+    /** 작성한 후기에 공방 공식 답글 등록 */
+    REVIEW_OWNER_REPLIED,
     /** D-1 리마인드 (배치) */
     REMINDER_D1,
     /** 당일 아침 리마인드 (배치) */
@@ -61,7 +69,38 @@ public enum NotificationEventType {
                     PASS_PURCHASED,
                     PASS_REFUNDED,
                     INQUIRY_ANSWERED,
-                    PRODUCT_QNA_ANSWERED -> false;
+                    PRODUCT_QNA_ANSWERED,
+                    REVIEW_REQUEST,
+                    REVIEW_HIDDEN,
+                    REVIEW_REPUBLISHED,
+                    REVIEW_OWNER_REPLIED -> false;
+        };
+    }
+
+    /** 발송 직전 후기·원천의 현재 상태를 다시 확인해야 하는 이벤트인지 반환한다. */
+    public boolean requiresReviewRelevanceCheck() {
+        return switch (this) {
+            case REVIEW_REQUEST, REVIEW_HIDDEN, REVIEW_REPUBLISHED, REVIEW_OWNER_REPLIED -> true;
+            case BOOKING_CONFIRMED,
+                    BOOKING_RESCHEDULED,
+                    BOOKING_CANCELED,
+                    DEPOSIT_REFUNDED,
+                    ORDER_PAID,
+                    ORDER_APPROVED,
+                    ORDER_PICKUP_READY,
+                    ORDER_SHIPPED,
+                    ORDER_DELAY_REQUESTED,
+                    ORDER_REFUNDED,
+                    ORDER_CLAIM_RESOLVED,
+                    ORDER_EXCHANGE_COMPLETED,
+                    PASS_PURCHASED,
+                    PASS_REFUNDED,
+                    INQUIRY_ANSWERED,
+                    PRODUCT_QNA_ANSWERED,
+                    REMINDER_D1,
+                    REMINDER_SAME_DAY,
+                    PASS_EXPIRY_SOON,
+                    PICKUP_DEADLINE_REMINDER -> false;
         };
     }
 }

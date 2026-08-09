@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -26,6 +27,8 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.qna.ProductQna;
+import com.personal.happygallery.domain.review.ReviewStatus;
+import com.personal.happygallery.domain.review.ReviewTargetType;
 import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
@@ -255,5 +258,90 @@ final class RestDocsFixtures {
         when(inquiry.getRepliedAt()).thenReturn(NOW.plusHours(2));
         when(inquiry.getCreatedAt()).thenReturn(NOW);
         return inquiry;
+    }
+
+    static ReviewUseCase.ReviewItem productReviewItem() {
+        LocalDateTime createdAt = NOW.minusDays(1);
+        return new ReviewUseCase.ReviewItem(
+                31L,
+                RestDocsTestSupport.CUSTOMER_USER_ID,
+                "홍길동",
+                ReviewTargetType.PRODUCT,
+                201L,
+                1L,
+                "시그니처 캔들",
+                5,
+                "마감이 깔끔하고 선물하기 좋았습니다.",
+                ReviewStatus.PUBLISHED,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt,
+                null,
+                false,
+                true,
+                new ReviewUseCase.OfficialReplyItem(
+                        "소중한 후기 감사합니다.",
+                        RestDocsTestSupport.ADMIN_USER_ID,
+                        NOW.minusHours(12),
+                        null),
+                3L,
+                List.of(new ReviewUseCase.ReviewImageItem(
+                        51L,
+                        "/api/v1/media/images/review-candle.webp",
+                        0,
+                        NOW.minusHours(20))));
+    }
+
+    static ReviewUseCase.ReviewItem classReviewItem() {
+        return new ReviewUseCase.ReviewItem(
+                32L,
+                RestDocsTestSupport.CUSTOMER_USER_ID,
+                "홍길동",
+                ReviewTargetType.CLASS,
+                100L,
+                1L,
+                "향수 원데이",
+                4,
+                "설명이 친절해서 즐겁게 참여했습니다.",
+                ReviewStatus.PUBLISHED,
+                null,
+                null,
+                null,
+                NOW.minusHours(12),
+                NOW.minusHours(10),
+                NOW.minusHours(10),
+                true,
+                true,
+                null,
+                1L,
+                List.of());
+    }
+
+    static ReviewUseCase.ReviewItem hiddenProductReviewItem() {
+        ReviewUseCase.ReviewItem published = productReviewItem();
+        return new ReviewUseCase.ReviewItem(
+                published.id(),
+                published.userId(),
+                published.authorName(),
+                published.targetType(),
+                published.sourceId(),
+                published.targetId(),
+                published.targetName(),
+                published.rating(),
+                published.content(),
+                ReviewStatus.HIDDEN,
+                "운영 정책 위반 내용",
+                NOW,
+                RestDocsTestSupport.ADMIN_USER_ID,
+                published.createdAt(),
+                NOW,
+                published.editedAt(),
+                published.edited(),
+                published.verifiedTransaction(),
+                published.officialReply(),
+                published.helpfulCount(),
+                published.images());
     }
 }
