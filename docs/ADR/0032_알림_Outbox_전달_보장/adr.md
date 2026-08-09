@@ -81,6 +81,11 @@
 - 문의·Q&A 답변 상태 저장과 이벤트 발행은 각 `replyAndGet`의 트랜잭션 안에서 일어난다. 동기 `NotificationEventListener#handle`과 기본 전파의 `NotificationOutboxService#enqueue`가 같은 트랜잭션에 참여하므로 outbox insert 실패 시 답변도 함께 롤백된다.
 - 실제 외부 발송은 `NotificationOutboxEnqueuedEvent`의 `AFTER_COMMIT` 리스너가 요청한다. 답변 트랜잭션이 롤백되면 after-commit dispatch는 실행되지 않으며, 커밋 성공 뒤에는 즉시 dispatch와 scheduler 복구 경로를 함께 사용한다.
 - 문의와 Q&A는 도메인에서 답변을 한 번만 등록할 수 있고, outbox UNIQUE 멱등키도 같은 게시글의 중복 알림 생성을 한 번 더 차단한다. 각 이벤트는 Alimtalk 템플릿과 SMS 문구에 모두 매핑한다.
+- 후기 요청은 배송·픽업 완료 주문에 작성 가능한 품목이 하나 이상 있거나 완료 예약에 후기가 없을 때 `REVIEW_REQUEST`를 주문·예약 aggregate당 한 번 저장한다. 완료된 비회원 이력이 회원에게 귀속될 때도 같은 멱등키를 사용한다.
+- 숨김·재공개는 `REVIEW_HIDDEN`, `REVIEW_REPUBLISHED`를 `REVIEW_MODERATION_ACTION + actionId`로 저장한다. 발송 직전에 해당 action이 후기의 최신 action이고 현재 상태와 일치하는지 확인해 빠르게 반복된 중간 전환을 `OBSOLETE`로 종료한다.
+- 공방이 후기에 처음 공식 답글을 저장하면 `REVIEW_OWNER_REPLIED`를 `REVIEW + reviewId`로 한 번 저장한다. 답글 수정·삭제·재작성은 새 알림을 만들지 않는다.
+- 후기 알림도 발송 직전에 현재 회원 소유권·후기 작성 가능성·상태·답글 존재를 한 DB snapshot에서 재검증하고, 정상 삭제 후 재작성된 활성 후기가 있는 원천도 후기 요청을 보내지 않는다.
+- 외부 Alimtalk 운영 전 `HG_REVIEW_REQUEST`, `HG_REVIEW_HIDDEN`, `HG_REVIEW_REOPENED`, `HG_REVIEW_REPLY` 템플릿을 공급자에 사전 등록해야 한다. 템플릿이 없으면 기존 채널 fallback 정책에 따라 SMS로 전환한다.
 - 픽업 마감 임박 알림은 수신자 단위 최근 발송 이력으로 후보를 제거하지 않고 `ORDER + orderId` 단위로 멱등 처리한다.
   같은 고객의 여러 픽업 주문은 각각 알리고 동일 주문의 반복 배치만 하나의 outbox로 합친다.
 - 8회권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 8회권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.

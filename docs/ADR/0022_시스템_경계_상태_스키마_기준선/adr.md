@@ -313,6 +313,27 @@ HAVING COUNT(*) > 1;
   - `title`, `content`
   - `reply_content nullable`, `replied_at nullable`, `replied_by nullable`, `created_at`
 
+#### 상품·클래스 후기
+
+- `reviews`
+  - `id`, `user_id`, `rating nullable`, `content nullable`, `status(PUBLISHED|HIDDEN)`, `version`, `created_at`, `updated_at`
+  - 상품 후기는 `order_item_id`, `product_id`를, 클래스 후기는 `booking_id`, `booking_class_id`를 가진다. 두 원천 쌍 중 정확히 하나만 존재하도록 DB `CHECK`로 강제한다.
+  - `(order_item_id, product_id)`는 `order_items(id, product_id)`를, `(booking_id, booking_class_id)`는 `bookings(id, class_id)`를 복합 FK로 참조해 작성 원천과 후기 대상이 서로 다른 조합을 DB에서도 막는다.
+  - `deleted_at`, `recreation_blocked`, `reserved_order_item_id generated`, `reserved_booking_id generated`로 작성자 삭제와 원천 점유를 분리한다. 활성 후기 또는 숨김 이력이 있는 tombstone만 생성 열에 원천 ID를 노출하고 각각 UNIQUE로 보호한다.
+  - 작성자 삭제는 `rating`, `content`, 공식 답글을 제거한 tombstone으로 남긴다. 숨김 이력이 없는 삭제본은 원천을 해제해 재작성을 허용하고, 한 번이라도 숨겨진 삭제본은 `recreation_blocked=true`로 원천을 계속 점유한다.
+  - 숨김 상태는 `hidden_reason`, `hidden_at`, `hidden_by_admin_id`를 모두 가지며 게시 상태에서는 모두 `NULL`이다.
+  - `edited_at`은 회원 본문 수정만 나타내며 moderation·답글 변경 시각과 분리한다. 공식 답글은 `reply_content`, `reply_admin_id`, `reply_created_at`, `reply_edited_at`을 한 묶음으로 저장한다.
+  - 공개 목록과 평균은 삭제되지 않은 `PUBLISHED`만 대상으로 하고, 회원 소유 목록과 관리자 목록은 삭제되지 않은 숨김 상태도 반환한다.
+- `review_moderation_actions`
+  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자와 시각을 append-only로 보존한다.
+- `review_reports`
+  - 후기·신고자별 한 건이며 `PENDING | ACCEPTED | REJECTED` 상태, 신고 사유·상세, 판단 관리자·시각을 저장한다.
+  - 신고 시점의 별점·본문·상태·본문 수정 시각을 snapshot으로 보존해 이후 수정·삭제와 무관하게 판단 근거를 유지한다.
+- `review_helpful_votes`
+  - `(review_id, user_id)` UNIQUE로 회원별 도움돼요를 멱등하게 유지한다.
+- `review_images`
+  - 후기별 `sort_order(0..4)`를 UNIQUE로 유지하고 `image_url`도 UNIQUE로 보호한다. 미디어 참조 스캔이 이 테이블을 포함해 연결된 파일을 고아로 판단하지 않는다.
+
 #### 알림 outbox
 
 - `notification_outbox`
@@ -344,6 +365,17 @@ HAVING COUNT(*) > 1;
 - `inquiry(created_at DESC, id DESC)` 관리자 문의 커서 조회
 - `product_qna(product_id, created_at DESC, id DESC)` 공개·관리자 상품 Q&A 커서 조회
 - `product_qna(product_id, user_id, created_at DESC, id DESC)` 작성자 상품 Q&A 커서 조회
+- `reviews(product_id, status, deleted_at, created_at, id)` 공개 상품 후기 최신순·평균 조회
+- `reviews(product_id, status, deleted_at, rating, created_at, id)` 공개 상품 후기 별점 필터·정렬 조회
+- `reviews(booking_class_id, status, deleted_at, created_at, id)` 공개 클래스 후기 최신순·평균 조회
+- `reviews(booking_class_id, status, deleted_at, rating, created_at, id)` 공개 클래스 후기 별점 필터·정렬 조회
+- `reviews(user_id, deleted_at, created_at, id)` 회원 후기 커서 조회
+- `reviews(deleted_at, status, created_at, id)` 관리자 상태별 후기 커서 조회
+- `reviews(deleted_at, created_at, id)` 관리자 무필터 후기 커서 조회
+- `review_moderation_actions(review_id, created_at, id)` 후기별 운영 이력 조회
+- `review_reports(status, created_at, id)` 관리자 신고 상태별 조회
+- `review_helpful_votes(user_id, review_id)` 회원별 후기 반응 일괄 조회
+- `review_images(review_id, sort_order, id)` 후기 사진 표시 순서 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
