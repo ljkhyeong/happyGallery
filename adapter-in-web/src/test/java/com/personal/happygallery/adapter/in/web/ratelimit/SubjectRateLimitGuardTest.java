@@ -89,6 +89,41 @@ class SubjectRateLimitGuardTest {
                 .isEqualTo("test:rate:PASS_REFUND_USER:" + BLIND_INDEXER.index("42"));
     }
 
+    @DisplayName("동일 회원의 후기 신고가 전용 한도를 넘으면 429 예외를 발생시킨다")
+    @Test
+    void rejectsRepeatedReviewReportByUser() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkReviewReport(42L);
+
+        assertThatThrownBy(() -> guard.checkReviewReport(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:REVIEW_REPORT_USER:" + BLIND_INDEXER.index("42"));
+    }
+
+    @DisplayName("동일 회원의 후기 이미지 업로드가 전용 한도를 넘으면 429 예외를 발생시킨다")
+    @Test
+    void rejectsRepeatedReviewImageUploadByUser() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkReviewImageUpload(42L);
+
+        assertThatThrownBy(() -> guard.checkReviewImageUpload(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:REVIEW_IMAGE_UPLOAD_USER:"
+                        + BLIND_INDEXER.index("42"));
+    }
+
     @DisplayName("동일 관리자의 MFA 복구 시도가 한도를 넘으면 원문 ID 없이 거절한다")
     @Test
     void rejectsRepeatedAdminMfaRecoveryWithoutExposingAdminId() {
@@ -121,6 +156,20 @@ class SubjectRateLimitGuardTest {
         SubjectRateLimitGuard guard = new SubjectRateLimitGuard(properties, rateLimiter);
 
         assertThatThrownBy(() -> guard.checkAdminMfaRecovery(42L))
+                .isInstanceOf(RateLimitUnavailableException.class);
+    }
+
+    @DisplayName("후기 신고와 이미지 업로드 제한을 확인할 수 없으면 fail-closed로 거절한다")
+    @Test
+    void rejectsReviewWritesWhenRateLimiterUnavailable() {
+        RateLimitProperties properties = properties();
+        RedisRateLimiter rateLimiter = Mockito.mock(RedisRateLimiter.class);
+        when(rateLimiter.tryConsume(any(), any(), any())).thenReturn(Optional.empty());
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(properties, rateLimiter);
+
+        assertThatThrownBy(() -> guard.checkReviewReport(42L))
+                .isInstanceOf(RateLimitUnavailableException.class);
+        assertThatThrownBy(() -> guard.checkReviewImageUpload(42L))
                 .isInstanceOf(RateLimitUnavailableException.class);
     }
 
@@ -157,6 +206,8 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
+                        generousLimit,
+                        generousLimit,
                         generousLimit
                 ),
                 new SubjectRules(
@@ -168,6 +219,8 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
+                        new Rule(1, Duration.ofMinutes(10)),
+                        new Rule(1, Duration.ofMinutes(10)),
                         new Rule(1, Duration.ofMinutes(10)),
                         new Rule(1, Duration.ofMinutes(10))
                 )

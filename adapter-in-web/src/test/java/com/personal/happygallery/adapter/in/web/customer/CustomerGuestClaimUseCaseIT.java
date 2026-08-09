@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
@@ -26,6 +27,7 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -38,6 +40,7 @@ import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -63,6 +66,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -87,6 +91,7 @@ class CustomerGuestClaimUseCaseIT {
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired OrderReaderPort orderReaderPort;
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderService orderService;
     @Autowired GuestTokenService guestTokenService;
@@ -186,6 +191,47 @@ class CustomerGuestClaimUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].bookingId").value(booking.getId()));
+    }
+
+    @DisplayName("완료된 비회원 주문과 예약을 가져오면 회원에게 후기 작성 요청을 접수한다")
+    @Test
+    void claimCompletedGuestRecords_enqueuesReviewRequestsForNewMemberOwner() throws Exception {
+        String phone = "01012345678";
+        Guest guest = guestStorePort.save(TestFixtures.guest("완료 비회원", phone));
+        Product product = productStorePort.save(
+                new Product("완료 이력 상품", ProductType.READY_STOCK, 39_000L));
+        inventoryStorePort.save(new Inventory(product, 1));
+        Order order = orderService.createPaidOrder(
+                guest.getId(),
+                List.of(new OrderService.OrderItemRequest(
+                        product.getId(), product.getName(), 1, product.getPrice())))
+                .order();
+        BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
+        Slot slot = slotStorePort.save(TestFixtures.slot(
+                bookingClass,
+                LocalDateTime.of(2026, 2, 28, 10, 0),
+                LocalDateTime.of(2026, 2, 28, 12, 0)));
+        Booking booking = bookingStorePort.save(Booking.forGuestDeposit(
+                guest, slot, 10_000L, 0L, DepositPaymentMethod.CARD, "completed-claim-token"));
+        customerHelper.signupAndGetSessionCookie("claim-review@example.com", phone);
+        User user = userReaderPort.findByEmail("claim-review@example.com").orElseThrow();
+        jdbcTemplate.update("UPDATE orders SET status = 'DELIVERED' WHERE id = ?", order.getId());
+        jdbcTemplate.update(
+                "UPDATE bookings SET status = 'COMPLETED', owner_phone_hmac = NULL WHERE id = ?",
+                booking.getId());
+
+        GuestClaimUseCase.ClaimResult result = guestClaimUseCase.claim(
+                user.getId(), List.of(order.getId()), List.of(booking.getId()));
+
+        assertSoftly(softly -> {
+            softly.assertThat(result).isEqualTo(new GuestClaimUseCase.ClaimResult(1, 1));
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.REVIEW_REQUEST)
+                    .extracting("userId", "aggregateType", "aggregateId")
+                    .containsExactlyInAnyOrder(
+                            tuple(user.getId(), "ORDER", order.getId()),
+                            tuple(user.getId(), "BOOKING", booking.getId()));
+        });
     }
 
     @DisplayName("휴대폰 재인증을 마친 비회원은 주문과 예약의 만료된 접근 토큰을 함께 복구한다")

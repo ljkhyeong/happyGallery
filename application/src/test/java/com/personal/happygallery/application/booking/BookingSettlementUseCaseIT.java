@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
@@ -8,6 +9,7 @@ import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -18,6 +20,8 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -49,13 +53,16 @@ class BookingSettlementUseCaseIT {
     @Autowired SlotReaderPort slotReaderPort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired GuestStorePort guestStorePort;
+    @Autowired UserStorePort userStorePort;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
 
     @AfterEach
     void tearDown() {
         cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("미수와 잔금 상태가 실제 변경될 때만 관리자 정산 이력이 순서대로 기록된다")
@@ -109,6 +116,38 @@ class BookingSettlementUseCaseIT {
                     .allSatisfy(history -> softly.assertThat(history.getActor()).isEqualTo("ADMIN"));
             softly.assertThat(histories)
                     .allSatisfy(history -> softly.assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID));
+        });
+    }
+
+    @DisplayName("회원 예약을 완료하면 예약당 한 번의 후기 작성 요청을 접수한다")
+    @Test
+    void complete_memberBooking_enqueuesReviewRequestOncePerBooking() {
+        User user = userStorePort.save(new User(
+                "booking-review@example.com", "hash", "후기 회원", "01076543210"));
+        BookingClass bookingClass = classStorePort.save(defaultBookingClass());
+        Slot slot = slotStorePort.save(slot(
+                bookingClass,
+                LocalDateTime.now(clock).minusHours(3),
+                LocalDateTime.now(clock).minusHours(1)));
+        slot.incrementBookedCount();
+        slotStorePort.save(slot);
+        Booking booking = bookingStorePort.save(Booking.forMemberDeposit(
+                user, slot, 5_000L, 0L, DepositPaymentMethod.CARD));
+
+        settlementUseCase.complete(booking.getId(), ADMIN_ID);
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingReaderPort.findById(booking.getId()).orElseThrow().getStatus())
+                    .isEqualTo(BookingStatus.COMPLETED);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.REVIEW_REQUEST)
+                    .singleElement()
+                    .satisfies(outbox -> {
+                        softly.assertThat(outbox.getAggregateType()).isEqualTo("BOOKING");
+                        softly.assertThat(outbox.getAggregateId()).isEqualTo(booking.getId());
+                        softly.assertThat(outbox.getIdempotencyKey())
+                                .isEqualTo("AGGREGATE:REVIEW_REQUEST:BOOKING:" + booking.getId());
+                    });
         });
     }
 }

@@ -35,7 +35,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -118,6 +120,18 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    @DisplayName("회원 후기 상태 변경은 CSRF 토큰과 회원 세션을 모두 요구한다")
+    @Test
+    void memberReviewMutation_requiresCsrfAndCustomerSession() throws Exception {
+        mockMvc.perform(put("/api/v1/me/reviews/1/helpful"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        mockMvc.perform(put("/api/v1/me/reviews/1/helpful").with(csrf()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
     @DisplayName("비회원도 현재 약관과 개인정보처리방침 버전을 조회할 수 있다")
     @Test
     void currentPolicies_allowAnonymousRequest() throws Exception {
@@ -134,6 +148,14 @@ class SecurityBoundaryUseCaseIT {
     void publicReadEndpoint_allowsHeadRequest() throws Exception {
         mockMvc.perform(head("/api/v1/classes"))
                 .andExpect(status().isOk());
+        mockMvc.perform(head("/api/v1/products/1/reviews"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(401)
+                        .isNotEqualTo(403));
+        mockMvc.perform(head("/api/v1/classes/1/reviews"))
+                .andExpect(result -> assertThat(result.getResponse().getStatus())
+                        .isNotEqualTo(401)
+                        .isNotEqualTo(403));
         mockMvc.perform(head("/api/v1/admin/setup/status"))
                 .andExpect(status().isOk());
     }
@@ -141,7 +163,10 @@ class SecurityBoundaryUseCaseIT {
     @DisplayName("등록되지 않은 조회 경로는 공개 namespace 아래에서도 거부한다")
     @Test
     void publicNamespace_deniesUnregisteredReadPath() throws Exception {
-        mockMvc.perform(get("/api/v1/classes/internal"))
+        mockMvc.perform(get("/api/v1/classes/1/internal"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(get("/api/v1/products/1/reviews/internal"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
         mockMvc.perform(get("/api/v1/auth/social/authorization/google/internal"))
@@ -153,6 +178,9 @@ class SecurityBoundaryUseCaseIT {
     @Test
     void publicReadNamespace_deniesStateChangingMethod() throws Exception {
         mockMvc.perform(post("/api/v1/classes").with(csrf()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(post("/api/v1/products/1/reviews").with(csrf()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
@@ -202,6 +230,40 @@ class SecurityBoundaryUseCaseIT {
                                   "note": "처리 사유"
                                 }
                                 """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @DisplayName("로컬 API key는 후기 숨김과 재공개를 수행할 수 없다")
+    @Test
+    void apiKey_cannotModerateReview() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/reviews/1/status")
+                        .header("X-Admin-Key", "dev-admin-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "HIDDEN",
+                                  "reason": "운영 정책 위반 내용"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    @DisplayName("로컬 API key는 후기 공식 답글과 신고 결정을 수행할 수 없다")
+    @Test
+    void apiKey_cannotReplyOrDecideReviewReport() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/reviews/1/reply")
+                        .header("X-Admin-Key", "dev-admin-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"content\":\"공식 답글입니다.\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        mockMvc.perform(patch("/api/v1/admin/review-reports/1")
+                        .header("X-Admin-Key", "dev-admin-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"decision\":\"REJECTED\",\"note\":null}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }

@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -114,6 +115,24 @@ class NotificationSenderContractTest {
                         .as(eventType.name())
                         .isNotBlank()
                         .hasSizeLessThanOrEqualTo(20)));
+    }
+
+    @DisplayName("후기 알림은 제공자 템플릿과 사용자 안내 SMS 문구를 모두 가진다")
+    @Test
+    void reviewNotifications_haveAlimtalkAndSmsCatalogEntries() {
+        Map<NotificationEventType, String> expectedTemplates = Map.of(
+                NotificationEventType.REVIEW_REQUEST, "HG_REVIEW_REQUEST",
+                NotificationEventType.REVIEW_HIDDEN, "HG_REVIEW_HIDDEN",
+                NotificationEventType.REVIEW_REPUBLISHED, "HG_REVIEW_REOPENED",
+                NotificationEventType.REVIEW_OWNER_REPLIED, "HG_REVIEW_REPLY");
+
+        assertSoftly(softly -> expectedTemplates.forEach((eventType, templateCode) -> {
+            softly.assertThat(KakaoTemplateCatalog.resolveTemplateCode(eventType))
+                    .isEqualTo(templateCode);
+            softly.assertThat(SmsMessageCatalog.render("홍길동", eventType))
+                    .startsWith("[해피갤러리] 홍길동님,")
+                    .isNotBlank();
+        }));
     }
 
     @DisplayName("SMS 발송은 NHN Cloud 경로에 발신번호 수신자 메시지를 JSON 요청으로 보낸다")

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mockito;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -111,6 +112,32 @@ class RateLimitFilterTest {
         assertSoftly(softly -> {
             softly.assertThat(firstResponse.getStatus()).isEqualTo(200);
             softly.assertThat(secondResponse.getStatus()).isEqualTo(429);
+        });
+    }
+
+    @DisplayName("후기 신고와 이미지 업로드는 서로 독립된 IP 제한을 적용한다")
+    @Test
+    void limitsReviewReportAndImageUploadIndependently() throws Exception {
+        RateLimitFilter filter = filter(new TestRateLimits()
+                .reviewReport(1)
+                .reviewImageUpload(1)
+                .defaultApi(100)
+                .build(), mockRedis());
+
+        MockHttpServletResponse firstReport = perform(
+                filter, "POST", "/api/v1/me/reviews/1/reports");
+        MockHttpServletResponse secondReport = perform(
+                filter, "POST", "/api/v1/me/reviews/1/reports");
+        MockHttpServletResponse firstImage = perform(
+                filter, "POST", "/api/v1/me/reviews/1/images");
+        MockHttpServletResponse secondImage = perform(
+                filter, "POST", "/api/v1/me/reviews/1/images");
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstReport.getStatus()).isEqualTo(200);
+            softly.assertThat(secondReport.getStatus()).isEqualTo(429);
+            softly.assertThat(firstImage.getStatus()).isEqualTo(200);
+            softly.assertThat(secondImage.getStatus()).isEqualTo(429);
         });
     }
 
@@ -312,6 +339,26 @@ class RateLimitFilterTest {
         });
     }
 
+    @DisplayName("Redis 장애 시 후기 신고와 이미지 업로드를 fail-closed로 차단한다")
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/api/v1/me/reviews/1/reports",
+            "/api/v1/me/reviews/1/images"
+    })
+    void failsClosedForReviewWrite_whenRedisUnavailable(String path) throws Exception {
+        RateLimitFilter filter = filter(new TestRateLimits().build(), unavailableRedis());
+
+        MockHttpServletResponse response = perform(filter, "POST", path);
+        String responseBody = response.getContentAsString();
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getStatus()).isEqualTo(503);
+            softly.assertThat(response.getHeader("Retry-After")).isEqualTo("1");
+            softly.assertThat(responseBody)
+                    .contains("\"code\":\"SERVICE_UNAVAILABLE\"");
+        });
+    }
+
     @DisplayName("소수 초 처리율 제한은 Redis 밀리초 만료를 사용하고 Retry-After를 올림한다")
     @Test
     void fractionalSecondWindow_usesMillisecondsAndRoundsRetryAfterUp() throws Exception {
@@ -375,7 +422,9 @@ class RateLimitFilterTest {
                 "/api/v1/me/guest-claims/verify",
                 "/api/v1/guest-records/recovery",
                 "/api/v1/guest-records/payment-status-recovery",
-                "/api/v1/monitoring/client-events"
+                "/api/v1/monitoring/client-events",
+                "/api/v1/me/reviews/1/reports",
+                "/api/v1/me/reviews/1/images"
         );
     }
 
@@ -419,6 +468,8 @@ class RateLimitFilterTest {
         private long guestClaimVerify = 100;
         private long guestRecordRecovery = 100;
         private long clientMonitoring = 100;
+        private long reviewReport = 100;
+        private long reviewImageUpload = 100;
         private long orderCustomerAction = 100;
         private Duration defaultApiWindow = Duration.ofMinutes(1);
 
@@ -475,6 +526,18 @@ class RateLimitFilterTest {
             guestClaimVerify = capacity;
             guestRecordRecovery = capacity;
             clientMonitoring = capacity;
+            reviewReport = capacity;
+            reviewImageUpload = capacity;
+            return this;
+        }
+
+        private TestRateLimits reviewReport(long capacity) {
+            reviewReport = capacity;
+            return this;
+        }
+
+        private TestRateLimits reviewImageUpload(long capacity) {
+            reviewImageUpload = capacity;
             return this;
         }
 
@@ -502,9 +565,13 @@ class RateLimitFilterTest {
                             perMinute(guestClaimVerify),
                             perMinute(guestRecordRecovery),
                             perMinute(clientMonitoring),
+                            perMinute(reviewReport),
+                            perMinute(reviewImageUpload),
                             perMinute(orderCustomerAction)
                     ),
                     new SubjectRules(
+                            perMinute(100),
+                            perMinute(100),
                             perMinute(100),
                             perMinute(100),
                             perMinute(100),

@@ -121,6 +121,7 @@ public class TestCleanupSupport {
     }
 
     public void clearAdminUsers() {
+        clearReviewData();
         jdbcTemplate.update("DELETE FROM admin_mfa_challenge");
         jdbcTemplate.update("DELETE FROM admin_mfa_recovery_code");
         jdbcTemplate.update("DELETE FROM admin_auth_history");
@@ -128,6 +129,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingWithPassAndRefundData() {
+        clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
@@ -146,6 +148,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingReminderData() {
+        clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();
@@ -164,6 +167,7 @@ public class TestCleanupSupport {
     }
 
     public void clearOrderData() {
+        clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
@@ -182,7 +186,11 @@ public class TestCleanupSupport {
     }
 
     public void clearProductData() {
-        TestDataCleaner.clearProductData(inventoryAdjustmentRepository, inventoryRepository, productRepository);
+        clearReviewData();
+        TestDataCleaner.clearProductData(
+                inventoryAdjustmentRepository,
+                inventoryRepository,
+                productRepository);
     }
 
     public void clearCartData() {
@@ -201,6 +209,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingData() {
+        clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         refundRepository.deleteAllInBatch();
@@ -215,6 +224,7 @@ public class TestCleanupSupport {
     }
 
     public void clearUsers() {
+        clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         jdbcTemplate.update("DELETE FROM cart_merge_requests");
@@ -227,6 +237,15 @@ public class TestCleanupSupport {
     public void clearNotificationLogs() {
         notificationOutboxRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
+    }
+
+    /** 후기 자식 테이블과 tombstone을 외래 키 역순으로 정리한다. */
+    public void clearReviewData() {
+        jdbcTemplate.update("DELETE FROM review_images");
+        jdbcTemplate.update("DELETE FROM review_helpful_votes");
+        jdbcTemplate.update("DELETE FROM review_reports");
+        jdbcTemplate.update("DELETE FROM review_moderation_actions");
+        jdbcTemplate.update("DELETE FROM reviews");
     }
 
     /** 쿠폰·적립금은 주문·결제 시도·회원 모두를 참조하므로 공통 부모보다 먼저 지운다. */

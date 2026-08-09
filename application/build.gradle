@@ -19,6 +19,16 @@ tasks.register('policyTest', Test) {
 	useJUnitPlatform { includeTags 'policy' }
 }
 
+// ArchUnit이 전체 클래스 그래프를 읽기 전에 통합 테스트가 쌓아 둔 힙을 분리한다.
+// check/build 검증 범위는 그대로 유지하면서 policy 스위트만 별도 테스트 JVM에서 실행한다.
+tasks.named('test') {
+	useJUnitPlatform { excludeTags 'policy' }
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('policyTest')
+}
+
 // 테스트 로깅
 tasks.withType(Test).configureEach {
 	useJUnitPlatform()

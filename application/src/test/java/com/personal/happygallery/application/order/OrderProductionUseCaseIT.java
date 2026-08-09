@@ -49,6 +49,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -497,6 +498,9 @@ class OrderProductionUseCaseIT {
                     OrderApprovalDecision.PRODUCTION_COMPLETE,
                     OrderApprovalDecision.PICKUP_READY,
                     OrderApprovalDecision.PICKUP_COMPLETE);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType", "aggregateType", "aggregateId")
+                    .contains(tuple(NotificationEventType.REVIEW_REQUEST, "ORDER", order.getId()));
         });
     }
 
@@ -542,7 +546,9 @@ class OrderProductionUseCaseIT {
             softly.assertThat(fulfillment.getTrackingNumber()).isEqualTo("1234567890");
             softly.assertThat(notificationOutboxRepository.findAll())
                     .extracting("eventType")
-                    .contains(NotificationEventType.ORDER_SHIPPED);
+                    .contains(
+                            NotificationEventType.ORDER_SHIPPED,
+                            NotificationEventType.REVIEW_REQUEST);
         });
     }
 
