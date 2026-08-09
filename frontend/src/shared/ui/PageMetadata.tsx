@@ -19,6 +19,10 @@ const PUBLIC_ROUTES: Array<[RegExp, Omit<Metadata, "indexable">]> = [
     title: "충주 공예 원데이클래스 | 해피갤러리",
     description: "가죽공예, 레진아트, 위빙 등 해피갤러리 공예 수업의 가격과 예약 가능 시간을 확인하세요.",
   }],
+  [/^\/classes\/\d+$/, {
+    title: "공예 클래스 상세와 후기 | 해피갤러리",
+    description: "해피갤러리 공예 클래스의 수업 정보와 이용 후기를 확인하고 원하는 날짜를 예약하세요.",
+  }],
   [/^\/group-classes$/, {
     title: "충주 단체·기관 공예수업 | 해피갤러리",
     description: "학교, 기관, 모임을 위한 충주 해피갤러리 출장·단체 공예수업을 문의하세요.",

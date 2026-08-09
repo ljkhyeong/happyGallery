@@ -13,6 +13,18 @@ export const queryKeys = {
       byProduct: (productId: number, cursor?: string) =>
         ["admin", "qna", "product", productId, cursor] as const,
     },
+    reviews: {
+      all: ["admin", "reviews"] as const,
+      page: (targetType?: string, status?: string, cursor?: string) =>
+        ["admin", "reviews", targetType, status, cursor] as const,
+      moderation: (reviewId: number) =>
+        ["admin", "reviews", "moderation", reviewId] as const,
+      reports: {
+        all: ["admin", "reviews", "reports"] as const,
+        page: (status?: string, cursor?: string) =>
+          ["admin", "reviews", "reports", status, cursor] as const,
+      },
+    },
     classes: ["admin", "classes"] as const,
     slots: {
       all: ["admin", "slots"] as const,
@@ -23,6 +35,7 @@ export const queryKeys = {
   },
   catalog: {
     classes: ["classes"] as const,
+    classDetail: (classId: number) => ["classes", classId] as const,
   },
   notices: {
     all: ["notices"] as const,
@@ -39,6 +52,21 @@ export const queryKeys = {
       ["product-qna", productId, "history"] as const,
     detail: (productId: number, qnaId: number) =>
       ["product-qna", productId, qnaId] as const,
+  },
+  reviews: {
+    all: ["reviews"] as const,
+    products: {
+      all: ["reviews", "products"] as const,
+      byProduct: (productId: number) => ["reviews", "products", productId] as const,
+      history: (productId: number, rating?: number, sort = "LATEST") =>
+        ["reviews", "products", productId, "history", rating, sort] as const,
+    },
+    classes: {
+      all: ["reviews", "classes"] as const,
+      byClass: (classId: number) => ["reviews", "classes", classId] as const,
+      history: (classId: number, rating?: number, sort = "LATEST") =>
+        ["reviews", "classes", classId, "history", rating, sort] as const,
+    },
   },
   member: {
     all: ["me"] as const,
@@ -70,6 +98,19 @@ export const queryKeys = {
         ["me", "product-qna", productId, "history"] as const,
       detail: (productId: number, qnaId: number) =>
         ["me", "product-qna", productId, qnaId] as const,
+    },
+    reviews: {
+      all: ["me", "reviews"] as const,
+      history: ["me", "reviews", "history"] as const,
+      opportunities: ["me", "reviews", "opportunities"] as const,
+      byOrder: (orderId: number) => ["me", "reviews", "orders", orderId] as const,
+      byBooking: (bookingId: number) => ["me", "reviews", "bookings", bookingId] as const,
+      productCreationState: (orderItemId: number) =>
+        ["me", "reviews", "creation-state", "products", orderItemId] as const,
+      classCreationState: (bookingId: number) =>
+        ["me", "reviews", "creation-state", "classes", bookingId] as const,
+      reactions: (reviewIds: readonly number[]) =>
+        ["me", "reviews", "reactions", ...reviewIds] as const,
     },
     guestRecovery: {
       all: ["me", "guest-recovery"] as const,

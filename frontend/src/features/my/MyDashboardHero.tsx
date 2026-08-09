@@ -52,6 +52,9 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             <LinkButton to="/my/benefits" variant="outline-primary" size="sm">
               쿠폰·적립금
             </LinkButton>
+            <LinkButton to="/my/reviews" variant="outline-primary" size="sm">
+              내 후기
+            </LinkButton>
             <Button variant="outline-secondary" size="sm" onClick={onLogout} disabled={loggingOut}>
               {loggingOut ? "로그아웃 중..." : "로그아웃"}
             </Button>

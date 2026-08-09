@@ -59,6 +59,38 @@ test("상품 Q&A 목록과 상세 키는 답변 뒤 함께 무효화할 상품 �
   );
 });
 
+test("후기 키는 공개 대상과 회원·관리자 세션 경계를 각각 유지한다", () => {
+  assert.deepEqual(
+    queryKeys.reviews.products.history(42, 5, "RATING_HIGH").slice(0, 3),
+    queryKeys.reviews.products.byProduct(42),
+  );
+  assert.deepEqual(
+    queryKeys.reviews.classes.history(7, 4, "LATEST").slice(0, 3),
+    queryKeys.reviews.classes.byClass(7),
+  );
+  assert.deepEqual(
+    queryKeys.reviews.products.history(42, 5, "RATING_HIGH").slice(-2),
+    [5, "RATING_HIGH"],
+  );
+  assert.equal(queryKeys.member.reviews.byOrder(9)[0], queryKeys.member.all[0]);
+  assert.equal(queryKeys.member.reviews.byBooking(11)[0], queryKeys.member.all[0]);
+  assert.equal(queryKeys.member.reviews.opportunities[0], queryKeys.member.all[0]);
+  assert.equal(queryKeys.member.reviews.productCreationState(13)[0], queryKeys.member.all[0]);
+  assert.equal(queryKeys.member.reviews.classCreationState(17)[0], queryKeys.member.all[0]);
+  assert.deepEqual(
+    queryKeys.member.reviews.reactions([3, 8]),
+    ["me", "reviews", "reactions", 3, 8],
+  );
+  assert.deepEqual(
+    queryKeys.admin.reviews.page("PRODUCT", "HIDDEN").slice(0, 2),
+    queryKeys.admin.reviews.all,
+  );
+  assert.deepEqual(
+    queryKeys.admin.reviews.reports.page("PENDING").slice(0, 3),
+    queryKeys.admin.reviews.reports.all,
+  );
+});
+
 test("회원 이력 페이지 키는 기존 무효화 접두사 아래에서 summary 캐시와 분리된다", () => {
   assert.deepEqual(queryKeys.member.orders.history.slice(0, 2), queryKeys.member.orders.all);
   assert.deepEqual(queryKeys.member.bookings.history.slice(0, 2), queryKeys.member.bookings.all);

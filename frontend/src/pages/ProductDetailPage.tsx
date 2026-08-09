@@ -38,6 +38,7 @@ import {
 import { runForCurrentCustomer } from "@/shared/api";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 
 export function ProductDetailPage() {
   const { sessionVersion } = useCustomerAuth();
@@ -384,6 +385,7 @@ function ProductDetailContent() {
         </div>
       )}
 
+      <PublicReviewSection targetType="PRODUCT" targetId={productId} />
       <ProductQnaSection productId={productId} />
     </Container>
   );

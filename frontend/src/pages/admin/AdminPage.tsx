@@ -29,6 +29,7 @@ import { getAdminMfaStatus } from "@/features/admin-auth/api";
 import { AdminDashboardSection } from "@/features/admin-dashboard/AdminDashboardSection";
 import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
+import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import type { BookingStatus, OrderStatus } from "@/shared/types";
@@ -70,6 +71,11 @@ const ADMIN_VIEWS = [
     value: "support",
     label: "고객 응대",
     description: "공지사항과 상품 Q&A, 1:1 문의를 처리합니다.",
+  },
+  {
+    value: "reviews",
+    label: "후기",
+    description: "상품·클래스 후기를 조회하고 공개 상태를 관리합니다.",
   },
   {
     value: "settings",
@@ -426,6 +432,12 @@ export function AdminPage() {
             <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>
+      )}
+
+      {activeView === "reviews" && (
+        <AdminPanel title="후기 관리">
+          <AdminReviewSection adminKey={adminKey} onAuthError={handleAuthError} />
+        </AdminPanel>
       )}
 
       {activeView === "events" && (

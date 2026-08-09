@@ -12,6 +12,7 @@ import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { queryKeys } from "@/shared/api";
+import { BookingReviewSection } from "@/features/review/BookingReviewSection";
 
 export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -81,6 +82,11 @@ export function MyBookingDetailPage() {
       <MyBookingDetailCard booking={booking} />
 
       {error && <ErrorAlert error={error} />}
+
+      <BookingReviewSection
+        bookingId={booking.bookingId}
+        className={booking.className}
+      />
 
       {isBooked && (
         <Card className="mt-4 border-0 my-action-card">

@@ -59,6 +59,9 @@ export function ClassListPage() {
                 <p className="class-catalog-description">
                   {bookingClass.description || "해피갤러리에서 재료와 과정을 차근차근 안내하는 공예 수업입니다."}
                 </p>
+                <Link to={`/classes/${bookingClass.id}`} className="my-inline-link small">
+                  상세와 후기 보기 →
+                </Link>
                 <dl className="class-catalog-meta">
                   <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
                   <div>

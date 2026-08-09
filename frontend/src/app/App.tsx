@@ -53,6 +53,9 @@ const MyBenefitsPage = lazy(() =>
 const MyInquiriesPage = lazy(() =>
   import("@/pages/MyInquiriesPage").then((module) => ({ default: module.MyInquiriesPage })),
 );
+const MyReviewsPage = lazy(() =>
+  import("@/pages/MyReviewsPage").then((module) => ({ default: module.MyReviewsPage })),
+);
 const MyInquiryCreatePage = lazy(() =>
   import("@/pages/MyInquiryCreatePage").then((module) => ({ default: module.MyInquiryCreatePage })),
 );
@@ -101,6 +104,9 @@ const BusinessInfoPage = lazy(() =>
 const ClassListPage = lazy(() =>
   import("@/pages/ClassListPage").then((module) => ({ default: module.ClassListPage })),
 );
+const ClassDetailPage = lazy(() =>
+  import("@/pages/ClassDetailPage").then((module) => ({ default: module.ClassDetailPage })),
+);
 const GroupClassesPage = lazy(() =>
   import("@/pages/GroupClassesPage").then((module) => ({ default: module.GroupClassesPage })),
 );
@@ -135,6 +141,7 @@ export function App() {
                     <Route path="/products" element={<ProductListPage />} />
                     <Route path="/products/:id" element={<ProductDetailPage />} />
                     <Route path="/classes" element={<LazyRoute><ClassListPage /></LazyRoute>} />
+                    <Route path="/classes/:id" element={<LazyRoute><ClassDetailPage /></LazyRoute>} />
                     <Route path="/group-classes" element={<LazyRoute><GroupClassesPage /></LazyRoute>} />
                     <Route path="/bookings/new" element={<BookingCreatePage />} />
                     <Route path="/guest" element={<LazyRoute><GuestLookupPage /></LazyRoute>} />
@@ -153,6 +160,7 @@ export function App() {
                     <Route path="/my/benefits" element={<LazyRoute><MyBenefitsPage /></LazyRoute>} />
                     <Route path="/my/inquiries" element={<LazyRoute><MyInquiriesPage /></LazyRoute>} />
                     <Route path="/my/inquiries/new" element={<LazyRoute><MyInquiryCreatePage /></LazyRoute>} />
+                    <Route path="/my/reviews" element={<LazyRoute><MyReviewsPage /></LazyRoute>} />
                     <Route path="/auth/callback" element={<LazyRoute><SocialCallbackPage /></LazyRoute>} />
                     <Route path="/login" element={<LazyRoute><LoginPage /></LazyRoute>} />
                     <Route path="/signup" element={<LazyRoute><SignupPage /></LazyRoute>} />

@@ -13,6 +13,7 @@ import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
+import { OrderReviewsSection } from "@/features/review/OrderReviewsSection";
 
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -95,6 +96,7 @@ export function MyOrderDetailPage() {
         onCancel={() => cancelMutation.mutate()}
         onDelayDecision={(decision) => delayMutation.mutate(decision)}
       />
+      <OrderReviewsSection orderId={order.orderId} items={order.items} />
       <OrderClaimSection order={order} access={{ kind: "member" }} />
     </Container>
   );
