@@ -6,11 +6,12 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record CreateClassReviewRequest(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotNull Long bookingId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
+        @NotNull @Positive Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "5")
         @NotNull @Min(1) @Max(5) Integer rating,
         @Schema(

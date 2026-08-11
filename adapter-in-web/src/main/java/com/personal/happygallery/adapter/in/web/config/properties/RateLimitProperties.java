@@ -49,6 +49,8 @@ public record RateLimitProperties(
             @Valid @NotNull Rule guestClaimVerify,
             @Valid @NotNull Rule guestRecordRecovery,
             @Valid @NotNull Rule passRefund,
+            @Valid @NotNull Rule reviewMutation,
+            @Valid @NotNull Rule reviewHelpful,
             @Valid @NotNull Rule reviewReport,
             @Valid @NotNull Rule reviewImageUpload,
             @Valid @NotNull Rule adminMfaRecovery

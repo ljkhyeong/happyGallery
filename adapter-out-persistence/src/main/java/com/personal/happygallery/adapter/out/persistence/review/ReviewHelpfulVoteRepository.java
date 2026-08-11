@@ -11,10 +11,11 @@ public interface ReviewHelpfulVoteRepository extends JpaRepository<ReviewHelpful
 
     @Modifying
     @Query(value = """
-            INSERT IGNORE INTO review_helpful_votes (review_id, user_id, created_at)
+            INSERT INTO review_helpful_votes (review_id, user_id, created_at)
             VALUES (:reviewId, :userId, :createdAt)
+            ON DUPLICATE KEY UPDATE id = id
             """, nativeQuery = true)
-    int insertIgnore(
+    int insertIfAbsent(
             @Param("reviewId") Long reviewId,
             @Param("userId") Long userId,
             @Param("createdAt") java.time.LocalDateTime createdAt);

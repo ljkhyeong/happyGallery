@@ -18,6 +18,8 @@ public interface ReviewReaderPort {
 
     Optional<ReviewListView> findViewById(Long reviewId);
 
+    List<ReviewInteractionStateView> findInteractionStates(List<Long> reviewIds);
+
     List<ReviewListView> findPublishedByProduct(
             Long productId,
             Integer rating,

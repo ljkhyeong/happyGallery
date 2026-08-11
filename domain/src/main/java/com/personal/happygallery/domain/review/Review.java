@@ -23,19 +23,25 @@ import java.util.Objects;
         indexes = {
                 @Index(
                         name = "idx_reviews_product_public",
-                        columnList = "product_id,status,created_at,id"),
+                        columnList = "product_id,status,deleted_at,created_at,id"),
+                @Index(
+                        name = "idx_reviews_product_rating_public",
+                        columnList = "product_id,status,deleted_at,rating,created_at,id"),
                 @Index(
                         name = "idx_reviews_class_public",
-                        columnList = "booking_class_id,status,created_at,id"),
+                        columnList = "booking_class_id,status,deleted_at,created_at,id"),
+                @Index(
+                        name = "idx_reviews_class_rating_public",
+                        columnList = "booking_class_id,status,deleted_at,rating,created_at,id"),
                 @Index(
                         name = "idx_reviews_user_created",
-                        columnList = "user_id,created_at,id"),
+                        columnList = "user_id,deleted_at,created_at,id"),
                 @Index(
                         name = "idx_reviews_admin_status_created",
-                        columnList = "status,created_at,id"),
+                        columnList = "deleted_at,status,created_at,id"),
                 @Index(
                         name = "idx_reviews_created",
-                        columnList = "created_at,id")
+                        columnList = "deleted_at,created_at,id")
         }
 )
 public class Review {
@@ -91,6 +97,10 @@ public class Review {
     @Column(name = "edited_at")
     private LocalDateTime editedAt;
 
+    /** 작성자가 관리하는 본문·평점·사진 묶음의 낙관적 동시성 번호. */
+    @Column(name = "content_revision", nullable = false)
+    private long contentRevision;
+
     @Column(name = "reply_content", columnDefinition = "TEXT")
     private String replyContent;
 
@@ -132,6 +142,7 @@ public class Review {
         applyContent(rating, content);
         this.status = ReviewStatus.PUBLISHED;
         this.recreationBlocked = false;
+        this.contentRevision = 1L;
         this.createdAt = Objects.requireNonNull(now, "후기 작성 시각은 필수입니다.");
         this.updatedAt = now;
     }
@@ -159,7 +170,29 @@ public class Review {
         LocalDateTime now = Objects.requireNonNull(updatedAt, "후기 수정 시각은 필수입니다.");
         applyContent(rating, content);
         this.editedAt = now;
-        this.updatedAt = now;
+        recordContentChange(now);
+    }
+
+    public void recordContentChange(LocalDateTime changedAt) {
+        requireActive();
+        this.contentRevision = Math.addExact(contentRevision, 1L);
+        this.updatedAt = Objects.requireNonNull(changedAt, "후기 콘텐츠 변경 시각은 필수입니다.");
+    }
+
+    public void requireContentRevision(long expectedContentRevision) {
+        requireActive();
+        if (expectedContentRevision < 1L || contentRevision != expectedContentRevision) {
+            throw new HappyGalleryException(ErrorCode.REVIEW_CONTENT_CHANGED);
+        }
+    }
+
+    public void requireVersion(long expectedVersion) {
+        requireActive();
+        if (expectedVersion < 0L || version != expectedVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "불러온 뒤 후기 운영 상태가 변경되었습니다. 최신 상태를 다시 확인해 주세요.");
+        }
     }
 
     /** 실제 상태 전이일 때만 true를 반환한다. */
@@ -202,6 +235,9 @@ public class Review {
         this.replyAdminId = null;
         this.replyCreatedAt = null;
         this.replyEditedAt = null;
+        this.hiddenReason = null;
+        this.hiddenAt = null;
+        this.hiddenByAdminId = null;
         this.deletedAt = now;
         this.updatedAt = now;
     }
@@ -321,6 +357,7 @@ public class Review {
     public LocalDateTime getDeletedAt() { return deletedAt; }
     public boolean isRecreationBlocked() { return recreationBlocked; }
     public LocalDateTime getEditedAt() { return editedAt; }
+    public long getContentRevision() { return contentRevision; }
     public String getReplyContent() { return replyContent; }
     public Long getReplyAdminId() { return replyAdminId; }
     public LocalDateTime getReplyCreatedAt() { return replyCreatedAt; }

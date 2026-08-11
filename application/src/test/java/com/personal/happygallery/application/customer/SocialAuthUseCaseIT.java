@@ -12,6 +12,7 @@ import com.personal.happygallery.application.customer.port.out.SocialAccountStor
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
+import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -70,11 +71,23 @@ class SocialAuthUseCaseIT {
             softly.assertThat(firstLogin.user().getEmailHmac()).isNull();
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
             softly.assertThat(policyConsentRepository.findByUserIdOrderById(firstLogin.user().getId()))
-                    .hasSize(2)
-                    .allSatisfy(consent -> {
-                        assertThat(consent.getPurpose()).isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
-                        assertThat(consent.getPolicyVersion()).isEqualTo("2026-08-08-v1");
-                    });
+                    .satisfiesExactly(
+                            consent -> assertSoftly(consentSoftly -> {
+                                consentSoftly.assertThat(consent.getType())
+                                        .isEqualTo(PolicyConsentType.TERMS_OF_SERVICE);
+                                consentSoftly.assertThat(consent.getPurpose())
+                                        .isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
+                                consentSoftly.assertThat(consent.getPolicyVersion())
+                                        .isEqualTo("2026-08-08-v1");
+                            }),
+                            consent -> assertSoftly(consentSoftly -> {
+                                consentSoftly.assertThat(consent.getType())
+                                        .isEqualTo(PolicyConsentType.PRIVACY_POLICY);
+                                consentSoftly.assertThat(consent.getPurpose())
+                                        .isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
+                                consentSoftly.assertThat(consent.getPolicyVersion())
+                                        .isEqualTo("2026-08-11-v1");
+                            }));
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()
                     .doesNotContain("naver-account-id");

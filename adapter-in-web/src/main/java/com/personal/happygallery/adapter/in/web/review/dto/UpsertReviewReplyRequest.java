@@ -3,9 +3,13 @@ package com.personal.happygallery.adapter.in.web.review.dto;
 import com.personal.happygallery.domain.content.ContentTextPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 public record UpsertReviewReplyRequest(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0")
+        @NotNull @PositiveOrZero Long expectedVersion,
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 minLength = ContentTextPolicy.MIN_LENGTH,

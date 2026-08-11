@@ -25,4 +25,11 @@ class ImageMediaReferenceGuardTest {
                 "//cdn.example.com/api/v1/media/images/external-image.png"))
                 .isNull();
     }
+
+    @Test
+    @DisplayName("파일명이 비어 있는 미디어 경로는 물리 삭제 대상으로 해석하지 않는다")
+    void localFileNameRejectsEmptyFileName() {
+        assertThat(ImageMediaReferenceGuard.localFileName("/api/v1/media/images/"))
+                .isNull();
+    }
 }

@@ -139,8 +139,8 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.terms.version").value("2026-08-08-v1"))
                 .andExpect(jsonPath("$.terms.documentPath").value("/terms/2026-08-08-v1"))
-                .andExpect(jsonPath("$.privacy.version").value("2026-08-08-v1"))
-                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-08-08-v1"));
+                .andExpect(jsonPath("$.privacy.version").value("2026-08-11-v1"))
+                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-08-11-v1"));
     }
 
     @DisplayName("공개 조회 경로는 HEAD 요청도 허용한다")
@@ -243,7 +243,9 @@ class SecurityBoundaryUseCaseIT {
                         .content("""
                                 {
                                   "status": "HIDDEN",
-                                  "reason": "운영 정책 위반 내용"
+                                  "reason": "운영 정책 위반 내용",
+                                  "expectedContentRevision": 1,
+                                  "expectedVersion": 0
                                 }
                                 """))
                 .andExpect(status().isForbidden())
@@ -256,7 +258,7 @@ class SecurityBoundaryUseCaseIT {
         mockMvc.perform(put("/api/v1/admin/reviews/1/reply")
                         .header("X-Admin-Key", "dev-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"content\":\"공식 답글입니다.\"}"))
+                        .content("{\"expectedVersion\":0,\"content\":\"공식 답글입니다.\"}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 

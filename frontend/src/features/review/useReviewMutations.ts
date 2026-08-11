@@ -8,6 +8,7 @@ import {
   submitClassReview,
   submitProductReview,
 } from "./api";
+import { isReviewContentChangedError } from "./reviewMutationConflict";
 
 function useReviewMutationSuccess() {
   const queryClient = useQueryClient();
@@ -72,12 +73,19 @@ export function useCreateClassReview(onApplied?: () => void) {
 
 export function useUpdateReview(onApplied?: () => void) {
   const applySuccess = useReviewMutationSuccess();
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { reviewId: number; rating: number; content: string }) =>
+    mutationFn: (input: {
+      reviewId: number;
+      rating: number;
+      content: string;
+      expectedContentRevision: number;
+    }) =>
       runForCurrentCustomer(
         () => editMyReview(input.reviewId, {
           rating: input.rating,
           content: input.content,
+          expectedContentRevision: input.expectedContentRevision,
         }),
         (review, requireCurrent) => applySuccess(
           review,
@@ -86,6 +94,13 @@ export function useUpdateReview(onApplied?: () => void) {
           onApplied,
         ),
       ),
+    onError: async (error) => {
+      if (!isReviewContentChangedError(error)) return;
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.member.reviews.all,
+        refetchType: "active",
+      });
+    },
   });
 }
 

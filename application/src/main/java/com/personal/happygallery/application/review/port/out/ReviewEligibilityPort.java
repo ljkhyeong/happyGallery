@@ -2,8 +2,10 @@ package com.personal.happygallery.application.review.port.out;
 
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.order.OrderStatus;
-import java.util.Optional;
+import com.personal.happygallery.domain.review.ReviewTargetType;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /** 회원 후기 원천의 소유권과 완료 상태를 조회한다. */
 public interface ReviewEligibilityPort {
@@ -32,5 +34,10 @@ public interface ReviewEligibilityPort {
 
     Optional<ReviewSourceReservationView> findClassSourceReservation(Long bookingId);
 
-    List<ReviewOpportunityView> findReviewOpportunities(Long userId, int limit);
+    List<ReviewOpportunityView> findReviewOpportunities(
+            Long userId,
+            LocalDateTime cursorCompletedAt,
+            ReviewTargetType cursorTargetType,
+            Long cursorSourceId,
+            int limit);
 }

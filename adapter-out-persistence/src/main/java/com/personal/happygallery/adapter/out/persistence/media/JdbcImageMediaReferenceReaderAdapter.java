@@ -31,8 +31,59 @@ class JdbcImageMediaReferenceReaderAdapter implements ImageMediaReferenceReaderP
                         UNION
                         SELECT image_url
                         FROM review_images
+                        UNION
+                        SELECT image_url
+                        FROM review_evidence_snapshot_images
                         """)
                 .query(String.class)
                 .list();
+    }
+
+    @Override
+    public ReferenceVisibility findReferenceVisibility(String imageUrl) {
+        return jdbc.sql("""
+                        SELECT
+                            EXISTS (
+                                SELECT 1
+                                FROM products
+                                WHERE image_url = :imageUrl
+                                  AND status = 'ACTIVE'
+                                UNION ALL
+                                SELECT 1
+                                FROM classes
+                                WHERE image_url = :imageUrl
+                                  AND status = 'ACTIVE'
+                                UNION ALL
+                                SELECT 1
+                                FROM events
+                                WHERE image_url = :imageUrl
+                                  AND published = TRUE
+                                  AND end_at > CURRENT_TIMESTAMP
+                                UNION ALL
+                                SELECT 1
+                                FROM review_images image
+                                JOIN reviews review ON review.id = image.review_id
+                                WHERE image.image_url = :imageUrl
+                                  AND review.status = 'PUBLISHED'
+                                  AND review.deleted_at IS NULL
+                            ) AS publicly_referenced,
+                            EXISTS (
+                                SELECT 1
+                                FROM review_evidence_snapshot_images
+                                WHERE image_url = :imageUrl
+                                UNION ALL
+                                SELECT 1
+                                FROM review_images image
+                                JOIN reviews review ON review.id = image.review_id
+                                WHERE image.image_url = :imageUrl
+                                  AND (review.status <> 'PUBLISHED'
+                                      OR review.deleted_at IS NOT NULL)
+                            ) AS internally_referenced
+                        """)
+                .param("imageUrl", imageUrl)
+                .query((resultSet, rowNumber) -> new ReferenceVisibility(
+                        resultSet.getBoolean("publicly_referenced"),
+                        resultSet.getBoolean("internally_referenced")))
+                .single();
     }
 }

@@ -27,6 +27,13 @@ export function chunkReviewIds(
   return chunks;
 }
 
+export function chunkReviewIdsByPage(
+  reviewIdPages: number[][],
+  batchSize = REVIEW_REACTION_BATCH_SIZE,
+): number[][] {
+  return reviewIdPages.flatMap((reviewIds) => chunkReviewIds(reviewIds, batchSize));
+}
+
 export function reviewImageSelectionError(
   files: ReviewImageCandidate[],
   remainingCount: number,
@@ -34,7 +41,15 @@ export function reviewImageSelectionError(
   if (files.length > remainingCount) {
     return `사진은 ${remainingCount}장 더 등록할 수 있습니다.`;
   }
-  if (files.some((file) => !ACCEPTED_REVIEW_IMAGE_TYPES.has(file.type))) {
+  if (files.some((file) => file.size === 0)) {
+    return "비어 있는 사진 파일은 등록할 수 없습니다.";
+  }
+  if (files.some((file) => {
+    const mimeType = file.type.trim().toLowerCase();
+    return mimeType !== ""
+      && mimeType !== "application/octet-stream"
+      && !ACCEPTED_REVIEW_IMAGE_TYPES.has(mimeType);
+  })) {
     return "JPEG 또는 PNG 사진만 등록할 수 있습니다.";
   }
   if (files.some((file) => file.size > MAX_REVIEW_IMAGE_BYTES)) {

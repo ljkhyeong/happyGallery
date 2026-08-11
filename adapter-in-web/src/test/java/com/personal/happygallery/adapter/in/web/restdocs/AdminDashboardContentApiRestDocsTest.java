@@ -24,6 +24,7 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
+import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -92,6 +93,8 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 productReview.rating(),
                 productReview.content(),
                 productReview.status(),
+                productReview.contentRevision(),
+                productReview.version() + 1L,
                 productReview.hiddenReason(),
                 productReview.hiddenAt(),
                 productReview.hiddenByAdminId(),
@@ -103,16 +106,26 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 null,
                 productReview.helpfulCount(),
                 productReview.images());
+        ReviewUseCase.ReviewEvidenceItem evidence = new ReviewUseCase.ReviewEvidenceItem(
+                81L,
+                productReview.contentRevision(),
+                productReview.rating(),
+                productReview.content(),
+                productReview.editedAt(),
+                ReviewEvidenceProvenance.LIVE,
+                true,
+                productReview.images().stream()
+                        .map(ReviewUseCase.ReviewImageItem::imageUrl)
+                        .toList(),
+                LocalDateTime.of(2026, 5, 1, 20, 0));
         ReviewUseCase.ReviewReportItem pendingReport = new ReviewUseCase.ReviewReportItem(
                 71L,
                 31L,
                 CUSTOMER_USER_ID,
                 ReviewReportReason.PRIVACY,
                 "개인 연락처가 노출되어 있습니다.",
-                5,
-                "마감이 깔끔하고 선물하기 좋았습니다.",
                 ReviewStatus.PUBLISHED,
-                null,
+                evidence,
                 ReviewReportStatus.PENDING,
                 null,
                 null,
@@ -124,10 +137,8 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 pendingReport.reporterUserId(),
                 pendingReport.reason(),
                 pendingReport.detail(),
-                pendingReport.snapshotRating(),
-                pendingReport.snapshotContent(),
                 pendingReport.snapshotStatus(),
-                pendingReport.snapshotEditedAt(),
+                pendingReport.evidence(),
                 ReviewReportStatus.ACCEPTED,
                 "개인정보 노출을 확인하여 숨김 처리했습니다.",
                 ADMIN_USER_ID,
@@ -156,8 +167,14 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 isNull(),
                 eq(20)))
                 .thenReturn(new CursorPage<>(List.of(productReview), "cursor-next", true));
+        when(reviewUseCase.getAdminReview(31L)).thenReturn(productReview);
         when(reviewUseCase.updateStatus(
-                eq(31L), eq(ReviewStatus.HIDDEN), any(), eq(ADMIN_USER_ID)))
+                eq(31L),
+                eq(ReviewStatus.HIDDEN),
+                any(),
+                eq(productReview.contentRevision()),
+                eq(productReview.version()),
+                eq(ADMIN_USER_ID)))
                 .thenReturn(hiddenProductReview);
         when(reviewUseCase.listModerationActions(31L))
                 .thenReturn(List.of(new ReviewUseCase.ModerationActionItem(
@@ -168,10 +185,13 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         ReviewStatus.HIDDEN,
                         "운영 정책 위반 내용",
                         ADMIN_USER_ID,
+                        evidence,
                         LocalDateTime.of(2026, 5, 1, 21, 0))));
-        when(reviewUseCase.upsertOfficialReply(eq(31L), any(), eq(ADMIN_USER_ID)))
+        when(reviewUseCase.upsertOfficialReply(
+                eq(31L), any(), eq(productReview.version()), eq(ADMIN_USER_ID)))
                 .thenReturn(productReview);
-        when(reviewUseCase.deleteOfficialReply(31L, ADMIN_USER_ID))
+        when(reviewUseCase.deleteOfficialReply(
+                31L, productReview.version(), ADMIN_USER_ID))
                 .thenReturn(productReviewWithoutReply);
         when(reviewUseCase.listAdminReports(
                 eq(ReviewReportStatus.PENDING), isNull(), eq(20)))
@@ -415,6 +435,17 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 후기 단건 조회 API를 문서화한다")
+    void admin_get_review() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/reviews/{reviewId}", 31L)
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(31))
+                .andExpect(jsonPath("$.contentRevision").value(1))
+                .andExpect(jsonPath("$.version").value(0));
+    }
+
+    @Test
     @DisplayName("관리자 후기 숨김 상태 변경 API를 문서화한다")
     void admin_update_review_status() throws Exception {
         mockMvc.perform(patch("/api/v1/admin/reviews/{reviewId}/status", 31L)
@@ -423,7 +454,9 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         .content("""
                                 {
                                   "status": "HIDDEN",
-                                  "reason": "운영 정책 위반 내용"
+                                  "reason": "운영 정책 위반 내용",
+                                  "expectedContentRevision": 1,
+                                  "expectedVersion": 0
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -442,7 +475,9 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].action").value("HIDE"))
                 .andExpect(jsonPath("$[0].previousStatus").value("PUBLISHED"))
                 .andExpect(jsonPath("$[0].newStatus").value("HIDDEN"))
-                .andExpect(jsonPath("$[0].adminUserId").value(ADMIN_USER_ID));
+                .andExpect(jsonPath("$[0].adminUserId").value(ADMIN_USER_ID))
+                .andExpect(jsonPath("$[0].evidence.contentRevision").value(1))
+                .andExpect(jsonPath("$[0].evidence.imagesComplete").value(true));
     }
 
     @Test
@@ -453,6 +488,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedVersion": 0,
                                   "content": "소중한 후기 감사합니다."
                                 }
                                 """))
@@ -466,7 +502,8 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자가 후기 공식 답글을 삭제하는 API를 문서화한다")
     void admin_delete_review_reply() throws Exception {
         mockMvc.perform(delete("/api/v1/admin/reviews/{reviewId}/reply", 31L)
-                        .with(adminUser()))
+                        .with(adminUser())
+                        .param("expectedVersion", "0"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(31))
                 .andExpect(jsonPath("$.officialReply").doesNotExist());
@@ -482,7 +519,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(71))
                 .andExpect(jsonPath("$.content[0].reason").value("PRIVACY"))
-                .andExpect(jsonPath("$.content[0].snapshotRating").value(5))
+                .andExpect(jsonPath("$.content[0].evidence.rating").value(5))
                 .andExpect(jsonPath("$.content[0].snapshotStatus").value("PUBLISHED"))
                 .andExpect(jsonPath("$.content[0].status").value("PENDING"))
                 .andExpect(jsonPath("$.nextCursor").value("report-cursor-next"))

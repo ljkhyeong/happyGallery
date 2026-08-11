@@ -5,6 +5,7 @@ import { queryKeys } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { AdminReviewEvidence } from "./AdminReviewEvidence";
 import { fetchReviewModerationActions } from "./api";
 
 interface Props {
@@ -51,6 +52,12 @@ export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError 
                   <span>{action.previousStatus} → {action.newStatus}</span>
                   {action.reason && <p>{action.reason}</p>}
                   <small>관리자 #{action.adminUserId} · {formatDateTime(action.createdAt)}</small>
+                  <AdminReviewEvidence
+                    evidence={action.evidence}
+                    adminKey={adminKey}
+                    onAuthError={onAuthError}
+                    unavailableMessage="이전 운영 이력이라 당시 후기 증거를 복구할 수 없습니다."
+                  />
                 </li>
               ))}
             </ol>

@@ -8,6 +8,8 @@ import com.personal.happygallery.adapter.in.web.review.dto.DecideReviewReportReq
 import com.personal.happygallery.adapter.in.web.review.dto.ReviewModerationActionResponse;
 import com.personal.happygallery.adapter.in.web.review.dto.UpdateReviewStatusRequest;
 import com.personal.happygallery.adapter.in.web.review.dto.UpsertReviewReplyRequest;
+import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
+import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -16,9 +18,16 @@ import com.personal.happygallery.domain.review.ReviewReportStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +40,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 
 @RestController
 @RequestMapping("/api/v1/admin")
+@Validated
 public class AdminReviewController {
 
     private final ReviewUseCase reviewUseCase;
@@ -40,7 +50,12 @@ public class AdminReviewController {
     }
 
     @GetMapping("/reviews")
-    @Operation(operationId = "listAdminReviews")
+    @Operation(
+            operationId = "listAdminReviews",
+            security = {
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER),
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_API_KEY)
+            })
     public AdminReviewPageResponse list(
             @RequestParam(required = false) ReviewTargetType targetType,
             @RequestParam(required = false) ReviewStatus status,
@@ -53,49 +68,112 @@ public class AdminReviewController {
                 reviewUseCase.listAdminReviews(targetType, status, cursor, size));
     }
 
+    @GetMapping("/reviews/{reviewId}")
+    @Operation(
+            operationId = "getAdminReview",
+            security = {
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER),
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_API_KEY)
+            })
+    public AdminReviewResponse get(@PathVariable @Positive Long reviewId) {
+        return AdminReviewResponse.from(reviewUseCase.getAdminReview(reviewId));
+    }
+
     @PatchMapping("/reviews/{reviewId}/status")
-    @Operation(operationId = "updateAdminReviewStatus")
+    @Operation(
+            operationId = "updateAdminReviewStatus",
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "변경된 후기",
+                    content = @Content(schema = @Schema(implementation = AdminReviewResponse.class))),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "후기 콘텐츠 revision 또는 운영 version 충돌",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public AdminReviewResponse updateStatus(
-            @PathVariable Long reviewId,
+            @PathVariable @Positive Long reviewId,
             @RequestBody @Valid UpdateReviewStatusRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminReviewResponse.from(reviewUseCase.updateStatus(
                 reviewId,
                 request.status(),
                 request.reason(),
+                request.expectedContentRevision(),
+                request.expectedVersion(),
                 admin.requireBearerAdminUserId()));
     }
 
     @GetMapping("/reviews/{reviewId}/moderation-actions")
-    @Operation(operationId = "listReviewModerationActions")
+    @Operation(
+            operationId = "listReviewModerationActions",
+            security = {
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER),
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_API_KEY)
+            })
     public List<ReviewModerationActionResponse> listModerationActions(
-            @PathVariable Long reviewId) {
+            @PathVariable @Positive Long reviewId) {
         return reviewUseCase.listModerationActions(reviewId).stream()
                 .map(ReviewModerationActionResponse::from)
                 .toList();
     }
 
     @PutMapping("/reviews/{reviewId}/reply")
-    @Operation(operationId = "upsertOfficialReviewReply")
+    @Operation(
+            operationId = "upsertOfficialReviewReply",
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "답글이 반영된 후기",
+                    content = @Content(schema = @Schema(implementation = AdminReviewResponse.class))),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "후기 운영 version 충돌",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public AdminReviewResponse upsertReply(
-            @PathVariable Long reviewId,
+            @PathVariable @Positive Long reviewId,
             @RequestBody @Valid UpsertReviewReplyRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminReviewResponse.from(reviewUseCase.upsertOfficialReply(
-                reviewId, request.content(), admin.requireBearerAdminUserId()));
+                reviewId,
+                request.content(),
+                request.expectedVersion(),
+                admin.requireBearerAdminUserId()));
     }
 
     @DeleteMapping("/reviews/{reviewId}/reply")
-    @Operation(operationId = "deleteOfficialReviewReply")
+    @Operation(
+            operationId = "deleteOfficialReviewReply",
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "답글이 삭제된 후기",
+                    content = @Content(schema = @Schema(implementation = AdminReviewResponse.class))),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "후기 운영 version 충돌",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
     public AdminReviewResponse deleteReply(
-            @PathVariable Long reviewId,
+            @PathVariable @Positive Long reviewId,
+            @RequestParam @PositiveOrZero long expectedVersion,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminReviewResponse.from(reviewUseCase.deleteOfficialReply(
-                reviewId, admin.requireBearerAdminUserId()));
+                reviewId, expectedVersion, admin.requireBearerAdminUserId()));
     }
 
     @GetMapping("/review-reports")
-    @Operation(operationId = "listAdminReviewReports")
+    @Operation(
+            operationId = "listAdminReviewReports",
+            security = {
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER),
+                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_API_KEY)
+            })
     public AdminReviewReportPageResponse listReports(
             @RequestParam(required = false) ReviewReportStatus status,
             @RequestParam(required = false) String cursor,
@@ -108,9 +186,11 @@ public class AdminReviewController {
     }
 
     @PatchMapping("/review-reports/{reportId}")
-    @Operation(operationId = "decideAdminReviewReport")
+    @Operation(
+            operationId = "decideAdminReviewReport",
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
     public AdminReviewReportResponse decideReport(
-            @PathVariable Long reportId,
+            @PathVariable @Positive Long reportId,
             @RequestBody @Valid DecideReviewReportRequest request,
             @AuthenticationPrincipal AdminPrincipal admin) {
         return AdminReviewReportResponse.from(reviewUseCase.decideReport(

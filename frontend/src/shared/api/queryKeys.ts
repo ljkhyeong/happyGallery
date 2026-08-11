@@ -17,6 +17,8 @@ export const queryKeys = {
       all: ["admin", "reviews"] as const,
       page: (targetType?: string, status?: string, cursor?: string) =>
         ["admin", "reviews", targetType, status, cursor] as const,
+      detail: (reviewId: number) =>
+        ["admin", "reviews", "detail", reviewId] as const,
       moderation: (reviewId: number) =>
         ["admin", "reviews", "moderation", reviewId] as const,
       reports: {

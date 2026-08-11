@@ -9,6 +9,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record UpdateReviewRequest(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
+        @NotNull @Min(1) Long expectedContentRevision,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "5")
         @NotNull @Min(1) @Max(5) Integer rating,
         @Schema(

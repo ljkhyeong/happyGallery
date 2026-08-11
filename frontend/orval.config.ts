@@ -145,6 +145,9 @@ export default defineConfig({
     "product-review-controller",
     "class-review-controller",
     "me-review-controller",
+    "me-review-image-media-controller",
     "admin-review-controller",
+    "admin-review-image-media-controller",
+    "admin-review-evidence-media-controller",
   ]),
 });

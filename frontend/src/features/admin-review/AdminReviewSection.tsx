@@ -1,20 +1,24 @@
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import { queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { ReviewStars, ReviewStatusBadge } from "@/features/review/ReviewDisplay";
 import { ReviewImageGallery } from "@/features/review/ReviewImageGallery";
 import { ReviewTrustBadges } from "@/features/review/ReviewTrustBadges";
+import { isAdminReviewMutationConflict } from "@/features/review/reviewMutationConflict";
 import { AdminReviewModerationTimeline } from "./AdminReviewModerationTimeline";
+import { AdminReviewProtectedImage } from "./AdminReviewProtectedImage";
 import { AdminReviewReplyForm } from "./AdminReviewReplyForm";
 import { AdminReviewReportSection } from "./AdminReviewReportSection";
 import {
   changeAdminReviewStatus,
+  fetchAdminReview,
   fetchAdminReviews,
   type AdminReviewResponse,
   type ListAdminReviewsStatus,
@@ -24,12 +28,22 @@ import {
 interface Props {
   adminKey: string;
   onAuthError: () => void;
+  focusedReviewId?: number;
+  onFocusedReviewChange: (reviewId?: number) => void;
 }
 
-export function AdminReviewSection({ adminKey, onAuthError }: Props) {
+export function AdminReviewSection({
+  adminKey,
+  onAuthError,
+  focusedReviewId,
+  onFocusedReviewChange,
+}: Props) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [activePane, setActivePane] = useState<"reviews" | "reports">("reviews");
   const reviewTabRef = useRef<HTMLButtonElement>(null);
   const reportTabRef = useRef<HTMLButtonElement>(null);
+  const focusedReviewHeadingRef = useRef<HTMLHeadingElement>(null);
   const [targetType, setTargetType] = useState<ListAdminReviewsTargetType | "">("");
   const [status, setStatus] = useState<ListAdminReviewsStatus | "">("");
   const { cursor, hasPreviousPage, showNextPage, showPreviousPage, resetCursor } = useCursorHistory();
@@ -40,8 +54,55 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
       status: status || undefined,
       cursor,
     }, signal),
-    enabled: activePane === "reviews",
+    enabled: activePane === "reviews" && focusedReviewId === undefined,
   });
+  const focusedReviewQuery = useAdminQuery(onAuthError, {
+    queryKey: queryKeys.admin.reviews.detail(focusedReviewId ?? 0),
+    queryFn: ({ signal }) => fetchAdminReview(adminKey, focusedReviewId!, signal),
+    enabled: activePane === "reviews" && focusedReviewId !== undefined,
+  });
+  const openReview = (reviewId: number) => {
+    setActivePane("reviews");
+    onFocusedReviewChange(reviewId);
+  };
+  const selectPane = (pane: "reviews" | "reports") => {
+    if (focusedReviewId !== undefined) onFocusedReviewChange(undefined);
+    setActivePane(pane);
+  };
+  const handleRevisionConflict = async (reviewId: number) => {
+    const detailKey = queryKeys.admin.reviews.detail(reviewId);
+    let refreshed = false;
+    try {
+      await queryClient.cancelQueries({ queryKey: detailKey });
+      const latest = await fetchAdminReview(adminKey, reviewId);
+      queryClient.setQueryData(detailKey, latest);
+      refreshed = true;
+    } catch (error) {
+      if (isAdminSessionUnauthorized(error)) {
+        onAuthError();
+        return;
+      }
+      queryClient.removeQueries({ queryKey: detailKey, exact: true });
+    }
+    openReview(reviewId);
+    requestAnimationFrame(() => focusedReviewHeadingRef.current?.focus());
+    toast.show(
+      refreshed
+        ? "후기가 다른 작업으로 변경되어 최신 상태를 다시 불러왔습니다. 내용을 확인한 뒤 다시 처리해 주세요."
+        : "후기가 변경되었지만 최신 내용을 불러오지 못했습니다. 상세 화면에서 다시 시도해 주세요.",
+      "warning",
+    );
+  };
+
+  useEffect(() => {
+    if (focusedReviewId !== undefined) setActivePane("reviews");
+  }, [focusedReviewId]);
+
+  useEffect(() => {
+    if (activePane !== "reviews" || focusedReviewId === undefined) return;
+    const frame = requestAnimationFrame(() => focusedReviewHeadingRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [activePane, focusedReviewId]);
   const handleTabKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
     currentPane: "reviews" | "reports",
@@ -55,7 +116,7 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
     if (!nextPane) return;
 
     event.preventDefault();
-    setActivePane(nextPane);
+    selectPane(nextPane);
     (nextPane === "reviews" ? reviewTabRef : reportTabRef).current?.focus();
   };
 
@@ -72,7 +133,7 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
           aria-controls="admin-review-panel"
           aria-selected={activePane === "reviews"}
           tabIndex={activePane === "reviews" ? 0 : -1}
-          onClick={() => setActivePane("reviews")}
+          onClick={() => selectPane("reviews")}
           onKeyDown={(event) => handleTabKeyDown(event, "reviews")}
         >
           후기 관리
@@ -87,7 +148,7 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
           aria-controls="admin-review-report-panel"
           aria-selected={activePane === "reports"}
           tabIndex={activePane === "reports" ? 0 : -1}
-          onClick={() => setActivePane("reports")}
+          onClick={() => selectPane("reports")}
           onKeyDown={(event) => handleTabKeyDown(event, "reports")}
         >
           신고 관리
@@ -96,10 +157,51 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
 
       {activePane === "reports" ? (
         <div id="admin-review-report-panel" role="tabpanel" aria-labelledby="admin-review-report-tab">
-          <AdminReviewReportSection adminKey={adminKey} onAuthError={onAuthError} />
+          <AdminReviewReportSection
+            adminKey={adminKey}
+            onAuthError={onAuthError}
+            onOpenReview={openReview}
+          />
         </div>
       ) : (
         <div id="admin-review-panel" role="tabpanel" aria-labelledby="admin-review-tab">
+          {focusedReviewId !== undefined ? (
+            <section aria-labelledby="admin-focused-review-heading">
+              <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h6
+                  ref={focusedReviewHeadingRef}
+                  id="admin-focused-review-heading"
+                  className="mb-0"
+                  tabIndex={-1}
+                >
+                  신고 대상 후기 #{focusedReviewId}
+                </h6>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-secondary"
+                  onClick={() => onFocusedReviewChange(undefined)}
+                >
+                  전체 후기 목록
+                </Button>
+              </div>
+              {focusedReviewQuery.isLoading && <LoadingSpinner text="최신 후기를 불러오는 중입니다" />}
+              <ErrorAlert
+                error={focusedReviewQuery.error}
+                onRetry={() => void focusedReviewQuery.refetch()}
+                retrying={focusedReviewQuery.isFetching}
+              />
+              {focusedReviewQuery.data && (
+                <AdminReviewCard
+                  review={focusedReviewQuery.data}
+                  adminKey={adminKey}
+                  onAuthError={onAuthError}
+                  onRevisionConflict={(reviewId) => void handleRevisionConflict(reviewId)}
+                />
+              )}
+            </section>
+          ) : (
+            <>
           <Row className="g-2 mb-3">
             <Col sm={6} md={4}>
               <Form.Label htmlFor="admin-review-target">후기 종류</Form.Label>
@@ -147,6 +249,7 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
                 review={review}
                 adminKey={adminKey}
                 onAuthError={onAuthError}
+                onRevisionConflict={(reviewId) => void handleRevisionConflict(reviewId)}
               />
             ))}
           </div>
@@ -172,6 +275,8 @@ export function AdminReviewSection({ adminKey, onAuthError }: Props) {
               </Button>
             </div>
           )}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -182,33 +287,51 @@ function AdminReviewCard({
   review,
   adminKey,
   onAuthError,
+  onRevisionConflict,
 }: {
   review: AdminReviewResponse;
   adminKey: string;
   onAuthError: () => void;
+  onRevisionConflict: (reviewId: number) => void;
 }) {
   const [showHideForm, setShowHideForm] = useState(false);
   const [reason, setReason] = useState("");
   const queryClient = useQueryClient();
   const toast = useToast();
+  const synchronizeReview = async (updated: AdminReviewResponse) => {
+    queryClient.setQueryData(queryKeys.admin.reviews.detail(updated.id), updated);
+    const publicKey = updated.targetType === "PRODUCT"
+      ? queryKeys.reviews.products.byProduct(updated.targetId)
+      : queryKeys.reviews.classes.byClass(updated.targetId);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
+      queryClient.invalidateQueries({ queryKey: publicKey }),
+    ]);
+  };
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: (input: { status: "PUBLISHED" | "HIDDEN"; reason?: string }) =>
-      changeAdminReviewStatus(adminKey, review.id, input.status, input.reason),
+      changeAdminReviewStatus(
+        adminKey,
+        review.id,
+        input.status,
+        review.contentRevision,
+        review.version,
+        input.reason,
+      ),
     onSuccess: async (updated) => {
-      const publicKey = updated.targetType === "PRODUCT"
-        ? queryKeys.reviews.products.byProduct(updated.targetId)
-        : queryKeys.reviews.classes.byClass(updated.targetId);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-        queryClient.invalidateQueries({ queryKey: publicKey }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.moderation(updated.id) }),
-      ]);
+      await synchronizeReview(updated);
       setReason("");
       setShowHideForm(false);
       toast.show(updated.status === "HIDDEN" ? "후기를 숨겼습니다." : "후기를 다시 공개했습니다.");
     },
+    onError: (error) => {
+      if (isAdminReviewMutationConflict(error)) {
+        onRevisionConflict(review.id);
+      }
+    },
   });
+  const revisionConflict = isAdminReviewMutationConflict(mutation.error);
 
   return (
     <Card className="admin-review-card">
@@ -218,6 +341,7 @@ function AdminReviewCard({
             <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
               <ReviewStatusBadge status={review.status} />
               <Badge bg="light" text="dark">{review.targetType === "PRODUCT" ? "상품" : "클래스"}</Badge>
+              <Badge bg="light" text="dark">revision {review.contentRevision}</Badge>
               <ReviewStars rating={review.rating} />
               <ReviewTrustBadges
                 verifiedTransaction={review.verifiedTransaction}
@@ -254,7 +378,23 @@ function AdminReviewCard({
           )}
         </div>
         <p className="admin-review-content mt-3 mb-0">{review.content}</p>
-        <ReviewImageGallery images={review.images} label="후기 첨부 사진" />
+        {review.status === "HIDDEN" ? (
+          review.images.length > 0 && (
+            <div className="review-image-gallery" aria-label="숨김 후기 첨부 사진">
+              {review.images.map((image, index) => (
+                <AdminReviewProtectedImage
+                  key={image.id}
+                  adminKey={adminKey}
+                  source={{ kind: "review", reviewId: review.id, imageId: image.id }}
+                  alt={`숨김 후기 첨부 사진 ${index + 1}`}
+                  onAuthError={onAuthError}
+                />
+              ))}
+            </div>
+          )
+        ) : (
+          <ReviewImageGallery images={review.images} label="후기 첨부 사진" />
+        )}
         {review.status === "HIDDEN" && (
           <Alert variant="warning" className="small mt-3 mb-0">
             숨김 사유: {review.hiddenReason || "사유 없음"}
@@ -299,8 +439,22 @@ function AdminReviewCard({
             </div>
           </Form>
         )}
-        <div className="mt-2"><ErrorAlert error={mutation.error} /></div>
-        <AdminReviewReplyForm review={review} adminKey={adminKey} onAuthError={onAuthError} />
+        <div className="mt-2">
+          {revisionConflict ? (
+            <Alert variant="warning" className="small mb-3">
+              후기가 다른 작업으로 변경되었습니다. 최신 상태를 다시 불러왔으니 내용을 확인한 뒤 다시 처리해 주세요.
+            </Alert>
+          ) : (
+            <ErrorAlert error={mutation.error} />
+          )}
+        </div>
+        <AdminReviewReplyForm
+          review={review}
+          adminKey={adminKey}
+          onAuthError={onAuthError}
+          onUpdated={(updated) => synchronizeReview(updated)}
+          onRevisionConflict={onRevisionConflict}
+        />
         <AdminReviewModerationTimeline reviewId={review.id} adminKey={adminKey} onAuthError={onAuthError} />
       </Card.Body>
     </Card>

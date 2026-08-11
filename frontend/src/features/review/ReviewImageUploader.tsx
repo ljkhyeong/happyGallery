@@ -12,6 +12,7 @@ import {
 } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { removeReviewImage, uploadReviewImage } from "./api";
+import { MemberReviewProtectedImage } from "./MemberReviewProtectedImage";
 import { MAX_REVIEW_IMAGES, reviewImageSelectionError } from "./reviewUiPolicy";
 
 export function ReviewImageUploader({ review }: { review: MemberReviewResponse }) {
@@ -94,7 +95,15 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
         <div className="review-image-gallery review-image-gallery-editable">
           {review.images.map((image, index) => (
             <div key={image.id} className="review-image-edit-item">
-              <img src={image.imageUrl} alt={`등록한 후기 사진 ${index + 1}`} />
+              {review.status === "HIDDEN" ? (
+                <MemberReviewProtectedImage
+                  reviewId={review.id}
+                  imageId={image.id}
+                  alt={`등록한 후기 사진 ${index + 1}`}
+                />
+              ) : (
+                <img src={image.imageUrl} alt={`등록한 후기 사진 ${index + 1}`} />
+              )}
               <Button
                 type="button"
                 size="sm"

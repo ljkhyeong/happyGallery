@@ -106,6 +106,40 @@ class SubjectRateLimitGuardTest {
                 .isEqualTo("test:rate:REVIEW_REPORT_USER:" + BLIND_INDEXER.index("42"));
     }
 
+    @DisplayName("동일 회원의 후기 생성·수정·삭제가 전용 한도를 넘으면 429 예외를 발생시킨다")
+    @Test
+    void rejectsRepeatedReviewMutationByUser() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkReviewMutation(42L);
+
+        assertThatThrownBy(() -> guard.checkReviewMutation(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:REVIEW_MUTATION_USER:" + BLIND_INDEXER.index("42"));
+    }
+
+    @DisplayName("동일 회원의 후기 도움돼요 토글이 전용 한도를 넘으면 429 예외를 발생시킨다")
+    @Test
+    void rejectsRepeatedReviewHelpfulByUser() {
+        RateLimitProperties properties = properties();
+        AtomicReference<String> redisKey = new AtomicReference<>();
+        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
+                properties,
+                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
+
+        guard.checkReviewHelpful(42L);
+
+        assertThatThrownBy(() -> guard.checkReviewHelpful(42L))
+                .isInstanceOf(RateLimitExceededException.class);
+        assertThat(redisKey.get())
+                .isEqualTo("test:rate:REVIEW_HELPFUL_USER:" + BLIND_INDEXER.index("42"));
+    }
+
     @DisplayName("동일 회원의 후기 이미지 업로드가 전용 한도를 넘으면 429 예외를 발생시킨다")
     @Test
     void rejectsRepeatedReviewImageUploadByUser() {
@@ -219,6 +253,8 @@ class SubjectRateLimitGuardTest {
                         generousLimit,
                         generousLimit,
                         generousLimit,
+                        new Rule(1, Duration.ofMinutes(10)),
+                        new Rule(1, Duration.ofMinutes(1)),
                         new Rule(1, Duration.ofMinutes(10)),
                         new Rule(1, Duration.ofMinutes(10)),
                         new Rule(1, Duration.ofMinutes(10)),

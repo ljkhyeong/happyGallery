@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,7 +30,7 @@ public class ProductReviewController {
     @GetMapping
     @Operation(operationId = "listProductReviews")
     public PublicReviewPageResponse list(
-            @PathVariable Long productId,
+            @PathVariable @Positive Long productId,
             @Parameter(schema = @Schema(type = "integer", format = "int32", minimum = "1", maximum = "5"))
             @RequestParam(required = false) @Min(1) @Max(5) Integer rating,
             @RequestParam(defaultValue = "LATEST") ReviewSort sort,

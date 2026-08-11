@@ -2201,7 +2201,7 @@ GET /api/v1/policies/current
 ```json
 {
   "terms": { "version": "2026-08-08-v1", "documentPath": "/terms/2026-08-08-v1" },
-  "privacy": { "version": "2026-08-08-v1", "documentPath": "/privacy/2026-08-08-v1" }
+  "privacy": { "version": "2026-08-11-v1", "documentPath": "/privacy/2026-08-11-v1" }
 }
 ```
 
@@ -2239,7 +2239,7 @@ POST /api/v1/auth/signup
   "policyAcceptance": {
     "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-08-v1",
+    "privacyVersion": "2026-08-11-v1",
     "privacyAccepted": true
   }
 }
@@ -2301,7 +2301,7 @@ X-XSRF-TOKEN: {csrfToken}
 {
   "termsVersion": "2026-08-08-v1",
   "termsAccepted": true,
-  "privacyVersion": "2026-08-08-v1",
+  "privacyVersion": "2026-08-11-v1",
   "privacyAccepted": true
 }
 ```
@@ -2983,21 +2983,22 @@ GET /api/v1/products/{productId}/qna/{id}
 - `GET /api/v1/me/reviews/products/{orderItemId}/creation-state` — 주문 품목의 현재 작성 상태
 - `GET /api/v1/me/reviews/classes/{bookingId}/creation-state` — 예약의 현재 작성 상태
 - `GET /api/v1/me/reviews?cursor={cursor}&size=20` — 내 후기 커서 페이지
-- `GET /api/v1/me/reviews/opportunities` — 작성 가능한 완료 주문 품목·예약
-- `GET /api/v1/me/reviews/reactions?reviewIds=31,32` — 공개 후기 최대 100건의 도움돼요·신고 여부
+- `GET /api/v1/me/reviews/opportunities?cursor={cursor}&size=20` — 작성 가능한 완료 주문 품목·예약 커서 페이지
+- `GET /api/v1/me/reviews/reactions?reviewIds=31,32` — 공개 후기 최대 100건의 도움돼요·신고·본인 소유·상호작용 가능 여부
 - `GET /api/v1/me/reviews/orders/{orderId}` — 주문 품목별 내 후기 배열
 - `GET /api/v1/me/reviews/bookings/{bookingId}` — 예약의 내 후기 배열(0~1건)
-- `PATCH /api/v1/me/reviews/{reviewId}` — `{rating,content}` 수정
+- `PATCH /api/v1/me/reviews/{reviewId}` — `{expectedContentRevision,rating,content}` 수정
 - `DELETE /api/v1/me/reviews/{reviewId}` — `204 No Content` 삭제
 - `PUT /api/v1/me/reviews/{reviewId}/helpful` — 도움돼요 멱등 등록
 - `DELETE /api/v1/me/reviews/{reviewId}/helpful` — 도움돼요 멱등 해제
 - `POST /api/v1/me/reviews/{reviewId}/reports` — `{reason,detail}` 신고
 - `POST /api/v1/me/reviews/{reviewId}/images` — multipart `file` 사진 첨부
+- `GET /api/v1/me/reviews/{reviewId}/images/{imageId}` — 회원 소유 숨김 후기 사진 보호 조회
 - `DELETE /api/v1/me/reviews/{reviewId}/images/{imageId}` — 사진 삭제
 
 회원 후기 응답은 `id`, `targetType(PRODUCT|CLASS)`, `targetId`, `targetName`,
 `sourceType(ORDER_ITEM|BOOKING)`, `sourceId`, `rating`, `content`,
-`status(PUBLISHED|HIDDEN)`, nullable 숨김 사유, 작성·수정 시각, `edited`,
+`status(PUBLISHED|HIDDEN)`, `contentRevision`, nullable 숨김 사유, 작성·수정 시각, `edited`,
 `verifiedTransaction`, nullable `officialReply`, `helpfulCount`, 최대 5건의 `images`를 포함한다.
 
 - 상품 후기는 현재 회원 소유 주문 품목의 주문이 `DELIVERED`, `PICKED_UP`, `COMPLETED`일 때만 `201 Created`다.
@@ -3005,29 +3006,38 @@ GET /api/v1/products/{productId}/qna/{id}
 - 다른 회원의 작성 근거나 후기는 `404 NOT_FOUND`, 미완료 근거는 `422 REVIEW_NOT_ALLOWED`다.
 - 주문·예약별 내 후기 조회도 먼저 현재 회원 소유를 확인한다. 본인 원천에 후기가 없을 때만 빈 배열을 반환하고, 타인·미존재 원천은 `404 NOT_FOUND`다.
 - 작성 상태는 `AVAILABLE`, `REVIEW_EXISTS`, `RECREATION_BLOCKED`, `NOT_REVIEWABLE`이다. 화면은 이 서버 값으로 작성 폼 노출을 결정한다.
+- 작성 기회는 실제 배송·픽업·예약 완료 시각의 역순으로 정렬하고, `(completedAt,targetType,sourceId)`를 포함한 opaque cursor와 `content`, `nextCursor`, `hasMore`를 반환한다. 예전 이용 내역도 페이지를 계속 열어 누락 없이 조회할 수 있다.
 - 같은 주문 품목·예약에 활성 후기가 있으면 `409 REVIEW_ALREADY_EXISTS`다. 한 번이라도 숨겨졌던 후기를 삭제한 원천은 `409 REVIEW_RECREATION_BLOCKED`다.
 - `rating`은 1~5 정수, `content`는 공백이 아닌 16,000자 이하다.
-- 삭제는 사용자 내용과 사진 참조를 지우는 soft-delete다. 숨김 이력이 없을 때만 원천을 해제해 재작성을 허용한다.
-- 후기 사진은 JPEG·PNG, 원본 5MB 이하와 가로·세로 4,096px·총 1,600만 픽셀 이하만 허용한다. 표준 디코더로 실제 형식을 검증한 뒤 메타데이터 없는 새 파일로 재인코딩하며 후기당 5장까지다. 검증 가능한 서버 디코더가 없는 WebP는 관리자 자산 업로드와 달리 회원 후기에서는 받지 않는다. 업로드는 IP와 회원별 10분에 20회로 제한한다.
+- 삭제는 사용자 내용과 사진 참조, 현재 행의 숨김 사유·처리자를 지우는 soft-delete다. 재작성 차단 표식과 3년 감사 사건은 별도로 보존한다. 숨김 이력이 없을 때만 원천을 해제해 재작성을 허용한다.
+- 회원 수정은 화면이 읽은 `expectedContentRevision`과 현재 값이 다르면 `409 REVIEW_CONTENT_CHANGED`로 거절해 다른 탭의 최신 후기를 덮어쓰지 않는다.
+- 후기 사진은 JPEG·PNG, 원본 5MB 이하와 가로·세로 4,096px·총 1,600만 픽셀 이하만 허용한다. 표준 디코더로 실제 형식을 판별하므로 빈 MIME과 `application/octet-stream`은 허용하지만 명시한 JPEG/PNG MIME이 실제 형식과 다르면 거절한다. EXIF 방향을 적용한 뒤 메타데이터 없는 새 파일로 재인코딩하며 후기당 5장까지다. 검증 가능한 서버 디코더가 없는 WebP는 관리자 자산 업로드와 달리 회원 후기에서는 받지 않는다. 업로드는 IP와 회원별 10분에 20회로 제한하고 동시 디코딩 기본 상한 2건이 차면 `429 TOO_MANY_REQUESTS`다. 저장 뒤 DB 연결 실패와 사진 참조 해제는 파일 참조를 재확인해 보상 삭제하며 실패 시 기존 7일 고아 정리를 사용한다.
 - 회원은 자기 후기이나 숨김·삭제 후기에 도움돼요·신고를 할 수 없다. 신고 사유는 `SPAM|ABUSIVE|PRIVACY|FALSE_INFORMATION|OTHER`이며 후기·회원당 한 번, IP와 회원별 10분에 10회다.
-- 작성자는 숨김 후기도 수정·삭제할 수 있지만 수정만으로 공개 상태가 바뀌지 않는다.
+- 후기 작성·수정·삭제는 회원별 10분에 20회, 도움돼요 등록·해제는 회원별 1분에 60회로 제한한다. 한도 초과는 `429 TOO_MANY_REQUESTS`, 제한 저장소 장애는 fail-closed `503 SERVICE_UNAVAILABLE`다.
+- 작성자는 숨김 후기도 수정·사진 관리·삭제할 수 있지만 수정만으로 공개 상태가 바뀌지 않는다. 숨김 후기 사진은 현재 회원 소유와 이미지 연결을 확인하는 `CustomerSession` 전용 조회에서만 `Cache-Control: no-store`로 제공한다.
 
 관리자 운영:
 
 - `GET /api/v1/admin/reviews?targetType={PRODUCT|CLASS}&status={PUBLISHED|HIDDEN}&cursor={cursor}&size=20`
-- `PATCH /api/v1/admin/reviews/{reviewId}/status` — `{status,reason}`
+- `GET /api/v1/admin/reviews/{reviewId}` — 신고 화면에서도 사용할 수 있는 현재 후기 단건
+- `PATCH /api/v1/admin/reviews/{reviewId}/status` — `{status,reason,expectedContentRevision,expectedVersion}`
 - `GET /api/v1/admin/reviews/{reviewId}/moderation-actions` — 숨김·재공개 감사 이력
-- `PUT /api/v1/admin/reviews/{reviewId}/reply` — `{content}` 공방 공식 답글 작성·수정
-- `DELETE /api/v1/admin/reviews/{reviewId}/reply` — 공방 공식 답글 삭제
+- `PUT /api/v1/admin/reviews/{reviewId}/reply` — `{expectedVersion,content}` 공방 공식 답글 작성·수정
+- `DELETE /api/v1/admin/reviews/{reviewId}/reply?expectedVersion={version}` — 공방 공식 답글 삭제
+- `GET /api/v1/admin/reviews/{reviewId}/images/{imageId}` — Bearer 관리자 전용 숨김 후기 현재 사진
+- `GET /api/v1/admin/review-evidence/{evidenceId}/images/{sortOrder}` — Bearer 관리자 전용 증거 사진
 - `GET /api/v1/admin/review-reports?status={PENDING|ACCEPTED|REJECTED}&cursor={cursor}&size=20`
 - `PATCH /api/v1/admin/review-reports/{reportId}` — `{decision: ACCEPTED|REJECTED,note}`
 
-- 관리자 목록은 작성자 회원 ID·이름, 대상·원천, 상태와 숨김 메타데이터를 포함한다.
-- 상태 변경은 계정 기반 `Authorization: Bearer` 관리자 세션만 허용한다. local API key는 `403 FORBIDDEN`이다.
+- 관리자 목록과 단건은 작성자 회원 ID·이름, 대상·원천, 상태, 숨김 메타데이터와 `contentRevision`, JPA `version`을 포함한다.
+- 상태 변경, 공식 답글 작성·수정·삭제, 신고 판단과 숨김 후기 현재 사진·증거 사진 조회는 계정 기반 `Authorization: Bearer` 관리자 세션만 허용한다. local API key는 `403 FORBIDDEN`이다.
 - `HIDDEN` 전환에는 공백이 아닌 사유가 필요하고 관리자 ID·시각을 기록한다. `PUBLISHED` 재전환은 숨김 메타데이터를 제거한다.
-- 상태가 실제로 바뀐 때만 append-only moderation action과 회원 알림 outbox를 같은 트랜잭션으로 저장한다. 중간 전환이 더 최신 전환으로 대체되면 발송 직전 재검증에서 `OBSOLETE`로 종료한다.
+- 상태 변경은 관리자가 읽은 `expectedContentRevision`과 잠근 후기의 현재 revision이 다르면 `409 REVIEW_CONTENT_CHANGED`다. 상태가 실제로 바뀐 때만 당시 별점·본문·수정 시각·정렬된 사진 URL 증거, append-only moderation action과 회원 알림 outbox를 같은 트랜잭션으로 저장한다. 중간 전환이 더 최신 전환으로 대체되면 발송 직전 재검증에서 `OBSOLETE`로 종료한다.
+- `expectedVersion`도 잠긴 후기의 JPA `version`과 비교해 다른 관리자의 상태 왕복 전환(ABA)과 공식 답글 덮어쓰기·삭제를 `409 CONFLICT`로 차단한다.
+- `contentRevision`은 본문·평점·사진의 의미 변경만 추적하고 JPA `version`은 상태·답글을 포함한 후기 행의 모든 쓰기를 추적한다. 상태 변경에는 두 토큰이 필요하고 답글 변경에는 `expectedVersion`이 필요하다.
 - 공식 답글은 후기당 하나를 작성·수정·삭제하며 첫 작성에만 회원 알림을 요청한다. 본문은 공백이 아닌 16,000자 이하다.
-- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각을 불변 snapshot으로 포함한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다.
+- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각·정렬된 사진 URL을 공통 불변 evidence로 포함한다. 과거 신고 이관본은 사진을 복원할 수 없어 `LEGACY_REPORT`, `imagesComplete=false`로 구분한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다. 미결 evidence는 결정까지 보존하고 종결 신고·운영 조치와 evidence는 결정 또는 조치 뒤 3년간 보존한다.
+- 증거 전용이거나 숨김·삭제 후기에서만 참조되는 사진은 공개 미디어 조회에서 `404`로 숨긴다. 숨김 후기 현재 사진은 작성자 `CustomerSession` 또는 Bearer 관리자 보호 경로, 판단 증거 사진은 Bearer 관리자 전용 경로에서만 `Cache-Control: no-store`로 제공한다. evidence 만료 시 DB 참조 삭제 후 물리 파일도 커밋 이후 즉시 참조를 재확인해 파기한다.
 - 상태·답글·신고 변경 후 관리자, 같은 공개 대상과 회원 후기 cache를 함께 무효화한다.
 
 ### 2.15 결제 API (`/api/v1/payments`)
@@ -3136,7 +3146,7 @@ Content-Type: application/json
   "policyAcceptance": {
     "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-08-v1",
+    "privacyVersion": "2026-08-11-v1",
     "privacyAccepted": true
   },
   "fulfillmentType": "SHIPPING",
@@ -3175,7 +3185,7 @@ Content-Type: application/json
   "policyAcceptance": {
     "termsVersion": "2026-08-08-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-08-v1",
+    "privacyVersion": "2026-08-11-v1",
     "privacyAccepted": true
   }
 }
@@ -3488,7 +3498,7 @@ file={JPEG|PNG|WebP binary}
 
 - 비어 있지 않은 JPEG, PNG, WebP 파일만 허용하며 요청 MIME과 파일 시그니처를 함께 확인한다. 파일 상한은 5MiB다.
 - UUID 파일명으로 원자 저장하고 상품·클래스 `imageUrl`에는 반환된 경로를 사용한다.
-- `GET /api/v1/media/images/{fileName}`은 인증 없이 실제 이미지 MIME으로 반환하고 `Cache-Control: public, max-age=31536000, immutable`을 적용한다.
+- `GET /api/v1/media/images/{fileName}`은 현재 공개 자산 또는 공개 후기에서 참조하는 파일을 인증 없이 실제 이미지 MIME으로 반환한다. 후기 숨김·삭제 후 캐시 노출을 남기지 않도록 `Cache-Control: no-store`를 적용하며, 숨김 후기나 증거에만 남은 파일은 `404 NOT_FOUND`다.
 - 허용된 UUID 파일명 형식이 아니거나 파일이 없으면 `404 NOT_FOUND`다.
 
 ### 2.20 이벤트·쿠폰·적립금 API
@@ -3640,6 +3650,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `REVIEW_ALREADY_EXISTS` | 같은 주문 품목 또는 예약에 활성 후기 중복 작성 |
 | 409 | `REVIEW_RECREATION_BLOCKED` | 숨김 이력이 있는 삭제 후기의 원천으로 재작성 시도 |
 | 409 | `REVIEW_REPORT_ALREADY_EXISTS` | 같은 회원이 같은 후기를 다시 신고 |
+| 409 | `REVIEW_CONTENT_CHANGED` | 회원 또는 관리자가 불러온 뒤 후기 본문·평점·사진이 변경됨 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |

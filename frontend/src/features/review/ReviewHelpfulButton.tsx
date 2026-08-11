@@ -10,22 +10,26 @@ interface Props {
   reviewId: number;
   helpfulCount: number;
   helpfulByMe?: boolean;
+  canInteract?: boolean;
   reactionLoading: boolean;
   isAuthenticated: boolean;
   loginHref: string;
   targetType: "PRODUCT" | "CLASS";
   targetId: number;
+  interactionDescriptionId?: string;
 }
 
 export function ReviewHelpfulButton({
   reviewId,
   helpfulCount,
   helpfulByMe,
+  canInteract,
   reactionLoading,
   isAuthenticated,
   loginHref,
   targetType,
   targetId,
+  interactionDescriptionId,
 }: Props) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -62,7 +66,13 @@ export function ReviewHelpfulButton({
         variant={helpfulByMe ? "dark" : "outline-secondary"}
         className="review-reaction-button"
         aria-pressed={helpfulByMe === true}
-        disabled={reactionLoading || helpfulByMe === undefined || mutation.isPending}
+        aria-describedby={interactionDescriptionId}
+        disabled={
+          reactionLoading
+          || helpfulByMe === undefined
+          || canInteract === false
+          || mutation.isPending
+        }
         onClick={() => mutation.mutate(!helpfulByMe)}
       >
         <ThumbsUp size={15} aria-hidden="true" />

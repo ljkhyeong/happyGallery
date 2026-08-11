@@ -5,12 +5,15 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.review.Review;
+import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewReport;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -133,6 +136,66 @@ class ReviewPolicyTest {
     }
 
     @Test
+    @DisplayName("후기 콘텐츠 revision은 본문과 사진 변경에만 증가한다")
+    void contentRevisionOnlyTracksAuthorContentChanges() {
+        Review review = Review.forProduct(1L, 2L, 3L, 5, "최초 내용", NOW);
+
+        review.changeStatus(ReviewStatus.HIDDEN, "검토", 7L, NOW.plusMinutes(1));
+        review.upsertOfficialReply("공식 답글", 7L, NOW.plusMinutes(2));
+        assertThat(review.getContentRevision()).isEqualTo(1L);
+
+        review.update(4, "수정 내용", NOW.plusMinutes(3));
+        review.recordContentChange(NOW.plusMinutes(4));
+
+        assertThat(review.getContentRevision()).isEqualTo(3L);
+        assertThatCode(() -> review.requireContentRevision(3L)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> review.requireContentRevision(2L))
+                .isInstanceOfSatisfying(
+                        HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.REVIEW_CONTENT_CHANGED));
+    }
+
+    @Test
+    @DisplayName("후기 운영 version은 불러온 뒤 발생한 관리자 변경을 충돌로 거부한다")
+    void versionGuardRejectsStaleAdminCommand() {
+        Review review = Review.forProduct(1L, 2L, 3L, 5, "최초 내용", NOW);
+
+        assertThatCode(() -> review.requireVersion(0L)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> review.requireVersion(1L))
+                .isInstanceOfSatisfying(
+                        HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.CONFLICT));
+    }
+
+    @Test
+    @DisplayName("후기 증거는 캡처된 이미지 순서와 최초 보존 만료 시각을 변경하지 않는다")
+    void evidenceSnapshotKeepsCapturedContentAndFirstRetentionDeadline() {
+        List<String> imageUrls = new ArrayList<>(List.of("/images/first.webp", "/images/second.webp"));
+        ReviewEvidenceSnapshot snapshot = new ReviewEvidenceSnapshot(
+                1L,
+                2L,
+                4,
+                "심사 당시 내용",
+                NOW.minusMinutes(1),
+                imageUrls,
+                NOW,
+                null);
+        LocalDateTime firstDeadline = NOW.plusYears(3);
+
+        imageUrls.clear();
+        snapshot.startRetention(firstDeadline);
+        snapshot.startRetention(firstDeadline.plusDays(1));
+
+        assertThat(snapshot.getImageUrls())
+                .containsExactly("/images/first.webp", "/images/second.webp");
+        assertThat(snapshot.getRetentionUntil()).isEqualTo(firstDeadline);
+        assertThatThrownBy(() -> snapshot.getImageUrls().add("/images/third.webp"))
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
     @DisplayName("후기 신고 결정은 대기 상태에서 승인 또는 기각으로 한 번만 전이한다")
     void reportDecisionIsSingleTransition() {
         ReviewReport report = new ReviewReport(
@@ -140,16 +203,14 @@ class ReviewPolicyTest {
                 2L,
                 ReviewReportReason.SPAM,
                 "반복 광고",
-                5,
-                "신고 당시 내용",
                 ReviewStatus.PUBLISHED,
-                null,
+                3L,
                 NOW);
 
         report.decide(ReviewReportStatus.ACCEPTED, "확인 완료", 7L, NOW.plusMinutes(1));
 
         assertThat(report.getStatus()).isEqualTo(ReviewReportStatus.ACCEPTED);
-        assertThat(report.getSnapshotContent()).isEqualTo("신고 당시 내용");
+        assertThat(report.getEvidenceSnapshotId()).isEqualTo(3L);
         assertThatThrownBy(() -> report.decide(
                 ReviewReportStatus.REJECTED, null, 7L, NOW.plusMinutes(2)))
                 .isInstanceOfSatisfying(

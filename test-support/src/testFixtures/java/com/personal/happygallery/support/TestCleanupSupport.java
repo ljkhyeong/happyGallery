@@ -245,6 +245,8 @@ public class TestCleanupSupport {
         jdbcTemplate.update("DELETE FROM review_helpful_votes");
         jdbcTemplate.update("DELETE FROM review_reports");
         jdbcTemplate.update("DELETE FROM review_moderation_actions");
+        jdbcTemplate.update("DELETE FROM review_evidence_snapshot_images");
+        jdbcTemplate.update("DELETE FROM review_evidence_snapshots");
         jdbcTemplate.update("DELETE FROM reviews");
     }
 

@@ -1,4 +1,4 @@
-import { Card } from "react-bootstrap";
+import { Badge, Card } from "react-bootstrap";
 import type { PublicReviewResponse, ReviewReactionResponse } from "@/generated/api/review";
 import { ReviewDate, ReviewStars } from "./ReviewDisplay";
 import { ReviewHelpfulButton } from "./ReviewHelpfulButton";
@@ -26,6 +26,10 @@ export function PublicReviewCard({
   targetType,
   targetId,
 }: Props) {
+  const interactionDescriptionId = reaction?.canInteract === false
+    ? `review-interaction-description-${review.id}`
+    : undefined;
+
   return (
     <Card className="review-card public-review-card">
       <Card.Body>
@@ -45,24 +49,38 @@ export function PublicReviewCard({
         <ReviewImageGallery images={review.images} />
         <ReviewOfficialReply reply={review.officialReply} />
         <footer className="review-card-footer">
-          <small className="text-muted-soft">{review.authorName}</small>
+          <div className="d-flex flex-wrap align-items-center gap-2">
+            <small className="text-muted-soft">{review.authorName}</small>
+            {reaction?.ownedByMe && <Badge bg="light" text="dark">내 후기</Badge>}
+            {interactionDescriptionId && (
+              <span id={interactionDescriptionId} className="visually-hidden">
+                {reaction?.ownedByMe
+                  ? "본인이 작성한 후기에는 도움돼요 또는 신고를 할 수 없습니다."
+                  : "현재 이 후기에는 도움돼요 또는 신고를 할 수 없습니다."}
+              </span>
+            )}
+          </div>
           <div className="review-reactions">
             <ReviewHelpfulButton
               reviewId={review.id}
               helpfulCount={review.helpfulCount}
               helpfulByMe={reaction?.helpfulByMe}
+              canInteract={reaction?.canInteract}
               reactionLoading={reactionLoading}
               isAuthenticated={isAuthenticated}
               loginHref={loginHref}
               targetType={targetType}
               targetId={targetId}
+              interactionDescriptionId={interactionDescriptionId}
             />
             <ReviewReportModal
               reviewId={review.id}
               reportedByMe={reaction?.reportedByMe}
+              canInteract={reaction?.canInteract}
               reactionLoading={reactionLoading}
               isAuthenticated={isAuthenticated}
               loginHref={loginHref}
+              interactionDescriptionId={interactionDescriptionId}
             />
           </div>
         </footer>

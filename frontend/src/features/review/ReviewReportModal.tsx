@@ -18,17 +18,21 @@ const REPORT_REASON_LABELS: Record<ReviewReportReason, string> = {
 interface Props {
   reviewId: number;
   reportedByMe?: boolean;
+  canInteract?: boolean;
   reactionLoading: boolean;
   isAuthenticated: boolean;
   loginHref: string;
+  interactionDescriptionId?: string;
 }
 
 export function ReviewReportModal({
   reviewId,
   reportedByMe,
+  canInteract,
   reactionLoading,
   isAuthenticated,
   loginHref,
+  interactionDescriptionId,
 }: Props) {
   const titleId = useId();
   const [show, setShow] = useState(false);
@@ -76,7 +80,13 @@ export function ReviewReportModal({
         size="sm"
         variant="link"
         className="text-muted review-report-link"
-        disabled={reactionLoading || reportedByMe === undefined || reportedByMe}
+        aria-describedby={interactionDescriptionId}
+        disabled={
+          reactionLoading
+          || reportedByMe === undefined
+          || canInteract === false
+          || reportedByMe
+        }
         onClick={() => setShow(true)}
       >
         <Flag size={14} aria-hidden="true" /> {reportedByMe ? "신고 접수됨" : "신고"}

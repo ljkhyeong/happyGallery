@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.review;
 
 import com.personal.happygallery.application.review.port.out.ReviewEligibilityPort;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
+import com.personal.happygallery.application.review.port.out.ReviewInteractionStateView;
 import com.personal.happygallery.application.review.port.out.ReviewOpportunityView;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
 import com.personal.happygallery.application.review.port.out.ReviewSourceReservationView;
@@ -40,6 +41,8 @@ public interface ReviewRepository
                    r.rating AS rating,
                    r.content AS content,
                    r.status AS status,
+                   r.contentRevision AS contentRevision,
+                   r.version AS version,
                    r.hiddenReason AS hiddenReason,
                    r.hiddenAt AS hiddenAt,
                    r.hiddenByAdminId AS hiddenByAdminId,
@@ -85,6 +88,15 @@ public interface ReviewRepository
 
     @Query(BASE_VIEW + " WHERE r.id = :reviewId AND r.deletedAt IS NULL")
     Optional<ReviewRowProjection> findViewRowById(@Param("reviewId") Long reviewId);
+
+    @Query("""
+            SELECT r.id AS reviewId, r.userId AS ownerUserId, r.status AS status
+            FROM Review r
+            WHERE r.id IN :reviewIds
+              AND r.deletedAt IS NULL
+            """)
+    List<ReviewInteractionStateProjection> findInteractionStateRows(
+            @Param("reviewIds") List<Long> reviewIds);
 
     @Query(BASE_VIEW + """
             WHERE r.productId = :productId
@@ -368,10 +380,19 @@ public interface ReviewRepository
                    WHERE r.orderItemId = oi.id
                      AND (r.deletedAt IS NULL OR r.recreationBlocked = true))
             GROUP BY oi.id, oi.productId, oi.productName, o.id, o.createdAt
+            HAVING :cursorCompletedAt IS NULL
+                OR COALESCE(MAX(h.decidedAt), o.createdAt) < :cursorCompletedAt
+                OR (COALESCE(MAX(h.decidedAt), o.createdAt) = :cursorCompletedAt
+                    AND :cursorTargetsProduct = true
+                    AND oi.id < :cursorSourceId)
             ORDER BY COALESCE(MAX(h.decidedAt), o.createdAt) DESC, oi.id DESC
             """)
     List<ProductOpportunityProjection> findProductOpportunityRows(
-            @Param("userId") Long userId, Pageable pageable);
+            @Param("userId") Long userId,
+            @Param("cursorCompletedAt") LocalDateTime cursorCompletedAt,
+            @Param("cursorTargetsProduct") boolean cursorTargetsProduct,
+            @Param("cursorSourceId") Long cursorSourceId,
+            Pageable pageable);
 
     @Query("""
             SELECT b.id AS sourceId,
@@ -392,14 +413,37 @@ public interface ReviewRepository
                    WHERE r.bookingId = b.id
                      AND (r.deletedAt IS NULL OR r.recreationBlocked = true))
             GROUP BY b.id, c.id, c.name, s.endAt
+            HAVING :cursorCompletedAt IS NULL
+                OR COALESCE(MAX(h.createdAt), s.endAt) < :cursorCompletedAt
+                OR (COALESCE(MAX(h.createdAt), s.endAt) = :cursorCompletedAt
+                    AND (
+                        :cursorTargetsProduct = true
+                        OR (:cursorTargetsProduct = false
+                            AND b.id < :cursorSourceId)
+                    ))
             ORDER BY COALESCE(MAX(h.createdAt), s.endAt) DESC, b.id DESC
             """)
     List<ClassOpportunityProjection> findClassOpportunityRows(
-            @Param("userId") Long userId, Pageable pageable);
+            @Param("userId") Long userId,
+            @Param("cursorCompletedAt") LocalDateTime cursorCompletedAt,
+            @Param("cursorTargetsProduct") boolean cursorTargetsProduct,
+            @Param("cursorSourceId") Long cursorSourceId,
+            Pageable pageable);
 
     @Override
     default Optional<ReviewListView> findViewById(Long reviewId) {
         return findViewRowById(reviewId).map(ReviewRepository::toView);
+    }
+
+    @Override
+    default List<ReviewInteractionStateView> findInteractionStates(List<Long> reviewIds) {
+        if (reviewIds.isEmpty()) {
+            return List.of();
+        }
+        return findInteractionStateRows(reviewIds).stream()
+                .map(row -> new ReviewInteractionStateView(
+                        row.getReviewId(), row.getOwnerUserId(), row.getStatus()))
+                .toList();
     }
 
     @Override
@@ -550,10 +594,20 @@ public interface ReviewRepository
     }
 
     @Override
-    default List<ReviewOpportunityView> findReviewOpportunities(Long userId, int limit) {
+    default List<ReviewOpportunityView> findReviewOpportunities(
+            Long userId,
+            LocalDateTime cursorCompletedAt,
+            ReviewTargetType cursorTargetType,
+            Long cursorSourceId,
+            int limit) {
         int sourceLimit = Math.max(1, limit);
+        boolean cursorTargetsProduct = cursorTargetType == ReviewTargetType.PRODUCT;
         Stream<ReviewOpportunityView> products = findProductOpportunityRows(
-                        userId, PageRequest.ofSize(sourceLimit)).stream()
+                        userId,
+                        cursorCompletedAt,
+                        cursorTargetsProduct,
+                        cursorSourceId,
+                        PageRequest.ofSize(sourceLimit)).stream()
                 .map(row -> new ReviewOpportunityView(
                         ReviewTargetType.PRODUCT,
                         row.getSourceId(),
@@ -563,7 +617,11 @@ public interface ReviewRepository
                         null,
                         row.getCompletedAt()));
         Stream<ReviewOpportunityView> classes = findClassOpportunityRows(
-                        userId, PageRequest.ofSize(sourceLimit)).stream()
+                        userId,
+                        cursorCompletedAt,
+                        cursorTargetsProduct,
+                        cursorSourceId,
+                        PageRequest.ofSize(sourceLimit)).stream()
                 .map(row -> new ReviewOpportunityView(
                         ReviewTargetType.CLASS,
                         row.getSourceId(),
@@ -573,11 +631,20 @@ public interface ReviewRepository
                         row.getBookingId(),
                         row.getCompletedAt()));
         return Stream.concat(products, classes)
-                .sorted(Comparator.comparing(
-                        ReviewOpportunityView::completedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .sorted(Comparator
+                        .comparing(
+                                ReviewOpportunityView::completedAt,
+                                Comparator.reverseOrder())
+                        .thenComparingInt(row -> opportunityTargetOrder(row.targetType()))
+                        .thenComparing(
+                                ReviewOpportunityView::sourceId,
+                                Comparator.reverseOrder()))
                 .limit(limit)
                 .toList();
+    }
+
+    private static int opportunityTargetOrder(ReviewTargetType targetType) {
+        return targetType == ReviewTargetType.PRODUCT ? 0 : 1;
     }
 
     private static List<ReviewListView> toViews(List<ReviewRowProjection> rows) {
@@ -596,6 +663,8 @@ public interface ReviewRepository
                 row.getRating(),
                 row.getContent(),
                 row.getStatus(),
+                row.getContentRevision(),
+                row.getVersion(),
                 row.getHiddenReason(),
                 row.getHiddenAt(),
                 row.getHiddenByAdminId(),
@@ -630,6 +699,8 @@ public interface ReviewRepository
         int getRating();
         String getContent();
         ReviewStatus getStatus();
+        long getContentRevision();
+        long getVersion();
         String getHiddenReason();
         LocalDateTime getHiddenAt();
         Long getHiddenByAdminId();
@@ -640,6 +711,12 @@ public interface ReviewRepository
         Long getReplyAdminId();
         LocalDateTime getReplyCreatedAt();
         LocalDateTime getReplyEditedAt();
+    }
+
+    interface ReviewInteractionStateProjection {
+        Long getReviewId();
+        Long getOwnerUserId();
+        ReviewStatus getStatus();
     }
 
     interface ReviewSummaryProjection {

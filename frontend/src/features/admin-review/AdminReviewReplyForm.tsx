@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Button, Form } from "react-bootstrap";
+import { Alert, Button, Form } from "react-bootstrap";
 import type { AdminReviewResponse } from "./api";
 import { ReviewOfficialReply } from "@/features/review/ReviewOfficialReply";
-import { queryKeys } from "@/shared/api";
+import { isAdminReviewMutationConflict } from "@/features/review/reviewMutationConflict";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { removeOfficialReviewReply, saveOfficialReviewReply } from "./api";
@@ -12,43 +11,58 @@ interface Props {
   review: AdminReviewResponse;
   adminKey: string;
   onAuthError: () => void;
+  onUpdated: (updated: AdminReviewResponse) => Promise<void>;
+  onRevisionConflict: (reviewId: number) => void;
 }
 
-export function AdminReviewReplyForm({ review, adminKey, onAuthError }: Props) {
+export function AdminReviewReplyForm({
+  review,
+  adminKey,
+  onAuthError,
+  onUpdated,
+  onRevisionConflict,
+}: Props) {
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [content, setContent] = useState(review.officialReply?.content ?? "");
-  const queryClient = useQueryClient();
   const toast = useToast();
 
-  const invalidate = async (updated: AdminReviewResponse) => {
-    const publicKey = updated.targetType === "PRODUCT"
-      ? queryKeys.reviews.products.byProduct(updated.targetId)
-      : queryKeys.reviews.classes.byClass(updated.targetId);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: publicKey }),
-    ]);
-  };
-
   const saveMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => saveOfficialReviewReply(adminKey, review.id, content.trim()),
+    mutationFn: () => saveOfficialReviewReply(
+      adminKey,
+      review.id,
+      content.trim(),
+      review.version,
+    ),
     onSuccess: async (updated) => {
-      await invalidate(updated);
+      await onUpdated(updated);
       setEditing(false);
       toast.show(review.officialReply ? "공식 답글을 수정했습니다." : "공식 답글을 등록했습니다.");
     },
+    onError: (error) => {
+      if (isAdminReviewMutationConflict(error)) {
+        setEditing(false);
+        onRevisionConflict(review.id);
+      }
+    },
   });
   const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => removeOfficialReviewReply(adminKey, review.id),
+    mutationFn: () => removeOfficialReviewReply(adminKey, review.id, review.version),
     onSuccess: async (updated) => {
-      await invalidate(updated);
+      await onUpdated(updated);
       setContent("");
       setConfirmingDelete(false);
       toast.show("공식 답글을 삭제했습니다.");
     },
+    onError: (error) => {
+      if (isAdminReviewMutationConflict(error)) {
+        setConfirmingDelete(false);
+        onRevisionConflict(review.id);
+      }
+    },
   });
+  const revisionConflict = [saveMutation.error, deleteMutation.error]
+    .some(isAdminReviewMutationConflict);
 
   return (
     <section className="admin-review-reply mt-3" aria-label="공방 공식 답글 관리">
@@ -156,7 +170,15 @@ export function AdminReviewReplyForm({ review, adminKey, onAuthError }: Props) {
           </Button>
         </div>
       )}
-      <div className="mt-2"><ErrorAlert error={saveMutation.error ?? deleteMutation.error} /></div>
+      <div className="mt-2">
+        {revisionConflict ? (
+          <Alert variant="warning" className="small mb-3">
+            공식 답글이 다른 작업과 충돌했습니다. 최신 후기를 확인한 뒤 다시 처리해 주세요.
+          </Alert>
+        ) : (
+          <ErrorAlert error={saveMutation.error ?? deleteMutation.error} />
+        )}
+      </div>
     </section>
   );
 }

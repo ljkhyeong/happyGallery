@@ -1,6 +1,9 @@
 import {
   decideAdminReviewReport,
   deleteOfficialReviewReply,
+  getAdminReview,
+  getAdminReviewEvidenceImage,
+  getAdminReviewImage,
   listAdminReviewReports,
   listAdminReviews,
   listReviewModerationActions,
@@ -45,15 +48,33 @@ export function fetchAdminReviews(
   );
 }
 
+export function fetchAdminReview(
+  adminKey: string,
+  reviewId: number,
+  signal?: AbortSignal,
+): Promise<AdminReviewResponse> {
+  return getAdminReview(
+    reviewId,
+    { headers: adminHeaders(adminKey), signal },
+  );
+}
+
 export function changeAdminReviewStatus(
   adminKey: string,
   reviewId: number,
   status: UpdateReviewStatusRequestStatus,
+  expectedContentRevision: number,
+  expectedVersion: number,
   reason?: string,
 ): Promise<AdminReviewResponse> {
   return updateAdminReviewStatus(
     reviewId,
-    { status, reason: reason || null },
+    {
+      status,
+      reason: reason || null,
+      expectedContentRevision,
+      expectedVersion,
+    },
     { headers: adminHeaders(adminKey) },
   );
 }
@@ -73,10 +94,11 @@ export function saveOfficialReviewReply(
   adminKey: string,
   reviewId: number,
   content: string,
+  expectedVersion: number,
 ): Promise<AdminReviewResponse> {
   return upsertOfficialReviewReply(
     reviewId,
-    { content },
+    { content, expectedVersion },
     { headers: adminHeaders(adminKey) },
   );
 }
@@ -84,11 +106,47 @@ export function saveOfficialReviewReply(
 export function removeOfficialReviewReply(
   adminKey: string,
   reviewId: number,
+  expectedVersion: number,
 ): Promise<AdminReviewResponse> {
   return deleteOfficialReviewReply(
     reviewId,
+    { expectedVersion },
     { headers: adminHeaders(adminKey) },
   );
+}
+
+export async function fetchAdminReviewEvidenceImage(
+  adminKey: string,
+  evidenceId: number,
+  sortOrder: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const blob = await getAdminReviewEvidenceImage(evidenceId, sortOrder, {
+    headers: adminHeaders(adminKey),
+    cache: "no-store",
+    signal,
+  });
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("후기 증거 이미지 응답 형식이 올바르지 않습니다.");
+  }
+  return blob;
+}
+
+export async function fetchAdminReviewImage(
+  adminKey: string,
+  reviewId: number,
+  imageId: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const blob = await getAdminReviewImage(reviewId, imageId, {
+    headers: adminHeaders(adminKey),
+    cache: "no-store",
+    signal,
+  });
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("숨김 후기 이미지 응답 형식이 올바르지 않습니다.");
+  }
+  return blob;
 }
 
 export function fetchAdminReviewReports(

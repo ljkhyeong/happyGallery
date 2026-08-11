@@ -16,6 +16,8 @@ public record ReviewListView(
         int rating,
         String content,
         ReviewStatus status,
+        long contentRevision,
+        long version,
         String hiddenReason,
         LocalDateTime hiddenAt,
         Long hiddenByAdminId,

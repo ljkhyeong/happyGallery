@@ -2,14 +2,14 @@ package com.personal.happygallery.application.review;
 
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.media.UntrustedImageSanitizer;
-import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.review.port.out.ReviewEligibilityPort;
+import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.application.review.port.out.ReviewHelpfulPort;
 import com.personal.happygallery.application.review.port.out.ReviewImagePort;
+import com.personal.happygallery.application.review.port.out.ReviewInteractionStateView;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
 import com.personal.happygallery.application.review.port.out.ReviewModerationPort;
 import com.personal.happygallery.application.review.port.out.ReviewOpportunityView;
@@ -26,6 +26,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.review.Review;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
+import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewHelpfulVote;
 import com.personal.happygallery.domain.review.ReviewImage;
 import com.personal.happygallery.domain.review.ReviewModerationAction;
@@ -49,19 +50,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DefaultReviewService implements ReviewUseCase {
 
-    private static final int OPPORTUNITY_LIMIT = 100;
     private static final int REACTION_LIMIT = 100;
 
     private final ReviewReaderPort reviewReader;
     private final ReviewStorePort reviewStore;
     private final ReviewEligibilityPort eligibilityPort;
+    private final ReviewEvidencePort evidencePort;
     private final ReviewModerationPort moderationPort;
     private final ReviewReportPort reportPort;
     private final ReviewHelpfulPort helpfulPort;
     private final ReviewImagePort imagePort;
+    private final ReviewEvidenceService evidenceService;
     private final ReviewImageAttachmentService imageAttachmentService;
-    private final UntrustedImageSanitizer imageSanitizer;
-    private final ImageMediaUseCase imageMediaUseCase;
+    private final ReviewImageUploadService imageUploadService;
     private final ProductReaderPort productReader;
     private final ClassReaderPort classReader;
     private final UserReaderPort userReader;
@@ -71,13 +72,14 @@ public class DefaultReviewService implements ReviewUseCase {
     public DefaultReviewService(ReviewReaderPort reviewReader,
                                 ReviewStorePort reviewStore,
                                 ReviewEligibilityPort eligibilityPort,
+                                ReviewEvidencePort evidencePort,
                                 ReviewModerationPort moderationPort,
                                 ReviewReportPort reportPort,
                                 ReviewHelpfulPort helpfulPort,
                                 ReviewImagePort imagePort,
+                                ReviewEvidenceService evidenceService,
                                 ReviewImageAttachmentService imageAttachmentService,
-                                UntrustedImageSanitizer imageSanitizer,
-                                ImageMediaUseCase imageMediaUseCase,
+                                ReviewImageUploadService imageUploadService,
                                 ProductReaderPort productReader,
                                 ClassReaderPort classReader,
                                 UserReaderPort userReader,
@@ -86,13 +88,14 @@ public class DefaultReviewService implements ReviewUseCase {
         this.reviewReader = reviewReader;
         this.reviewStore = reviewStore;
         this.eligibilityPort = eligibilityPort;
+        this.evidencePort = evidencePort;
         this.moderationPort = moderationPort;
         this.reportPort = reportPort;
         this.helpfulPort = helpfulPort;
         this.imagePort = imagePort;
+        this.evidenceService = evidenceService;
         this.imageAttachmentService = imageAttachmentService;
-        this.imageSanitizer = imageSanitizer;
-        this.imageMediaUseCase = imageMediaUseCase;
+        this.imageUploadService = imageUploadService;
         this.productReader = productReader;
         this.classReader = classReader;
         this.userReader = userReader;
@@ -141,8 +144,13 @@ public class DefaultReviewService implements ReviewUseCase {
     @Override
     @Transactional
     public ReviewItem updateReview(
-            Long userId, Long reviewId, int rating, String content) {
+            Long userId,
+            Long reviewId,
+            long expectedContentRevision,
+            int rating,
+            String content) {
         Review review = ownedReviewForUpdate(userId, reviewId);
+        review.requireContentRevision(expectedContentRevision);
         review.update(rating, content, LocalDateTime.now(clock));
         return savedView(reviewStore.save(review), false);
     }
@@ -151,7 +159,7 @@ public class DefaultReviewService implements ReviewUseCase {
     @Transactional
     public void deleteReview(Long userId, Long reviewId) {
         Review review = ownedReviewForUpdate(userId, reviewId);
-        imagePort.deleteByReviewId(reviewId);
+        imageAttachmentService.removeAll(reviewId);
         review.softDelete(LocalDateTime.now(clock));
         reviewStore.save(review);
     }
@@ -246,10 +254,25 @@ public class DefaultReviewService implements ReviewUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ReviewOpportunity> listMyReviewOpportunities(Long userId) {
-        return eligibilityPort.findReviewOpportunities(userId, OPPORTUNITY_LIMIT).stream()
+    public CursorPage<ReviewOpportunity> listMyReviewOpportunities(
+            Long userId, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        ReviewOpportunityCursor.CursorParam cursorParam = cursor == null
+                ? null
+                : ReviewOpportunityCursor.decode(cursor);
+        List<ReviewOpportunity> fetched = eligibilityPort.findReviewOpportunities(
+                        userId,
+                        cursorParam == null ? null : cursorParam.completedAt(),
+                        cursorParam == null ? null : cursorParam.targetType(),
+                        cursorParam == null ? null : cursorParam.sourceId(),
+                        pageSize + 1).stream()
                 .map(DefaultReviewService::toOpportunity)
                 .toList();
+        return CursorPage.of(
+                fetched,
+                pageSize,
+                item -> ReviewOpportunityCursor.encode(
+                        item.completedAt(), item.targetType(), item.sourceId()));
     }
 
     @Override
@@ -304,20 +327,43 @@ public class DefaultReviewService implements ReviewUseCase {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public ReviewItem getAdminReview(Long reviewId) {
+        ReviewListView view = reviewReader.findViewById(reviewId)
+                .orElseThrow(NotFoundException.supplier("후기"));
+        return toItems(List.of(view), true).getFirst();
+    }
+
+    @Override
     @Transactional
     public ReviewItem updateStatus(
-            Long reviewId, ReviewStatus status, String reason, Long adminUserId) {
+            Long reviewId,
+            ReviewStatus status,
+            String reason,
+            long expectedContentRevision,
+            long expectedVersion,
+            Long adminUserId) {
         Review review = reviewReader.findByIdForUpdate(reviewId)
                 .orElseThrow(NotFoundException.supplier("후기"));
+        review.requireContentRevision(expectedContentRevision);
+        review.requireVersion(expectedVersion);
         ReviewStatus previous = review.getStatus();
         LocalDateTime now = LocalDateTime.now(clock);
-        if (!review.changeStatus(status, reason, adminUserId, now)) {
+        if (previous == status) {
             return savedView(review, true);
         }
+        ReviewEvidenceSnapshot evidence = evidenceService.captureForModeration(review);
+        review.changeStatus(status, reason, adminUserId, now);
         reviewStore.save(review);
         ReviewModerationAction action = status == ReviewStatus.HIDDEN
-                ? ReviewModerationAction.hide(reviewId, review.getHiddenReason(), adminUserId, now)
-                : ReviewModerationAction.republish(reviewId, adminUserId, now);
+                ? ReviewModerationAction.hide(
+                        reviewId,
+                        review.getHiddenReason(),
+                        adminUserId,
+                        evidence.getId(),
+                        now)
+                : ReviewModerationAction.republish(
+                        reviewId, adminUserId, evidence.getId(), now);
         action = moderationPort.save(action);
         if (previous == ReviewStatus.PUBLISHED) {
             notificationPublisher.publishHidden(review.getUserId(), action.getId());
@@ -330,7 +376,11 @@ public class DefaultReviewService implements ReviewUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<ModerationActionItem> listModerationActions(Long reviewId) {
-        return moderationPort.findByReviewId(reviewId).stream()
+        var actions = moderationPort.findByReviewId(reviewId);
+        Map<Long, ReviewEvidenceSnapshot> evidenceById = evidenceById(actions.stream()
+                .map(ReviewModerationAction::getEvidenceSnapshotId)
+                .toList());
+        return actions.stream()
                 .map(action -> new ModerationActionItem(
                         action.getId(),
                         action.getReviewId(),
@@ -339,15 +389,18 @@ public class DefaultReviewService implements ReviewUseCase {
                         action.getNewStatus(),
                         action.getReason(),
                         action.getAdminUserId(),
+                        toEvidenceItem(evidenceById.get(action.getEvidenceSnapshotId())),
                         action.getCreatedAt()))
                 .toList();
     }
 
     @Override
     @Transactional
-    public ReviewItem upsertOfficialReply(Long reviewId, String content, Long adminUserId) {
+    public ReviewItem upsertOfficialReply(
+            Long reviewId, String content, long expectedVersion, Long adminUserId) {
         Review review = reviewReader.findByIdForUpdate(reviewId)
                 .orElseThrow(NotFoundException.supplier("후기"));
+        review.requireVersion(expectedVersion);
         boolean created = review.upsertOfficialReply(
                 content, adminUserId, LocalDateTime.now(clock));
         reviewStore.save(review);
@@ -359,10 +412,12 @@ public class DefaultReviewService implements ReviewUseCase {
 
     @Override
     @Transactional
-    public ReviewItem deleteOfficialReply(Long reviewId, Long adminUserId) {
+    public ReviewItem deleteOfficialReply(
+            Long reviewId, long expectedVersion, Long adminUserId) {
         requirePositiveId(adminUserId, "관리자 ID");
         Review review = reviewReader.findByIdForUpdate(reviewId)
                 .orElseThrow(NotFoundException.supplier("후기"));
+        review.requireVersion(expectedVersion);
         review.removeOfficialReply(LocalDateTime.now(clock));
         reviewStore.save(review);
         return savedView(review, true);
@@ -378,17 +433,16 @@ public class DefaultReviewService implements ReviewUseCase {
         if (reportPort.existsByReviewIdAndReporterUserId(reviewId, userId)) {
             throw new HappyGalleryException(ErrorCode.REVIEW_REPORT_ALREADY_EXISTS);
         }
+        ReviewEvidenceSnapshot evidence = evidenceService.captureForPendingReport(review);
         ReviewReport report = new ReviewReport(
                 reviewId,
                 userId,
                 reason,
                 detail,
-                review.getRating(),
-                review.getContent(),
                 review.getStatus(),
-                review.getEditedAt(),
+                evidence.getId(),
                 LocalDateTime.now(clock));
-        return toReportItem(reportPort.save(report));
+        return toReportItem(reportPort.save(report), evidence);
     }
 
     @Override
@@ -404,8 +458,12 @@ public class DefaultReviewService implements ReviewUseCase {
             fetched = reportPort.findForAdminAfter(
                     status, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
         }
+        Map<Long, ReviewEvidenceSnapshot> evidenceById = evidenceById(fetched.stream()
+                .map(ReviewReport::getEvidenceSnapshotId)
+                .toList());
         List<ReviewReportItem> items = fetched.stream()
-                .map(DefaultReviewService::toReportItem)
+                .map(report -> toReportItem(
+                        report, evidenceById.get(report.getEvidenceSnapshotId())))
                 .toList();
         return CursorPage.of(
                 items,
@@ -422,8 +480,13 @@ public class DefaultReviewService implements ReviewUseCase {
             Long adminUserId) {
         ReviewReport report = reportPort.findByIdForUpdate(reportId)
                 .orElseThrow(NotFoundException.supplier("후기 신고"));
-        report.decide(decision, decisionNote, adminUserId, LocalDateTime.now(clock));
-        return toReportItem(reportPort.save(report));
+        LocalDateTime now = LocalDateTime.now(clock);
+        report.decide(decision, decisionNote, adminUserId, now);
+        evidenceService.startResolvedReportRetention(report.getEvidenceSnapshotId(), now);
+        ReviewReport saved = reportPort.save(report);
+        ReviewEvidenceSnapshot evidence = evidencePort.findById(saved.getEvidenceSnapshotId())
+                .orElseThrow(NotFoundException.supplier("후기 증거"));
+        return toReportItem(saved, evidence);
     }
 
     @Override
@@ -455,24 +518,32 @@ public class DefaultReviewService implements ReviewUseCase {
                 helpfulPort.findHelpfulReviewIds(userId, normalizedIds));
         Set<Long> reportedIds = Set.copyOf(
                 reportPort.findReportedReviewIds(userId, normalizedIds));
+        Map<Long, ReviewInteractionStateView> states = reviewReader
+                .findInteractionStates(normalizedIds).stream()
+                .collect(Collectors.toMap(
+                        ReviewInteractionStateView::reviewId, Function.identity()));
         return normalizedIds.stream()
-                .map(reviewId -> new ReviewReaction(
-                        reviewId,
-                        helpfulIds.contains(reviewId),
-                        reportedIds.contains(reviewId)))
+                .map(reviewId -> {
+                    ReviewInteractionStateView state = states.get(reviewId);
+                    boolean ownedByMe = state != null && userId.equals(state.ownerUserId());
+                    boolean canInteract = state != null
+                            && state.status() == ReviewStatus.PUBLISHED
+                            && !ownedByMe;
+                    return new ReviewReaction(
+                            reviewId,
+                            helpfulIds.contains(reviewId),
+                            reportedIds.contains(reviewId),
+                            ownedByMe,
+                            canInteract);
+                })
                 .toList();
     }
 
     @Override
     public ReviewImageItem addReviewImage(
             Long userId, Long reviewId, byte[] bytes, String contentType) {
-        imageAttachmentService.validateCanAttach(userId, reviewId);
-        UntrustedImageSanitizer.SanitizedImage sanitized =
-                imageSanitizer.sanitize(bytes, contentType);
-        ImageMediaUseCase.StoredImage stored = imageMediaUseCase.upload(
-                sanitized.bytes(), sanitized.contentType());
-        return toImageItem(imageAttachmentService.attach(
-                userId, reviewId, stored.url()));
+        return toImageItem(imageUploadService.upload(
+                userId, reviewId, bytes, contentType));
     }
 
     @Override
@@ -584,6 +655,8 @@ public class DefaultReviewService implements ReviewUseCase {
                 view.rating(),
                 view.content(),
                 view.status(),
+                view.contentRevision(),
+                view.version(),
                 view.hiddenReason(),
                 view.hiddenAt(),
                 view.hiddenByAdminId(),
@@ -620,22 +693,46 @@ public class DefaultReviewService implements ReviewUseCase {
                 view.completedAt());
     }
 
-    private static ReviewReportItem toReportItem(ReviewReport report) {
+    private static ReviewReportItem toReportItem(
+            ReviewReport report, ReviewEvidenceSnapshot evidence) {
         return new ReviewReportItem(
                 report.getId(),
                 report.getReviewId(),
                 report.getReporterUserId(),
                 report.getReason(),
                 report.getDetail(),
-                report.getSnapshotRating(),
-                report.getSnapshotContent(),
                 report.getSnapshotStatus(),
-                report.getSnapshotEditedAt(),
+                toEvidenceItem(evidence),
                 report.getStatus(),
                 report.getDecisionNote(),
                 report.getDecidedByAdminId(),
                 report.getDecidedAt(),
                 report.getCreatedAt());
+    }
+
+    private Map<Long, ReviewEvidenceSnapshot> evidenceById(List<Long> snapshotIds) {
+        List<Long> normalized = snapshotIds.stream()
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        return evidencePort.findByIds(normalized).stream()
+                .collect(Collectors.toMap(ReviewEvidenceSnapshot::getId, Function.identity()));
+    }
+
+    private static ReviewEvidenceItem toEvidenceItem(ReviewEvidenceSnapshot evidence) {
+        if (evidence == null) {
+            return null;
+        }
+        return new ReviewEvidenceItem(
+                evidence.getId(),
+                evidence.getContentRevision(),
+                evidence.getRating(),
+                evidence.getContent(),
+                evidence.getEditedAt(),
+                evidence.getProvenance(),
+                evidence.isImagesComplete(),
+                evidence.getImageUrls(),
+                evidence.getCapturedAt());
     }
 
     private static ReviewImageItem toImageItem(ReviewImage image) {

@@ -86,6 +86,10 @@ test("후기 키는 공개 대상과 회원·관리자 세션 경계를 각각 �
     queryKeys.admin.reviews.all,
   );
   assert.deepEqual(
+    queryKeys.admin.reviews.detail(31).slice(0, 2),
+    queryKeys.admin.reviews.all,
+  );
+  assert.deepEqual(
     queryKeys.admin.reviews.reports.page("PENDING").slice(0, 3),
     queryKeys.admin.reviews.reports.all,
   );

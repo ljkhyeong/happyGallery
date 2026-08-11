@@ -581,6 +581,8 @@ class RateLimitFilterTest {
                             perMinute(100),
                             perMinute(100),
                             perMinute(100),
+                            perMinute(100),
+                            perMinute(100),
                             perMinute(100)
                     )
             );

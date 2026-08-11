@@ -84,4 +84,28 @@ class ImageMediaRetentionServiceTest {
         verify(storage).clearOrphanMarker("preserved.png");
         verify(storage, never()).delete("preserved.png");
     }
+
+    @DisplayName("같은 커밋에서 제거된 이미지 묶음은 최신 DB 참조를 한 번만 조회해 삭제한다")
+    @Test
+    void deleteIfUnreferenced_rechecksBatchWithSingleReferenceRead() {
+        ImageMediaReferenceReaderPort referenceReader = mock(ImageMediaReferenceReaderPort.class);
+        ImageMediaStoragePort storage = mock(ImageMediaStoragePort.class);
+        ImageMediaReferenceLockPort referenceLock = mock(ImageMediaReferenceLockPort.class);
+        when(referenceReader.findReferencedImageUrls())
+                .thenReturn(List.of("/api/v1/media/images/preserved.png"));
+        ImageMediaDeletionTransactionService deletionTransaction =
+                new ImageMediaDeletionTransactionService(
+                        referenceReader,
+                        storage,
+                        new ImageMediaReferenceGuard(referenceLock, storage));
+
+        int deleted = deletionTransaction.deleteIfUnreferenced(
+                List.of("orphan.jpg", "preserved.png"));
+
+        assertThat(deleted).isOne();
+        verify(referenceLock).lock();
+        verify(referenceReader).findReferencedImageUrls();
+        verify(storage).delete("orphan.jpg");
+        verify(storage).clearOrphanMarker("preserved.png");
+    }
 }

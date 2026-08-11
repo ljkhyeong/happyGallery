@@ -20,4 +20,8 @@ public interface ReviewReportPort {
             ReviewReportStatus status, LocalDateTime createdAt, Long id, int limit);
 
     List<Long> findReportedReviewIds(Long userId, List<Long> reviewIds);
+
+    List<ReviewReport> findResolvedBefore(LocalDateTime cutoff, int limit);
+
+    void deleteAll(List<ReviewReport> reports);
 }

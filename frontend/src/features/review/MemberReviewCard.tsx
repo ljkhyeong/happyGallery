@@ -8,6 +8,7 @@ import { ReviewForm } from "./ReviewForm";
 import { ReviewImageUploader } from "./ReviewImageUploader";
 import { ReviewOfficialReply } from "./ReviewOfficialReply";
 import { ReviewTrustBadges } from "./ReviewTrustBadges";
+import { isReviewContentChangedError } from "./reviewMutationConflict";
 import { useDeleteReview, useUpdateReview } from "./useReviewMutations";
 
 export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
@@ -15,6 +16,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const updateMutation = useUpdateReview(() => setEditing(false));
   const deleteMutation = useDeleteReview();
+  const revisionConflict = isReviewContentChangedError(updateMutation.error);
   const targetHref = review.targetType === "PRODUCT"
     ? `/products/${review.targetId}`
     : `/classes/${review.targetId}`;
@@ -60,19 +62,30 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
         )}
 
         {editing ? (
-          <ReviewForm
-            initialRating={review.rating}
-            initialContent={review.content}
-            submitLabel="수정 저장"
-            pending={updateMutation.isPending}
-            error={updateMutation.error}
-            hiddenNotice={review.status === "HIDDEN"}
-            onCancel={() => {
-              updateMutation.reset();
-              setEditing(false);
-            }}
-            onSubmit={(value) => updateMutation.mutate({ reviewId: review.id, ...value })}
-          />
+          <>
+            {revisionConflict && (
+              <Alert variant="warning" className="small">
+                다른 화면에서 후기가 변경되었습니다. 최신 별점과 내용을 다시 확인한 뒤 저장해 주세요.
+              </Alert>
+            )}
+            <ReviewForm
+              initialRating={review.rating}
+              initialContent={review.content}
+              submitLabel="수정 저장"
+              pending={updateMutation.isPending}
+              error={revisionConflict ? undefined : updateMutation.error}
+              hiddenNotice={review.status === "HIDDEN"}
+              onCancel={() => {
+                updateMutation.reset();
+                setEditing(false);
+              }}
+              onSubmit={(value) => updateMutation.mutate({
+                reviewId: review.id,
+                expectedContentRevision: review.contentRevision,
+                ...value,
+              })}
+            />
+          </>
         ) : (
           review.content
             ? <p className="review-content mb-0">{review.content}</p>

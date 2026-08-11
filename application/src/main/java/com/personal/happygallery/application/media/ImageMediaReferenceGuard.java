@@ -41,7 +41,7 @@ public class ImageMediaReferenceGuard {
         lockPort.lock();
     }
 
-    static String localFileName(String imageUrl) {
+    public static String localFileName(String imageUrl) {
         if (!StringUtils.hasText(imageUrl)) {
             return null;
         }
@@ -59,6 +59,6 @@ public class ImageMediaReferenceGuard {
             return null;
         }
         String fileName = path.substring(IMAGE_PATH_PREFIX.length());
-        return fileName.indexOf('/') < 0 ? fileName : null;
+        return !fileName.isBlank() && fileName.indexOf('/') < 0 ? fileName : null;
     }
 }

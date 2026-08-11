@@ -24,7 +24,8 @@ import java.util.Objects;
                 columnNames = {"review_id", "reporter_user_id"}),
         indexes = {
                 @Index(name = "idx_review_reports_status_created", columnList = "status,created_at,id"),
-                @Index(name = "idx_review_reports_created", columnList = "created_at,id")
+                @Index(name = "idx_review_reports_created", columnList = "created_at,id"),
+                @Index(name = "idx_review_reports_decided", columnList = "decided_at,id")
         }
 )
 public class ReviewReport {
@@ -49,18 +50,12 @@ public class ReviewReport {
     @Column(length = MAX_DETAIL_LENGTH)
     private String detail;
 
-    @Column(name = "snapshot_rating", nullable = false)
-    private int snapshotRating;
-
-    @Column(name = "snapshot_content", nullable = false, columnDefinition = "TEXT")
-    private String snapshotContent;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "snapshot_status", nullable = false, length = 10)
     private ReviewStatus snapshotStatus;
 
-    @Column(name = "snapshot_edited_at")
-    private LocalDateTime snapshotEditedAt;
+    @Column(name = "evidence_snapshot_id", nullable = false)
+    private Long evidenceSnapshotId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -84,22 +79,15 @@ public class ReviewReport {
                         Long reporterUserId,
                         ReviewReportReason reason,
                         String detail,
-                        int snapshotRating,
-                        String snapshotContent,
                         ReviewStatus snapshotStatus,
-                        LocalDateTime snapshotEditedAt,
+                        Long evidenceSnapshotId,
                         LocalDateTime createdAt) {
         this.reviewId = requirePositive(reviewId, "후기 ID");
         this.reporterUserId = requirePositive(reporterUserId, "신고 회원 ID");
         this.reason = Objects.requireNonNull(reason, "신고 사유는 필수입니다.");
         this.detail = normalize(detail, MAX_DETAIL_LENGTH, "신고 상세");
-        if (snapshotRating < Review.MIN_RATING || snapshotRating > Review.MAX_RATING) {
-            throw new IllegalArgumentException("신고 시점 별점이 올바르지 않습니다.");
-        }
-        this.snapshotRating = snapshotRating;
-        this.snapshotContent = Objects.requireNonNull(snapshotContent, "신고 시점 후기 내용은 필수입니다.");
         this.snapshotStatus = Objects.requireNonNull(snapshotStatus, "신고 시점 후기 상태는 필수입니다.");
-        this.snapshotEditedAt = snapshotEditedAt;
+        this.evidenceSnapshotId = requirePositive(evidenceSnapshotId, "후기 증거 ID");
         this.status = ReviewReportStatus.PENDING;
         this.createdAt = Objects.requireNonNull(createdAt, "신고 시각은 필수입니다.");
     }
@@ -144,10 +132,8 @@ public class ReviewReport {
     public Long getReporterUserId() { return reporterUserId; }
     public ReviewReportReason getReason() { return reason; }
     public String getDetail() { return detail; }
-    public int getSnapshotRating() { return snapshotRating; }
-    public String getSnapshotContent() { return snapshotContent; }
     public ReviewStatus getSnapshotStatus() { return snapshotStatus; }
-    public LocalDateTime getSnapshotEditedAt() { return snapshotEditedAt; }
+    public Long getEvidenceSnapshotId() { return evidenceSnapshotId; }
     public ReviewReportStatus getStatus() { return status; }
     public String getDecisionNote() { return decisionNote; }
     public Long getDecidedByAdminId() { return decidedByAdminId; }

@@ -159,6 +159,7 @@ export function AdminPage() {
   const focusedBookingId = parsePositiveId(searchParams.get("bookingId"));
   const focusedBookingStatus = parseBookingStatus(searchParams.get("bookingStatus"));
   const focusedBookingDate = searchParams.get("bookingDate") ?? undefined;
+  const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -200,8 +201,16 @@ export function AdminPage() {
   function selectView(view: AdminView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", view);
-    ["orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus"]
+    ["orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId"]
       .forEach((name) => next.delete(name));
+    setSearchParams(next);
+  }
+
+  function focusAdminReview(reviewId?: number) {
+    const next = new URLSearchParams(searchParams);
+    next.set("view", "reviews");
+    if (reviewId === undefined) next.delete("reviewId");
+    else next.set("reviewId", String(reviewId));
     setSearchParams(next);
   }
 
@@ -436,7 +445,12 @@ export function AdminPage() {
 
       {activeView === "reviews" && (
         <AdminPanel title="후기 관리">
-          <AdminReviewSection adminKey={adminKey} onAuthError={handleAuthError} />
+          <AdminReviewSection
+            adminKey={adminKey}
+            onAuthError={handleAuthError}
+            focusedReviewId={focusedReviewId}
+            onFocusedReviewChange={focusAdminReview}
+          />
         </AdminPanel>
       )}
 

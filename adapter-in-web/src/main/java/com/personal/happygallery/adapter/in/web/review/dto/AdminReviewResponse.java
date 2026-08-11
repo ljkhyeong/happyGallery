@@ -25,6 +25,8 @@ public record AdminReviewResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String content,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, implementation = ReviewStatus.class)
         ReviewStatus status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1") long contentRevision,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0") long version,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String hiddenReason,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime hiddenAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long hiddenByAdminId,
@@ -55,6 +57,8 @@ public record AdminReviewResponse(
                 item.rating(),
                 item.content(),
                 item.status(),
+                item.contentRevision(),
+                item.version(),
                 item.hiddenReason(),
                 item.hiddenAt(),
                 item.hiddenByAdminId(),

@@ -76,6 +76,16 @@ public class SubjectRateLimitGuard {
                 properties.subject().passRefund(), FAIL_CLOSED);
     }
 
+    public void checkReviewMutation(long userId) {
+        check("REVIEW_MUTATION_USER", String.valueOf(userId),
+                properties.subject().reviewMutation(), FAIL_CLOSED);
+    }
+
+    public void checkReviewHelpful(long userId) {
+        check("REVIEW_HELPFUL_USER", String.valueOf(userId),
+                properties.subject().reviewHelpful(), FAIL_CLOSED);
+    }
+
     public void checkReviewReport(long userId) {
         check("REVIEW_REPORT_USER", String.valueOf(userId),
                 properties.subject().reviewReport(), FAIL_CLOSED);

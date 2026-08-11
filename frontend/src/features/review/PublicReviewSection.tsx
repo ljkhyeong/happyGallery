@@ -15,7 +15,7 @@ import {
 import { PublicReviewCard } from "./PublicReviewCard";
 import { ReviewFilters } from "./ReviewFilters";
 import { ReviewHistogram } from "./ReviewHistogram";
-import { chunkReviewIds } from "./reviewUiPolicy";
+import { chunkReviewIdsByPage } from "./reviewUiPolicy";
 
 interface Props {
   targetType: "PRODUCT" | "CLASS";
@@ -51,8 +51,12 @@ function PublicReviewContent({ targetType, targetId }: Props) {
   );
   const summary = query.data?.pages[0]?.summary;
   const filteredCount = query.data?.pages[0]?.filteredCount ?? 0;
-  const reviewIds = useMemo(() => reviews.map(({ id }) => id), [reviews]);
-  const reactionIdChunks = useMemo(() => chunkReviewIds(reviewIds), [reviewIds]);
+  const reactionIdChunks = useMemo(
+    () => chunkReviewIdsByPage(
+      query.data?.pages.map((page) => page.content.map(({ id }) => id)) ?? [],
+    ),
+    [query.data?.pages],
+  );
   const reactionQueries = useQueries({
     queries: isAuthenticated
       ? reactionIdChunks.map((ids) => ({
@@ -67,8 +71,12 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     reactionQueries.flatMap((reactionQuery) => reactionQuery.data ?? [])
       .map((reaction) => [reaction.reviewId, reaction]),
   );
+  const reactionLoadingByReviewId = new Map<number, boolean>();
+  reactionIdChunks.forEach((reviewIds, index) => {
+    const isLoading = reactionQueries[index]?.isLoading ?? false;
+    reviewIds.forEach((reviewId) => reactionLoadingByReviewId.set(reviewId, isLoading));
+  });
   const reactionErrorQuery = reactionQueries.find(({ error }) => error);
-  const reactionsLoading = isAuthenticated && reactionQueries.some(({ isLoading }) => isLoading);
   const loginHref = buildAuthPageHref("/login", {
     redirectTo: targetType === "PRODUCT" ? `/products/${targetId}` : `/classes/${targetId}`,
   });
@@ -139,7 +147,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
             key={review.id}
             review={review}
             reaction={reactions.get(review.id)}
-            reactionLoading={reactionsLoading}
+            reactionLoading={reactionLoadingByReviewId.get(review.id) ?? false}
             isAuthenticated={isAuthenticated}
             loginHref={loginHref}
             targetType={targetType}

@@ -49,4 +49,13 @@ public interface ReviewReportRepository extends JpaRepository<ReviewReport, Long
             """)
     List<Long> findReportedReviewIds(
             @Param("userId") Long userId, @Param("reviewIds") List<Long> reviewIds);
+
+    @Query("""
+            SELECT r FROM ReviewReport r
+            WHERE r.status <> com.personal.happygallery.domain.review.ReviewReportStatus.PENDING
+              AND r.decidedAt <= :cutoff
+            ORDER BY r.decidedAt ASC, r.id ASC
+            """)
+    List<ReviewReport> findResolvedBefore(
+            @Param("cutoff") LocalDateTime cutoff, Pageable pageable);
 }

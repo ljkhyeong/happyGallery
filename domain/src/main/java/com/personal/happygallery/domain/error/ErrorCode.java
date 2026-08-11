@@ -55,6 +55,7 @@ public enum ErrorCode {
     REVIEW_ALREADY_EXISTS(409, "해당 주문 품목 또는 예약에 이미 후기를 작성했습니다."),
     REVIEW_RECREATION_BLOCKED(409, "운영 정책으로 숨김 처리된 이력이 있어 같은 거래에 후기를 다시 작성할 수 없습니다."),
     REVIEW_REPORT_ALREADY_EXISTS(409, "이미 신고한 후기입니다."),
+    REVIEW_CONTENT_CHANGED(409, "불러온 뒤 후기 내용이나 사진이 변경되었습니다. 최신 내용을 다시 확인해 주세요."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
 
     // 410 Gone — 유효기간이 끝난 리소스

@@ -177,6 +177,15 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     return undefined as T;
   }
 
+  const responseContentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (responseContentType.startsWith("image/")) {
+    const blob = await response.blob();
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    return blob as T;
+  }
+
   let responseBody: T;
   try {
     responseBody = (await response.json()) as T;

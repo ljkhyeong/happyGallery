@@ -2,6 +2,7 @@ package com.personal.happygallery.application.review.port.in;
 
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
+import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -39,6 +40,8 @@ public interface ReviewUseCase {
             int rating,
             String content,
             ReviewStatus status,
+            long contentRevision,
+            long version,
             String hiddenReason,
             LocalDateTime hiddenAt,
             Long hiddenByAdminId,
@@ -112,8 +115,25 @@ public interface ReviewUseCase {
             ReviewStatus newStatus,
             String reason,
             Long adminUserId,
+            ReviewEvidenceItem evidence,
             LocalDateTime createdAt
     ) {}
+
+    record ReviewEvidenceItem(
+            Long id,
+            long contentRevision,
+            int rating,
+            String content,
+            LocalDateTime editedAt,
+            ReviewEvidenceProvenance provenance,
+            boolean imagesComplete,
+            List<String> imageUrls,
+            LocalDateTime capturedAt
+    ) {
+        public ReviewEvidenceItem {
+            imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
+        }
+    }
 
     record ReviewReportItem(
             Long id,
@@ -121,10 +141,8 @@ public interface ReviewUseCase {
             Long reporterUserId,
             ReviewReportReason reason,
             String detail,
-            int snapshotRating,
-            String snapshotContent,
             ReviewStatus snapshotStatus,
-            LocalDateTime snapshotEditedAt,
+            ReviewEvidenceItem evidence,
             ReviewReportStatus status,
             String decisionNote,
             Long decidedByAdminId,
@@ -135,7 +153,9 @@ public interface ReviewUseCase {
     record ReviewReaction(
             Long reviewId,
             boolean helpfulByMe,
-            boolean reportedByMe
+            boolean reportedByMe,
+            boolean ownedByMe,
+            boolean canInteract
     ) {}
 
     record HelpfulResult(
@@ -151,7 +171,11 @@ public interface ReviewUseCase {
             Long userId, Long bookingId, int rating, String content);
 
     ReviewItem updateReview(
-            Long userId, Long reviewId, int rating, String content);
+            Long userId,
+            Long reviewId,
+            long expectedContentRevision,
+            int rating,
+            String content);
 
     void deleteReview(Long userId, Long reviewId);
 
@@ -175,7 +199,8 @@ public interface ReviewUseCase {
 
     List<ReviewItem> listMyBookingReviews(Long userId, Long bookingId);
 
-    List<ReviewOpportunity> listMyReviewOpportunities(Long userId);
+    CursorPage<ReviewOpportunity> listMyReviewOpportunities(
+            Long userId, String cursor, int size);
 
     ReviewCreationState getProductReviewCreationState(Long userId, Long orderItemId);
 
@@ -184,14 +209,22 @@ public interface ReviewUseCase {
     CursorPage<ReviewItem> listAdminReviews(
             ReviewTargetType targetType, ReviewStatus status, String cursor, int size);
 
+    ReviewItem getAdminReview(Long reviewId);
+
     ReviewItem updateStatus(
-            Long reviewId, ReviewStatus status, String reason, Long adminUserId);
+            Long reviewId,
+            ReviewStatus status,
+            String reason,
+            long expectedContentRevision,
+            long expectedVersion,
+            Long adminUserId);
 
     List<ModerationActionItem> listModerationActions(Long reviewId);
 
-    ReviewItem upsertOfficialReply(Long reviewId, String content, Long adminUserId);
+    ReviewItem upsertOfficialReply(
+            Long reviewId, String content, long expectedVersion, Long adminUserId);
 
-    ReviewItem deleteOfficialReply(Long reviewId, Long adminUserId);
+    ReviewItem deleteOfficialReply(Long reviewId, long expectedVersion, Long adminUserId);
 
     ReviewReportItem createReport(
             Long userId, Long reviewId, ReviewReportReason reason, String detail);

@@ -1,4 +1,31 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type ReviewEvidenceResponseProvenance = typeof ReviewEvidenceResponseProvenance[keyof typeof ReviewEvidenceResponseProvenance];
+
+
+export const ReviewEvidenceResponseProvenance = {
+  LIVE: 'LIVE',
+  LEGACY_REPORT: 'LEGACY_REPORT',
+} as const;
+
+export interface ReviewEvidenceResponse {
+  capturedAt: string;
+  content: string;
+  /** @minimum 1 */
+  contentRevision: number;
+  /** @nullable */
+  editedAt: string | null;
+  id: number;
+  /** @maxItems 5 */
+  imageUrls: string[];
+  imagesComplete: boolean;
+  provenance: ReviewEvidenceResponseProvenance;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+}
+
 export type AdminReviewReportResponseReason = typeof AdminReviewReportResponseReason[keyof typeof AdminReviewReportResponseReason];
 
 
@@ -37,18 +64,11 @@ export interface AdminReviewReportResponse {
   decisionNote: string | null;
   /** @nullable */
   detail: string | null;
+  evidence: ReviewEvidenceResponse | null;
   id: number;
   reason: AdminReviewReportResponseReason;
   reporterUserId: number;
   reviewId: number;
-  snapshotContent: string;
-  /** @nullable */
-  snapshotEditedAt: string | null;
-  /**
-     * @minimum 1
-     * @maximum 5
-     */
-  snapshotRating: number;
   snapshotStatus: AdminReviewReportResponseSnapshotStatus;
   status: AdminReviewReportResponseStatus;
 }
@@ -125,6 +145,8 @@ export const AdminReviewResponseTargetType = {
 export interface AdminReviewResponse {
   authorName: string;
   content: string;
+  /** @minimum 1 */
+  contentRevision: number;
   createdAt: string;
   edited: boolean;
   /** @nullable */
@@ -155,6 +177,8 @@ export interface AdminReviewResponse {
   updatedAt: string;
   userId: number;
   verifiedTransaction: boolean;
+  /** @minimum 0 */
+  version: number;
 }
 
 export interface AdminReviewPageResponse {
@@ -192,6 +216,7 @@ export interface ReviewModerationActionResponse {
   action: ReviewModerationActionResponseAction;
   adminUserId: number;
   createdAt: string;
+  evidence: ReviewEvidenceResponse | null;
   id: number;
   newStatus: ReviewModerationActionResponseNewStatus;
   previousStatus: ReviewModerationActionResponsePreviousStatus;
@@ -200,12 +225,20 @@ export interface ReviewModerationActionResponse {
   reviewId: number;
 }
 
+export interface ErrorResponse {
+  code: string;
+  message: string;
+  requestId?: string;
+}
+
 export interface UpsertReviewReplyRequest {
   /**
      * @minLength 1
      * @maxLength 16000
      */
   content: string;
+  /** @minimum 0 */
+  expectedVersion: number;
 }
 
 export type UpdateReviewStatusRequestStatus = typeof UpdateReviewStatusRequestStatus[keyof typeof UpdateReviewStatusRequestStatus];
@@ -217,6 +250,16 @@ export const UpdateReviewStatusRequestStatus = {
 } as const;
 
 export interface UpdateReviewStatusRequest {
+  /**
+     * 관리자가 확인한 후기 본문·평점·사진의 revision
+     * @minimum 1
+     */
+  expectedContentRevision: number;
+  /**
+     * 관리자가 확인한 후기 운영 상태의 JPA version
+     * @minimum 0
+     */
+  expectedVersion: number;
   /**
      * HIDDEN 전환 시 필수이며 PUBLISHED 전환 시 무시됩니다.
      * @minLength 0
@@ -326,6 +369,8 @@ export const MemberReviewResponseTargetType = {
 
 export interface MemberReviewResponse {
   content: string;
+  /** @minimum 1 */
+  contentRevision: number;
   createdAt: string;
   edited: boolean;
   /** @nullable */
@@ -361,6 +406,7 @@ export interface MemberReviewPageResponse {
 }
 
 export interface CreateClassReviewRequest {
+  /** @minimum 1 */
   bookingId: number;
   /**
      * @minLength 1
@@ -436,12 +482,20 @@ export interface ReviewOpportunityResponse {
   targetType: ReviewOpportunityResponseTargetType;
 }
 
+export interface ReviewOpportunityPageResponse {
+  content: ReviewOpportunityResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
 export interface CreateProductReviewRequest {
   /**
      * @minLength 1
      * @maxLength 16000
      */
   content: string;
+  /** @minimum 1 */
   orderItemId: number;
   /**
      * @minimum 1
@@ -451,7 +505,9 @@ export interface CreateProductReviewRequest {
 }
 
 export interface ReviewReactionResponse {
+  canInteract: boolean;
   helpfulByMe: boolean;
+  ownedByMe: boolean;
   reportedByMe: boolean;
   reviewId: number;
 }
@@ -462,6 +518,8 @@ export interface UpdateReviewRequest {
      * @maxLength 16000
      */
   content: string;
+  /** @minimum 1 */
+  expectedContentRevision: number;
   /**
      * @minimum 1
      * @maximum 5
@@ -573,6 +631,13 @@ export const ListAdminReviewsStatus = {
   HIDDEN: 'HIDDEN',
 } as const;
 
+export type DeleteOfficialReviewReplyParams = {
+/**
+ * @minimum 0
+ */
+expectedVersion: number;
+};
+
 export type ListClassReviewsParams = {
 /**
  * @minimum 1
@@ -598,6 +663,15 @@ export const ListClassReviewsSort = {
 } as const;
 
 export type ListMyReviewsParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListMyReviewOpportunitiesParams = {
 cursor?: string;
 /**
  * @minimum 1
@@ -643,6 +717,29 @@ export const ListProductReviewsSort = {
   RATING_HIGH: 'RATING_HIGH',
   RATING_LOW: 'RATING_LOW',
 } as const;
+
+export const getGetAdminReviewEvidenceImageUrl = (evidenceId: number,
+    sortOrder: number,) => {
+
+
+
+
+  return `/api/v1/admin/review-evidence/${evidenceId}/images/${sortOrder}`
+}
+
+export const getAdminReviewEvidenceImage = async (evidenceId: number,
+    sortOrder: number, options?: RequestInit): Promise<Blob> => {
+
+  return generatedApiClient<Blob>(getGetAdminReviewEvidenceImageUrl(evidenceId,sortOrder),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
 
 export const getListAdminReviewReportsUrl = (params?: ListAdminReviewReportsParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -722,6 +819,50 @@ export const listAdminReviews = async (params?: ListAdminReviewsParams, options?
 
 
 
+export const getGetAdminReviewUrl = (reviewId: number,) => {
+
+
+
+
+  return `/api/v1/admin/reviews/${reviewId}`
+}
+
+export const getAdminReview = async (reviewId: number, options?: RequestInit): Promise<AdminReviewResponse> => {
+
+  return generatedApiClient<AdminReviewResponse>(getGetAdminReviewUrl(reviewId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetAdminReviewImageUrl = (reviewId: number,
+    imageId: number,) => {
+
+
+
+
+  return `/api/v1/admin/reviews/${reviewId}/images/${imageId}`
+}
+
+export const getAdminReviewImage = async (reviewId: number,
+    imageId: number, options?: RequestInit): Promise<Blob> => {
+
+  return generatedApiClient<Blob>(getGetAdminReviewImageUrl(reviewId,imageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getListReviewModerationActionsUrl = (reviewId: number,) => {
 
 
@@ -743,17 +884,26 @@ export const listReviewModerationActions = async (reviewId: number, options?: Re
 
 
 
-export const getDeleteOfficialReviewReplyUrl = (reviewId: number,) => {
+export const getDeleteOfficialReviewReplyUrl = (reviewId: number,
+    params: DeleteOfficialReviewReplyParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/admin/reviews/${reviewId}/reply`
+  return stringifiedParams.length > 0 ? `/api/v1/admin/reviews/${reviewId}/reply?${stringifiedParams}` : `/api/v1/admin/reviews/${reviewId}/reply`
 }
 
-export const deleteOfficialReviewReply = async (reviewId: number, options?: RequestInit): Promise<AdminReviewResponse> => {
+export const deleteOfficialReviewReply = async (reviewId: number,
+    params: DeleteOfficialReviewReplyParams, options?: RequestInit): Promise<AdminReviewResponse> => {
 
-  return generatedApiClient<AdminReviewResponse>(getDeleteOfficialReviewReplyUrl(reviewId),
+  return generatedApiClient<AdminReviewResponse>(getDeleteOfficialReviewReplyUrl(reviewId,params),
   {
     ...options,
     method: 'DELETE'
@@ -929,17 +1079,24 @@ export const getClassReviewCreationState = async (bookingId: number, options?: R
 
 
 
-export const getListMyReviewOpportunitiesUrl = () => {
+export const getListMyReviewOpportunitiesUrl = (params?: ListMyReviewOpportunitiesParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/me/reviews/opportunities`
+  return stringifiedParams.length > 0 ? `/api/v1/me/reviews/opportunities?${stringifiedParams}` : `/api/v1/me/reviews/opportunities`
 }
 
-export const listMyReviewOpportunities = async ( options?: RequestInit): Promise<ReviewOpportunityResponse[]> => {
+export const listMyReviewOpportunities = async (params?: ListMyReviewOpportunitiesParams, options?: RequestInit): Promise<ReviewOpportunityPageResponse> => {
 
-  return generatedApiClient<ReviewOpportunityResponse[]>(getListMyReviewOpportunitiesUrl(),
+  return generatedApiClient<ReviewOpportunityPageResponse>(getListMyReviewOpportunitiesUrl(params),
   {
     ...options,
     method: 'GET'
@@ -1172,6 +1329,29 @@ export const deleteMyReviewImage = async (reviewId: number,
   {
     ...options,
     method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetMyReviewImageUrl = (reviewId: number,
+    imageId: number,) => {
+
+
+
+
+  return `/api/v1/me/reviews/${reviewId}/images/${imageId}`
+}
+
+export const getMyReviewImage = async (reviewId: number,
+    imageId: number, options?: RequestInit): Promise<Blob> => {
+
+  return generatedApiClient<Blob>(getGetMyReviewImageUrl(reviewId,imageId),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

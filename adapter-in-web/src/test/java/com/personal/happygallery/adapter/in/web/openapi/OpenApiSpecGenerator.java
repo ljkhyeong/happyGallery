@@ -42,6 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OpenApiSpecGenerator {
 
     private static final Pattern UNSTABLE_NUMERIC_SUFFIX = Pattern.compile(".+_\\d+$");
+    private static final Set<String> HTTP_METHODS = Set.of(
+            "get", "put", "post", "delete", "patch", "head", "options", "trace");
     private static final Set<String> CURSOR_PAGE_OPERATION_IDS = Set.of(
             "listProductQnaPage",
             "listMyProductQnaPage",
@@ -55,6 +57,7 @@ class OpenApiSpecGenerator {
             "listProductReviews",
             "listClassReviews",
             "listMyReviews",
+            "listMyReviewOpportunities",
             "listAdminReviews",
             "listAdminReviewReports");
 
@@ -76,6 +79,7 @@ class OpenApiSpecGenerator {
         assertStableOperationIds(document);
         assertPaymentAndCartRequestContracts(document);
         assertReviewContracts(document);
+        assertReviewSecurityContracts(document);
         assertCursorPageSizeContracts(document);
 
         String canonicalOpenApi = objectMapper.writerWithDefaultPrettyPrinter()
@@ -87,14 +91,24 @@ class OpenApiSpecGenerator {
 
     private void assertStableOperationIds(Map<?, ?> document) {
         Map<?, ?> paths = (Map<?, ?>) document.get("paths");
-        for (Object pathValue : paths.values()) {
-            Map<?, ?> operations = (Map<?, ?>) pathValue;
-            for (Object operationValue : operations.values()) {
-                if (!(operationValue instanceof Map<?, ?> operation)) {
+        Set<String> operationIds = new HashSet<>();
+        for (Map.Entry<?, ?> pathEntry : paths.entrySet()) {
+            Map<?, ?> operations = (Map<?, ?>) pathEntry.getValue();
+            for (Map.Entry<?, ?> operationEntry : operations.entrySet()) {
+                if (!HTTP_METHODS.contains(operationEntry.getKey())
+                        || !(operationEntry.getValue() instanceof Map<?, ?> operation)) {
                     continue;
                 }
                 Object operationId = operation.get("operationId");
-                if (operationId instanceof String id && UNSTABLE_NUMERIC_SUFFIX.matcher(id).matches()) {
+                if (!(operationId instanceof String id) || id.isBlank()) {
+                    throw new IllegalStateException(
+                            "OpenAPI operationId가 없습니다: "
+                                    + pathEntry.getKey() + " " + operationEntry.getKey());
+                }
+                if (!operationIds.add(id)) {
+                    throw new IllegalStateException("중복 OpenAPI operationId입니다: " + id);
+                }
+                if (UNSTABLE_NUMERIC_SUFFIX.matcher(id).matches()) {
                     throw new IllegalStateException("불안정한 OpenAPI operationId입니다: " + id);
                 }
             }
@@ -195,9 +209,15 @@ class OpenApiSpecGenerator {
                 document, "CreateProductReviewRequest", "orderItemId", "rating", "content");
         assertRequiredProperties(
                 document, "CreateClassReviewRequest", "bookingId", "rating", "content");
-        assertRequiredProperties(document, "UpdateReviewRequest", "rating", "content");
-        assertRequiredProperties(document, "UpdateReviewStatusRequest", "status");
-        assertRequiredProperties(document, "UpsertReviewReplyRequest", "content");
+        assertRequiredProperties(
+                document, "UpdateReviewRequest", "expectedContentRevision", "rating", "content");
+        assertRequiredProperties(
+                document,
+                "UpdateReviewStatusRequest",
+                "status",
+                "expectedContentRevision",
+                "expectedVersion");
+        assertRequiredProperties(document, "UpsertReviewReplyRequest", "expectedVersion", "content");
         assertRequiredProperties(document, "CreateReviewReportRequest", "reason");
         assertRequiredProperties(document, "DecideReviewReportRequest", "decision");
         assertRequiredProperties(
@@ -271,6 +291,7 @@ class OpenApiSpecGenerator {
                 "rating",
                 "content",
                 "status",
+                "contentRevision",
                 "hiddenReason",
                 "hiddenAt",
                 "hiddenByAdminId",
@@ -314,13 +335,25 @@ class OpenApiSpecGenerator {
                 "completedAt");
         assertRequiredProperties(
                 document,
+                "ReviewOpportunityPageResponse",
+                "content",
+                "nextCursor",
+                "hasMore");
+        assertRequiredProperties(
+                document,
                 "ReviewCreationStateResponse",
                 "targetType",
                 "sourceType",
                 "sourceId",
                 "status");
         assertRequiredProperties(
-                document, "ReviewReactionResponse", "reviewId", "helpfulByMe", "reportedByMe");
+                document,
+                "ReviewReactionResponse",
+                "reviewId",
+                "helpfulByMe",
+                "reportedByMe",
+                "ownedByMe",
+                "canInteract");
         assertRequiredProperties(
                 document, "ReviewHelpfulResponse", "reviewId", "helpfulCount", "helpfulByMe");
         assertRequiredProperties(
@@ -340,10 +373,8 @@ class OpenApiSpecGenerator {
                 "reporterUserId",
                 "reason",
                 "detail",
-                "snapshotRating",
-                "snapshotContent",
                 "snapshotStatus",
-                "snapshotEditedAt",
+                "evidence",
                 "status",
                 "decisionNote",
                 "decidedByAdminId",
@@ -361,7 +392,20 @@ class OpenApiSpecGenerator {
                 "newStatus",
                 "reason",
                 "adminUserId",
+                "evidence",
                 "createdAt");
+        assertRequiredProperties(
+                document,
+                "ReviewEvidenceResponse",
+                "id",
+                "contentRevision",
+                "rating",
+                "content",
+                "editedAt",
+                "provenance",
+                "imagesComplete",
+                "imageUrls",
+                "capturedAt");
 
         assertEnumProperty(
                 document, "MemberReviewResponse", "targetType", "PRODUCT", "CLASS");
@@ -424,25 +468,119 @@ class OpenApiSpecGenerator {
         assertNullableProperty(document, "AdminOfficialReviewReplyResponse", "editedAt");
         assertNullableProperty(document, "ReviewOpportunityResponse", "orderId");
         assertNullableProperty(document, "ReviewOpportunityResponse", "bookingId");
+        assertNullableProperty(document, "ReviewOpportunityPageResponse", "nextCursor");
         assertNullableProperty(document, "MemberReviewReportResponse", "detail");
         assertNullableProperty(document, "AdminReviewReportResponse", "detail");
-        assertNullableProperty(document, "AdminReviewReportResponse", "snapshotEditedAt");
+        assertNullableProperty(document, "AdminReviewReportResponse", "evidence");
         assertNullableProperty(document, "AdminReviewReportResponse", "decisionNote");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedByAdminId");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedAt");
         assertNullableProperty(document, "AdminReviewReportPageResponse", "nextCursor");
         assertNullableProperty(document, "ReviewModerationActionResponse", "reason");
+        assertNullableProperty(document, "ReviewModerationActionResponse", "evidence");
+        assertNullableProperty(document, "ReviewEvidenceResponse", "editedAt");
         assertNullableProperty(document, "UpdateReviewStatusRequest", "reason");
         assertNullableProperty(document, "CreateReviewReportRequest", "detail");
         assertNullableProperty(document, "DecideReviewReportRequest", "note");
         assertPropertyAbsent(document, "PublicReviewResponse", "helpfulByMe");
         assertPropertyAbsent(document, "PublicReviewResponse", "reportedByMe");
+        assertPropertyAbsent(document, "PublicReviewResponse", "ownedByMe");
+        assertPropertyAbsent(document, "PublicReviewResponse", "canInteract");
+        assertPropertyAbsent(document, "MemberReviewReportResponse", "reporterUserId");
+        assertPropertyAbsent(document, "MemberReviewReportResponse", "evidence");
+        assertRequiredProperties(document, "MemberReviewResponse", "contentRevision");
+        assertRequiredProperties(document, "AdminReviewResponse", "contentRevision", "version");
+        assertRequiredProperties(document, "ErrorResponse", "code", "message");
+        assertOptionalProperty(document, "ErrorResponse", "requestId");
+        assertOperationId(
+                document,
+                "/api/v1/me/reviews/opportunities",
+                "get",
+                "listMyReviewOpportunities");
+        assertOperationId(
+                document, "/api/v1/admin/reviews/{reviewId}", "get", "getAdminReview");
+        assertOperationId(
+                document,
+                "/api/v1/admin/review-evidence/{evidenceId}/images/{sortOrder}",
+                "get",
+                "getAdminReviewEvidenceImage");
+        assertOperationId(
+                document,
+                "/api/v1/me/reviews/{reviewId}/images/{imageId}",
+                "get",
+                "getMyReviewImage");
+        assertOperationId(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/images/{imageId}",
+                "get",
+                "getAdminReviewImage");
+        assertErrorResponse(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/status",
+                "patch",
+                "409");
+        assertResponseSchema(
+                document,
+                "/api/v1/me/reviews/{reviewId}",
+                "patch",
+                "200",
+                "MemberReviewResponse");
+        assertResponseSchema(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/status",
+                "patch",
+                "200",
+                "AdminReviewResponse");
+        assertResponseSchema(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/reply",
+                "put",
+                "200",
+                "AdminReviewResponse");
+        assertResponseSchema(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/reply",
+                "delete",
+                "200",
+                "AdminReviewResponse");
         assertRequiredRequestBody(
                 document,
                 "/api/v1/me/reviews/{reviewId}/images",
                 "post",
                 "addMyReviewImage");
         assertReviewListQueryContracts(document);
+    }
+
+    private void assertReviewSecurityContracts(Map<?, ?> document) {
+        Map<?, ?> components = (Map<?, ?>) document.get("components");
+        Map<?, ?> schemes = components == null ? null : (Map<?, ?>) components.get("securitySchemes");
+        if (schemes == null
+                || !schemes.keySet().containsAll(
+                        Set.of("CustomerSession", "AdminBearer", "AdminApiKey"))) {
+            throw new IllegalStateException("후기 인증 OpenAPI scheme이 누락되었습니다: " + schemes);
+        }
+        assertSecurityRequirement(
+                document, "/api/v1/me/reviews", "get", "CustomerSession");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/status",
+                "patch",
+                "AdminBearer");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/admin/review-evidence/{evidenceId}/images/{sortOrder}",
+                "get",
+                "AdminBearer");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/me/reviews/{reviewId}/images/{imageId}",
+                "get",
+                "CustomerSession");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/admin/reviews/{reviewId}/images/{imageId}",
+                "get",
+                "AdminBearer");
     }
 
     private void assertRequiredRequestBody(
@@ -553,6 +691,20 @@ class OpenApiSpecGenerator {
             throw new IllegalStateException(
                     "%s 필수 필드가 OpenAPI에서 누락되었습니다. expected=%s, actual=%s"
                             .formatted(schemaName, List.of(expectedProperties), requiredValue));
+        }
+    }
+
+    private void assertOptionalProperty(
+            Map<?, ?> document,
+            String schemaName,
+            String propertyName
+    ) {
+        property(document, schemaName, propertyName);
+        Object requiredValue = schema(document, schemaName).get("required");
+        if (requiredValue instanceof List<?> required && required.contains(propertyName)) {
+            throw new IllegalStateException(
+                    "%s.%s는 OpenAPI 선택 필드여야 합니다. actual=%s"
+                            .formatted(schemaName, propertyName, required));
         }
     }
 
@@ -789,6 +941,79 @@ class OpenApiSpecGenerator {
             throw new IllegalStateException(
                     "%s.%s는 공개 계약에 노출되면 안 됩니다."
                             .formatted(schemaName, propertyName));
+        }
+    }
+
+    private void assertOperationId(
+            Map<?, ?> document,
+            String path,
+            String method,
+            String expectedOperationId
+    ) {
+        Object actual = operation(document, path, method).get("operationId");
+        if (!expectedOperationId.equals(actual)) {
+            throw new IllegalStateException(
+                    "%s %s operationId가 올바르지 않습니다. expected=%s, actual=%s"
+                            .formatted(method, path, expectedOperationId, actual));
+        }
+    }
+
+    private void assertSecurityRequirement(
+            Map<?, ?> document,
+            String path,
+            String method,
+            String schemeName
+    ) {
+        Object securityValue = operation(document, path, method).get("security");
+        boolean present = securityValue instanceof List<?> security
+                && security.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .anyMatch(requirement -> requirement.containsKey(schemeName));
+        if (!present) {
+            throw new IllegalStateException(
+                    "%s %s에 %s 인증 계약이 없습니다: %s"
+                            .formatted(method, path, schemeName, securityValue));
+        }
+    }
+
+    private void assertErrorResponse(
+            Map<?, ?> document,
+            String path,
+            String method,
+            String responseCode
+    ) {
+        assertResponseSchema(document, path, method, responseCode, "ErrorResponse");
+    }
+
+    private void assertResponseSchema(
+            Map<?, ?> document,
+            String path,
+            String method,
+            String responseCode,
+            String schemaName
+    ) {
+        Map<?, ?> operation = operation(document, path, method);
+        Object responsesValue = operation.get("responses");
+        if (!(responsesValue instanceof Map<?, ?> responses)
+                || !(responses.get(responseCode) instanceof Map<?, ?> response)
+                || !(response.get("content") instanceof Map<?, ?> content)) {
+            throw new IllegalStateException(
+                    "%s %s의 %s 오류 응답이 없습니다: %s"
+                            .formatted(method, path, responseCode, responsesValue));
+        }
+        boolean expectedSchema = content.values().stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(media -> media.get("schema"))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .anyMatch(schema -> ("#/components/schemas/" + schemaName)
+                        .equals(schema.get("$ref")));
+        if (!expectedSchema) {
+            throw new IllegalStateException(
+                    "%s %s의 %s 응답이 %s가 아닙니다: %s"
+                            .formatted(method, path, responseCode, schemaName, content));
         }
     }
 

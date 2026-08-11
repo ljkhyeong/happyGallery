@@ -289,6 +289,13 @@
   overflow-wrap: anywhere;
 }
 
+.admin-review-evidence {
+  margin-top: 0.65rem;
+  padding: 0.8rem;
+  border: 1px solid var(--hg-border);
+  background: var(--hg-surface-alt);
+}
+
 .admin-review-tabs {
   display: flex;
   gap: 0.5rem;
@@ -359,4 +366,8 @@
   grid-column: 1 / -1;
   margin: 0;
   color: var(--hg-ink-soft);
+}
+
+.admin-review-timeline .admin-review-evidence {
+  grid-column: 1 / -1;
 }

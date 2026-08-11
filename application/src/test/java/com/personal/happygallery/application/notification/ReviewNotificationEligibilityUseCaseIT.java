@@ -158,7 +158,8 @@ class ReviewNotificationEligibilityUseCaseIT {
             softly.assertThat(eligibilityPort.findOwnerRepliedReviewRecipient(review.getId())).isEmpty();
         });
 
-        ReviewModerationAction firstHide = reviewModerationPort.save(ReviewModerationAction.hide(
+        ReviewModerationAction firstHide = reviewModerationPort.save(
+                ReviewModerationAction.legacyHideWithoutEvidence(
                 review.getId(), "첫 번째 숨김", admin.getId(), now()));
         hide(review.getId(), admin.getId(), "첫 번째 숨김");
 
@@ -168,7 +169,8 @@ class ReviewNotificationEligibilityUseCaseIT {
             softly.assertThat(eligibilityPort.findOwnerRepliedReviewRecipient(review.getId())).isEmpty();
         });
 
-        ReviewModerationAction republish = reviewModerationPort.save(ReviewModerationAction.republish(
+        ReviewModerationAction republish = reviewModerationPort.save(
+                ReviewModerationAction.legacyRepublishWithoutEvidence(
                 review.getId(), admin.getId(), now()));
         republish(review.getId());
 
@@ -178,7 +180,8 @@ class ReviewNotificationEligibilityUseCaseIT {
                     .contains(recipient);
         });
 
-        ReviewModerationAction latestHide = reviewModerationPort.save(ReviewModerationAction.hide(
+        ReviewModerationAction latestHide = reviewModerationPort.save(
+                ReviewModerationAction.legacyHideWithoutEvidence(
                 review.getId(), "두 번째 숨김", admin.getId(), now()));
         hide(review.getId(), admin.getId(), "두 번째 숨김");
         addReply(review.getId(), admin.getId());
@@ -218,6 +221,9 @@ class ReviewNotificationEligibilityUseCaseIT {
                         UPDATE reviews
                         SET rating = NULL,
                             content = NULL,
+                            hidden_reason = NULL,
+                            hidden_at = NULL,
+                            hidden_by_admin_id = NULL,
                             deleted_at = ?,
                             recreation_blocked = ?
                         WHERE id = ?

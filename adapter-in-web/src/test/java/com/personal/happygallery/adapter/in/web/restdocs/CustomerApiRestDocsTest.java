@@ -51,6 +51,7 @@ import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
+import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -230,17 +231,17 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(reviewUseCase.listMyBookingReviews(CUSTOMER_USER_ID, 100L))
                 .thenReturn(List.of(classReview));
         when(reviewUseCase.updateReview(
-                eq(CUSTOMER_USER_ID), eq(31L), eq(4), any()))
+                eq(CUSTOMER_USER_ID), eq(31L), eq(1L), eq(4), any()))
                 .thenReturn(productReview);
-        when(reviewUseCase.listMyReviewOpportunities(CUSTOMER_USER_ID))
-                .thenReturn(List.of(new ReviewUseCase.ReviewOpportunity(
+        when(reviewUseCase.listMyReviewOpportunities(CUSTOMER_USER_ID, null, 20))
+                .thenReturn(new CursorPage<>(List.of(new ReviewUseCase.ReviewOpportunity(
                         ReviewTargetType.PRODUCT,
                         202L,
                         1L,
                         "시그니처 캔들",
                         200L,
                         null,
-                        LocalDateTime.of(2026, 4, 30, 18, 0))));
+                        LocalDateTime.of(2026, 4, 30, 18, 0))), "opportunity-next", true));
         when(reviewUseCase.markHelpful(CUSTOMER_USER_ID, 32L))
                 .thenReturn(new ReviewUseCase.HelpfulResult(32L, 2L, true));
         when(reviewUseCase.unmarkHelpful(CUSTOMER_USER_ID, 32L))
@@ -248,8 +249,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(reviewUseCase.listMyReviewReactions(
                 CUSTOMER_USER_ID, List.of(31L, 32L)))
                 .thenReturn(List.of(
-                        new ReviewUseCase.ReviewReaction(31L, false, false),
-                        new ReviewUseCase.ReviewReaction(32L, true, false)));
+                        new ReviewUseCase.ReviewReaction(31L, false, false, true, false),
+                        new ReviewUseCase.ReviewReaction(32L, true, false, false, true)));
         when(reviewUseCase.createReport(
                 eq(CUSTOMER_USER_ID), eq(32L), eq(ReviewReportReason.SPAM), any()))
                 .thenReturn(new ReviewUseCase.ReviewReportItem(
@@ -258,10 +259,17 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         CUSTOMER_USER_ID,
                         ReviewReportReason.SPAM,
                         "홍보성 링크가 포함되어 있습니다.",
-                        4,
-                        "설명이 친절해서 즐겁게 참여했습니다.",
                         ReviewStatus.PUBLISHED,
-                        LocalDateTime.of(2026, 5, 1, 11, 0),
+                        new ReviewUseCase.ReviewEvidenceItem(
+                                82L,
+                                classReview.contentRevision(),
+                                classReview.rating(),
+                                classReview.content(),
+                                classReview.editedAt(),
+                                ReviewEvidenceProvenance.LIVE,
+                                true,
+                                List.of(),
+                                LocalDateTime.of(2026, 5, 1, 21, 0)),
                         ReviewReportStatus.PENDING,
                         null,
                         null,
@@ -332,7 +340,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "policyAcceptance": {
                                     "termsVersion": "2026-08-08-v1",
                                     "termsAccepted": true,
-                                    "privacyVersion": "2026-08-08-v1",
+                                    "privacyVersion": "2026-08-11-v1",
                                     "privacyAccepted": true
                                   }
                                 }
@@ -929,13 +937,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("작성 가능한 후기 목록 API를 문서화한다")
     void list_my_review_opportunities() throws Exception {
         mockMvc.perform(get("/api/v1/me/reviews/opportunities")
-                        .with(customerUser()))
+                        .with(customerUser())
+                        .param("size", "20"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].targetType").value("PRODUCT"))
-                .andExpect(jsonPath("$[0].sourceType").value("ORDER_ITEM"))
-                .andExpect(jsonPath("$[0].sourceId").value(202))
-                .andExpect(jsonPath("$[0].orderId").value(200))
-                .andExpect(jsonPath("$[0].bookingId").doesNotExist());
+                .andExpect(jsonPath("$.content[0].targetType").value("PRODUCT"))
+                .andExpect(jsonPath("$.content[0].sourceType").value("ORDER_ITEM"))
+                .andExpect(jsonPath("$.content[0].sourceId").value(202))
+                .andExpect(jsonPath("$.content[0].orderId").value(200))
+                .andExpect(jsonPath("$.content[0].bookingId").doesNotExist())
+                .andExpect(jsonPath("$.nextCursor").value("opportunity-next"))
+                .andExpect(jsonPath("$.hasMore").value(true));
     }
 
     @Test
@@ -947,8 +958,12 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].reviewId").value(31))
                 .andExpect(jsonPath("$[0].helpfulByMe").value(false))
+                .andExpect(jsonPath("$[0].ownedByMe").value(true))
+                .andExpect(jsonPath("$[0].canInteract").value(false))
                 .andExpect(jsonPath("$[1].reviewId").value(32))
-                .andExpect(jsonPath("$[1].helpfulByMe").value(true));
+                .andExpect(jsonPath("$[1].helpfulByMe").value(true))
+                .andExpect(jsonPath("$[1].ownedByMe").value(false))
+                .andExpect(jsonPath("$[1].canInteract").value(true));
     }
 
     @Test
@@ -979,6 +994,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedContentRevision": 1,
                                   "rating": 4,
                                   "content": "사용 후기를 수정했습니다."
                                 }

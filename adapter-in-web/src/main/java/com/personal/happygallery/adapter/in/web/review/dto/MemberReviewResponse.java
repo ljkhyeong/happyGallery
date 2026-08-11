@@ -23,6 +23,7 @@ public record MemberReviewResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String content,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, implementation = ReviewStatus.class)
         ReviewStatus status,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1") long contentRevision,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String hiddenReason,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime createdAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime updatedAt,
@@ -49,6 +50,7 @@ public record MemberReviewResponse(
                 item.rating(),
                 item.content(),
                 item.status(),
+                item.contentRevision(),
                 item.hiddenReason(),
                 item.createdAt(),
                 item.updatedAt(),

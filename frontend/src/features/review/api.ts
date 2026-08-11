@@ -5,6 +5,7 @@ import {
   deleteMyReview,
   deleteMyReviewImage,
   getClassReviewCreationState,
+  getMyReviewImage,
   getProductReviewCreationState,
   listClassReviews,
   listMyBookingReviews,
@@ -28,6 +29,7 @@ import {
   type ReviewCreationStateResponse,
   type ReviewHelpfulResponse,
   type ReviewImageResponse,
+  type ReviewOpportunityPageResponse,
   type ReviewOpportunityResponse,
   type ReviewReactionResponse,
   type UpdateReviewRequest,
@@ -92,9 +94,10 @@ export function fetchMyBookingReviews(
 }
 
 export function fetchMyReviewOpportunities(
+  cursor?: string,
   signal?: AbortSignal,
-): Promise<ReviewOpportunityResponse[]> {
-  return listMyReviewOpportunities({ signal });
+): Promise<ReviewOpportunityPageResponse> {
+  return listMyReviewOpportunities({ cursor, size: PAGE_SIZE }, { signal });
 }
 
 export function fetchProductReviewCreationState(
@@ -164,4 +167,19 @@ export function uploadReviewImage(
 
 export function removeReviewImage(reviewId: number, imageId: number): Promise<void> {
   return deleteMyReviewImage(reviewId, imageId);
+}
+
+export async function fetchMyReviewImage(
+  reviewId: number,
+  imageId: number,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const blob = await getMyReviewImage(reviewId, imageId, {
+    cache: "no-store",
+    signal,
+  });
+  if (!blob.type.startsWith("image/")) {
+    throw new Error("숨김 후기 이미지 응답 형식이 올바르지 않습니다.");
+  }
+  return blob;
 }

@@ -89,12 +89,12 @@ class ContentRequestValidationTest {
             assertThat(List.of(
                     new CreateProductReviewRequest(1L, 1, "후기 내용"),
                     new CreateClassReviewRequest(1L, 5, "후기 내용"),
-                    new UpdateReviewRequest(5, "후기 내용")))
+                    new UpdateReviewRequest(1L, 5, "후기 내용")))
                     .allSatisfy(request -> assertThat(validator.validate(request)).isEmpty());
             assertThat(List.of(
                     new CreateProductReviewRequest(1L, 0, "후기 내용"),
                     new CreateClassReviewRequest(1L, 6, "후기 내용"),
-                    new UpdateReviewRequest(0, "후기 내용")))
+                    new UpdateReviewRequest(1L, 0, "후기 내용")))
                     .allSatisfy(request -> assertThat(validator.validate(request)).hasSize(1));
         }
     }
@@ -129,8 +129,8 @@ class ContentRequestValidationTest {
                 new UpdateNoticeRequest(0L, "공지", body, false),
                 new CreateProductReviewRequest(1L, 5, body),
                 new CreateClassReviewRequest(1L, 5, body),
-                new UpdateReviewRequest(5, body),
-                new UpsertReviewReplyRequest(body));
+                new UpdateReviewRequest(1L, 5, body),
+                new UpsertReviewReplyRequest(0L, body));
     }
 
     private List<Object> titledContentRequests(String title) {

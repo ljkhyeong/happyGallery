@@ -16,7 +16,7 @@ class JpaReviewHelpfulAdapter implements ReviewHelpfulPort {
 
     @Override
     public void saveIfAbsent(ReviewHelpfulVote vote) {
-        repository.insertIgnore(vote.getReviewId(), vote.getUserId(), vote.getCreatedAt());
+        repository.insertIfAbsent(vote.getReviewId(), vote.getUserId(), vote.getCreatedAt());
     }
 
     @Override

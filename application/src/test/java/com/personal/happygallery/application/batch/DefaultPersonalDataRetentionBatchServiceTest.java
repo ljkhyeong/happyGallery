@@ -8,6 +8,7 @@ import com.personal.happygallery.application.media.ImageMediaRetentionService;
 import com.personal.happygallery.application.notification.NotificationRetentionService;
 import com.personal.happygallery.application.payment.PaymentAttemptSensitiveDataCleanupProcessor;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.review.ReviewEvidenceRetentionService;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -44,6 +45,8 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 mock(NotificationRetentionService.class);
         AdminAuthHistoryRetentionService adminAuthRetention =
                 mock(AdminAuthHistoryRetentionService.class);
+        ReviewEvidenceRetentionService reviewEvidenceRetention =
+                mock(ReviewEvidenceRetentionService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-03-01T00:00:00Z"), ZoneOffset.UTC);
         GuestTokenProperties tokenProperties =
                 new GuestTokenProperties(
@@ -75,6 +78,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         imageRetention,
                         notificationRetention,
                         adminAuthRetention,
+                        reviewEvidenceRetention,
                         tokenProperties,
                         clock);
 
@@ -88,5 +92,6 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         "notification_log", 1));
         verify(notificationRetention).deleteTerminalOutboxesBefore(any(), eq(100));
         verify(adminAuthRetention).deleteBatchBefore(any(), eq(100));
+        verify(reviewEvidenceRetention).deleteExpiredBatch(any(), eq(100));
     }
 }
