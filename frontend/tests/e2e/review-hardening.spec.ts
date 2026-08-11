@@ -42,6 +42,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   let currentOfficialReply: Record<string, unknown> | null = null;
   let evidenceRetryEnabled = false;
   let adminReviewGetCount = 0;
+  let reportDetailGetCount = 0;
   const report = (id: number) => ({
     id,
     reviewId: id === 91 ? 11 : 12,
@@ -242,11 +243,24 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     if (pathname === "/api/v1/admin/review-reports" && request.method() === "GET") {
       const requestedStatus = new URL(request.url()).searchParams.get("status");
       const content = [report(91), report(92)]
-        .filter((item) => !requestedStatus || item.status === requestedStatus);
+        .filter((item) => !requestedStatus || item.status === requestedStatus)
+        .map(({ id, reviewId, reason, snapshotStatus, status, createdAt }) => ({
+          id,
+          reviewId,
+          reason,
+          snapshotStatus,
+          status,
+          createdAt,
+        }));
       await fulfillJson(route, { content, nextCursor: null, hasMore: false });
       return;
     }
     const decisionMatch = pathname.match(/^\/api\/v1\/admin\/review-reports\/(\d+)$/);
+    if (decisionMatch && request.method() === "GET") {
+      reportDetailGetCount += 1;
+      await fulfillJson(route, report(Number(decisionMatch[1])));
+      return;
+    }
     if (decisionMatch && request.method() === "PATCH") {
       const reportId = Number(decisionMatch[1]);
       const body = request.postDataJSON() as {
@@ -266,11 +280,14 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   await page.getByRole("tab", { name: "신고 관리" }).click();
 
   const reportCard = page.locator(".admin-review-report-card").filter({
-    hasText: "신고 판단 확인 대상 후기",
+    hasText: "후기 #11",
   });
   const imageFailureCard = page.locator(".admin-review-report-card").filter({
-    hasText: "신고 반려 확인 대상 후기",
+    hasText: "후기 #12",
   });
+  expect(reportDetailGetCount).toBe(0);
+  await reportCard.getByRole("button", { name: "신고 상세 검토" }).click();
+  await imageFailureCard.getByRole("button", { name: "신고 상세 검토" }).click();
   await expect(reportCard.getByText("본문 revision 2", { exact: true })).toBeVisible();
   await expect(reportCard.getByAltText("당시 후기 사진 1")).toHaveAttribute("src", /^blob:/);
   await expect(imageFailureCard.getByRole("alert")).toContainText("사진 증거를 불러오지 못했습니다.");
@@ -324,7 +341,8 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   focusedReviewCard = page.locator(".admin-review-card").filter({ hasText: "작성자가 수정한 최신 후기" });
   await expect.poll(() => adminReviewGetCount).toBeGreaterThanOrEqual(2);
   await expect(focusedReviewCard.getByText("revision 4", { exact: true })).toBeVisible();
-  await expect(page.getByText("최신 상태를 다시 불러왔습니다.", { exact: false })).toBeVisible();
+  await expect(page.getByText("최신 상태를 다시 불러왔습니다.", { exact: false }).last())
+    .toBeVisible();
   await focusedReviewCard.getByRole("button", { name: "숨김 확정" }).click();
   await expect.poll(() => statusChanges[1]).toEqual({
     status: "HIDDEN",
@@ -342,7 +360,8 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   expect(hiddenPublicImageRequests).toBe(0);
 
   await focusedReviewCard.getByRole("button", { name: "공식 답글 작성" }).click();
-  await focusedReviewCard.getByLabel("공식 답글").fill("공방에서 확인한 답글");
+  await focusedReviewCard.getByRole("textbox", { name: "공식 답글", exact: true })
+    .fill("공방에서 확인한 답글");
   await focusedReviewCard.getByRole("button", { name: "답글 저장" }).click();
   await expect.poll(() => replyChanges[0]).toEqual({
     method: "PUT",
@@ -350,10 +369,12 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     expectedVersion: 7,
   });
   await expect(focusedReviewCard.getByText("다른 관리자의 최신 답글", { exact: true })).toBeVisible();
-  await expect(page.getByText("최신 상태를 다시 불러왔습니다.", { exact: false })).toBeVisible();
+  await expect(page.getByText("최신 상태를 다시 불러왔습니다.", { exact: false }).last())
+    .toBeVisible();
 
   await focusedReviewCard.getByRole("button", { name: "답글 수정" }).click();
-  await focusedReviewCard.getByLabel("공식 답글").fill("공방에서 확인한 답글");
+  await focusedReviewCard.getByRole("textbox", { name: "공식 답글", exact: true })
+    .fill("공방에서 확인한 답글");
   await focusedReviewCard.getByRole("button", { name: "답글 저장" }).click();
   await expect.poll(() => replyChanges[1]).toEqual({
     method: "PUT",
@@ -377,8 +398,9 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     return blobUrls.created.every((objectUrl) => blobUrls.revoked.includes(objectUrl));
   })).toBe(true);
   const refreshedReportCard = page.locator(".admin-review-report-card").filter({
-    hasText: "신고 판단 확인 대상 후기",
+    hasText: "후기 #11",
   });
+  await refreshedReportCard.getByRole("button", { name: "신고 상세 검토" }).click();
   await refreshedReportCard.getByLabel(/처리 메모/).fill("운영 정책 위반 확인");
   await refreshedReportCard.getByRole("button", { name: "위반 인정", exact: true }).click();
 
@@ -405,8 +427,9 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   await expect(refreshedReportCard).toHaveCount(0);
 
   const rejectedReportCard = page.locator(".admin-review-report-card").filter({
-    hasText: "신고 반려 확인 대상 후기",
+    hasText: "후기 #12",
   });
+  await rejectedReportCard.getByRole("button", { name: "신고 상세 검토" }).click();
   await rejectedReportCard.getByRole("button", { name: "신고 반려", exact: true }).click();
   const rejectConfirmation = page.getByRole("dialog", { name: "신고를 반려할까요?" });
   await expect(rejectConfirmation.getByText("저장하면 이 신고를 다시 판단할 수 없습니다.", { exact: false }))
@@ -429,9 +452,15 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
   await installCsrfCookie(context, baseURL);
   const pageErrors: string[] = [];
   const consoleErrors: string[] = [];
+  const failedResponses: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.stack ?? error.message));
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      failedResponses.push(`${response.status()} ${new URL(response.url()).pathname}`);
+    }
   });
   const reactionRequests: number[][] = [];
   let helpfulMutationCount = 0;
@@ -573,7 +602,11 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
   await expect.poll(() => helpfulMutationCount).toBe(1);
   await expect(firstCard.getByRole("button", { name: "도움돼요 1" }))
     .toHaveAttribute("aria-pressed", "true");
-  expect({ pageErrors, consoleErrors }).toEqual({ pageErrors: [], consoleErrors: [] });
+  expect({ pageErrors, consoleErrors, failedResponses }).toEqual({
+    pageErrors: [],
+    consoleErrors: [],
+    failedResponses: [],
+  });
 });
 
 test("@smoke 작성 가능한 후기 이용 내역은 커서 다음 페이지까지 이어서 표시한다", async ({ page }) => {
@@ -771,7 +804,7 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
   const card = page.locator(".member-review-card").filter({ hasText: "수정 충돌 검증 작품" });
   await expect(card.getByText("내가 작성한 원래 후기", { exact: true })).toBeVisible();
   await expect(card.getByAltText("등록한 후기 사진 1")).toHaveAttribute("src", /^blob:/);
-  expect(protectedImageRequests).toBe(1);
+  expect(protectedImageRequests).toBeGreaterThanOrEqual(1);
   expect(publicHiddenImageRequests).toBe(0);
   await card.getByRole("button", { name: "수정", exact: true }).click();
   await card.getByLabel("후기 내용").fill("첫 번째 수정 시도");

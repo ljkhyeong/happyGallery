@@ -139,8 +139,8 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.terms.version").value("2026-08-08-v1"))
                 .andExpect(jsonPath("$.terms.documentPath").value("/terms/2026-08-08-v1"))
-                .andExpect(jsonPath("$.privacy.version").value("2026-08-11-v1"))
-                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-08-11-v1"));
+                .andExpect(jsonPath("$.privacy.version").value("2026-08-11-v2"))
+                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-08-11-v2"));
     }
 
     @DisplayName("공개 조회 경로는 HEAD 요청도 허용한다")
@@ -252,7 +252,7 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
-    @DisplayName("로컬 API key는 후기 공식 답글과 신고 결정을 수행할 수 없다")
+    @DisplayName("로컬 API key는 후기 공식 답글과 신고 상세 조회 및 결정을 수행할 수 없다")
     @Test
     void apiKey_cannotReplyOrDecideReviewReport() throws Exception {
         mockMvc.perform(put("/api/v1/admin/reviews/1/reply")
@@ -266,6 +266,11 @@ class SecurityBoundaryUseCaseIT {
                         .header("X-Admin-Key", "dev-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"decision\":\"REJECTED\",\"note\":null}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        mockMvc.perform(get("/api/v1/admin/review-reports/1")
+                        .header("X-Admin-Key", "dev-admin-key"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }

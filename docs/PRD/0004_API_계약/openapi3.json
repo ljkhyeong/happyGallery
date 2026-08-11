@@ -962,7 +962,7 @@
         "properties" : {
           "content" : {
             "items" : {
-              "$ref" : "#/components/schemas/AdminReviewReportResponse"
+              "$ref" : "#/components/schemas/AdminReviewReportSummaryResponse"
             },
             "type" : "array"
           },
@@ -1029,6 +1029,36 @@
           }
         },
         "required" : [ "createdAt", "decidedAt", "decidedByAdminId", "decisionNote", "detail", "evidence", "id", "reason", "reporterUserId", "reviewId", "snapshotStatus", "status" ],
+        "type" : "object"
+      },
+      "AdminReviewReportSummaryResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "enum" : [ "SPAM", "ABUSIVE", "PRIVACY", "FALSE_INFORMATION", "OTHER" ],
+            "type" : "string"
+          },
+          "reviewId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "snapshotStatus" : {
+            "enum" : [ "PUBLISHED", "HIDDEN" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "ACCEPTED", "REJECTED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "reason", "reviewId", "snapshotStatus", "status" ],
         "type" : "object"
       },
       "AdminReviewResponse" : {
@@ -9081,6 +9111,35 @@
       }
     },
     "/api/v1/admin/review-reports/{reportId}" : {
+      "get" : {
+        "operationId" : "getAdminReviewReport",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "reportId",
+          "required" : true,
+          "schema" : {
+            "exclusiveMinimum" : 0,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminReviewReportResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "AdminBearer" : [ ]
+        } ],
+        "tags" : [ "admin-review-controller" ]
+      },
       "patch" : {
         "operationId" : "decideAdminReviewReport",
         "parameters" : [ {

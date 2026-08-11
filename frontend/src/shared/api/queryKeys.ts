@@ -25,6 +25,8 @@ export const queryKeys = {
         all: ["admin", "reviews", "reports"] as const,
         page: (status?: string, cursor?: string) =>
           ["admin", "reviews", "reports", status, cursor] as const,
+        detail: (reportId: number) =>
+          ["admin", "reviews", "reports", "detail", reportId] as const,
       },
     },
     classes: ["admin", "classes"] as const,

@@ -140,7 +140,7 @@ app:
   runtime-mode: ${HAPPYGALLERY_RUNTIME_MODE:development}
   policy-consent:
     terms-version: ${TERMS_POLICY_VERSION:2026-08-08-v1}
-    privacy-version: ${PRIVACY_POLICY_VERSION:2026-08-11-v1}
+    privacy-version: ${PRIVACY_POLICY_VERSION:2026-08-11-v2}
   field-encryption:
     active-key-id: ${FIELD_ENCRYPTION_KEY_ID:v1}
     encrypt-key: ${ENCRYPT_KEY:}

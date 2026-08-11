@@ -56,7 +56,7 @@ public final class CustomerTestHelper {
                                         new PolicyAcceptanceRequest(
                                                 "2026-08-08-v1",
                                                 true,
-                                                "2026-08-11-v1",
+                                                "2026-08-11-v2",
                                                 true)))))
                 .andExpect(status().isCreated())
                 .andReturn();

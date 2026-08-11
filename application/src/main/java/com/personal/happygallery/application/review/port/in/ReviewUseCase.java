@@ -150,6 +150,15 @@ public interface ReviewUseCase {
             LocalDateTime createdAt
     ) {}
 
+    record ReviewReportSummaryItem(
+            Long id,
+            Long reviewId,
+            ReviewReportReason reason,
+            ReviewStatus snapshotStatus,
+            ReviewReportStatus status,
+            LocalDateTime createdAt
+    ) {}
+
     record ReviewReaction(
             Long reviewId,
             boolean helpfulByMe,
@@ -229,8 +238,10 @@ public interface ReviewUseCase {
     ReviewReportItem createReport(
             Long userId, Long reviewId, ReviewReportReason reason, String detail);
 
-    CursorPage<ReviewReportItem> listAdminReports(
+    CursorPage<ReviewReportSummaryItem> listAdminReports(
             ReviewReportStatus status, String cursor, int size);
+
+    ReviewReportItem getAdminReport(Long reportId);
 
     ReviewReportItem decideReport(
             Long reportId,

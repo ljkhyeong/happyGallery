@@ -47,7 +47,10 @@ import java.util.Objects;
                         columnList = "deleted_at,status,created_at,id"),
                 @Index(
                         name = "idx_reviews_created",
-                        columnList = "deleted_at,created_at,id")
+                        columnList = "deleted_at,created_at,id"),
+                @Index(
+                        name = "idx_reviews_tombstone_retention",
+                        columnList = "recreation_blocked,deleted_at,id")
         }
 )
 public class Review {

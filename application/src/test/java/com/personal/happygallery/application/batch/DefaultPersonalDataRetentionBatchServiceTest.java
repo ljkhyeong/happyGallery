@@ -9,19 +9,23 @@ import com.personal.happygallery.application.notification.NotificationRetentionS
 import com.personal.happygallery.application.payment.PaymentAttemptSensitiveDataCleanupProcessor;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.review.ReviewEvidenceRetentionService;
+import com.personal.happygallery.application.review.ReviewTombstoneRetentionService;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -47,7 +51,11 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 mock(AdminAuthHistoryRetentionService.class);
         ReviewEvidenceRetentionService reviewEvidenceRetention =
                 mock(ReviewEvidenceRetentionService.class);
+        ReviewTombstoneRetentionService reviewTombstoneRetention =
+                mock(ReviewTombstoneRetentionService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-03-01T00:00:00Z"), ZoneOffset.UTC);
+        LocalDateTime expectedReviewTombstoneCutoff =
+                LocalDateTime.of(2026, 1, 30, 0, 0);
         GuestTokenProperties tokenProperties =
                 new GuestTokenProperties(
                         "s".repeat(32), "", Duration.ofHours(720), Duration.ofHours(24));
@@ -68,6 +76,8 @@ class DefaultPersonalDataRetentionBatchServiceTest {
         when(notificationRetention.deleteTerminalOutboxesBefore(any(), eq(100)))
                 .thenReturn(3);
         when(adminAuthRetention.deleteBatchBefore(any(), eq(100))).thenReturn(4);
+        when(reviewTombstoneRetention.deleteBatchBefore(any(), eq(100)))
+                .thenThrow(new IllegalStateException("review tombstone detail"));
         DefaultPersonalDataRetentionBatchService service =
                 new DefaultPersonalDataRetentionBatchService(
                         attemptReader,
@@ -79,6 +89,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         notificationRetention,
                         adminAuthRetention,
                         reviewEvidenceRetention,
+                        reviewTombstoneRetention,
                         tokenProperties,
                         clock);
 
@@ -89,9 +100,17 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 Map.of(
                         "payment_attempt", 2,
                         "phone_verification", 1,
-                        "notification_log", 1));
+                        "notification_log", 1,
+                        "review_tombstone", 1));
         verify(notificationRetention).deleteTerminalOutboxesBefore(any(), eq(100));
         verify(adminAuthRetention).deleteBatchBefore(any(), eq(100));
         verify(reviewEvidenceRetention).deleteExpiredBatch(any(), eq(100));
+        verify(reviewTombstoneRetention).deleteBatchBefore(
+                eq(expectedReviewTombstoneCutoff), eq(100));
+        InOrder reviewRetentionOrder = inOrder(
+                reviewEvidenceRetention, reviewTombstoneRetention);
+        reviewRetentionOrder.verify(reviewEvidenceRetention).deleteExpiredBatch(any(), eq(100));
+        reviewRetentionOrder.verify(reviewTombstoneRetention).deleteBatchBefore(
+                eq(expectedReviewTombstoneCutoff), eq(100));
     }
 }

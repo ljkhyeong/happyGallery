@@ -215,7 +215,7 @@ class PaymentPrepareUseCaseTest {
                             tuple(
                                     PolicyConsentType.PRIVACY_POLICY,
                                     PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
-                                    "2026-08-11-v1"));
+                                    "2026-08-11-v2"));
         });
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
                 prepared.orderId(), AuthContext.guest(), "wrong-token"))

@@ -93,6 +93,10 @@ test("후기 키는 공개 대상과 회원·관리자 세션 경계를 각각 �
     queryKeys.admin.reviews.reports.page("PENDING").slice(0, 3),
     queryKeys.admin.reviews.reports.all,
   );
+  assert.deepEqual(
+    queryKeys.admin.reviews.reports.detail(71).slice(0, 3),
+    queryKeys.admin.reviews.reports.all,
+  );
 });
 
 test("회원 이력 페이지 키는 기존 무효화 접두사 아래에서 summary 캐시와 분리된다", () => {

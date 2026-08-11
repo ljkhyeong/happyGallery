@@ -144,6 +144,14 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 ADMIN_USER_ID,
                 LocalDateTime.of(2026, 5, 1, 21, 0),
                 pendingReport.createdAt());
+        ReviewUseCase.ReviewReportSummaryItem pendingReportSummary =
+                new ReviewUseCase.ReviewReportSummaryItem(
+                        pendingReport.id(),
+                        pendingReport.reviewId(),
+                        pendingReport.reason(),
+                        pendingReport.snapshotStatus(),
+                        pendingReport.status(),
+                        pendingReport.createdAt());
 
         stubDashboard();
         when(noticeQueryUseCase.listAll()).thenReturn(List.of(notice));
@@ -195,7 +203,9 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(productReviewWithoutReply);
         when(reviewUseCase.listAdminReports(
                 eq(ReviewReportStatus.PENDING), isNull(), eq(20)))
-                .thenReturn(new CursorPage<>(List.of(pendingReport), "report-cursor-next", true));
+                .thenReturn(new CursorPage<>(
+                        List.of(pendingReportSummary), "report-cursor-next", true));
+        when(reviewUseCase.getAdminReport(71L)).thenReturn(pendingReport);
         when(reviewUseCase.decideReport(
                 eq(71L), eq(ReviewReportStatus.ACCEPTED), any(), eq(ADMIN_USER_ID)))
                 .thenReturn(acceptedReport);
@@ -519,11 +529,27 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(71))
                 .andExpect(jsonPath("$.content[0].reason").value("PRIVACY"))
-                .andExpect(jsonPath("$.content[0].evidence.rating").value(5))
                 .andExpect(jsonPath("$.content[0].snapshotStatus").value("PUBLISHED"))
                 .andExpect(jsonPath("$.content[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.content[0].reporterUserId").doesNotExist())
+                .andExpect(jsonPath("$.content[0].detail").doesNotExist())
+                .andExpect(jsonPath("$.content[0].evidence").doesNotExist())
                 .andExpect(jsonPath("$.nextCursor").value("report-cursor-next"))
                 .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("계정 기반 관리자가 후기 신고 상세와 증거를 조회하는 API를 문서화한다")
+    void admin_get_review_report() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/review-reports/{reportId}", 71L)
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(71))
+                .andExpect(jsonPath("$.reporterUserId").value(CUSTOMER_USER_ID))
+                .andExpect(jsonPath("$.detail").value("개인 연락처가 노출되어 있습니다."))
+                .andExpect(jsonPath("$.evidence.rating").value(5))
+                .andExpect(jsonPath("$.evidence.content")
+                        .value("마감이 깔끔하고 선물하기 좋았습니다."));
     }
 
     @Test

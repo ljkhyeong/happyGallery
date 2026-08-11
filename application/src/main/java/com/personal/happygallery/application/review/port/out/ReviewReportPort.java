@@ -12,11 +12,13 @@ public interface ReviewReportPort {
 
     Optional<ReviewReport> findByIdForUpdate(Long reportId);
 
+    Optional<ReviewReport> findById(Long reportId);
+
     boolean existsByReviewIdAndReporterUserId(Long reviewId, Long reporterUserId);
 
-    List<ReviewReport> findForAdmin(ReviewReportStatus status, int limit);
+    List<ReviewReportListView> findForAdmin(ReviewReportStatus status, int limit);
 
-    List<ReviewReport> findForAdminAfter(
+    List<ReviewReportListView> findForAdminAfter(
             ReviewReportStatus status, LocalDateTime createdAt, Long id, int limit);
 
     List<Long> findReportedReviewIds(Long userId, List<Long> reviewIds);

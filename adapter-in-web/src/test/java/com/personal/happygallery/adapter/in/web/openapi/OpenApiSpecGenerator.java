@@ -381,6 +381,15 @@ class OpenApiSpecGenerator {
                 "decidedAt",
                 "createdAt");
         assertRequiredProperties(
+                document,
+                "AdminReviewReportSummaryResponse",
+                "id",
+                "reviewId",
+                "reason",
+                "snapshotStatus",
+                "status",
+                "createdAt");
+        assertRequiredProperties(
                 document, "AdminReviewReportPageResponse", "content", "nextCursor", "hasMore");
         assertRequiredProperties(
                 document,
@@ -488,6 +497,12 @@ class OpenApiSpecGenerator {
         assertPropertyAbsent(document, "PublicReviewResponse", "canInteract");
         assertPropertyAbsent(document, "MemberReviewReportResponse", "reporterUserId");
         assertPropertyAbsent(document, "MemberReviewReportResponse", "evidence");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "reporterUserId");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "detail");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "evidence");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "decisionNote");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "decidedByAdminId");
+        assertPropertyAbsent(document, "AdminReviewReportSummaryResponse", "decidedAt");
         assertRequiredProperties(document, "MemberReviewResponse", "contentRevision");
         assertRequiredProperties(document, "AdminReviewResponse", "contentRevision", "version");
         assertRequiredProperties(document, "ErrorResponse", "code", "message");
@@ -514,6 +529,17 @@ class OpenApiSpecGenerator {
                 "/api/v1/admin/reviews/{reviewId}/images/{imageId}",
                 "get",
                 "getAdminReviewImage");
+        assertOperationId(
+                document,
+                "/api/v1/admin/review-reports/{reportId}",
+                "get",
+                "getAdminReviewReport");
+        assertResponseSchema(
+                document,
+                "/api/v1/admin/review-reports/{reportId}",
+                "get",
+                "200",
+                "AdminReviewReportResponse");
         assertErrorResponse(
                 document,
                 "/api/v1/admin/reviews/{reviewId}/status",
@@ -579,6 +605,11 @@ class OpenApiSpecGenerator {
         assertSecurityRequirement(
                 document,
                 "/api/v1/admin/reviews/{reviewId}/images/{imageId}",
+                "get",
+                "AdminBearer");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/admin/review-reports/{reportId}",
                 "get",
                 "AdminBearer");
     }

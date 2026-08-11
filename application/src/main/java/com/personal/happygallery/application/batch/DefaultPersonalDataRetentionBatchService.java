@@ -9,6 +9,7 @@ import com.personal.happygallery.application.notification.NotificationRetentionS
 import com.personal.happygallery.application.payment.PaymentAttemptSensitiveDataCleanupProcessor;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.review.ReviewEvidenceRetentionService;
+import com.personal.happygallery.application.review.ReviewTombstoneRetentionService;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import java.time.Clock;
 import java.time.Duration;
@@ -41,6 +42,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private static final String NOTIFICATION_OUTBOX = "notification_outbox";
     private static final String ADMIN_AUTH_HISTORY = "admin_auth_history";
     private static final String REVIEW_EVIDENCE = "review_evidence";
+    private static final String REVIEW_TOMBSTONE = "review_tombstone";
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor;
@@ -51,6 +53,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private final NotificationRetentionService notificationRetentionService;
     private final AdminAuthHistoryRetentionService adminAuthHistoryRetentionService;
     private final ReviewEvidenceRetentionService reviewEvidenceRetentionService;
+    private final ReviewTombstoneRetentionService reviewTombstoneRetentionService;
     private final GuestTokenProperties guestTokenProperties;
     private final Clock clock;
 
@@ -64,6 +67,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
             NotificationRetentionService notificationRetentionService,
             AdminAuthHistoryRetentionService adminAuthHistoryRetentionService,
             ReviewEvidenceRetentionService reviewEvidenceRetentionService,
+            ReviewTombstoneRetentionService reviewTombstoneRetentionService,
             GuestTokenProperties guestTokenProperties,
             Clock clock) {
         this.attemptReader = attemptReader;
@@ -75,6 +79,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         this.notificationRetentionService = notificationRetentionService;
         this.adminAuthHistoryRetentionService = adminAuthHistoryRetentionService;
         this.reviewEvidenceRetentionService = reviewEvidenceRetentionService;
+        this.reviewTombstoneRetentionService = reviewTombstoneRetentionService;
         this.guestTokenProperties = guestTokenProperties;
         this.clock = clock;
     }
@@ -119,9 +124,14 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
                 ADMIN_AUTH_HISTORY,
                 () -> adminAuthHistoryRetentionService.deleteBatchBefore(
                         adminAuthHistoryCutoff, PAGE_SIZE)));
-        return result.merge(deleteInBatches(
+        result = result.merge(deleteInBatches(
                 REVIEW_EVIDENCE,
                 () -> reviewEvidenceRetentionService.deleteExpiredBatch(now, PAGE_SIZE)));
+        LocalDateTime reviewTombstoneCutoff = now.minus(ReviewTombstoneRetentionService.RETENTION);
+        return result.merge(deleteInBatches(
+                REVIEW_TOMBSTONE,
+                () -> reviewTombstoneRetentionService.deleteBatchBefore(
+                        reviewTombstoneCutoff, PAGE_SIZE)));
     }
 
     private BatchResult deleteInBatches(String source, IntSupplier deleteBatch) {

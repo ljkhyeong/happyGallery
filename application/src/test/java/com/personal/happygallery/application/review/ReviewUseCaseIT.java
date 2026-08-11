@@ -63,6 +63,7 @@ class ReviewUseCaseIT {
     @Autowired ReviewImageRepository reviewImageRepository;
     @Autowired ReviewImageAttachmentService imageAttachmentService;
     @Autowired ReviewEvidenceRetentionService evidenceRetentionService;
+    @Autowired ReviewTombstoneRetentionService tombstoneRetentionService;
     @Autowired UserStorePort userStore;
     @Autowired ProductRepository productRepository;
     @Autowired OrderRepository orderRepository;
@@ -343,6 +344,86 @@ class ReviewUseCaseIT {
         ReviewUseCase.ReviewItem recreated = reviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "다시 작성한 후기");
         assertThat(recreated.id()).isNotEqualTo(created.id());
+    }
+
+    @Test
+    @DisplayName("30일 지난 일반 후기 tombstone만 삭제하고 활성·신고·차단 후기는 보존한다")
+    void reviewTombstoneRetentionDeletesOnlyUnblockedEvidenceFreeRows() {
+        User owner = createUser(
+                "review-retention-owner@example.com", "01074000028", "후기 보존 회원");
+        User reporter = createUser(
+                "review-retention-reporter@example.com", "01074000029", "후기 보존 신고자");
+        ProductOrderSource ordinarySource = createProductOrderSource(
+                owner, true, "일반 삭제 후기 상품");
+        ProductOrderSource recentSource = createProductOrderSource(
+                owner, true, "최근 삭제 후기 상품");
+        ProductOrderSource reportedSource = createProductOrderSource(
+                owner, true, "신고 보존 후기 상품");
+        ProductOrderSource blockedSource = createProductOrderSource(
+                owner, true, "재작성 차단 후기 상품");
+
+        ReviewUseCase.ReviewItem ordinary = reviewUseCase.createProductReview(
+                owner.getId(), ordinarySource.orderItem().getId(), 4, "정리할 후기");
+        reviewUseCase.deleteReview(owner.getId(), ordinary.id());
+        ReviewUseCase.ReviewItem recreated = reviewUseCase.createProductReview(
+                owner.getId(), ordinarySource.orderItem().getId(), 5, "다시 작성한 활성 후기");
+
+        ReviewUseCase.ReviewItem recent = reviewUseCase.createProductReview(
+                owner.getId(), recentSource.orderItem().getId(), 4, "아직 보존할 후기");
+        reviewUseCase.deleteReview(owner.getId(), recent.id());
+
+        ReviewUseCase.ReviewItem reported = reviewUseCase.createProductReview(
+                owner.getId(), reportedSource.orderItem().getId(), 2, "신고 증거 후기");
+        reviewUseCase.createReport(
+                reporter.getId(), reported.id(), ReviewReportReason.OTHER, "분쟁 확인 중");
+        reviewUseCase.deleteReview(owner.getId(), reported.id());
+
+        ReviewUseCase.ReviewItem blocked = reviewUseCase.createProductReview(
+                owner.getId(), blockedSource.orderItem().getId(), 1, "숨김 조치 후기");
+        AdminUser admin = adminUserRepository.saveAndFlush(
+                new AdminUser("review-retention-admin", "password-hash"));
+        createdAdminId = admin.getId();
+        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+                blocked.id(),
+                ReviewStatus.HIDDEN,
+                "운영 정책 위반",
+                blocked.contentRevision(),
+                blocked.version(),
+                admin.getId());
+        reviewUseCase.deleteReview(owner.getId(), hidden.id());
+
+        LocalDateTime cutoff = LocalDateTime.now(clock)
+                .minus(ReviewTombstoneRetentionService.RETENTION);
+        jdbcTemplate.update(
+                "UPDATE reviews SET deleted_at = ? WHERE id IN (?, ?, ?)",
+                cutoff,
+                ordinary.id(),
+                reported.id(),
+                blocked.id());
+        jdbcTemplate.update(
+                "UPDATE reviews SET deleted_at = ? WHERE id = ?",
+                cutoff.plusNanos(1_000),
+                recent.id());
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "DELETE FROM reviews WHERE id = ?", reported.id()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "DELETE FROM reviews WHERE id = ?", blocked.id()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        int deleted = tombstoneRetentionService.deleteBatchBefore(cutoff, 100);
+
+        assertSoftly(softly -> {
+            softly.assertThat(deleted).isEqualTo(1);
+            softly.assertThat(reviewRepository.findById(ordinary.id())).isEmpty();
+            softly.assertThat(reviewRepository.findById(recreated.id())).isPresent();
+            softly.assertThat(reviewRepository.findById(recent.id())).isPresent();
+            softly.assertThat(reviewRepository.findById(reported.id())).isPresent();
+            softly.assertThat(reviewRepository.findById(blocked.id()))
+                    .get()
+                    .extracting(Review::isRecreationBlocked)
+                    .isEqualTo(true);
+        });
     }
 
     @Test
@@ -814,13 +895,15 @@ class ReviewUseCaseIT {
         ReviewUseCase.ReviewReportItem decided = reviewUseCase.decideReport(
                 report.id(), ReviewReportStatus.ACCEPTED, "신고 수용", admin.getId());
         reviewUseCase.deleteReview(owner.getId(), review.id());
-        ReviewUseCase.ReviewReportItem persisted = reviewUseCase.listAdminReports(
+        ReviewUseCase.ReviewReportSummaryItem summary = reviewUseCase.listAdminReports(
                 ReviewReportStatus.ACCEPTED, null, 20).content().getFirst();
+        ReviewUseCase.ReviewReportItem persisted = reviewUseCase.getAdminReport(report.id());
 
         assertSoftly(softly -> {
             softly.assertThat(removed.helpfulCount()).isZero();
             softly.assertThat(removedAgain.helpfulCount()).isZero();
             softly.assertThat(decided.status()).isEqualTo(ReviewReportStatus.ACCEPTED);
+            softly.assertThat(summary.id()).isEqualTo(report.id());
             softly.assertThat(persisted.evidence().content()).isEqualTo("신고 시점 원문");
         });
     }
@@ -862,8 +945,7 @@ class ReviewUseCaseIT {
                 admin.getId());
         reviewUseCase.deleteReview(owner.getId(), review.id());
 
-        ReviewUseCase.ReviewReportItem persistedReport = reviewUseCase.listAdminReports(
-                ReviewReportStatus.PENDING, null, 20).content().getFirst();
+        ReviewUseCase.ReviewReportItem persistedReport = reviewUseCase.getAdminReport(report.id());
         ReviewUseCase.ModerationActionItem moderation = reviewUseCase
                 .listModerationActions(review.id())
                 .getFirst();

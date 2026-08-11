@@ -28,6 +28,7 @@ export function AdminReviewProtectedImage({
   const reviewId = source.kind === "review" ? source.reviewId : undefined;
   const imageId = source.kind === "review" ? source.imageId : undefined;
   const subject = source.kind === "evidence" ? "사진 증거" : "숨김 후기 사진";
+  const objectParticle = source.kind === "evidence" ? "를" : "을";
 
   const loadImage = useCallback((signal: AbortSignal) => {
     if (evidenceId !== undefined && sortOrder !== undefined) {
@@ -73,7 +74,7 @@ export function AdminReviewProtectedImage({
         role="alert"
         aria-label={`${alt} 불러오기 실패`}
       >
-        <span>{subject}을 불러오지 못했습니다.</span>
+        <span>{subject}{objectParticle} 불러오지 못했습니다.</span>
         <Button
           type="button"
           size="sm"
@@ -93,7 +94,7 @@ export function AdminReviewProtectedImage({
         role="status"
         aria-label={`${alt} 불러오는 중`}
       >
-        {subject}을 불러오는 중입니다.
+        {subject}{objectParticle} 불러오는 중입니다.
       </div>
     );
   }

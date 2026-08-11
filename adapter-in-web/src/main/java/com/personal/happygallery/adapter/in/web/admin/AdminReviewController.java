@@ -185,6 +185,17 @@ public class AdminReviewController {
                 reviewUseCase.listAdminReports(status, cursor, size));
     }
 
+    @GetMapping("/review-reports/{reportId}")
+    @Operation(
+            operationId = "getAdminReviewReport",
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
+    public AdminReviewReportResponse getReport(
+            @PathVariable @Positive Long reportId,
+            @AuthenticationPrincipal AdminPrincipal admin) {
+        admin.requireBearerAdminUserId();
+        return AdminReviewReportResponse.from(reviewUseCase.getAdminReport(reportId));
+    }
+
     @PatchMapping("/review-reports/{reportId}")
     @Operation(
             operationId = "decideAdminReviewReport",

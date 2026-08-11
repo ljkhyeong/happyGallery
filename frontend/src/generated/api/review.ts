@@ -1,29 +1,46 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
-export type ReviewEvidenceResponseProvenance = typeof ReviewEvidenceResponseProvenance[keyof typeof ReviewEvidenceResponseProvenance];
+export type AdminReviewReportSummaryResponseReason = typeof AdminReviewReportSummaryResponseReason[keyof typeof AdminReviewReportSummaryResponseReason];
 
 
-export const ReviewEvidenceResponseProvenance = {
-  LIVE: 'LIVE',
-  LEGACY_REPORT: 'LEGACY_REPORT',
+export const AdminReviewReportSummaryResponseReason = {
+  SPAM: 'SPAM',
+  ABUSIVE: 'ABUSIVE',
+  PRIVACY: 'PRIVACY',
+  FALSE_INFORMATION: 'FALSE_INFORMATION',
+  OTHER: 'OTHER',
 } as const;
 
-export interface ReviewEvidenceResponse {
-  capturedAt: string;
-  content: string;
-  /** @minimum 1 */
-  contentRevision: number;
-  /** @nullable */
-  editedAt: string | null;
+export type AdminReviewReportSummaryResponseSnapshotStatus = typeof AdminReviewReportSummaryResponseSnapshotStatus[keyof typeof AdminReviewReportSummaryResponseSnapshotStatus];
+
+
+export const AdminReviewReportSummaryResponseSnapshotStatus = {
+  PUBLISHED: 'PUBLISHED',
+  HIDDEN: 'HIDDEN',
+} as const;
+
+export type AdminReviewReportSummaryResponseStatus = typeof AdminReviewReportSummaryResponseStatus[keyof typeof AdminReviewReportSummaryResponseStatus];
+
+
+export const AdminReviewReportSummaryResponseStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED',
+} as const;
+
+export interface AdminReviewReportSummaryResponse {
+  createdAt: string;
   id: number;
-  /** @maxItems 5 */
-  imageUrls: string[];
-  imagesComplete: boolean;
-  provenance: ReviewEvidenceResponseProvenance;
-  /**
-     * @minimum 1
-     * @maximum 5
-     */
-  rating: number;
+  reason: AdminReviewReportSummaryResponseReason;
+  reviewId: number;
+  snapshotStatus: AdminReviewReportSummaryResponseSnapshotStatus;
+  status: AdminReviewReportSummaryResponseStatus;
+}
+
+export interface AdminReviewReportPageResponse {
+  content: AdminReviewReportSummaryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export type AdminReviewReportResponseReason = typeof AdminReviewReportResponseReason[keyof typeof AdminReviewReportResponseReason];
@@ -54,6 +71,33 @@ export const AdminReviewReportResponseStatus = {
   REJECTED: 'REJECTED',
 } as const;
 
+export type ReviewEvidenceResponseProvenance = typeof ReviewEvidenceResponseProvenance[keyof typeof ReviewEvidenceResponseProvenance];
+
+
+export const ReviewEvidenceResponseProvenance = {
+  LIVE: 'LIVE',
+  LEGACY_REPORT: 'LEGACY_REPORT',
+} as const;
+
+export interface ReviewEvidenceResponse {
+  capturedAt: string;
+  content: string;
+  /** @minimum 1 */
+  contentRevision: number;
+  /** @nullable */
+  editedAt: string | null;
+  id: number;
+  /** @maxItems 5 */
+  imageUrls: string[];
+  imagesComplete: boolean;
+  provenance: ReviewEvidenceResponseProvenance;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+}
+
 export interface AdminReviewReportResponse {
   createdAt: string;
   /** @nullable */
@@ -71,13 +115,6 @@ export interface AdminReviewReportResponse {
   reviewId: number;
   snapshotStatus: AdminReviewReportResponseSnapshotStatus;
   status: AdminReviewReportResponseStatus;
-}
-
-export interface AdminReviewReportPageResponse {
-  content: AdminReviewReportResponse[];
-  hasMore: boolean;
-  /** @nullable */
-  nextCursor: string | null;
 }
 
 export type DecideReviewReportRequestDecision = typeof DecideReviewReportRequestDecision[keyof typeof DecideReviewReportRequestDecision];
@@ -759,6 +796,27 @@ export const getListAdminReviewReportsUrl = (params?: ListAdminReviewReportsPara
 export const listAdminReviewReports = async (params?: ListAdminReviewReportsParams, options?: RequestInit): Promise<AdminReviewReportPageResponse> => {
 
   return generatedApiClient<AdminReviewReportPageResponse>(getListAdminReviewReportsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetAdminReviewReportUrl = (reportId: number,) => {
+
+
+
+
+  return `/api/v1/admin/review-reports/${reportId}`
+}
+
+export const getAdminReviewReport = async (reportId: number, options?: RequestInit): Promise<AdminReviewReportResponse> => {
+
+  return generatedApiClient<AdminReviewReportResponse>(getGetAdminReviewReportUrl(reportId),
   {
     ...options,
     method: 'GET'

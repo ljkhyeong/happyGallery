@@ -2,6 +2,7 @@ import {
   decideAdminReviewReport,
   deleteOfficialReviewReply,
   getAdminReview,
+  getAdminReviewReport,
   getAdminReviewEvidenceImage,
   getAdminReviewImage,
   listAdminReviewReports,
@@ -11,6 +12,7 @@ import {
   updateAdminReviewStatus,
   type AdminReviewReportPageResponse,
   type AdminReviewReportResponse,
+  type AdminReviewReportSummaryResponse,
   type AdminReviewPageResponse,
   type AdminReviewResponse,
   type DecideReviewReportRequest,
@@ -27,6 +29,7 @@ export type ReviewReportDecision = DecideReviewReportRequest["decision"];
 
 export type {
   AdminReviewReportResponse,
+  AdminReviewReportSummaryResponse,
   AdminReviewResponse,
   ListAdminReviewsStatus,
   ListAdminReviewsTargetType,
@@ -156,6 +159,17 @@ export function fetchAdminReviewReports(
 ): Promise<AdminReviewReportPageResponse> {
   return listAdminReviewReports(
     { ...filters, size: 20 },
+    { headers: adminHeaders(adminKey), signal },
+  );
+}
+
+export function fetchAdminReviewReport(
+  adminKey: string,
+  reportId: number,
+  signal?: AbortSignal,
+): Promise<AdminReviewReportResponse> {
+  return getAdminReviewReport(
+    reportId,
     { headers: adminHeaders(adminKey), signal },
   );
 }

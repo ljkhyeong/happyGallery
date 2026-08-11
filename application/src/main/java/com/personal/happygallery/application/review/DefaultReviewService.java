@@ -15,6 +15,7 @@ import com.personal.happygallery.application.review.port.out.ReviewModerationPor
 import com.personal.happygallery.application.review.port.out.ReviewOpportunityView;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
 import com.personal.happygallery.application.review.port.out.ReviewReportPort;
+import com.personal.happygallery.application.review.port.out.ReviewReportListView;
 import com.personal.happygallery.application.review.port.out.ReviewSourceReservationView;
 import com.personal.happygallery.application.review.port.out.ReviewStorePort;
 import com.personal.happygallery.application.review.port.out.ReviewSummaryView;
@@ -447,10 +448,10 @@ public class DefaultReviewService implements ReviewUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public CursorPage<ReviewReportItem> listAdminReports(
+    public CursorPage<ReviewReportSummaryItem> listAdminReports(
             ReviewReportStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewReport> fetched;
+        List<ReviewReportListView> fetched;
         if (cursor == null) {
             fetched = reportPort.findForAdmin(status, pageSize + 1);
         } else {
@@ -458,17 +459,23 @@ public class DefaultReviewService implements ReviewUseCase {
             fetched = reportPort.findForAdminAfter(
                     status, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
         }
-        Map<Long, ReviewEvidenceSnapshot> evidenceById = evidenceById(fetched.stream()
-                .map(ReviewReport::getEvidenceSnapshotId)
-                .toList());
-        List<ReviewReportItem> items = fetched.stream()
-                .map(report -> toReportItem(
-                        report, evidenceById.get(report.getEvidenceSnapshotId())))
+        List<ReviewReportSummaryItem> items = fetched.stream()
+                .map(DefaultReviewService::toReportSummaryItem)
                 .toList();
         return CursorPage.of(
                 items,
                 pageSize,
                 item -> CursorUtils.encode(item.createdAt(), item.id()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ReviewReportItem getAdminReport(Long reportId) {
+        ReviewReport report = reportPort.findById(reportId)
+                .orElseThrow(NotFoundException.supplier("후기 신고"));
+        ReviewEvidenceSnapshot evidence = evidencePort.findById(report.getEvidenceSnapshotId())
+                .orElseThrow(NotFoundException.supplier("후기 증거"));
+        return toReportItem(report, evidence);
     }
 
     @Override
@@ -708,6 +715,16 @@ public class DefaultReviewService implements ReviewUseCase {
                 report.getDecidedByAdminId(),
                 report.getDecidedAt(),
                 report.getCreatedAt());
+    }
+
+    private static ReviewReportSummaryItem toReportSummaryItem(ReviewReportListView report) {
+        return new ReviewReportSummaryItem(
+                report.id(),
+                report.reviewId(),
+                report.reason(),
+                report.snapshotStatus(),
+                report.status(),
+                report.createdAt());
     }
 
     private Map<Long, ReviewEvidenceSnapshot> evidenceById(List<Long> snapshotIds) {
