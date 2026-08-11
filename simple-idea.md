@@ -31,3 +31,6 @@
 | ~~29개 Spring Data repository가 애플리케이션 저장 포트의 구체 `save(Entity)`와 `JpaRepository`의 제네릭 `save(S)`를 한 인터페이스에서 함께 선언해 unchecked bridge 경고를 낸다.~~ | ~~저장 포트를 구현하는 전용 persistence adapter와 Spring Data repository를 분리해 제네릭 메서드 충돌을 없애고 컴파일 경고를 실제 신규 위험 신호로 사용할 수 있게 한다.~~ |
 | ~~`BoundedExecutorFactory`의 수동 Micrometer 바인딩과 Spring Boot의 executor 자동 바인딩이 같은 meter를 등록해 기동 시 중복 경고가 발생한다.~~ | ~~executor meter 바인딩 책임을 한 곳으로 통합하고 직접 생성 테스트는 별도 binder 계약 테스트로 분리한다.~~ |
 | ~~일부 Spring 통합 테스트 종료 시 Spring Session 정리 스레드가 먼저 닫힌 `LettuceConnectionFactory`를 한 번 더 참조해 오류 로그를 남긴다.~~ | ~~테스트 컨텍스트 종료 전에 세션 정리 스케줄러를 정지시키거나 테스트 프로필에서 해당 정리 작업을 비활성화해 실제 실패 로그와 종료 노이즈를 구분한다.~~ |
+| 공개 후기 최신순·별점순 조회가 정렬 종류를 한 JPQL의 동적 `CASE` 표현식으로 선택하며, 운영 규모 데이터에서 MySQL 실행계획을 아직 확인하지 않았다. | 운영과 비슷한 데이터 분포로 정렬·별점 필터 조합별 `EXPLAIN ANALYZE`를 기록하고 filesort·범위 스캔 비용이 크면 정렬별 고정 쿼리와 인덱스로 분리한다. |
+| 관리자 신고 목록이 신고자 정보와 전체 증거 본문·사진을 각 목록 항목에 함께 반환해 목록 payload와 민감정보 노출 범위가 크다. | 운영 화면 사용성을 확인한 뒤 목록은 판단에 필요한 summary만 반환하고 신고자·전체 evidence는 Bearer 단건 상세 API로 분리한다. |
+| 숨김 이력이 없는 후기를 삭제·재작성할 때마다 비식별 tombstone 행이 누적되며 현재는 회원별 처리율 제한만 있다. | 재작성 시 기존 비차단 tombstone을 재활성화하거나 분쟁 증거와 무관한 tombstone의 보존 기간·배치 삭제 정책을 정해 장기 누적을 제한한다. |

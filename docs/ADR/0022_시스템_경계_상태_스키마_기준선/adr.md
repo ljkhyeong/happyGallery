@@ -316,23 +316,34 @@ HAVING COUNT(*) > 1;
 #### 상품·클래스 후기
 
 - `reviews`
-  - `id`, `user_id`, `rating nullable`, `content nullable`, `status(PUBLISHED|HIDDEN)`, `version`, `created_at`, `updated_at`
+  - `id`, `user_id`, `rating nullable`, `content nullable`, `status(PUBLISHED|HIDDEN)`, `content_revision`, `version`, `created_at`, `updated_at`
   - 상품 후기는 `order_item_id`, `product_id`를, 클래스 후기는 `booking_id`, `booking_class_id`를 가진다. 두 원천 쌍 중 정확히 하나만 존재하도록 DB `CHECK`로 강제한다.
   - `(order_item_id, product_id)`는 `order_items(id, product_id)`를, `(booking_id, booking_class_id)`는 `bookings(id, class_id)`를 복합 FK로 참조해 작성 원천과 후기 대상이 서로 다른 조합을 DB에서도 막는다.
   - `deleted_at`, `recreation_blocked`, `reserved_order_item_id generated`, `reserved_booking_id generated`로 작성자 삭제와 원천 점유를 분리한다. 활성 후기 또는 숨김 이력이 있는 tombstone만 생성 열에 원천 ID를 노출하고 각각 UNIQUE로 보호한다.
-  - 작성자 삭제는 `rating`, `content`, 공식 답글을 제거한 tombstone으로 남긴다. 숨김 이력이 없는 삭제본은 원천을 해제해 재작성을 허용하고, 한 번이라도 숨겨진 삭제본은 `recreation_blocked=true`로 원천을 계속 점유한다.
+  - 작성자 삭제는 `rating`, `content`, 공식 답글과 `hidden_reason`, `hidden_at`, `hidden_by_admin_id`를 제거한 tombstone으로 남긴다. 숨김 이력이 없는 삭제본은 원천을 해제해 재작성을 허용하고, 한 번이라도 숨겨진 삭제본은 `recreation_blocked=true`로 원천을 계속 점유한다.
   - 숨김 상태는 `hidden_reason`, `hidden_at`, `hidden_by_admin_id`를 모두 가지며 게시 상태에서는 모두 `NULL`이다.
-  - `edited_at`은 회원 본문 수정만 나타내며 moderation·답글 변경 시각과 분리한다. 공식 답글은 `reply_content`, `reply_admin_id`, `reply_created_at`, `reply_edited_at`을 한 묶음으로 저장한다.
+  - `edited_at`은 회원 본문 수정만 나타내며 moderation·답글 변경 시각과 분리한다. `content_revision`은 본문·평점·사진 변경에서만 증가하며 회원 수정과 관리자 심사의 콘텐츠 동시성을 보호한다. JPA `version`은 상태·답글을 포함한 모든 후기 행 쓰기 충돌을 보호하므로 관리자 상태 변경은 두 토큰을 함께, 답글 변경은 `version`을 비교한다. 공식 답글은 `reply_content`, `reply_admin_id`, `reply_created_at`, `reply_edited_at`을 한 묶음으로 저장한다.
   - 공개 목록과 평균은 삭제되지 않은 `PUBLISHED`만 대상으로 하고, 회원 소유 목록과 관리자 목록은 삭제되지 않은 숨김 상태도 반환한다.
 - `review_moderation_actions`
-  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자와 시각을 append-only로 보존한다.
+  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자, 시각과 `evidence_snapshot_id`를 보존한다.
 - `review_reports`
   - 후기·신고자별 한 건이며 `PENDING | ACCEPTED | REJECTED` 상태, 신고 사유·상세, 판단 관리자·시각을 저장한다.
-  - 신고 시점의 별점·본문·상태·본문 수정 시각을 snapshot으로 보존해 이후 수정·삭제와 무관하게 판단 근거를 유지한다.
+  - 신고 시점 상태와 `evidence_snapshot_id`를 저장해 이후 수정·삭제와 무관하게 판단 근거를 유지한다.
+- `review_evidence_snapshots`, `review_evidence_snapshot_images`
+  - 신고·moderation 시점의 콘텐츠 revision, 별점, 본문, 수정 시각과 정렬된 사진 URL을 공통 불변 증거로 보존한다.
+  - 미결 신고 증거는 만료 시각 없이 유지하고, 종결 신고·moderation 증거는 3년 뒤 사건 메타데이터와 함께 보존 배치에서 삭제한다. V124 이전 신고는 당시 사진을 복원할 수 없어 `LEGACY_REPORT`, `images_complete=false`다.
+  - 증거 전용 또는 숨김·삭제 후기에서만 참조되는 파일은 공개 미디어 조회에서 제외하고 Bearer 관리자 증거 경로로만 제공한다. 참조 삭제는 커밋 뒤 다시 참조 여부를 확인한 다음 물리 파일을 지운다.
 - `review_helpful_votes`
   - `(review_id, user_id)` UNIQUE로 회원별 도움돼요를 멱등하게 유지한다.
 - `review_images`
   - 후기별 `sort_order(0..4)`를 UNIQUE로 유지하고 `image_url`도 UNIQUE로 보호한다. 미디어 참조 스캔이 이 테이블을 포함해 연결된 파일을 고아로 판단하지 않는다.
+
+후기 증거 스키마는 MySQL DDL의 비트랜잭션 특성 때문에 `V124`~`V136`을 한 번에 묶지 않는다. `V124`는
+콘텐츠 revision, `V125`~`V126`은 증거·사진 테이블, `V127`은 과거 신고 증거 데이터, `V128`~`V131`은
+moderation·신고의 증거 연결을 각각 추가·백필·확정한다. 삭제 tombstone은 `V132`에서 제약을 임시 완화하고
+`V133`에서 숨김 메타데이터를 지운 뒤 `V134`에서 비식별화 제약을 다시 강화한다. `V135`~`V136`은
+moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 버전은 단일 atomic DDL 또는 독립 DML 단계만
+담아 실패한 migration이 뒤 불변식까지 부분 적용하지 않게 한다.
 
 #### 알림 outbox
 
@@ -373,9 +384,13 @@ HAVING COUNT(*) > 1;
 - `reviews(deleted_at, status, created_at, id)` 관리자 상태별 후기 커서 조회
 - `reviews(deleted_at, created_at, id)` 관리자 무필터 후기 커서 조회
 - `review_moderation_actions(review_id, created_at, id)` 후기별 운영 이력 조회
+- `review_moderation_actions(created_at, id)` 3년 지난 운영 이력 보존 만료 조회
 - `review_reports(status, created_at, id)` 관리자 신고 상태별 조회
+- `review_reports(decided_at, id)` 3년 지난 종결 신고 보존 만료 조회
 - `review_helpful_votes(user_id, review_id)` 회원별 후기 반응 일괄 조회
 - `review_images(review_id, sort_order, id)` 후기 사진 표시 순서 조회
+- `review_evidence_snapshots(retention_until, id)` 종결 후기 분쟁 증거 보존 만료 조회
+- `review_evidence_snapshot_images(snapshot_id, sort_order)`, `review_evidence_snapshot_images(image_url)` 후기 분쟁 증거 사진 순서와 미디어 참조 조회
 - `payment_attempt(order_id_external)` UNIQUE
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
