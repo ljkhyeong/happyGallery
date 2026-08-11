@@ -30,14 +30,13 @@ import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 public interface ReviewRepository
         extends JpaRepository<Review, Long>, ReviewReaderPort, ReviewEligibilityPort {
 
-    String BASE_VIEW = """
+    String VIEW_COLUMNS = """
             SELECT r.id AS id,
                    r.userId AS userId,
                    r.orderItemId AS orderItemId,
                    r.productId AS productId,
                    r.bookingId AS bookingId,
                    r.bookingClassId AS bookingClassId,
-                   CASE WHEN p.id IS NOT NULL THEN p.name ELSE c.name END AS targetName,
                    r.rating AS rating,
                    r.content AS content,
                    r.status AS status,
@@ -53,9 +52,25 @@ public interface ReviewRepository
                    r.replyAdminId AS replyAdminId,
                    r.replyCreatedAt AS replyCreatedAt,
                    r.replyEditedAt AS replyEditedAt
+            """;
+
+    String BASE_VIEW = VIEW_COLUMNS + """
+                   , CASE WHEN p.id IS NOT NULL THEN p.name ELSE c.name END AS targetName
             FROM Review r
             LEFT JOIN Product p ON p.id = r.productId
             LEFT JOIN BookingClass c ON c.id = r.bookingClassId
+            """;
+
+    String PRODUCT_PUBLIC_VIEW = VIEW_COLUMNS + """
+                   , p.name AS targetName
+            FROM Review r
+            JOIN Product p ON p.id = r.productId
+            """;
+
+    String CLASS_PUBLIC_VIEW = VIEW_COLUMNS + """
+                   , c.name AS targetName
+            FROM Review r
+            JOIN BookingClass c ON c.id = r.bookingClassId
             """;
 
     @Override
@@ -98,81 +113,127 @@ public interface ReviewRepository
     List<ReviewInteractionStateProjection> findInteractionStateRows(
             @Param("reviewIds") List<Long> reviewIds);
 
-    @Query(BASE_VIEW + """
+    @Query(PRODUCT_PUBLIC_VIEW + """
             WHERE r.productId = :productId
               AND r.deletedAt IS NULL
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
               AND (:rating IS NULL OR r.rating = :rating)
               AND (
                     :cursorId IS NULL
-                    OR (:latest = true
-                        AND (r.createdAt < :cursorCreatedAt
-                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
-                    OR (:ratingHigh = true
-                        AND (r.rating < :cursorRating
-                             OR (r.rating = :cursorRating
-                                 AND (r.createdAt < :cursorCreatedAt
-                                      OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))))
-                    OR (:ratingLow = true
-                        AND (r.rating > :cursorRating
-                             OR (r.rating = :cursorRating
-                                 AND (r.createdAt < :cursorCreatedAt
-                                      OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))))
+                    OR r.createdAt < :cursorCreatedAt
+                    OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)
               )
-            ORDER BY
-              CASE WHEN :ratingHigh = true
-                   THEN r.rating END DESC,
-              CASE WHEN :ratingLow = true
-                   THEN r.rating END ASC,
-              r.createdAt DESC,
-              r.id DESC
+            ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedProductRows(
+    List<ReviewRowProjection> findPublishedProductLatestRows(
             @Param("productId") Long productId,
             @Param("rating") Integer rating,
-            @Param("latest") boolean latest,
-            @Param("ratingHigh") boolean ratingHigh,
-            @Param("ratingLow") boolean ratingLow,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @Query(PRODUCT_PUBLIC_VIEW + """
+            WHERE r.productId = :productId
+              AND r.deletedAt IS NULL
+              AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
+              AND (:rating IS NULL OR r.rating = :rating)
+              AND (
+                    :cursorId IS NULL
+                    OR r.rating < :cursorRating
+                    OR (r.rating = :cursorRating
+                        AND (r.createdAt < :cursorCreatedAt
+                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
+              )
+            ORDER BY r.rating DESC, r.createdAt DESC, r.id DESC
+            """)
+    List<ReviewRowProjection> findPublishedProductRatingHighRows(
+            @Param("productId") Long productId,
+            @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
             @Param("cursorId") Long cursorId,
             Pageable pageable);
 
-    @Query(BASE_VIEW + """
+    @Query(PRODUCT_PUBLIC_VIEW + """
+            WHERE r.productId = :productId
+              AND r.deletedAt IS NULL
+              AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
+              AND (:rating IS NULL OR r.rating = :rating)
+              AND (
+                    :cursorId IS NULL
+                    OR r.rating > :cursorRating
+                    OR (r.rating = :cursorRating
+                        AND (r.createdAt < :cursorCreatedAt
+                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
+              )
+            ORDER BY r.rating ASC, r.createdAt DESC, r.id DESC
+            """)
+    List<ReviewRowProjection> findPublishedProductRatingLowRows(
+            @Param("productId") Long productId,
+            @Param("rating") Integer rating,
+            @Param("cursorRating") Integer cursorRating,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @Query(CLASS_PUBLIC_VIEW + """
             WHERE r.bookingClassId = :classId
               AND r.deletedAt IS NULL
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
               AND (:rating IS NULL OR r.rating = :rating)
               AND (
                     :cursorId IS NULL
-                    OR (:latest = true
-                        AND (r.createdAt < :cursorCreatedAt
-                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
-                    OR (:ratingHigh = true
-                        AND (r.rating < :cursorRating
-                             OR (r.rating = :cursorRating
-                                 AND (r.createdAt < :cursorCreatedAt
-                                      OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))))
-                    OR (:ratingLow = true
-                        AND (r.rating > :cursorRating
-                             OR (r.rating = :cursorRating
-                                 AND (r.createdAt < :cursorCreatedAt
-                                      OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))))
+                    OR r.createdAt < :cursorCreatedAt
+                    OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)
               )
-            ORDER BY
-              CASE WHEN :ratingHigh = true
-                   THEN r.rating END DESC,
-              CASE WHEN :ratingLow = true
-                   THEN r.rating END ASC,
-              r.createdAt DESC,
-              r.id DESC
+            ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedClassRows(
+    List<ReviewRowProjection> findPublishedClassLatestRows(
             @Param("classId") Long classId,
             @Param("rating") Integer rating,
-            @Param("latest") boolean latest,
-            @Param("ratingHigh") boolean ratingHigh,
-            @Param("ratingLow") boolean ratingLow,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @Query(CLASS_PUBLIC_VIEW + """
+            WHERE r.bookingClassId = :classId
+              AND r.deletedAt IS NULL
+              AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
+              AND (:rating IS NULL OR r.rating = :rating)
+              AND (
+                    :cursorId IS NULL
+                    OR r.rating < :cursorRating
+                    OR (r.rating = :cursorRating
+                        AND (r.createdAt < :cursorCreatedAt
+                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
+              )
+            ORDER BY r.rating DESC, r.createdAt DESC, r.id DESC
+            """)
+    List<ReviewRowProjection> findPublishedClassRatingHighRows(
+            @Param("classId") Long classId,
+            @Param("rating") Integer rating,
+            @Param("cursorRating") Integer cursorRating,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
+
+    @Query(CLASS_PUBLIC_VIEW + """
+            WHERE r.bookingClassId = :classId
+              AND r.deletedAt IS NULL
+              AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
+              AND (:rating IS NULL OR r.rating = :rating)
+              AND (
+                    :cursorId IS NULL
+                    OR r.rating > :cursorRating
+                    OR (r.rating = :cursorRating
+                        AND (r.createdAt < :cursorCreatedAt
+                             OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)))
+              )
+            ORDER BY r.rating ASC, r.createdAt DESC, r.id DESC
+            """)
+    List<ReviewRowProjection> findPublishedClassRatingLowRows(
+            @Param("classId") Long classId,
+            @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
             @Param("cursorId") Long cursorId,
@@ -455,16 +516,26 @@ public interface ReviewRepository
             LocalDateTime cursorCreatedAt,
             Long cursorId,
             int limit) {
-        return toViews(findPublishedProductRows(
-                productId,
-                rating,
-                sort == ReviewSort.LATEST,
-                sort == ReviewSort.RATING_HIGH,
-                sort == ReviewSort.RATING_LOW,
-                cursorRating,
-                cursorCreatedAt,
-                cursorId,
-                PageRequest.ofSize(limit)));
+        Pageable pageable = PageRequest.ofSize(limit);
+        List<ReviewRowProjection> rows = switch (sort) {
+            case LATEST -> findPublishedProductLatestRows(
+                    productId, rating, cursorCreatedAt, cursorId, pageable);
+            case RATING_HIGH -> findPublishedProductRatingHighRows(
+                    productId,
+                    rating,
+                    cursorRating,
+                    cursorCreatedAt,
+                    cursorId,
+                    pageable);
+            case RATING_LOW -> findPublishedProductRatingLowRows(
+                    productId,
+                    rating,
+                    cursorRating,
+                    cursorCreatedAt,
+                    cursorId,
+                    pageable);
+        };
+        return toViews(rows);
     }
 
     @Override
@@ -476,16 +547,26 @@ public interface ReviewRepository
             LocalDateTime cursorCreatedAt,
             Long cursorId,
             int limit) {
-        return toViews(findPublishedClassRows(
-                classId,
-                rating,
-                sort == ReviewSort.LATEST,
-                sort == ReviewSort.RATING_HIGH,
-                sort == ReviewSort.RATING_LOW,
-                cursorRating,
-                cursorCreatedAt,
-                cursorId,
-                PageRequest.ofSize(limit)));
+        Pageable pageable = PageRequest.ofSize(limit);
+        List<ReviewRowProjection> rows = switch (sort) {
+            case LATEST -> findPublishedClassLatestRows(
+                    classId, rating, cursorCreatedAt, cursorId, pageable);
+            case RATING_HIGH -> findPublishedClassRatingHighRows(
+                    classId,
+                    rating,
+                    cursorRating,
+                    cursorCreatedAt,
+                    cursorId,
+                    pageable);
+            case RATING_LOW -> findPublishedClassRatingLowRows(
+                    classId,
+                    rating,
+                    cursorRating,
+                    cursorCreatedAt,
+                    cursorId,
+                    pageable);
+        };
+        return toViews(rows);
     }
 
     @Override

@@ -2,7 +2,7 @@
 
 **날짜**: 2026-07-17
 **상태**: Accepted
-**갱신**: 2026-08-08
+**갱신**: 2026-08-11
 
 ---
 
@@ -33,6 +33,19 @@
 - `notification_outbox(event_type, aggregate_type, aggregate_id)`는 예약·8회권·픽업 리마인드가
   멱등키 문자열 형식과 무관하게 이미 접수된 aggregate를 제외할 때 사용한다. 반복 가능한 다른 알림 이벤트도
   같은 의미 컬럼 조합을 가질 수 있으므로 UNIQUE로 만들지 않고, 쓰기 멱등성은 기존 `idempotency_key` UNIQUE가 담당한다.
+
+### 공개 후기 정렬 인덱스
+
+- 로컬 MySQL 8.0.45에 후기 40만 건을 구성한 `EXPLAIN ANALYZE`에서 대상·정렬을 한 쿼리의
+  `CASE ORDER BY`는 약 19만 행을 읽고 정렬해 300~440ms가 걸렸다. 대상·정렬별 고정 쿼리는
+  21행을 읽고 0.02~0.07ms에 끝나 실행계획 분리를 채택했다. 수치는 로컬 합성 표본이며 운영에서도
+  cardinality와 실행계획을 계속 관찰한다.
+- 상품·클래스 공개 후기는 대상별로 필요한 테이블만 조인하고 `LATEST`, `RATING_HIGH`, `RATING_LOW`를
+  고정 쿼리로 나눈다. boolean `CASE ORDER BY`는 페이지 크기와 무관하게 대상 후기 전체를 정렬하므로 사용하지 않는다.
+- 최신순은 `(target_id, status, deleted_at, created_at, id)`, 높은 별점순은
+  `(target_id, status, deleted_at, rating, created_at, id)`의 역방향 스캔을 사용한다.
+- 낮은 별점순은 `rating ASC, created_at DESC, id DESC`의 혼합 방향을 그대로 만족시키는
+  상품·클래스 전용 인덱스를 별도로 둔다. 기존 높은 별점순 인덱스의 역방향 스캔으로는 이 순서를 만족시킬 수 없다.
 
 ### Guest 식별
 
@@ -114,6 +127,7 @@
 - `V109__allow_shared_guest_recovery_order_token.sql`
 - `V110__allow_shared_guest_recovery_booking_token.sql`
 - `V111__index_member_order_cursor.sql`부터 `V115__index_product_qna_cursors.sql`까지의 고객 이력 커서 인덱스
+- `V141__index_public_review_rating_low_sort.sql`의 상품·클래스 낮은 별점순 혼합 방향 인덱스
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
 - 전화번호 HMAC 기준 활성 예약 조회와 계정별 활성 예약 DB 제약
 - 예약 UNIQUE 제약 이름 기준 예외 변환

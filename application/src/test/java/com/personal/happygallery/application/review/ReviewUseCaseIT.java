@@ -705,6 +705,62 @@ class ReviewUseCaseIT {
     }
 
     @Test
+    @DisplayName("상품과 클래스 공개 후기는 정렬별 커서 순서를 끝까지 유지한다")
+    void publicReviewSortQueriesPreserveProductAndClassCursorOrder() {
+        Product product = productRepository.saveAndFlush(
+                new Product("공개 정렬 상품", ProductType.READY_STOCK, 30_000L));
+        BookingClass bookingClass = classRepository.saveAndFlush(
+                new BookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
+        User lowUser = createUser("review-sort-low@example.com", "01074000024", "낮은 별점 회원");
+        User highUser = createUser("review-sort-high@example.com", "01074000025", "높은 별점 회원");
+        User middleUser = createUser(
+                "review-sort-middle@example.com", "01074000026", "중간 별점 회원");
+
+        ProductOrderSource lowProductSource = createProductOrderSource(lowUser, true, product);
+        ProductOrderSource highProductSource = createProductOrderSource(highUser, true, product);
+        ProductOrderSource middleProductSource = createProductOrderSource(
+                middleUser, true, product);
+        ClassBookingSource lowClassSource = createClassBookingSource(lowUser, bookingClass, 0);
+        ClassBookingSource highClassSource = createClassBookingSource(highUser, bookingClass, 1);
+        ClassBookingSource middleClassSource = createClassBookingSource(
+                middleUser, bookingClass, 2);
+
+        ReviewUseCase.ReviewItem lowProduct = reviewUseCase.createProductReview(
+                lowUser.getId(), lowProductSource.orderItem().getId(), 2, "상품 별점 2점");
+        ReviewUseCase.ReviewItem highProduct = reviewUseCase.createProductReview(
+                highUser.getId(), highProductSource.orderItem().getId(), 5, "상품 별점 5점");
+        ReviewUseCase.ReviewItem middleProduct = reviewUseCase.createProductReview(
+                middleUser.getId(), middleProductSource.orderItem().getId(), 3, "상품 별점 3점");
+        ReviewUseCase.ReviewItem lowClass = reviewUseCase.createClassReview(
+                lowUser.getId(), lowClassSource.booking().getId(), 2, "클래스 별점 2점");
+        ReviewUseCase.ReviewItem highClass = reviewUseCase.createClassReview(
+                highUser.getId(), highClassSource.booking().getId(), 5, "클래스 별점 5점");
+        ReviewUseCase.ReviewItem middleClass = reviewUseCase.createClassReview(
+                middleUser.getId(), middleClassSource.booking().getId(), 3, "클래스 별점 3점");
+
+        assertSoftly(softly -> {
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.PRODUCT, product.getId(), ReviewSort.LATEST))
+                    .containsExactly(middleProduct.id(), highProduct.id(), lowProduct.id());
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.PRODUCT, product.getId(), ReviewSort.RATING_HIGH))
+                    .containsExactly(highProduct.id(), middleProduct.id(), lowProduct.id());
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.PRODUCT, product.getId(), ReviewSort.RATING_LOW))
+                    .containsExactly(lowProduct.id(), middleProduct.id(), highProduct.id());
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.CLASS, bookingClass.getId(), ReviewSort.LATEST))
+                    .containsExactly(middleClass.id(), highClass.id(), lowClass.id());
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.CLASS, bookingClass.getId(), ReviewSort.RATING_HIGH))
+                    .containsExactly(highClass.id(), middleClass.id(), lowClass.id());
+            softly.assertThat(collectPublicReviewIds(
+                            ReviewTargetType.CLASS, bookingClass.getId(), ReviewSort.RATING_LOW))
+                    .containsExactly(lowClass.id(), middleClass.id(), highClass.id());
+        });
+    }
+
+    @Test
     @DisplayName("신고는 원문 증거를 보존하고 도움돼요는 회원별로 멱등 처리한다")
     void reportSnapshotAndHelpfulVotePoliciesAreEnforced() {
         User owner = createUser("review-reaction-owner@example.com", "01074000012", "반응 후기 작성자");
@@ -980,16 +1036,41 @@ class ReviewUseCaseIT {
     }
 
     private ClassBookingSource createClassBookingSource(User user, String className) {
-        LocalDateTime now = LocalDateTime.now(clock);
         BookingClass bookingClass = classRepository.saveAndFlush(
                 new BookingClass(className, "PERFUME", 120, 50_000L, 30));
+        return createClassBookingSource(user, bookingClass, 0);
+    }
+
+    private ClassBookingSource createClassBookingSource(
+            User user, BookingClass bookingClass, int slotSequence) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime endAt = now.minusHours(1L + slotSequence * 3L);
         Slot slot = slotRepository.saveAndFlush(
-                new Slot(bookingClass, now.minusHours(3), now.minusHours(1)));
+                new Slot(bookingClass, endAt.minusHours(2), endAt));
         Booking booking = Booking.forMemberDeposit(
                 user, slot, 0L, 0L, DepositPaymentMethod.CARD);
         booking.complete(now);
         booking = bookingRepository.saveAndFlush(booking);
         return new ClassBookingSource(bookingClass, booking);
+    }
+
+    private List<Long> collectPublicReviewIds(
+            ReviewTargetType targetType, Long targetId, ReviewSort sort) {
+        List<Long> reviewIds = new ArrayList<>();
+        String cursor = null;
+        for (int pageNumber = 0; pageNumber < 10; pageNumber++) {
+            ReviewUseCase.PublicReviewPage response = targetType == ReviewTargetType.PRODUCT
+                    ? reviewUseCase.listProductReviews(targetId, null, sort, cursor, 1)
+                    : reviewUseCase.listClassReviews(targetId, null, sort, cursor, 1);
+            reviewIds.addAll(response.reviews().content().stream()
+                    .map(ReviewUseCase.ReviewItem::id)
+                    .toList());
+            if (!response.reviews().hasMore()) {
+                return reviewIds;
+            }
+            cursor = response.reviews().nextCursor();
+        }
+        throw new AssertionError("공개 후기 커서가 10페이지 안에 종료되지 않았습니다.");
     }
 
     private Throwable createReview(

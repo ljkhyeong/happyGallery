@@ -28,11 +28,17 @@ import java.util.Objects;
                         name = "idx_reviews_product_rating_public",
                         columnList = "product_id,status,deleted_at,rating,created_at,id"),
                 @Index(
+                        name = "idx_reviews_product_rating_low_public",
+                        columnList = "product_id,status,deleted_at,rating ASC,created_at DESC,id DESC"),
+                @Index(
                         name = "idx_reviews_class_public",
                         columnList = "booking_class_id,status,deleted_at,created_at,id"),
                 @Index(
                         name = "idx_reviews_class_rating_public",
                         columnList = "booking_class_id,status,deleted_at,rating,created_at,id"),
+                @Index(
+                        name = "idx_reviews_class_rating_low_public",
+                        columnList = "booking_class_id,status,deleted_at,rating ASC,created_at DESC,id DESC"),
                 @Index(
                         name = "idx_reviews_user_created",
                         columnList = "user_id,deleted_at,created_at,id"),
