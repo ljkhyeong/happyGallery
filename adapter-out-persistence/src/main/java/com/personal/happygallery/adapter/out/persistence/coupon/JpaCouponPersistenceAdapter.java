@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.coupon;
 
+import com.personal.happygallery.adapter.out.persistence.support.PersistenceConstraintNames;
 import com.personal.happygallery.application.coupon.port.out.CouponDefinitionStorePort;
 import com.personal.happygallery.application.coupon.port.out.IssuedCouponStorePort;
 import com.personal.happygallery.domain.coupon.CouponDefinition;
@@ -7,11 +8,8 @@ import com.personal.happygallery.domain.coupon.IssuedCoupon;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.util.List;
-import java.util.Locale;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
 
 @Repository
 class JpaCouponPersistenceAdapter
@@ -39,7 +37,7 @@ class JpaCouponPersistenceAdapter
         try {
             return issuedCouponRepository.saveAndFlush(issuedCoupon);
         } catch (DataIntegrityViolationException exception) {
-            if (hasConstraint(exception, USER_DEFINITION_UNIQUE)) {
+            if (PersistenceConstraintNames.matches(exception, USER_DEFINITION_UNIQUE)) {
                 throw new HappyGalleryException(ErrorCode.CONFLICT, "이미 발급받은 쿠폰입니다.");
             }
             throw exception;
@@ -51,20 +49,4 @@ class JpaCouponPersistenceAdapter
         return issuedCouponRepository.saveAllAndFlush(issuedCoupons);
     }
 
-    private static boolean hasConstraint(Throwable throwable, String expectedConstraint) {
-        Throwable current = throwable;
-        while (current != null) {
-            if (current instanceof ConstraintViolationException violation
-                    && StringUtils.hasText(violation.getConstraintName())) {
-                String constraint = StringUtils.unqualify(violation.getConstraintName()
-                        .toLowerCase(Locale.ROOT)
-                        .replace("`", "")
-                        .replace("\"", "")
-                        .replace("'", ""));
-                return expectedConstraint.equals(constraint);
-            }
-            current = current.getCause();
-        }
-        return false;
-    }
 }

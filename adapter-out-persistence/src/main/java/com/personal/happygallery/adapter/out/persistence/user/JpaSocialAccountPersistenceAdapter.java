@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.user;
 
+import com.personal.happygallery.adapter.out.persistence.support.PersistenceConstraintNames;
 import com.personal.happygallery.application.customer.port.out.SocialAccountReaderPort;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
@@ -9,9 +10,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
-import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
@@ -109,24 +108,12 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
     }
 
     private ErrorCode socialConstraintErrorCode(DataIntegrityViolationException exception) {
-        Throwable current = exception;
-        while (current != null) {
-            if (current instanceof ConstraintViolationException violation
-                    && StringUtils.hasText(violation.getConstraintName())) {
-                String constraint = StringUtils.unqualify(violation.getConstraintName()
-                        .toLowerCase(Locale.ROOT)
-                        .replace("`", "")
-                        .replace("\"", "")
-                        .replace("'", ""));
-                if (DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT.equals(constraint)) {
-                    return ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED;
-                }
-                if (DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT.equals(constraint)) {
-                    return ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED;
-                }
-                return null;
-            }
-            current = current.getCause();
+        String constraint = PersistenceConstraintNames.find(exception).orElse(null);
+        if (DUPLICATE_SOCIAL_IDENTITY_CONSTRAINT.equals(constraint)) {
+            return ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED;
+        }
+        if (DUPLICATE_SOCIAL_PROVIDER_CONSTRAINT.equals(constraint)) {
+            return ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED;
         }
         return null;
     }
