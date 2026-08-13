@@ -40,10 +40,10 @@ public class DefaultCouponRedemptionService implements CouponRedemptionUseCase {
                                     Long issuedCouponId,
                                     long productAmount,
                                     LocalDateTime now) {
-        PaymentAmountPolicy.requireValid(productAmount);
         if (issuedCouponId == null) {
             return CouponQuote.none(productAmount);
         }
+        PaymentAmountPolicy.requireValid(productAmount);
         requireUserId(userId);
         IssuedCoupon issuedCoupon = lockIssuedCoupon(issuedCouponId);
         if (!issuedCoupon.isOwnedBy(userId)) {
