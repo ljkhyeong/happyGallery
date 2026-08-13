@@ -120,7 +120,7 @@ export interface UpdateMemberPhoneRequest {
 
 export interface PasswordReauthenticationRequest {
   /**
-     * @minLength 0
+     * @minLength 1
      * @maxLength 72
      */
   currentPassword: string;

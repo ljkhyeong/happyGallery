@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record AdminMfaDisableRequest(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank @Size(max = 72) @Utf8ByteLength(max = 72) String currentPassword,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 72)
+        @NotBlank @Utf8ByteLength(max = 72) String currentPassword,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank @Size(max = 32) String code
 ) {}

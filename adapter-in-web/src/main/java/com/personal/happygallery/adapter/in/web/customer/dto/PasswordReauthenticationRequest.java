@@ -1,12 +1,12 @@
 package com.personal.happygallery.adapter.in.web.customer.dto;
 
 import com.personal.happygallery.adapter.in.web.validation.Utf8ByteLength;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 public record PasswordReauthenticationRequest(
+        @Schema(maxLength = 72)
         @NotBlank
-        @Size(max = 72)
         @Utf8ByteLength(max = 72)
         String currentPassword
 ) {}

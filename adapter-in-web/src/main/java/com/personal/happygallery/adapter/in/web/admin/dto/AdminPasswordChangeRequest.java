@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record AdminPasswordChangeRequest(
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        @NotBlank @Size(max = 72) @Utf8ByteLength(max = 72) String currentPassword,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, maxLength = 72)
+        @NotBlank @Utf8ByteLength(max = 72) String currentPassword,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank @Size(min = 10, max = 72) @Utf8ByteLength(max = 72) String newPassword
 ) {}

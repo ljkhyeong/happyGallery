@@ -421,7 +421,7 @@
           },
           "currentPassword" : {
             "maxLength" : 72,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           }
         },
@@ -869,7 +869,7 @@
         "properties" : {
           "currentPassword" : {
             "maxLength" : 72,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           },
           "newPassword" : {
@@ -3014,7 +3014,7 @@
         "properties" : {
           "password" : {
             "maxLength" : 72,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           },
           "username" : {
@@ -4187,7 +4187,7 @@
         "properties" : {
           "currentPassword" : {
             "maxLength" : 72,
-            "minLength" : 0,
+            "minLength" : 1,
             "type" : "string"
           }
         },
