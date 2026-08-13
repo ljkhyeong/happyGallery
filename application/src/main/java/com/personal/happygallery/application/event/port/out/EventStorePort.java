@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.event.Event;
 
 public interface EventStorePort {
 
-    Event save(Event event);
+    <S extends Event> S save(S event);
 
     void deleteById(Long id);
 }

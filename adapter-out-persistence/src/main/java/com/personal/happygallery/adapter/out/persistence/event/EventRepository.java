@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.event;
 
 import com.personal.happygallery.application.event.port.out.EventReaderPort;
+import com.personal.happygallery.application.event.port.out.EventStorePort;
 import com.personal.happygallery.domain.event.Event;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -9,7 +10,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface EventRepository extends JpaRepository<Event, Long>, EventReaderPort {
+public interface EventRepository extends JpaRepository<Event, Long>, EventReaderPort, EventStorePort {
+
+    @Override
+    <S extends Event> S save(S event);
+
+    @Override
+    void deleteById(Long id);
 
     @Override
     @Query("""

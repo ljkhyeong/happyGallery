@@ -7,5 +7,5 @@ import com.personal.happygallery.domain.notification.NotificationLog;
  */
 public interface NotificationLogStorePort {
 
-    NotificationLog save(NotificationLog log);
+    <S extends NotificationLog> S save(S log);
 }

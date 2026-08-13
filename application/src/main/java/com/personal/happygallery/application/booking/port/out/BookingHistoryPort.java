@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.booking.BookingHistory;
 
 public interface BookingHistoryPort {
 
-    BookingHistory save(BookingHistory history);
+    <S extends BookingHistory> S save(S history);
 
     long countByBookingId(Long bookingId);
 }

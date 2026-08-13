@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
+import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -14,14 +15,21 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface NotificationOutboxRepository extends JpaRepository<NotificationOutbox, Long> {
+public interface NotificationOutboxRepository extends JpaRepository<NotificationOutbox, Long>,
+        NotificationOutboxPort {
 
+    @Override
+    <S extends NotificationOutbox> S save(S outbox);
+
+    @Override
     Optional<NotificationOutbox> findById(Long id);
 
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT n FROM NotificationOutbox n WHERE n.id = :id")
     Optional<NotificationOutbox> findByIdForUpdate(@Param("id") Long id);
 
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT n FROM NotificationOutbox n WHERE n.idempotencyKey = :idempotencyKey")
     Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(
@@ -35,6 +43,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     List<NotificationOutbox> findFailedPage(Pageable pageable);
 
+    @Override
     default List<NotificationOutbox> findFailed(int limit) {
         return findFailedPage(PageRequest.ofSize(limit));
     }
@@ -48,6 +57,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, Pageable pageable);
 
+    @Override
     default List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset) {
         return findSentByUserId(userId, PageRequest.of(offset / limit, limit));
     }
@@ -61,10 +71,12 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     List<NotificationOutbox> findSentByGuestId(@Param("guestId") Long guestId, Pageable pageable);
 
+    @Override
     default List<NotificationOutbox> findSentByGuestId(Long guestId, int limit, int offset) {
         return findSentByGuestId(guestId, PageRequest.of(offset / limit, limit));
     }
 
+    @Override
     @Query("""
             SELECT COUNT(n)
             FROM NotificationOutbox n
@@ -74,6 +86,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     long countUnreadSentByUserId(@Param("userId") Long userId);
 
+    @Override
     @Query("""
             SELECT COUNT(n)
             FROM NotificationOutbox n
@@ -83,6 +96,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     long countUnreadSentByGuestId(@Param("guestId") Long guestId);
 
+    @Override
     @Modifying
     @Query("""
             UPDATE NotificationOutbox n
@@ -93,6 +107,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             """)
     void markAllSentReadByUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
 
+    @Override
     @Modifying
     @Query("""
             UPDATE NotificationOutbox n
@@ -117,13 +132,16 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
                                                        @Param("staleBefore") LocalDateTime staleBefore,
                                                        Pageable pageable);
 
-    default List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit) {
+    @Override
+    default List<NotificationOutbox> findDispatchable(
+            LocalDateTime now, LocalDateTime staleBefore, int limit) {
         return findDispatchableForUpdate(
                 now,
                 staleBefore,
                 PageRequest.ofSize(limit));
     }
 
+    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary(
                 n.status,

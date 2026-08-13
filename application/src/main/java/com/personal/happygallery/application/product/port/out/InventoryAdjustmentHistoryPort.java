@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface InventoryAdjustmentHistoryPort {
 
-    InventoryAdjustment save(InventoryAdjustment adjustment);
+    <S extends InventoryAdjustment> S save(S adjustment);
 
     List<InventoryAdjustment> findRecentByProductId(Long productId);
 }

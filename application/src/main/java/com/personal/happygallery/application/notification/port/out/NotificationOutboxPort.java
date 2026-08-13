@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface NotificationOutboxPort {
 
-    NotificationOutbox save(NotificationOutbox outbox);
+    <S extends NotificationOutbox> S save(S outbox);
 
     Optional<NotificationOutbox> findById(Long id);
 

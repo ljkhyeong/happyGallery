@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 
 public interface AdminAuthHistoryPort {
 
-    AdminAuthHistory save(AdminAuthHistory history);
+    <S extends AdminAuthHistory> S save(S history);
 
     int deleteCreatedBefore(LocalDateTime cutoff, int limit);
 }

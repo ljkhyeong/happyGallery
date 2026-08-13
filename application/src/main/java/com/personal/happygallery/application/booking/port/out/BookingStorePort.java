@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.booking.Booking;
 
 public interface BookingStorePort {
 
-    Booking save(Booking booking);
+    <S extends Booking> S save(S booking);
 
     int updateBookedOwnerPhoneHmacByUserId(Long userId, String ownerPhoneHmac);
 }

@@ -4,5 +4,5 @@ import com.personal.happygallery.domain.policy.PolicyConsent;
 
 public interface PolicyConsentStorePort {
 
-    PolicyConsent save(PolicyConsent consent);
+    <S extends PolicyConsent> S save(S consent);
 }

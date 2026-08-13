@@ -37,9 +37,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new UserEncryptedRow(
-                        rs.getLong("id"), rs.getString("email_enc"),
-                        rs.getString("name_enc"), rs.getString("phone_enc")))
+                .query(UserEncryptedRow.class)
                 .list();
     }
 
@@ -67,8 +65,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new GuestEncryptedRow(
-                        rs.getLong("id"), rs.getString("name_enc"), rs.getString("phone_enc")))
+                .query(GuestEncryptedRow.class)
                 .list();
     }
 
@@ -103,7 +100,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     @Override
     public List<PaymentAttemptEncryptedRow> findPaymentAttemptsAfterId(long afterId, int limit) {
         return jdbc.sql("""
-                        SELECT id, payload_enc, fulfilled_access_token_enc,
+                        SELECT id, payload_enc, fulfilled_access_token_enc AS access_token_enc,
                                owner_phone_hmac, owner_phone_hmac_key_id
                         FROM payment_attempt
                         WHERE id > :afterId
@@ -115,11 +112,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new PaymentAttemptEncryptedRow(
-                        rs.getLong("id"), rs.getString("payload_enc"),
-                        rs.getString("fulfilled_access_token_enc"),
-                        rs.getString("owner_phone_hmac"),
-                        rs.getString("owner_phone_hmac_key_id")))
+                .query(PaymentAttemptEncryptedRow.class)
                 .list();
     }
 
@@ -149,8 +142,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new FulfillmentEncryptedRow(
-                        rs.getLong("id"), rs.getString("shipping_address_enc")))
+                .query(FulfillmentEncryptedRow.class)
                 .list();
     }
 
@@ -176,8 +168,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new SocialAccountEncryptedRow(
-                        rs.getLong("id"), rs.getString("provider_id_enc")))
+                .query(SocialAccountEncryptedRow.class)
                 .list();
     }
 
@@ -205,8 +196,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .param("afterId", afterId)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new AdminTotpSecretRow(
-                        rs.getLong("id"), rs.getString("totp_secret_enc")))
+                .query(AdminTotpSecretRow.class)
                 .list();
     }
 
@@ -224,7 +214,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     @Override
     public long countAdminTotpSecretsNotWithKeyId(String keyId) {
         String keyPrefix = "hg:" + keyId + ":";
-        Long count = jdbc.sql("""
+        return jdbc.sql("""
                         SELECT COUNT(*)
                         FROM admin_user
                         WHERE totp_secret_enc IS NOT NULL
@@ -233,7 +223,6 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                 .param("keyPrefix", keyPrefix)
                 .query(Long.class)
                 .single();
-        return count == null ? 0L : count;
     }
 
     @Override
@@ -248,9 +237,8 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
 
     @Override
     public long countSocialAccountsWithoutProviderIdEnc() {
-        Long count = jdbc.sql("SELECT COUNT(*) FROM user_social_accounts WHERE provider_id_enc IS NULL")
+        return jdbc.sql("SELECT COUNT(*) FROM user_social_accounts WHERE provider_id_enc IS NULL")
                 .query(Long.class)
                 .single();
-        return count == null ? 0L : count;
     }
 }

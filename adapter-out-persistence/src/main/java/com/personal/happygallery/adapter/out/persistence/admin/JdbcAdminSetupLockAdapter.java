@@ -21,9 +21,6 @@ public class JdbcAdminSetupLockAdapter implements AdminSetupLockPort {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void lock() {
-        Integer lockId = jdbcTemplate.queryForObject(LOCK_SQL, Integer.class);
-        if (lockId == null) {
-            throw new IllegalStateException("관리자 setup 잠금 행이 없습니다.");
-        }
+        jdbcTemplate.queryForObject(LOCK_SQL, Integer.class);
     }
 }

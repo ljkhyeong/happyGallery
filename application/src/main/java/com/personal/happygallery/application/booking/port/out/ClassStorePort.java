@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface ClassStorePort {
 
-    BookingClass save(BookingClass bookingClass);
+    <S extends BookingClass> S save(S bookingClass);
 
-    List<BookingClass> saveAll(List<BookingClass> classes);
+    <S extends BookingClass> List<S> saveAll(Iterable<S> classes);
 }

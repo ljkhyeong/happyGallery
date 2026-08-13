@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FulfillmentPort {
-    Fulfillment save(Fulfillment fulfillment);
+    <S extends Fulfillment> S save(S fulfillment);
     Optional<Fulfillment> findByOrderId(Long orderId);
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
     List<Fulfillment> findExpiredPickupsAfterId(LocalDateTime now, Long afterId, int limit);

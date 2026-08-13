@@ -36,9 +36,7 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .query((rs, rowNum) -> recipient(
                         rs.getObject("guest_id", Long.class),
                         rs.getObject("user_id", Long.class)))
-                .list()
-                .stream()
-                .findFirst();
+                .optional();
     }
 
     @Override
@@ -61,9 +59,7 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .query((rs, rowNum) -> recipient(
                         rs.getObject("guest_id", Long.class),
                         rs.getObject("user_id", Long.class)))
-                .list()
-                .stream()
-                .findFirst();
+                .optional();
     }
 
     @Override
@@ -83,9 +79,7 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .param("latestExpiryInclusive", latestExpiryInclusive)
                 .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
                         rs.getObject("user_id", Long.class)))
-                .list()
-                .stream()
-                .findFirst();
+                .optional();
     }
 
     @Override
@@ -108,9 +102,7 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .query((rs, rowNum) -> recipient(
                         rs.getObject("guest_id", Long.class),
                         rs.getObject("user_id", Long.class)))
-                .list()
-                .stream()
-                .findFirst();
+                .optional();
     }
 
     private static NotificationReminderRecipient recipient(Long guestId, Long userId) {

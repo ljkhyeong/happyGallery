@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskBacklogSummary;
+import com.personal.happygallery.application.booking.port.out.BookingCancellationTaskPort;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -13,7 +14,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BookingCancellationTaskRepository
-        extends JpaRepository<BookingCancellationTask, Long> {
+        extends JpaRepository<BookingCancellationTask, Long>, BookingCancellationTaskPort {
+
+    @Override
+    <S extends BookingCancellationTask> S save(S task);
 
     @Query("""
             SELECT task
@@ -27,10 +31,12 @@ public interface BookingCancellationTaskRepository
             """)
     List<BookingCancellationTask> findPendingPage(Pageable pageable);
 
+    @Override
     default List<BookingCancellationTask> findPending(int limit) {
         return findPendingPage(PageRequest.ofSize(limit));
     }
 
+    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.booking.port.out.BookingCancellationTaskBacklogSummary(
                 COUNT(task),
@@ -51,6 +57,7 @@ public interface BookingCancellationTaskRepository
             """)
     boolean existsPendingByUserId(@Param("userId") Long userId);
 
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT task

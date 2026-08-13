@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.cart.CartItem;
 
 public interface CartItemStorePort {
 
-    CartItem save(CartItem item);
+    <S extends CartItem> S save(S item);
 
     void delete(CartItem item);
 }

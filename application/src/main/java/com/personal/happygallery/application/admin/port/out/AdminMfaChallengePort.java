@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public interface AdminMfaChallengePort {
 
-    AdminMfaChallenge save(AdminMfaChallenge challenge);
+    <S extends AdminMfaChallenge> S save(S challenge);
 
     Optional<Long> findAdminUserIdByTokenHmacCandidates(List<String> tokenHmacs);
 

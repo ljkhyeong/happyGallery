@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.admin;
 
 import com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot;
+import com.personal.happygallery.application.admin.port.out.AdminUserPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
@@ -9,10 +10,12 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
+public interface AdminUserRepository extends JpaRepository<AdminUser, Long>, AdminUserPort {
 
+    @Override
     Optional<AdminUser> findByUsername(String username);
 
+    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.admin.port.out.AdminLoginSnapshot(
                 a.id, a.username, a.passwordHash
@@ -25,7 +28,14 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, Long> {
     @Override
     Optional<AdminUser> findById(Long id);
 
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM AdminUser a WHERE a.id = :id")
     Optional<AdminUser> findByIdForUpdate(@Param("id") Long id);
+
+    @Override
+    <S extends AdminUser> S save(S adminUser);
+
+    @Override
+    long count();
 }

@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot;
+import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,7 +11,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPort {
+public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPort, SlotStorePort {
+
+    @Override
+    <S extends Slot> S save(S slot);
 
     @Override Optional<Slot> findById(Long id);
     @Override List<Slot> findAllById(Iterable<Long> ids);

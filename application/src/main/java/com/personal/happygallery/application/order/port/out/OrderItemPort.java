@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 
 public interface OrderItemPort {
-    OrderItem save(OrderItem item);
+    <S extends OrderItem> S save(S item);
     List<OrderItem> findByOrder(Order order);
     List<OrderItem> findByOrderIdIn(Collection<Long> orderIds);
     List<OrderItem> findByIdIn(Collection<Long> ids);

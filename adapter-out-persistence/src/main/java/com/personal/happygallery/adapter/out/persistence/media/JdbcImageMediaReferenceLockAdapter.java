@@ -21,9 +21,6 @@ public class JdbcImageMediaReferenceLockAdapter implements ImageMediaReferenceLo
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public void lock() {
-        Integer lockId = jdbcTemplate.queryForObject(LOCK_SQL, Integer.class);
-        if (lockId == null) {
-            throw new IllegalStateException("이미지 참조 잠금 행이 없습니다.");
-        }
+        jdbcTemplate.queryForObject(LOCK_SQL, Integer.class);
     }
 }

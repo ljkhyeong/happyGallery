@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import jakarta.persistence.LockModeType;
@@ -16,10 +17,14 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface BookingRepository extends JpaRepository<Booking, Long>, BookingReaderPort {
+public interface BookingRepository extends JpaRepository<Booking, Long>, BookingReaderPort, BookingStorePort {
+
+    @Override
+    <S extends Booking> S save(S booking);
 
     @Override Optional<Booking> findById(Long id);
 
+    @Override
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Booking b

@@ -8,7 +8,7 @@ import java.util.List;
  */
 public interface InventoryStorePort {
 
-    Inventory save(Inventory inventory);
+    <S extends Inventory> S save(S inventory);
 
     List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 

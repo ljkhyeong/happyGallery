@@ -681,14 +681,13 @@ public interface ReviewRepository
             ReviewTargetType cursorTargetType,
             Long cursorSourceId,
             int limit) {
-        int sourceLimit = Math.max(1, limit);
         boolean cursorTargetsProduct = cursorTargetType == ReviewTargetType.PRODUCT;
         Stream<ReviewOpportunityView> products = findProductOpportunityRows(
                         userId,
                         cursorCompletedAt,
                         cursorTargetsProduct,
                         cursorSourceId,
-                        PageRequest.ofSize(sourceLimit)).stream()
+                        PageRequest.ofSize(limit)).stream()
                 .map(row -> new ReviewOpportunityView(
                         ReviewTargetType.PRODUCT,
                         row.getSourceId(),
@@ -702,7 +701,7 @@ public interface ReviewRepository
                         cursorCompletedAt,
                         cursorTargetsProduct,
                         cursorSourceId,
-                        PageRequest.ofSize(sourceLimit)).stream()
+                        PageRequest.ofSize(limit)).stream()
                 .map(row -> new ReviewOpportunityView(
                         ReviewTargetType.CLASS,
                         row.getSourceId(),

@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface OrderClaimItemPort {
 
-    List<OrderClaimItem> saveAll(List<OrderClaimItem> items);
+    <S extends OrderClaimItem> List<S> saveAll(Iterable<S> items);
 
     List<OrderClaimItem> findByClaimIdIn(Collection<Long> claimIds);
 

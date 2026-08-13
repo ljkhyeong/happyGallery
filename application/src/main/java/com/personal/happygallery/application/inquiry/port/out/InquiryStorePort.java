@@ -4,5 +4,5 @@ import com.personal.happygallery.domain.inquiry.Inquiry;
 
 public interface InquiryStorePort {
 
-    Inquiry save(Inquiry inquiry);
+    <S extends Inquiry> S save(S inquiry);
 }

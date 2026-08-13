@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface RefundPort {
 
-    Refund save(Refund refund);
+    <S extends Refund> S save(S refund);
 
     Optional<Refund> findById(Long id);
 

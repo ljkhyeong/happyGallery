@@ -5,7 +5,7 @@ import java.util.List;
 
 public interface AdminMfaRecoveryCodePort {
 
-    AdminMfaRecoveryCode save(AdminMfaRecoveryCode recoveryCode);
+    <S extends AdminMfaRecoveryCode> S save(S recoveryCode);
 
     List<AdminMfaRecoveryCode> findUnusedByAdminUserIdForUpdate(Long adminUserId);
 

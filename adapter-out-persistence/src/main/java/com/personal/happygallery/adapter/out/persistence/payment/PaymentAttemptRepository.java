@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
+import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import jakarta.persistence.LockModeType;
@@ -16,7 +17,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PaymentAttemptRepository
-        extends JpaRepository<PaymentAttempt, Long>, PaymentAttemptReaderPort {
+        extends JpaRepository<PaymentAttempt, Long>, PaymentAttemptReaderPort, PaymentAttemptStorePort {
+
+    @Override
+    <S extends PaymentAttempt> S save(S attempt);
 
     @Override Optional<PaymentAttempt> findById(Long id);
 

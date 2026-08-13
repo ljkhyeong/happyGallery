@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.notice.Notice;
 
 public interface NoticeStorePort {
 
-    Notice save(Notice notice);
+    <S extends Notice> S save(S notice);
 
     int incrementViewCountById(Long id);
 

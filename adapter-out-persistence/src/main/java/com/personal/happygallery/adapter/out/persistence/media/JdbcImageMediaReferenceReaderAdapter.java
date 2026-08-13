@@ -81,9 +81,7 @@ class JdbcImageMediaReferenceReaderAdapter implements ImageMediaReferenceReaderP
                             ) AS internally_referenced
                         """)
                 .param("imageUrl", imageUrl)
-                .query((resultSet, rowNumber) -> new ReferenceVisibility(
-                        resultSet.getBoolean("publicly_referenced"),
-                        resultSet.getBoolean("internally_referenced")))
+                .query(ReferenceVisibility.class)
                 .single();
     }
 }

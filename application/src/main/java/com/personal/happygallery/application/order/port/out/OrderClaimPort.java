@@ -8,7 +8,7 @@ import java.util.Optional;
 
 public interface OrderClaimPort {
 
-    OrderClaim save(OrderClaim claim);
+    <S extends OrderClaim> S save(S claim);
 
     Optional<Long> findOrderIdById(Long id);
 

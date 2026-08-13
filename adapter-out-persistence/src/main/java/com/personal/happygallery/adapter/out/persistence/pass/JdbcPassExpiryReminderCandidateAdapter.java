@@ -51,9 +51,7 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
                 .param("eventType", NotificationEventType.PASS_EXPIRY_SOON.name())
                 .param("aggregateType", AGGREGATE_TYPE)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new PassExpiryReminderTarget(
-                        rs.getLong("pass_id"),
-                        rs.getLong("user_id")))
+                .query(PassExpiryReminderTarget.class)
                 .list();
     }
 }

@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.product;
 
 import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
@@ -9,11 +10,16 @@ import java.util.Optional;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.repository.query.Param;
 import org.springframework.util.StringUtils;
 
 public interface ProductRepository extends JpaRepository<Product, Long>,
-        ProductReaderPort {
+        ProductReaderPort,
+        ProductStorePort {
+
+    @Override
+    <S extends Product> S save(S product);
 
     @Override Optional<Product> findById(Long id);
 
@@ -74,10 +80,7 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
             return null;
         }
 
-        String escaped = keyword
-                .replace("!", "!!")
-                .replace("%", "!%")
-                .replace("_", "!_");
+        String escaped = EscapeCharacter.of('!').escape(keyword);
         return "%" + escaped + "%";
     }
 }

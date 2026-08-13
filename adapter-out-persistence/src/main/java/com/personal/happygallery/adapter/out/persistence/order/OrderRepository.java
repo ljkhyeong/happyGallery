@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import jakarta.persistence.LockModeType;
@@ -17,7 +18,13 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderRepository extends JpaRepository<Order, Long>, OrderReaderPort {
+public interface OrderRepository extends JpaRepository<Order, Long>, OrderReaderPort, OrderStorePort {
+
+    @Override
+    <S extends Order> S save(S order);
+
+    @Override
+    <S extends Order> S saveAndFlush(S order);
 
     @Override Optional<Order> findById(Long id);
 

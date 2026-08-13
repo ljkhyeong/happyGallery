@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationLogReaderPort;
+import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import java.time.LocalDateTime;
@@ -10,7 +11,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface NotificationLogRepository extends JpaRepository<NotificationLog, Long>,
-        NotificationLogReaderPort {
+        NotificationLogReaderPort,
+        NotificationLogStorePort {
+
+    @Override
+    <S extends NotificationLog> S save(S log);
 
     @Override
     @Query("""

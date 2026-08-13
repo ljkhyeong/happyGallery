@@ -50,11 +50,7 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
 
     @Override
     public Optional<LoginSnapshot> findLoginSnapshotByEmail(String email) {
-        return userRepository.findLoginSnapshotByEmailHmac(indexEmail(email))
-                .map(snapshot -> new LoginSnapshot(
-                        snapshot.getUserId(),
-                        snapshot.getPasswordHash(),
-                        snapshot.getWithdrawnAt() == null));
+        return userRepository.findLoginSnapshotByEmailHmac(indexEmail(email));
     }
 
     @Override
@@ -134,9 +130,9 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
 
     private User restore(User user) {
         user.restoreProtectedFields(
-                user.getEmailEnc() == null ? null : fieldEncryptor.decrypt(user.getEmailEnc()),
+                fieldEncryptor.decryptNullable(user.getEmailEnc()),
                 fieldEncryptor.decrypt(user.getNameEnc()),
-                user.getPhoneEnc() == null ? null : fieldEncryptor.decrypt(user.getPhoneEnc()));
+                fieldEncryptor.decryptNullable(user.getPhoneEnc()));
         return user;
     }
 

@@ -53,10 +53,7 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                 .param("eventType", eventType.name())
                 .param("aggregateType", AGGREGATE_TYPE)
                 .param("limit", limit)
-                .query((rs, rowNum) -> new BookingReminderTarget(
-                        rs.getLong("booking_id"),
-                        rs.getObject("user_id", Long.class),
-                        rs.getObject("guest_id", Long.class)))
+                .query(BookingReminderTarget.class)
                 .list();
     }
 }

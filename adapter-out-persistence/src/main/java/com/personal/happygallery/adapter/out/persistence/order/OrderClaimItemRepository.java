@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
+import com.personal.happygallery.application.order.port.out.OrderClaimItemPort;
 import com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity;
 import com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState;
 import com.personal.happygallery.domain.order.OrderClaimItem;
@@ -9,14 +10,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface OrderClaimItemRepository extends JpaRepository<OrderClaimItem, Long> {
+public interface OrderClaimItemRepository extends JpaRepository<OrderClaimItem, Long>,
+        OrderClaimItemPort {
 
-    default List<OrderClaimItem> saveAll(List<OrderClaimItem> items) {
-        return saveAll((Iterable<OrderClaimItem>) items);
-    }
+    @Override
+    <S extends OrderClaimItem> List<S> saveAll(Iterable<S> items);
 
+    @Override
     List<OrderClaimItem> findByClaimIdIn(Collection<Long> claimIds);
 
+    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.order.port.out.OrderItemClaimedQuantity(
                 item.orderItemId, SUM(item.quantity))
@@ -29,6 +32,7 @@ public interface OrderClaimItemRepository extends JpaRepository<OrderClaimItem, 
     List<OrderItemClaimedQuantity> sumNonRejectedQuantities(
             @Param("orderItemIds") Collection<Long> orderItemIds);
 
+    @Override
     @Query("""
             SELECT new com.personal.happygallery.application.order.port.out.OrderItemApprovedRefundState(
                 item.orderItemId,

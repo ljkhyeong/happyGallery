@@ -16,7 +16,7 @@ public interface AdminUserPort {
 
     Optional<AdminUser> findByIdForUpdate(Long id);
 
-    AdminUser save(AdminUser adminUser);
+    <S extends AdminUser> S save(S adminUser);
 
     long count();
 }

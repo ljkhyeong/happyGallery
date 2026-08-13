@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public interface BookingCancellationTaskPort {
 
-    BookingCancellationTask save(BookingCancellationTask task);
+    <S extends BookingCancellationTask> S save(S task);
 
     List<BookingCancellationTask> findPending(int limit);
 

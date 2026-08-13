@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.persistence.review;
 
+import com.personal.happygallery.application.review.port.out.ReviewHelpfulPort.ReviewHelpfulCountView;
 import com.personal.happygallery.domain.review.ReviewHelpfulVote;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,12 +27,14 @@ public interface ReviewHelpfulVoteRepository extends JpaRepository<ReviewHelpful
     long countByReviewId(Long reviewId);
 
     @Query("""
-            SELECT v.reviewId AS reviewId, COUNT(v.id) AS helpfulCount
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewHelpfulPort$ReviewHelpfulCountView(
+                v.reviewId, COUNT(v.id)
+            )
             FROM ReviewHelpfulVote v
             WHERE v.reviewId IN :reviewIds
             GROUP BY v.reviewId
             """)
-    List<HelpfulCountProjection> countRows(@Param("reviewIds") List<Long> reviewIds);
+    List<ReviewHelpfulCountView> countRows(@Param("reviewIds") List<Long> reviewIds);
 
     @Query("""
             SELECT v.reviewId FROM ReviewHelpfulVote v
@@ -39,9 +42,4 @@ public interface ReviewHelpfulVoteRepository extends JpaRepository<ReviewHelpful
             """)
     List<Long> findHelpfulReviewIds(
             @Param("userId") Long userId, @Param("reviewIds") List<Long> reviewIds);
-
-    interface HelpfulCountProjection {
-        Long getReviewId();
-        long getHelpfulCount();
-    }
 }

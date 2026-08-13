@@ -34,9 +34,7 @@ class JpaReviewHelpfulAdapter implements ReviewHelpfulPort {
         if (reviewIds.isEmpty()) {
             return List.of();
         }
-        return repository.countRows(reviewIds).stream()
-                .map(row -> new ReviewHelpfulCountView(row.getReviewId(), row.getHelpfulCount()))
-                .toList();
+        return repository.countRows(reviewIds);
     }
 
     @Override
