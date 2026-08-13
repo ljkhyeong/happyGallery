@@ -13,7 +13,6 @@ import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -110,7 +109,7 @@ class PaymentConfirmFulfillmentTransactionService {
     private void requestCompensation(PaymentAttempt attempt,
                                      String confirmedPaymentKey,
                                      String reason) {
-        requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
+        attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
         attempt.markCompensationRequested(reason);
         attemptStore.save(attempt);
         refundExecutionService.requestPaymentAttemptRefund(
@@ -120,11 +119,5 @@ class PaymentConfirmFulfillmentTransactionService {
     private PaymentAttempt findForUpdate(Long attemptId) {
         return attemptReader.findByIdForUpdate(attemptId)
                 .orElseThrow(() -> new NotFoundException("결제 시도"));
-    }
-
-    private void requireSameConfirmedPaymentKey(PaymentAttempt attempt, String confirmedPaymentKey) {
-        if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
-        }
     }
 }

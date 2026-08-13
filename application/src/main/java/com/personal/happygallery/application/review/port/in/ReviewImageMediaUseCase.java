@@ -1,19 +1,10 @@
 package com.personal.happygallery.application.review.port.in;
 
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
+
 public interface ReviewImageMediaUseCase {
 
-    record ReviewImageContent(byte[] bytes, String contentType) {
-        public ReviewImageContent {
-            bytes = bytes.clone();
-        }
+    ImageContent getOwnedImage(Long userId, Long reviewId, Long imageId);
 
-        @Override
-        public byte[] bytes() {
-            return bytes.clone();
-        }
-    }
-
-    ReviewImageContent getOwnedImage(Long userId, Long reviewId, Long imageId);
-
-    ReviewImageContent getAdminImage(Long reviewId, Long imageId);
+    ImageContent getAdminImage(Long reviewId, Long imageId);
 }

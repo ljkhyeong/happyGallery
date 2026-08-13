@@ -40,6 +40,28 @@ class PaymentAttemptPolicyTest {
         });
     }
 
+    @DisplayName("승인된 결제의 후속 처리는 저장된 PG 결제 키와 같은 요청만 허용한다")
+    @Test
+    void approvedAttempt_requiresMatchingConfirmedPaymentKey() {
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.ORDER, 10_000L, "{}", 1L);
+        String processingToken = attempt.startProcessing(
+                10_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
+        attempt.markApproved(
+                processingToken,
+                "confirmed-payment-key",
+                LocalDateTime.of(2026, 4, 23, 10, 1));
+
+        attempt.requireMatchingConfirmedPaymentKey("confirmed-payment-key");
+
+        assertThatThrownBy(() -> attempt.requireMatchingConfirmedPaymentKey("different-key"))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+                    assertThat(exception.getMessage())
+                            .isEqualTo("PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
+                });
+    }
+
     @DisplayName("결제 선점은 금액이 다르면 상태를 변경하지 않는다")
     @Test
     void startProcessing_rejectsConfirm_whenAmountDiffers() {

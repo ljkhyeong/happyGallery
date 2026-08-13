@@ -51,7 +51,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DefaultReviewService implements ReviewUseCase {
 
-    private static final int REACTION_LIMIT = 100;
 
     private final ReviewReaderPort reviewReader;
     private final ReviewStorePort reviewStore;
@@ -171,14 +170,12 @@ public class DefaultReviewService implements ReviewUseCase {
             Long productId, Integer rating, ReviewSort sort, String cursor, int size) {
         productReader.findById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
-        ReviewSort normalizedSort = normalizeSort(sort);
-        validateRatingFilter(rating);
         int pageSize = PageParams.requireSize(size);
-        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, normalizedSort, rating);
+        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, sort, rating);
         List<ReviewListView> fetched = reviewReader.findPublishedByProduct(
                 productId,
                 rating,
-                normalizedSort,
+                sort,
                 cursorParam == null ? null : cursorParam.rating(),
                 cursorParam == null ? null : cursorParam.createdAt(),
                 cursorParam == null ? null : cursorParam.id(),
@@ -188,7 +185,7 @@ public class DefaultReviewService implements ReviewUseCase {
                 reviewReader.countPublishedProduct(productId, rating),
                 fetched,
                 pageSize,
-                normalizedSort,
+                sort,
                 rating);
     }
 
@@ -199,14 +196,12 @@ public class DefaultReviewService implements ReviewUseCase {
         classReader.findById(classId)
                 .orElseThrow(NotFoundException.supplier("클래스"))
                 .requireActive();
-        ReviewSort normalizedSort = normalizeSort(sort);
-        validateRatingFilter(rating);
         int pageSize = PageParams.requireSize(size);
-        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, normalizedSort, rating);
+        ReviewPublicCursor.CursorParam cursorParam = decodeCursor(cursor, sort, rating);
         List<ReviewListView> fetched = reviewReader.findPublishedByClass(
                 classId,
                 rating,
-                normalizedSort,
+                sort,
                 cursorParam == null ? null : cursorParam.rating(),
                 cursorParam == null ? null : cursorParam.createdAt(),
                 cursorParam == null ? null : cursorParam.id(),
@@ -216,7 +211,7 @@ public class DefaultReviewService implements ReviewUseCase {
                 reviewReader.countPublishedClass(classId, rating),
                 fetched,
                 pageSize,
-                normalizedSort,
+                sort,
                 rating);
     }
 
@@ -413,9 +408,7 @@ public class DefaultReviewService implements ReviewUseCase {
 
     @Override
     @Transactional
-    public ReviewItem deleteOfficialReply(
-            Long reviewId, long expectedVersion, Long adminUserId) {
-        requirePositiveId(adminUserId, "관리자 ID");
+    public ReviewItem deleteOfficialReply(Long reviewId, long expectedVersion) {
         Review review = reviewReader.findByIdForUpdate(reviewId)
                 .orElseThrow(NotFoundException.supplier("후기"));
         review.requireVersion(expectedVersion);
@@ -520,7 +513,7 @@ public class DefaultReviewService implements ReviewUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<ReviewReaction> listMyReviewReactions(Long userId, List<Long> reviewIds) {
-        List<Long> normalizedIds = normalizeReviewIds(reviewIds);
+        List<Long> normalizedIds = reviewIds.stream().distinct().toList();
         Set<Long> helpfulIds = Set.copyOf(
                 helpfulPort.findHelpfulReviewIds(userId, normalizedIds));
         Set<Long> reportedIds = Set.copyOf(
@@ -772,39 +765,8 @@ public class DefaultReviewService implements ReviewUseCase {
         return ReviewCreationStatus.RECREATION_BLOCKED;
     }
 
-    private static ReviewSort normalizeSort(ReviewSort sort) {
-        return sort == null ? ReviewSort.LATEST : sort;
-    }
-
-    private static void validateRatingFilter(Integer rating) {
-        if (rating != null && (rating < Review.MIN_RATING || rating > Review.MAX_RATING)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "후기 별점 필터가 올바르지 않습니다.");
-        }
-    }
-
     private static ReviewPublicCursor.CursorParam decodeCursor(
             String cursor, ReviewSort sort, Integer ratingFilter) {
         return cursor == null ? null : ReviewPublicCursor.decode(cursor, sort, ratingFilter);
-    }
-
-    private static List<Long> normalizeReviewIds(List<Long> reviewIds) {
-        if (reviewIds == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "후기 ID 목록은 필수입니다.");
-        }
-        List<Long> normalized = reviewIds.stream().distinct().toList();
-        if (normalized.size() > REACTION_LIMIT
-                || normalized.stream().anyMatch(id -> id == null || id < 1L)) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT,
-                    "후기 반응은 한 번에 " + REACTION_LIMIT + "건까지 조회할 수 있습니다.");
-        }
-        return normalized;
-    }
-
-    private static Long requirePositiveId(Long value, String name) {
-        if (value == null || value < 1L) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, name + "가 올바르지 않습니다.");
-        }
-        return value;
     }
 }

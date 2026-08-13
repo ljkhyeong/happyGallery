@@ -75,7 +75,7 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
                 result.passId(),
                 result.passNumber(),
                 fieldEncryptor.decrypt(result.customerNameEnc()),
-                decryptNullable(result.customerPhoneEnc()),
+                fieldEncryptor.decryptNullable(result.customerPhoneEnc()),
                 status,
                 result.remainingCredits(),
                 result.totalCredits(),
@@ -94,7 +94,4 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
         return Math.multiplyExact(result.totalPrice(), refundableCredits) / result.totalCredits();
     }
 
-    private String decryptNullable(String encrypted) {
-        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
-    }
 }

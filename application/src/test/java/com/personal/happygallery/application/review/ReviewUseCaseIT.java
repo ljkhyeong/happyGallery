@@ -1048,7 +1048,7 @@ class ReviewUseCaseIT {
 
         ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
         ReviewUseCase.ReviewItem withoutReply = reviewUseCase.deleteOfficialReply(
-                review.id(), current.version(), admin.getId());
+                review.id(), current.version());
         assertThat(withoutReply.officialReply()).isNull();
     }
 
@@ -1075,7 +1075,7 @@ class ReviewUseCaseIT {
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
         assertThatThrownBy(() -> reviewUseCase.deleteOfficialReply(
-                review.id(), replied.version(), admin.getId()))
+                review.id(), replied.version()))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())

@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewEvidenceMediaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -55,7 +56,7 @@ public class AdminReviewEvidenceMediaController {
             @PathVariable @PositiveOrZero int sortOrder,
             @AuthenticationPrincipal AdminPrincipal admin) {
         admin.requireBearerAdminUserId();
-        ReviewEvidenceMediaUseCase.EvidenceImageContent image =
+        ImageContent image =
                 evidenceMediaUseCase.getImage(evidenceId, sortOrder);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(image.contentType()))

@@ -146,11 +146,11 @@ class PaymentConfirmClaimTransactionService {
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
         if (attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
-            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
+            attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return new Completed(attemptResolver.confirmedResult(attempt));
         }
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED) {
-            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
+            attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return readyForFulfillment(attempt);
         }
         if (!attempt.reconcileLatePgApproval(confirmedPaymentKey, LocalDateTime.now(clock))) {
@@ -167,7 +167,7 @@ class PaymentConfirmClaimTransactionService {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED
                 || attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
-            requireSameConfirmedPaymentKey(attempt, confirmedPaymentKey);
+            attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return true;
         }
         if (!attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
@@ -265,12 +265,6 @@ class PaymentConfirmClaimTransactionService {
         return new ReadyForFulfillment(
                 attempt.getId(), attempt.getOrderIdExternal(), attempt.getAmount(),
                 attempt.getConfirmedPaymentKey());
-    }
-
-    private void requireSameConfirmedPaymentKey(PaymentAttempt attempt, String confirmedPaymentKey) {
-        if (!Objects.equals(attempt.getConfirmedPaymentKey(), confirmedPaymentKey)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
-        }
     }
 
     private HappyGalleryException paymentFailure(PaymentAttempt attempt) {

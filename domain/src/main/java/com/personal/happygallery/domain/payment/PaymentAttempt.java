@@ -13,6 +13,7 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -153,6 +154,14 @@ public class PaymentAttempt {
     public void requireMatchingConfirmRequest(long requestedAmount, String requestedPaymentKey) {
         requireRequestedAmount(requestedAmount);
         requireSamePaymentKey(requestedPaymentKey);
+    }
+
+    public void requireMatchingConfirmedPaymentKey(String requestedPaymentKey) {
+        if (!Objects.equals(confirmedPaymentKey, requestedPaymentKey)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "PG 결제 키가 기존 승인 결과와 일치하지 않습니다.");
+        }
     }
 
     private void requireRequestedAmount(long requestedAmount) {

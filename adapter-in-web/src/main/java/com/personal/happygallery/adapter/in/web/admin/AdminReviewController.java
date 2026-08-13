@@ -163,8 +163,9 @@ public class AdminReviewController {
             @PathVariable @Positive Long reviewId,
             @RequestParam @PositiveOrZero long expectedVersion,
             @AuthenticationPrincipal AdminPrincipal admin) {
+        admin.requireBearerAdminUserId();
         return AdminReviewResponse.from(reviewUseCase.deleteOfficialReply(
-                reviewId, expectedVersion, admin.requireBearerAdminUserId()));
+                reviewId, expectedVersion));
     }
 
     @GetMapping("/review-reports")

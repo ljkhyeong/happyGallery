@@ -38,7 +38,7 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
                 result.bookingNumber(),
                 result.bookerType(),
                 fieldEncryptor.decrypt(result.bookerNameEnc()),
-                decryptNullable(result.bookerPhoneEnc()),
+                fieldEncryptor.decryptNullable(result.bookerPhoneEnc()),
                 result.className(),
                 result.startAt(),
                 result.endAt(),
@@ -55,7 +55,4 @@ class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
                 result.createdAt().atOffset(ZoneOffset.UTC));
     }
 
-    private String decryptNullable(String encrypted) {
-        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
-    }
 }

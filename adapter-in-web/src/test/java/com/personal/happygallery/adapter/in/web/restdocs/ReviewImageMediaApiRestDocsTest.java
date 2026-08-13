@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.personal.happygallery.adapter.in.web.admin.AdminReviewImageMediaController;
 import com.personal.happygallery.adapter.in.web.customer.MeReviewImageMediaController;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewImageMediaUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,10 +32,10 @@ class ReviewImageMediaApiRestDocsTest extends RestDocsTestSupport {
     void setUp(RestDocumentationContextProvider restDocumentation) {
         reviewImageMediaUseCase = mock(ReviewImageMediaUseCase.class);
         when(reviewImageMediaUseCase.getOwnedImage(CUSTOMER_USER_ID, 71L, 81L))
-                .thenReturn(new ReviewImageMediaUseCase.ReviewImageContent(
+                .thenReturn(new ImageContent(
                         new byte[] {1, 2, 3}, "image/png"));
         when(reviewImageMediaUseCase.getAdminImage(71L, 81L))
-                .thenReturn(new ReviewImageMediaUseCase.ReviewImageContent(
+                .thenReturn(new ImageContent(
                         new byte[] {4, 5, 6}, "image/jpeg"));
         mockMvc = mockMvc(
                 restDocumentation,

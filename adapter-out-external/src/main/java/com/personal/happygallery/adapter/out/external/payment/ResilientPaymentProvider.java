@@ -53,9 +53,6 @@ public class ResilientPaymentProvider implements PaymentProvider {
             log.warn("PG 확정 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
             return PaymentConfirmResult.retryableFailure(
                     "PG 장애로 결제 확정이 일시 차단되었습니다. 잠시 후 재시도해주세요.");
-        } catch (TimeoutException e) {
-            log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
-            return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
         } catch (Exception e) {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
@@ -80,9 +77,6 @@ public class ResilientPaymentProvider implements PaymentProvider {
         } catch (CallNotPermittedException e) {
             log.warn("PG 환불 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
             return RefundResult.retryableFailure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
-        } catch (TimeoutException e) {
-            log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
-            return RefundResult.reconciliationRequired("PG 응답 지연으로 환불 상태 확인이 필요합니다.");
         } catch (Exception e) {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {

@@ -8,6 +8,8 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import org.apache.hc.client5.http.ConnectTimeoutException;
 import org.apache.hc.core5.http.ConnectionRequestTimeoutException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -16,8 +18,11 @@ final class NhnNotificationFailureClassifier {
     private NhnNotificationFailureClassifier() {}
 
     static NotificationSendResult classify(RestClientResponseException exception) {
-        int status = exception.getStatusCode().value();
-        if (status == 408 || status == 425 || status == 429 || status >= 500) {
+        HttpStatusCode status = exception.getStatusCode();
+        if (status.is5xxServerError()
+                || status.isSameCodeAs(HttpStatus.REQUEST_TIMEOUT)
+                || status.isSameCodeAs(HttpStatus.TOO_EARLY)
+                || status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
             return NotificationSendResult.TRANSIENT_FAILURE;
         }
         return NotificationSendResult.PERMANENT_FAILURE;

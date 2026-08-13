@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewImageMediaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -49,7 +50,7 @@ public class MeReviewImageMediaController {
             @PathVariable @Positive Long imageId,
             @AuthenticationPrincipal CustomerPrincipal customer
     ) {
-        ReviewImageMediaUseCase.ReviewImageContent image =
+        ImageContent image =
                 reviewImageMediaUseCase.getOwnedImage(customer.userId(), reviewId, imageId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(image.contentType()))

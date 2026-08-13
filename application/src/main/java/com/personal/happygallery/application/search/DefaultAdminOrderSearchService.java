@@ -39,13 +39,10 @@ class DefaultAdminOrderSearchService implements AdminOrderSearchUseCase {
                 result.status(),
                 result.totalAmount(),
                 fieldEncryptor.decrypt(result.buyerNameEnc()),
-                decryptNullable(result.buyerPhoneEnc()),
+                fieldEncryptor.decryptNullable(result.buyerPhoneEnc()),
                 result.paidAt(),
                 result.approvalDeadlineAt(),
                 result.createdAt().atOffset(ZoneOffset.UTC));
     }
 
-    private String decryptNullable(String encrypted) {
-        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
-    }
 }

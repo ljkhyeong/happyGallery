@@ -2,6 +2,7 @@ package com.personal.happygallery.application.review;
 
 import com.personal.happygallery.application.media.ImageMediaReferenceGuard;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewEvidenceMediaUseCase;
 import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -25,7 +26,7 @@ class ReviewEvidenceMediaService implements ReviewEvidenceMediaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public EvidenceImageContent getImage(Long evidenceId, int sortOrder) {
+    public ImageContent getImage(Long evidenceId, int sortOrder) {
         ReviewEvidenceSnapshot evidence = evidencePort.findById(evidenceId)
                 .orElseThrow(NotFoundException.supplier("후기 증거"));
         List<String> imageUrls = evidence.getImageUrls();
@@ -37,7 +38,6 @@ class ReviewEvidenceMediaService implements ReviewEvidenceMediaUseCase {
         if (fileName == null) {
             throw new NotFoundException("후기 증거 이미지");
         }
-        ImageMediaUseCase.ImageContent image = imageMediaUseCase.get(fileName);
-        return new EvidenceImageContent(image.bytes(), image.contentType());
+        return imageMediaUseCase.get(fileName);
     }
 }

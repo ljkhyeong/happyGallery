@@ -2,6 +2,7 @@ package com.personal.happygallery.application.review;
 
 import com.personal.happygallery.application.media.ImageMediaReferenceGuard;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewImageMediaUseCase;
 import com.personal.happygallery.application.review.port.out.ReviewImagePort;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
@@ -31,7 +32,7 @@ class ReviewImageMediaService implements ReviewImageMediaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public ReviewImageContent getOwnedImage(Long userId, Long reviewId, Long imageId) {
+    public ImageContent getOwnedImage(Long userId, Long reviewId, Long imageId) {
         Review review = reviewReader.findByIdAndUserId(reviewId, userId)
                 .orElseThrow(NotFoundException.supplier("후기 이미지"));
         review.requireActive();
@@ -41,22 +42,21 @@ class ReviewImageMediaService implements ReviewImageMediaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public ReviewImageContent getAdminImage(Long reviewId, Long imageId) {
+    public ImageContent getAdminImage(Long reviewId, Long imageId) {
         var review = reviewReader.findViewById(reviewId)
                 .orElseThrow(NotFoundException.supplier("후기 이미지"));
         requireHidden(review.status());
         return loadImage(reviewId, imageId);
     }
 
-    private ReviewImageContent loadImage(Long reviewId, Long imageId) {
+    private ImageContent loadImage(Long reviewId, Long imageId) {
         ReviewImage reviewImage = imagePort.findByIdAndReviewId(imageId, reviewId)
                 .orElseThrow(NotFoundException.supplier("후기 이미지"));
         String fileName = ImageMediaReferenceGuard.localFileName(reviewImage.getImageUrl());
         if (fileName == null) {
             throw new NotFoundException("후기 이미지");
         }
-        ImageMediaUseCase.ImageContent image = imageMediaUseCase.get(fileName);
-        return new ReviewImageContent(image.bytes(), image.contentType());
+        return imageMediaUseCase.get(fileName);
     }
 
     private void requireHidden(ReviewStatus status) {

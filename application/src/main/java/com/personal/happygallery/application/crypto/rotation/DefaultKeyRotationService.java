@@ -67,9 +67,9 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private int rotateUsers() {
         return rotatePages((afterId, limit) -> dataPort.findUsersAfterId(afterId, limit), row -> {
-            String email = decryptNullable(row.emailEnc());
+            String email = fieldEncryptor.decryptNullable(row.emailEnc());
             String name = fieldEncryptor.decrypt(row.nameEnc());
-            String phone = decryptNullable(row.phoneEnc());
+            String phone = fieldEncryptor.decryptNullable(row.phoneEnc());
             dataPort.updateUser(new UserRotatedRow(
                     row.id(), encryptNullable(email),
                     email == null ? null : blindIndexKeyRing.index(email),
@@ -93,7 +93,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private int rotatePaymentAttempts() {
         return rotatePages((afterId, limit) -> dataPort.findPaymentAttemptsAfterId(afterId, limit), row -> {
-            String payloadJson = decryptNullable(row.payloadEnc());
+            String payloadJson = fieldEncryptor.decryptNullable(row.payloadEnc());
             dataPort.updatePaymentAttempt(new PaymentAttemptRotatedRow(
                     row.id(),
                     encryptNullable(payloadJson),
@@ -175,10 +175,6 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         if (!fieldEncryptor.activeKeyId().equals(blindIndexKeyRing.activeKeyId())) {
             throw new IllegalStateException("AES와 HMAC 활성 키 ID가 일치해야 합니다.");
         }
-    }
-
-    private String decryptNullable(String encrypted) {
-        return encrypted == null ? null : fieldEncryptor.decrypt(encrypted);
     }
 
     private String reencryptNullable(String encrypted) {

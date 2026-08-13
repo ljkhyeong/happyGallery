@@ -20,9 +20,6 @@ public class ReviewTombstoneRetentionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public int deleteBatchBefore(LocalDateTime cutoff, int limit) {
-        if (limit < 1) {
-            throw new IllegalArgumentException("삭제 배치 크기는 1 이상이어야 합니다.");
-        }
         return retentionPort.deleteUnblockedBefore(cutoff, limit);
     }
 }

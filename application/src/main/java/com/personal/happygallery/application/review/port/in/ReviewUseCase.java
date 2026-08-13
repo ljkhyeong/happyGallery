@@ -233,7 +233,7 @@ public interface ReviewUseCase {
     ReviewItem upsertOfficialReply(
             Long reviewId, String content, long expectedVersion, Long adminUserId);
 
-    ReviewItem deleteOfficialReply(Long reviewId, long expectedVersion, Long adminUserId);
+    ReviewItem deleteOfficialReply(Long reviewId, long expectedVersion);
 
     ReviewReportItem createReport(
             Long userId, Long reviewId, ReviewReportReason reason, String detail);

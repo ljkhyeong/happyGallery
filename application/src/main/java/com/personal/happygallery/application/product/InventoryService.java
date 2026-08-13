@@ -7,7 +7,6 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -121,7 +120,7 @@ public class InventoryService {
         for (Inventory inventory : inventories) {
             savedInventories.add(inventoryStorePort.save(inventory));
         }
-        return Collections.unmodifiableList(savedInventories);
+        return List.copyOf(savedInventories);
     }
 
     public record InventoryAdjustment(Long productId, int qty) {}

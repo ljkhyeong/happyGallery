@@ -31,9 +31,6 @@ public class ReviewEvidenceRetentionService {
 
     @Transactional
     public int deleteExpiredBatch(LocalDateTime now, int limit) {
-        if (limit < 1) {
-            throw new IllegalArgumentException("삭제 배치 크기는 1 이상이어야 합니다.");
-        }
         LocalDateTime cutoff = now.minus(ReviewEvidenceService.RETENTION);
         var actions = moderationPort.findBefore(cutoff, limit);
         moderationPort.deleteAll(actions);

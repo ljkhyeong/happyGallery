@@ -199,7 +199,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 eq(31L), any(), eq(productReview.version()), eq(ADMIN_USER_ID)))
                 .thenReturn(productReview);
         when(reviewUseCase.deleteOfficialReply(
-                31L, productReview.version(), ADMIN_USER_ID))
+                31L, productReview.version()))
                 .thenReturn(productReviewWithoutReply);
         when(reviewUseCase.listAdminReports(
                 eq(ReviewReportStatus.PENDING), isNull(), eq(20)))

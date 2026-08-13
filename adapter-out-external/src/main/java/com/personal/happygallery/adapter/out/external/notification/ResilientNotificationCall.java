@@ -45,13 +45,6 @@ final class ResilientNotificationCall {
         } catch (CallNotPermittedException e) {
             log.warn("[{}] 발송 차단 (circuit open) operation={}", channel, operation);
             return unavailableResult;
-        } catch (TimeoutException e) {
-            log.warn("[{}] 발송 타임아웃 [timeoutMs={} operation={}]",
-                    channel, timeout.toMillis(), operation);
-            return unknownResult;
-        } catch (RejectedExecutionException e) {
-            log.warn("[{}] 발송 대기열 포화 [operation={}]", channel, operation);
-            return unavailableResult;
         } catch (Exception e) {
             Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
