@@ -12,6 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
+import org.springframework.test.jdbc.JdbcTestUtils;
 import org.testcontainers.mysql.MySQLContainer;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -86,7 +87,7 @@ class PersonalDataMigrationTest {
             softly.assertThat(fieldEncryptor.decrypt(payloadEnc))
                     .contains("010-8765-4321", "123456", "게스트 이름");
             softly.assertThat(providerIdHmac).isEqualTo(blindIndexer.index("google-provider-id"));
-            softly.assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM phone_verifications", Long.class))
+            softly.assertThat(JdbcTestUtils.countRowsInTable(jdbc, "phone_verifications"))
                     .isZero();
             softly.assertThat(hasColumn(jdbc, "users", "email")).isFalse();
             softly.assertThat(hasColumn(jdbc, "users", "name")).isFalse();
@@ -135,6 +136,6 @@ class PersonalDataMigrationTest {
                   AND table_name = ?
                   AND column_name = ?
                 """, Long.class, table, column);
-        return count != null && count > 0;
+        return count > 0;
     }
 }

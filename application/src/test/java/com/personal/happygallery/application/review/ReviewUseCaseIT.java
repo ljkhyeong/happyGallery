@@ -50,6 +50,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.jdbc.JdbcTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -1174,7 +1175,7 @@ class ReviewUseCaseIT {
     }
 
     private long tableCount(String tableName) {
-        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + tableName, Long.class);
+        return JdbcTestUtils.countRowsInTable(jdbcTemplate, tableName);
     }
 
     private record ProductOrderSource(Product product, Order order, OrderItem orderItem) {}
