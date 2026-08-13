@@ -7,7 +7,7 @@ import java.util.Optional;
 
 public interface ReviewEvidencePort {
 
-    ReviewEvidenceSnapshot save(ReviewEvidenceSnapshot snapshot);
+    <S extends ReviewEvidenceSnapshot> S save(S snapshot);
 
     Optional<ReviewEvidenceSnapshot> findById(Long snapshotId);
 
@@ -15,5 +15,5 @@ public interface ReviewEvidencePort {
 
     List<ReviewEvidenceSnapshot> findExpired(LocalDateTime now, int limit);
 
-    void deleteAll(List<ReviewEvidenceSnapshot> snapshots);
+    void deleteAll(Iterable<? extends ReviewEvidenceSnapshot> snapshots);
 }

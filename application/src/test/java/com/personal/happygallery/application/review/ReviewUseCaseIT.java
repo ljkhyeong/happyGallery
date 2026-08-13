@@ -1036,7 +1036,7 @@ class ReviewUseCaseIT {
                     .isEqualTo(replied.officialReply().createdAt());
             softly.assertThat(editedReply.officialReply().editedAt()).isNotNull();
             softly.assertThat(replacement.getSortOrder()).isEqualTo(1);
-            softly.assertThat(reviewImageRepository.findByReviewIdOrderBySortOrderAscIdAsc(review.id()))
+            softly.assertThat(reviewImageRepository.findByReviewId(review.id()))
                     .extracting(com.personal.happygallery.domain.review.ReviewImage::getSortOrder)
                     .containsExactly(0, 1, 2);
             softly.assertThat(reviewRepository.findById(review.id()).orElseThrow()

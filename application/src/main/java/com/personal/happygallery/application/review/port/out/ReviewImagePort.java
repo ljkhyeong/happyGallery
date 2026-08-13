@@ -6,7 +6,7 @@ import java.util.Optional;
 
 public interface ReviewImagePort {
 
-    ReviewImage save(ReviewImage image);
+    <S extends ReviewImage> S save(S image);
 
     Optional<ReviewImage> findByIdAndReviewId(Long imageId, Long reviewId);
 

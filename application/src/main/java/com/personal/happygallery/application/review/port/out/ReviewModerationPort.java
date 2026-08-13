@@ -6,11 +6,11 @@ import java.util.List;
 
 public interface ReviewModerationPort {
 
-    ReviewModerationAction save(ReviewModerationAction action);
+    <S extends ReviewModerationAction> S save(S action);
 
     List<ReviewModerationAction> findByReviewId(Long reviewId);
 
     List<ReviewModerationAction> findBefore(LocalDateTime cutoff, int limit);
 
-    void deleteAll(List<ReviewModerationAction> actions);
+    void deleteAll(Iterable<? extends ReviewModerationAction> actions);
 }
