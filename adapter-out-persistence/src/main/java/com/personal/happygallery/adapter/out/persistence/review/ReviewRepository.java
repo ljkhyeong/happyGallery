@@ -30,45 +30,52 @@ import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 public interface ReviewRepository
         extends JpaRepository<Review, Long>, ReviewReaderPort, ReviewEligibilityPort {
 
-    String VIEW_COLUMNS = """
-            SELECT r.id AS id,
-                   r.userId AS userId,
-                   r.orderItemId AS orderItemId,
-                   r.productId AS productId,
-                   r.bookingId AS bookingId,
-                   r.bookingClassId AS bookingClassId,
-                   r.rating AS rating,
-                   r.content AS content,
-                   r.status AS status,
-                   r.contentRevision AS contentRevision,
-                   r.version AS version,
-                   r.hiddenReason AS hiddenReason,
-                   r.hiddenAt AS hiddenAt,
-                   r.hiddenByAdminId AS hiddenByAdminId,
-                   r.createdAt AS createdAt,
-                   r.updatedAt AS updatedAt,
-                   r.editedAt AS editedAt,
-                   r.replyContent AS replyContent,
-                   r.replyAdminId AS replyAdminId,
-                   r.replyCreatedAt AS replyCreatedAt,
-                   r.replyEditedAt AS replyEditedAt
+    String VIEW_CONSTRUCTOR_PREFIX = """
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewListView(
+                   r.id,
+                   r.userId,
+                   r.orderItemId,
+                   r.productId,
+                   r.bookingId,
+                   r.bookingClassId,
             """;
 
-    String BASE_VIEW = VIEW_COLUMNS + """
-                   , CASE WHEN p.id IS NOT NULL THEN p.name ELSE c.name END AS targetName
+    String VIEW_CONSTRUCTOR_SUFFIX = """
+                   r.rating,
+                   r.content,
+                   r.status,
+                   r.contentRevision,
+                   r.version,
+                   r.hiddenReason,
+                   r.hiddenAt,
+                   r.hiddenByAdminId,
+                   r.createdAt,
+                   r.updatedAt,
+                   r.editedAt,
+                   r.replyContent,
+                   r.replyAdminId,
+                   r.replyCreatedAt,
+                   r.replyEditedAt)
+            """;
+
+    String BASE_VIEW = VIEW_CONSTRUCTOR_PREFIX + """
+                   CASE WHEN p.id IS NOT NULL THEN p.name ELSE c.name END,
+            """ + VIEW_CONSTRUCTOR_SUFFIX + """
             FROM Review r
             LEFT JOIN Product p ON p.id = r.productId
             LEFT JOIN BookingClass c ON c.id = r.bookingClassId
             """;
 
-    String PRODUCT_PUBLIC_VIEW = VIEW_COLUMNS + """
-                   , p.name AS targetName
+    String PRODUCT_PUBLIC_VIEW = VIEW_CONSTRUCTOR_PREFIX + """
+                   p.name,
+            """ + VIEW_CONSTRUCTOR_SUFFIX + """
             FROM Review r
             JOIN Product p ON p.id = r.productId
             """;
 
-    String CLASS_PUBLIC_VIEW = VIEW_COLUMNS + """
-                   , c.name AS targetName
+    String CLASS_PUBLIC_VIEW = VIEW_CONSTRUCTOR_PREFIX + """
+                   c.name,
+            """ + VIEW_CONSTRUCTOR_SUFFIX + """
             FROM Review r
             JOIN BookingClass c ON c.id = r.bookingClassId
             """;
@@ -101,16 +108,18 @@ public interface ReviewRepository
     @Query("SELECT r FROM Review r WHERE r.id = :reviewId AND r.deletedAt IS NULL")
     Optional<Review> findByIdForUpdate(@Param("reviewId") Long reviewId);
 
+    @Override
     @Query(BASE_VIEW + " WHERE r.id = :reviewId AND r.deletedAt IS NULL")
-    Optional<ReviewRowProjection> findViewRowById(@Param("reviewId") Long reviewId);
+    Optional<ReviewListView> findViewById(@Param("reviewId") Long reviewId);
 
     @Query("""
-            SELECT r.id AS reviewId, r.userId AS ownerUserId, r.status AS status
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewInteractionStateView(
+                   r.id, r.userId, r.status)
             FROM Review r
             WHERE r.id IN :reviewIds
               AND r.deletedAt IS NULL
             """)
-    List<ReviewInteractionStateProjection> findInteractionStateRows(
+    List<ReviewInteractionStateView> findInteractionStateRows(
             @Param("reviewIds") List<Long> reviewIds);
 
     @Query(PRODUCT_PUBLIC_VIEW + """
@@ -125,7 +134,7 @@ public interface ReviewRepository
               )
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedProductLatestRows(
+    List<ReviewListView> findPublishedProductLatestRows(
             @Param("productId") Long productId,
             @Param("rating") Integer rating,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
@@ -146,7 +155,7 @@ public interface ReviewRepository
               )
             ORDER BY r.rating DESC, r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedProductRatingHighRows(
+    List<ReviewListView> findPublishedProductRatingHighRows(
             @Param("productId") Long productId,
             @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
@@ -168,7 +177,7 @@ public interface ReviewRepository
               )
             ORDER BY r.rating ASC, r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedProductRatingLowRows(
+    List<ReviewListView> findPublishedProductRatingLowRows(
             @Param("productId") Long productId,
             @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
@@ -188,7 +197,7 @@ public interface ReviewRepository
               )
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedClassLatestRows(
+    List<ReviewListView> findPublishedClassLatestRows(
             @Param("classId") Long classId,
             @Param("rating") Integer rating,
             @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
@@ -209,7 +218,7 @@ public interface ReviewRepository
               )
             ORDER BY r.rating DESC, r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedClassRatingHighRows(
+    List<ReviewListView> findPublishedClassRatingHighRows(
             @Param("classId") Long classId,
             @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
@@ -231,7 +240,7 @@ public interface ReviewRepository
               )
             ORDER BY r.rating ASC, r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findPublishedClassRatingLowRows(
+    List<ReviewListView> findPublishedClassRatingLowRows(
             @Param("classId") Long classId,
             @Param("rating") Integer rating,
             @Param("cursorRating") Integer cursorRating,
@@ -240,35 +249,40 @@ public interface ReviewRepository
             Pageable pageable);
 
     @Query("""
-            SELECT COUNT(r.id) AS reviewCount,
-                   COALESCE(AVG(r.rating), 0.0) AS averageRating,
-                   COALESCE(SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END), 0) AS rating1,
-                   COALESCE(SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END), 0) AS rating2,
-                   COALESCE(SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END), 0) AS rating3,
-                   COALESCE(SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END), 0) AS rating4,
-                   COALESCE(SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END), 0) AS rating5
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewSummaryView(
+                   COUNT(r.id),
+                   COALESCE(AVG(r.rating), 0.0),
+                   COALESCE(SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END), 0))
             FROM Review r
             WHERE r.productId = :productId
               AND r.deletedAt IS NULL
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
             """)
-    ReviewSummaryProjection summarizeProductRow(@Param("productId") Long productId);
+    @Override
+    ReviewSummaryView summarizePublishedProduct(@Param("productId") Long productId);
 
     @Query("""
-            SELECT COUNT(r.id) AS reviewCount,
-                   COALESCE(AVG(r.rating), 0.0) AS averageRating,
-                   COALESCE(SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END), 0) AS rating1,
-                   COALESCE(SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END), 0) AS rating2,
-                   COALESCE(SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END), 0) AS rating3,
-                   COALESCE(SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END), 0) AS rating4,
-                   COALESCE(SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END), 0) AS rating5
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewSummaryView(
+                   COUNT(r.id),
+                   COALESCE(AVG(r.rating), 0.0),
+                   COALESCE(SUM(CASE WHEN r.rating = 1 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 2 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 3 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 4 THEN 1 ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN r.rating = 5 THEN 1 ELSE 0 END), 0))
             FROM Review r
             WHERE r.bookingClassId = :classId
               AND r.deletedAt IS NULL
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
             """)
-    ReviewSummaryProjection summarizeClassRow(@Param("classId") Long classId);
+    @Override
+    ReviewSummaryView summarizePublishedClass(@Param("classId") Long classId);
 
+    @Override
     @Query("""
             SELECT COUNT(r.id) FROM Review r
             WHERE r.productId = :productId
@@ -276,9 +290,10 @@ public interface ReviewRepository
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
               AND (:rating IS NULL OR r.rating = :rating)
             """)
-    long countPublishedProductRows(
+    long countPublishedProduct(
             @Param("productId") Long productId, @Param("rating") Integer rating);
 
+    @Override
     @Query("""
             SELECT COUNT(r.id) FROM Review r
             WHERE r.bookingClassId = :classId
@@ -286,7 +301,7 @@ public interface ReviewRepository
               AND r.status = com.personal.happygallery.domain.review.ReviewStatus.PUBLISHED
               AND (:rating IS NULL OR r.rating = :rating)
             """)
-    long countPublishedClassRows(
+    long countPublishedClass(
             @Param("classId") Long classId, @Param("rating") Integer rating);
 
     @Query(BASE_VIEW + """
@@ -294,7 +309,7 @@ public interface ReviewRepository
               AND r.deletedAt IS NULL
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findUserRows(@Param("userId") Long userId, Pageable pageable);
+    List<ReviewListView> findUserRows(@Param("userId") Long userId, Pageable pageable);
 
     @Query(BASE_VIEW + """
             WHERE r.userId = :userId
@@ -303,7 +318,7 @@ public interface ReviewRepository
                    OR (r.createdAt = :createdAt AND r.id < :id))
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findUserRowsAfter(
+    List<ReviewListView> findUserRowsAfter(
             @Param("userId") Long userId,
             @Param("createdAt") LocalDateTime createdAt,
             @Param("id") Long id,
@@ -318,7 +333,8 @@ public interface ReviewRepository
               AND r.deletedAt IS NULL
             ORDER BY oi.id ASC, r.id ASC
             """)
-    List<ReviewRowProjection> findOwnedOrderRows(
+    @Override
+    List<ReviewListView> findByOwnedOrder(
             @Param("userId") Long userId, @Param("orderId") Long orderId);
 
     @Query(BASE_VIEW + """
@@ -329,7 +345,8 @@ public interface ReviewRepository
               AND r.deletedAt IS NULL
             ORDER BY r.id ASC
             """)
-    List<ReviewRowProjection> findOwnedBookingRows(
+    @Override
+    List<ReviewListView> findByOwnedBooking(
             @Param("userId") Long userId, @Param("bookingId") Long bookingId);
 
     @Query(BASE_VIEW + """
@@ -339,7 +356,7 @@ public interface ReviewRepository
               AND (:classOnly = false OR r.bookingClassId IS NOT NULL)
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findAdminRows(
+    List<ReviewListView> findAdminRows(
             @Param("status") ReviewStatus status,
             @Param("productOnly") boolean productOnly,
             @Param("classOnly") boolean classOnly,
@@ -354,7 +371,7 @@ public interface ReviewRepository
                    OR (r.createdAt = :createdAt AND r.id < :id))
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewRowProjection> findAdminRowsAfter(
+    List<ReviewListView> findAdminRowsAfter(
             @Param("status") ReviewStatus status,
             @Param("productOnly") boolean productOnly,
             @Param("classOnly") boolean classOnly,
@@ -386,36 +403,42 @@ public interface ReviewRepository
     Optional<ClassReviewSourceProjection> findOwnedClassSourceRow(
             @Param("userId") Long userId, @Param("bookingId") Long bookingId);
 
+    @Override
     @Query("""
             SELECT CASE WHEN COUNT(o.id) > 0 THEN true ELSE false END
             FROM Order o WHERE o.id = :orderId AND o.userId = :userId
             """)
-    boolean existsOwnedOrderRow(@Param("userId") Long userId, @Param("orderId") Long orderId);
+    boolean existsOwnedOrder(@Param("userId") Long userId, @Param("orderId") Long orderId);
 
+    @Override
     @Query("""
             SELECT CASE WHEN COUNT(b.id) > 0 THEN true ELSE false END
             FROM Booking b WHERE b.id = :bookingId AND b.userId = :userId
             """)
-    boolean existsOwnedBookingRow(@Param("userId") Long userId, @Param("bookingId") Long bookingId);
+    boolean existsOwnedBooking(@Param("userId") Long userId, @Param("bookingId") Long bookingId);
 
     @Query("""
-            SELECT CASE WHEN r.deletedAt IS NULL THEN true ELSE false END AS active,
-                   r.recreationBlocked AS recreationBlocked
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewSourceReservationView(
+                   CASE WHEN r.deletedAt IS NULL THEN true ELSE false END,
+                   r.recreationBlocked)
             FROM Review r
             WHERE r.orderItemId = :orderItemId
               AND (r.deletedAt IS NULL OR r.recreationBlocked = true)
             """)
-    Optional<SourceReservationProjection> findProductSourceReservationRow(
+    @Override
+    Optional<ReviewSourceReservationView> findProductSourceReservation(
             @Param("orderItemId") Long orderItemId);
 
     @Query("""
-            SELECT CASE WHEN r.deletedAt IS NULL THEN true ELSE false END AS active,
-                   r.recreationBlocked AS recreationBlocked
+            SELECT new com.personal.happygallery.application.review.port.out.ReviewSourceReservationView(
+                   CASE WHEN r.deletedAt IS NULL THEN true ELSE false END,
+                   r.recreationBlocked)
             FROM Review r
             WHERE r.bookingId = :bookingId
               AND (r.deletedAt IS NULL OR r.recreationBlocked = true)
             """)
-    Optional<SourceReservationProjection> findClassSourceReservationRow(
+    @Override
+    Optional<ReviewSourceReservationView> findClassSourceReservation(
             @Param("bookingId") Long bookingId);
 
     @Query("""
@@ -492,19 +515,11 @@ public interface ReviewRepository
             Pageable pageable);
 
     @Override
-    default Optional<ReviewListView> findViewById(Long reviewId) {
-        return findViewRowById(reviewId).map(ReviewRepository::toView);
-    }
-
-    @Override
     default List<ReviewInteractionStateView> findInteractionStates(List<Long> reviewIds) {
         if (reviewIds.isEmpty()) {
             return List.of();
         }
-        return findInteractionStateRows(reviewIds).stream()
-                .map(row -> new ReviewInteractionStateView(
-                        row.getReviewId(), row.getOwnerUserId(), row.getStatus()))
-                .toList();
+        return findInteractionStateRows(reviewIds);
     }
 
     @Override
@@ -517,7 +532,7 @@ public interface ReviewRepository
             Long cursorId,
             int limit) {
         Pageable pageable = PageRequest.ofSize(limit);
-        List<ReviewRowProjection> rows = switch (sort) {
+        return switch (sort) {
             case LATEST -> findPublishedProductLatestRows(
                     productId, rating, cursorCreatedAt, cursorId, pageable);
             case RATING_HIGH -> findPublishedProductRatingHighRows(
@@ -535,7 +550,6 @@ public interface ReviewRepository
                     cursorId,
                     pageable);
         };
-        return toViews(rows);
     }
 
     @Override
@@ -548,7 +562,7 @@ public interface ReviewRepository
             Long cursorId,
             int limit) {
         Pageable pageable = PageRequest.ofSize(limit);
-        List<ReviewRowProjection> rows = switch (sort) {
+        return switch (sort) {
             case LATEST -> findPublishedClassLatestRows(
                     classId, rating, cursorCreatedAt, cursorId, pageable);
             case RATING_HIGH -> findPublishedClassRatingHighRows(
@@ -566,58 +580,27 @@ public interface ReviewRepository
                     cursorId,
                     pageable);
         };
-        return toViews(rows);
-    }
-
-    @Override
-    default ReviewSummaryView summarizePublishedProduct(Long productId) {
-        return toSummary(summarizeProductRow(productId));
-    }
-
-    @Override
-    default ReviewSummaryView summarizePublishedClass(Long classId) {
-        return toSummary(summarizeClassRow(classId));
-    }
-
-    @Override
-    default long countPublishedProduct(Long productId, Integer rating) {
-        return countPublishedProductRows(productId, rating);
-    }
-
-    @Override
-    default long countPublishedClass(Long classId, Integer rating) {
-        return countPublishedClassRows(classId, rating);
     }
 
     @Override
     default List<ReviewListView> findByUserId(Long userId, int limit) {
-        return toViews(findUserRows(userId, PageRequest.ofSize(limit)));
+        return findUserRows(userId, PageRequest.ofSize(limit));
     }
 
     @Override
     default List<ReviewListView> findByUserIdAfter(
             Long userId, LocalDateTime createdAt, Long id, int limit) {
-        return toViews(findUserRowsAfter(userId, createdAt, id, PageRequest.ofSize(limit)));
-    }
-
-    @Override
-    default List<ReviewListView> findByOwnedOrder(Long userId, Long orderId) {
-        return toViews(findOwnedOrderRows(userId, orderId));
-    }
-
-    @Override
-    default List<ReviewListView> findByOwnedBooking(Long userId, Long bookingId) {
-        return toViews(findOwnedBookingRows(userId, bookingId));
+        return findUserRowsAfter(userId, createdAt, id, PageRequest.ofSize(limit));
     }
 
     @Override
     default List<ReviewListView> findForAdmin(
             ReviewTargetType targetType, ReviewStatus status, int limit) {
-        return toViews(findAdminRows(
+        return findAdminRows(
                 status,
                 targetType == ReviewTargetType.PRODUCT,
                 targetType == ReviewTargetType.CLASS,
-                PageRequest.ofSize(limit)));
+                PageRequest.ofSize(limit));
     }
 
     @Override
@@ -627,13 +610,13 @@ public interface ReviewRepository
             LocalDateTime createdAt,
             Long id,
             int limit) {
-        return toViews(findAdminRowsAfter(
+        return findAdminRowsAfter(
                 status,
                 targetType == ReviewTargetType.PRODUCT,
                 targetType == ReviewTargetType.CLASS,
                 createdAt,
                 id,
-                PageRequest.ofSize(limit)));
+                PageRequest.ofSize(limit));
     }
 
     @Override
@@ -648,30 +631,6 @@ public interface ReviewRepository
         return findOwnedClassSourceRow(userId, bookingId)
                 .map(item -> new ClassReviewSource(
                         item.getBookingId(), item.getBookingClassId(), item.getBookingStatus()));
-    }
-
-    @Override
-    default boolean existsOwnedOrder(Long userId, Long orderId) {
-        return existsOwnedOrderRow(userId, orderId);
-    }
-
-    @Override
-    default boolean existsOwnedBooking(Long userId, Long bookingId) {
-        return existsOwnedBookingRow(userId, bookingId);
-    }
-
-    @Override
-    default Optional<ReviewSourceReservationView> findProductSourceReservation(Long orderItemId) {
-        return findProductSourceReservationRow(orderItemId)
-                .map(row -> new ReviewSourceReservationView(
-                        row.getActive(), row.getRecreationBlocked()));
-    }
-
-    @Override
-    default Optional<ReviewSourceReservationView> findClassSourceReservation(Long bookingId) {
-        return findClassSourceReservationRow(bookingId)
-                .map(row -> new ReviewSourceReservationView(
-                        row.getActive(), row.getRecreationBlocked()));
     }
 
     @Override
@@ -727,88 +686,6 @@ public interface ReviewRepository
         return targetType == ReviewTargetType.PRODUCT ? 0 : 1;
     }
 
-    private static List<ReviewListView> toViews(List<ReviewRowProjection> rows) {
-        return rows.stream().map(ReviewRepository::toView).toList();
-    }
-
-    private static ReviewListView toView(ReviewRowProjection row) {
-        return new ReviewListView(
-                row.getId(),
-                row.getUserId(),
-                row.getOrderItemId(),
-                row.getProductId(),
-                row.getBookingId(),
-                row.getBookingClassId(),
-                row.getTargetName(),
-                row.getRating(),
-                row.getContent(),
-                row.getStatus(),
-                row.getContentRevision(),
-                row.getVersion(),
-                row.getHiddenReason(),
-                row.getHiddenAt(),
-                row.getHiddenByAdminId(),
-                row.getCreatedAt(),
-                row.getUpdatedAt(),
-                row.getEditedAt(),
-                row.getReplyContent(),
-                row.getReplyAdminId(),
-                row.getReplyCreatedAt(),
-                row.getReplyEditedAt());
-    }
-
-    private static ReviewSummaryView toSummary(ReviewSummaryProjection row) {
-        return new ReviewSummaryView(
-                row.getReviewCount(),
-                row.getAverageRating(),
-                row.getRating1(),
-                row.getRating2(),
-                row.getRating3(),
-                row.getRating4(),
-                row.getRating5());
-    }
-
-    interface ReviewRowProjection {
-        Long getId();
-        Long getUserId();
-        Long getOrderItemId();
-        Long getProductId();
-        Long getBookingId();
-        Long getBookingClassId();
-        String getTargetName();
-        int getRating();
-        String getContent();
-        ReviewStatus getStatus();
-        long getContentRevision();
-        long getVersion();
-        String getHiddenReason();
-        LocalDateTime getHiddenAt();
-        Long getHiddenByAdminId();
-        LocalDateTime getCreatedAt();
-        LocalDateTime getUpdatedAt();
-        LocalDateTime getEditedAt();
-        String getReplyContent();
-        Long getReplyAdminId();
-        LocalDateTime getReplyCreatedAt();
-        LocalDateTime getReplyEditedAt();
-    }
-
-    interface ReviewInteractionStateProjection {
-        Long getReviewId();
-        Long getOwnerUserId();
-        ReviewStatus getStatus();
-    }
-
-    interface ReviewSummaryProjection {
-        long getReviewCount();
-        double getAverageRating();
-        long getRating1();
-        long getRating2();
-        long getRating3();
-        long getRating4();
-        long getRating5();
-    }
-
     interface ProductReviewSourceProjection {
         Long getOrderItemId();
         Long getProductId();
@@ -819,11 +696,6 @@ public interface ReviewRepository
         Long getBookingId();
         Long getBookingClassId();
         BookingStatus getBookingStatus();
-    }
-
-    interface SourceReservationProjection {
-        boolean getActive();
-        boolean getRecreationBlocked();
     }
 
     interface ProductOpportunityProjection {
