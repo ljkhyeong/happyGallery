@@ -453,14 +453,13 @@ class DomainInvariantMigrationTest {
     }
 
     private long constraintCount(JdbcTemplate jdbc, String table, String constraint) {
-        Long count = jdbc.queryForObject("""
+        return jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.table_constraints
                 WHERE table_schema = DATABASE()
                   AND table_name = ?
                   AND constraint_name = ?
                 """, Long.class, table, constraint);
-        return count == null ? 0L : count;
     }
 
     private String columnNullable(JdbcTemplate jdbc, String table, String column) {

@@ -37,9 +37,9 @@ class JdbcReviewNotificationEligibilityAdapter implements ReviewNotificationElig
                           )
                         """)
                 .param("orderId", orderId)
-                .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(Long.class)
+                .optional()
+                .map(NotificationReminderRecipient::forUser);
     }
 
     @Override
@@ -59,9 +59,9 @@ class JdbcReviewNotificationEligibilityAdapter implements ReviewNotificationElig
                           )
                         """)
                 .param("bookingId", bookingId)
-                .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(Long.class)
+                .optional()
+                .map(NotificationReminderRecipient::forUser);
     }
 
     @Override
@@ -85,9 +85,9 @@ class JdbcReviewNotificationEligibilityAdapter implements ReviewNotificationElig
                           AND TRIM(reply_content) <> ''
                         """)
                 .param("reviewId", reviewId)
-                .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(Long.class)
+                .optional()
+                .map(NotificationReminderRecipient::forUser);
     }
 
     private Optional<NotificationReminderRecipient> findModerationRecipient(
@@ -109,8 +109,8 @@ class JdbcReviewNotificationEligibilityAdapter implements ReviewNotificationElig
                 .param("moderationActionId", moderationActionId)
                 .param("action", action)
                 .param("currentStatus", currentStatus)
-                .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(Long.class)
+                .optional()
+                .map(NotificationReminderRecipient::forUser);
     }
 }

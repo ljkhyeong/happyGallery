@@ -33,10 +33,9 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .param("bookingId", bookingId)
                 .param("startInclusive", startInclusive)
                 .param("endExclusive", endExclusive)
-                .query((rs, rowNum) -> recipient(
-                        rs.getObject("guest_id", Long.class),
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(RecipientIds.class)
+                .optional()
+                .map(RecipientIds::toRecipient);
     }
 
     @Override
@@ -56,10 +55,9 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .param("bookingId", bookingId)
                 .param("startExclusive", startExclusive)
                 .param("endExclusive", endExclusive)
-                .query((rs, rowNum) -> recipient(
-                        rs.getObject("guest_id", Long.class),
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(RecipientIds.class)
+                .optional()
+                .map(RecipientIds::toRecipient);
     }
 
     @Override
@@ -77,9 +75,9 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .param("passId", passId)
                 .param("nowExclusive", nowExclusive)
                 .param("latestExpiryInclusive", latestExpiryInclusive)
-                .query((rs, rowNum) -> NotificationReminderRecipient.forUser(
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(Long.class)
+                .optional()
+                .map(NotificationReminderRecipient::forUser);
     }
 
     @Override
@@ -99,15 +97,17 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                 .param("orderId", orderId)
                 .param("nowExclusive", nowExclusive)
                 .param("latestDeadlineInclusive", latestDeadlineInclusive)
-                .query((rs, rowNum) -> recipient(
-                        rs.getObject("guest_id", Long.class),
-                        rs.getObject("user_id", Long.class)))
-                .optional();
+                .query(RecipientIds.class)
+                .optional()
+                .map(RecipientIds::toRecipient);
     }
 
-    private static NotificationReminderRecipient recipient(Long guestId, Long userId) {
-        return userId != null
-                ? NotificationReminderRecipient.forUser(userId)
-                : NotificationReminderRecipient.forGuest(guestId);
+    private record RecipientIds(Long userId, Long guestId) {
+
+        NotificationReminderRecipient toRecipient() {
+            return userId != null
+                    ? NotificationReminderRecipient.forUser(userId)
+                    : NotificationReminderRecipient.forGuest(guestId);
+        }
     }
 }

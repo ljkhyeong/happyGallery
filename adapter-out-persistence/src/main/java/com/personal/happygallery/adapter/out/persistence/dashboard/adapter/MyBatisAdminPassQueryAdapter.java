@@ -4,9 +4,6 @@ import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminP
 import com.personal.happygallery.application.search.port.out.AdminPassQueryPort;
 import com.personal.happygallery.application.search.port.out.AdminPassQueryResult;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
-import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.user.KoreanPhoneNumber;
-import com.personal.happygallery.domain.user.PersonalName;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -30,10 +27,12 @@ class MyBatisAdminPassQueryAdapter implements AdminPassQueryPort {
     @Override
     public List<AdminPassQueryResult> search(String keyword, LocalDateTime now, int offset, int size) {
         AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_PASS_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.search(
                 searchKeyword.keyword(),
-                indexName(searchKeyword.keyword()),
-                indexPhone(searchKeyword.keyword()),
+                indexes.nameHmac(),
+                indexes.phoneHmac(),
                 searchKeyword.exactId(),
                 now,
                 offset,
@@ -43,30 +42,17 @@ class MyBatisAdminPassQueryAdapter implements AdminPassQueryPort {
     @Override
     public long count(String keyword) {
         AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_PASS_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.count(
                 searchKeyword.keyword(),
-                indexName(searchKeyword.keyword()),
-                indexPhone(searchKeyword.keyword()),
+                indexes.nameHmac(),
+                indexes.phoneHmac(),
                 searchKeyword.exactId());
     }
 
     @Override
     public Optional<AdminPassQueryResult> findById(Long passId, LocalDateTime now) {
         return mapper.findById(passId, now);
-    }
-
-    private String indexName(String keyword) {
-        return keyword == null ? null : blindIndexer.index(PersonalName.required(keyword));
-    }
-
-    private String indexPhone(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        try {
-            return blindIndexer.index(KoreanPhoneNumber.required(keyword));
-        } catch (HappyGalleryException ignored) {
-            return null;
-        }
     }
 }

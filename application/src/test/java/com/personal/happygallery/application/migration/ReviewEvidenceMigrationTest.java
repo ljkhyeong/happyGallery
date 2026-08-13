@@ -166,13 +166,12 @@ class ReviewEvidenceMigrationTest {
     }
 
     private long columnCount(JdbcTemplate jdbc, String table, String column) {
-        Long count = jdbc.queryForObject("""
+        return jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM information_schema.columns
                 WHERE table_schema = DATABASE()
                   AND table_name = ?
                   AND column_name = ?
                 """, Long.class, table, column);
-        return count == null ? 0L : count;
     }
 }
