@@ -102,6 +102,7 @@
 - 커밋 메시지는 `Feat:`, `Refactor:`, `Fix:`, `Test:`, `Docs:`, `Chore:`
 - 커밋 메시지 prefix 뒤 본문은 특별한 이유가 없으면 한글로, 변경 내용을 드러내는 구체적인 내용으로 작성
 - 커밋은 한 변경 의도에 집중해 작게 유지
+- 작업을 마치면 변경을 의도별로 분류해 커밋까지 완료하고 작업트리를 깨끗하게 정리한다. 원격 푸시는 사용자가 요청한 경우에만 수행한다.
 - 작업 브랜치는 `codex/work-*`
 - 기본 흐름: `codex/work-*` → `codexReview` Draft PR → `codexReview` merge → `main` PR → `main` merge
 - PR 제목/본문은 특별한 이유가 없으면 한글
