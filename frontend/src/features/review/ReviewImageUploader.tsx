@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
-import { Alert, Button, Form } from "react-bootstrap";
+import { Alert, Button, Form, Modal } from "react-bootstrap";
 import type { MemberReviewResponse } from "@/generated/api/review";
 import {
   captureCustomerSession,
@@ -16,7 +16,12 @@ import { MemberReviewProtectedImage } from "./MemberReviewProtectedImage";
 import { MAX_REVIEW_IMAGES, reviewImageSelectionError } from "./reviewUiPolicy";
 
 export function ReviewImageUploader({ review }: { review: MemberReviewResponse }) {
+  const deleteConfirmationTitleId = useId();
   const [files, setFiles] = useState<File[]>([]);
+  const [pendingDeleteImage, setPendingDeleteImage] = useState<{
+    imageId: number;
+    index: number;
+  } | null>(null);
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
   const [uploadProgressMessage, setUploadProgressMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -85,6 +90,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
         toast.show("후기 사진을 삭제했습니다.");
       },
     ),
+    onSuccess: () => setPendingDeleteImage(null),
   });
 
   const remainingCount = MAX_REVIEW_IMAGES - review.images.length;
@@ -109,10 +115,12 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
                 size="sm"
                 variant="danger"
                 aria-label={`등록한 후기 사진 ${index + 1} 삭제`}
+                aria-haspopup="dialog"
                 disabled={deleteMutation.isPending || uploadMutation.isPending}
                 onClick={() => {
                   uploadMutation.reset();
-                  deleteMutation.mutate(image.id);
+                  deleteMutation.reset();
+                  setPendingDeleteImage({ imageId: image.id, index });
                 }}
               >
                 <Trash2 size={14} aria-hidden="true" />
@@ -224,8 +232,54 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
         </div>
       )}
       <div className="mt-2">
-        <ErrorAlert error={uploadMutation.error ?? deleteMutation.error} />
+        <ErrorAlert error={uploadMutation.error} />
       </div>
+      <Modal
+        show={pendingDeleteImage !== null}
+        onHide={() => {
+          if (deleteMutation.isPending) return;
+          deleteMutation.reset();
+          setPendingDeleteImage(null);
+        }}
+        centered
+        aria-labelledby={deleteConfirmationTitleId}
+      >
+        <Modal.Header closeButton={!deleteMutation.isPending} closeLabel="닫기">
+          <Modal.Title id={deleteConfirmationTitleId} className="fs-6">
+            후기 사진 삭제
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0">
+            등록한 후기 사진 {(pendingDeleteImage?.index ?? 0) + 1}을 삭제할까요?
+            삭제한 사진은 복구할 수 없습니다.
+          </p>
+          <div className="mt-3"><ErrorAlert error={deleteMutation.error} /></div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            type="button"
+            variant="outline-secondary"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              deleteMutation.reset();
+              setPendingDeleteImage(null);
+            }}
+          >
+            취소
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            disabled={deleteMutation.isPending || pendingDeleteImage === null}
+            onClick={() => {
+              if (pendingDeleteImage) deleteMutation.mutate(pendingDeleteImage.imageId);
+            }}
+          >
+            {deleteMutation.isPending ? "삭제 중..." : "사진 삭제"}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </section>
   );
 }

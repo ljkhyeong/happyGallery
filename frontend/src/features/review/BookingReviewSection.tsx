@@ -6,6 +6,7 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchClassReviewCreationState, fetchMyBookingReviews } from "./api";
 import { MemberReviewCard } from "./MemberReviewCard";
 import { ReviewForm } from "./ReviewForm";
+import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useCreateClassReview } from "./useReviewMutations";
 
 interface Props {
@@ -26,6 +27,7 @@ export function BookingReviewSection({ bookingId, className }: Props) {
     ),
   });
   const createMutation = useCreateClassReview(() => setWriting(false));
+  const rememberWritingTrigger = useReviewFormTriggerFocus(writing);
   const review = reviewsQuery.data?.[0];
   const reviewStateAvailable = reviewsQuery.data !== undefined;
 
@@ -42,7 +44,16 @@ export function BookingReviewSection({ bookingId, className }: Props) {
           </p>
         </div>
         {creationStateQuery.data?.status === "AVAILABLE" && reviewStateAvailable && !review && !writing && (
-          <Button type="button" size="sm" variant="outline-dark" onClick={() => setWriting(true)}>
+          <Button
+            id={`booking-review-write-${bookingId}`}
+            type="button"
+            size="sm"
+            variant="outline-dark"
+            onClick={(event) => {
+              rememberWritingTrigger(event.currentTarget);
+              setWriting(true);
+            }}
+          >
             후기 작성
           </Button>
         )}
@@ -74,6 +85,7 @@ export function BookingReviewSection({ bookingId, className }: Props) {
         <Card className="review-card">
           <Card.Body>
             <ReviewForm
+              autoFocusFirstInput
               pending={createMutation.isPending}
               error={createMutation.error}
               onCancel={() => {

@@ -289,6 +289,11 @@
   overflow-wrap: anywhere;
 }
 
+.admin-review-evidence,
+.admin-review-audit-content {
+  --hg-ink-soft: var(--hg-ink-soft-on-alt);
+}
+
 .admin-review-evidence {
   margin-top: 0.65rem;
   padding: 0.8rem;
@@ -370,4 +375,12 @@
 
 .admin-review-timeline .admin-review-evidence {
   grid-column: 1 / -1;
+}
+
+.admin-review-report-card,
+.admin-review-report-detail,
+.admin-review-audit-content,
+.admin-review-evidence {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

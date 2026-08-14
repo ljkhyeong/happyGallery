@@ -9,12 +9,14 @@ import { ReviewImageUploader } from "./ReviewImageUploader";
 import { ReviewOfficialReply } from "./ReviewOfficialReply";
 import { ReviewTrustBadges } from "./ReviewTrustBadges";
 import { isReviewContentChangedError } from "./reviewMutationConflict";
+import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useDeleteReview, useUpdateReview } from "./useReviewMutations";
 
 export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const updateMutation = useUpdateReview(() => setEditing(false));
+  const rememberEditingTrigger = useReviewFormTriggerFocus(editing);
   const deleteMutation = useDeleteReview();
   const revisionConflict = isReviewContentChangedError(updateMutation.error);
   const targetHref = review.targetType === "PRODUCT"
@@ -43,7 +45,16 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           </div>
           {!editing && !confirmingDelete && (
             <div className="d-flex gap-2">
-              <Button type="button" size="sm" variant="outline-dark" onClick={() => setEditing(true)}>
+              <Button
+                id={`member-review-edit-${review.id}`}
+                type="button"
+                size="sm"
+                variant="outline-dark"
+                onClick={(event) => {
+                  rememberEditingTrigger(event.currentTarget);
+                  setEditing(true);
+                }}
+              >
                 수정
               </Button>
               <Button type="button" size="sm" variant="outline-danger" onClick={() => setConfirmingDelete(true)}>
@@ -72,6 +83,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               initialRating={review.rating}
               initialContent={review.content}
               submitLabel="수정 저장"
+              autoFocusFirstInput
               pending={updateMutation.isPending}
               error={revisionConflict ? undefined : updateMutation.error}
               hiddenNotice={review.status === "HIDDEN"}

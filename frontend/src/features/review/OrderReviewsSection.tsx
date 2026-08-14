@@ -7,6 +7,7 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchMyOrderReviews, fetchProductReviewCreationState } from "./api";
 import { MemberReviewCard } from "./MemberReviewCard";
 import { ReviewForm } from "./ReviewForm";
+import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useCreateProductReview } from "./useReviewMutations";
 
 interface Props {
@@ -29,6 +30,7 @@ export function OrderReviewsSection({ orderId, items }: Props) {
     })),
   });
   const createMutation = useCreateProductReview(() => setActiveOrderItemId(null));
+  const rememberWritingTrigger = useReviewFormTriggerFocus(activeOrderItemId !== null);
   const reviewStateAvailable = reviewsQuery.data !== undefined;
   const creationStateError = creationStateQueries.find(({ error }) => error);
 
@@ -77,10 +79,12 @@ export function OrderReviewsSection({ orderId, items }: Props) {
                   </div>
                   {creationStatus === "AVAILABLE" && !writing && (
                     <Button
+                      id={`order-item-review-write-${item.orderItemId}`}
                       type="button"
                       size="sm"
                       variant="outline-dark"
-                      onClick={() => {
+                      onClick={(event) => {
+                        rememberWritingTrigger(event.currentTarget);
                         createMutation.reset();
                         setActiveOrderItemId(item.orderItemId);
                       }}
@@ -106,6 +110,7 @@ export function OrderReviewsSection({ orderId, items }: Props) {
                 {writing && creationStatus === "AVAILABLE" && (
                   <div className="mt-3 pt-3 border-top">
                     <ReviewForm
+                      autoFocusFirstInput
                       pending={createMutation.isPending}
                       error={createMutation.error}
                       onCancel={() => {

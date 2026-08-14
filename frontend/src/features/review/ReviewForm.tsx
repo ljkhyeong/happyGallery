@@ -10,6 +10,7 @@ interface Props {
   initialRating?: number;
   initialContent?: string;
   submitLabel?: string;
+  autoFocusFirstInput?: boolean;
   pending?: boolean;
   error?: unknown;
   hiddenNotice?: boolean;
@@ -21,6 +22,7 @@ export function ReviewForm({
   initialRating = 5,
   initialContent = "",
   submitLabel = "후기 등록",
+  autoFocusFirstInput = false,
   pending = false,
   error,
   hiddenNotice = false,
@@ -65,6 +67,7 @@ export function ReviewForm({
                 id={`${inputId}-rating-${value}`}
                 value={value}
                 checked={rating === value}
+                autoFocus={autoFocusFirstInput && value === initialRating}
                 onChange={() => setRating(value)}
                 aria-label={`${value}점`}
                 required

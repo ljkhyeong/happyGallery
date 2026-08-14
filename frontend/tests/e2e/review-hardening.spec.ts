@@ -359,9 +359,15 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   });
   expect(hiddenPublicImageRequests).toBe(0);
 
-  await focusedReviewCard.getByRole("button", { name: "공식 답글 작성" }).click();
-  await focusedReviewCard.getByRole("textbox", { name: "공식 답글", exact: true })
-    .fill("공방에서 확인한 답글");
+  const createReplyButton = focusedReviewCard.getByRole("button", { name: "공식 답글 작성" });
+  await createReplyButton.click();
+  const replyTextbox = focusedReviewCard.getByRole("textbox", { name: "공식 답글", exact: true });
+  await expect(replyTextbox).toBeFocused();
+  await focusedReviewCard.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(createReplyButton).toBeFocused();
+
+  await createReplyButton.click();
+  await replyTextbox.fill("공방에서 확인한 답글");
   await focusedReviewCard.getByRole("button", { name: "답글 저장" }).click();
   await expect.poll(() => replyChanges[0]).toEqual({
     method: "PUT",
@@ -373,8 +379,8 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     .toBeVisible();
 
   await focusedReviewCard.getByRole("button", { name: "답글 수정" }).click();
-  await focusedReviewCard.getByRole("textbox", { name: "공식 답글", exact: true })
-    .fill("공방에서 확인한 답글");
+  await expect(replyTextbox).toBeFocused();
+  await replyTextbox.fill("공방에서 확인한 답글");
   await focusedReviewCard.getByRole("button", { name: "답글 저장" }).click();
   await expect.poll(() => replyChanges[1]).toEqual({
     method: "PUT",
@@ -382,6 +388,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
     expectedVersion: 8,
   });
   await expect(focusedReviewCard.getByText("공방에서 확인한 답글", { exact: true })).toBeVisible();
+  await expect(focusedReviewCard.getByRole("button", { name: "답글 수정" })).toBeFocused();
   await focusedReviewCard.getByRole("button", { name: "답글 삭제" }).click();
   await focusedReviewCard.locator(".admin-review-reply-delete")
     .getByRole("button", { name: "삭제", exact: true })
@@ -479,7 +486,12 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     editedAt: null,
     officialReply: null,
     helpfulCount: id === 11 && firstReviewHelpful ? 1 : 0,
-    images: [],
+    images: id === 11 ? [{
+      id: 111,
+      imageUrl: "/api/v1/media/images/broken-review-image.png",
+      sortOrder: 0,
+      createdAt: "2026-08-09T10:00:00",
+    }] : [],
   });
   const summary = {
     reviewCount: 3,
@@ -539,6 +551,10 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
       });
       return;
     }
+    if (pathname === "/api/v1/media/images/broken-review-image.png") {
+      await route.fulfill({ status: 200, contentType: "image/png", body: "invalid-image" });
+      return;
+    }
     if (pathname === "/api/v1/products/42/reviews") {
       const secondPage = url.searchParams.get("cursor") === "review-next-page";
       await fulfillJson(route, {
@@ -585,6 +601,9 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
   await page.goto("/products/42");
   const firstCard = page.locator(".public-review-card").filter({ hasText: "첫 번째 페이지 후기 A" });
   await expect(firstCard.getByRole("button", { name: "도움돼요 0" })).toBeEnabled();
+  await expect(firstCard.getByRole("status", { name: "후기 사진 1 불러오기 실패" }))
+    .toContainText("사진을 표시할 수 없습니다.");
+  await expect(firstCard.getByRole("link", { name: "후기 사진 1 크게 보기" })).toHaveCount(0);
   const ownedCard = page.locator(".public-review-card").filter({ hasText: "첫 번째 페이지 후기 B" });
   await expect(ownedCard.getByText("내 후기", { exact: true })).toBeVisible();
   await expect(ownedCard.getByRole("button", { name: "도움돼요 0" })).toBeDisabled();
@@ -692,10 +711,12 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
   page,
 }) => {
   await installCsrfCookie(context, baseURL);
+  await page.setViewportSize({ width: 390, height: 844 });
   const updates: Array<{ rating: number; content: string; expectedContentRevision: number }> = [];
   let reviewFetchCount = 0;
   let protectedImageRequests = 0;
   let publicHiddenImageRequests = 0;
+  let deleteImageRequests = 0;
   let currentRevision = 8;
   let currentContent = "내가 작성한 원래 후기";
   const memberReview = () => ({
@@ -761,6 +782,11 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
       await route.fulfill({ status: 200, contentType: "image/png", body: ONE_PIXEL_PNG });
       return;
     }
+    if (pathname === "/api/v1/me/reviews/51/images/61" && request.method() === "DELETE") {
+      deleteImageRequests += 1;
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
     if (pathname === "/api/v1/media/images/member-hidden.png") {
       publicHiddenImageRequests += 1;
       await fulfillJson(route, { code: "NOT_FOUND", message: "이미지를 찾을 수 없습니다." }, 404);
@@ -806,7 +832,24 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
   await expect(card.getByAltText("등록한 후기 사진 1")).toHaveAttribute("src", /^blob:/);
   expect(protectedImageRequests).toBeGreaterThanOrEqual(1);
   expect(publicHiddenImageRequests).toBe(0);
-  await card.getByRole("button", { name: "수정", exact: true }).click();
+  const imageDeleteButton = card.getByRole("button", { name: "등록한 후기 사진 1 삭제" });
+  const deleteButtonBox = await imageDeleteButton.boundingBox();
+  expect(deleteButtonBox?.width).toBeGreaterThanOrEqual(44);
+  expect(deleteButtonBox?.height).toBeGreaterThanOrEqual(44);
+  await imageDeleteButton.click();
+  const imageDeleteDialog = page.getByRole("dialog", { name: "후기 사진 삭제" });
+  await expect(imageDeleteDialog).toContainText("삭제한 사진은 복구할 수 없습니다.");
+  expect(deleteImageRequests).toBe(0);
+  await imageDeleteDialog.getByRole("button", { name: "취소" }).click();
+  await expect(imageDeleteButton).toBeFocused();
+
+  const editButton = card.getByRole("button", { name: "수정", exact: true });
+  await editButton.click();
+  await expect(card.getByRole("radio", { name: "5점" })).toBeFocused();
+  await card.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(editButton).toBeFocused();
+
+  await editButton.click();
   await card.getByLabel("후기 내용").fill("첫 번째 수정 시도");
   await card.getByRole("button", { name: "수정 저장" }).click();
 
@@ -829,4 +872,83 @@ test("@smoke 회원 후기 수정은 최신 content revision을 확인한 뒤 �
     expectedContentRevision: 9,
   });
   await expect(card.getByText("최신 내용을 확인하고 저장한 후기", { exact: true })).toBeVisible();
+});
+
+test("@smoke 후기 작성 폼은 첫 입력으로 이동하고 취소 후 작성 버튼으로 돌아간다", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 801,
+        email: "review-focus@example.com",
+        name: "후기 포커스 회원",
+        phone: "01012345678",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await fulfillJson(route, { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await fulfillJson(route, { count: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/me/orders/83") {
+      await fulfillJson(route, {
+        approvalDeadlineAt: null,
+        fulfillment: null,
+        items: [{
+          careInstructions: null,
+          orderItemId: 831,
+          productId: 42,
+          productName: "후기 포커스 검증 작품",
+          productType: "READY_STOCK",
+          productionLeadDays: null,
+          qty: 1,
+          specification: null,
+          unitPrice: 12000,
+        }],
+        orderId: 83,
+        orderNumber: "HG-REVIEW-FOCUS-83",
+        paidAt: "2026-08-09T10:00:00",
+        refund: null,
+        shippingFee: 0,
+        status: "COMPLETED",
+        totalAmount: 12000,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/reviews/orders/83") {
+      await fulfillJson(route, []);
+      return;
+    }
+    if (pathname === "/api/v1/me/reviews/products/831/creation-state") {
+      await fulfillJson(route, { status: "AVAILABLE" });
+      return;
+    }
+    if (pathname === "/api/v1/me/orders/83/claims") {
+      await fulfillJson(route, []);
+      return;
+    }
+
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/my/orders/83");
+  const reviewCard = page.locator(".review-card").filter({ hasText: "후기 포커스 검증 작품" });
+  const writeButton = reviewCard.getByRole("button", { name: "후기 작성" });
+  await writeButton.click();
+  await expect(reviewCard.getByRole("radio", { name: "5점" })).toBeFocused();
+  await reviewCard.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(writeButton).toBeFocused();
 });

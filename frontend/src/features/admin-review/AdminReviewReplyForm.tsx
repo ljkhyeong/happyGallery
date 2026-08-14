@@ -3,6 +3,7 @@ import { Alert, Button, Form } from "react-bootstrap";
 import type { AdminReviewResponse } from "./api";
 import { ReviewOfficialReply } from "@/features/review/ReviewOfficialReply";
 import { isAdminReviewMutationConflict } from "@/features/review/reviewMutationConflict";
+import { useReviewFormTriggerFocus } from "@/features/review/useReviewFormFocus";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { removeOfficialReviewReply, saveOfficialReviewReply } from "./api";
@@ -25,6 +26,7 @@ export function AdminReviewReplyForm({
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [content, setContent] = useState(review.officialReply?.content ?? "");
+  const rememberEditingTrigger = useReviewFormTriggerFocus(editing);
   const toast = useToast();
 
   const saveMutation = useAdminMutation(onAuthError, {
@@ -70,10 +72,12 @@ export function AdminReviewReplyForm({
       {!editing && !confirmingDelete && (
         <div className="d-flex flex-wrap gap-2 mt-2">
           <Button
+            id={`admin-review-reply-edit-${review.id}`}
             type="button"
             size="sm"
             variant="outline-dark"
-            onClick={() => {
+            onClick={(event) => {
+              rememberEditingTrigger(event.currentTarget);
               saveMutation.reset();
               deleteMutation.reset();
               setConfirmingDelete(false);
@@ -112,6 +116,7 @@ export function AdminReviewReplyForm({
             <Form.Label>공식 답글</Form.Label>
             <Form.Control
               as="textarea"
+              autoFocus
               rows={4}
               required
               maxLength={16000}
