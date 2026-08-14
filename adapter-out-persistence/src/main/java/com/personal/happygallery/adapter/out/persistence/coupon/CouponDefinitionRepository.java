@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.coupon;
 
 import com.personal.happygallery.application.coupon.port.out.CouponDefinitionReaderPort;
+import com.personal.happygallery.application.coupon.port.out.CouponDefinitionStorePort;
 import com.personal.happygallery.domain.coupon.CouponDefinition;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
@@ -14,7 +15,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface CouponDefinitionRepository
-        extends JpaRepository<CouponDefinition, Long>, CouponDefinitionReaderPort {
+        extends JpaRepository<CouponDefinition, Long>,
+        CouponDefinitionReaderPort,
+        CouponDefinitionStorePort {
+
+    @Override
+    <S extends CouponDefinition> S saveAndFlush(S definition);
 
     @Override
     Optional<CouponDefinition> findById(Long id);

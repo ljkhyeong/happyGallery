@@ -4,5 +4,5 @@ import com.personal.happygallery.domain.coupon.CouponDefinition;
 
 public interface CouponDefinitionStorePort {
 
-    CouponDefinition save(CouponDefinition definition);
+    <S extends CouponDefinition> S saveAndFlush(S definition);
 }

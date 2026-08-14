@@ -45,7 +45,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     @Transactional
     public CouponDefinition create(CouponDefinitionCommand command) {
         requireCommand(command);
-        return definitionStore.save(new CouponDefinition(
+        return definitionStore.saveAndFlush(new CouponDefinition(
                 command.name(),
                 command.discountType(),
                 command.discountValue(),
@@ -80,7 +80,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
                 command.validUntil(),
                 command.active(),
                 command.publiclyClaimable());
-        return definitionStore.save(definition);
+        return definitionStore.saveAndFlush(definition);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
         CouponDefinition definition = findDefinitionForUpdate(definitionId);
         requireExpectedVersion(definition, expectedVersion);
         definition.deactivate();
-        definitionStore.save(definition);
+        definitionStore.saveAndFlush(definition);
     }
 
     private CouponDefinition findDefinition(Long definitionId) {
