@@ -82,4 +82,9 @@ abstract class RestDocsTestSupport {
                 null,
                 "ROLE_ADMIN"));
     }
+
+    protected static RequestPostProcessor localApiKey() {
+        return authentication(new TestingAuthenticationToken(
+                AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
+    }
 }

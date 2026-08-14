@@ -29,6 +29,7 @@ import com.personal.happygallery.adapter.out.persistence.user.EmailVerificationR
 import com.personal.happygallery.adapter.out.persistence.user.UserRepository;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.test.jdbc.JdbcTestUtils;
 
 @Component
 public class TestCleanupSupport {
@@ -122,9 +123,11 @@ public class TestCleanupSupport {
 
     public void clearAdminUsers() {
         clearReviewData();
-        jdbcTemplate.update("DELETE FROM admin_mfa_challenge");
-        jdbcTemplate.update("DELETE FROM admin_mfa_recovery_code");
-        jdbcTemplate.update("DELETE FROM admin_auth_history");
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate,
+                "admin_mfa_challenge",
+                "admin_mfa_recovery_code",
+                "admin_auth_history");
         adminUserRepository.deleteAllInBatch();
     }
 
@@ -134,16 +137,15 @@ public class TestCleanupSupport {
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         bookingCancellationTaskRepository.deleteAllInBatch();
-        TestDataCleaner.clearBookingWithPassAndRefundData(
-                passLedgerRepository,
-                refundRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                passPurchaseRepository,
-                phoneVerificationRepository,
-                guestRepository,
-                slotRepository,
-                classRepository);
+        passLedgerRepository.deleteAllInBatch();
+        refundRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        phoneVerificationRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
     }
 
@@ -155,15 +157,14 @@ public class TestCleanupSupport {
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         bookingCancellationTaskRepository.deleteAllInBatch();
-        TestDataCleaner.clearBookingReminderData(
-                passLedgerRepository,
-                passPurchaseRepository,
-                bookingHistoryRepository,
-                bookingRepository,
-                guestRepository,
-                slotRepository,
-                classRepository,
-                notificationLogRepository);
+        passLedgerRepository.deleteAllInBatch();
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        passPurchaseRepository.deleteAllInBatch();
+        guestRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
+        notificationLogRepository.deleteAllInBatch();
     }
 
     public void clearOrderData() {
@@ -171,31 +172,29 @@ public class TestCleanupSupport {
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
-        TestDataCleaner.clearOrderData(
-                refundRepository,
-                orderClaimItemRepository,
-                orderClaimRepository,
-                fulfillmentRepository,
-                orderApprovalHistoryRepository,
-                orderItemRepository,
-                orderRepository,
-                inventoryAdjustmentRepository,
-                inventoryRepository,
-                productRepository);
+        refundRepository.deleteAllInBatch();
+        orderClaimItemRepository.deleteAllInBatch();
+        orderClaimRepository.deleteAllInBatch();
+        fulfillmentRepository.deleteAllInBatch();
+        orderApprovalHistoryRepository.deleteAllInBatch();
+        orderItemRepository.deleteAllInBatch();
+        orderRepository.deleteAllInBatch();
+        inventoryAdjustmentRepository.deleteAllInBatch();
+        inventoryRepository.deleteAllInBatch();
+        productRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
     }
 
     public void clearProductData() {
         clearReviewData();
-        TestDataCleaner.clearProductData(
-                inventoryAdjustmentRepository,
-                inventoryRepository,
-                productRepository);
+        inventoryAdjustmentRepository.deleteAllInBatch();
+        inventoryRepository.deleteAllInBatch();
+        productRepository.deleteAllInBatch();
     }
 
     public void clearCartData() {
-        jdbcTemplate.update("DELETE FROM cart_merge_requests");
-        jdbcTemplate.update("DELETE FROM cart_items");
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate, "cart_merge_requests", "cart_items");
     }
 
     public void clearPassData() {
@@ -216,18 +215,17 @@ public class TestCleanupSupport {
         paymentAttemptRepository.deleteAllInBatch();
         notificationOutboxRepository.deleteAllInBatch();
         bookingCancellationTaskRepository.deleteAllInBatch();
-        TestDataCleaner.clearBookingData(
-                bookingHistoryRepository,
-                bookingRepository,
-                slotRepository,
-                classRepository);
+        bookingHistoryRepository.deleteAllInBatch();
+        bookingRepository.deleteAllInBatch();
+        slotRepository.deleteAllInBatch();
+        classRepository.deleteAllInBatch();
     }
 
     public void clearUsers() {
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
-        jdbcTemplate.update("DELETE FROM cart_merge_requests");
+        JdbcTestUtils.deleteFromTables(jdbcTemplate, "cart_merge_requests");
         emailVerificationRepository.deleteAllInBatch();
         socialAccountRepository.deleteAllInBatch();
         userRepository.deleteAllInBatch();
@@ -241,22 +239,26 @@ public class TestCleanupSupport {
 
     /** 후기 자식 테이블과 tombstone을 외래 키 역순으로 정리한다. */
     public void clearReviewData() {
-        jdbcTemplate.update("DELETE FROM review_images");
-        jdbcTemplate.update("DELETE FROM review_helpful_votes");
-        jdbcTemplate.update("DELETE FROM review_reports");
-        jdbcTemplate.update("DELETE FROM review_moderation_actions");
-        jdbcTemplate.update("DELETE FROM review_evidence_snapshot_images");
-        jdbcTemplate.update("DELETE FROM review_evidence_snapshots");
-        jdbcTemplate.update("DELETE FROM reviews");
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate,
+                "review_images",
+                "review_helpful_votes",
+                "review_reports",
+                "review_moderation_actions",
+                "review_evidence_snapshot_images",
+                "review_evidence_snapshots",
+                "reviews");
     }
 
     /** 쿠폰·적립금은 주문·결제 시도·회원 모두를 참조하므로 공통 부모보다 먼저 지운다. */
     private void clearOrderBenefitData() {
-        jdbcTemplate.update("DELETE FROM reward_ledger");
-        jdbcTemplate.update("DELETE FROM reward_reservation_allocations");
-        jdbcTemplate.update("DELETE FROM reward_reservations");
-        jdbcTemplate.update("DELETE FROM reward_lots");
-        jdbcTemplate.update("DELETE FROM reward_accounts");
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate,
+                "reward_ledger",
+                "reward_reservation_allocations",
+                "reward_reservations",
+                "reward_lots",
+                "reward_accounts");
         jdbcTemplate.update("""
                 UPDATE orders
                 SET total_amount = total_amount + coupon_discount_amount,
@@ -266,7 +268,7 @@ public class TestCleanupSupport {
                     issued_coupon_id = NULL
                 WHERE issued_coupon_id IS NOT NULL
                 """);
-        jdbcTemplate.update("DELETE FROM issued_coupons");
-        jdbcTemplate.update("DELETE FROM coupon_definitions");
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate, "issued_coupons", "coupon_definitions");
     }
 }

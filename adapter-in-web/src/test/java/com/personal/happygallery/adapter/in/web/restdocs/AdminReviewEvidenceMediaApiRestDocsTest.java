@@ -4,23 +4,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminReviewEvidenceMediaController;
-import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.ImageContent;
 import com.personal.happygallery.application.review.port.in.ReviewEvidenceMediaUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.restdocs.RestDocumentationContextProvider;
-import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 class AdminReviewEvidenceMediaApiRestDocsTest extends RestDocsTestSupport {
 
@@ -63,10 +59,5 @@ class AdminReviewEvidenceMediaApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isForbidden());
 
         verify(evidenceMediaUseCase, never()).getImage(81L, 0);
-    }
-
-    private static RequestPostProcessor localApiKey() {
-        return authentication(new TestingAuthenticationToken(
-                AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
     }
 }

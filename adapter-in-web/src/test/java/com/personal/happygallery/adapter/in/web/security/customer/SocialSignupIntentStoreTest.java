@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.security.customer;
 
-import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
@@ -19,6 +18,7 @@ import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import tools.jackson.databind.json.JsonMapper;
 
+import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -122,10 +122,6 @@ class SocialSignupIntentStoreTest {
         request.setSession(session);
         request.addParameter(OAuth2ParameterNames.STATE, state);
         return request;
-    }
-
-    private PolicyAcceptance acceptedPolicies() {
-        return new PolicyAcceptance("2026-08-08-v1", true, "2026-08-11-v2", true);
     }
 
     private ClientRegistration googleRegistration() {

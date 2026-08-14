@@ -27,7 +27,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
+import static com.personal.happygallery.support.TestFixtures.accessToken;
 import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
@@ -417,7 +417,7 @@ class BookingReminderBatchUseCaseIT {
                 10_000L,
                 20_000L,
                 DepositPaymentMethod.CARD,
-                UUID.randomUUID().toString().replace("-", "")));
+                accessToken()));
         return booking;
     }
 }
