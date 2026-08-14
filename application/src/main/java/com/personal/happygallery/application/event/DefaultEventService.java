@@ -114,14 +114,13 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
     }
 
     private void requireExistingProducts(Set<Long> relatedProductIds) {
-        if (relatedProductIds == null || relatedProductIds.isEmpty()) {
+        if (relatedProductIds.isEmpty()) {
             return;
         }
-        Set<Long> requestedIds = Set.copyOf(relatedProductIds);
-        Set<Long> foundIds = productReader.findAllById(requestedIds).stream()
+        Set<Long> foundIds = productReader.findAllById(relatedProductIds).stream()
                 .map(product -> product.getId())
                 .collect(Collectors.toSet());
-        if (!foundIds.equals(requestedIds)) {
+        if (!foundIds.equals(relatedProductIds)) {
             throw new NotFoundException("연관 상품");
         }
     }

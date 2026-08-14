@@ -111,7 +111,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listMemberClaims(Long orderId, Long userId) {
-        Order order = requireOrder(orderId);
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         if (!Objects.equals(order.getUserId(), userId)) {
             throw new NotFoundException("주문");
         }
@@ -122,7 +122,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listGuestClaims(Long orderId, String accessToken) {
-        Order order = requireOrder(orderId);
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
         if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
             throw new NotFoundException("주문");
         }
@@ -242,7 +242,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public OrderClaimView completeExchange(
             Long claimId, Long adminId, CompleteExchangeCommand command) {
         OrderClaim claim = requireClaimForUpdate(claimId);
-        Order order = requireOrder(claim.getOrderId());
+        Order order = OrderLookups.requireOrder(orderReader, claim.getOrderId());
         claim.completeExchange(
                 adminId, command.carrier(), command.trackingNumber(), command.note(), now());
         OrderClaim saved = orderClaimPort.save(claim);
@@ -376,10 +376,6 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private OrderItemApprovedRefundState emptyApprovedState(Long orderItemId) {
         return new OrderItemApprovedRefundState(orderItemId, 0L, 0L, 0L);
-    }
-
-    private Order requireOrder(Long orderId) {
-        return orderReader.findById(orderId).orElseThrow(NotFoundException.supplier("주문"));
     }
 
     private Order requireOrderForUpdate(Long orderId) {
