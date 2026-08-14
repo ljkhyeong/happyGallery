@@ -18,8 +18,12 @@ export function addToCart(productId: number, qty: number) {
   return addMyCartItem({ productId, qty });
 }
 
-export function mergeGuestCart(idempotencyKey: string, items: CartMergeItem[]) {
-  return mergeMyCartItems({ idempotencyKey, items });
+export function mergeGuestCart(
+  expectedCustomerId: number,
+  idempotencyKey: string,
+  items: CartMergeItem[],
+) {
+  return mergeMyCartItems({ expectedCustomerId, idempotencyKey, items });
 }
 
 export function updateCartItemQty(productId: number, qty: number) {

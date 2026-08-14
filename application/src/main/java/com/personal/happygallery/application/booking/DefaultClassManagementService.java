@@ -28,8 +28,7 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
 
     @Override
     public BookingClass createClass(CreateClassCommand command) {
-        imageMediaReferenceGuard.validateAssignment(command.imageUrl());
-        return classStorePort.save(new BookingClass(
+        BookingClass bookingClass = new BookingClass(
                 command.name(),
                 command.category(),
                 command.durationMin(),
@@ -39,13 +38,13 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
                 command.description(),
                 command.imageUrl(),
                 command.preparationInfo(),
-                command.targetAudience()
-        ));
+                command.targetAudience());
+        imageMediaReferenceGuard.validateAssignment(bookingClass.getImageUrl());
+        return classStorePort.save(bookingClass);
     }
 
     @Override
     public BookingClass updateClass(UpdateClassCommand command) {
-        imageMediaReferenceGuard.validateAssignment(command.imageUrl());
         BookingClass bookingClass = classReaderPort.findByIdForUpdate(command.classId())
                 .orElseThrow(NotFoundException.supplier("클래스"));
         bookingClass.updateDetails(
@@ -57,6 +56,7 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
                 command.imageUrl(),
                 command.preparationInfo(),
                 command.targetAudience());
+        imageMediaReferenceGuard.validateAssignment(bookingClass.getImageUrl());
         return classStorePort.save(bookingClass);
     }
 

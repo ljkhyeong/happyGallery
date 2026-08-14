@@ -9,6 +9,7 @@ import {
 } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
+import { writeSessionValues } from "@/shared/storage/browserSessionStorage";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 import {
@@ -77,11 +78,12 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
         const customerId = currentCustomerSessionUserId();
         if (customerId === null) throw new CustomerSessionChangedError();
         clearCustomerStepUpContinuation();
-        sessionStorage.setItem(
-          SESSION_KEYS.customerContinuationOwner,
-          String(customerId),
-        );
-        sessionStorage.setItem(SESSION_KEYS.socialAccountLink, provider);
+        if (!writeSessionValues([
+          [SESSION_KEYS.customerContinuationOwner, String(customerId)],
+          [SESSION_KEYS.socialAccountLink, provider],
+        ])) {
+          throw new Error("브라우저 세션 저장소를 사용할 수 없습니다.");
+        }
         window.location.assign(authorizationUrl);
       },
     );

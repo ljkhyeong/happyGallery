@@ -44,7 +44,7 @@ interface CartContextValue {
 export const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { user } = useCustomerAuth();
+  const { user, sessionVersion } = useCustomerAuth();
   const queryClient = useQueryClient();
   const {
     items: guestItems,
@@ -62,6 +62,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     discard: discardGuestCartMerge,
   } = useGuestCartMerge({
     userId,
+    customerSessionVersion: sessionVersion,
     guestItems,
     consumeMergedItemsWhileLocked,
   });

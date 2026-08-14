@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
+import com.personal.happygallery.adapter.in.web.admin.AdminMediaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminMfaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
@@ -26,6 +27,7 @@ import com.personal.happygallery.application.booking.port.in.SlotManagementUseCa
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotResult;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotStatus;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
+import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
@@ -40,6 +42,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -55,6 +58,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -74,6 +79,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private ClassQueryUseCase classQueryUseCase;
     private SlotManagementUseCase slotManagementUseCase;
     private SlotQueryUseCase slotQueryUseCase;
+    private ImageMediaUseCase imageMediaUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -88,6 +94,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         classQueryUseCase = mock(ClassQueryUseCase.class);
         slotManagementUseCase = mock(SlotManagementUseCase.class);
         slotQueryUseCase = mock(SlotQueryUseCase.class);
+        imageMediaUseCase = mock(ImageMediaUseCase.class);
 
         ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
         ProductQueryUseCase.ProductWithInventory inactiveProduct =
@@ -157,6 +164,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminMfaController(adminMfaUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
                 new AdminProductController(productAdminUseCase, productQueryUseCase),
+                new AdminMediaController(imageMediaUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
                 new AdminSlotController(slotManagementUseCase, slotQueryUseCase));
@@ -313,6 +321,22 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자는 공개 참조 전 이미지도 인증된 미리보기 경로로 조회한다")
+    void admin_get_image_preview() throws Exception {
+        String fileName = "11111111-1111-4111-8111-111111111111.jpg";
+        when(imageMediaUseCase.get(fileName)).thenReturn(
+                new ImageMediaUseCase.ImageContent(new byte[] {1, 2, 3}, "image/jpeg"));
+
+        mockMvc.perform(get("/api/v1/admin/media/images/{fileName}", fileName)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("image/jpeg"))
+                .andExpect(content().bytes(new byte[] {1, 2, 3}))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
 
     @Test

@@ -1,7 +1,13 @@
+import { useEffect, useState } from "react";
 import { Form } from "react-bootstrap";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { ErrorAlert } from "@/shared/ui";
-import { uploadAdminImage } from "./api";
+import {
+  fetchAdminImagePreview,
+  localAdminImageFileName,
+  uploadAdminImage,
+} from "./api";
 
 interface Props {
   adminKey: string;
@@ -20,10 +26,45 @@ export function AdminImageField({
   controlId,
   previewAlt,
 }: Props) {
+  const [previewUrl, setPreviewUrl] = useState<string>();
+  const [previewError, setPreviewError] = useState<unknown>();
   const upload = useAdminMutation(onAuthError, {
     mutationFn: (file: File) => uploadAdminImage(adminKey, file),
     onSuccess: (result) => onChange(result.url),
   });
+
+  useEffect(() => {
+    setPreviewError(undefined);
+    if (!value) {
+      setPreviewUrl(undefined);
+      return;
+    }
+    const fileName = localAdminImageFileName(value);
+    if (!fileName) {
+      setPreviewUrl(value);
+      return;
+    }
+
+    const controller = new AbortController();
+    let objectUrl: string | undefined;
+    setPreviewUrl(undefined);
+    void fetchAdminImagePreview(adminKey, fileName, controller.signal)
+      .then((blob) => {
+        if (controller.signal.aborted) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        if (isAdminSessionUnauthorized(error)) onAuthError();
+        setPreviewError(error);
+      });
+
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [adminKey, onAuthError, value]);
 
   return (
     <Form.Group controlId={controlId}>
@@ -39,9 +80,10 @@ export function AdminImageField({
       />
       <Form.Text>{upload.isPending ? "업로드 중..." : "JPEG, PNG, WebP · 최대 5MB"}</Form.Text>
       <ErrorAlert error={upload.error} />
-      {value && (
+      <ErrorAlert error={previewError} />
+      {value && previewUrl && (
         <div className="admin-image-preview mt-2">
-          <img src={value} alt={previewAlt} />
+          <img src={previewUrl} alt={previewAlt} />
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => onChange("")}>
             이미지 제거
           </button>

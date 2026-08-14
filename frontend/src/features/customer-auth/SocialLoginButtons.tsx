@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "react-bootstrap";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
+import { writeSessionValue } from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import {
   SOCIAL_PROVIDER_DETAILS,
@@ -38,7 +39,10 @@ export function SocialLoginButtons({
       if (signupAcceptance) {
         authorizationUrl = (await startSocialSignup(provider, signupAcceptance)).authorizationUrl;
       }
-      sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, resolveSafeReturnTo(returnTo));
+      writeSessionValue(
+        SESSION_KEYS.socialLoginReturnTo,
+        resolveSafeReturnTo(returnTo),
+      );
       window.location.assign(authorizationUrl);
     } catch (requestError) {
       setError(requestError);

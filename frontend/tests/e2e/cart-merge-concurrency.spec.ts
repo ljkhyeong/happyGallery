@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -6,6 +6,7 @@ const GUEST_CART_LOCK_NAME = "hg_guest_cart";
 const EMPTY_CART_VERSION = "0".repeat(64);
 
 interface MergeRequest {
+  expectedCustomerId: number;
   idempotencyKey: string;
   items: Array<{ productId: number; qty: number }>;
 }
@@ -139,6 +140,10 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     [{ productId: 11, qty: 2 }],
     [{ productId: 22, qty: 1 }],
   ]);
+  expect(mergeRequests.map((request) => request.expectedCustomerId)).toEqual([
+    101,
+    101,
+  ]);
   expect(mergeRequests[0]?.idempotencyKey).not.toBe(mergeRequests[1]?.idempotencyKey);
   await expect.poll(() => page.evaluate(
     ([cartKey, requestKey]) => ({
@@ -147,4 +152,158 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     }),
     [GUEST_CART_STORAGE_KEY, MERGE_REQUEST_STORAGE_KEY] as const,
   )).toEqual({ cart: null, mergeRequest: null });
+});
+
+test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회원 항목을 보존한다", async ({
+  baseURL,
+  context,
+  page,
+}) => {
+  if (!baseURL) {
+    throw new Error("Playwright baseURL이 필요합니다.");
+  }
+
+  const customerA = {
+    id: 101,
+    email: "cart-account-a@example.com",
+    name: "장바구니 회원 A",
+    phone: "01011111111",
+    phoneVerified: true,
+    localPasswordEnabled: true,
+  };
+  const customerB = {
+    id: 202,
+    email: "cart-account-b@example.com",
+    name: "장바구니 회원 B",
+    phone: "01022222222",
+    phoneVerified: true,
+    localPasswordEnabled: true,
+  };
+  let currentCustomer = customerA;
+  let releaseMerge: (() => void) | undefined;
+  const mergeRelease = new Promise<void>((resolve) => {
+    releaseMerge = resolve;
+  });
+  const mergeRequests: MergeRequest[] = [];
+
+  await context.addCookies([{
+    name: "XSRF-TOKEN",
+    value: "cart-account-boundary-token",
+    url: baseURL,
+  }]);
+  await page.addInitScript(([storageKey, items]) => {
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [
+    GUEST_CART_STORAGE_KEY,
+    [{ productId: 31, qty: 2, lineageId: "account-a-lineage" }],
+  ] as const);
+  await context.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+
+    if (pathname === "/api/v1/me" && request.method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(currentCustomer),
+      });
+      return;
+    }
+    if (pathname === "/api/v1/auth/login" && request.method() === "POST") {
+      currentCustomer = customerB;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(customerB),
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart/merge") {
+      mergeRequests.push(request.postDataJSON() as MergeRequest);
+      await mergeRelease;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          cartVersion: EMPTY_CART_VERSION,
+          items: [],
+          totalAmount: 0,
+        }),
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ count: 0 }),
+      });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ name: "해피갤러리" }),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
+  let otherPage: Page | undefined;
+  try {
+    await page.goto("/cart");
+    await expect.poll(() => mergeRequests.length).toBe(1);
+
+    otherPage = await context.newPage();
+    await otherPage.goto("/login");
+    await otherPage.getByLabel("이메일").fill(customerB.email);
+    await otherPage.getByLabel("비밀번호").fill("password123!");
+    await otherPage.getByRole("button", { name: "로그인", exact: true }).click();
+    await expect(
+      page.getByRole("link", { name: customerB.name, exact: true }),
+    ).toBeVisible();
+
+    if (!releaseMerge) {
+      throw new Error("병합 응답 해제 함수가 준비되지 않았습니다.");
+    }
+    releaseMerge();
+
+    await expect(
+      page.getByRole("main").getByText(
+        "다른 계정에서 시작한 장바구니 병합이 보류 중입니다.",
+      ),
+    ).toBeVisible();
+    await expect.poll(() => page.evaluate(
+      ([cartKey, requestKey]) => {
+        const cart = localStorage.getItem(cartKey);
+        const mergeRequest = localStorage.getItem(requestKey);
+        return {
+          cart: cart ? JSON.parse(cart) : null,
+          mergeRequest: mergeRequest ? JSON.parse(mergeRequest) : null,
+        };
+      },
+      [GUEST_CART_STORAGE_KEY, MERGE_REQUEST_STORAGE_KEY] as const,
+    )).toMatchObject({
+      cart: [{ productId: 31, qty: 2, lineageId: "account-a-lineage" }],
+      mergeRequest: {
+        userId: customerA.id,
+        items: [{ productId: 31, qty: 2, lineageId: "account-a-lineage" }],
+      },
+    });
+    expect(mergeRequests).toHaveLength(1);
+    expect(mergeRequests[0]?.expectedCustomerId).toBe(customerA.id);
+  } finally {
+    releaseMerge?.();
+    await otherPage?.close();
+  }
 });

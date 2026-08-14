@@ -56,6 +56,7 @@ export interface MergeCartItemRequest {
 }
 
 export interface MergeCartRequest {
+  expectedCustomerId: number;
   idempotencyKey: string;
   /**
      * @minItems 1

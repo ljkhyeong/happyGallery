@@ -3252,6 +3252,10 @@
       },
       "MergeCartRequest" : {
         "properties" : {
+          "expectedCustomerId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "idempotencyKey" : {
             "format" : "uuid",
             "type" : "string"
@@ -3265,7 +3269,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "idempotencyKey", "items" ],
+        "required" : [ "expectedCustomerId", "idempotencyKey", "items" ],
         "type" : "object"
       },
       "MyBookingDetail" : {
@@ -7570,7 +7574,8 @@
                 "type" : "object"
               }
             }
-          }
+          },
+          "required" : true
         },
         "responses" : {
           "200" : {
@@ -7584,6 +7589,53 @@
             "description" : "OK"
           }
         },
+        "security" : [ {
+          "AdminBearer" : [ ]
+        }, {
+          "AdminApiKey" : [ ]
+        } ],
+        "tags" : [ "admin-media-controller" ]
+      }
+    },
+    "/api/v1/admin/media/images/{fileName}" : {
+      "get" : {
+        "operationId" : "getAdminImage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "fileName",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              },
+              "image/webp" : {
+                "schema" : {
+                  "format" : "binary",
+                  "type" : "string"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "security" : [ {
+          "AdminBearer" : [ ]
+        } ],
         "tags" : [ "admin-media-controller" ]
       }
     },
@@ -9348,8 +9400,6 @@
         },
         "security" : [ {
           "AdminBearer" : [ ]
-        }, {
-          "AdminApiKey" : [ ]
         } ],
         "tags" : [ "admin-review-controller" ]
       }

@@ -8,6 +8,8 @@ import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -52,6 +54,11 @@ public class MeCartController {
     @Operation(operationId = "mergeMyCartItems")
     public void mergeItems(@RequestBody @Valid MergeCartRequest request,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
+        if (!request.expectedCustomerId().equals(customer.userId())) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "장바구니 병합을 시작한 회원 세션이 변경되었습니다.");
+        }
         cartUseCase.mergeItems(
                 customer.userId(),
                 request.idempotencyKey(),

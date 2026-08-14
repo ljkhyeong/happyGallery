@@ -1,5 +1,9 @@
 import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 import { startSocialReauthentication } from "@/features/customer-auth/socialAccountApi";
+import {
+  removeSessionValues,
+  writeSessionValues,
+} from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import {
   CustomerSessionChangedError,
@@ -18,12 +22,14 @@ export type CustomerStepUpContinuation =
   | { kind: "social-unlink"; provider: SocialProvider };
 
 export function clearCustomerStepUpContinuation() {
-  sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
-  sessionStorage.removeItem(SESSION_KEYS.socialAccountLinkTarget);
-  sessionStorage.removeItem(SESSION_KEYS.socialAccountUnlinkTarget);
-  sessionStorage.removeItem(SESSION_KEYS.socialReauthentication);
-  sessionStorage.removeItem(SESSION_KEYS.stepUpReturnAction);
-  sessionStorage.removeItem(SESSION_KEYS.customerContinuationOwner);
+  removeSessionValues(
+    SESSION_KEYS.socialAccountLink,
+    SESSION_KEYS.socialAccountLinkTarget,
+    SESSION_KEYS.socialAccountUnlinkTarget,
+    SESSION_KEYS.socialReauthentication,
+    SESSION_KEYS.stepUpReturnAction,
+    SESSION_KEYS.customerContinuationOwner,
+  );
 }
 
 export async function redirectToSocialStepUp(
@@ -36,33 +42,29 @@ export async function redirectToSocialStepUp(
       const customerId = currentCustomerSessionUserId();
       if (customerId === null) throw new CustomerSessionChangedError();
       clearCustomerStepUpContinuation();
-      sessionStorage.setItem(
-        SESSION_KEYS.customerContinuationOwner,
-        String(customerId),
-      );
-      sessionStorage.setItem(
-        SESSION_KEYS.socialReauthentication,
-        reauthenticationProvider,
-      );
+      const entries: Array<readonly [string, string]> = [
+        [SESSION_KEYS.customerContinuationOwner, String(customerId)],
+        [SESSION_KEYS.socialReauthentication, reauthenticationProvider],
+      ];
       switch (continuation.kind) {
         case "return":
-          sessionStorage.setItem(
-            SESSION_KEYS.stepUpReturnAction,
-            continuation.action,
-          );
+          entries.push([SESSION_KEYS.stepUpReturnAction, continuation.action]);
           break;
         case "social-link":
-          sessionStorage.setItem(
+          entries.push([
             SESSION_KEYS.socialAccountLinkTarget,
             continuation.provider,
-          );
+          ]);
           break;
         case "social-unlink":
-          sessionStorage.setItem(
+          entries.push([
             SESSION_KEYS.socialAccountUnlinkTarget,
             continuation.provider,
-          );
+          ]);
           break;
+      }
+      if (!writeSessionValues(entries)) {
+        throw new Error("브라우저 세션 저장소를 사용할 수 없습니다.");
       }
       window.location.assign(authorizationUrl);
     },

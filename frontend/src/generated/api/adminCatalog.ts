@@ -494,11 +494,9 @@ export const getUploadImageUrl = () => {
   return `/api/v1/admin/media/images`
 }
 
-export const uploadImage = async (uploadImageBody?: UploadImageBody, options?: RequestInit): Promise<ImageUploadResponse> => {
+export const uploadImage = async (uploadImageBody: UploadImageBody, options?: RequestInit): Promise<ImageUploadResponse> => {
     const formData = new FormData();
-if(uploadImageBody?.file !== undefined) {
- formData.append(`file`, uploadImageBody.file);
- }
+formData.append(`file`, uploadImageBody.file);
 
   return generatedApiClient<ImageUploadResponse>(getUploadImageUrl(),
   {
@@ -506,6 +504,27 @@ if(uploadImageBody?.file !== undefined) {
     method: 'POST'
     ,
     body: formData
+  }
+);}
+
+
+
+export const getGetAdminImageUrl = (fileName: string,) => {
+
+
+
+
+  return `/api/v1/admin/media/images/${fileName}`
+}
+
+export const getAdminImage = async (fileName: string, options?: RequestInit): Promise<Blob> => {
+
+  return generatedApiClient<Blob>(getGetAdminImageUrl(fileName),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

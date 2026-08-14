@@ -543,6 +543,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedCustomerId": 11,
                                   "idempotencyKey": "e3668dc3-fdd1-45a8-ac19-25f5753157b0",
                                   "items": [{"productId": 1, "qty": 2}]
                                 }
@@ -561,11 +562,31 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "expectedCustomerId": 11,
                                   "idempotencyKey": "e3668dc3-fdd1-45a8-ac19-25f5753157b0",
                                   "items": %s
                                 }
                                 """.formatted(items)))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("장바구니 병합 API는 요청을 시작한 회원과 현재 세션이 다르면 거절한다")
+    void merge_guest_cart_rejects_changed_customer_session() throws Exception {
+        mockMvc.perform(post("/api/v1/me/cart/merge")
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedCustomerId": 999,
+                                  "idempotencyKey": "e3668dc3-fdd1-45a8-ac19-25f5753157b0",
+                                  "items": [{"productId": 1, "qty": 2}]
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"))
+                .andExpect(jsonPath("$.message")
+                        .value("장바구니 병합을 시작한 회원 세션이 변경되었습니다."));
     }
 
     @Test

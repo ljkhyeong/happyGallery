@@ -45,7 +45,7 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
     @Transactional
     public IssuedCouponView claim(Long userId, Long definitionId) {
         requireUserId(userId);
-        CouponDefinition definition = definitionReader.findByIdForClaim(definitionId)
+        CouponDefinition definition = definitionReader.findByIdForSharedLock(definitionId)
                 .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
         LocalDateTime now = LocalDateTime.now(clock);
         definition.requirePubliclyClaimableAt(now);

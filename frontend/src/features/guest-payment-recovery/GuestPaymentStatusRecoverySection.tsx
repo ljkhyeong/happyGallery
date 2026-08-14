@@ -39,23 +39,35 @@ function loadRecoveryView(): RecoveryView | null {
 export function GuestPaymentStatusRecoverySection() {
   const [recoveryView, setRecoveryView] = useState<RecoveryView | null>(loadRecoveryView);
   const recovery = useMutation({
-    mutationFn: ({ phone, code }: { phone: string; code: string }) =>
-      runForCurrentCustomer(
-        () => recoverGuestPaymentStatuses(phone, code),
-        (result, requireCurrent) => {
-          requireCurrent();
-          const customerSession = captureCustomerSession();
-          const storage = saveGuestPaymentStatusRecovery(
-            result,
-            customerSession,
-          );
-          requireCurrent();
-          if (storage) {
-            setRecoveryView({ customerSession, storage });
-          }
-          return result;
-        },
-      ),
+    mutationFn: async ({ phone, code }: { phone: string; code: string }) => {
+      let storedRecovery: GuestPaymentStatusRecoverySession | null = null;
+      try {
+        return await runForCurrentCustomer(
+          () => recoverGuestPaymentStatuses(phone, code),
+          (result, requireCurrent) => {
+            requireCurrent();
+            const customerSession = captureCustomerSession();
+            storedRecovery = saveGuestPaymentStatusRecovery(
+              result,
+              customerSession,
+            );
+            requireCurrent();
+            if (storedRecovery) {
+              setRecoveryView({ customerSession, storage: storedRecovery });
+            }
+            return result;
+          },
+        );
+      } catch (error) {
+        if (storedRecovery) {
+          const expectedRecovery = storedRecovery;
+          clearGuestPaymentStatusRecovery(expectedRecovery);
+          setRecoveryView((current) =>
+            current?.storage === expectedRecovery ? null : current);
+        }
+        throw error;
+      }
+    },
   });
 
   const result = recoveryView?.storage.value ?? null;

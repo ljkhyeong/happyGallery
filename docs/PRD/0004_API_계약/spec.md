@@ -2783,11 +2783,12 @@ Cookie: HG_SESSION={sessionToken}
   - `productId`, `qty`는 필수다.
   - 응답: `201 Created`
 - `POST /api/v1/me/cart/merge`
-  - 요청: `{ "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
-  - 각 항목의 `productId`, `qty`는 필수다.
+  - 요청: `{ "expectedCustomerId": 1, "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
+  - `expectedCustomerId`, 각 항목의 `productId`, `qty`는 필수다.
   - `items`는 1~100건이다.
   - 응답: `204 No Content`
   - 로그인 직전의 비회원 장바구니를 한 번에 합친다. 같은 회원과 멱등키의 재요청은 수량을 다시 더하지 않는다.
+  - `expectedCustomerId`가 현재 인증된 회원과 다르면 세션 전환 경합으로 보고 `409 CONFLICT`로 거절한다. 클라이언트는 요청 전·후의 세션 스냅샷도 함께 확인해 이전 회원의 병합 결과를 현재 화면에 적용하지 않는다.
   - 같은 회원과 멱등키로 다른 상품·수량을 보내면 `409 CONFLICT`로 거절한다.
 - `PUT /api/v1/me/cart/items/{productId}`
   - 요청: `{ "qty": 3 }`
@@ -3032,7 +3033,7 @@ GET /api/v1/products/{productId}/qna/{id}
 
 - 관리자 목록과 단건은 작성자 회원 ID·이름, 대상·원천, 상태, 숨김 메타데이터와 `contentRevision`, JPA `version`을 포함한다.
 - 신고 목록 항목은 `id`, `reviewId`, `reason`, `snapshotStatus`, `status`, `createdAt`만 포함한다. 신고자 ID·신고 상세·판단 정보와 전체 evidence는 선택한 신고의 단건 API를 호출한 뒤에만 반환하고, 관리자 화면도 상세를 펼칠 때 해당 API를 요청한다.
-- 상태 변경, 공식 답글 작성·수정·삭제, 신고 단건 조회·판단과 숨김 후기 현재 사진·증거 사진 조회는 계정 기반 `Authorization: Bearer` 관리자 세션만 허용한다. local API key는 `403 FORBIDDEN`이다.
+- 상태 변경, 운영 조치 감사 이력, 공식 답글 작성·수정·삭제, 신고 단건 조회·판단과 숨김 후기 현재 사진·증거 사진 조회는 계정 기반 `Authorization: Bearer` 관리자 세션만 허용한다. local API key는 `403 FORBIDDEN`이다.
 - `HIDDEN` 전환에는 공백이 아닌 사유가 필요하고 관리자 ID·시각을 기록한다. `PUBLISHED` 재전환은 숨김 메타데이터를 제거한다.
 - 상태 변경은 관리자가 읽은 `expectedContentRevision`과 잠근 후기의 현재 revision이 다르면 `409 REVIEW_CONTENT_CHANGED`다. 상태가 실제로 바뀐 때만 당시 별점·본문·수정 시각·정렬된 사진 URL 증거, append-only moderation action과 회원 알림 outbox를 같은 트랜잭션으로 저장한다. 중간 전환이 더 최신 전환으로 대체되면 발송 직전 재검증에서 `OBSOLETE`로 종료한다.
 - `expectedVersion`도 잠긴 후기의 JPA `version`과 비교해 다른 관리자의 상태 왕복 전환(ABA)과 공식 답글 덮어쓰기·삭제를 `409 CONFLICT`로 차단한다.
@@ -3115,7 +3116,7 @@ Content-Type: application/json
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 `/api/v1` 클라이언트 호환을 위해 필드는 선택형이지만 현재 웹 클라이언트는 항상 전송한다.
   - `issuedCouponId`와 `rewardAmount`는 회원 `ORDER`에서만 사용할 수 있다. 쿠폰은 공개 발급으로 회원이 보유한 미사용 쿠폰 1장만 허용하고, 상품 합계가 최소 주문 금액 이상일 때 배송비를 제외한 상품 금액에서 할인한다. 적립금은 쿠폰 적용 뒤 상품 금액까지만 1P=1원으로 사용할 수 있어 배송비에는 적용되지 않는다.
-  - prepare는 결제 시도와 같은 트랜잭션에서 쿠폰과 적립금을 30분 동안 예약한다. confirm 성공 시 쿠폰을 사용 완료하고 적립금을 차감하며, prepare 만료·PG 최종 거절·보상 환불 완료처럼 결제가 최종적으로 성립하지 않은 경우 예약을 멱등 해제한다. 결과가 불명확한 재시도·대사 상태에서는 중복 사용을 막기 위해 예약을 유지한다.
+  - prepare는 결제 시도와 같은 트랜잭션에서 발급 쿠폰 행을 배타 잠그고 쿠폰 정의 행을 공유 잠금 조회한 뒤 쿠폰과 적립금을 30분 동안 예약한다. 관리자 비활성화가 먼저 커밋되면 과거 조회 스냅샷이 있더라도 결제 견적을 `422 CHANGE_NOT_ALLOWED`로 거절하고, 서로 다른 회원의 같은 정의 결제 견적은 병렬로 처리한다. confirm 성공 시 쿠폰을 사용 완료하고 적립금을 차감하며, prepare 만료·PG 최종 거절·보상 환불 완료처럼 결제가 최종적으로 성립하지 않은 경우 예약을 멱등 해제한다. 결과가 불명확한 재시도·대사 상태에서는 중복 사용을 막기 위해 예약을 유지한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
   - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
@@ -3500,7 +3501,8 @@ file={JPEG|PNG|WebP binary}
 
 - 비어 있지 않은 JPEG, PNG, WebP 파일만 허용하며 요청 MIME과 파일 시그니처를 함께 확인한다. 파일 상한은 5MiB다.
 - UUID 파일명으로 원자 저장하고 상품·클래스 `imageUrl`에는 반환된 경로를 사용한다.
-- `GET /api/v1/media/images/{fileName}`은 현재 공개 자산 또는 공개 후기에서 참조하는 파일을 인증 없이 실제 이미지 MIME으로 반환한다. 후기 숨김·삭제 후 캐시 노출을 남기지 않도록 `Cache-Control: no-store`를 적용하며, 숨김 후기나 증거에만 남은 파일은 `404 NOT_FOUND`다.
+- `GET /api/v1/admin/media/images/{fileName}`은 계정 기반 Bearer 관리자 인증 뒤 업로드 직후 아직 참조되지 않은 파일과 비활성·미게시 자산의 파일을 미리보기 위해 실제 이미지 MIME으로 반환한다. local API key는 후기 사진 보호 경계를 우회하지 못하게 `403 FORBIDDEN`이고, 응답은 `Cache-Control: no-store`다.
+- `GET /api/v1/media/images/{fileName}`은 현재 `ACTIVE` 상품·클래스, 게시 상태이고 종료 전인 이벤트 또는 공개 후기에서 참조하는 파일만 인증 없이 실제 이미지 MIME으로 반환한다. 기존 로컬 저장값에 query나 fragment가 남아 있어도 URI path가 같으면 같은 공개 참조로 인정한다. 참조가 없거나 비활성 상품·클래스, 미게시·종료 이벤트, 숨김·삭제 후기, 보존 증거에만 남은 파일은 `404 NOT_FOUND`이며 응답은 `Cache-Control: no-store`다.
 - 허용된 UUID 파일명 형식이 아니거나 파일이 없으면 `404 NOT_FOUND`다.
 
 ### 2.20 이벤트·쿠폰·적립금 API

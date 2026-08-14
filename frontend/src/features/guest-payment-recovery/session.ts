@@ -125,12 +125,14 @@ export function clearGuestPaymentStatusRecovery(
   if (!recovery) return;
   try {
     const raw = sessionStorage.getItem(SESSION_KEYS.guestPaymentStatusRecovery);
-    if (!raw) return;
-    const stored = readGuestPaymentStatusRecovery(raw);
-    if (!stored || !sameGuestPaymentStatusRecovery(stored, recovery)) return;
-    sessionStorage.removeItem(SESSION_KEYS.guestPaymentStatusRecovery);
-    clearPaymentStatusTokens(recovery);
+    if (raw) {
+      const stored = readGuestPaymentStatusRecovery(raw);
+      if (stored && sameGuestPaymentStatusRecovery(stored, recovery)) {
+        sessionStorage.removeItem(SESSION_KEYS.guestPaymentStatusRecovery);
+      }
+    }
   } catch {
     // 세션 저장소를 사용할 수 없으면 정리할 값도 없다.
   }
+  clearPaymentStatusTokens(recovery);
 }

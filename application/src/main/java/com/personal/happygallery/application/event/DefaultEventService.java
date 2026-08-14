@@ -70,7 +70,6 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
 
     @Override
     public Event create(CreateCommand command) {
-        imageMediaReferenceGuard.validateAssignment(command.imageUrl());
         Event event = new Event(
                 command.title(),
                 command.summary(),
@@ -81,6 +80,7 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
                 command.published(),
                 command.featured(),
                 command.relatedProductIds());
+        imageMediaReferenceGuard.validateAssignment(event.getImageUrl());
         requireExistingProducts(event.getRelatedProductIds());
         return eventStore.save(event);
     }

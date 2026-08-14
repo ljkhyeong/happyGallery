@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.media;
 
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -40,48 +41,44 @@ class JdbcImageMediaReferenceReaderAdapter implements ImageMediaReferenceReaderP
     }
 
     @Override
-    public ReferenceVisibility findReferenceVisibility(String imageUrl) {
+    public boolean isPubliclyReferenced(String imageUrl, LocalDateTime now) {
         return jdbc.sql("""
-                        SELECT
-                            EXISTS (
-                                SELECT 1
-                                FROM products
-                                WHERE image_url = :imageUrl
-                                  AND status = 'ACTIVE'
-                                UNION ALL
-                                SELECT 1
-                                FROM classes
-                                WHERE image_url = :imageUrl
-                                  AND status = 'ACTIVE'
-                                UNION ALL
-                                SELECT 1
-                                FROM events
-                                WHERE image_url = :imageUrl
-                                  AND published = TRUE
-                                  AND end_at > CURRENT_TIMESTAMP
-                                UNION ALL
-                                SELECT 1
-                                FROM review_images image
-                                JOIN reviews review ON review.id = image.review_id
-                                WHERE image.image_url = :imageUrl
-                                  AND review.status = 'PUBLISHED'
-                                  AND review.deleted_at IS NULL
-                            ) AS publicly_referenced,
-                            EXISTS (
-                                SELECT 1
-                                FROM review_evidence_snapshot_images
-                                WHERE image_url = :imageUrl
-                                UNION ALL
-                                SELECT 1
-                                FROM review_images image
-                                JOIN reviews review ON review.id = image.review_id
-                                WHERE image.image_url = :imageUrl
-                                  AND (review.status <> 'PUBLISHED'
-                                      OR review.deleted_at IS NOT NULL)
-                            ) AS internally_referenced
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM products
+                            WHERE (image_url = :imageUrl
+                                OR image_url LIKE CONCAT(:imageUrl, '?%')
+                                OR image_url LIKE CONCAT(:imageUrl, '#%'))
+                              AND status = 'ACTIVE'
+                            UNION ALL
+                            SELECT 1
+                            FROM classes
+                            WHERE (image_url = :imageUrl
+                                OR image_url LIKE CONCAT(:imageUrl, '?%')
+                                OR image_url LIKE CONCAT(:imageUrl, '#%'))
+                              AND status = 'ACTIVE'
+                            UNION ALL
+                            SELECT 1
+                            FROM events
+                            WHERE (image_url = :imageUrl
+                                OR image_url LIKE CONCAT(:imageUrl, '?%')
+                                OR image_url LIKE CONCAT(:imageUrl, '#%'))
+                              AND published = TRUE
+                              AND end_at > :now
+                            UNION ALL
+                            SELECT 1
+                            FROM review_images image
+                            JOIN reviews review ON review.id = image.review_id
+                            WHERE (image.image_url = :imageUrl
+                                OR image.image_url LIKE CONCAT(:imageUrl, '?%')
+                                OR image.image_url LIKE CONCAT(:imageUrl, '#%'))
+                              AND review.status = 'PUBLISHED'
+                              AND review.deleted_at IS NULL
+                        )
                         """)
                 .param("imageUrl", imageUrl)
-                .query(ReferenceVisibility.class)
+                .param("now", now)
+                .query(Boolean.class)
                 .single();
     }
 }

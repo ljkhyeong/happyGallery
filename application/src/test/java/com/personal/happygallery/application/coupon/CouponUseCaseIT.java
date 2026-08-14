@@ -34,7 +34,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,6 +56,7 @@ class CouponUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PlatformTransactionManager transactionManager;
 
     @AfterEach
@@ -232,7 +235,7 @@ class CouponUseCaseIT {
         try (var executor = Executors.newFixedThreadPool(2)) {
             var lockHolder = executor.submit(() ->
                     new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-                        definitionRepository.findByIdForClaim(definition.getId()).orElseThrow();
+                        definitionRepository.findByIdForSharedLock(definition.getId()).orElseThrow();
                         sharedLockHeld.countDown();
                         await(releaseSharedLock);
                     }));
@@ -339,6 +342,53 @@ class CouponUseCaseIT {
                 .toList();
 
         assertThat(actualIds).containsExactlyElementsOf(expectedIds);
+    }
+
+    @DisplayName("결제 준비의 과거 스냅샷 뒤 쿠폰 정의가 비활성화되면 견적은 최신 상태로 거절한다")
+    @Test
+    void quote_afterDefinitionDeactivationCommit_usesLockingCurrentRead() throws Exception {
+        LocalDateTime now = now();
+        User user = createUser("coupon-current-read@example.com", "01010002700");
+        CouponDefinition definition = couponAdminUseCase.create(fixedCommand(now, 5_000L));
+        IssuedCoupon issued = couponMemberUseCase.claim(user.getId(), definition.getId())
+                .issuedCoupon();
+        CountDownLatch snapshotEstablished = new CountDownLatch(1);
+        CountDownLatch deactivationCommitted = new CountDownLatch(1);
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var quoteResult = executor.submit(() -> {
+                TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+                transaction.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+                try {
+                    transaction.executeWithoutResult(status -> {
+                        Boolean activeInSnapshot = jdbcTemplate.queryForObject(
+                                "SELECT active FROM coupon_definitions WHERE id = ?",
+                                Boolean.class,
+                                definition.getId());
+                        snapshotEstablished.countDown();
+                        await(deactivationCommitted);
+                        if (!Boolean.TRUE.equals(activeInSnapshot)) {
+                            throw new IllegalStateException("과거 스냅샷에 활성 쿠폰이 없습니다.");
+                        }
+                        couponRedemptionUseCase.quoteAndLock(
+                                user.getId(), issued.getId(), 50_000L, now);
+                    });
+                    return null;
+                } catch (HappyGalleryException exception) {
+                    return exception.getErrorCode();
+                }
+            });
+
+            assertThat(snapshotEstablished.await(10, TimeUnit.SECONDS)).isTrue();
+            try {
+                couponAdminUseCase.delete(definition.getId(), definition.getVersion());
+            } finally {
+                deactivationCommitted.countDown();
+            }
+
+            assertThat(quoteResult.get(10, TimeUnit.SECONDS))
+                    .isEqualTo(ErrorCode.CHANGE_NOT_ALLOWED);
+        }
     }
 
     @DisplayName("주문 쿠폰은 상품 금액 견적 뒤 결제 시도에 예약되고 주문 사용과 전액 취소 복원을 수행한다")

@@ -109,12 +109,11 @@ public class AdminReviewController {
     @GetMapping("/reviews/{reviewId}/moderation-actions")
     @Operation(
             operationId = "listReviewModerationActions",
-            security = {
-                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER),
-                    @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_API_KEY)
-            })
+            security = @SecurityRequirement(name = OpenApiSecuritySchemes.ADMIN_BEARER))
     public List<ReviewModerationActionResponse> listModerationActions(
-            @PathVariable @Positive Long reviewId) {
+            @PathVariable @Positive Long reviewId,
+            @AuthenticationPrincipal AdminPrincipal admin) {
+        admin.requireBearerAdminUserId();
         return reviewUseCase.listModerationActions(reviewId).stream()
                 .map(ReviewModerationActionResponse::from)
                 .toList();

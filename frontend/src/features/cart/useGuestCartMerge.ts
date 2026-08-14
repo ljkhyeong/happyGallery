@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError, queryKeys } from "@/shared/api";
+import {
+  ApiError,
+  captureCustomerSession,
+  CustomerSessionChangedError,
+  currentCustomerSessionUserId,
+  queryKeys,
+  requireCurrentCustomerSession,
+  type CustomerSessionSnapshot,
+} from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { useToast } from "@/shared/ui/ToastContainer";
 import { mergeGuestCart } from "./api";
@@ -24,8 +32,22 @@ export interface GuestCartMergeIssue {
 
 interface UseGuestCartMergeParams {
   userId: number | null;
+  customerSessionVersion: number;
   guestItems: GuestCartItem[];
   consumeMergedItemsWhileLocked: (items: GuestCartItem[]) => GuestCartItem[];
+}
+
+function requireMergeCustomerSession(
+  snapshot: CustomerSessionSnapshot,
+  userId: number,
+): void {
+  requireCurrentCustomerSession(snapshot);
+  if (
+    snapshot.boundaryCustomerId !== userId
+    || currentCustomerSessionUserId() !== userId
+  ) {
+    throw new CustomerSessionChangedError();
+  }
 }
 
 function mergeFailureMessage(error: unknown): string {
@@ -49,6 +71,7 @@ function mergeFailureMessage(error: unknown): string {
 
 export function useGuestCartMerge({
   userId,
+  customerSessionVersion,
   guestItems,
   consumeMergedItemsWhileLocked,
 }: UseGuestCartMergeParams) {
@@ -75,6 +98,7 @@ export function useGuestCartMerge({
     mergedUserId.current = userId;
     mergeBlocked.current = false;
     const generation = ++mergeGeneration.current;
+    const customerSession = captureCustomerSession();
     setIsMerging(true);
     setIssue(null);
 
@@ -83,8 +107,10 @@ export function useGuestCartMerge({
       try {
         await mergeGuestCartExclusive(async () => {
           if (generation !== mergeGeneration.current) return;
+          requireMergeCustomerSession(customerSession, userId);
 
           while (true) {
+            requireMergeCustomerSession(customerSession, userId);
             const mergeRequest = getOrCreateGuestCartMergeRequestWhileLocked(userId);
             if (mergeRequest === undefined) break;
             if (mergeRequest.userId !== userId) {
@@ -101,14 +127,17 @@ export function useGuestCartMerge({
               return;
             }
 
+            requireMergeCustomerSession(customerSession, userId);
             await mergeGuestCart(
+              userId,
               mergeRequest.idempotencyKey,
               mergeRequest.items.map(({ productId, qty }) => ({ productId, qty })),
             );
-            merged = true;
+            requireMergeCustomerSession(customerSession, userId);
 
             completeGuestCartMergeRequestWhileLocked(mergeRequest.idempotencyKey);
             consumeMergedItemsWhileLocked(mergeRequest.items);
+            merged = true;
 
             if (generation !== mergeGeneration.current) {
               if (mergeBlocked.current) {
@@ -124,6 +153,14 @@ export function useGuestCartMerge({
           }
         });
       } catch (error) {
+        if (error instanceof CustomerSessionChangedError) {
+          if (generation === mergeGeneration.current) {
+            mergedUserId.current = null;
+            mergeBlocked.current = false;
+            setIssue(null);
+          }
+          return;
+        }
         if (generation === mergeGeneration.current) {
           const failure: GuestCartMergeIssue = {
             kind: "MERGE_FAILED",
@@ -135,9 +172,15 @@ export function useGuestCartMerge({
         }
       } finally {
         if (merged) {
-          await queryClient.invalidateQueries({
-            queryKey: [...queryKeys.member.cart, userId],
-          });
+          try {
+            requireMergeCustomerSession(customerSession, userId);
+            await queryClient.invalidateQueries({
+              queryKey: [...queryKeys.member.cart, userId],
+            });
+            requireMergeCustomerSession(customerSession, userId);
+          } catch {
+            // 현재 회원 장바구니 query가 자체 오류 상태와 재시도를 제공한다.
+          }
         }
         if (generation === mergeGeneration.current) {
           setIsMerging(false);
@@ -146,6 +189,7 @@ export function useGuestCartMerge({
     })();
   }, [
     consumeMergedItemsWhileLocked,
+    customerSessionVersion,
     guestItems,
     mergeRevision,
     queryClient,

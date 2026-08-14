@@ -252,13 +252,24 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
-    @DisplayName("로컬 API key는 후기 공식 답글과 신고 상세 조회 및 결정을 수행할 수 없다")
+    @DisplayName("로컬 API key는 후기 답글·감사 증거·신고 상세를 조회하거나 변경할 수 없다")
     @Test
     void apiKey_cannotReplyOrDecideReviewReport() throws Exception {
         mockMvc.perform(put("/api/v1/admin/reviews/1/reply")
                         .header("X-Admin-Key", "dev-admin-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedVersion\":0,\"content\":\"공식 답글입니다.\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        mockMvc.perform(get("/api/v1/admin/reviews/1/moderation-actions")
+                        .header("X-Admin-Key", "dev-admin-key"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+
+        mockMvc.perform(get(
+                        "/api/v1/admin/media/images/11111111-1111-4111-8111-111111111111.jpg")
+                        .header("X-Admin-Key", "dev-admin-key"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 

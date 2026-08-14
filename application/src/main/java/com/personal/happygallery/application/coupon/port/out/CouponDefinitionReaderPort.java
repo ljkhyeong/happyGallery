@@ -11,7 +11,7 @@ public interface CouponDefinitionReaderPort {
 
     Optional<CouponDefinition> findByIdForUpdate(Long id);
 
-    Optional<CouponDefinition> findByIdForClaim(Long id);
+    Optional<CouponDefinition> findByIdForSharedLock(Long id);
 
     List<CouponDefinition> findAllById(Iterable<Long> ids);
 

@@ -10,6 +10,7 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.adapter.out.persistence.review.ReviewRepository;
 import com.personal.happygallery.adapter.out.persistence.review.ReviewImageRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
@@ -63,6 +64,7 @@ class ReviewUseCaseIT {
     @Autowired ReviewRepository reviewRepository;
     @Autowired ReviewImageRepository reviewImageRepository;
     @Autowired ReviewImageAttachmentService imageAttachmentService;
+    @Autowired ImageMediaReferenceReaderPort imageReferenceReader;
     @Autowired ReviewEvidenceRetentionService evidenceRetentionService;
     @Autowired ReviewTombstoneRetentionService tombstoneRetentionService;
     @Autowired UserStorePort userStore;
@@ -907,6 +909,44 @@ class ReviewUseCaseIT {
             softly.assertThat(summary.id()).isEqualTo(report.id());
             softly.assertThat(persisted.evidence().content()).isEqualTo("신고 시점 원문");
         });
+    }
+
+    @Test
+    @DisplayName("후기 이미지는 공개·숨김·삭제와 보존 증거 상태에 맞게 공개 경계를 전환한다")
+    void reviewImageVisibilityTracksPublicAndEvidenceReferences() {
+        String imageUrl = "https://images.example.com/review-visibility.jpg";
+        User owner = createUser(
+                "review-visibility-owner@example.com", "01074000030", "공개 경계 작성자");
+        User reporter = createUser(
+                "review-visibility-reporter@example.com", "01074000031", "공개 경계 신고자");
+        ProductOrderSource source = createProductOrderSource(owner, true, "공개 경계 상품");
+        ReviewUseCase.ReviewItem created = reviewUseCase.createProductReview(
+                owner.getId(), source.orderItem().getId(), 5, "공개 경계 후기");
+        imageAttachmentService.attach(owner.getId(), created.id(), imageUrl);
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isTrue();
+
+        reviewUseCase.createReport(
+                reporter.getId(), created.id(), ReviewReportReason.OTHER, "이미지 증거 확인");
+        assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isTrue();
+
+        AdminUser admin = adminUserRepository.saveAndFlush(
+                new AdminUser("review-visibility-admin", "password-hash"));
+        createdAdminId = admin.getId();
+        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(created.id());
+        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+                created.id(),
+                ReviewStatus.HIDDEN,
+                "이미지 공개 중지",
+                current.contentRevision(),
+                current.version(),
+                admin.getId());
+
+        assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isFalse();
+
+        reviewUseCase.deleteReview(owner.getId(), hidden.id());
+        assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isFalse();
     }
 
     @Test

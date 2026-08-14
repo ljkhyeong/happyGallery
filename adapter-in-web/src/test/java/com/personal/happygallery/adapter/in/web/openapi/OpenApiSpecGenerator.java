@@ -80,6 +80,7 @@ class OpenApiSpecGenerator {
         assertPaymentAndCartRequestContracts(document);
         assertReviewContracts(document);
         assertReviewSecurityContracts(document);
+        assertMediaContracts(document);
         assertCursorPageSizeContracts(document);
 
         String canonicalOpenApi = objectMapper.writerWithDefaultPrettyPrinter()
@@ -119,6 +120,12 @@ class OpenApiSpecGenerator {
         assertRequiredProperties(document, "ConfirmPaymentRequest", "orderId", "amount");
         assertRequiredProperties(document, "AddCartItemRequest", "productId", "qty");
         assertRequiredProperties(document, "UpdateCartItemRequest", "qty");
+        assertRequiredProperties(
+                document,
+                "MergeCartRequest",
+                "expectedCustomerId",
+                "idempotencyKey",
+                "items");
         assertRequiredProperties(document, "MergeCartItemRequest", "productId", "qty");
         assertRequiredProperties(document, "CartResponse", "items", "totalAmount", "cartVersion");
 
@@ -594,6 +601,11 @@ class OpenApiSpecGenerator {
                 "AdminBearer");
         assertSecurityRequirement(
                 document,
+                "/api/v1/admin/reviews/{reviewId}/moderation-actions",
+                "get",
+                "AdminBearer");
+        assertSecurityRequirement(
+                document,
                 "/api/v1/admin/review-evidence/{evidenceId}/images/{sortOrder}",
                 "get",
                 "AdminBearer");
@@ -610,6 +622,19 @@ class OpenApiSpecGenerator {
         assertSecurityRequirement(
                 document,
                 "/api/v1/admin/review-reports/{reportId}",
+                "get",
+                "AdminBearer");
+    }
+
+    private void assertMediaContracts(Map<?, ?> document) {
+        assertRequiredRequestBody(
+                document,
+                "/api/v1/admin/media/images",
+                "post",
+                "uploadImage");
+        assertSecurityRequirement(
+                document,
+                "/api/v1/admin/media/images/{fileName}",
                 "get",
                 "AdminBearer");
     }

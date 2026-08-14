@@ -7,6 +7,11 @@ import {
 } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { getUserMessage } from "@/shared/lib";
+import {
+  readSessionValue,
+  removeSessionValues,
+  writeSessionValues,
+} from "@/shared/storage/browserSessionStorage";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
 import { LoadingSpinner } from "@/shared/ui";
 import {
@@ -36,21 +41,23 @@ export function SocialCallbackPage() {
     }
     handled.current = true;
 
-    const pendingSocialAccountLink = sessionStorage.getItem(SESSION_KEYS.socialAccountLink);
-    sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
+    const pendingSocialAccountLink = readSessionValue(SESSION_KEYS.socialAccountLink);
+    removeSessionValues(SESSION_KEYS.socialAccountLink);
     const pendingSocialReauthentication =
-      sessionStorage.getItem(SESSION_KEYS.socialReauthentication);
-    sessionStorage.removeItem(SESSION_KEYS.socialReauthentication);
+      readSessionValue(SESSION_KEYS.socialReauthentication);
+    removeSessionValues(SESSION_KEYS.socialReauthentication);
     const continuationOwner = Number(
-      sessionStorage.getItem(SESSION_KEYS.customerContinuationOwner),
+      readSessionValue(SESSION_KEYS.customerContinuationOwner),
     );
-    sessionStorage.removeItem(SESSION_KEYS.customerContinuationOwner);
+    removeSessionValues(SESSION_KEYS.customerContinuationOwner);
     const hasCustomerContinuation =
       pendingSocialAccountLink !== null || pendingSocialReauthentication !== null;
     const clearPendingStepUpActions = () => {
-      sessionStorage.removeItem(SESSION_KEYS.socialAccountLinkTarget);
-      sessionStorage.removeItem(SESSION_KEYS.socialAccountUnlinkTarget);
-      sessionStorage.removeItem(SESSION_KEYS.stepUpReturnAction);
+      removeSessionValues(
+        SESSION_KEYS.socialAccountLinkTarget,
+        SESSION_KEYS.socialAccountUnlinkTarget,
+        SESSION_KEYS.stepUpReturnAction,
+      );
     };
 
     const errorCode = searchParams.get("error");
@@ -60,12 +67,12 @@ export function SocialCallbackPage() {
       );
       if (errorCode === "POLICY_CONSENT_REQUIRED") {
         const returnTo = resolveSafeReturnTo(
-          sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo),
+          readSessionValue(SESSION_KEYS.socialLoginReturnTo),
         );
         setPolicyConsentRequired(true);
         setSignupHref(buildAuthPageHref("/signup", { redirectTo: returnTo }));
       }
-      sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+      removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
       clearPendingStepUpActions();
       setError(getUserMessage(errorCode) ?? "소셜 로그인에 실패했습니다. 다시 시도해 주세요.");
       return;
@@ -91,24 +98,27 @@ export function SocialCallbackPage() {
         }
 
         if (searchParams.get("reauthenticated")) {
-          const linkTarget = sessionStorage.getItem(
+          const linkTarget = readSessionValue(
             SESSION_KEYS.socialAccountLinkTarget,
           ) as SocialProvider | null;
-          const unlinkTarget = sessionStorage.getItem(
+          const unlinkTarget = readSessionValue(
             SESSION_KEYS.socialAccountUnlinkTarget,
           ) as SocialProvider | null;
-          const returnAction = sessionStorage.getItem(SESSION_KEYS.stepUpReturnAction);
+          const returnAction = readSessionValue(SESSION_KEYS.stepUpReturnAction);
           clearPendingStepUpActions();
           if (linkTarget) {
             await runForCurrentCustomer(
               () => startSocialAccountLink(linkTarget),
               ({ authorizationUrl }) => {
                 if (!user) throw new CustomerSessionChangedError();
-                sessionStorage.setItem(
-                  SESSION_KEYS.customerContinuationOwner,
-                  String(user.id),
-                );
-                sessionStorage.setItem(SESSION_KEYS.socialAccountLink, linkTarget);
+                const continuationStored = writeSessionValues([
+                  [SESSION_KEYS.customerContinuationOwner, String(user.id)],
+                  [SESSION_KEYS.socialAccountLink, linkTarget],
+                ]);
+                if (!continuationStored) {
+                  navigate("/my", { replace: true });
+                  return;
+                }
                 window.location.assign(authorizationUrl);
               },
             );
@@ -146,9 +156,9 @@ export function SocialCallbackPage() {
         }
 
         const returnTo = resolveSafeReturnTo(
-          sessionStorage.getItem(SESSION_KEYS.socialLoginReturnTo),
+          readSessionValue(SESSION_KEYS.socialLoginReturnTo),
         );
-        sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+        removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
 
         if (searchParams.get("newUser") === "true" || user?.phone === null) {
           navigate("/my", { replace: true, state: { phoneOnboarding: true } });
@@ -161,8 +171,10 @@ export function SocialCallbackPage() {
           return;
         }
         clearPendingStepUpActions();
-        sessionStorage.removeItem(SESSION_KEYS.socialAccountLink);
-        sessionStorage.removeItem(SESSION_KEYS.socialLoginReturnTo);
+        removeSessionValues(
+          SESSION_KEYS.socialAccountLink,
+          SESSION_KEYS.socialLoginReturnTo,
+        );
         setLinkCallback(
           pendingSocialAccountLink !== null
           || pendingSocialReauthentication !== null,

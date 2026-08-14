@@ -49,7 +49,9 @@ public class DefaultCouponRedemptionService implements CouponRedemptionUseCase {
         if (!issuedCoupon.isOwnedBy(userId)) {
             throw new NotFoundException("쿠폰");
         }
-        CouponDefinition definition = findDefinition(issuedCoupon.getDefinitionId());
+        CouponDefinition definition = definitionReader
+                .findByIdForSharedLock(issuedCoupon.getDefinitionId())
+                .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
         issuedCoupon.requireAvailableAt(definition.getValidUntil(), now);
         long discountAmount = definition.calculateDiscount(productAmount, now);
         return new CouponQuote(

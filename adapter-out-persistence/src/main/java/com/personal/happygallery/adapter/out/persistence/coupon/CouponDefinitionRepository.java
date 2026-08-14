@@ -33,7 +33,7 @@ public interface CouponDefinitionRepository
     @Override
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT c FROM CouponDefinition c WHERE c.id = :id")
-    Optional<CouponDefinition> findByIdForClaim(@Param("id") Long id);
+    Optional<CouponDefinition> findByIdForSharedLock(@Param("id") Long id);
 
     @Override
     List<CouponDefinition> findAllById(Iterable<Long> ids);

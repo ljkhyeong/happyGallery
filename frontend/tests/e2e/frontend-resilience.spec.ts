@@ -120,6 +120,169 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
   expect(paymentStatusToken).toBe("router-state-status-token");
 });
 
+test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값과 주문별 상태 토큰을 되돌린다", async ({
+  baseURL,
+  context,
+  page,
+}) => {
+  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
+  await context.addCookies([{
+    name: "XSRF-TOKEN",
+    value: "payment-recovery-boundary-csrf",
+    url: baseURL,
+  }]);
+  await page.addInitScript(() => {
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      originalSetItem.call(this, key, value);
+      if (
+        this === window.sessionStorage
+        && key === "guest_payment_status_recovery"
+      ) {
+        originalSetItem.call(
+          window.localStorage,
+          "hg_customer_session_boundary",
+          JSON.stringify({
+            epoch: "payment-recovery-next-account",
+            customerId: 202,
+          }),
+        );
+      }
+    };
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 101,
+        email: "payment-recovery-a@example.com",
+        name: "결제 복구 회원 A",
+        phone: "01011111111",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/bookings/phone-verifications") {
+      await fulfillJson(route, { phone: "01011111111", verificationId: 11 });
+      return;
+    }
+    if (pathname === "/api/v1/guest-records/payment-status-recovery") {
+      await fulfillJson(route, {
+        expiresAt: "2099-01-01T00:00:00",
+        statusToken: "stale-recovery-status-token",
+        payments: [{
+          orderId: "stale-recovery-order",
+          context: "ORDER",
+          amount: 12000,
+          status: "COMPLETED",
+        }],
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await fulfillJson(route, {
+        cartVersion: EMPTY_CART_VERSION,
+        items: [],
+        totalAmount: 0,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await fulfillJson(route, { count: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/guest");
+  const recoveryCard = page.locator(".card")
+    .filter({ hasText: "처리 중인 결제 결과 복구" })
+    .first();
+  await recoveryCard.getByLabel("휴대폰 번호").fill("01011111111");
+  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
+  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "결제 결과 복구" }).click();
+
+  await expect.poll(() => page.evaluate(() => ({
+    recovery: sessionStorage.getItem("guest_payment_status_recovery"),
+    statusToken: sessionStorage.getItem(
+      "hg_payment_status_token:stale-recovery-order",
+    ),
+  }))).toEqual({ recovery: null, statusToken: null });
+  await expect(
+    recoveryCard.getByText("결제 상태 조회 정보를 복구했습니다."),
+  ).toHaveCount(0);
+});
+
+test("@identity sessionStorage가 차단된 소셜 callback은 기본 경로로 완료된다", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const originalGetItem = Storage.prototype.getItem;
+    const originalSetItem = Storage.prototype.setItem;
+    const originalRemoveItem = Storage.prototype.removeItem;
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (this === window.sessionStorage) {
+        throw new DOMException("sessionStorage disabled", "SecurityError");
+      }
+      return originalGetItem.call(this, key);
+    };
+    Storage.prototype.setItem = function setItem(key: string, value: string) {
+      if (this === window.sessionStorage) {
+        throw new DOMException("sessionStorage disabled", "SecurityError");
+      }
+      originalSetItem.call(this, key, value);
+    };
+    Storage.prototype.removeItem = function removeItem(key: string) {
+      if (this === window.sessionStorage) {
+        throw new DOMException("sessionStorage disabled", "SecurityError");
+      }
+      originalRemoveItem.call(this, key);
+    };
+  });
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 101,
+        email: "social-callback@example.com",
+        name: "소셜 콜백 회원",
+        phone: "01011111111",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await fulfillJson(route, {
+        cartVersion: EMPTY_CART_VERSION,
+        items: [],
+        totalAmount: 0,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await fulfillJson(route, { count: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/auth/callback");
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("link", { name: "소셜 콜백 회원" })).toBeVisible();
+});
+
 test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시도를 표시한다", async ({
   page,
 }) => {
@@ -162,6 +325,20 @@ test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시�
           : { content: [], hasMore: false, nextCursor: null },
         qnaAttempts <= 3 ? 503 : 200,
       );
+      return;
+    }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, {
+        content: [],
+        filteredCount: 0,
+        hasMore: false,
+        nextCursor: null,
+        summary: {
+          averageRating: 0,
+          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
+          reviewCount: 0,
+        },
+      });
       return;
     }
     if (pathname === "/api/v1/orders/policy") {

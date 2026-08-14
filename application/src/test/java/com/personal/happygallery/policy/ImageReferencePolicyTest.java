@@ -23,6 +23,9 @@ class ImageReferencePolicyTest {
         assertSoftly(softly -> {
             softly.assertThat(ImageReferencePolicy.optional("  /api/v1/media/images/class.jpg  "))
                     .isEqualTo("/api/v1/media/images/class.jpg");
+            softly.assertThat(ImageReferencePolicy.optional(
+                            "/api/v1/media/images/class.jpg?version=1#preview"))
+                    .isEqualTo("/api/v1/media/images/class.jpg");
             softly.assertThat(ImageReferencePolicy.optional("https://images.example.com/product.jpg"))
                     .isEqualTo("https://images.example.com/product.jpg");
             softly.assertThat(ImageReferencePolicy.optional("   ")).isNull();

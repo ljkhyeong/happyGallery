@@ -57,12 +57,12 @@
 - 배포와 Flyway migration 전에는 복구 가능한 백업을 확인한다. 컨테이너 이미지 롤백이 데이터베이스 스키마를 되돌리지는 않는다.
 - V102는 휴대폰 인증 HMAC에 `purpose`를 결합하고 기존 미완료 인증을 폐기한다. 적용 전 app 쓰기를 중단하고 복구 묶음을 확인하며, 적용 뒤에는 이전 binary를 현재 DB에 연결하지 않는다. 실패 시에는 forward fix를 우선하고, 이전 release로 돌아가야 하면 V102 적용 전 DB와 그 시점의 image를 함께 복원한다.
 
-#### 4.1 상품 이미지 저장과 공개 계약
+#### 4.1 이미지 저장과 공개 계약
 
-- 관리자 인증이 필요한 `POST /api/v1/admin/media/images`가 multipart의 `file` 한 개를 받고, 애플리케이션 파일 시스템에 UUID 파일명으로 저장한다. DB에는 바이너리를 넣지 않고 상품·클래스가 반환된 `/api/v1/media/images/{fileName}` URL을 참조한다.
-- 공개 조회 API는 로그인 없이 이미지를 반환한다. 파일명은 UUID와 `jpg`, `png`, `webp` 확장자 조합만 허용하고 경로 정규화 후 저장 디렉터리 바로 아래 파일만 읽어 경로 이탈을 막는다. 응답은 실제 형식의 `Content-Type`과 365일 public immutable cache 정책을 사용한다.
+- 관리자 인증이 필요한 `POST /api/v1/admin/media/images`가 multipart의 `file` 한 개를 받고, 애플리케이션 파일 시스템에 UUID 파일명으로 저장한다. DB에는 바이너리를 넣지 않고 상품·클래스·이벤트가 반환된 `/api/v1/media/images/{fileName}` URL을 참조한다.
+- 공개 조회 API는 현재 공개 aggregate가 참조하는 이미지만 로그인 없이 반환하는 default-deny 경계다. `ACTIVE` 상품·클래스, 게시 상태이고 종료 전인 이벤트, 공개·미삭제 후기 중 하나라도 참조할 때만 허용하며 이벤트 종료 비교에는 애플리케이션의 서울 `Clock` 시각을 쿼리 인자로 전달한다. 업로드 직후 무참조 파일과 비활성·미게시 자산의 미리보기는 `/api/v1/admin/media/images/{fileName}` 계정 기반 Bearer 관리자 경로로 분리하고 local API key는 허용하지 않는다. 두 조회 모두 실제 형식의 `Content-Type`과 `Cache-Control: no-store`를 사용한다. 파일명은 UUID와 `jpg`, `png`, `webp` 확장자 조합만 허용하고 경로 정규화 후 저장 디렉터리 바로 아래 파일만 읽어 경로 이탈을 막는다.
 - 업로드는 JPEG, PNG, WebP만 허용한다. 요청 `Content-Type`만 신뢰하지 않고 각 형식의 magic signature를 함께 검사한다. Spring multipart 제한은 파일 5MB, 요청 전체 6MB이고, 서비스도 비어 있는 파일과 `5 * 1024 * 1024`바이트를 넘는 byte 배열을 거부한다.
-- 파일은 같은 저장 디렉터리에 임시 파일로 쓴 뒤 atomic move를 우선 사용해 완성되지 않은 파일이 공개 경로에 보이지 않게 한다. 참조 중인 UUID 파일은 덮어쓰지 않는 불변 모델이다. 상품·클래스가 참조하지 않는 파일은 첫 보존 배치에서 `.orphaned` 마커로 최초 관찰 시각을 기록한다. 전체 참조·디렉터리 스캔은 DB 트랜잭션 밖에서 수행한다. 7일 뒤 삭제 후보마다 짧은 `REQUIRES_NEW` 트랜잭션을 열어 `image_media_reference_lock` 단일 행을 잠그고, 해당 파일의 최신 참조만 다시 확인한 뒤 파일과 마커를 삭제하거나 마커를 해제한다. 최신 참조 확인은 query·fragment가 붙은 서비스 상대 로컬 URL을 URI path 기준으로 같은 파일 참조로 보지만, 같은 path를 가진 외부 절대 URL은 로컬 파일로 해석하지 않는다. 로컬 이미지 URL 저장도 같은 행을 잠근 뒤 실제 파일 존재를 확인하므로 참조 저장과 삭제 사이 경쟁으로 dangling URL이 생기지 않으면서 긴 파일 스캔 동안 DB 잠금을 유지하지 않는다.
+- 파일은 같은 저장 디렉터리에 임시 파일로 쓴 뒤 atomic move를 우선 사용해 완성되지 않은 파일이 공개 경로에 보이지 않게 한다. 참조 중인 UUID 파일은 덮어쓰지 않는 불변 모델이다. 어떤 aggregate도 참조하지 않는 파일은 첫 보존 배치에서 `.orphaned` 마커로 최초 관찰 시각을 기록한다. 전체 참조·디렉터리 스캔은 DB 트랜잭션 밖에서 수행한다. 7일 뒤 삭제 후보마다 짧은 `REQUIRES_NEW` 트랜잭션을 열어 `image_media_reference_lock` 단일 행을 잠그고, 해당 파일의 최신 참조만 다시 확인한 뒤 파일과 마커를 삭제하거나 마커를 해제한다. 새 상품·클래스·이벤트의 로컬 대표 이미지 URL은 저장 전에 URI path로 정규화해 query·fragment를 제거한다. 최신 참조 확인은 기존 데이터에 query·fragment가 남아 있어도 URI path 기준으로 같은 파일 참조로 보지만, 같은 path를 가진 외부 절대 URL은 로컬 파일로 해석하지 않는다. 로컬 이미지 URL 저장도 같은 행을 잠근 뒤 정규화된 최종 URL의 실제 파일 존재를 확인하므로 참조 저장과 삭제 사이 경쟁으로 dangling URL이 생기지 않으면서 긴 파일 스캔 동안 DB 잠금을 유지하지 않는다.
 - 로컬 기본 경로는 `./data/media`다. k3s 운영에서는 `MEDIA_STORAGE_PATH=/var/lib/happygallery/media`로 고정하고, `ReadWriteOnce`, 5Gi, `local-path-retain` StorageClass의 `app-media` PVC를 그 경로에 mount한다.
 - 애플리케이션은 저장소 사용량을 5분마다 `happygallery.media.storage` gauge로 갱신한다. Prometheus는 4Gi(5Gi의 80%) 초과가 10분 지속되거나 갱신 실패가 발생하거나 마지막 정상 갱신 후 15분이 지나면 경보를 보내며, 용량과 PVC mount, 고아 파일, 백업 상태를 점검한다.
 - manifest는 특정 `hostPath`를 직접 지정하지 않는다. 실제 노트북 디렉터리 배치는 k3s local-path provisioner가 관리하며, 운영 스크립트는 그 경로를 하드코딩하지 않고 `app-media` PVC를 maintenance Pod에 mount해 백업·복원한다. PVC는 app Deployment와 분리한 manifest로 두고, 미디어 기능 도입 전 클러스터에서는 배포 전 백업이 이를 먼저 안전하게 생성할 수 있게 한다. `Retain` reclaim policy는 오삭제 완화 수단일 뿐 백업으로 간주하지 않는다.
@@ -132,7 +132,7 @@
 2026-07-23 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
 - namespace, app/frontend/MySQL/Redis/Prometheus/Alertmanager/Grafana workload, ClusterIP Service, TLS Ingress와 MySQL·미디어·모니터링 Retain PVC
-- 관리자 전용 이미지 업로드, 공개 immutable 이미지 조회, 파일 형식·용량 검증과 원자적 로컬 파일 저장
+- 관리자 전용 이미지 업로드·보호 미리보기, 현재 공개 참조만 허용하는 `no-store` 이미지 조회, 파일 형식·용량 검증과 원자적 로컬 파일 저장
 - 5Gi `app-media` Retain PVC를 `/var/lib/happygallery/media`에 mount하고 maintenance Pod를 통해서만 백업·복원하는 구성
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
 - frontend Nginx의 CSP Report-Only와 JSON-LD hash·외부 출처·Ingress 비중복 정적 검증
