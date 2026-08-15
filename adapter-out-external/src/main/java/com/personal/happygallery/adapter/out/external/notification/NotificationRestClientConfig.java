@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
+import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -25,6 +26,9 @@ class NotificationRestClientConfig {
 
     @Bean(destroyMethod = "close")
     CloseableHttpClient alimtalkHttpClient(AlimtalkNotificationProperties props) {
+        Assert.hasText(props.appKey(), "prod 프로필에는 ALIMTALK_APP_KEY가 필요합니다.");
+        Assert.hasText(props.secretKey(), "prod 프로필에는 ALIMTALK_SECRET_KEY가 필요합니다.");
+        Assert.hasText(props.senderKey(), "prod 프로필에는 ALIMTALK_SENDER_KEY가 필요합니다.");
         return pooledHttpClientFactory.create(props);
     }
 
@@ -41,6 +45,9 @@ class NotificationRestClientConfig {
 
     @Bean(destroyMethod = "close")
     CloseableHttpClient smsHttpClient(SmsNotificationProperties props) {
+        Assert.hasText(props.apiKey(), "prod 프로필에는 SMS_API_KEY가 필요합니다.");
+        Assert.hasText(props.apiSecret(), "prod 프로필에는 SMS_API_SECRET가 필요합니다.");
+        Assert.hasText(props.senderNumber(), "prod 프로필에는 SMS_SENDER_NUMBER가 필요합니다.");
         return pooledHttpClientFactory.create(props);
     }
 

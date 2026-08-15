@@ -14,9 +14,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.sms")
 public record SmsNotificationProperties(
-        @NotBlank String apiKey,
-        @NotBlank String apiSecret,
-        @NotBlank String senderNumber,
+        String apiKey,
+        String apiSecret,
+        String senderNumber,
         @NotBlank @DefaultValue("https://sms.api.nhncloudservice.com") String baseUrl,
         @NotNull @DurationMin(millis = 1) @DefaultValue("2s") Duration timeout,
         @NotNull @DurationMin(millis = 1) @DefaultValue("1s") Duration connectTimeout,

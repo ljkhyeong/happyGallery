@@ -15,9 +15,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.alimtalk")
 public record AlimtalkNotificationProperties(
-        @NotBlank String appKey,
-        @NotBlank String secretKey,
-        @NotBlank @Size(max = 40) String senderKey,
+        String appKey,
+        String secretKey,
+        @Size(max = 40) String senderKey,
         @NotBlank @DefaultValue("https://kakaotalk-bizmessage.api.nhncloudservice.com") String baseUrl,
         @NotNull @DurationMin(millis = 1) @DefaultValue("2s") Duration timeout,
         @NotNull @DurationMin(millis = 1) @DefaultValue("1s") Duration connectTimeout,
