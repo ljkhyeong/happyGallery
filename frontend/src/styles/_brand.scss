@@ -1,7 +1,10 @@
 // ── Chungju happyGallery brand experience ─────────────
 .store-hero {
   min-height: clamp(520px, calc(86svh - 118px), 700px);
-  background-position: center;
+  background-color: #F7F3EA;
+  background-position: center, right center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%, auto 100%;
 }
 
 .store-hero-title {
@@ -601,7 +604,7 @@
 @media (max-width: 767.98px) {
   .store-hero {
     min-height: clamp(520px, calc(84svh - 72px), 620px);
-    background-position: 58% center;
+    background-position: center, 58% center;
   }
 
   .store-hero-content {
