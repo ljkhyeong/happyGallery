@@ -4,7 +4,7 @@
   background-color: #F7F3EA;
   background-position: center, right center;
   background-repeat: no-repeat;
-  background-size: 100% 100%, 70% auto;
+  background-size: 100% 100%, cover;
 }
 
 .store-hero-title {
@@ -605,7 +605,6 @@
   .store-hero {
     min-height: clamp(520px, calc(84svh - 72px), 620px);
     background-position: center, 58% center;
-    background-size: 100% 100%, auto 100%;
   }
 
   .store-hero-content {
