@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface RewardLotRepository extends JpaRepository<RewardLot, Long> {
+public interface RewardLotRepository extends JpaRepository<RewardLot, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

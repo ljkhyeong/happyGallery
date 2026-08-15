@@ -4,7 +4,7 @@ import com.personal.happygallery.domain.reward.RewardReservationAllocation;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-interface RewardReservationAllocationRepository
+public interface RewardReservationAllocationRepository
         extends JpaRepository<RewardReservationAllocation, Long> {
 
     List<RewardReservationAllocation> findByReservationIdOrderByIdAsc(Long reservationId);

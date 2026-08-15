@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface RewardLedgerRepository extends JpaRepository<RewardLedger, Long> {
+public interface RewardLedgerRepository extends JpaRepository<RewardLedger, Long> {
 
     boolean existsByIdempotencyKey(String idempotencyKey);
 

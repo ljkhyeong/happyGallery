@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 
-interface ReviewTombstoneRetentionRepository extends Repository<Review, Long>, ReviewTombstoneRetentionPort {
+public interface ReviewTombstoneRetentionRepository
+        extends Repository<Review, Long>, ReviewTombstoneRetentionPort {
 
     @Override
     @Modifying(clearAutomatically = true, flushAutomatically = true)

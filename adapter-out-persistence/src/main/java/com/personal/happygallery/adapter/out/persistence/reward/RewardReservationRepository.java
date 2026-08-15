@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-interface RewardReservationRepository extends JpaRepository<RewardReservation, Long> {
+public interface RewardReservationRepository extends JpaRepository<RewardReservation, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM RewardReservation r WHERE r.paymentAttemptId = :paymentAttemptId")
