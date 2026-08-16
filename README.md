@@ -280,7 +280,6 @@ Naver 로그인 운영 등록 조건:
 
 - 요구사항 기준: [docs/PRD/0001_기준_스펙/spec.md](docs/PRD/0001_기준_스펙/spec.md)
 - API 계약: [docs/PRD/0004_API_계약/spec.md](docs/PRD/0004_API_계약/spec.md)
-- 운영 전 사용자·관리자 통합 검수(UAT): [docs/UAT/0001_운영_전_사용자_관리자_통합_검수/uat.md](docs/UAT/0001_운영_전_사용자_관리자_통합_검수/uat.md)
 - 설계 결정: [docs/ADR](docs/ADR/)
 - 배경 메모와 검토 기록: [docs/Idea](docs/Idea/)
 - 회고와 트러블슈팅 기록: [docs/Retrospective](docs/Retrospective/)
