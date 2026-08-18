@@ -146,7 +146,7 @@ function CartContent() {
       <div className="d-flex flex-wrap gap-2">
         {guestCartMergeIssue.canRetry && (
           <Button size="sm" variant="primary" onClick={retryGuestCartMerge}>
-            다시 합치기
+            다시 불러오기
           </Button>
         )}
         <Button
@@ -154,11 +154,11 @@ function CartContent() {
           variant="outline-danger"
           onClick={() => setShowDiscardConfirm(true)}
         >
-          보류 항목 폐기
+          이 기기에서 해당 상품 제거
         </Button>
       </div>
       <small className="d-block mt-2">
-        폐기하면 보류 요청에 포함된 로그인 전 수량만 이 기기에서 제거됩니다.
+        제거하면 로그인 전에 담은 해당 상품 수량만 이 기기에서 사라집니다.
       </small>
     </Alert>
   );
@@ -171,11 +171,11 @@ function CartContent() {
     >
       <Modal.Header closeButton>
         <Modal.Title id="held-cart-discard-title" className="fs-6">
-          보류 장바구니 항목 폐기
+          로그인 전에 담은 상품 제거
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        이 병합 요청에 포함된 로그인 전 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
+        다른 계정으로 로그인하기 전에 담은 상품 수량을 이 기기에서 제거합니다. 이 작업은 되돌릴 수 없습니다.
       </Modal.Body>
       <Modal.Footer>
         <Button variant="outline-secondary" onClick={() => setShowDiscardConfirm(false)}>
@@ -188,7 +188,7 @@ function CartContent() {
             setShowDiscardConfirm(false);
           }}
         >
-          폐기
+          상품 제거
         </Button>
       </Modal.Footer>
     </Modal>

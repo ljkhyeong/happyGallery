@@ -27,7 +27,7 @@ export function MyOrdersSection({
           <p className="text-muted-soft small mb-0">최근 5건의 주문 진행 상태를 빠르게 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {orders && <span className="text-muted-soft small">최근 조회 {orders.length}건</span>}
+          {orders && <span className="text-muted-soft small">표시 중 {orders.length}건</span>}
           <Link to="/my/orders" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>

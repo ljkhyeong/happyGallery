@@ -156,7 +156,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
 
   await expect(page.getByRole("status")).toContainText("로그인이 완료되었습니다.");
   await expect(page.locator('[data-slot-id="77"]')).toHaveClass(/active/);
-  await expect(page.locator('[data-slot-id="77"]')).toContainText("잔여 2명");
+  await expect(page.locator('[data-slot-id="77"]')).toContainText("2명 예약 가능");
   expect(preparePayloads).toHaveLength(0);
 
   await page.getByRole("button", { name: "결제 진행하기" }).click();

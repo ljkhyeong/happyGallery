@@ -73,7 +73,7 @@ export function PassPurchasePage() {
               </li>
             ) : (
               <li className="mb-2">
-                이용 기간은 서버 판매 정책을 확인한 뒤 표시합니다.
+                이용 기간은 판매 정책을 확인한 뒤 표시합니다.
               </li>
             )}
             <li className="mb-2">
@@ -89,7 +89,7 @@ export function PassPurchasePage() {
             </li>
           </ul>
           <p className="text-muted-soft small mb-0">
-            표시 금액과 이용 기간은 서버 판매 정책이며 결제 준비 단계에서 다시 확정됩니다.
+            표시 금액과 이용 기간은 결제 전에 최신 판매 정책으로 다시 확인합니다.
           </p>
         </Card.Body>
       </Card>

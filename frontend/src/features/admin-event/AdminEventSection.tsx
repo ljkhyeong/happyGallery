@@ -273,7 +273,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                     onClick={() => {
                       setEditVersion(conflict.version);
                       setConflict(null);
-                      toast.show("최신 버전을 반영했습니다. 초안을 확인한 뒤 다시 저장해 주세요.");
+                      toast.show("내 입력 내용은 그대로 유지했습니다. 다른 관리자의 변경 내용을 확인한 뒤 다시 저장해 주세요.");
                     }}
                   >
                     내 초안 유지
@@ -288,7 +288,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       setConflict(null);
                     }}
                   >
-                    서버 최신 내용 불러오기
+                    다른 관리자가 저장한 내용 불러오기
                   </Button>
                 </div>
               </Alert>

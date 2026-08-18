@@ -41,8 +41,8 @@ const REFUNDABLE_STATUSES = new Set<AdminPassResponse["status"]>(["ACTIVE", "USE
 const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
   REQUESTED: "요청 접수",
   PROCESSING: "처리 중",
-  RETRYABLE: "재시도 대기",
-  RECONCILIATION_REQUIRED: "상태 확인 필요",
+  RETRYABLE: "자동으로 다시 처리 예정",
+  RECONCILIATION_REQUIRED: "결제사 확인 필요",
   SUCCEEDED: "환불 완료",
   FAILED: "환불 실패",
 };
@@ -80,7 +80,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const expire = useAdminMutation(onAuthError, {
     mutationFn: () => expirePasses(adminKey),
     onSuccess: (result) => {
-      toast.show(`만료 배치: 성공 ${result.successCount}, 실패 ${result.failureCount}`);
+      toast.show(`기간 지난 8회권 처리: 완료 ${result.successCount}건 · 확인 필요 ${result.failureCount}건`);
       queryClient.invalidateQueries({ queryKey: ["admin", "passes"] });
     },
   });
@@ -99,7 +99,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
           passDetail.data?.passNumber ?? `8회권 #${refundedPassId}`,
         );
       } else {
-        toast.show(`8회권 정산 완료: 환불 금액 없음, 취소 예약 ${result.canceledBookings}건`);
+        toast.show(`환불할 금액이 없습니다. 함께 취소된 예약은 ${result.canceledBookings}건입니다.`);
       }
       queryClient.invalidateQueries({ queryKey: ["admin", "passes"] });
     },
@@ -175,7 +175,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
                     <div>{pass.customerName}</div>
                     <small className="text-muted-soft">{pass.customerPhone ?? "-"}</small>
                   </td>
-                  <td><StatusBadge status={pass.status} /></td>
+                  <td><StatusBadge status={pass.status} audience="admin" /></td>
                   <td>{pass.remainingCredits}/{pass.totalCredits}회</td>
                   <td><small>{formatDateTime(pass.expiresAt)}</small></td>
                   <td className="text-end">
@@ -233,7 +233,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
                     {selectedPass.customerName} · {selectedPass.customerPhone ?? "휴대폰 번호 없음"}
                   </div>
                 </div>
-                <StatusBadge status={selectedPass.status} />
+                <StatusBadge status={selectedPass.status} audience="admin" />
               </div>
 
               <dl className="row small mb-3">
@@ -284,7 +284,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
             onClick={() => expire.mutate()}
           >
             <RefreshCcw size={14} aria-hidden="true" className="me-1" />
-            {expire.isPending ? "실행 중..." : "만료 배치 실행"}
+            {expire.isPending ? "처리 중..." : "기간 지난 8회권 만료 처리"}
           </Button>
         </div>
         <ErrorAlert error={visibleError(expire.error)} />
@@ -312,7 +312,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
               </p>
               <dl className="row small mb-3">
                 <dt className="col-6">현재 상태</dt>
-                <dd className="col-6"><StatusBadge status={selectedPass.status} /></dd>
+                <dd className="col-6"><StatusBadge status={selectedPass.status} audience="admin" /></dd>
                 <dt className="col-6">잔여 횟수</dt>
                 <dd className="col-6">{selectedPass.remainingCredits}/{selectedPass.totalCredits}회</dd>
                 <dt className="col-6">자동 취소될 미래 예약</dt>

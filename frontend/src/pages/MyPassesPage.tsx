@@ -123,7 +123,7 @@ function MyPassesContent() {
               "info",
             );
           } else {
-            toast.show("환불 금액 없이 8회권 정산이 완료되었습니다.");
+            toast.show("돌려드릴 금액 없이 8회권 환불 처리가 완료되었습니다.");
           }
         },
       ),

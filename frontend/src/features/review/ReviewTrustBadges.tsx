@@ -8,7 +8,7 @@ interface Props {
 
 export function ReviewTrustBadges({ verifiedTransaction, edited }: Props) {
   return (
-    <span className="review-trust-badges" aria-label="후기 신뢰 정보">
+    <span className="review-trust-badges" aria-label="후기 작성 정보">
       {verifiedTransaction && (
         <Badge bg="light" text="dark" className="review-trust-badge">
           <BadgeCheck size={14} aria-hidden="true" /> 실제 이용

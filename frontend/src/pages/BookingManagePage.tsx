@@ -164,7 +164,7 @@ function BookingManageContent() {
         <Card.Body>
           <div className="legacy-order-step-label mb-2">예약 번호와 조회 코드 입력</div>
           <p className="text-muted-soft small mb-3">
-            조회가 끝나면 같은 화면에서 슬롯 변경과 취소까지 이어서 진행할 수 있습니다.
+            조회가 끝나면 같은 화면에서 예약 날짜·시간 변경과 취소까지 이어서 진행할 수 있습니다.
           </p>
           <BookingLookupForm
             onLookup={handleLookup}

@@ -129,7 +129,7 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
 
   await page.goto("/cart");
   await expect(page.getByText("스냅샷 확인 작품", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   const checkoutButton = page.getByRole("button", { name: "결제하기", exact: true });
   await expect(checkoutButton).toBeDisabled();
   await expect(page.getByRole("alert")).toContainText(
@@ -255,7 +255,7 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
 
   await page.goto("/cart");
   await expect(page.getByText("재고 충돌 작품", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   const readsBeforeCheckout = cartReads;
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
 

@@ -121,7 +121,7 @@ export function RescheduleForm({
             >
               <span>{formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}</span>
               <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">
-                잔여 {slot.remainingCapacity}명
+                {slot.remainingCapacity}명 예약 가능
               </Badge>
             </ListGroup.Item>
           ))}

@@ -129,6 +129,20 @@ test("공개 Q&A 더 보기는 같은 크기의 내 Q&A 페이지도 함께 전�
       });
       return;
     }
+    if (url.pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, {
+        content: [],
+        filteredCount: 0,
+        hasMore: false,
+        nextCursor: null,
+        summary: {
+          averageRating: 0,
+          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
+          reviewCount: 0,
+        },
+      });
+      return;
+    }
     if (url.pathname === "/api/v1/products/42/qna/page") {
       const cursor = url.searchParams.get("cursor");
       publicCursors.push(cursor);
@@ -381,9 +395,9 @@ test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 
 
   await page.goto("/admin?view=support");
   const qnaPanel = page.locator("section.admin-workspace-panel")
-    .filter({ hasText: "Q&A 관리" });
+    .filter({ hasText: "상품 문의 관리" });
   await qnaPanel.getByRole("button", { name: "상품별" }).click();
-  await qnaPanel.getByLabel("상품").selectOption("42");
+  await qnaPanel.getByLabel("상품", { exact: true }).selectOption("42");
   await expect(qnaPanel.getByText("첫 번째 관리자 Q&A")).toBeVisible();
 
   await qnaPanel.getByRole("button", { name: "다음" }).click();

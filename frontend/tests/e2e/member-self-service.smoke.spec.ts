@@ -38,7 +38,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
 
   await page.goto(`/products/${product.id}`);
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await page.getByRole("button", { name: "바로 구매하기" }).click();
 
   await expect(page.getByText("결제 결과를 다시 확인해 주세요")).toBeVisible();
@@ -263,12 +263,12 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
   await page.getByRole("button", { name: "예약 취소" }).click();
 
   await expect(page.getByText(
-    "취소 마감이 지나 8회권 크레딧은 복구되지 않습니다. 취소 후에도 사용 횟수는 차감된 상태로 유지됩니다.",
+    "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다. 취소 후에도 이용 횟수는 차감된 상태로 유지됩니다.",
   )).toBeVisible();
   await expect(page.getByText("D-1(전날 00:00) 이후에는 예약금 환불이 불가합니다.")).toHaveCount(0);
 
   await page.getByRole("button", { name: "취소 확인" }).click();
   await expect(page.getByText(
-    "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.",
+    "예약이 취소되었습니다. 사용한 8회권 1회는 복구되지 않았습니다.",
   )).toBeVisible();
 });

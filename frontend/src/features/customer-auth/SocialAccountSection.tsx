@@ -66,7 +66,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
   const showActionError = (error: unknown, fallback: string) => {
     if (error instanceof CustomerSessionChangedError) return;
     const message = error instanceof ApiError
-      ? getUserMessage(error.code) ?? error.message
+      ? getUserMessage(error.code) ?? fallback
       : fallback;
     toast.show(message, "danger");
   };

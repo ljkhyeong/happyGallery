@@ -288,7 +288,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   expect(reportDetailGetCount).toBe(0);
   await reportCard.getByRole("button", { name: "신고 상세 검토" }).click();
   await imageFailureCard.getByRole("button", { name: "신고 상세 검토" }).click();
-  await expect(reportCard.getByText("본문 revision 2", { exact: true })).toBeVisible();
+  await expect(reportCard.getByText("본문 버전 2", { exact: true })).toBeVisible();
   await expect(reportCard.getByAltText("당시 후기 사진 1")).toHaveAttribute("src", /^blob:/);
   await expect(imageFailureCard.getByRole("alert")).toContainText("사진 증거를 불러오지 못했습니다.");
   expect(evidenceImageRequests).toContainEqual({
@@ -329,29 +329,29 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
 
   let focusedReviewCard = page.locator(".admin-review-card").filter({ hasText: "현재 후기 본문" });
   await focusedReviewCard.getByRole("button", { name: "숨기기" }).click();
-  await focusedReviewCard.getByLabel("숨김 사유").fill("운영 정책 위반");
-  await focusedReviewCard.getByRole("button", { name: "숨김 확정" }).click();
+  await focusedReviewCard.getByLabel("비공개 사유").fill("부적절한 내용");
+  await focusedReviewCard.getByRole("button", { name: "비공개 확정" }).click();
 
   await expect.poll(() => statusChanges[0]).toEqual({
     status: "HIDDEN",
-    reason: "운영 정책 위반",
+    reason: "부적절한 내용",
     expectedContentRevision: 3,
     expectedVersion: 5,
   });
   focusedReviewCard = page.locator(".admin-review-card").filter({ hasText: "작성자가 수정한 최신 후기" });
   await expect.poll(() => adminReviewGetCount).toBeGreaterThanOrEqual(2);
-  await expect(focusedReviewCard.getByText("revision 4", { exact: true })).toBeVisible();
+  await expect(focusedReviewCard.getByText("본문 버전 4", { exact: true })).toBeVisible();
   await expect(page.getByText("최신 상태를 다시 불러왔습니다.", { exact: false }).last())
     .toBeVisible();
-  await focusedReviewCard.getByRole("button", { name: "숨김 확정" }).click();
+  await focusedReviewCard.getByRole("button", { name: "비공개 확정" }).click();
   await expect.poll(() => statusChanges[1]).toEqual({
     status: "HIDDEN",
-    reason: "운영 정책 위반",
+    reason: "부적절한 내용",
     expectedContentRevision: 4,
     expectedVersion: 6,
   });
-  await expect(focusedReviewCard.getByText("숨김", { exact: true })).toBeVisible();
-  await expect(focusedReviewCard.getByAltText("숨김 후기 첨부 사진 1"))
+  await expect(focusedReviewCard.getByText("비공개", { exact: true })).toBeVisible();
+  await expect(focusedReviewCard.getByAltText("비공개 후기 첨부 사진 1"))
     .toHaveAttribute("src", /^blob:/);
   expect(hiddenReviewImageRequests).toContainEqual({
     path: "/api/v1/admin/reviews/11/images/301",

@@ -41,7 +41,7 @@ export function OrderReviewsSection({ orderId, items }: Props) {
           <p className="my-section-kicker mb-1">Review</p>
           <h5 id="order-reviews-heading" className="mb-1">상품 후기</h5>
           <p className="text-muted-soft small mb-0">
-            서버가 확인한 완료 상품마다 후기를 한 번씩 남길 수 있습니다.
+            배송·수령이 완료된 상품마다 후기를 한 번씩 남길 수 있습니다.
           </p>
         </div>
       </header>
@@ -98,14 +98,14 @@ export function OrderReviewsSection({ orderId, items }: Props) {
                 )}
                 {creationStatus === "RECREATION_BLOCKED" && (
                   <Alert variant="warning" className="small mt-3 mb-0">
-                    운영 정책으로 숨김 처리된 이력이 있어 이 상품 이용 건에는 후기를 다시 작성할 수 없습니다.
+                    이 상품의 후기가 공방에서 비공개 처리된 적이 있어 새 후기를 작성할 수 없습니다.
                   </Alert>
                 )}
                 {creationStatus === "REVIEW_EXISTS" && (
                   <p className="text-muted-soft small mt-3 mb-0">이 상품 이용 건에는 이미 후기가 등록되어 있습니다.</p>
                 )}
                 {creationStatus === "NOT_REVIEWABLE" && (
-                  <p className="text-muted-soft small mt-3 mb-0">배송·픽업 또는 주문 완료 후 작성할 수 있습니다.</p>
+                  <p className="text-muted-soft small mt-3 mb-0">배송·매장 수령 또는 주문이 완료된 뒤 작성할 수 있습니다.</p>
                 )}
                 {writing && creationStatus === "AVAILABLE" && (
                   <div className="mt-3 pt-3 border-top">

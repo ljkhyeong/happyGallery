@@ -83,7 +83,7 @@ export function MemberOrderBenefits({
     <div>
       <h6 className="mb-1">쿠폰·적립금</h6>
       <p className="text-muted-soft small mb-3">
-        회원 상품 주문에만 적용됩니다. 배송비를 제외한 상품 금액 기준이며 최종 할인액은 서버에서 다시 확정합니다.
+        회원 상품 주문에만 적용됩니다. 배송비를 제외한 상품 금액 기준이며 결제 전에 최신 할인액을 다시 확인합니다.
       </p>
 
       {isLoading && <LoadingSpinner text="사용 가능한 혜택을 확인하는 중입니다" />}

@@ -14,6 +14,11 @@ interface Props {
   onAuthError: () => void;
 }
 
+const REVIEW_VISIBILITY_LABEL: Record<string, string> = {
+  PUBLISHED: "공개",
+  HIDDEN: "비공개",
+};
+
 export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError }: Props) {
   const [expanded, setExpanded] = useState(false);
   const query = useAdminQuery(onAuthError, {
@@ -43,13 +48,17 @@ export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError 
             onRetry={() => void query.refetch()}
             retrying={query.isFetching}
           />
-          {query.data?.length === 0 && <EmptyState message="아직 숨김·재공개 이력이 없습니다." />}
+          {query.data?.length === 0 && <EmptyState message="아직 비공개·재공개 이력이 없습니다." />}
           {query.data && query.data.length > 0 && (
             <ol className="admin-review-timeline">
               {query.data.map((action) => (
                 <li key={action.id}>
-                  <strong>{action.action === "HIDE" ? "후기 숨김" : "후기 재공개"}</strong>
-                  <span>{action.previousStatus} → {action.newStatus}</span>
+                  <strong>{action.action === "HIDE" ? "후기 비공개" : "후기 재공개"}</strong>
+                  <span>
+                    {REVIEW_VISIBILITY_LABEL[action.previousStatus] ?? "상태 확인 필요"}
+                    {" → "}
+                    {REVIEW_VISIBILITY_LABEL[action.newStatus] ?? "상태 확인 필요"}
+                  </span>
                   {action.reason && <p>{action.reason}</p>}
                   <small>관리자 #{action.adminUserId} · {formatDateTime(action.createdAt)}</small>
                   <AdminReviewEvidence

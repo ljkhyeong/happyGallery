@@ -218,7 +218,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
       deleteCoupon(id, version, adminKey),
     onMutate: () => setActionError(null),
     onSuccess: () => {
-      toast.show("쿠폰을 비활성화했습니다.");
+      toast.show("쿠폰 사용을 중지했습니다.");
       invalidateCoupons();
     },
     onError: (error) => {
@@ -291,7 +291,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                     onClick={() => {
                       setEditVersion(conflict.version);
                       setConflict(null);
-                      toast.show("최신 버전을 반영했습니다. 초안을 확인한 뒤 다시 저장해 주세요.");
+                      toast.show("내 입력 내용은 그대로 유지했습니다. 다른 관리자의 변경 내용을 확인한 뒤 다시 저장해 주세요.");
                     }}
                   >
                     내 초안 유지
@@ -306,7 +306,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       setConflict(null);
                     }}
                   >
-                    서버 최신 내용 불러오기
+                    다른 관리자가 저장한 내용 불러오기
                   </Button>
                 </div>
               </Alert>
@@ -472,7 +472,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
               <div className="d-flex flex-wrap gap-2 align-items-center mb-1">
                 <strong>{coupon.name}</strong>
                 <Badge bg={coupon.active ? "success" : "secondary"}>
-                  {coupon.active ? "사용 가능" : "비활성"}
+                  {coupon.active ? "사용 가능" : "사용 중지"}
                 </Badge>
                 {coupon.publiclyClaimable && <Badge bg="info">공개 발급</Badge>}
               </div>
@@ -502,7 +502,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                   }
                 }}
               >
-                비활성화
+                사용 중지
               </Button>
             </div>
           </Card.Body>

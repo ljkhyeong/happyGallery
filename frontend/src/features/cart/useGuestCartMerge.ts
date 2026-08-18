@@ -54,19 +54,19 @@ function mergeFailureMessage(error: unknown): string {
   if (error instanceof ApiError) {
     return getUserMessage(error.code)
       ?? (error.status >= 500
-        ? "서버에 일시적인 문제가 발생했습니다."
-        : error.message);
+        ? "서비스에 일시적인 문제가 발생했습니다."
+        : "장바구니를 합칠 수 없습니다. 다시 시도해 주세요.");
   }
   if (error instanceof Error && error.name === "AbortError") {
     return "요청 시간이 초과되었습니다.";
   }
-  if (error instanceof TypeError) {
-    return "서버에 연결할 수 없습니다.";
+  if (error instanceof TypeError && error.message === "Failed to fetch") {
+    return "서비스에 연결할 수 없습니다.";
   }
   if (error instanceof GuestCartLockUnavailableError) {
     return error.message;
   }
-  return "알 수 없는 오류가 발생했습니다.";
+  return "잠시 후 다시 시도해 주세요.";
 }
 
 export function useGuestCartMerge({
@@ -117,7 +117,7 @@ export function useGuestCartMerge({
               if (generation === mergeGeneration.current) {
                 const mismatch: GuestCartMergeIssue = {
                   kind: "ACCOUNT_MISMATCH",
-                  message: "다른 계정에서 시작한 장바구니 병합이 보류 중입니다. 해당 계정으로 다시 로그인해 재시도하거나 보류 항목을 폐기해 주세요.",
+                  message: "다른 계정으로 로그인하기 전에 담은 상품이 남아 있습니다. 해당 계정으로 다시 로그인해 불러오거나 이 기기에서 해당 상품을 제거해 주세요.",
                   canRetry: false,
                 };
                 mergeBlocked.current = true;

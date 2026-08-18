@@ -286,7 +286,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
   });
 
   await page.goto("/products/42");
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await page.getByRole("button", { name: "바로 구매하기" }).click();
   await expect.poll(() => prepareStarted).toBe(true);
 
@@ -458,7 +458,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await page.getByRole("button", { name: "확인", exact: true }).click();
   await page.getByLabel("주문자 이름").fill("비회원 주문자");
   await expect(page.getByLabel("상품")).toContainText("비회원 지연 결제 작품");
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await page.locator("#guest-order-policy-consent").check();
   await expect(page.getByRole("button", { name: "결제 진행하기" }))
     .toBeEnabled();
@@ -757,7 +757,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     await expect(page.getByText(customerA.name).first()).toBeVisible();
     await page.getByRole("button", { name: "택배 배송" }).click();
     await page.getByLabel("기본 주소").fill("A 탭에서 입력한 배송지");
-    await page.getByRole("button", { name: "매장 픽업" }).click();
+    await page.getByRole("button", { name: "매장 수령" }).click();
     await page.getByRole("button", { name: "바로 구매하기" }).click();
     await expect.poll(() => prepareStarted).toBe(true);
     expect(preparedUserId).toBe(customerA.id);

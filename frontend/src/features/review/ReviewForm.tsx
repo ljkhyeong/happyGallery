@@ -52,7 +52,7 @@ export function ReviewForm({
     <Form onSubmit={handleSubmit} className="review-form">
       {hiddenNotice && (
         <Alert variant="warning" className="small py-2">
-          숨김 상태에서 내용을 수정해도 자동으로 다시 공개되지 않습니다.
+          비공개 상태에서 내용을 수정해도 자동으로 다시 공개되지 않습니다.
         </Alert>
       )}
       <fieldset className="mb-3" disabled={pending}>

@@ -26,14 +26,14 @@ export function OrderCustomerActionPanel({
   if (!canCancel && !canRespondToDelay) return null;
 
   const confirmTitle = confirmAction === "REJECT"
-    ? "지연 거절 및 환불 요청"
+    ? "변경된 제작 일정 거절 및 환불 요청"
     : "주문 취소 및 환불 요청";
   const confirmMessage = confirmAction === "REJECT"
-    ? "제작 지연 제안을 거절하면 주문이 취소되고 전액 환불 요청이 접수됩니다."
-    : "주문을 취소하면 확보된 재고가 복구되고 전액 환불 요청이 접수됩니다.";
+    ? "공방이 제안한 변경 일정을 거절하면 주문이 취소되고 전액 환불을 요청합니다."
+    : "주문을 취소하면 전액 환불을 요청합니다.";
   const confirmLabel = confirmAction === "REJECT"
-    ? "거절 및 환불 요청"
-    : "취소 및 환불 요청";
+    ? "거절하고 환불 요청"
+    : "취소하고 환불 요청";
 
   const submitConfirmedAction = () => {
     if (confirmAction === "REJECT") {
@@ -64,14 +64,14 @@ export function OrderCustomerActionPanel({
             disabled={pending}
             onClick={() => setConfirmAction("REJECT")}
           >
-            {pending ? "처리 중..." : "지연 거절"}
+            {pending ? "처리 중..." : "변경 일정 거절"}
           </Button>
           <Button
             variant="primary"
             disabled={pending}
             onClick={() => onDelayDecision("ACCEPT")}
           >
-            {pending ? "처리 중..." : "지연 수락"}
+            {pending ? "처리 중..." : "변경 일정에 동의"}
           </Button>
         </div>
       )}
@@ -93,7 +93,7 @@ export function OrderCustomerActionPanel({
           <ErrorAlert error={error} />
           <p>{confirmMessage}</p>
           <Alert variant="info" className="mb-0 py-2 small">
-            주문 취소와 환불 요청 접수는 즉시 반영되지만, 결제사 환불 완료 시점은 별도입니다.
+            주문 취소는 바로 반영되며, 실제 환불 완료 시점은 결제사에 따라 달라질 수 있습니다.
           </Alert>
         </Modal.Body>
         <Modal.Footer>

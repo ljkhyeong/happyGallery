@@ -20,8 +20,8 @@ interface Props {
 }
 
 const TYPE_LABELS: Record<BookingCancellationTaskType, string> = {
-  BALANCE_SETTLEMENT: "결제된 잔금 정산",
-  MANUAL_COMPENSATION: "수동 환불·보상",
+  BALANCE_SETTLEMENT: "고객에게 받은 잔금 직접 반환",
+  MANUAL_COMPENSATION: "직접 처리할 환불·보상",
 };
 
 export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props) {
@@ -39,7 +39,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
     onMutate: setPendingId,
     onSuccess: (result) => {
       toast.show(
-        result.changed ? "예약 취소 후속 작업을 완료했습니다." : "이미 완료된 작업입니다.",
+        result.changed ? "직접 처리할 항목을 완료로 표시했습니다." : "이미 완료로 표시된 항목입니다.",
         result.changed ? "success" : "info",
       );
       queryClient.invalidateQueries({
@@ -53,7 +53,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
   if (error instanceof ApiError && error.status === 401) return null;
   if (error) return <ErrorAlert error={error} />;
   if (!tasks?.length) {
-    return <EmptyState message="미처리 예약 취소 후속 작업이 없습니다." />;
+    return <EmptyState message="예약 취소 후 직접 처리할 일이 없습니다." />;
   }
 
   return (
@@ -63,7 +63,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
         <thead>
           <tr>
             <th>예약</th>
-            <th>작업</th>
+            <th>해야 할 일</th>
             <th>취소 사유</th>
             <th>발생일</th>
             <th></th>
@@ -93,11 +93,11 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
                 )}
                 {task.type === "MANUAL_COMPENSATION" && task.compensationAmount > 0 && (
                   <small className="d-block mt-1">
-                    반환할 예약금 {formatKRW(task.compensationAmount)}
+                    고객에게 예약금 {formatKRW(task.compensationAmount)} 직접 반환
                   </small>
                 )}
                 {task.type === "MANUAL_COMPENSATION" && task.compensationAmount === 0 && (
-                  <small className="d-block mt-1">8회권 대체 보상 확인</small>
+                  <small className="d-block mt-1">만료된 8회권 보상 방법을 고객과 협의</small>
                 )}
               </td>
               <td className="small">{task.reason}</td>
@@ -110,7 +110,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
                   onClick={() => completion.mutate(task.taskId)}
                 >
                   <Check size={14} aria-hidden="true" className="me-1" />
-                  {pendingId === task.taskId ? "처리 중" : "완료"}
+                  {pendingId === task.taskId ? "처리 중..." : "처리 완료로 표시"}
                 </Button>
               </td>
             </tr>

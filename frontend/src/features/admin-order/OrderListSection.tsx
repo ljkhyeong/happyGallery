@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Form, Row, Col } from "react-bootstrap";
+import { Alert, Table, Button, Form, Row, Col, Modal } from "react-bootstrap";
 import { X } from "lucide-react";
 import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
@@ -24,22 +24,22 @@ interface Props {
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "전체" },
   { value: "PAID_APPROVAL_PENDING", label: "승인 대기" },
-  { value: "APPROVED_FULFILLMENT_PENDING", label: "이행 대기" },
+  { value: "APPROVED_FULFILLMENT_PENDING", label: "배송·수령 준비 대기" },
   { value: "IN_PRODUCTION", label: "제작 중" },
-  { value: "DELAY_CONSENT_PENDING", label: "지연 응답 대기" },
-  { value: "DELAY_ACCEPTED", label: "지연 수락" },
-  { value: "DELAY_REJECTED_CANCELED", label: "지연 거절 취소" },
+  { value: "DELAY_CONSENT_PENDING", label: "제작 지연 고객 답변 대기" },
+  { value: "DELAY_ACCEPTED", label: "고객이 제작 지연에 동의" },
+  { value: "DELAY_REJECTED_CANCELED", label: "고객 거절로 취소" },
   { value: "SHIPPING_PREPARING", label: "배송 준비" },
   { value: "SHIPPED", label: "배송 중" },
   { value: "DELIVERED", label: "배송 완료" },
-  { value: "PICKUP_READY", label: "픽업 대기" },
-  { value: "PICKED_UP", label: "픽업 완료" },
+  { value: "PICKUP_READY", label: "매장 수령 대기" },
+  { value: "PICKED_UP", label: "매장 수령 완료" },
   { value: "COMPLETED", label: "완료" },
   { value: "REJECTED", label: "거절" },
   { value: "CUSTOMER_CANCELED", label: "고객 취소" },
   { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
-  { value: "PICKUP_EXPIRED", label: "픽업 만료 환불" },
-  { value: "PICKUP_FORFEITED", label: "픽업 미수령 종료" },
+  { value: "PICKUP_EXPIRED", label: "수령 기한 만료 환불" },
+  { value: "PICKUP_FORFEITED", label: "미수령으로 종료" },
 ];
 
 export function OrderListSection({
@@ -52,6 +52,7 @@ export function OrderListSection({
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
   const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
+  const [showExpireConfirmation, setShowExpireConfirmation] = useState(false);
   const [focusedOrder, setFocusedOrder] = useState(
     focusOrderId != null && focusOrderStatus
       ? { id: focusOrderId, status: focusOrderStatus }
@@ -101,7 +102,7 @@ export function OrderListSection({
           <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
             <div className="d-flex align-items-center gap-2">
               <h6 id="focused-order-title" className="mb-0">검색한 주문 #{focusedOrder.id}</h6>
-              <StatusBadge status={focusedOrder.status} />
+              <StatusBadge status={focusedOrder.status} audience="admin" />
             </div>
             <Button
               size="sm"
@@ -150,8 +151,8 @@ export function OrderListSection({
         <Col xs="auto">
           <Button size="sm" variant="outline-secondary"
             disabled={mutations.expire.isPending}
-            onClick={() => mutations.expire.mutate()}>
-            {mutations.expire.isPending ? "처리 중..." : "픽업 만료 배치"}
+            onClick={() => setShowExpireConfirmation(true)}>
+            {mutations.expire.isPending ? "처리 중..." : "수령 기한 지난 주문 환불·종결"}
           </Button>
         </Col>
       </Row>
@@ -173,7 +174,7 @@ export function OrderListSection({
           <Table responsive hover size="sm">
             <thead>
               <tr>
-                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
+                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>처리</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -197,8 +198,8 @@ export function OrderListSection({
                       </div>
                     ))}
                   </td>
-                  <td><StatusBadge status={o.status} /></td>
-                  <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "픽업" : "-"}</td>
+                  <td><StatusBadge status={o.status} audience="admin" /></td>
+                  <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "매장 수령" : "-"}</td>
                   <td>{formatKRW(o.totalAmount)}</td>
                   <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                   <td><small>{formatDateTime(o.createdAt)}</small></td>
@@ -206,12 +207,16 @@ export function OrderListSection({
                     fulfillmentType={o.fulfillmentType} mutations={mutations} /></td>
                   <td>
                     <Button size="sm" variant="link"
+                      aria-expanded={fulfillmentOrderId === o.orderId}
+                      aria-controls={`order-fulfillment-${o.orderId}`}
                       onClick={() => setFulfillmentOrderId(fulfillmentOrderId === o.orderId ? null : o.orderId)}>
-                      {fulfillmentOrderId === o.orderId ? "닫기" : "이행"}
+                      {fulfillmentOrderId === o.orderId ? "배송·수령 정보 닫기" : "배송·수령 정보"}
                     </Button>
                     <Button size="sm" variant="link"
+                      aria-expanded={historyOrderId === o.orderId}
+                      aria-controls={`order-history-${o.orderId}`}
                       onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
-                      {historyOrderId === o.orderId ? "닫기" : "이력"}
+                      {historyOrderId === o.orderId ? "주문 처리 이력 닫기" : "주문 처리 이력"}
                     </Button>
                   </td>
                 </tr>
@@ -231,20 +236,62 @@ export function OrderListSection({
       )}
 
       {historyOrderId != null && (
-        <OrderHistoryPanel
-          orderId={historyOrderId}
-          adminKey={adminKey}
-          onAuthError={onAuthError}
-        />
+        <div id={`order-history-${historyOrderId}`}>
+          <OrderHistoryPanel
+            orderId={historyOrderId}
+            adminKey={adminKey}
+            onAuthError={onAuthError}
+          />
+        </div>
       )}
 
       {fulfillmentOrderId != null && (
-        <OrderFulfillmentPanel
-          orderId={fulfillmentOrderId}
-          adminKey={adminKey}
-          onAuthError={onAuthError}
-        />
+        <div id={`order-fulfillment-${fulfillmentOrderId}`}>
+          <OrderFulfillmentPanel
+            orderId={fulfillmentOrderId}
+            adminKey={adminKey}
+            onAuthError={onAuthError}
+          />
+        </div>
       )}
+
+      <Modal
+        show={showExpireConfirmation}
+        aria-labelledby="expire-pickup-orders-title"
+        onHide={() => !mutations.expire.isPending && setShowExpireConfirmation(false)}
+        centered
+      >
+        <Modal.Header closeButton={!mutations.expire.isPending}>
+          <Modal.Title id="expire-pickup-orders-title" className="fs-6">
+            수령 기한 지난 주문 처리 확인
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="warning" className="mb-0 small">
+            재고 상품 주문은 재고를 되돌리고 환불을 요청합니다. 주문 제작 상품은 환불 없이
+            미수령 상태로 종료합니다. 처리할 주문과 상품 종류를 확인한 뒤 실행해 주세요.
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={mutations.expire.isPending}
+            onClick={() => setShowExpireConfirmation(false)}
+          >
+            닫기
+          </Button>
+          <Button
+            variant="danger"
+            disabled={mutations.expire.isPending}
+            onClick={() => {
+              setShowExpireConfirmation(false);
+              mutations.expire.mutate();
+            }}
+          >
+            환불·종결 실행
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {mutations.lastError && !(mutations.lastError instanceof ApiError && mutations.lastError.status === 401) && (
         <ErrorAlert error={mutations.lastError} />

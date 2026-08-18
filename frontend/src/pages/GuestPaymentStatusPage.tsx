@@ -158,7 +158,7 @@ export function GuestPaymentStatusPage() {
 
       {status.status === "COMPLETED" && !completedResult && (
         <Alert variant="warning" className="mt-3 mb-0">
-          결제는 완료됐지만 연결된 주문 또는 예약 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.
+          결제는 완료됐지만 연결된 주문·예약 또는 8회권 정보를 확인하지 못했습니다. 해피갤러리로 문의해 주세요.
         </Alert>
       )}
 

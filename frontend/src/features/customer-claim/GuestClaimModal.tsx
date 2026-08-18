@@ -10,7 +10,7 @@ import {
   runForCurrentCustomer,
 } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
@@ -186,7 +186,7 @@ export function GuestClaimModal({
                             <div className="small">
                               <div className="fw-semibold">주문 #{order.orderId}</div>
                               <div className="text-muted-soft">
-                                {order.status} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
+                                {getStatusLabel(order.status)} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                               </div>
                             </div>
                           }
@@ -218,7 +218,7 @@ export function GuestClaimModal({
                                 {booking.className} #{booking.bookingId}
                               </div>
                               <div className="text-muted-soft">
-                                {booking.status} · {formatDateTime(booking.startAt)}
+                                {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
                               </div>
                             </div>
                           }

@@ -155,7 +155,7 @@ export function NotificationBell() {
                 const content = (
                   <>
                     <div className="fw-semibold">
-                      {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? notification.eventType}
+                      {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? "알림 내용 확인 필요"}
                     </div>
                     <div className="text-muted" style={{ fontSize: "0.75rem" }}>
                       {formatRelativeTime(notification.deliveredAt)}

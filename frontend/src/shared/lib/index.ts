@@ -8,9 +8,14 @@ export {
 } from "./refund";
 export {
   BOOKING_BALANCE_STATUS_LABEL,
+  CLASS_CATEGORY_OPTIONS,
   FULFILLMENT_TYPE_LABEL,
+  getClassCategoryLabel,
+  getStatusLabel,
+  isPerfumeClassCategory,
   NOTIFICATION_EVENT_LABEL,
   PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_SORT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "./labels";
+export type { StatusAudience } from "./labels";

@@ -50,7 +50,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       activate ? activateSlot(adminKey, slotId) : deactivateSlot(adminKey, slotId),
     onMutate: ({ slotId }) => setPendingId(slotId),
     onSuccess: (slot) => {
-      toast.show(`슬롯 #${slot.id} ${slot.adminActive ? "활성화" : "비활성화"} 완료`);
+      toast.show(`수업 일정 #${slot.id}의 예약을 ${slot.adminActive ? "재개" : "중지"}했습니다.`);
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.slots.byClass(classIdNum),
       });
@@ -66,7 +66,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       const needsManualAction = result.balanceSettlementsRequired > 0
         || result.manualCompensationsRequired > 0;
       toast.show(
-        `회차 취소 완료 · 예약 취소 ${result.canceledBookings}건 · 8회권 복구 ${result.passCreditsRestored}회 · 예약금 환불 요청 ${result.depositRefundsRequested}건 · 잔금 정산 필요 ${result.balanceSettlementsRequired}건 · 수동 보상 필요 ${result.manualCompensationsRequired}건`,
+        `회차 취소 완료 · 예약 취소 ${result.canceledBookings}건 · 8회권 복구 ${result.passCreditsRestored}회 · 예약금 환불 요청 ${result.depositRefundsRequested}건 · 받은 잔금 직접 반환 ${result.balanceSettlementsRequired}건 · 고객과 보상 협의 ${result.manualCompensationsRequired}건`,
         needsManualAction
           ? "warning"
           : result.depositRefundsRequested > 0
@@ -83,7 +83,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
 
   return (
     <div>
-      {classesQuery.isLoading && <LoadingSpinner text="클래스 목록 로딩 중..." />}
+      {classesQuery.isLoading && <LoadingSpinner text="클래스 목록을 불러오는 중..." />}
       {classesQuery.error && !(classesQuery.error instanceof ApiError && classesQuery.error.status === 401) && (
         <ErrorAlert
           error={classesQuery.error}
@@ -110,7 +110,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
           </Row>
 
           {!classesQuery.error && !classIdNum && (
-            <EmptyState message="클래스를 선택하면 슬롯 목록이 표시됩니다." />
+            <EmptyState message="클래스를 선택하면 수업 일정이 표시됩니다." />
           )}
         </>
       )}
@@ -123,14 +123,14 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
         />
       )}
       {!slotsQuery.error && slotsQuery.data && slotsQuery.data.length === 0 && (
-        <EmptyState message="해당 클래스에 슬롯이 없습니다." />
+        <EmptyState message="해당 클래스에 등록된 수업 일정이 없습니다." />
       )}
 
       {slotsQuery.data && slotsQuery.data.length > 0 && (
         <Table responsive hover size="sm">
           <thead>
             <tr>
-              <th>ID</th>
+              <th>일정 번호</th>
               <th>시작</th>
               <th>종료</th>
               <th>예약 현황</th>
@@ -143,10 +143,10 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
               const pct = s.capacity > 0 ? Math.round((s.bookedCount / s.capacity) * 100) : 0;
               const variant = pct >= 80 ? "danger" : pct >= 50 ? "warning" : "success";
               const status = !s.adminActive
-                ? { label: "관리자 비활성", variant: "secondary" }
+                ? { label: "예약 중지", variant: "secondary" }
                 : s.bufferBlocked
-                  ? { label: "버퍼 차단", variant: "warning" }
-                  : { label: "활성", variant: "success" };
+                  ? { label: "앞 수업 정리 시간과 겹침", variant: "warning" }
+                  : { label: "예약 가능", variant: "success" };
               return (
                 <tr key={s.id}>
                   <td>{s.id}</td>
@@ -172,7 +172,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                         disabled={pendingId === s.id || cancelMutation.isPending}
                         onClick={() => mutation.mutate({ slotId: s.id, activate: !s.adminActive })}
                       >
-                        {pendingId === s.id ? "처리 중..." : s.adminActive ? "비활성화" : "활성화"}
+                        {pendingId === s.id ? "처리 중..." : s.adminActive ? "예약 중지" : "예약 재개"}
                       </Button>
                       {!s.adminActive && s.bookedCount > 0 && (
                         <Button
@@ -216,11 +216,11 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
           {cancelTarget && (
             <>
               <p className="small text-muted-soft mb-3">
-                슬롯 #{cancelTarget.id} · {formatDateTime(cancelTarget.startAt)} · 예약 {cancelTarget.bookedCount}건
+                수업 일정 #{cancelTarget.id} · {formatDateTime(cancelTarget.startAt)} · 예약 {cancelTarget.bookedCount}건
               </p>
               <p className="mb-3">
                 이 회차의 예약을 모두 취소하고 예약금 환불 또는 8회권 복구를 시작합니다.
-                처리 결과에 따라 잔금 정산이나 수동 보상이 필요할 수 있습니다.
+                처리 결과에 따라 이미 받은 잔금을 직접 반환하거나 고객과 보상 방법을 협의해야 할 수 있습니다.
               </p>
             </>
           )}

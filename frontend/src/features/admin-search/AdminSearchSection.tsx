@@ -108,7 +108,7 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
               <div>{order.buyerName}</div>
               <small className="text-muted-soft">{order.buyerPhone ?? "-"}</small>
             </td>
-            <td><StatusBadge status={order.status} /></td>
+            <td><StatusBadge status={order.status} audience="admin" /></td>
             <td>{formatKRW(order.totalAmount)}</td>
             <td><small>{order.paidAt ? formatDateTime(order.paidAt) : "-"}</small></td>
             <td><small>{formatDateTime(order.createdAt)}</small></td>
@@ -118,7 +118,7 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
                 variant="outline-primary"
                 to={`/admin?view=orders&orderId=${order.orderId}&orderStatus=${encodeURIComponent(order.status)}`}
               >
-                운영 <ArrowRight size={14} aria-hidden="true" />
+                주문 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>
             </td>
           </tr>
@@ -154,7 +154,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
               <small>{formatDateTime(booking.startAt)}</small>
               <small className="d-block text-muted-soft">~ {formatDateTime(booking.endAt)}</small>
             </td>
-            <td><StatusBadge status={booking.status} /></td>
+            <td><StatusBadge status={booking.status} audience="admin" /></td>
             <td>
               {booking.passBooking ? (
                 <Badge bg="info">8회권</Badge>
@@ -166,7 +166,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
                   <Badge bg={booking.balanceStatus === "PAID" ? "success" : "secondary"}>
                     잔금 {booking.balanceStatus === "PAID" ? "결제" : "미결제"}
                   </Badge>
-                  {booking.arrears && <Badge bg="warning" text="dark">미수</Badge>}
+                  {booking.arrears && <Badge bg="warning" text="dark">잔금 받지 못함</Badge>}
                 </div>
               )}
             </td>
@@ -176,7 +176,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
                 variant="outline-primary"
                 to={`/admin?view=bookings&bookingId=${booking.bookingId}&bookingDate=${booking.startAt.slice(0, 10)}&bookingStatus=${encodeURIComponent(booking.status)}`}
               >
-                운영 <ArrowRight size={14} aria-hidden="true" />
+                예약 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>
             </td>
           </tr>
@@ -259,7 +259,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
         <Row className="g-2 align-items-end">
           <Col xs={12} md={4}>
             <Form.Group controlId="admin-search-keyword">
-              <Form.Label>식별자 또는 고객명</Form.Label>
+              <Form.Label>주문·예약 번호 또는 고객명</Form.Label>
               <Form.Control
                 type="search"
                 value={keyword}
@@ -276,7 +276,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
               <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
                 <option value="">전체</option>
                 {statusOptions.map((value) => (
-                  <option key={value} value={value}>{getStatusLabel(value)}</option>
+                  <option key={value} value={value}>{getStatusLabel(value, "admin")}</option>
                 ))}
               </Form.Select>
             </Form.Group>

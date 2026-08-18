@@ -4,9 +4,12 @@ import { Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { updateClass } from "./api";
 import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse } from "@/shared/types";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
+import { ClassCategoryField } from "./ClassCategoryField";
+import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
 
 interface Props {
   adminKey: string;
@@ -19,7 +22,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
   const queryClient = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryValue, setCategoryValue] = useState(createClassCategoryValue);
   const [price, setPrice] = useState("");
   const [passEligible, setPassEligible] = useState(false);
   const [description, setDescription] = useState("");
@@ -29,20 +32,30 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
 
   useEffect(() => {
     if (!bookingClass) return;
+    const nextCategoryValue = createClassCategoryValue(bookingClass.category);
     setName(bookingClass.name);
-    setCategory(bookingClass.category);
+    setCategoryValue(nextCategoryValue);
     setPrice(String(bookingClass.price));
-    setPassEligible(bookingClass.passEligible);
+    setPassEligible(
+      bookingClass.passEligible && !isPerfumeClassCategory(nextCategoryValue.category),
+    );
     setDescription(bookingClass.description ?? "");
     setImageUrl(bookingClass.imageUrl ?? "");
     setPreparationInfo(bookingClass.preparationInfo ?? "");
     setTargetAudience(bookingClass.targetAudience ?? "");
   }, [bookingClass]);
 
+  const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
+    setCategoryValue(nextCategoryValue);
+    if (isPerfumeClassCategory(nextCategoryValue.category)) {
+      setPassEligible(false);
+    }
+  };
+
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateClass(adminKey, bookingClass!.id, {
       name,
-      category,
+      category: categoryValue.category,
       price: Number(price),
       passEligible,
       description: description.trim() || undefined,
@@ -58,7 +71,10 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
     },
   });
 
-  const valid = name.trim().length > 0 && category.trim().length > 0 && Number(price) >= 10;
+  const valid =
+    name.trim().length > 0
+    && categoryValue.category.trim().length > 0
+    && Number(price) >= 10;
 
   return (
     <Modal
@@ -91,23 +107,26 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
               </Form.Group>
             </Col>
             <Col xs={12} md={6}>
-              <Form.Group controlId="admin-edit-class-category">
-                <Form.Label>카테고리</Form.Label>
-                <Form.Control
-                  value={category}
-                  maxLength={30}
-                  onChange={(e) => setCategory(e.target.value.toUpperCase())}
-                />
-              </Form.Group>
+              <ClassCategoryField
+                controlId="admin-edit-class-category"
+                value={categoryValue}
+                onChange={handleCategoryChange}
+              />
             </Col>
             <Col xs={12} md={6} className="d-flex align-items-end pb-2">
-              <Form.Check
-                id="admin-edit-class-pass-eligible"
-                type="checkbox"
-                label="정규 8회권 사용 가능"
-                checked={passEligible}
-                onChange={(e) => setPassEligible(e.target.checked)}
-              />
+              <div>
+                <Form.Check
+                  id="admin-edit-class-pass-eligible"
+                  type="checkbox"
+                  label="정규 8회권 사용 가능"
+                  checked={passEligible}
+                  disabled={isPerfumeClassCategory(categoryValue.category)}
+                  onChange={(e) => setPassEligible(e.target.checked)}
+                />
+                {isPerfumeClassCategory(categoryValue.category) && (
+                  <Form.Text muted>향수 수업에는 8회권을 적용할 수 없습니다.</Form.Text>
+                )}
+              </div>
             </Col>
             <Col xs={12}>
               <AdminImageField

@@ -176,13 +176,13 @@ export function AdminBookingCreateModal({
                   >
                     <option value="">
                       {slotsQuery.isLoading
-                        ? "슬롯 조회 중..."
+                        ? "예약 시간 조회 중..."
                         : slotsQuery.error
-                          ? "슬롯을 다시 조회해 주세요"
+                          ? "예약 시간을 다시 조회해 주세요"
                           : slotsQuery.data === undefined
-                          ? "슬롯을 다시 조회해 주세요"
+                          ? "예약 시간을 다시 조회해 주세요"
                           : selectableSlots?.length === 0
-                          ? "예약 가능한 슬롯이 없습니다"
+                          ? "예약 가능한 시간이 없습니다"
                           : "선택하세요"}
                     </option>
                     {selectableSlots?.map((slot) => (
@@ -259,8 +259,8 @@ export function AdminBookingCreateModal({
               </Col>
             </Row>
             <p className="small text-muted-soft mt-3 mb-0">
-              금액은 현재 클래스 가격과 인원으로 서버가 계산합니다. 입금 완료 예약을 취소하면
-              오프라인 예약금 반환 작업이 관리자 할 일에 남습니다.
+              금액은 현재 클래스 가격과 인원에 따라 자동 계산됩니다. 직접 받은 예약금이 있는
+              예약을 취소하면 고객에게 반환할 금액이 관리자 할 일에 남습니다.
             </p>
           </Form>
         ) : null}

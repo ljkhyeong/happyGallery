@@ -53,7 +53,7 @@ export function ProductListSection({ adminKey, onAuthError }: Props) {
       <Table responsive hover size="sm">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>상품 번호</th>
             <th>상품명</th>
             <th>유형</th>
             <th className="text-end">가격</th>
@@ -68,7 +68,7 @@ export function ProductListSection({ adminKey, onAuthError }: Props) {
             <tr key={product.id}>
               <td>{product.id}</td>
               <td>{product.name}</td>
-              <td>{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</td>
+              <td>{PRODUCT_TYPE_LABEL[product.type] ?? "상품 유형 확인 필요"}</td>
               <td className="text-end">{formatKRW(product.price)}</td>
               <td className="text-end">{product.quantity}</td>
               <td>

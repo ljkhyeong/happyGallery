@@ -93,7 +93,7 @@ export function OrderItemsForm({
     onProductTypesChange(selectedProductTypes);
   }, [onProductTypesChange, products, selectedProductTypes]);
 
-  if (isLoading) return <LoadingSpinner text="상품 로딩..." />;
+  if (isLoading) return <LoadingSpinner text="상품을 불러오는 중입니다..." />;
   if (error) return <ErrorAlert error={error} />;
 
   return (

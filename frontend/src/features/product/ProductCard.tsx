@@ -18,7 +18,7 @@ export function ProductCard({ product }: Props) {
       <Card.Body className="d-flex flex-column p-4">
         <div className="d-flex justify-content-between align-items-start mb-3">
           <div className="product-card-kicker">
-            {PRODUCT_TYPE_LABEL[product.type] ?? product.type}
+            {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
             {product.category && (
               <span className="ms-2 text-muted-soft" style={{ fontWeight: 400 }}>
                 {product.category}

@@ -147,7 +147,7 @@ export async function fetchAdminReviewImage(
     signal,
   });
   if (!blob.type.startsWith("image/")) {
-    throw new Error("숨김 후기 이미지 응답 형식이 올바르지 않습니다.");
+    throw new Error("비공개 후기 이미지 응답 형식이 올바르지 않습니다.");
   }
   return blob;
 }

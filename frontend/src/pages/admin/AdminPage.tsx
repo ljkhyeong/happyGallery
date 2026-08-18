@@ -45,17 +45,17 @@ const ADMIN_VIEWS = [
     label: "현황·검색",
     description: "매출과 운영 지표를 보고 주문·예약을 검색합니다.",
   },
-  { value: "orders", label: "주문", description: "주문 승인부터 배송·픽업과 클레임까지 처리합니다." },
+  { value: "orders", label: "주문", description: "주문 승인부터 배송·매장 수령과 교환·환불 요청까지 처리합니다." },
   {
     value: "bookings",
     label: "예약·8회권",
-    description: "날짜별 예약과 8회권 정산을 관리합니다.",
+    description: "날짜별 예약과 8회권 사용 현황·환불·만료를 관리합니다.",
   },
   { value: "products", label: "상품", description: "상품 정보와 판매 상태, 재고를 관리합니다." },
   {
     value: "classes",
-    label: "클래스·슬롯",
-    description: "클래스와 예약 가능한 일정을 관리합니다.",
+    label: "클래스·일정",
+    description: "클래스와 예약 가능한 수업 일정을 관리합니다.",
   },
   {
     value: "events",
@@ -70,7 +70,7 @@ const ADMIN_VIEWS = [
   {
     value: "support",
     label: "고객 응대",
-    description: "공지사항과 상품 Q&A, 1:1 문의를 처리합니다.",
+    description: "공지사항과 상품 문의, 1:1 문의를 처리합니다.",
   },
   {
     value: "reviews",
@@ -190,7 +190,7 @@ export function AdminPage() {
       await logout();
     } catch {
       toast.show(
-        "이 브라우저에서는 로그아웃했습니다. 서버 세션 폐기를 확인하지 못했으므로 다른 기기의 접속 상태를 확인해 주세요.",
+        "이 브라우저에서는 로그아웃했지만 다른 기기의 로그인 상태는 유지될 수 있습니다. 다른 기기에서도 로그아웃해 주세요.",
         "warning",
       );
     } finally {
@@ -275,7 +275,7 @@ export function AdminPage() {
           className="d-flex flex-wrap align-items-center justify-content-between gap-3"
         >
           <span>
-            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없다면 세션이 만료되기 전에
+            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없다면 로그인 상태가 끝나기 전에
             2단계 인증을 초기화하고 다시 등록해 주세요.
           </span>
           <Button
@@ -320,23 +320,23 @@ export function AdminPage() {
 
       {activeView === "today" && (
         <>
-          <AdminPanel title="결제 대사 필요">
+          <AdminPanel title="결제 상태 확인 필요">
             <PaymentReconciliationSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="환불 확인 필요">
             <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="주문 클레임 접수">
+          <AdminPanel title="교환·환불 요청 접수">
             <AdminOrderClaimSection
               adminKey={adminKey}
               onAuthError={handleAuthError}
               initialStatus="REQUESTED"
             />
           </AdminPanel>
-          <AdminPanel title="알림 재처리 필요">
+          <AdminPanel title="다시 보낼 알림">
             <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="예약 취소 후속 작업">
+          <AdminPanel title="예약 취소 후 직접 처리할 일">
             <BookingCancellationTaskSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="승인 대기 주문">
@@ -363,7 +363,7 @@ export function AdminPage() {
 
       {activeView === "orders" && (
         <>
-          <AdminPanel title="주문 클레임">
+          <AdminPanel title="교환·환불 요청">
             <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="주문 목록">
@@ -380,7 +380,7 @@ export function AdminPage() {
 
       {activeView === "bookings" && (
         <>
-          <AdminPanel title="예약 취소 후속 작업">
+          <AdminPanel title="예약 취소 후 직접 처리할 일">
             <BookingCancellationTaskSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="예약 목록">
@@ -417,13 +417,13 @@ export function AdminPage() {
           <AdminPanel title="클래스 목록">
             <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="슬롯 생성">
+          <AdminPanel title="수업 일정 생성">
             <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="슬롯 일괄 생성">
+          <AdminPanel title="수업 일정 여러 개 생성">
             <BulkSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="슬롯 목록">
+          <AdminPanel title="수업 일정 목록">
             <SlotListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>
@@ -434,7 +434,7 @@ export function AdminPage() {
           <AdminPanel title="공지사항 관리">
             <AdminNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="Q&A 관리">
+          <AdminPanel title="상품 문의 관리">
             <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="1:1 문의 관리">

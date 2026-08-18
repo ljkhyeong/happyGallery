@@ -17,26 +17,26 @@ function resolvePolicyNotice(cancelPolicy: BookingCancelPolicy) {
   if (!cancelPolicy.cancellable) {
     return {
       variant: "warning",
-      message: "잔금 결제가 완료된 예약은 관리자에게 취소와 정산을 요청해 주세요.",
+      message: "잔금 결제가 완료된 예약은 공방에 취소와 환불을 문의해 주세요.",
     } as const;
   }
   if (cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE) {
     return {
       variant: "warning",
       message:
-        "취소 마감이 지나 8회권 크레딧은 복구되지 않습니다. 취소 후에도 사용 횟수는 차감된 상태로 유지됩니다.",
+        "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다. 취소 후에도 이용 횟수는 차감된 상태로 유지됩니다.",
     } as const;
   }
   if (cancelPolicy.passCreditRestorable) {
     return {
       variant: "info",
-      message: "취소하면 사용한 8회권 크레딧 1회가 복구됩니다.",
+      message: "현재 안내 기준으로는 사용한 8회권 1회가 복구 대상입니다. 실제 처리 결과는 취소 완료 안내에서 확인해 주세요.",
     } as const;
   }
   if (cancelPolicy.manualCompensationRequired) {
     return {
       variant: "info",
-      message: "취소 후 운영자가 오프라인 예약금 반환을 확인해 안내합니다.",
+      message: "취소 후 공방에서 예약금 환불을 확인한 뒤 안내해 드립니다.",
     } as const;
   }
   if (cancelPolicy.refundable) {
@@ -88,13 +88,13 @@ export function CancelButton({
     let variant: "success" | "warning" | "info";
 
     if (passBooking && !res.refundable) {
-      message = "예약이 취소되었습니다. 취소 마감이 지나 8회권 크레딧은 복구되지 않았습니다.";
+      message = "예약이 취소되었습니다. 사용한 8회권 1회는 복구되지 않았습니다.";
       variant = "warning";
     } else if (passBooking) {
-      message = "예약이 취소되었고 8회권 크레딧 1회가 복구되었습니다.";
+      message = "예약이 취소되었고 사용한 8회권 1회가 이용 가능 횟수에 다시 반영되었습니다.";
       variant = "success";
     } else if (res.manualCompensationRequired) {
-      message = "예약이 취소되었습니다. 운영자가 오프라인 예약금 반환을 확인한 뒤 안내합니다.";
+      message = "예약이 취소되었습니다. 공방에서 예약금 환불을 확인한 뒤 안내해 드립니다.";
       variant = "warning";
     } else if (res.refund?.status === "SUCCEEDED") {
       message = `예약이 취소되었고 ${formatKRW(res.refund.amount)} 환불이 완료되었습니다.`;
@@ -128,7 +128,7 @@ export function CancelButton({
       <Button
         variant="outline-danger"
         disabled={!cancelPolicy.cancellable}
-        title={!cancelPolicy.cancellable ? "관리자 정산이 필요한 예약입니다." : undefined}
+        title={!cancelPolicy.cancellable ? "공방 확인이 필요한 예약입니다." : undefined}
         onClick={() => setShowConfirm(true)}
       >
         {buttonLabel}

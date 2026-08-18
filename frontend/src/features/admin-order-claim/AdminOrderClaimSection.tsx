@@ -45,10 +45,10 @@ const RESOLUTION_LABELS: Record<OrderClaimResolution, string> = {
 
 const STATUS_OPTIONS: Array<{ value: "" | OrderClaimStatus; label: string }> = [
   { value: "", label: "전체" },
-  { value: "REQUESTED", label: "접수" },
+  { value: "REQUESTED", label: "확인 대기" },
   { value: "REFUND_REQUESTED", label: "환불 처리 중" },
   { value: "EXCHANGE_APPROVED", label: "교환 승인" },
-  { value: "REJECTED", label: "처리 거절" },
+  { value: "REJECTED", label: "요청 거절" },
   { value: "COMPLETED", label: "완료" },
 ];
 
@@ -97,7 +97,7 @@ export function AdminOrderClaimSection({
     onSuccess: (claim) => {
       toast.show(
         claim.status === "REJECTED"
-          ? `주문 #${claim.orderId} 클레임을 거절했습니다.`
+          ? `주문 #${claim.orderId}의 교환·환불 요청을 거절했습니다.`
           : `주문 #${claim.orderId} ${RESOLUTION_LABELS[claim.requestedResolution]}을 승인했습니다.`,
       );
       invalidate();
@@ -140,7 +140,7 @@ export function AdminOrderClaimSection({
       {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
       <ErrorAlert error={resolve.error ?? completeExchange.error} />
       {!isLoading && claims?.length === 0 && (
-        <EmptyState message="해당 상태의 주문 클레임이 없습니다." />
+        <EmptyState message="해당 상태의 교환·환불 요청이 없습니다." />
       )}
 
       {claims?.map((claim) => (
@@ -388,8 +388,8 @@ function refundStatusLabel(status: NonNullable<OrderClaimResponse["refundStatus"
   switch (status) {
     case "REQUESTED": return "요청 접수";
     case "PROCESSING": return "처리 중";
-    case "RETRYABLE": return "재시도 대기";
-    case "RECONCILIATION_REQUIRED": return "상태 확인 필요";
+    case "RETRYABLE": return "자동으로 다시 처리 예정";
+    case "RECONCILIATION_REQUIRED": return "결제사 확인 필요";
     case "SUCCEEDED": return "환불 완료";
     case "FAILED": return "환불 실패";
   }

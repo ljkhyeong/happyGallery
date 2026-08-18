@@ -230,7 +230,7 @@ export function AdminReviewSection({
               >
                 <option value="">전체</option>
                 <option value="PUBLISHED">공개</option>
-                <option value="HIDDEN">숨김</option>
+                <option value="HIDDEN">비공개</option>
               </Form.Select>
             </Col>
           </Row>
@@ -341,7 +341,7 @@ function AdminReviewCard({
             <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
               <ReviewStatusBadge status={review.status} />
               <Badge bg="light" text="dark">{review.targetType === "PRODUCT" ? "상품" : "클래스"}</Badge>
-              <Badge bg="light" text="dark">revision {review.contentRevision}</Badge>
+              <Badge bg="light" text="dark">본문 버전 {review.contentRevision}</Badge>
               <ReviewStars rating={review.rating} />
               <ReviewTrustBadges
                 verifiedTransaction={review.verifiedTransaction}
@@ -380,13 +380,13 @@ function AdminReviewCard({
         <p className="admin-review-content mt-3 mb-0">{review.content}</p>
         {review.status === "HIDDEN" ? (
           review.images.length > 0 && (
-            <div className="review-image-gallery" aria-label="숨김 후기 첨부 사진">
+            <div className="review-image-gallery" aria-label="비공개 후기 첨부 사진">
               {review.images.map((image, index) => (
                 <AdminReviewProtectedImage
                   key={image.id}
                   adminKey={adminKey}
                   source={{ kind: "review", reviewId: review.id, imageId: image.id }}
-                  alt={`숨김 후기 첨부 사진 ${index + 1}`}
+                  alt={`비공개 후기 첨부 사진 ${index + 1}`}
                   onAuthError={onAuthError}
                 />
               ))}
@@ -397,7 +397,7 @@ function AdminReviewCard({
         )}
         {review.status === "HIDDEN" && (
           <Alert variant="warning" className="small mt-3 mb-0">
-            숨김 사유: {review.hiddenReason || "사유 없음"}
+            비공개 사유: {review.hiddenReason || "사유 없음"}
           </Alert>
         )}
         {showHideForm && review.status === "PUBLISHED" && (
@@ -409,7 +409,7 @@ function AdminReviewCard({
             }}
           >
             <Form.Group controlId={`admin-review-reason-${review.id}`}>
-              <Form.Label>숨김 사유</Form.Label>
+              <Form.Label>비공개 사유</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={2}
@@ -422,7 +422,7 @@ function AdminReviewCard({
             </Form.Group>
             <div className="d-flex gap-2 mt-2">
               <Button type="submit" size="sm" variant="danger" disabled={mutation.isPending || !reason.trim()}>
-                {mutation.isPending ? "처리 중..." : "숨김 확정"}
+                {mutation.isPending ? "처리 중..." : "비공개 확정"}
               </Button>
               <Button
                 type="button"

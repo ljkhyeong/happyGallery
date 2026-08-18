@@ -47,7 +47,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
@@ -108,7 +108,7 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await page.getByLabel("상품").selectOption(String(product.id));
   await page.getByLabel("수량").fill("1");
   await page.getByRole("button", { name: "추가" }).click();
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 

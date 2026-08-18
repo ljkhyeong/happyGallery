@@ -73,11 +73,11 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
         <Table responsive hover size="sm">
           <thead>
             <tr>
-              <th>환불 ID</th>
+              <th>환불 번호</th>
               <th>대상</th>
               <th className="text-end">금액</th>
               <th>상태</th>
-              <th className="text-end">시도</th>
+              <th className="text-end">처리 시도</th>
               <th>사유</th>
               <th>발생일</th>
               <th></th>
@@ -91,7 +91,13 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
                 <td className="text-end">{formatKRW(r.amount)}</td>
                 <td>{refundStatusLabel(r.status)}</td>
                 <td className="text-end">{r.attemptCount}</td>
-                <td className="small">{r.failReason}</td>
+                <td className="small">
+                  {refundFailureReason(r.status)}
+                  <details className="mt-1">
+                    <summary>기술 상세</summary>
+                    <pre className="mb-0 mt-1 text-wrap">{r.failReason}</pre>
+                  </details>
+                </td>
                 <td className="small">{formatDateTime(r.createdAt)}</td>
                 <td>
                   <Button size="sm" variant="outline-warning"
@@ -100,7 +106,11 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
                       retry.reset();
                       setRetryTarget(r);
                     }}>
-                    {pendingId === r.refundId ? "처리 중..." : "재처리"}
+                    {pendingId === r.refundId
+                      ? "확인 중..."
+                      : r.status === "RECONCILIATION_REQUIRED"
+                        ? "환불 여부 확인"
+                        : "환불 다시 요청"}
                   </Button>
                 </td>
               </tr>
@@ -140,7 +150,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       >
         <Modal.Header closeButton={pendingId === null}>
           <Modal.Title id="admin-failed-refund-retry-title" className="fs-6">
-            환불 재처리 영향 확인
+            환불 처리 다시 확인
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -159,8 +169,8 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
               </dl>
               <Alert variant="warning" className="small mb-0">
                 {retryTarget.status === "RECONCILIATION_REQUIRED"
-                  ? "결제사 반영 상태를 먼저 조회합니다. 결과가 불명확하면 중복 취소하지 않고 확인 필요 상태를 유지합니다."
-                  : "새 환불을 만들지 않고 기존 환불 요청의 동일한 멱등키로 결제사 취소를 다시 요청합니다. 결과가 불명확하면 확인 필요 상태로 전환합니다."}
+                  ? "결제사에 이미 환불됐는지 먼저 확인합니다. 결과를 확인할 수 없으면 새 환불을 요청하지 않고 이 목록에 남깁니다."
+                  : "새 환불 건을 만들지 않고 기존 환불 건으로 결제사에 다시 요청합니다. 결과를 확인할 수 없으면 결제사 확인 필요 상태로 남깁니다."}
               </Alert>
             </>
           )}
@@ -178,7 +188,11 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
             disabled={!retryTarget || pendingId !== null}
             onClick={() => retryTarget && retry.mutate(retryTarget.refundId)}
           >
-            {pendingId !== null ? "재처리 중..." : "확인하고 재처리"}
+            {pendingId !== null
+              ? "확인 중..."
+              : retryTarget?.status === "RECONCILIATION_REQUIRED"
+                ? "결제사에서 상태 확인"
+                : "기존 환불 다시 요청"}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -191,29 +205,35 @@ function showRetryResult(
   status: AdminRefundStatus["status"],
 ) {
   if (status === "SUCCEEDED") {
-    show("환불 재처리가 완료되었습니다.");
+    show("기존 환불 처리가 완료되었습니다.");
   } else if (status === "FAILED") {
-    show("환불 재처리가 실패했습니다. 실패 사유를 확인해 주세요.", "danger");
+    show("결제사에서 환불을 완료하지 못했습니다. 확인 필요 사유를 살펴봐 주세요.", "danger");
   } else {
-    show("환불 재처리 후 상태를 확인 중입니다.", "warning");
+    show("기존 환불 건의 처리 상태를 확인하고 있습니다.", "warning");
   }
 }
 
 function refundStatusLabel(status: FailedRefundResponse["status"]): string {
-  if (status === "RECONCILIATION_REQUIRED") return "상태 확인 필요";
-  if (status === "RETRYABLE") return "재시도 대기";
-  return "실패 확정";
+  if (status === "RECONCILIATION_REQUIRED") return "결제사 확인 필요";
+  if (status === "RETRYABLE") return "자동으로 다시 처리 예정";
+  return "직접 확인 필요";
+}
+
+function refundFailureReason(status: FailedRefundResponse["status"]): string {
+  if (status === "RECONCILIATION_REQUIRED") return "결제사 환불 결과를 확인하지 못함";
+  if (status === "RETRYABLE") return "일시적인 문제로 환불하지 못함";
+  return "결제사에서 환불 요청을 완료하지 못함";
 }
 
 function refundTarget(refund: FailedRefundResponse): string {
   if (refund.orderClaimId != null) {
     return refund.orderId != null
-      ? `주문 ${refund.orderId} · 클레임 ${refund.orderClaimId}`
-      : `클레임 ${refund.orderClaimId}`;
+      ? `주문 ${refund.orderId} · 교환·환불 요청 ${refund.orderClaimId}`
+      : `교환·환불 요청 ${refund.orderClaimId}`;
   }
   if (refund.orderId != null) return `주문 ${refund.orderId}`;
   if (refund.bookingId != null) return `예약 ${refund.bookingId}`;
   if (refund.passPurchaseId != null) return `8회권 ${refund.passPurchaseId}`;
-  if (refund.paymentAttemptId != null) return `결제 시도 ${refund.paymentAttemptId}`;
+  if (refund.paymentAttemptId != null) return `결제 확인 번호 #${refund.paymentAttemptId}`;
   return "-";
 }

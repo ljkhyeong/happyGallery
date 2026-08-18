@@ -63,7 +63,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
 
   return (
     <div>
-      <ButtonGroup size="sm" className="mb-3" aria-label="Q&A 조회 범위">
+      <ButtonGroup size="sm" className="mb-3" aria-label="상품 문의 조회 범위">
         <Button
           variant={view === "UNANSWERED" ? "dark" : "outline-secondary"}
           onClick={() => {
@@ -111,12 +111,12 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
         && selectedProductId === null
         && productsQuery.data
         && productsQuery.data.length > 0 && (
-        <EmptyState message="상품을 선택하면 Q&A를 확인할 수 있습니다." />
+        <EmptyState message="상품을 선택하면 문의를 확인할 수 있습니다." />
       )}
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
       {qnaList && qnaList.length === 0 && (
-        <EmptyState message={view === "UNANSWERED" ? "답변을 기다리는 Q&A가 없습니다." : "Q&A가 없습니다."} />
+        <EmptyState message={view === "UNANSWERED" ? "답변을 기다리는 상품 문의가 없습니다." : "상품 문의가 없습니다."} />
       )}
 
       {qnaList?.map((qna) => (
@@ -203,7 +203,7 @@ function AdminQnaItem({
               <span className="fw-semibold small">{qna.title}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
-              {productName ?? `상품 #${qna.productId}`} | {qna.authorName} (ID: {qna.userId}) | {formatDateTime(qna.createdAt)}
+              {productName ?? `상품 #${qna.productId}`} | {qna.authorName} (회원 번호: {qna.userId}) | {formatDateTime(qna.createdAt)}
             </div>
           </div>
         </div>

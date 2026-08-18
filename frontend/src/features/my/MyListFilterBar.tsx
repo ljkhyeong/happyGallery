@@ -62,7 +62,7 @@ export function MyListFilterBar({
     <Card className="my-filter-card border-0 mb-3">
       <Card.Body className="p-3">
         {!!quickTabs?.length && !!activeTabValue && !!onTabChange && (
-          <div className="my-quick-tabs mb-3" role="group" aria-label="빠른 상태 필터">
+          <div className="my-quick-tabs mb-3" role="group" aria-label="상태별 보기">
             {quickTabs.map((tab) => {
               const isActive = tab.value === activeTabValue;
               return (

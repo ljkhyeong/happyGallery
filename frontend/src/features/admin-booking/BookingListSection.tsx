@@ -40,10 +40,10 @@ interface Props {
 
 const STATUS_OPTIONS = [
   { value: "", label: "전체" },
-  { value: "BOOKED", label: getStatusLabel("BOOKED") },
-  { value: "CANCELED", label: getStatusLabel("CANCELED") },
-  { value: "NO_SHOW", label: getStatusLabel("NO_SHOW") },
-  { value: "COMPLETED", label: getStatusLabel("COMPLETED") },
+  { value: "BOOKED", label: getStatusLabel("BOOKED", "admin") },
+  { value: "CANCELED", label: getStatusLabel("CANCELED", "admin") },
+  { value: "NO_SHOW", label: getStatusLabel("NO_SHOW", "admin") },
+  { value: "COMPLETED", label: getStatusLabel("COMPLETED", "admin") },
 ] as const;
 
 function todayStr(): string {
@@ -53,8 +53,8 @@ function todayStr(): string {
 const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
   REQUESTED: "요청 접수",
   PROCESSING: "처리 중",
-  RETRYABLE: "재시도 대기",
-  RECONCILIATION_REQUIRED: "상태 확인 필요",
+  RETRYABLE: "자동으로 다시 처리 예정",
+  RECONCILIATION_REQUIRED: "결제사 확인 필요",
   SUCCEEDED: "환불 완료",
   FAILED: "환불 실패",
 };
@@ -67,9 +67,11 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
     : result.passCreditRestored
       ? "8회권 1회 복구"
       : result.manualCompensationRequired
-        ? "수동 환불·보상 필요"
+        ? "직접 받은 예약금 반환 또는 8회권 보상 협의 필요"
         : "자동 환불 없음";
-  const balance = result.balanceSettlementRequired ? "잔금 별도 정산 필요" : "잔금 별도 정산 없음";
+  const balance = result.balanceSettlementRequired
+    ? "고객에게 받은 잔금 직접 반환 필요"
+    : "별도로 반환할 잔금 없음";
   const needsAttention = result.manualCompensationRequired
     || result.balanceSettlementRequired
     || result.depositRefundStatus === "FAILED"
@@ -108,7 +110,7 @@ export function BookingListSection({
   const noShowMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),
     onSuccess: (res) => {
-      toast.show(`예약 #${res.bookingId} 노쇼 처리 완료`);
+      toast.show(`예약 #${res.bookingId}을 고객 불참으로 표시했습니다.`);
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
     },
   });
@@ -116,7 +118,7 @@ export function BookingListSection({
   const balancePaymentMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markBalancePaid(adminKey, bookingId),
     onSuccess: (res) => {
-      toast.show(`예약 #${res.bookingId} 잔금 결제 처리 완료`);
+      toast.show(`예약 #${res.bookingId}의 잔금을 수납 완료로 표시했습니다.`);
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
     },
   });
@@ -125,7 +127,7 @@ export function BookingListSection({
     mutationFn: ({ bookingId, arrears }: { bookingId: number; arrears: boolean }) =>
       updateArrears(adminKey, bookingId, arrears),
     onSuccess: (res) => {
-      toast.show(`예약 #${res.bookingId} 미수 상태 변경 완료`);
+      toast.show(`예약 #${res.bookingId}의 잔금 수납 여부를 변경했습니다.`);
       queryClient.invalidateQueries({ queryKey: ["admin", "bookings", date, statusFilter] });
     },
   });
@@ -199,7 +201,7 @@ export function BookingListSection({
         <Col xs={12} sm={3}>
           <Button className="w-100" onClick={() => setShowCreate(true)}>
             <CalendarPlus size={16} aria-hidden="true" className="me-1" />
-            수기 예약 등록
+            전화·메신저·방문 예약 등록
           </Button>
         </Col>
       </Row>
@@ -250,7 +252,7 @@ export function BookingListSection({
                   <br />
                   <small className="text-muted-soft">~ {formatDateTime(b.endAt)}</small>
                 </td>
-                <td><StatusBadge status={b.status} /></td>
+                <td><StatusBadge status={b.status} audience="admin" /></td>
                 <td>
                   {b.passBooking ? (
                     <Badge bg="info">8회권</Badge>
@@ -261,7 +263,7 @@ export function BookingListSection({
                     <Badge bg={b.balanceStatus === "PAID" ? "success" : "secondary"}>
                       잔금 {b.balanceStatus === "PAID" ? "결제" : "미결제"}
                     </Badge>
-                    {b.arrears && <Badge bg="warning" text="dark">미수</Badge>}
+                    {b.arrears && <Badge bg="warning" text="dark">잔금 받지 못함</Badge>}
                   </div>
                   {b.balanceAmount > 0 && (
                     <div>
@@ -282,12 +284,12 @@ export function BookingListSection({
                           disabled={mutationPending}
                           onClick={() => balancePaymentMutation.mutate(b.bookingId)}
                         >
-                          잔금 결제
+                          잔금 수납 완료로 표시
                         </Button>
                         <Form.Check
                           type="switch"
                           id={`booking-arrears-${b.bookingId}`}
-                          label="미수"
+                          label="잔금을 아직 받지 못함"
                           checked={b.arrears}
                           disabled={mutationPending}
                           onChange={(event) => arrearsMutation.mutate({
@@ -305,7 +307,7 @@ export function BookingListSection({
                           title={parseApiDateTime(b.endAt) > Date.now()
                             ? "수업 종료 후 완료할 수 있습니다."
                             : b.balanceStatus === "UNPAID" && !b.arrears
-                              ? "잔금을 결제하거나 미수로 표시해 주세요."
+                              ? "잔금을 받았거나 아직 받지 못한 것으로 표시해 주세요."
                               : undefined}
                           disabled={
                             mutationPending
@@ -314,18 +316,18 @@ export function BookingListSection({
                           }
                           onClick={() => completeMutation.mutate(b.bookingId)}
                         >
-                          수업 완료
+                          수업 완료로 처리
                         </Button>
                         <Button
                           size="sm"
                           variant="outline-danger"
                           title={parseApiDateTime(b.endAt) > Date.now()
-                            ? "수업 종료 후 노쇼 처리할 수 있습니다."
+                            ? "수업 종료 후 고객 불참으로 표시할 수 있습니다."
                             : undefined}
                           disabled={mutationPending || parseApiDateTime(b.endAt) > Date.now()}
                           onClick={() => noShowMutation.mutate(b.bookingId)}
                         >
-                          노쇼
+                          고객 불참으로 처리
                         </Button>
                         <Button
                           size="sm"
@@ -376,7 +378,7 @@ export function BookingListSection({
           )}
           <p className="mb-3">
             예약을 취소하고 예약금 환불 또는 8회권 1회 복구를 시작합니다.
-            결제된 잔금은 결과에 따라 별도 정산이 필요할 수 있습니다.
+            이미 받은 잔금은 결과에 따라 고객에게 직접 반환해야 할 수 있습니다.
           </p>
           <Form.Group controlId="admin-booking-cancel-reason">
             <Form.Label>취소 사유</Form.Label>

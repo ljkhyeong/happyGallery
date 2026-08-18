@@ -66,7 +66,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
 
         {review.status === "HIDDEN" && (
           <Alert variant="warning" className="small">
-            <strong className="d-block mb-1">관리자에 의해 숨겨진 후기입니다.</strong>
+            <strong className="d-block mb-1">공방에서 비공개 처리한 후기입니다.</strong>
             {review.hiddenReason && <span>사유: {review.hiddenReason}</span>}
             <span className="d-block mt-1">내용을 수정해도 자동으로 다시 공개되지 않습니다.</span>
           </Alert>
@@ -115,7 +115,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           <Alert variant="danger" className="mb-0">
             <p className="mb-2">이 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
             <p className="small mb-2">
-              일반 후기는 완료 내역에서 다시 작성할 수 있지만, 운영 정책으로 숨김 처리된 이력이 있으면 삭제 후에도 같은 이용 건으로 다시 작성할 수 없습니다.
+              비공개 처리 이력이 없는 후기는 완료 내역에서 다시 작성할 수 있지만, 공방에서 비공개 처리한 이력이 있는 후기는 삭제해도 같은 이용 건으로 다시 작성할 수 없습니다.
             </p>
             <div className="d-flex gap-2">
               <Button

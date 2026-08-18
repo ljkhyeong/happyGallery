@@ -106,7 +106,7 @@ function AdminInquiryItem({
               <span className="fw-semibold small">{inquiry.title}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
-              {inquiry.userName} (ID: {inquiry.userId}) | {formatDateTime(inquiry.createdAt)}
+              {inquiry.userName} (회원 번호: {inquiry.userId}) | {formatDateTime(inquiry.createdAt)}
             </div>
           </div>
         </div>

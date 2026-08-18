@@ -11,11 +11,11 @@ const DECISION_LABELS: Record<string, string> = {
   AUTO_REFUND: "자동 환불",
   SHIP_DATE_UPDATED: "예상 출고일 변경",
   PRODUCTION_COMPLETE: "제작 완료",
-  RESUME_PRODUCTION: "지연 후 처리 재개",
-  PICKUP_READY: "픽업 준비",
-  PICKUP_COMPLETE: "픽업 완료",
-  PICKUP_EXPIRED: "픽업 만료 환불",
-  PICKUP_FORFEITED: "픽업 미수령 종료",
+  RESUME_PRODUCTION: "제작 지연 동의 후 처리 계속",
+  PICKUP_READY: "매장 수령 준비",
+  PICKUP_COMPLETE: "매장 수령 완료",
+  PICKUP_EXPIRED: "수령 기한 만료 환불",
+  PICKUP_FORFEITED: "미수령으로 종료",
   PREPARE_SHIPPING: "배송 준비",
   SHIP: "배송 출발",
   DELIVER: "배송 완료",
@@ -44,7 +44,7 @@ export function OrderHistoryPanel({ orderId, adminKey, onAuthError }: Props) {
           <thead>
             <tr>
               <th>처리</th>
-              <th>관리자 ID</th>
+              <th>관리자 번호</th>
               <th>사유</th>
               <th>일시</th>
             </tr>
@@ -52,7 +52,7 @@ export function OrderHistoryPanel({ orderId, adminKey, onAuthError }: Props) {
           <tbody>
             {data.map((h) => (
               <tr key={h.id}>
-                <td><small>{DECISION_LABELS[h.decision] ?? h.decision}</small></td>
+                <td><small>{DECISION_LABELS[h.decision] ?? "처리 내용 확인 필요"}</small></td>
                 <td><small>{h.decidedByAdminId ?? "-"}</small></td>
                 <td><small>{h.reason ?? "-"}</small></td>
                 <td><small>{formatDateTime(h.decidedAt)}</small></td>

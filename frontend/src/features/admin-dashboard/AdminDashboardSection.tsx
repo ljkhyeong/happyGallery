@@ -49,6 +49,18 @@ function percent(value: number): string {
   }).format(value);
 }
 
+function periodLabel(label: string, granularity: DashboardGranularity): string {
+  if (granularity === "WEEKLY") {
+    const match = /^(\d{4})-W(\d{2})$/.exec(label);
+    if (match) return `${match[1]}년 ${Number(match[2])}주`;
+  }
+  if (granularity === "MONTHLY") {
+    const match = /^(\d{4})-(\d{2})$/.exec(label);
+    if (match) return `${match[1]}년 ${Number(match[2])}월`;
+  }
+  return label.replace(/-/g, ".");
+}
+
 function RevenueTrend({ rows }: { rows: DailyRevenueResponse[] }) {
   const maxAbsoluteRevenue = useMemo(
     () => Math.max(1, ...rows.map((row) => Math.abs(row.revenue))),
@@ -225,7 +237,7 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
                   <tbody>
                     {salesQuery.data.map((row) => (
                       <tr key={row.periodLabel}>
-                        <td>{row.periodLabel}</td>
+                        <td>{periodLabel(row.periodLabel, granularity)}</td>
                         <td>{formatKRW(row.totalRevenue)}</td>
                         <td>{row.orderCount.toLocaleString("ko-KR")}건</td>
                         <td>{formatKRW(row.avgOrderValue)}</td>
@@ -274,7 +286,7 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
                   <tbody>
                     {snapshotQuery.data.orderStatus.map((status) => (
                       <tr key={status.status}>
-                        <th scope="row">{getStatusLabel(status.status)}</th>
+                        <th scope="row">{getStatusLabel(status.status, "admin")}</th>
                         <td>{status.count.toLocaleString("ko-KR")}건</td>
                       </tr>
                     ))}
@@ -285,9 +297,9 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
           </div>
 
           <section className="admin-dashboard-panel" aria-labelledby="admin-slot-utilization-title">
-            <h6 id="admin-slot-utilization-title">클래스 슬롯 이용률</h6>
+            <h6 id="admin-slot-utilization-title">수업 일정 예약률</h6>
             {snapshotQuery.data.slotUtilization.length === 0 ? (
-              <EmptyState message="선택한 기간의 클래스 슬롯이 없습니다." />
+              <EmptyState message="선택한 기간에 등록된 수업 일정이 없습니다." />
             ) : (
               <Table responsive size="sm" className="mb-0 admin-compact-table">
                 <thead>

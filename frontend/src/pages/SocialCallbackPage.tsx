@@ -181,7 +181,7 @@ export function SocialCallbackPage() {
         );
         setError(
           error instanceof ApiError
-            ? getUserMessage(error.code) ?? error.message
+            ? getUserMessage(error.code) ?? "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요."
             : "소셜 계정 처리를 완료하지 못했습니다. 다시 시도해 주세요.",
         );
       }

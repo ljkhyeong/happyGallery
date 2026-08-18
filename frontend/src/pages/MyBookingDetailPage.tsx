@@ -93,7 +93,7 @@ export function MyBookingDetailPage() {
           <Card.Header>예약 변경</Card.Header>
           <Card.Body>
             <p className="text-muted-soft small">
-              가능한 다른 슬롯으로 즉시 변경합니다. 변경 후에는 현재 예약 상세가 새 슬롯 기준으로 갱신됩니다.
+              예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
             </p>
             <RescheduleForm
               classId={booking.classId}

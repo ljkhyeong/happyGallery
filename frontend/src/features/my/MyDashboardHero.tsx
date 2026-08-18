@@ -35,7 +35,7 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             </div>
             {nextBooking && (
               <div className="my-dashboard-note">
-                최근 조회에서 확인한 다음 예약: <strong>{nextBooking.className}</strong> · {formatDateTime(nextBooking.startAt)}
+                다음 예약: <strong>{nextBooking.className}</strong> · {formatDateTime(nextBooking.startAt)}
               </div>
             )}
           </div>

@@ -38,7 +38,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
               {!user.phone
                 ? "휴대폰 번호를 등록하면 같은 번호로 남긴 비회원 주문과 예약을 가져올 수 있습니다."
                 : user.phoneVerified
-                ? "같은 휴대폰 번호로 남긴 비회원 주문과 예약을 이 계정으로 이전할 수 있습니다."
+                ? "같은 휴대폰 번호로 남긴 비회원 주문과 예약을 이 계정으로 가져올 수 있습니다."
                 : "먼저 같은 번호인지 한 번 더 확인한 뒤 비회원 주문과 예약을 가져올 수 있습니다."}
             </p>
           </div>

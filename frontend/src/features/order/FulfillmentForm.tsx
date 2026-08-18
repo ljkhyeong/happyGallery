@@ -111,7 +111,7 @@ export function FulfillmentForm({ value, onChange }: Props) {
           variant={value.fulfillmentType === "PICKUP" ? "dark" : "outline-dark"}
           onClick={() => onChange({ ...value, fulfillmentType: "PICKUP" })}
         >
-          매장 픽업
+          매장 수령
         </Button>
         <Button
           type="button"

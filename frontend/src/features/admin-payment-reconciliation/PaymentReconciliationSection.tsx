@@ -31,7 +31,12 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
     onMutate: (attemptId) => setPendingId(attemptId),
     onSuccess: (result) => {
       const pending = result.status === "RECONCILIATION_REQUIRED";
-      toast.show(result.message, pending ? "warning" : "success");
+      const message = pending
+        ? "결제사에서 승인 여부를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요."
+        : result.status === "CONFIRMED"
+          ? "결제사 승인 내역을 확인하고 결제 후속 처리를 완료했습니다."
+          : "결제사에 승인 내역이 없어 결제 실패로 정리했습니다.";
+      toast.show(message, pending ? "warning" : "success");
       queryClient.invalidateQueries({ queryKey });
     },
     onSettled: () => setPendingId(null),
@@ -42,16 +47,16 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
     if (error instanceof ApiError && error.status === 401) return null;
     return <ErrorAlert error={error} />;
   }
-  if (!data?.length) return <EmptyState message="대사가 필요한 결제가 없습니다." />;
+  if (!data?.length) return <EmptyState message="상태를 다시 확인할 결제가 없습니다." />;
 
   return (
     <Table responsive hover size="sm">
       <thead>
         <tr>
-          <th>ID</th>
+          <th>확인 번호</th>
           <th>결제 대상</th>
           <th className="text-end">금액</th>
-          <th>사유</th>
+          <th>확인 필요 사유</th>
           <th>발생일</th>
           <th></th>
         </tr>
@@ -62,7 +67,15 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
             <td>{attempt.attemptId}</td>
             <td>{contextLabel(attempt.context)}</td>
             <td className="text-end">{formatKRW(attempt.amount)}</td>
-            <td className="small">{attempt.reason ?? "-"}</td>
+            <td className="small">
+              결제 결과를 자동으로 확인하지 못함
+              {attempt.reason && (
+                <details className="mt-1">
+                  <summary>기술 상세</summary>
+                  <pre className="mb-0 mt-1 text-wrap">{attempt.reason}</pre>
+                </details>
+              )}
+            </td>
             <td className="small">{attempt.createdAt ? formatDateTime(attempt.createdAt) : "-"}</td>
             <td>
               <Button
@@ -71,7 +84,7 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
                 disabled={pendingId === attempt.attemptId}
                 onClick={() => reconcile.mutate(attempt.attemptId)}
               >
-                {pendingId === attempt.attemptId ? "조회 중..." : "PG 조회"}
+                {pendingId === attempt.attemptId ? "확인 중..." : "결제사에서 상태 확인"}
               </Button>
             </td>
           </tr>

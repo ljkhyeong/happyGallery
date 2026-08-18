@@ -3,9 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { queryKeys } from "@/shared/api";
+import { isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { createClass } from "./api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
+import { ClassCategoryField } from "./ClassCategoryField";
+import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
 
 interface Props {
   adminKey: string;
@@ -16,7 +19,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryValue, setCategoryValue] = useState(createClassCategoryValue);
   const [durationMin, setDurationMin] = useState("120");
   const [price, setPrice] = useState("50000");
   const [bufferMin, setBufferMin] = useState("30");
@@ -26,10 +29,17 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
   const [preparationInfo, setPreparationInfo] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
 
+  const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
+    setCategoryValue(nextCategoryValue);
+    if (isPerfumeClassCategory(nextCategoryValue.category)) {
+      setPassEligible(false);
+    }
+  };
+
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => createClass(adminKey, {
       name,
-      category,
+      category: categoryValue.category,
       durationMin: Number(durationMin),
       price: Number(price),
       bufferMin: Number(bufferMin),
@@ -44,7 +54,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
       toast.show(`클래스 #${bookingClass.id} 생성 완료`);
       setName("");
-      setCategory("");
+      setCategoryValue(createClassCategoryValue());
       setDurationMin("120");
       setPrice("50000");
       setBufferMin("30");
@@ -58,7 +68,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
 
   const valid =
     name.trim().length > 0 &&
-    category.trim().length > 0 &&
+    categoryValue.category.trim().length > 0 &&
     Number(durationMin) > 0 &&
     Number(price) >= 10 &&
     Number(bufferMin) >= 0;
@@ -84,15 +94,12 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} md={6}>
-          <Form.Group controlId="admin-class-category">
-            <Form.Label>카테고리</Form.Label>
-            <Form.Control
-              value={category}
-              maxLength={30}
-              onChange={(e) => setCategory(e.target.value.toUpperCase())}
-              placeholder="예: RESIN"
-            />
-          </Form.Group>
+          <ClassCategoryField
+            controlId="admin-class-category"
+            value={categoryValue}
+            onChange={handleCategoryChange}
+            allowEmpty
+          />
         </Col>
         <Col xs={12} sm={4}>
           <Form.Group controlId="admin-class-duration">
@@ -118,13 +125,16 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col xs={12} sm={4}>
           <Form.Group controlId="admin-class-buffer">
-            <Form.Label>버퍼</Form.Label>
+            <Form.Label>수업 후 정리 시간(분)</Form.Label>
             <Form.Control
               type="number"
               min={0}
               value={bufferMin}
               onChange={(e) => setBufferMin(e.target.value)}
             />
+            <Form.Text muted>
+              예약된 수업이 끝난 뒤 이 시간이 지나기 전에 시작하는 다음 수업은 고객이 예약할 수 없습니다.
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col xs={12}>
@@ -174,13 +184,19 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <Form.Check
-            id="admin-class-pass-eligible"
-            type="checkbox"
-            label="정규 8회권 사용 가능"
-            checked={passEligible}
-            onChange={(e) => setPassEligible(e.target.checked)}
-          />
+          <div>
+            <Form.Check
+              id="admin-class-pass-eligible"
+              type="checkbox"
+              label="정규 8회권 사용 가능"
+              checked={passEligible}
+              disabled={isPerfumeClassCategory(categoryValue.category)}
+              onChange={(e) => setPassEligible(e.target.checked)}
+            />
+            {isPerfumeClassCategory(categoryValue.category) && (
+              <Form.Text muted>향수 수업에는 8회권을 적용할 수 없습니다.</Form.Text>
+            )}
+          </div>
           <Button type="submit" variant="primary" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "생성 중..." : "클래스 생성"}
           </Button>

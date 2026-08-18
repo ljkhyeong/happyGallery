@@ -40,7 +40,7 @@ export function BookingReviewSection({ bookingId, className }: Props) {
           <p className="text-muted-soft small mb-0">
             {creationStateQuery.data?.status === "AVAILABLE"
               ? `${className} 수업 경험을 들려주세요.`
-              : "서버가 클래스 완료를 확인한 뒤 후기를 작성할 수 있습니다."}
+              : "공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다."}
           </p>
         </div>
         {creationStateQuery.data?.status === "AVAILABLE" && reviewStateAvailable && !review && !writing && (
@@ -72,14 +72,14 @@ export function BookingReviewSection({ bookingId, className }: Props) {
       {review && <MemberReviewCard review={review} />}
       {!review && creationStateQuery.data?.status === "RECREATION_BLOCKED" && (
         <Alert variant="warning" className="small mb-0">
-          운영 정책으로 숨김 처리된 이력이 있어 이 클래스 이용 건에는 후기를 다시 작성할 수 없습니다.
+          이 클래스의 후기가 공방에서 비공개 처리된 적이 있어 새 후기를 작성할 수 없습니다.
         </Alert>
       )}
       {!review && creationStateQuery.data?.status === "REVIEW_EXISTS" && (
         <p className="text-muted-soft small mb-0">이 클래스 이용 건에는 이미 후기가 등록되어 있습니다.</p>
       )}
       {!review && creationStateQuery.data?.status === "NOT_REVIEWABLE" && (
-        <p className="text-muted-soft small mb-0">클래스 완료 후 후기를 작성할 수 있습니다.</p>
+        <p className="text-muted-soft small mb-0">공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다.</p>
       )}
       {reviewStateAvailable && writing && !review && creationStateQuery.data?.status === "AVAILABLE" && (
         <Card className="review-card">

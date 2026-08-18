@@ -464,7 +464,7 @@ function BookingCreateContent({
                       <option value="EASY_PAY">간편결제</option>
                     </Form.Select>
                     <Form.Text className="text-muted">
-                      결제 직전 서버가 슬롯과 현재 가격을 다시 확인해 금액을 확정합니다.
+                      결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
                     </Form.Text>
                   </Form.Group>
                 </Col>
@@ -481,7 +481,7 @@ function BookingCreateContent({
                       <dd className="col-6 text-end mb-0">{formatKRW(balanceAmount)}</dd>
                     </dl>
                     <p className="text-muted-soft small mt-3 mb-0">
-                      체험일 00:00 전까지 취소하면 예약금을 환불하며, 이후에는 환불되지 않습니다.
+                      체험 전날 23:59까지 취소하면 예약금을 환불하며, 체험 당일 00:00부터는 환불되지 않습니다.
                     </p>
                   </Col>
                 )}

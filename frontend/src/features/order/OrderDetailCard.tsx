@@ -20,7 +20,7 @@ export function OrderDetailCard({ order }: Props) {
       <Card.Body>
         <Row className="g-3 mb-3">
           <Col xs={6}>
-            <small className="text-muted-soft d-block">PG 결제액</small>
+            <small className="text-muted-soft d-block">카드·간편결제 금액</small>
             <span>{formatKRW(order.pgPaidAmount)}</span>
           </Col>
           <Col xs={6}>
@@ -28,7 +28,7 @@ export function OrderDetailCard({ order }: Props) {
             <span>{order.paidAt ? formatDateTime(order.paidAt) : "-"}</span>
           </Col>
           <Col xs={6}>
-            <small className="text-muted-soft d-block">승인 마감</small>
+            <small className="text-muted-soft d-block">공방 주문 승인 기한</small>
             <span>{order.approvalDeadlineAt ? formatDateTime(order.approvalDeadlineAt) : "-"}</span>
           </Col>
         </Row>
@@ -93,7 +93,7 @@ export function OrderDetailCard({ order }: Props) {
               </td>
             </tr>
             <tr>
-              <th colSpan={3} className="text-end">PG 결제액</th>
+              <th colSpan={3} className="text-end">카드·간편결제 금액</th>
               <td className="text-end fw-semibold">{formatKRW(order.pgPaidAmount)}</td>
             </tr>
           </tfoot>
@@ -101,12 +101,12 @@ export function OrderDetailCard({ order }: Props) {
 
         {order.fulfillment && (
           <>
-            <h6>이행 정보</h6>
+            <h6>배송·수령 정보</h6>
             <Row className="g-3">
               <Col xs={6}>
-                <small className="text-muted-soft d-block">유형</small>
+                <small className="text-muted-soft d-block">수령 방법</small>
                 <Badge bg="info" className="badge-status">
-                  {FULFILLMENT_TYPE_LABEL[order.fulfillment.type] ?? order.fulfillment.type}
+                  {FULFILLMENT_TYPE_LABEL[order.fulfillment.type] ?? "수령 방법 확인 필요"}
                 </Badge>
               </Col>
               {order.fulfillment.expectedShipDate && (
@@ -133,7 +133,7 @@ export function OrderDetailCard({ order }: Props) {
               )}
               {order.fulfillment.pickupDeadlineAt && (
                 <Col xs={6}>
-                  <small className="text-muted-soft d-block">픽업 마감</small>
+                  <small className="text-muted-soft d-block">매장 수령 기한</small>
                   <span>{formatDateTime(order.fulfillment.pickupDeadlineAt)}</span>
                 </Col>
               )}

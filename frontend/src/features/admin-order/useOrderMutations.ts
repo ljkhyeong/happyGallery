@@ -74,16 +74,16 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   });
   const resumeAfterDelay_ = useOrderActionMutation(
     (id) => resumeAfterDelay(adminKey, id),
-    "지연 후 주문 처리 재개",
+    "제작 지연 동의 후 주문 처리 재개",
   );
   const prepareShipping_ = useOrderActionMutation((id) => prepareShipping(adminKey, id), "배송 준비");
   const delivered = useOrderActionMutation((id) => markDelivered(adminKey, id), "배송 완료");
-  const pickupDone = useOrderActionMutation((id) => completePickup(adminKey, id), "픽업 완료");
+  const pickupDone = useOrderActionMutation((id) => completePickup(adminKey, id), "매장 수령 완료");
 
   const pickup = useAdminMutation(onAuthError, {
     mutationFn: ({ id, body }: { id: number; body: MarkPickupReadyRequest }) => preparePickup(adminKey, id, body),
     onMutate: ({ id }) => startOrderAction(id),
-    onSuccess: (_, { id }) => { toast.show(`주문 #${id} 픽업 준비 완료`); invalidate(); },
+    onSuccess: (_, { id }) => { toast.show(`주문 #${id} 매장 수령 준비 완료`); invalidate(); },
     onError: setLastError,
     onSettled: () => setPendingId(null),
   });
@@ -107,7 +107,10 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   const expire = useAdminMutation(onAuthError, {
     mutationFn: () => expirePickups(adminKey),
     onMutate: () => setLastError(null),
-    onSuccess: (r) => { toast.show(`픽업 만료 배치: 성공 ${r.successCount}, 실패 ${r.failureCount}`); invalidate(); },
+    onSuccess: (r) => {
+      toast.show(`수령 기한 지난 주문 환불·종결: 완료 ${r.successCount}건 · 확인 필요 ${r.failureCount}건`);
+      invalidate();
+    },
     onError: setLastError,
   });
 

@@ -70,16 +70,16 @@ test("@admin 클래스·슬롯 선택기는 조회 실패를 빈 상태로 단�
   });
 
   await openAuthenticatedAdmin(page, "classes");
-  const createPanel = adminPanel(page, "슬롯 생성");
-  const bulkPanel = adminPanel(page, "슬롯 일괄 생성");
-  const listPanel = adminPanel(page, "슬롯 목록");
+  const createPanel = adminPanel(page, "수업 일정 생성");
+  const bulkPanel = adminPanel(page, "수업 일정 여러 개 생성");
+  const listPanel = adminPanel(page, "수업 일정 목록");
 
   await expect(createPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
   await expect(createPanel.getByLabel("클래스")).toHaveCount(0);
   await expect(createPanel.getByText("등록된 클래스가 없습니다.")).toHaveCount(0);
   await expect(bulkPanel.getByLabel("클래스")).toHaveCount(0);
   await expect(listPanel.getByRole("combobox")).toHaveCount(0);
-  await expect(listPanel.getByText("클래스를 선택하면 슬롯 목록이 표시됩니다.")).toHaveCount(0);
+  await expect(listPanel.getByText("클래스를 선택하면 수업 일정이 표시됩니다.")).toHaveCount(0);
 
   classesAvailable = true;
   await createPanel.getByRole("button", { name: "다시 시도" }).click();
@@ -89,11 +89,11 @@ test("@admin 클래스·슬롯 선택기는 조회 실패를 빈 상태로 단�
 
   await listPanel.getByRole("combobox").selectOption("1");
   await expect(listPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(listPanel.getByText("해당 클래스에 슬롯이 없습니다.")).toHaveCount(0);
+  await expect(listPanel.getByText("해당 클래스에 등록된 수업 일정이 없습니다.")).toHaveCount(0);
 
   slotsAvailable = true;
   await listPanel.getByRole("button", { name: "다시 시도" }).click();
-  await expect(listPanel.getByText("해당 클래스에 슬롯이 없습니다.")).toBeVisible();
+  await expect(listPanel.getByText("해당 클래스에 등록된 수업 일정이 없습니다.")).toBeVisible();
 });
 
 test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각각 복구한다", async ({ page }) => {
@@ -134,7 +134,7 @@ test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각
   });
 
   await openAuthenticatedAdmin(page, "bookings");
-  await page.getByRole("button", { name: "수기 예약 등록" }).click();
+  await page.getByRole("button", { name: "전화·메신저·방문 예약 등록" }).click();
   const modal = page.getByRole("dialog", { name: "전화·메신저·방문 예약 등록" });
 
   await expect(modal.getByRole("button", { name: "다시 시도" })).toBeVisible();
@@ -146,12 +146,12 @@ test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각
 
   await expect(modal.getByRole("button", { name: "다시 시도" })).toBeVisible();
   await expect(modal.getByLabel("예약 시간")).toBeDisabled();
-  await expect(modal.getByLabel("예약 시간")).toContainText("슬롯을 다시 조회해 주세요");
-  await expect(modal.getByText("예약 가능한 슬롯이 없습니다")).toHaveCount(0);
+  await expect(modal.getByLabel("예약 시간")).toContainText("예약 시간을 다시 조회해 주세요");
+  await expect(modal.getByText("예약 가능한 시간이 없습니다")).toHaveCount(0);
 
   slotsAvailable = true;
   await modal.getByRole("button", { name: "다시 시도" }).click();
-  await expect(modal.getByLabel("예약 시간")).toContainText("예약 가능한 슬롯이 없습니다");
+  await expect(modal.getByLabel("예약 시간")).toContainText("예약 가능한 시간이 없습니다");
 });
 
 test("@admin 환불 조회 실패는 확인 필요 0건으로 단정하지 않고 다시 조회한다", async ({ page }) => {

@@ -25,9 +25,9 @@ export function AdminReviewEvidence({
     <div className="admin-review-evidence" aria-label="당시 후기 증거">
       <div className="d-flex flex-wrap align-items-center gap-2">
         <ReviewStars rating={evidence.rating} />
-        <Badge bg="light" text="dark">본문 revision {evidence.contentRevision}</Badge>
+        <Badge bg="light" text="dark">본문 버전 {evidence.contentRevision}</Badge>
         {evidence.provenance === "LEGACY_REPORT" && (
-          <Badge bg="secondary">이전 신고 이관</Badge>
+          <Badge bg="secondary">이전 신고 기록</Badge>
         )}
       </div>
       <p className="admin-review-content mt-2 mb-0">{evidence.content}</p>
@@ -50,7 +50,7 @@ export function AdminReviewEvidence({
       </div>
       {!evidence.imagesComplete && (
         <Alert variant="warning" className="small mt-2 mb-0">
-          이전 데이터에서 이관되어 당시 사진 증거는 완전하지 않을 수 있습니다.
+          과거 신고 기록이라 당시 사진이 일부 남아 있지 않을 수 있습니다.
         </Alert>
       )}
     </div>

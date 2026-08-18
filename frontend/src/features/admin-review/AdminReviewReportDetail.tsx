@@ -55,7 +55,7 @@ export function AdminReviewReportDetail({
   return (
     <div className="admin-review-report-detail mt-3">
       <div className="small text-muted-soft mb-2">
-        신고 회원 #{report.reporterUserId} · 신고 당시 {report.snapshotStatus === "PUBLISHED" ? "공개" : "숨김"}
+        신고 회원 #{report.reporterUserId} · 신고 당시 {report.snapshotStatus === "PUBLISHED" ? "공개" : "비공개"}
       </div>
       <AdminReviewEvidence
         evidence={report.evidence}
@@ -137,7 +137,7 @@ export function AdminReviewReportDetail({
           <p className="small mb-2">
             {pendingDecision === "ACCEPTED"
               ? "위반 신고로 인정합니다. 후기 공개 상태는 자동으로 바뀌지 않으며 별도로 관리해야 합니다."
-              : "운영 정책 위반 신고를 반려하고 처리를 끝냅니다."}
+              : "신고 내용을 반려하고 처리를 끝냅니다."}
           </p>
           {note.trim() && <div className="small text-muted-soft">처리 메모: {note.trim()}</div>}
           <div className="mt-3"><ErrorAlert error={mutation.error} /></div>

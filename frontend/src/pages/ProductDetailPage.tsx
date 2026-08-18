@@ -150,7 +150,9 @@ function ProductDetailContent() {
               )}
               <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
                 <div>
-                  <div className="store-detail-kicker mb-2">{PRODUCT_TYPE_LABEL[product.type] ?? product.type}</div>
+                  <div className="store-detail-kicker mb-2">
+                    {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
+                  </div>
                   <h2 className="store-detail-title mb-2">{product.name}</h2>
                   <p className="text-muted-soft store-section-desc mb-0">
                     {product.description || (product.type === "MADE_TO_ORDER"
@@ -192,7 +194,7 @@ function ProductDetailContent() {
 
               <Card className="store-detail-info-card">
                 <Card.Body>
-                  <div className="store-detail-info-title">이행 안내</div>
+                  <div className="store-detail-info-title">배송·수령 안내</div>
                   <p className="mb-0 text-muted-soft small">
                     {PRODUCT_FULFILLMENT_LABEL[product.type] ?? ""}
                   </p>

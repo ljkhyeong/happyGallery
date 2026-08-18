@@ -90,11 +90,11 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   await openAdminView(page, "현황·검색");
   const searchCard = adminCard(page, "주문·예약 검색");
   await searchCard.getByRole("button", { name: "예약", exact: true }).click();
-  await searchCard.getByLabel("식별자 또는 고객명").fill(guestName);
+  await searchCard.getByLabel("주문·예약 번호 또는 고객명").fill(guestName);
   await searchCard.getByRole("button", { name: "검색", exact: true }).click();
   const searchRow = searchCard.locator("tbody tr").filter({ hasText: guestName }).first();
   await expect(searchRow).toBeVisible();
-  await searchRow.getByRole("link", { name: "운영" }).click();
+  await searchRow.getByRole("link", { name: "예약 열기" }).click();
 
   await expect(page).toHaveURL(
     new RegExp(`view=bookings.*bookingId=${guestBookingState.bookingId}`),

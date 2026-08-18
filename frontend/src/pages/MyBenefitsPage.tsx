@@ -233,7 +233,7 @@ function MyBenefitsContent() {
         {couponsQuery.data?.length === 0 && <EmptyState message="보유한 쿠폰이 없습니다." />}
         {couponsQuery.data?.map((coupon) => {
           const status = COUPON_STATUS[coupon.status]
-            ?? { label: coupon.status, bg: "secondary" };
+            ?? { label: "상태 확인 필요", bg: "secondary" };
           return (
             <Card key={coupon.id} className="my-list-card border-0 mb-2">
               <Card.Body className="d-flex flex-wrap justify-content-between align-items-start gap-3">

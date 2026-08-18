@@ -4,7 +4,7 @@ type GuestCartOperation<T> = () => T | PromiseLike<T>;
 
 export class GuestCartLockUnavailableError extends Error {
   constructor() {
-    super("이 브라우저에서는 안전한 장바구니 병합을 지원하지 않습니다.");
+    super("이 브라우저에서는 로그인 전에 담은 상품을 안전하게 불러올 수 없습니다.");
     this.name = "GuestCartLockUnavailableError";
   }
 }

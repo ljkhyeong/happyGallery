@@ -20,8 +20,8 @@ export function OrderFulfillmentDetails({
   if (fulfillment.type === "PICKUP") {
     return (
       <Alert variant="light" className="border">
-        <strong>매장 픽업</strong>
-        {fulfillment.pickupDeadlineAt && <div>픽업 마감: {fulfillment.pickupDeadlineAt}</div>}
+        <strong>매장 수령</strong>
+        {fulfillment.pickupDeadlineAt && <div>수령 마감: {fulfillment.pickupDeadlineAt}</div>}
       </Alert>
     );
   }

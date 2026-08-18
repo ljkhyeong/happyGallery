@@ -27,7 +27,7 @@ export function AdminReviewProtectedImage({
   const sortOrder = source.kind === "evidence" ? source.sortOrder : undefined;
   const reviewId = source.kind === "review" ? source.reviewId : undefined;
   const imageId = source.kind === "review" ? source.imageId : undefined;
-  const subject = source.kind === "evidence" ? "사진 증거" : "숨김 후기 사진";
+  const subject = source.kind === "evidence" ? "사진 증거" : "비공개 후기 사진";
   const objectParticle = source.kind === "evidence" ? "를" : "을";
 
   const loadImage = useCallback((signal: AbortSignal) => {

@@ -341,9 +341,9 @@ test("@admin 관리자는 공개 발급 쿠폰을 등록·수정·비활성화�
   const updatedCard = page.locator(".card")
     .filter({ hasText: "수정된 회원 감사 쿠폰" })
     .last();
-  await updatedCard.getByRole("button", { name: "비활성화", exact: true }).click();
-  await expect(updatedCard.getByText("비활성", { exact: true })).toBeVisible();
-  await expect(updatedCard.getByRole("button", { name: "비활성화", exact: true })).toBeDisabled();
+  await updatedCard.getByRole("button", { name: "사용 중지", exact: true }).click();
+  await expect(updatedCard.getByText("사용 중지", { exact: true })).toBeVisible();
+  await expect(updatedCard.getByRole("button", { name: "사용 중지", exact: true })).toBeDisabled();
   expect(deactivatedVersion).toBe("2");
 });
 

@@ -5,7 +5,7 @@ import { fetchClasses, fetchUpcomingSlots } from "./api";
 import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { formatDate, formatDateTime } from "@/shared/lib";
+import { CLASS_CATEGORY_OPTIONS, formatDate, formatDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
@@ -116,7 +116,7 @@ export function SlotSelectionStep({
     <div>
       <h6 className="mb-3">2. 클래스 / 날짜 / 시간 선택</h6>
 
-      {classesLoading && <LoadingSpinner text="클래스 로딩..." />}
+      {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다..." />}
       <ErrorAlert
         error={classesError}
         onRetry={() => { void refetchClasses(); }}
@@ -137,11 +137,16 @@ export function SlotSelectionStep({
                 onDeselect?.();
               }}>
                 <option value="">선택하세요</option>
-                {classes?.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.category}, {c.durationMin}분)
-                  </option>
-                ))}
+                {classes?.map((c) => {
+                  const categoryLabel = CLASS_CATEGORY_OPTIONS.find(
+                    ({ code }) => code === c.category.trim().toUpperCase(),
+                  )?.label;
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({categoryLabel ? `${categoryLabel}, ` : ""}{c.durationMin}분)
+                    </option>
+                  );
+                })}
               </Form.Select>
             </Form.Group>
           </Col>
@@ -207,7 +212,7 @@ export function SlotSelectionStep({
         retrying={slotsFetching}
       />
 
-      {slotsLoading && <LoadingSpinner text="슬롯 조회 중..." />}
+      {slotsLoading && <LoadingSpinner text="예약 가능한 시간을 불러오는 중입니다..." />}
 
       {!slotsError && upcomingSlots && upcomingSlots.length === 0 && (
         <div>
@@ -245,7 +250,7 @@ export function SlotSelectionStep({
                 {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
               </span>
               <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">
-                잔여 {slot.remainingCapacity}명
+                {slot.remainingCapacity}명 예약 가능
               </Badge>
             </ListGroup.Item>
           ))}

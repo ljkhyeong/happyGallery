@@ -52,7 +52,7 @@ export function ReviewReportModal({
         requireCurrent();
         setShow(false);
         setDetail("");
-        toast.show("후기를 신고했습니다. 운영자가 내용을 확인합니다.");
+        toast.show("후기를 신고했습니다. 공방에서 내용을 확인합니다.");
       },
     ),
   });
@@ -108,7 +108,7 @@ export function ReviewReportModal({
           </Modal.Header>
           <Modal.Body>
             <p className="text-muted-soft small">
-              운영 정책 위반이 의심되는 이유를 알려주세요. 신고만으로 후기가 자동 숨김 처리되지는 않습니다.
+              부적절하다고 생각한 이유를 알려주세요. 신고만으로 후기가 자동으로 비공개 처리되지는 않습니다.
             </p>
             <Form.Group controlId={`review-report-reason-${reviewId}`} className="mb-3">
               <Form.Label>신고 사유</Form.Label>

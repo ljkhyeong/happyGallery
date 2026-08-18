@@ -67,7 +67,7 @@ export function CustomerStepUpPrompt({
     } catch (error) {
       if (error instanceof CustomerSessionChangedError) return;
       const message = error instanceof ApiError
-        ? getUserMessage(error.code) ?? error.message
+        ? getUserMessage(error.code) ?? "소셜 계정 본인 확인을 시작하지 못했습니다."
         : "소셜 계정 본인 확인을 시작하지 못했습니다.";
       toast.show(message, "danger");
     } finally {

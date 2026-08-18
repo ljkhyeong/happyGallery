@@ -39,7 +39,7 @@ function refundProgressLabel(status: RefundProgress["status"]): string {
     case "SUCCEEDED":
       return "완료";
     case "FAILED":
-      return "운영자 확인 중";
+      return "공방에서 확인 중";
   }
 }
 
@@ -75,7 +75,7 @@ function refundContent(refund: RefundProgress) {
       return {
         variant: "warning",
         title: "환불 확인 필요",
-        message: "환불 처리가 완료되지 않아 운영자가 확인하고 있습니다.",
+        message: "환불 처리가 완료되지 않아 공방에서 확인하고 있습니다.",
       };
   }
 }

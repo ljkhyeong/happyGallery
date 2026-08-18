@@ -39,14 +39,14 @@ export function useAdminKey() {
     (result: AdminAuthResponse): AdminAuthResponse => {
       if (result.status === "AUTHENTICATED") {
         if (!result.token) {
-          throw new Error("관리자 인증 응답에 세션 토큰이 없습니다.");
+          throw new Error("관리자 로그인 정보를 확인하지 못했습니다. 다시 로그인해 주세요.");
         }
         setAdminKey(result.token);
         return result;
       }
 
       if (!result.challengeToken) {
-        throw new Error("관리자 인증 응답에 2단계 인증 정보가 없습니다.");
+        throw new Error("2단계 인증을 시작할 수 없습니다. 다시 로그인해 주세요.");
       }
       return result;
     },

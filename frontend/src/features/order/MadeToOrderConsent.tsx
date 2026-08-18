@@ -56,7 +56,7 @@ export function MadeToOrderConsent({
       )}
       {policy && !version && (
         <Alert variant="danger" className="small py-2 mb-0">
-          동의 기준을 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.
+          동의 안내문을 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요.
         </Alert>
       )}
       {policy && version && (
@@ -70,7 +70,7 @@ export function MadeToOrderConsent({
             label={policy.madeToOrderConsentText}
           />
           <Form.Text className="text-muted-soft">
-            동의 기준 {version}
+            안내문 버전 {version}
           </Form.Text>
         </>
       )}

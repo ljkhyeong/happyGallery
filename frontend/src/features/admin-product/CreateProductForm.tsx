@@ -113,7 +113,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
               value={category}
               maxLength={50}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="WOOD"
+              placeholder="예: 목공 소품"
             />
           </Form.Group>
         </Col>

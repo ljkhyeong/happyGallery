@@ -12,6 +12,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { formatClassCategory } from "./classCategories";
 
 interface Props {
   adminKey: string;
@@ -54,9 +55,9 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
       <Table responsive hover size="sm">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>클래스 번호</th>
             <th>클래스명</th>
-            <th>카테고리</th>
+            <th>수업 종류</th>
             <th>소요 시간</th>
             <th className="text-end">가격</th>
             <th>8회권</th>
@@ -69,7 +70,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
             <tr key={bookingClass.id}>
               <td>{bookingClass.id}</td>
               <td>{bookingClass.name}</td>
-              <td>{bookingClass.category}</td>
+              <td>{formatClassCategory(bookingClass.category)}</td>
               <td>{bookingClass.durationMin}분</td>
               <td className="text-end">{formatKRW(bookingClass.price)}</td>
               <td>

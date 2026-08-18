@@ -661,13 +661,13 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
 
   await page.goto("/my/orders/75");
   const orderCard = page.locator(".card").filter({ hasText: "HG-BENEFIT-75" }).first();
-  await expect(orderCard.getByText("PG 결제액", { exact: true }).first().locator("..")).toContainText(
+  await expect(orderCard.getByText("카드·간편결제 금액", { exact: true }).first().locator("..")).toContainText(
     "₩7,000",
   );
   await expect(orderCard.locator("tfoot tr").filter({ hasText: "상품 금액" })).toContainText("₩12,000");
   await expect(orderCard.locator("tfoot tr").filter({ hasText: "쿠폰 할인" })).toContainText("-₩2,000");
   await expect(orderCard.locator("tfoot tr").filter({ hasText: "적립금 사용" })).toContainText("-₩3,000");
-  await expect(orderCard.locator("tfoot tr").filter({ hasText: "PG 결제액" })).toContainText("₩7,000");
+  await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("₩7,000");
 
   const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
   await expect(refundAlert).toContainText("₩10,000의 고객 반환 처리가 완료되었습니다.");
@@ -760,12 +760,12 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
   await page.goto("/my/orders/74");
   await page.getByRole("button", { name: "주문 취소" }).click();
   const dialog = page.getByRole("dialog", { name: "주문 취소 및 환불 요청" });
-  await dialog.getByRole("button", { name: "취소 및 환불 요청" }).click();
+  await dialog.getByRole("button", { name: "취소하고 환불 요청" }).click();
 
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("서비스를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."))
     .toBeVisible();
-  await expect(dialog.getByRole("button", { name: "취소 및 환불 요청" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "취소하고 환불 요청" })).toBeEnabled();
 });
 
 test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 상태로 오인하지 않고 복구한다", async ({
@@ -879,7 +879,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
 
   await page.getByRole("button", { name: "다시 시도" }).click();
   await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
 
   const increaseButton = page.getByRole("button", { name: "+", exact: true });
   const deleteButton = page.getByRole("button", { name: "삭제", exact: true });

@@ -64,7 +64,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   const prefilledItem = page.locator(".list-group-item").filter({ hasText: productName }).first();
   await expect(prefilledItem).toBeVisible();
   await expect(prefilledItem).toContainText("x2");
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
@@ -81,11 +81,11 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await loginAdmin(page);
   await openAdminView(page, "현황·검색");
   const searchCard = adminCard(page, "주문·예약 검색");
-  await searchCard.getByLabel("식별자 또는 고객명").fill(approvalPendingOrder.orderNumber);
+  await searchCard.getByLabel("주문·예약 번호 또는 고객명").fill(approvalPendingOrder.orderNumber);
   await searchCard.getByRole("button", { name: "검색", exact: true }).click();
   const searchRow = searchCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(searchRow).toBeVisible();
-  await searchRow.getByRole("link", { name: "운영" }).click();
+  await searchRow.getByRole("link", { name: "주문 열기" }).click();
 
   await expect(page).toHaveURL(new RegExp(`view=orders.*orderId=${orderId}`));
   const orderCard = adminCard(page, "주문 목록");
@@ -97,13 +97,13 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(row).toBeVisible();
   await row.locator('input[type="datetime-local"]').fill(toDateTimeLocalInput(plusDays(7, 18, 0, 30).start));
-  await row.getByRole("button", { name: "픽업 준비" }).click();
+  await row.getByRole("button", { name: "매장 수령 준비 완료" }).click();
 
   await waitForOrder(request, orderId, "PICKUP_READY");
   await orderCard.getByLabel("상태").selectOption("PICKUP_READY");
   row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "픽업 완료" }).click();
+  await row.getByRole("button", { name: "매장 수령 완료로 표시" }).click();
 
   await waitForOrder(request, orderId, "PICKED_UP");
 
@@ -113,7 +113,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await page.getByRole("button", { name: "조회" }).click();
 
   await expect(page.locator(".badge-status").filter({ hasText: "수령 완료" }).first()).toBeVisible();
-  await expect(page.getByText("이행 정보")).toBeVisible();
+  await expect(page.getByText("배송·수령 정보")).toBeVisible();
 });
 
 test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처리해 복구할 수 있다", async ({ page, request }) => {
@@ -140,7 +140,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     await page.getByLabel("상품").selectOption(String(product.id));
     await page.getByLabel("수량").fill("1");
     await page.getByRole("button", { name: "추가" }).click();
-    await page.getByRole("button", { name: "매장 픽업" }).click();
+    await page.getByRole("button", { name: "매장 수령" }).click();
     await acceptCurrentPolicies(page);
     await page.getByRole("button", { name: "결제 진행하기" }).click();
 
@@ -172,15 +172,18 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
 
     await openAdminView(page, "오늘 할 일");
     const refundCard = adminCard(page, "환불 확인 필요");
-    const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
+    const refundRow = refundCard.locator("tbody tr").filter({ hasText: `주문 ${orderId}` }).first();
     await expect(refundRow).toBeVisible();
-    await refundRow.getByRole("button", { name: "재처리" }).click();
-    const retryDialog = page.getByRole("dialog", { name: "환불 재처리 영향 확인" });
+    await expect(refundRow).toContainText("직접 확인 필요");
+    await refundRow.getByText("기술 상세").click();
+    await expect(refundRow).toContainText(failureReason);
+    await refundRow.getByRole("button", { name: "환불 다시 요청" }).click();
+    const retryDialog = page.getByRole("dialog", { name: "환불 처리 다시 확인" });
     await expect(retryDialog).toBeVisible();
-    await retryDialog.getByRole("button", { name: "확인하고 재처리" }).click();
+    await retryDialog.getByRole("button", { name: "기존 환불 다시 요청" }).click();
 
     await waitForFailedRefundGone(request, failedRefund.refundId);
-    await expect(refundCard.locator("tbody tr").filter({ hasText: failureReason })).toHaveCount(0);
+    await expect(refundCard.locator("tbody tr").filter({ hasText: `주문 ${orderId}` })).toHaveCount(0);
   } finally {
     await clearNextRefundFailure(request);
   }

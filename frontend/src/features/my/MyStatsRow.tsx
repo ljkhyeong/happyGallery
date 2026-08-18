@@ -28,8 +28,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{orderCount}</div>
             <div className="text-muted-soft small">
               {latestOrder
-                ? `최근 조회 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
-                : `최근 조회 주문 ${orderCount}건`}
+                ? `표시 중인 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
+                : `표시 중인 주문 ${orderCount}건`}
             </div>
           </Card.Body>
         </Card>
@@ -41,8 +41,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{bookingCount}</div>
             <div className="text-muted-soft small">
               {nextBooking
-                ? `최근 조회 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
-                : `최근 조회 예약 ${bookingCount}건 · 예정된 예약 없음`}
+                ? `표시 중인 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
+                : `표시 중인 예약 ${bookingCount}건 · 예정된 예약 없음`}
             </div>
           </Card.Body>
         </Card>
@@ -54,8 +54,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{remainingCredits}</div>
             <div className="text-muted-soft small">
               {activePassCount > 0
-                ? `최근 조회한 활성 8회권 ${activePassCount}건의 잔여 횟수`
-                : "최근 조회한 활성 8회권 0건의 잔여 횟수"}
+                ? `사용 가능한 8회권 ${activePassCount}건의 남은 횟수`
+                : "사용 가능한 8회권이 없습니다."}
             </div>
           </Card.Body>
         </Card>

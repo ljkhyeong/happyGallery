@@ -54,7 +54,7 @@ export function AdminReviewReportSection({
           >
             후기 신고
           </h6>
-          <p className="text-muted-soft small mb-0">신고 판단과 후기 숨김은 별도 운영 절차입니다.</p>
+          <p className="text-muted-soft small mb-0">신고 판단과 후기 비공개 처리는 별도로 진행합니다.</p>
         </div>
         <Form.Select
           size="sm"
@@ -137,7 +137,7 @@ function AdminReviewReportCard({
           <small className="text-muted-soft">{formatDateTime(summary.createdAt)}</small>
         </div>
         <div className="small text-muted-soft mt-3">
-          후기 #{summary.reviewId} · 신고 당시 {summary.snapshotStatus === "PUBLISHED" ? "공개" : "숨김"}
+          후기 #{summary.reviewId} · 신고 당시 {summary.snapshotStatus === "PUBLISHED" ? "공개" : "비공개"}
         </div>
         <Button
           type="button"

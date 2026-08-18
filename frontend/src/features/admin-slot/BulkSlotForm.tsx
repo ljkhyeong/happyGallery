@@ -27,7 +27,7 @@ const WEEKDAYS = [
 const STATUS_VIEW: Record<BulkSlotStatus, { label: string; variant: string }> = {
   CREATABLE: { label: "생성 가능", variant: "primary" },
   CREATED: { label: "생성 완료", variant: "success" },
-  SKIPPED_DUPLICATE: { label: "기존 슬롯", variant: "secondary" },
+  SKIPPED_DUPLICATE: { label: "이미 등록된 일정", variant: "secondary" },
   SKIPPED_PAST: { label: "지난 시각", variant: "warning" },
 };
 
@@ -71,7 +71,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
       setResult(created);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
       void invalidateSlotAvailability(queryClient);
-      toast.show(`${created.createdCount}개 슬롯이 생성되었습니다.`);
+      toast.show(`수업 일정 ${created.createdCount}개를 생성했습니다.`);
     },
   });
 
@@ -84,7 +84,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
     && startTimes.length > 0
     && startTimes.every(Boolean);
 
-  if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
+  if (classesLoading) return <LoadingSpinner text="클래스 목록을 불러오는 중..." />;
   if (classes === undefined) {
     return (
       <ErrorAlert
@@ -245,7 +245,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
                 <th>시작</th>
                 <th>종료</th>
                 <th>판정</th>
-                <th>버퍼</th>
+                <th>예약 제한 사유</th>
               </tr>
             </thead>
             <tbody>
@@ -260,7 +260,7 @@ export function BulkSlotForm({ adminKey, onAuthError }: Props) {
                         {status.label}
                       </Badge>
                     </td>
-                    <td>{item.bufferBlocked ? "예약 버퍼로 차단" : "-"}</td>
+                    <td>{item.bufferBlocked ? "앞 수업 후 정리 시간과 겹침" : "-"}</td>
                   </tr>
                 );
               })}

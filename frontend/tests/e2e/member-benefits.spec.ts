@@ -204,7 +204,7 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
   await expect(rewardInput).toHaveValue("15000");
   await expect(page.getByText(/예상 상품 결제액 ₩0/)).toBeVisible();
 
-  await page.getByRole("button", { name: "매장 픽업" }).click();
+  await page.getByRole("button", { name: "매장 수령" }).click();
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
   await expect.poll(() => preparedPayload).not.toBeNull();
   expect(preparedPayload).toMatchObject({

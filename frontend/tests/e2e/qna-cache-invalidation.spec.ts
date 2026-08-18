@@ -92,6 +92,20 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       });
       return;
     }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, {
+        content: [],
+        filteredCount: 0,
+        hasMore: false,
+        nextCursor: null,
+        summary: {
+          averageRating: 0,
+          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
+          reviewCount: 0,
+        },
+      });
+      return;
+    }
     if (pathname === "/api/v1/orders/policy") {
       await fulfillJson(route, {
         shippingFee: 3000,
@@ -261,7 +275,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
 
   await navigateInApp(page, "/admin?view=support");
   const qnaPanel = page.locator("section.admin-workspace-panel")
-    .filter({ hasText: "Q&A 관리" });
+    .filter({ hasText: "상품 문의 관리" });
   const publicAdminCard = qnaPanel.getByText("공개 질문", { exact: true }).locator(
     "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' card ')][1]",
   );

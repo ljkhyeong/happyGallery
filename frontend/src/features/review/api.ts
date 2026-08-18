@@ -179,7 +179,7 @@ export async function fetchMyReviewImage(
     signal,
   });
   if (!blob.type.startsWith("image/")) {
-    throw new Error("숨김 후기 이미지 응답 형식이 올바르지 않습니다.");
+    throw new Error("비공개 후기 사진을 불러오지 못했습니다. 다시 시도해 주세요.");
   }
   return blob;
 }

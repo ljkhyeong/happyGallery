@@ -37,7 +37,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
         startAt,
       }),
     onSuccess: (slot) => {
-      toast.show(`슬롯 #${slot.id} 생성 완료`);
+      toast.show(`수업 일정 #${slot.id}을 생성했습니다.`);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.slots.all });
       void invalidateSlotAvailability(queryClient);
       setStartAt("");
@@ -47,7 +47,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
   const hasClasses = (activeClasses?.length ?? 0) > 0;
   const valid = hasClasses && Number(classId) > 0 && Boolean(startAt);
 
-  if (classesLoading) return <LoadingSpinner text="클래스 목록 로딩 중..." />;
+  if (classesLoading) return <LoadingSpinner text="클래스 목록을 불러오는 중..." />;
   if (classes === undefined) {
     return (
       <ErrorAlert
@@ -110,7 +110,7 @@ export function CreateSlotForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col xs={12} sm={6} md={4}>
           <Button type="submit" variant="primary" className="w-100" disabled={!valid || mutation.isPending}>
-            {mutation.isPending ? "생성 중..." : "슬롯 생성"}
+            {mutation.isPending ? "생성 중..." : "수업 일정 생성"}
           </Button>
         </Col>
       </Row>

@@ -164,7 +164,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
                 setExpectedVersion(conflict.version);
                 setConflict(null);
                 mutation.reset();
-                toast.show("최신 버전을 반영했습니다. 초안을 확인한 뒤 다시 저장해 주세요.");
+                toast.show("내 입력 내용은 그대로 유지했습니다. 다른 관리자의 변경 내용을 확인한 뒤 다시 저장해 주세요.");
               }}
             >
               내 초안 유지
@@ -180,7 +180,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
                 mutation.reset();
               }}
             >
-              서버 최신 내용 불러오기
+              다른 관리자가 저장한 내용 불러오기
             </Button>
           </div>
         </Alert>
@@ -196,7 +196,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-phone">
             <Form.Label>연락처</Form.Label>
             <Form.Control value={form.phone} maxLength={30} onChange={(e) => update("phone", e.target.value)} />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -208,7 +208,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={20}
               onChange={(e) => update("businessRegistrationNumber", e.target.value)}
             />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -223,7 +223,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col md={8}>
           <Form.Group controlId="admin-workshop-naver-talk-url">
-            <Form.Label>네이버톡톡 URL</Form.Label>
+            <Form.Label>네이버톡톡 링크 주소</Form.Label>
             <Form.Control type="url" value={form.naverTalkUrl} maxLength={500} onChange={(e) => update("naverTalkUrl", e.target.value)} />
           </Form.Group>
         </Col>
@@ -235,7 +235,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={100}
               onChange={(e) => update("representativeName", e.target.value)}
             />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -247,7 +247,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={254}
               onChange={(e) => update("email", e.target.value)}
             />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -258,7 +258,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
               maxLength={100}
               onChange={(e) => update("mailOrderRegistrationNumber", e.target.value)}
             />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -271,7 +271,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
           <Form.Group controlId="admin-workshop-address-line1">
             <Form.Label>기본 주소</Form.Label>
             <Form.Control value={form.addressLine1} maxLength={200} onChange={(e) => update("addressLine1", e.target.value)} />
-            <Form.Text className="text-danger">공개 결제 운영 전 필수</Form.Text>
+            <Form.Text className="text-danger">온라인 결제를 받으려면 필수</Form.Text>
           </Form.Group>
         </Col>
         <Col md={4}>
@@ -300,19 +300,19 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col md={6}>
           <Form.Group controlId="admin-workshop-naver-blog-url">
-            <Form.Label>네이버 블로그 URL</Form.Label>
+            <Form.Label>네이버 블로그 링크 주소</Form.Label>
             <Form.Control type="url" value={form.naverBlogUrl} maxLength={500} onChange={(e) => update("naverBlogUrl", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={6}>
           <Form.Group controlId="admin-workshop-instagram-url">
-            <Form.Label>인스타그램 URL</Form.Label>
+            <Form.Label>인스타그램 링크 주소</Form.Label>
             <Form.Control type="url" value={form.instagramUrl} maxLength={500} onChange={(e) => update("instagramUrl", e.target.value)} />
           </Form.Group>
         </Col>
         <Col md={6}>
           <Form.Group controlId="admin-workshop-smart-store-url">
-            <Form.Label>스마트스토어 URL</Form.Label>
+            <Form.Label>스마트스토어 링크 주소</Form.Label>
             <Form.Control type="url" value={form.smartStoreUrl} maxLength={500} onChange={(e) => update("smartStoreUrl", e.target.value)} />
           </Form.Group>
         </Col>
@@ -324,7 +324,7 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col md={9}>
           <Form.Group controlId="admin-workshop-map-url">
-            <Form.Label>지도 URL</Form.Label>
+            <Form.Label>지도 링크 주소</Form.Label>
             <Form.Control type="url" value={form.mapUrl} maxLength={500} onChange={(e) => update("mapUrl", e.target.value)} />
           </Form.Group>
         </Col>

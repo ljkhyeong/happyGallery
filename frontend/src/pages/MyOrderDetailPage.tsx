@@ -83,7 +83,7 @@ export function MyOrderDetailPage() {
         <div className="my-section-kicker mb-2">My Order</div>
         <h4 className="mb-2">주문 상세</h4>
         <p className="text-muted-soft small mb-0">
-          현재 주문 상태와 이행 정보를 확인할 수 있습니다.
+          현재 주문 상태와 배송·수령 정보를 확인할 수 있습니다.
         </p>
       </div>
       {error && <ErrorAlert error={error} />}
