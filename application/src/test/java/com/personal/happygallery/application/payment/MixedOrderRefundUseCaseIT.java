@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.coupon.CouponDefinitionRepository;
 import com.personal.happygallery.adapter.out.persistence.coupon.IssuedCouponRepository;
@@ -10,6 +9,7 @@ import com.personal.happygallery.application.coupon.port.in.CouponRedemptionUseC
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.application.reward.port.in.RewardQueryUseCase;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.coupon.CouponDefinition;
 import com.personal.happygallery.domain.coupon.CouponDiscountType;
@@ -63,7 +63,7 @@ class MixedOrderRefundUseCaseIT {
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @AfterEach
     void tearDown() {

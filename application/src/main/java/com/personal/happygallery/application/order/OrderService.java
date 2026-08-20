@@ -191,19 +191,19 @@ public class OrderService {
         inventoryService.deductAll(items.stream()
                 .map(item -> new InventoryAdjustment(item.productId(), item.qty()))
                 .toList());
-        for (OrderItemRequest item : items) {
-            orderItemPort.save(new OrderItem(
-                    order,
-                    item.productId(),
-                    item.productName(),
-                    item.productType(),
-                    item.qty(),
-                    item.unitPrice(),
-                    item.specification(),
-                    item.careInstructions(),
-                    item.productionLeadDays(),
-                    item.pricing()));
-        }
+        orderItemPort.saveAll(items.stream()
+                .map(item -> new OrderItem(
+                        order,
+                        item.productId(),
+                        item.productName(),
+                        item.productType(),
+                        item.qty(),
+                        item.unitPrice(),
+                        item.specification(),
+                        item.careInstructions(),
+                        item.productionLeadDays(),
+                        item.pricing()))
+                .toList());
     }
 
     private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {

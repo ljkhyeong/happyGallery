@@ -7,6 +7,8 @@ public interface AdminMfaRecoveryCodePort {
 
     <S extends AdminMfaRecoveryCode> S save(S recoveryCode);
 
+    <S extends AdminMfaRecoveryCode> List<S> saveAll(Iterable<S> recoveryCodes);
+
     List<AdminMfaRecoveryCode> findUnusedByAdminUserIdForUpdate(Long adminUserId);
 
     long countUnusedByAdminUserId(Long adminUserId);

@@ -9,7 +9,6 @@ import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase.ChangePasswordCommand;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase.ResetPasswordCommand;
-import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -73,9 +72,8 @@ public class CustomerCredentialController {
     public void resetPassword(@RequestBody @Valid ResetPasswordRequest request,
                               HttpServletRequest httpRequest,
                               HttpServletResponse httpResponse) {
-        String phone = KoreanPhoneNumber.required(request.phone());
         Long userId = credentials.resetPassword(new ResetPasswordCommand(
-                request.email(), phone, request.verificationCode(), request.newPassword()));
+                request.email(), request.phone(), request.verificationCode(), request.newPassword()));
         customerSessionBinder.unbindIfBoundTo(
                 httpRequest, httpResponse, userId);
     }

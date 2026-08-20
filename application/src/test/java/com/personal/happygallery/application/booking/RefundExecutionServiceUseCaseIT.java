@@ -6,6 +6,7 @@ import com.personal.happygallery.application.dashboard.dto.Granularity;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -15,7 +16,6 @@ import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -60,7 +60,7 @@ class RefundExecutionServiceUseCaseIT {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired DashboardQueryUseCase dashboardQueryUseCase;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @AfterEach
     void tearDown() {

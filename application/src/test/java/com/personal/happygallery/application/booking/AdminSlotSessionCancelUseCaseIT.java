@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.booking;
 
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
@@ -19,6 +18,7 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -94,7 +94,7 @@ class AdminSlotSessionCancelUseCaseIT {
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     BookingClass bookingClass;
 

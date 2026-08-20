@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
@@ -13,6 +12,7 @@ import com.personal.happygallery.application.booking.port.in.MemberBookingUseCas
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -101,7 +101,7 @@ class PassCreditUsageUseCaseIT {
     @Autowired NotificationLogProbe notificationLogProbe;
     @Autowired MemberBookingUseCase memberBookingUseCase;
     @Autowired JdbcTemplate jdbcTemplate;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     BookingClass cls;
     PassPurchase pass;

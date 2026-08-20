@@ -15,6 +15,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
     <S extends OrderItem> S save(S item);
 
     @Override
+    <S extends OrderItem> List<S> saveAll(Iterable<S> items);
+
+    @Override
     List<OrderItem> findByOrder(Order order);
 
     @Override

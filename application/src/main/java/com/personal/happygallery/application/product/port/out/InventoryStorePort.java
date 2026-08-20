@@ -10,6 +10,8 @@ public interface InventoryStorePort {
 
     <S extends Inventory> S save(S inventory);
 
+    <S extends Inventory> List<S> saveAll(Iterable<S> inventories);
+
     List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 
     void deleteById(Long inventoryId);

@@ -24,6 +24,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -142,15 +143,17 @@ public class DefaultCartService implements CartUseCase {
                 userId, quantitiesByProductId.keySet())) {
             existingItemsByProductId.put(item.getProductId(), item);
         }
+        List<CartItem> newItems = new ArrayList<>();
         for (Map.Entry<Long, Integer> entry : quantitiesByProductId.entrySet()) {
             CartItem existingItem = existingItemsByProductId.get(entry.getKey());
             if (existingItem != null) {
                 existingItem.addQty(entry.getValue(), changedAt);
                 continue;
             }
-            cartItemStore.save(new CartItem(
+            newItems.add(new CartItem(
                     userId, entry.getKey(), entry.getValue(), changedAt));
         }
+        cartItemStore.saveAll(newItems);
     }
 
     private static String payloadHash(Map<Long, Integer> quantitiesByProductId) {

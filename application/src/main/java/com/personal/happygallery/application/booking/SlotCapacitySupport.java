@@ -152,15 +152,15 @@ class SlotCapacitySupport {
     private void blockBufferSlots(List<Slot> bufferSlots) {
         for (Slot bufferSlot : bufferSlots) {
             bufferSlot.incrementBufferBlockCount();
-            slotStorePort.save(bufferSlot);
         }
+        slotStorePort.saveAll(bufferSlots);
     }
 
     private void releaseBufferSlots(List<Slot> bufferSlots) {
         for (Slot bufferSlot : bufferSlots) {
             bufferSlot.decrementBufferBlockCount();
-            slotStorePort.save(bufferSlot);
         }
+        slotStorePort.saveAll(bufferSlots);
     }
 
     /** 클래스와 슬롯 범위를 순서대로 잠그고 후속 정원 변경까지 유지할 범위를 반환한다. */

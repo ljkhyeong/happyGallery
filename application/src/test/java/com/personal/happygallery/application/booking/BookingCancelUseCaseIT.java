@@ -13,8 +13,8 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.RefundStatus;
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -66,7 +66,7 @@ class BookingCancelUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
     @Autowired ObjectMapper objectMapper;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     BookingClass cls;
     BookingTestHelper helper;
@@ -74,7 +74,7 @@ class BookingCancelUseCaseIT {
     @BeforeEach
     void setUp() {
         helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
-        // 기본: PaymentProvider 성공
+        // 기본: PaymentPort 성공
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
                 .thenReturn(PaymentConfirmResult.success("FAKE-TEST-PG", "CARD", "2026-04-26T12:00:00+09:00"));
         when(paymentProvider.refund(any(), anyLong(), any()))

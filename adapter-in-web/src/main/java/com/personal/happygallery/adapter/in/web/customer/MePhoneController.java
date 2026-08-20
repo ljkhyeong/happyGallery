@@ -6,7 +6,6 @@ import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrinci
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase.UpdatePhoneCommand;
-import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.User;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -41,13 +40,12 @@ public class MePhoneController {
             @AuthenticationPrincipal CustomerPrincipal customer,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
-        String phone = KoreanPhoneNumber.required(request.phone());
         boolean recentlyReauthenticated = stepUpAuthenticationStore.isRecentlyVerified(
                 httpRequest, customer.userId(), customer.credentialVersion());
         User user = phoneUpdate.update(new UpdatePhoneCommand(
                 customer.userId(),
                 customer.credentialVersion(),
-                phone,
+                request.phone(),
                 request.verificationCode(),
                 recentlyReauthenticated));
         if (user.getCredentialVersion() != customer.credentialVersion()) {

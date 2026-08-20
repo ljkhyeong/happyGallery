@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
 import com.personal.happygallery.application.batch.PersonalDataRetentionBatchUseCase;
@@ -17,6 +16,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
@@ -61,7 +61,7 @@ class PaymentAttemptExpiryBatchUseCaseIT {
     @Autowired Clock clock;
     @Autowired GuestTokenProperties guestTokenProperties;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @AfterEach
     void tearDown() {

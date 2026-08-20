@@ -18,6 +18,9 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long>,
     @Override
     <S extends Inventory> S save(S inventory);
 
+    @Override
+    <S extends Inventory> List<S> saveAll(Iterable<S> inventories);
+
     /** productId로 재고 조회 (읽기용) */
     @Override Optional<Inventory> findByProductId(Long productId);
 

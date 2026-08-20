@@ -16,6 +16,9 @@ public interface AdminMfaRecoveryCodeRepository extends JpaRepository<AdminMfaRe
     <S extends AdminMfaRecoveryCode> S save(S recoveryCode);
 
     @Override
+    <S extends AdminMfaRecoveryCode> List<S> saveAll(Iterable<S> recoveryCodes);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT code

@@ -22,11 +22,11 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.cart.CartItemRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
@@ -128,7 +128,7 @@ class PaymentConfirmUseCaseIT {
     @Autowired FieldEncryptor fieldEncryptor;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @BeforeEach
     void setUp() {

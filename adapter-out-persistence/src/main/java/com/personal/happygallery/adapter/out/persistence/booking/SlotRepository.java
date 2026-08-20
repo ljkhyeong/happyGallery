@@ -16,6 +16,9 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Override
     <S extends Slot> S save(S slot);
 
+    @Override
+    <S extends Slot> List<S> saveAll(Iterable<S> slots);
+
     @Override Optional<Slot> findById(Long id);
     @Override List<Slot> findAllById(Iterable<Long> ids);
 

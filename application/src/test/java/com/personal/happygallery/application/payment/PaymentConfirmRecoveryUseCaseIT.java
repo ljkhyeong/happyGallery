@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
@@ -26,6 +25,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
@@ -101,7 +101,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired MeterRegistry meterRegistry;
     @Autowired OperationalBacklogMetrics operationalBacklogMetrics;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @BeforeEach
     void setUp() {

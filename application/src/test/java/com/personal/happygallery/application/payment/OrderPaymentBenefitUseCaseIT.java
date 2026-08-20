@@ -1,6 +1,5 @@
 package com.personal.happygallery.application.payment;
 
-import com.personal.happygallery.adapter.out.external.payment.PaymentProvider;
 import com.personal.happygallery.adapter.out.persistence.coupon.IssuedCouponRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.application.coupon.port.in.CouponAdminUseCase;
@@ -20,6 +19,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
@@ -91,7 +91,7 @@ class OrderPaymentBenefitUseCaseIT {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoBean PaymentProvider paymentProvider;
+    @MockitoBean PaymentPort paymentProvider;
 
     @BeforeEach
     void setUp() {
