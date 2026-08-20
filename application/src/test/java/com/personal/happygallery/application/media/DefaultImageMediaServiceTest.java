@@ -4,21 +4,24 @@ import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.Ima
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase.StoredImage;
 import com.personal.happygallery.application.media.port.out.ImageMediaStoragePort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalMatchers.aryEq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class DefaultImageMediaServiceTest {
 
-    private final InMemoryStorage storage = new InMemoryStorage();
+    private final ImageMediaStoragePort storage = mock(ImageMediaStoragePort.class);
     private final DefaultImageMediaService service = new DefaultImageMediaService(storage);
 
     @Test
@@ -27,6 +30,9 @@ class DefaultImageMediaServiceTest {
         byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1};
 
         StoredImage stored = service.upload(png, "image/png");
+        verify(storage).store(eq(stored.fileName()), aryEq(png));
+        when(storage.read(stored.fileName())).thenReturn(Optional.of(png));
+
         ImageContent loaded = service.get(stored.fileName());
 
         assertThat(stored.url()).isEqualTo("/api/v1/media/images/" + stored.fileName());
@@ -39,51 +45,6 @@ class DefaultImageMediaServiceTest {
     void rejectSpoofedImage() {
         assertThatThrownBy(() -> service.upload("not-an-image".getBytes(), "image/png"))
                 .isInstanceOf(HappyGalleryException.class);
-        assertThat(storage.files).isEmpty();
-    }
-
-    private static class InMemoryStorage implements ImageMediaStoragePort {
-        private final Map<String, byte[]> files = new HashMap<>();
-
-        @Override
-        public void store(String fileName, byte[] bytes) {
-            files.put(fileName, bytes);
-        }
-
-        @Override
-        public Optional<byte[]> read(String fileName) {
-            return Optional.ofNullable(files.get(fileName));
-        }
-
-        @Override
-        public boolean exists(String fileName) {
-            return files.containsKey(fileName);
-        }
-
-        @Override
-        public List<String> findStoredImageNames() {
-            return List.of();
-        }
-
-        @Override
-        public boolean markOrphanCandidate(String fileName, Instant observedAt, Duration gracePeriod) {
-            return false;
-        }
-
-        @Override
-        public void clearOrphanMarker(String fileName) {
-        }
-
-        @Override
-        public void delete(String fileName) {
-            files.remove(fileName);
-        }
-
-        @Override
-        public long usedBytes() {
-            return files.values().stream()
-                    .mapToLong(bytes -> bytes.length)
-                    .sum();
-        }
+        verify(storage, never()).store(anyString(), any(byte[].class));
     }
 }
