@@ -448,12 +448,8 @@ class OrderProductionUseCaseIT {
         orderPickupService.markPickupReady(order.getId(),
                 LocalDateTime.of(2026, 4, 1, 18, 0), 1L);
 
-        var fulfillments = orderStateProbe.fulfillments().stream()
-                .filter(f -> f.getOrderId().equals(order.getId()))
-                .toList();
-        var fulfillment = fulfillments.getFirst();
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(fulfillments).hasSize(1);
             softly.assertThat(fulfillment.getType())
                     .isEqualTo(FulfillmentType.PICKUP);
             softly.assertThat(fulfillment.getPickupDeadlineAt()).isNotNull();

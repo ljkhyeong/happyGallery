@@ -6,8 +6,11 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
@@ -205,7 +208,18 @@ class MeBookingUseCaseIT {
     }
 
     private Long createBooking(Long targetSlotId) throws Exception {
-        return paymentHelper.createMemberDepositBooking(sessionCookie, userId, targetSlotId)
+        var prepared = paymentHelper.preparePayment(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        userId,
+                        null,
+                        null,
+                        null,
+                        targetSlotId,
+                        null,
+                        DepositPaymentMethod.CARD),
+                sessionCookie);
+        return paymentHelper.confirmPayment(prepared, "test-payment-key", sessionCookie)
                 .domainId();
     }
 

@@ -4,16 +4,10 @@ import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.adapter.in.web.payment.dto.ConfirmPaymentRequest;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
-import com.personal.happygallery.domain.order.FulfillmentType;
-import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import jakarta.servlet.http.Cookie;
-import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -66,29 +60,14 @@ public final class PaymentTestHelper {
     public ConfirmedPayment confirmPayment(PreparedPayment prepared,
                                            String paymentKey,
                                            Cookie... cookies) throws Exception {
-        return confirmPayment(
-                prepared.orderId(), prepared.amount(), paymentKey, prepared.statusToken(), cookies);
-    }
-
-    public ConfirmedPayment confirmPayment(String orderId,
-                                           long amount,
-                                           String paymentKey,
-                                           Cookie... cookies) throws Exception {
-        return confirmPayment(orderId, amount, paymentKey, null, cookies);
-    }
-
-    private ConfirmedPayment confirmPayment(String orderId,
-                                            long amount,
-                                            String paymentKey,
-                                            String statusToken,
-                                            Cookie... cookies) throws Exception {
         MockHttpServletRequestBuilder request = post("/api/v1/payments/confirm")
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(
-                        new ConfirmPaymentRequest(paymentKey, orderId, amount)));
-        if (statusToken != null) {
-            request.header(PAYMENT_STATUS_TOKEN_HEADER, statusToken);
+                        new ConfirmPaymentRequest(
+                                paymentKey, prepared.orderId(), prepared.amount())));
+        if (prepared.statusToken() != null) {
+            request.header(PAYMENT_STATUS_TOKEN_HEADER, prepared.statusToken());
         }
         if (cookies.length > 0) {
             request.cookie(cookies);
@@ -103,49 +82,6 @@ public final class PaymentTestHelper {
                 JsonPath.read(response, "$.accessToken"));
     }
 
-    public ConfirmedPayment createMemberOrder(Cookie sessionCookie,
-                                              Long userId,
-                                              Long productId,
-                                              int qty) throws Exception {
-        PreparedPayment prepared = preparePayment(
-                PaymentContext.ORDER,
-                new OrderPayload(userId, null, null, null, List.of(new OrderItemRef(productId, qty))),
-                sessionCookie);
-        return confirmPayment(prepared, "test-payment-key", sessionCookie);
-    }
-
-    public ConfirmedPayment createMemberShippingOrder(
-            Cookie sessionCookie,
-            Long userId,
-            Long productId,
-            int qty,
-            ShippingAddress shippingAddress
-    ) throws Exception {
-        PreparedPayment prepared = preparePayment(
-                PaymentContext.ORDER,
-                new OrderPayload(
-                        userId,
-                        null,
-                        null,
-                        null,
-                        List.of(new OrderItemRef(productId, qty)),
-                        false,
-                        FulfillmentType.SHIPPING,
-                        shippingAddress),
-                sessionCookie);
-        return confirmPayment(prepared, "test-payment-key", sessionCookie);
-    }
-
-    public ConfirmedPayment createMemberDepositBooking(Cookie sessionCookie,
-                                                       Long userId,
-                                                       Long slotId) throws Exception {
-        PreparedPayment prepared = preparePayment(
-                PaymentContext.BOOKING,
-                new BookingPayload(userId, null, null, null, slotId, null, DepositPaymentMethod.CARD),
-                sessionCookie);
-        return confirmPayment(prepared, "test-payment-key", sessionCookie);
-    }
-
     public ConfirmedPayment createMemberPassBooking(Cookie sessionCookie,
                                                     Long userId,
                                                     Long slotId,
@@ -156,11 +92,6 @@ public final class PaymentTestHelper {
                 sessionCookie);
         assertThat(prepared.amount()).isZero();
         return confirmPayment(prepared, null, sessionCookie);
-    }
-
-    public ConfirmedPayment purchaseMemberPass(Cookie sessionCookie, Long userId) throws Exception {
-        PreparedPayment prepared = preparePayment(PaymentContext.PASS, new PassPayload(userId), sessionCookie);
-        return confirmPayment(prepared, "test-payment-key", sessionCookie);
     }
 
     public ConfirmedPayment createGuestBooking(String phone,

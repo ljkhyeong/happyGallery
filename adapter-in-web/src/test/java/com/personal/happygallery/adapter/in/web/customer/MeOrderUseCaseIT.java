@@ -3,17 +3,21 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
-import com.personal.happygallery.domain.product.Inventory;
-import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -102,18 +106,12 @@ class MeOrderUseCaseIT {
     @DisplayName("회원 주문 상세를 조회한다")
     @Test
     void getMyOrderDetail() throws Exception {
-        Long orderId = paymentHelper.createMemberShippingOrder(
-                sessionCookie,
-                userId,
-                productId,
-                1,
-                new ShippingAddress(
-                        "주문회원",
-                        "010-3333-4444",
-                        "27352",
-                        "충북 충주시 계명대로 161",
-                        "1층"))
-                .domainId();
+        Long orderId = createShippingOrder(new ShippingAddress(
+                "주문회원",
+                "010-3333-4444",
+                "27352",
+                "충북 충주시 계명대로 161",
+                "1층"));
 
         mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
                         .cookie(sessionCookie))
@@ -136,7 +134,33 @@ class MeOrderUseCaseIT {
     }
 
     private Long createOrder() throws Exception {
-        return paymentHelper.createMemberOrder(sessionCookie, userId, productId, 1)
+        var prepared = paymentHelper.preparePayment(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        userId,
+                        null,
+                        null,
+                        null,
+                        List.of(new OrderItemRef(productId, 1))),
+                sessionCookie);
+        return paymentHelper.confirmPayment(prepared, "test-payment-key", sessionCookie)
+                .domainId();
+    }
+
+    private Long createShippingOrder(ShippingAddress shippingAddress) throws Exception {
+        var prepared = paymentHelper.preparePayment(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        userId,
+                        null,
+                        null,
+                        null,
+                        List.of(new OrderItemRef(productId, 1)),
+                        false,
+                        FulfillmentType.SHIPPING,
+                        shippingAddress),
+                sessionCookie);
+        return paymentHelper.confirmPayment(prepared, "test-payment-key", sessionCookie)
                 .domainId();
     }
 

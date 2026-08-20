@@ -27,6 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ResilientNotificationSenderTest {
 
@@ -44,14 +48,17 @@ class ResilientNotificationSenderTest {
     @DisplayName("호출이 시작된 뒤 타임아웃되면 발송 성공 여부를 알 수 없는 결과로 반환한다")
     @Test
     void send_timesOut_returnsDeliveryUnknown() {
-        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
-            try {
-                Thread.sleep(1_000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return NotificationSendResult.SUCCESS;
-        });
+        NotificationSenderPort delegate = mock(NotificationSenderPort.class);
+        when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
+        when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
+                .thenAnswer(invocation -> {
+                    try {
+                        Thread.sleep(1_000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return NotificationSendResult.SUCCESS;
+                });
         NotificationResilienceProperties properties = properties(
                 Duration.ofMillis(30), 2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
@@ -71,10 +78,13 @@ class ResilientNotificationSenderTest {
     @Test
     void send_transientFailuresAccumulate_circuitOpenFastFail() {
         AtomicInteger calls = new AtomicInteger();
-        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
-            calls.incrementAndGet();
-            return NotificationSendResult.TRANSIENT_FAILURE;
-        });
+        NotificationSenderPort delegate = mock(NotificationSenderPort.class);
+        when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
+        when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
+                .thenAnswer(invocation -> {
+                    calls.incrementAndGet();
+                    return NotificationSendResult.TRANSIENT_FAILURE;
+                });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -98,10 +108,13 @@ class ResilientNotificationSenderTest {
     @Test
     void send_permanentFailures_doNotOpenCircuit() {
         AtomicInteger calls = new AtomicInteger();
-        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
-            calls.incrementAndGet();
-            return NotificationSendResult.PERMANENT_FAILURE;
-        });
+        NotificationSenderPort delegate = mock(NotificationSenderPort.class);
+        when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
+        when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
+                .thenAnswer(invocation -> {
+                    calls.incrementAndGet();
+                    return NotificationSendResult.PERMANENT_FAILURE;
+                });
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -126,15 +139,18 @@ class ResilientNotificationSenderTest {
     void send_executorQueueFull_returnsFalseAndRecordsRejection() throws Exception {
         CountDownLatch callStarted = new CountDownLatch(1);
         CountDownLatch releaseCall = new CountDownLatch(1);
-        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
-            callStarted.countDown();
-            try {
-                releaseCall.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            return NotificationSendResult.SUCCESS;
-        });
+        NotificationSenderPort delegate = mock(NotificationSenderPort.class);
+        when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
+        when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
+                .thenAnswer(invocation -> {
+                    callStarted.countDown();
+                    try {
+                        releaseCall.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return NotificationSendResult.SUCCESS;
+                });
         NotificationResilienceProperties properties = properties(20, 20, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         ResilientNotificationSender resilientSender = createSender(
@@ -302,30 +318,5 @@ class ResilientNotificationSenderTest {
         executor.initialize();
         timeoutExecutors.add(executor);
         return executor;
-    }
-
-    private static NotificationSenderPort sender(SendBehavior behavior) {
-        return new NotificationSenderPort() {
-            @Override
-            public NotificationChannel channel() {
-                return NotificationChannel.KAKAO;
-            }
-
-            @Override
-            public NotificationSendResult send(String idempotencyKey,
-                                               String phone,
-                                               String recipientName,
-                                               NotificationEventType eventType) {
-                return behavior.send(idempotencyKey, phone, recipientName, eventType);
-            }
-        };
-    }
-
-    @FunctionalInterface
-    private interface SendBehavior {
-        NotificationSendResult send(String idempotencyKey,
-                                    String phone,
-                                    String recipientName,
-                                    NotificationEventType eventType);
     }
 }

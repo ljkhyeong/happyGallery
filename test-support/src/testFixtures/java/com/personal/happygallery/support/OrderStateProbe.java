@@ -62,8 +62,4 @@ public class OrderStateProbe {
     public Optional<Fulfillment> findFulfillmentByOrderId(Long orderId) {
         return fulfillmentRepository.findByOrderId(orderId);
     }
-
-    public List<Fulfillment> fulfillments() {
-        return fulfillmentRepository.findAll();
-    }
 }

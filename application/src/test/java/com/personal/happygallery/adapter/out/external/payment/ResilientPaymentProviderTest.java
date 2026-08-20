@@ -23,6 +23,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ResilientPaymentProviderTest {
 
@@ -41,7 +45,8 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 외부 호출 결과를 알 수 없으면 상태 확인 필요 결과를 반환한다")
     @Test
     void refund_delegateThrows_returnsFailure() {
-        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.refund(anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
             throw new RuntimeException("PG error");
         });
 
@@ -60,7 +65,8 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 외부 호출이 타임아웃을 초과하면 상태 확인 필요 결과를 반환한다")
     @Test
     void refund_delegateTimeout_returnsFailure() {
-        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.refund(anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -86,7 +92,8 @@ class ResilientPaymentProviderTest {
     void refund_executorQueueFull_returnsRetryableFailureAndRecordsRejection() throws Exception {
         CountDownLatch callStarted = new CountDownLatch(1);
         CountDownLatch releaseCall = new CountDownLatch(1);
-        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.refund(anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
             callStarted.countDown();
             try {
                 releaseCall.await();
@@ -137,8 +144,9 @@ class ResilientPaymentProviderTest {
     @DisplayName("실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
     @Test
     void refund_failuresAccumulate_circuitOpenFastFail() {
-        PaymentPort delegate = refundOnlyDelegate(
-                (paymentKey, amount) -> RefundResult.retryableFailure("PG down"));
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.refund(anyString(), anyLong(), anyString()))
+                .thenReturn(RefundResult.retryableFailure("PG down"));
 
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
@@ -156,7 +164,8 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 외부 호출 예외가 발생하면 실패 결과를 반환한다")
     @Test
     void confirm_delegateThrows_returnsFailure() {
-        PaymentPort delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.confirm(anyString(), anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
             throw new RuntimeException("PG confirm error");
         });
 
@@ -176,7 +185,8 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 외부 호출이 타임아웃을 초과하면 실패 결과를 반환한다")
     @Test
     void confirm_delegateTimeout_returnsFailure() {
-        PaymentPort delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.confirm(anyString(), anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -201,8 +211,9 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
     @Test
     void confirm_failuresAccumulate_circuitOpenFastFail() {
-        PaymentPort delegate = confirmOnlyDelegate(
-                (paymentKey, orderId, amount) -> PaymentConfirmResult.retryableFailure("PG confirm down"));
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.confirm(anyString(), anyString(), anyLong(), anyString()))
+                .thenReturn(PaymentConfirmResult.retryableFailure("PG confirm down"));
 
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
@@ -222,8 +233,11 @@ class ResilientPaymentProviderTest {
     @DisplayName("자동 판정이 어려운 정상 PG 상태 조회는 결제 서킷을 열지 않는다")
     @Test
     void lookup_reviewRequired_doesNotOpenSharedCircuit() {
-        PaymentPort delegate = lookupOnlyDelegate(orderId ->
-                PaymentLookupResult.reviewRequired(orderId, "PG 결제가 처리 중입니다."));
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.lookupByOrderId(anyString())).thenAnswer(invocation -> {
+            String orderId = invocation.getArgument(0);
+            return PaymentLookupResult.reviewRequired(orderId, "PG 결제가 처리 중입니다.");
+        });
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
@@ -237,8 +251,11 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 조회 불가가 누적되면 서킷이 열려 조회를 빠르게 차단한다")
     @Test
     void lookupRefund_unavailableAccumulates_circuitOpenFastFail() {
-        PaymentPort delegate = refundLookupOnlyDelegate((paymentKey, amount, idempotencyKey) ->
-                RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패"));
+        PaymentPort delegate = mock(PaymentPort.class);
+        when(delegate.lookupRefund(anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
+            String paymentKey = invocation.getArgument(0);
+            return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패");
+        });
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
 
@@ -347,127 +364,4 @@ class ResilientPaymentProviderTest {
                 Duration.ofSeconds(30));
     }
 
-    private static PaymentPort refundOnlyDelegate(RefundBehavior refundBehavior) {
-        return new PaymentPort() {
-            @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
-                                                String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
-                return refundBehavior.refund(paymentKey, amount);
-            }
-
-            @Override
-            public PaymentLookupResult lookupByOrderId(String orderId) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundLookupResult lookupRefund(
-                    String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-        };
-    }
-
-    private static PaymentPort confirmOnlyDelegate(ConfirmBehavior confirmBehavior) {
-        return new PaymentPort() {
-            @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
-                                                String idempotencyKey) {
-                return confirmBehavior.confirm(paymentKey, orderId, amount);
-            }
-
-            @Override
-            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public PaymentLookupResult lookupByOrderId(String orderId) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundLookupResult lookupRefund(
-                    String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-        };
-    }
-
-    private static PaymentPort lookupOnlyDelegate(LookupBehavior lookupBehavior) {
-        return new PaymentPort() {
-            @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
-                                                String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public PaymentLookupResult lookupByOrderId(String orderId) {
-                return lookupBehavior.lookup(orderId);
-            }
-
-            @Override
-            public RefundLookupResult lookupRefund(
-                    String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-        };
-    }
-
-    private static PaymentPort refundLookupOnlyDelegate(RefundLookupBehavior lookupBehavior) {
-        return new PaymentPort() {
-            @Override
-            public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
-                                                String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public PaymentLookupResult lookupByOrderId(String orderId) {
-                throw new UnsupportedOperationException();
-            }
-
-            @Override
-            public RefundLookupResult lookupRefund(
-                    String paymentKey, long amount, String idempotencyKey) {
-                return lookupBehavior.lookup(paymentKey, amount, idempotencyKey);
-            }
-        };
-    }
-
-    @FunctionalInterface
-    private interface RefundBehavior {
-        RefundResult refund(String paymentKey, long amount);
-    }
-
-    @FunctionalInterface
-    private interface ConfirmBehavior {
-        PaymentConfirmResult confirm(String paymentKey, String orderId, long amount);
-    }
-
-    @FunctionalInterface
-    private interface LookupBehavior {
-        PaymentLookupResult lookup(String orderId);
-    }
-
-    @FunctionalInterface
-    private interface RefundLookupBehavior {
-        RefundLookupResult lookup(String paymentKey, long amount, String idempotencyKey);
-    }
 }

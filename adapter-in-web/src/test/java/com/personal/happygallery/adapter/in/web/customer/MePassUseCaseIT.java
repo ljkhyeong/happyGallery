@@ -8,9 +8,11 @@ import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseReposi
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
@@ -186,7 +188,11 @@ class MePassUseCaseIT {
     }
 
     private Long purchasePass() throws Exception {
-        return paymentHelper.purchaseMemberPass(sessionCookie, userId).domainId();
+        PaymentTestHelper.PreparedPayment prepared = paymentHelper.preparePayment(
+                PaymentContext.PASS,
+                new PassPayload(userId),
+                sessionCookie);
+        return paymentHelper.confirmPayment(prepared, "test-payment-key", sessionCookie).domainId();
     }
 
     private Long savePass(Long ownerId) {

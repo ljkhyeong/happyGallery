@@ -199,18 +199,12 @@ class GlobalExceptionHandlerTest {
     @Test
     void jacksonException_mapsToInternalError() {
         ResponseEntity<ErrorResponse> response = handler.handleJacksonException(
-                new TestJacksonException("결제 payload 역직렬화 실패"));
+                mock(JacksonException.class));
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(500);
             softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
         });
-    }
-
-    private static class TestJacksonException extends JacksonException {
-        TestJacksonException(String message) {
-            super(message);
-        }
     }
 
     private static DataIntegrityViolationException constraintViolation(String constraintName) {

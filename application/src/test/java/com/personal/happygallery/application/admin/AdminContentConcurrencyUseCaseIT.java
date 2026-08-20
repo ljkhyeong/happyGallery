@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.store.WorkshopProfile;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -125,13 +126,13 @@ class AdminContentConcurrencyUseCaseIT {
             results.add(first.get(10, TimeUnit.SECONDS));
             results.add(second.get(10, TimeUnit.SECONDS));
             Throwable failure = results.stream()
-                    .filter(result -> result != null)
+                    .filter(Objects::nonNull)
                     .findFirst()
                     .orElseThrow();
             Notice persisted = noticeRepository.findById(notice.getId()).orElseThrow();
 
             assertSoftly(softly -> {
-                softly.assertThat(results.stream().filter(result -> result == null).count())
+                softly.assertThat(results.stream().filter(Objects::isNull).count())
                         .isEqualTo(1);
                 softly.assertThat(failure)
                         .isInstanceOf(OptimisticLockingFailureException.class);

@@ -10,8 +10,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -72,109 +77,55 @@ class SubjectRateLimitGuardTest {
                 .doesNotContain(PHONE);
     }
 
-    @DisplayName("동일 회원의 8회권 환불 요청이 한도를 넘으면 429 예외를 발생시킨다")
-    @Test
-    void rejectsRepeatedPassRefundByUser() {
+    @DisplayName("회원과 관리자의 고위험 요청은 주체별 전용 한도를 넘으면 HMAC 키로 거절한다")
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("repeatedSubjectRequests")
+    void rejectsRepeatedSubjectRequest(
+            String scenario,
+            String bucket,
+            Consumer<SubjectRateLimitGuard> request
+    ) {
         RateLimitProperties properties = properties();
         AtomicReference<String> redisKey = new AtomicReference<>();
         SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
                 properties,
                 new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
 
-        guard.checkPassRefund(42L);
+        request.accept(guard);
 
-        assertThatThrownBy(() -> guard.checkPassRefund(42L))
+        assertThatThrownBy(() -> request.accept(guard))
                 .isInstanceOf(RateLimitExceededException.class);
         assertThat(redisKey.get())
-                .isEqualTo("test:rate:PASS_REFUND_USER:" + BLIND_INDEXER.index("42"));
+                .isEqualTo("test:rate:" + bucket + ":" + BLIND_INDEXER.index("42"));
     }
 
-    @DisplayName("동일 회원의 후기 신고가 전용 한도를 넘으면 429 예외를 발생시킨다")
-    @Test
-    void rejectsRepeatedReviewReportByUser() {
-        RateLimitProperties properties = properties();
-        AtomicReference<String> redisKey = new AtomicReference<>();
-        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
-                properties,
-                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
-
-        guard.checkReviewReport(42L);
-
-        assertThatThrownBy(() -> guard.checkReviewReport(42L))
-                .isInstanceOf(RateLimitExceededException.class);
-        assertThat(redisKey.get())
-                .isEqualTo("test:rate:REVIEW_REPORT_USER:" + BLIND_INDEXER.index("42"));
-    }
-
-    @DisplayName("동일 회원의 후기 생성·수정·삭제가 전용 한도를 넘으면 429 예외를 발생시킨다")
-    @Test
-    void rejectsRepeatedReviewMutationByUser() {
-        RateLimitProperties properties = properties();
-        AtomicReference<String> redisKey = new AtomicReference<>();
-        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
-                properties,
-                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
-
-        guard.checkReviewMutation(42L);
-
-        assertThatThrownBy(() -> guard.checkReviewMutation(42L))
-                .isInstanceOf(RateLimitExceededException.class);
-        assertThat(redisKey.get())
-                .isEqualTo("test:rate:REVIEW_MUTATION_USER:" + BLIND_INDEXER.index("42"));
-    }
-
-    @DisplayName("동일 회원의 후기 도움돼요 토글이 전용 한도를 넘으면 429 예외를 발생시킨다")
-    @Test
-    void rejectsRepeatedReviewHelpfulByUser() {
-        RateLimitProperties properties = properties();
-        AtomicReference<String> redisKey = new AtomicReference<>();
-        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
-                properties,
-                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
-
-        guard.checkReviewHelpful(42L);
-
-        assertThatThrownBy(() -> guard.checkReviewHelpful(42L))
-                .isInstanceOf(RateLimitExceededException.class);
-        assertThat(redisKey.get())
-                .isEqualTo("test:rate:REVIEW_HELPFUL_USER:" + BLIND_INDEXER.index("42"));
-    }
-
-    @DisplayName("동일 회원의 후기 이미지 업로드가 전용 한도를 넘으면 429 예외를 발생시킨다")
-    @Test
-    void rejectsRepeatedReviewImageUploadByUser() {
-        RateLimitProperties properties = properties();
-        AtomicReference<String> redisKey = new AtomicReference<>();
-        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
-                properties,
-                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
-
-        guard.checkReviewImageUpload(42L);
-
-        assertThatThrownBy(() -> guard.checkReviewImageUpload(42L))
-                .isInstanceOf(RateLimitExceededException.class);
-        assertThat(redisKey.get())
-                .isEqualTo("test:rate:REVIEW_IMAGE_UPLOAD_USER:"
-                        + BLIND_INDEXER.index("42"));
-    }
-
-    @DisplayName("동일 관리자의 MFA 복구 시도가 한도를 넘으면 원문 ID 없이 거절한다")
-    @Test
-    void rejectsRepeatedAdminMfaRecoveryWithoutExposingAdminId() {
-        RateLimitProperties properties = properties();
-        AtomicReference<String> redisKey = new AtomicReference<>();
-        SubjectRateLimitGuard guard = new SubjectRateLimitGuard(
-                properties,
-                new RedisRateLimiter(mockRedis(redisKey), BLIND_INDEXER, properties));
-
-        guard.checkAdminMfaRecovery(42L);
-
-        assertThatThrownBy(() -> guard.checkAdminMfaRecovery(42L))
-                .isInstanceOf(RateLimitExceededException.class);
-        assertThat(redisKey.get())
-                .isEqualTo("test:rate:ADMIN_MFA_RECOVERY_USER:"
-                        + BLIND_INDEXER.index("42"))
-                .doesNotEndWith(":42");
+    private static Stream<Arguments> repeatedSubjectRequests() {
+        return Stream.of(
+                Arguments.of(
+                        "8회권 환불",
+                        "PASS_REFUND_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkPassRefund(42L)),
+                Arguments.of(
+                        "후기 신고",
+                        "REVIEW_REPORT_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkReviewReport(42L)),
+                Arguments.of(
+                        "후기 생성·수정·삭제",
+                        "REVIEW_MUTATION_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkReviewMutation(42L)),
+                Arguments.of(
+                        "후기 도움돼요 토글",
+                        "REVIEW_HELPFUL_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkReviewHelpful(42L)),
+                Arguments.of(
+                        "후기 이미지 업로드",
+                        "REVIEW_IMAGE_UPLOAD_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkReviewImageUpload(42L)),
+                Arguments.of(
+                        "관리자 MFA 복구",
+                        "ADMIN_MFA_RECOVERY_USER",
+                        (Consumer<SubjectRateLimitGuard>) guard -> guard.checkAdminMfaRecovery(42L))
+        );
     }
 
     @DisplayName("관리자 MFA 복구 버킷을 확인할 수 없으면 fail-closed로 거절한다")

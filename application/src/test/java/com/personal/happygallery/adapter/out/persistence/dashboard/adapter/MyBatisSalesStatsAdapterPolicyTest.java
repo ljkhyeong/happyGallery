@@ -1,24 +1,19 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
-import com.personal.happygallery.application.dashboard.dto.DashboardOverview;
-import com.personal.happygallery.application.dashboard.dto.DailyRevenue;
-import com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary;
-import com.personal.happygallery.application.dashboard.dto.RefundStats;
-import com.personal.happygallery.application.dashboard.dto.RevenueBreakdown;
-import com.personal.happygallery.application.dashboard.dto.StatusCount;
-import com.personal.happygallery.application.dashboard.dto.TopProduct;
-import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper;
+import com.personal.happygallery.domain.time.Clocks;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
-import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 @Tag("policy")
 class MyBatisSalesStatsAdapterPolicyTest {
@@ -26,7 +21,7 @@ class MyBatisSalesStatsAdapterPolicyTest {
     @Test
     @DisplayName("개요 조회는 서울 업무 시각과 UTC 생성 시각의 날짜 경계를 구분한다")
     void findOverviewUsesInjectedClockForTodayRange() {
-        RecordingSalesStatsMapper mapper = new RecordingSalesStatsMapper();
+        SalesStatsMapper mapper = mock(SalesStatsMapper.class);
         Clock fixedClock = Clock.fixed(
                 ZonedDateTime.of(2026, 3, 5, 10, 0, 0, 0, Clocks.SEOUL).toInstant(),
                 Clocks.SEOUL);
@@ -34,69 +29,17 @@ class MyBatisSalesStatsAdapterPolicyTest {
 
         adapter.findOverview(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
 
-        assertSoftly(softly -> {
-            softly.assertThat(mapper.todayFrom).isEqualTo(LocalDateTime.of(2026, 3, 5, 0, 0));
-            softly.assertThat(mapper.todayTo).isEqualTo(LocalDateTime.of(2026, 3, 6, 0, 0));
-            softly.assertThat(mapper.todayCreatedFrom).isEqualTo(LocalDateTime.of(2026, 3, 4, 15, 0));
-            softly.assertThat(mapper.todayCreatedTo).isEqualTo(LocalDateTime.of(2026, 3, 5, 15, 0));
-            softly.assertThat(mapper.rangeFrom).isEqualTo(LocalDateTime.of(2026, 3, 1, 0, 0));
-            softly.assertThat(mapper.rangeTo).isEqualTo(LocalDateTime.of(2026, 4, 1, 0, 0));
-        });
-    }
-
-    private static final class RecordingSalesStatsMapper implements SalesStatsMapper {
-        private LocalDateTime todayFrom;
-        private LocalDateTime todayTo;
-        private LocalDateTime todayCreatedFrom;
-        private LocalDateTime todayCreatedTo;
-        private LocalDateTime rangeFrom;
-        private LocalDateTime rangeTo;
-
-        @Override
-        public DashboardOverview findOverview(LocalDateTime todayFrom,
-                                              LocalDateTime todayTo,
-                                              LocalDateTime todayCreatedFrom,
-                                              LocalDateTime todayCreatedTo,
-                                              LocalDateTime rangeFrom, LocalDateTime rangeTo) {
-            this.todayFrom = todayFrom;
-            this.todayTo = todayTo;
-            this.todayCreatedFrom = todayCreatedFrom;
-            this.todayCreatedTo = todayCreatedTo;
-            this.rangeFrom = rangeFrom;
-            this.rangeTo = rangeTo;
-            return new DashboardOverview(0L, 0, 0, 0, 0L, 0);
-        }
-
-        @Override
-        public List<PeriodSalesSummary> findSalesSummary(LocalDateTime rangeFrom, LocalDateTime rangeTo,
-                                                         String granularity) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public RevenueBreakdown findRevenueBreakdown(LocalDateTime rangeFrom, LocalDateTime rangeTo) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<StatusCount> findOrderStatusDistribution() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public RefundStats findRefundStats(LocalDateTime rangeFrom, LocalDateTime rangeTo) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<TopProduct> findTopProducts(LocalDateTime rangeFrom, LocalDateTime rangeTo,
-                                                int limit, String sort) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public List<DailyRevenue> findDailyRevenue(LocalDateTime rangeFrom, LocalDateTime rangeTo) {
-            throw new UnsupportedOperationException();
-        }
+        ArgumentCaptor<LocalDateTime> rangeCaptor = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(mapper).findOverview(
+                rangeCaptor.capture(), rangeCaptor.capture(),
+                rangeCaptor.capture(), rangeCaptor.capture(),
+                rangeCaptor.capture(), rangeCaptor.capture());
+        assertThat(rangeCaptor.getAllValues()).containsExactly(
+                LocalDateTime.of(2026, 3, 5, 0, 0),
+                LocalDateTime.of(2026, 3, 6, 0, 0),
+                LocalDateTime.of(2026, 3, 4, 15, 0),
+                LocalDateTime.of(2026, 3, 5, 15, 0),
+                LocalDateTime.of(2026, 3, 1, 0, 0),
+                LocalDateTime.of(2026, 4, 1, 0, 0));
     }
 }

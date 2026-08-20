@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,13 +49,13 @@ class AdminSetupConcurrencyUseCaseIT {
             Throwable firstResult = first.get(10, TimeUnit.SECONDS);
             Throwable secondResult = second.get(10, TimeUnit.SECONDS);
             Throwable failure = Stream.of(firstResult, secondResult)
-                    .filter(result -> result != null)
+                    .filter(Objects::nonNull)
                     .findFirst()
                     .orElse(null);
 
             assertSoftly(softly -> {
                 softly.assertThat(Stream.of(firstResult, secondResult)
-                                .filter(result -> result == null)
+                                .filter(Objects::isNull)
                                 .count())
                         .isEqualTo(1);
                 softly.assertThat(failure).isInstanceOf(HappyGalleryException.class);
