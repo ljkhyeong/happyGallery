@@ -68,9 +68,6 @@ public final class BoundedExecutorFactory {
 
     public static final class BoundedThreadPoolTaskExecutor extends ThreadPoolTaskExecutor {
 
-        public BoundedThreadPoolTaskExecutor() {
-        }
-
         @Override
         protected BlockingQueue<Runnable> createQueue(int queueCapacity) {
             return new ArrayBlockingQueue<>(queueCapacity);

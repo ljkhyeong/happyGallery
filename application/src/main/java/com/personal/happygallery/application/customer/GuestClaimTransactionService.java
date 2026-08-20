@@ -68,7 +68,8 @@ class GuestClaimTransactionService {
 
     @Transactional(readOnly = true)
     public ClaimPreview preview(Long userId) {
-        User user = findUser(userId);
+        User user = userReader.findById(userId)
+                .orElseThrow(NotFoundException.supplier("회원"));
         requirePhoneVerified(user);
         return buildPreview(user);
     }
@@ -178,11 +179,6 @@ class GuestClaimTransactionService {
                                 .map(ClaimBookingSummary::from)
                                 .toList()))
                 .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));
-    }
-
-    private User findUser(Long userId) {
-        return userReader.findById(userId)
-                .orElseThrow(NotFoundException.supplier("회원"));
     }
 
     private Optional<Guest> findGuest(String phone) {

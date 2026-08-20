@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.MediaType;
 import org.springframework.util.Assert;
 import org.springframework.web.client.RestClient;
@@ -39,7 +40,7 @@ class NotificationRestClientConfig {
         return builder
                 .baseUrl(props.baseUrl())
                 .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
-                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
                 .build();
     }
 
@@ -59,7 +60,7 @@ class NotificationRestClientConfig {
                 .baseUrl(props.baseUrl())
                 .defaultHeaders(headers -> headers.setContentType(MediaType.APPLICATION_JSON))
                 .defaultHeader("X-Secret-Key", props.apiSecret())
-                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
                 .build();
     }
 }

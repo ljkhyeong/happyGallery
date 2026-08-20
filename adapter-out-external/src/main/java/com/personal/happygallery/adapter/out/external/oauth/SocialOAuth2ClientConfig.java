@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
@@ -109,7 +110,7 @@ class SocialOAuth2ClientConfig {
 
     private RestClient tokenRestClient(RestClient.Builder builder, CloseableHttpClient httpClient) {
         return builder
-                .requestFactory(pooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
                 .configureMessageConverters(convertersBuilder -> convertersBuilder
                         .configureMessageConvertersList(converters -> {
                             converters.clear();
@@ -122,7 +123,7 @@ class SocialOAuth2ClientConfig {
 
     private RestOperations userInfoRestOperations(RestTemplateBuilder builder, CloseableHttpClient httpClient) {
         return builder
-                .requestFactory(() -> pooledHttpClientFactory.requestFactory(httpClient))
+                .requestFactory(() -> new HttpComponentsClientHttpRequestFactory(httpClient))
                 .errorHandler(new OAuth2ErrorResponseErrorHandler())
                 .build();
     }

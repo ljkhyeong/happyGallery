@@ -10,7 +10,6 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
 @Component
 public class PooledHttpClientFactory {
@@ -47,9 +46,5 @@ public class PooledHttpClientFactory {
                 .evictExpiredConnections()
                 .evictIdleConnections(TimeValue.of(props.keepAlive()))
                 .build();
-    }
-
-    public HttpComponentsClientHttpRequestFactory requestFactory(CloseableHttpClient httpClient) {
-        return new HttpComponentsClientHttpRequestFactory(httpClient);
     }
 }

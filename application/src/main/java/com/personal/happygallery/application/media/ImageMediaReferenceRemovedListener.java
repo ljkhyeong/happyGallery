@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.media;
 
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -27,7 +28,7 @@ class ImageMediaReferenceRemovedListener {
     public void deleteAfterCommit(ImageMediaReferenceRemovedEvent event) {
         Set<String> fileNames = event.imageUrls().stream()
                 .map(ImageMediaReferenceGuard::localFileName)
-                .filter(fileName -> fileName != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         if (fileNames.isEmpty()) {
             return;

@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -54,7 +55,7 @@ public class ImageMediaRetentionService {
     private Set<String> referencedFileNames() {
         return referenceReader.findReferencedImageUrls().stream()
                 .map(ImageMediaReferenceGuard::localFileName)
-                .filter(fileName -> fileName != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
     }
 }

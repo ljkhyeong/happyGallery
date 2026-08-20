@@ -151,7 +151,8 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
     @Override
     @Transactional(readOnly = true)
     public QnaWithAuthor getPublicDetail(Long productId, Long qnaId) {
-        ProductQna qna = findByProduct(productId, qnaId);
+        ProductQna qna = qnaReader.findByIdAndProductId(qnaId, productId)
+                .orElseThrow(NotFoundException.supplier("Q&A"));
         if (qna.isSecret()) {
             throw new HappyGalleryException(
                     ErrorCode.FORBIDDEN,
@@ -183,11 +184,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         String authorName = userReader.findById(qna.getUserId())
                 .map(User::getName).orElse("탈퇴회원");
         return new QnaWithAuthor(qna, authorName);
-    }
-
-    private ProductQna findByProduct(Long productId, Long qnaId) {
-        return qnaReader.findByIdAndProductId(qnaId, productId)
-                .orElseThrow(NotFoundException.supplier("Q&A"));
     }
 
     private QnaWithAuthor withAuthor(ProductQna qna) {

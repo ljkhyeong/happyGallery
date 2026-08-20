@@ -41,7 +41,8 @@ class PaymentConfirmRecoveryTransactionService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmRecoveryStep resolveConfirmRecovery(Long attemptId) {
-        PaymentAttempt attempt = findForUpdate(attemptId);
+        PaymentAttempt attempt = attemptReader.findByIdForUpdate(attemptId)
+                .orElseThrow(() -> new NotFoundException("결제 시도"));
         Instant nowInstant = clock.instant();
         LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
         LocalDateTime activityStaleBefore =
@@ -71,11 +72,6 @@ class PaymentConfirmRecoveryTransactionService {
         } catch (RuntimeException failure) {
             return new RecoveryPreparationFailed(failure);
         }
-    }
-
-    private PaymentAttempt findForUpdate(Long attemptId) {
-        return attemptReader.findByIdForUpdate(attemptId)
-                .orElseThrow(() -> new NotFoundException("결제 시도"));
     }
 
     sealed interface ConfirmRecoveryStep

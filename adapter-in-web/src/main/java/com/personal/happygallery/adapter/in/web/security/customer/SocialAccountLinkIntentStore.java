@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpSession;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
@@ -95,7 +96,7 @@ public class SocialAccountLinkIntentStore {
                 || !intent.attemptId().equals(attemptId)
                 || provider != intent.provider()
                 || !intent.userId().equals(currentUserId)
-                || !Long.valueOf(intent.credentialVersion()).equals(currentCredentialVersion)
+                || !Objects.equals(intent.credentialVersion(), currentCredentialVersion)
                 || !Instant.now(clock).isBefore(intent.expiresAt())) {
             clear(session);
             return false;
@@ -134,7 +135,7 @@ public class SocialAccountLinkIntentStore {
                 || !intent.oauthState().equals(callbackState)
                 || callbackProvider != intent.provider()
                 || !intent.userId().equals(currentUserId)
-                || !Long.valueOf(intent.credentialVersion()).equals(currentCredentialVersion)
+                || !Objects.equals(intent.credentialVersion(), currentCredentialVersion)
                 || !Instant.now(clock).isBefore(intent.expiresAt())) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED);
         }

@@ -6,6 +6,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -75,7 +76,7 @@ public class TossPaymentsProvider implements PaymentPort {
             }
             return PaymentConfirmResult.success(
                     response.paymentKey(),
-                    response.method() != null ? response.method() : "UNKNOWN",
+                    Objects.requireNonNullElse(response.method(), "UNKNOWN"),
                     response.approvedAt());
         } catch (RestClientResponseException e) {
             log.warn("Toss confirm 거절 [orderId={} status={}]", orderId, e.getStatusCode());

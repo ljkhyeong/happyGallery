@@ -49,17 +49,13 @@ final class NhnSmsClient {
                     .retrieve()
                     .body(SmsResponse.class);
 
-            if (response == null || !response.successful()) {
-                String resultCode = "NO_BODY";
-                if (response != null) {
-                    resultCode = response.header() == null
-                            ? "NO_HEADER"
-                            : String.valueOf(response.header().resultCode());
-                }
-                log.warn("[SMS] 발송 거절 [purpose={} resultCode={}]", purpose, resultCode);
-                return response == null || response.header() == null
-                        ? NotificationSendResult.DELIVERY_UNKNOWN
-                        : response.failureResult();
+            ResponseOutcome outcome = response == null
+                    ? new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
+                    : response.outcome();
+            if (outcome.result() != NotificationSendResult.SUCCESS) {
+                log.warn("[SMS] 발송 거절 [purpose={} resultCode={}]",
+                        purpose, outcome.diagnosticCode());
+                return outcome.result();
             }
             log.info("[SMS] 발송 성공 purpose={}", purpose);
             return NotificationSendResult.SUCCESS;
@@ -84,17 +80,23 @@ final class NhnSmsClient {
     }
 
     private record SmsResponse(SmsResponseHeader header) {
-        private boolean successful() {
-            return header != null && header.isSuccessful() && header.resultCode() == 0;
-        }
-
-        private NotificationSendResult failureResult() {
-            return switch (header.resultCode()) {
+        private ResponseOutcome outcome() {
+            if (header == null) {
+                return new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
+            }
+            int resultCode = header.resultCode();
+            if (header.isSuccessful() && resultCode == 0) {
+                return new ResponseOutcome(NotificationSendResult.SUCCESS, "0");
+            }
+            NotificationSendResult result = switch (resultCode) {
                 case -9999, -2021 -> NotificationSendResult.TRANSIENT_FAILURE;
                 default -> NotificationSendResult.PERMANENT_FAILURE;
             };
+            return new ResponseOutcome(result, String.valueOf(resultCode));
         }
     }
+
+    private record ResponseOutcome(NotificationSendResult result, String diagnosticCode) {}
 
     private record SmsResponseHeader(boolean isSuccessful, int resultCode) {}
 }

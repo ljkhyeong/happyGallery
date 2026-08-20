@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -27,7 +28,7 @@ public final class ProportionalAmountAllocator {
             throw invalid();
         }
         if (amount == 0L) {
-            return bases.stream().map(ignored -> 0L).toList();
+            return Collections.nCopies(bases.size(), 0L);
         }
 
         BigInteger total = BigInteger.valueOf(amount);

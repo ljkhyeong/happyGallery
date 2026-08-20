@@ -52,12 +52,13 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
                     .retrieve()
                     .body(AlimtalkResponse.class);
 
-            if (response == null || !response.successful()) {
+            ResponseOutcome outcome = response == null
+                    ? new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_BODY")
+                    : response.outcome();
+            if (outcome.result() != NotificationSendResult.SUCCESS) {
                 log.warn("[ALIMTALK] 발송 거절 [event={} resultCode={}]",
-                        eventType, response == null ? "NO_BODY" : response.resultCode());
-                return response == null
-                        ? NotificationSendResult.DELIVERY_UNKNOWN
-                        : response.failureResult();
+                        eventType, outcome.diagnosticCode());
+                return outcome.result();
             }
             log.info("[ALIMTALK] 발송 성공 event={}", eventType);
             return NotificationSendResult.SUCCESS;
@@ -76,46 +77,33 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
     }
 
     private record AlimtalkResponse(ResponseHeader header, Message message) {
-        private boolean successful() {
-            return header != null
-                    && header.isSuccessful()
-                    && header.resultCode() == 0
-                    && message != null
-                    && message.sendResults() != null
-                    && message.sendResults().size() == 1
-                    && message.sendResults().getFirst().resultCode() == 0;
-        }
-
-        private String resultCode() {
+        private ResponseOutcome outcome() {
             if (header == null) {
-                return "NO_HEADER";
+                return new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_HEADER");
             }
             if (!header.isSuccessful() || header.resultCode() != 0) {
-                return String.valueOf(header.resultCode());
+                return new ResponseOutcome(
+                        NotificationSendResult.PERMANENT_FAILURE,
+                        String.valueOf(header.resultCode()));
             }
-            if (message == null || message.sendResults() == null || message.sendResults().isEmpty()) {
-                return "NO_SEND_RESULT";
+            List<SendResult> sendResults = message == null ? null : message.sendResults();
+            if (sendResults == null || sendResults.isEmpty()) {
+                return new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
             }
-            if (message.sendResults().size() != 1) {
-                return "UNEXPECTED_SEND_RESULT_COUNT:" + message.sendResults().size();
+            if (sendResults.size() != 1) {
+                return new ResponseOutcome(
+                        NotificationSendResult.DELIVERY_UNKNOWN,
+                        "UNEXPECTED_SEND_RESULT_COUNT:" + sendResults.size());
             }
-            return String.valueOf(message.sendResults().getFirst().resultCode());
-        }
-
-        private NotificationSendResult failureResult() {
-            if (header == null) {
-                return NotificationSendResult.DELIVERY_UNKNOWN;
-            }
-            if (!header.isSuccessful() || header.resultCode() != 0) {
-                return NotificationSendResult.PERMANENT_FAILURE;
-            }
-            if (message == null || message.sendResults() == null
-                    || message.sendResults().size() != 1) {
-                return NotificationSendResult.DELIVERY_UNKNOWN;
-            }
-            return NotificationSendResult.PERMANENT_FAILURE;
+            int resultCode = sendResults.getFirst().resultCode();
+            NotificationSendResult result = resultCode == 0
+                    ? NotificationSendResult.SUCCESS
+                    : NotificationSendResult.PERMANENT_FAILURE;
+            return new ResponseOutcome(result, String.valueOf(resultCode));
         }
     }
+
+    private record ResponseOutcome(NotificationSendResult result, String diagnosticCode) {}
 
     private record ResponseHeader(boolean isSuccessful, int resultCode) {}
 

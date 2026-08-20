@@ -38,7 +38,8 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     @Override
     @Transactional(readOnly = true)
     public CouponDefinition get(Long definitionId) {
-        return findDefinition(definitionId);
+        return definitionReader.findById(definitionId)
+                .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
     }
 
     @Override
@@ -90,11 +91,6 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
         requireExpectedVersion(definition, expectedVersion);
         definition.deactivate();
         definitionStore.saveAndFlush(definition);
-    }
-
-    private CouponDefinition findDefinition(Long definitionId) {
-        return definitionReader.findById(definitionId)
-                .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
     }
 
     private CouponDefinition findDefinitionForUpdate(Long definitionId) {

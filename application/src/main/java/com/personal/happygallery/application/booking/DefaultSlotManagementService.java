@@ -14,11 +14,12 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import static java.util.stream.Collectors.toSet;
 
 @Service
 @Transactional
@@ -84,8 +85,9 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
         List<LocalDateTime> candidates = generateCandidates(command);
         List<Slot> existingSlots = slotReaderPort
                 .findByBookingClassIdOrderByStartAtDesc(command.classId());
-        Set<LocalDateTime> existingStarts = new HashSet<>();
-        existingSlots.forEach(slot -> existingStarts.add(slot.getStartAt()));
+        Set<LocalDateTime> existingStarts = existingSlots.stream()
+                .map(Slot::getStartAt)
+                .collect(toSet());
         LocalDateTime now = LocalDateTime.now(clock);
 
         List<BulkSlotItem> items = candidates.stream()
