@@ -12,7 +12,7 @@ JDK 표준 라이브러리라 Spring 의존이 없다는 장점은 있다. 하�
 - JSON 요청 바디를 text block으로 수동 조립 → 오타·이스케이프 누락 위험.
 - 응답 상태 코드 200-299 범위 체크를 매번 직접 작성.
 - `HttpClient` 인스턴스를 생성자에서 직접 빌드 → timeout 설정이 각 Sender에 흩어짐.
-- 외부 API 호출 단위 테스트 시 `HttpClient` 목킹이 까다로움 (현재는 `NotificationSender` 인터페이스 수준에서만 테스트).
+- 외부 API 호출 단위 테스트 시 `HttpClient` 목킹이 까다로움 (현재는 `NotificationSenderPort` 인터페이스 수준에서만 테스트).
 
 ## 제안: Spring `RestClient` 전환
 
@@ -40,7 +40,7 @@ Spring 6.1+ (Boot 3.2+)에서 도입된 `RestClient`는 `RestTemplate`의 fluent
 
 - `WebClient`(리액티브)는 프로젝트가 동기 서블릿 기반이므로 과하다. `RestClient`가 더 맞다.
 - payment 영역의 `ResilientPaymentProvider`는 이미 별도 resilience 레이어가 있으므로 notification과는 독립적으로 판단.
-- 전환 시 기존 대체 발송 순서(KAKAO→SMS)와 `NotificationSender` 인터페이스 계약은 바꾸지 않는다.
+- 전환 시 기존 대체 발송 순서(KAKAO→SMS)와 `NotificationSenderPort` 인터페이스 계약은 바꾸지 않는다.
 
 ## 상태
 

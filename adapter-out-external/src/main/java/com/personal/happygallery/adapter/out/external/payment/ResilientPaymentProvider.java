@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
@@ -22,17 +23,17 @@ import org.springframework.core.NestedExceptionUtils;
  * <p>서킷 브레이커 + 타임아웃을 외부 호출 경계에 적용해
  * 장애 전파(cascading failure)를 줄인다.
  */
-public class ResilientPaymentProvider implements PaymentProvider {
+public class ResilientPaymentProvider implements PaymentPort {
 
     private static final Logger log = LoggerFactory.getLogger(ResilientPaymentProvider.class);
 
-    private final PaymentProvider delegate;
+    private final PaymentPort delegate;
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
     private final Executor executor;
     private final Duration timeout;
 
-    ResilientPaymentProvider(PaymentProvider delegate,
+    ResilientPaymentProvider(PaymentPort delegate,
                              CircuitBreaker circuitBreaker,
                              TimeLimiter timeLimiter,
                              Executor executor,

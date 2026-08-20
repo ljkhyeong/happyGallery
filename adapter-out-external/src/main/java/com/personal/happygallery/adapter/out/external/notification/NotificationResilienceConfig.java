@@ -2,9 +2,11 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -146,13 +148,14 @@ class NotificationResilienceConfig {
 
     @Bean
     @Order(1)
-    NotificationSender kakaoNotificationSender(AlimtalkNotificationProperties props,
-                                               @Qualifier("alimtalkRestClient") RestClient alimtalkRestClient,
-                                               @Qualifier("alimtalkNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
-                                               @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
-                                               @Qualifier("alimtalkNotificationTimeoutExecutor")
-                                               Executor timeoutExecutor,
-                                               NotificationResilienceProperties resilience) {
+    NotificationSenderPort kakaoNotificationSender(
+            AlimtalkNotificationProperties props,
+            @Qualifier("alimtalkRestClient") RestClient alimtalkRestClient,
+            @Qualifier("alimtalkNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
+            @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
+            @Qualifier("alimtalkNotificationTimeoutExecutor") Executor timeoutExecutor,
+            NotificationResilienceProperties resilience
+    ) {
         validateTimeoutHierarchy(resilience, props);
         NhnAlimtalkSender raw = new NhnAlimtalkSender(props, alimtalkRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
@@ -161,13 +164,14 @@ class NotificationResilienceConfig {
 
     @Bean
     @Order(2)
-    NotificationSender smsNotificationSender(SmsNotificationProperties props,
-                                             @Qualifier("smsRestClient") RestClient smsRestClient,
-                                             @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
-                                             @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
-                                             @Qualifier("smsNotificationTimeoutExecutor")
-                                             Executor timeoutExecutor,
-                                             NotificationResilienceProperties resilience) {
+    NotificationSenderPort smsNotificationSender(
+            SmsNotificationProperties props,
+            @Qualifier("smsRestClient") RestClient smsRestClient,
+            @Qualifier("smsNotificationCircuitBreaker") CircuitBreaker circuitBreaker,
+            @Qualifier("notificationTimeLimiter") TimeLimiter notificationTimeLimiter,
+            @Qualifier("smsNotificationTimeoutExecutor") Executor timeoutExecutor,
+            NotificationResilienceProperties resilience
+    ) {
         validateTimeoutHierarchy(resilience, props);
         RealSmsSender raw = new RealSmsSender(props, smsRestClient);
         return new ResilientNotificationSender(raw, circuitBreaker, notificationTimeLimiter,
@@ -243,7 +247,7 @@ class NotificationResilienceConfig {
                 "이메일 인증 외부 timeout은 SMTP transport timeout 합보다 커야 합니다.");
     }
 
-    private static CircuitBreakerConfig circuitBreakerConfig(NotificationResilienceProperties.CircuitBreaker cb) {
+    private static CircuitBreakerConfig circuitBreakerConfig(ExternalCircuitBreakerProperties cb) {
         return CircuitBreakerConfig.custom()
                 .failureRateThreshold(cb.failureRateThreshold())
                 .slidingWindowSize(cb.slidingWindowSize())

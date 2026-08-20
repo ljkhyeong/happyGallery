@@ -35,8 +35,8 @@ Resilience4j를 사용해 외부 연동 경로를 격리한다.
 
 ## 적용 범위
 
-1. 결제/환불 호출 (`PaymentProvider`)
-2. 알림 채널 호출 (`NotificationSender`)
+1. 결제/환불 호출 (`PaymentPort`)
+2. 알림 채널 호출 (`NotificationSenderPort`)
 3. 관리자 재시도 API (`/admin/refunds/{id}/retry`)
 
 ---

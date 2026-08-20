@@ -18,7 +18,7 @@
 
 ## 결정 사항
 
-### 1. `PaymentProvider` 경계에 데코레이터를 적용한다
+### 1. `PaymentPort` 경계에 데코레이터를 적용한다
 
 - `PaymentResilienceConfig`에서 `ResilientPaymentProvider`를 `@Primary` 빈으로 조립한다.
 - 실제 호출 구현체는 `paymentProviderDelegate`로 분리해 주입한다.
@@ -90,9 +90,11 @@
 
 - `adapter-out-external/.../payment/PaymentResilienceConfig`에서 결제 보호 자원과 `@Primary` 제공자 빈 구성
 - `adapter-out-external/.../resilience/BoundedExecutorFactory`에서 제한 큐와 Spring executor 종료 수명주기 관리
+- `adapter-out-external/.../resilience/ExternalCircuitBreakerProperties`에서 결제·알림에 같은
+  CircuitBreaker 설정 필드, 기본값, 검증 규칙을 한 번만 정의
 - `adapter-out-external/.../payment/ResilientPaymentProvider`에서 보호된 PG 호출과 결과 표준화 수행
 - `adapter-out-external/.../payment/FakePaymentProvider` 빈 이름 분리 (`paymentProviderDelegate`)
-- `PaymentProvider.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
+- `PaymentPort.confirm` 경로도 `CircuitBreaker + TimeLimiter` 보호 적용
 - PG timeout executor에 `ArrayBlockingQueue + AbortPolicy` 적용
 - 실행기 대기열·거절 메트릭과 Prometheus 알림 추가
 - 결제·알림 CircuitBreaker를 공용 Registry에 등록하고 Resilience4j Micrometer 상태·호출 결과 메트릭, Grafana 패널, `OPEN` 경보 추가

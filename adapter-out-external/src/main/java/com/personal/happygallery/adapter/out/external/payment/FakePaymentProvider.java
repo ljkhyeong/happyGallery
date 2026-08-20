@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.time.Clock;
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Component;
  */
 @Component("paymentProviderDelegate")
 @Profile("!prod")
-public class FakePaymentProvider implements PaymentProvider {
+public class FakePaymentProvider implements PaymentPort {
 
     private final LocalRefundFailureScript localRefundFailureScript;
     private final Clock clock;

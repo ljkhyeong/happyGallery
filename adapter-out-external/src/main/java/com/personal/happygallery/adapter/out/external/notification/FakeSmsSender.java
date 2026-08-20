@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.slf4j.Logger;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(2)
 @Profile("!prod")
-public class FakeSmsSender implements NotificationSender {
+public class FakeSmsSender implements NotificationSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(FakeSmsSender.class);
 

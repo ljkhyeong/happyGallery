@@ -1,8 +1,10 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -39,7 +41,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 외부 호출 결과를 알 수 없으면 상태 확인 필요 결과를 반환한다")
     @Test
     void refund_delegateThrows_returnsFailure() {
-        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
             throw new RuntimeException("PG error");
         });
 
@@ -58,7 +60,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 외부 호출이 타임아웃을 초과하면 상태 확인 필요 결과를 반환한다")
     @Test
     void refund_delegateTimeout_returnsFailure() {
-        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -84,7 +86,7 @@ class ResilientPaymentProviderTest {
     void refund_executorQueueFull_returnsRetryableFailureAndRecordsRejection() throws Exception {
         CountDownLatch callStarted = new CountDownLatch(1);
         CountDownLatch releaseCall = new CountDownLatch(1);
-        PaymentProvider delegate = refundOnlyDelegate((paymentKey, amount) -> {
+        PaymentPort delegate = refundOnlyDelegate((paymentKey, amount) -> {
             callStarted.countDown();
             try {
                 releaseCall.await();
@@ -135,7 +137,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
     @Test
     void refund_failuresAccumulate_circuitOpenFastFail() {
-        PaymentProvider delegate = refundOnlyDelegate(
+        PaymentPort delegate = refundOnlyDelegate(
                 (paymentKey, amount) -> RefundResult.retryableFailure("PG down"));
 
         provider = createProvider(delegate, properties(
@@ -154,7 +156,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 외부 호출 예외가 발생하면 실패 결과를 반환한다")
     @Test
     void confirm_delegateThrows_returnsFailure() {
-        PaymentProvider delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
+        PaymentPort delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
             throw new RuntimeException("PG confirm error");
         });
 
@@ -174,7 +176,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 외부 호출이 타임아웃을 초과하면 실패 결과를 반환한다")
     @Test
     void confirm_delegateTimeout_returnsFailure() {
-        PaymentProvider delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
+        PaymentPort delegate = confirmOnlyDelegate((paymentKey, orderId, amount) -> {
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
@@ -199,7 +201,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("결제 확정 실패가 누적되면 서킷이 열려 빠른 실패를 반환한다")
     @Test
     void confirm_failuresAccumulate_circuitOpenFastFail() {
-        PaymentProvider delegate = confirmOnlyDelegate(
+        PaymentPort delegate = confirmOnlyDelegate(
                 (paymentKey, orderId, amount) -> PaymentConfirmResult.retryableFailure("PG confirm down"));
 
         provider = createProvider(delegate, properties(
@@ -220,7 +222,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("자동 판정이 어려운 정상 PG 상태 조회는 결제 서킷을 열지 않는다")
     @Test
     void lookup_reviewRequired_doesNotOpenSharedCircuit() {
-        PaymentProvider delegate = lookupOnlyDelegate(orderId ->
+        PaymentPort delegate = lookupOnlyDelegate(orderId ->
                 PaymentLookupResult.reviewRequired(orderId, "PG 결제가 처리 중입니다."));
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
@@ -235,7 +237,7 @@ class ResilientPaymentProviderTest {
     @DisplayName("환불 조회 불가가 누적되면 서킷이 열려 조회를 빠르게 차단한다")
     @Test
     void lookupRefund_unavailableAccumulates_circuitOpenFastFail() {
-        PaymentProvider delegate = refundLookupOnlyDelegate((paymentKey, amount, idempotencyKey) ->
+        PaymentPort delegate = refundLookupOnlyDelegate((paymentKey, amount, idempotencyKey) ->
                 RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 실패"));
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 2, 2, Duration.ofSeconds(30), 1));
@@ -276,7 +278,7 @@ class ResilientPaymentProviderTest {
                 .hasMessageContaining("acquire + connect + response");
     }
 
-    private ResilientPaymentProvider createProvider(PaymentProvider delegate,
+    private ResilientPaymentProvider createProvider(PaymentPort delegate,
                                                     ExternalPaymentProperties properties) {
         PaymentResilienceConfig config = new PaymentResilienceConfig();
         timeoutExecutor = config.paymentTimeoutExecutor(
@@ -317,7 +319,7 @@ class ResilientPaymentProviderTest {
                                                         int permittedCallsInHalfOpenState,
                                                         int poolSize,
                                                         int queueCapacity) {
-        var circuitBreaker = new ExternalPaymentProperties.CircuitBreaker(
+        var circuitBreaker = new ExternalCircuitBreakerProperties(
                 failureRateThreshold, slidingWindowSize, minimumNumberOfCalls,
                 waitDurationOpen, permittedCallsInHalfOpenState);
         var threadPool = new ExternalPaymentProperties.ThreadPool(poolSize, queueCapacity);
@@ -345,8 +347,8 @@ class ResilientPaymentProviderTest {
                 Duration.ofSeconds(30));
     }
 
-    private static PaymentProvider refundOnlyDelegate(RefundBehavior refundBehavior) {
-        return new PaymentProvider() {
+    private static PaymentPort refundOnlyDelegate(RefundBehavior refundBehavior) {
+        return new PaymentPort() {
             @Override
             public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
                                                 String idempotencyKey) {
@@ -371,8 +373,8 @@ class ResilientPaymentProviderTest {
         };
     }
 
-    private static PaymentProvider confirmOnlyDelegate(ConfirmBehavior confirmBehavior) {
-        return new PaymentProvider() {
+    private static PaymentPort confirmOnlyDelegate(ConfirmBehavior confirmBehavior) {
+        return new PaymentPort() {
             @Override
             public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
                                                 String idempotencyKey) {
@@ -397,8 +399,8 @@ class ResilientPaymentProviderTest {
         };
     }
 
-    private static PaymentProvider lookupOnlyDelegate(LookupBehavior lookupBehavior) {
-        return new PaymentProvider() {
+    private static PaymentPort lookupOnlyDelegate(LookupBehavior lookupBehavior) {
+        return new PaymentPort() {
             @Override
             public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
                                                 String idempotencyKey) {
@@ -423,8 +425,8 @@ class ResilientPaymentProviderTest {
         };
     }
 
-    private static PaymentProvider refundLookupOnlyDelegate(RefundLookupBehavior lookupBehavior) {
-        return new PaymentProvider() {
+    private static PaymentPort refundLookupOnlyDelegate(RefundLookupBehavior lookupBehavior) {
+        return new PaymentPort() {
             @Override
             public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount,
                                                 String idempotencyKey) {

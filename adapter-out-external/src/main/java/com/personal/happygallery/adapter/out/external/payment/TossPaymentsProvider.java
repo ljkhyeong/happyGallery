@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.util.List;
@@ -30,7 +31,7 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
  */
 @Component("paymentProviderDelegate")
 @Profile("prod")
-public class TossPaymentsProvider implements PaymentProvider {
+public class TossPaymentsProvider implements PaymentPort {
 
     private static final Logger log = LoggerFactory.getLogger(TossPaymentsProvider.class);
     private static final String IDEMPOTENCY_KEY = "Idempotency-Key";

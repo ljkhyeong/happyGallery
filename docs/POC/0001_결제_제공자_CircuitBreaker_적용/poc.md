@@ -1,4 +1,4 @@
-# PaymentProvider CircuitBreaker 적용 POC
+# PaymentPort CircuitBreaker 적용 POC
 
 **날짜**: 2026-03-06  
 **상태**: 적용 완료 (운영 임계치 튜닝만 후속)
@@ -7,7 +7,7 @@
 
 ## 가설
 
-`PaymentProvider.refund()` 호출에 `CircuitBreaker + TimeLimiter`를 먼저 적용하면,
+`PaymentPort.refund()` 호출에 `CircuitBreaker + TimeLimiter`를 먼저 적용하면,
 실 PG 연동 전에도 장애 전파를 줄일 수 있다. 운영 전환 시에는 코드 변경보다 설정 튜닝에 집중할 수 있다.
 
 ---
@@ -15,7 +15,7 @@
 ## 검증 방법
 
 적용 범위:
-- `PaymentProvider.refund()` 경계
+- `PaymentPort.refund()` 경계
 - 환불 처리 흐름의 실패 표준화
 - 설정값 환경 변수화
 

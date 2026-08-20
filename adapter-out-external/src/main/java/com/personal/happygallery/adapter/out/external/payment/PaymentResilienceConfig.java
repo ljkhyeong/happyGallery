@@ -1,8 +1,10 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -26,7 +28,7 @@ class PaymentResilienceConfig {
     @Bean
     CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties,
                                          CircuitBreakerRegistry circuitBreakerRegistry) {
-        ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
+        ExternalCircuitBreakerProperties cb = properties.circuitBreaker();
         CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
                 .failureRateThreshold(cb.failureRateThreshold())
                 .slidingWindowSize(cb.slidingWindowSize())
@@ -63,7 +65,7 @@ class PaymentResilienceConfig {
     @Bean
     @Primary
     ResilientPaymentProvider resilientPaymentProvider(
-            @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
+            @Qualifier("paymentProviderDelegate") PaymentPort delegate,
             @Qualifier("paymentCircuitBreaker") CircuitBreaker circuitBreaker,
             @Qualifier("paymentTimeLimiter") TimeLimiter timeLimiter,
             @Qualifier("paymentTimeoutExecutor") Executor executor,

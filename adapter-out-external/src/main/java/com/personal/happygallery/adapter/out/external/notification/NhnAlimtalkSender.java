@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.notification.dto.AlimtalkRequest;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.util.List;
@@ -13,7 +14,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 
 /** NHN Cloud Alimtalk v2.2 실제 발송 어댑터. */
-public class NhnAlimtalkSender implements NotificationSender {
+public class NhnAlimtalkSender implements NotificationSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(NhnAlimtalkSender.class);
 

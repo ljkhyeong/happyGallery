@@ -2,6 +2,7 @@ package com.personal.happygallery.bootstrap;
 
 import com.personal.happygallery.adapter.out.external.notification.EmailVerificationProperties;
 import com.personal.happygallery.adapter.out.external.payment.ExternalPaymentProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -60,18 +61,32 @@ class ConfigurationDurationValidationTest {
         var belowMinimum = new ExternalPaymentProperties(
                 Duration.ofMillis(1),
                 threadPool,
-                new ExternalPaymentProperties.CircuitBreaker(
+                new ExternalCircuitBreakerProperties(
                         50, 20, 10, Duration.ofMillis(999), 1));
         var atMinimum = new ExternalPaymentProperties(
                 Duration.ofMillis(1),
                 threadPool,
-                new ExternalPaymentProperties.CircuitBreaker(
+                new ExternalCircuitBreakerProperties(
                         50, 20, 10, Duration.ofSeconds(1), 1));
 
         assertThat(validator.validate(belowMinimum))
                 .extracting(violation -> violation.getPropertyPath().toString())
                 .containsExactly("circuitBreaker.waitDurationOpen");
         assertThat(validator.validate(atMinimum)).isEmpty();
+    }
+
+    @DisplayName("외부 연동 CircuitBreaker는 최소 호출 수가 슬라이딩 윈도우를 넘지 못한다")
+    @Test
+    void circuitBreaker_minimumCallsAboveWindow_rejected() {
+        var invalid = new ExternalPaymentProperties(
+                Duration.ofMillis(1),
+                new ExternalPaymentProperties.ThreadPool(1, 1),
+                new ExternalCircuitBreakerProperties(
+                        50, 9, 10, Duration.ofSeconds(30), 3));
+
+        assertThat(validator.validate(invalid))
+                .extracting(violation -> violation.getPropertyPath().toString())
+                .containsExactly("circuitBreaker.minimumNumberOfCallsWithinWindow");
     }
 
     @DisplayName("게스트 토큰 Duration은 기존 시간 최소 단위를 유지한다")

@@ -35,7 +35,7 @@ class AdminSlotUseCaseIT { ... }
 |------|------|------|
 | 순수 `@UseCaseIT` | mock 없음 | Context 1 |
 | `@MockitoBean NotificationService` | 5개 클래스 공유 | Context 2 |
-| `@MockitoBean PaymentProvider` | 2개 클래스 공유 | Context 3 |
+| `@MockitoBean PaymentPort` | 2개 클래스 공유 | Context 3 |
 | `AdminSlotUseCaseIT` | 단독 | Context 4 |
 
 Context 2, 3은 Spring Framework 6.2+의 `@MockitoBean`이 bean override 조합을 캐시 키에 포함시켜 같은 조합끼리 공유하는 정상적인 동작이다. Context 4만 불필요한 분리였다.

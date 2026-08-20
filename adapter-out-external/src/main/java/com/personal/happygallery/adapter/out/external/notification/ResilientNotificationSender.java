@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -18,12 +19,12 @@ import java.util.concurrent.Executor;
  * <p>호출 전 차단과 대기열 거절은 재시도 가능한 실패로, 호출 시작 뒤 타임아웃과
  * 예상하지 못한 예외는 실제 발송 여부를 알 수 없는 결과로 구분한다.
  */
-public class ResilientNotificationSender implements NotificationSender {
+public class ResilientNotificationSender implements NotificationSenderPort {
 
-    private final NotificationSender delegate;
+    private final NotificationSenderPort delegate;
     private final ResilientNotificationCall resilientCall;
 
-    public ResilientNotificationSender(NotificationSender delegate,
+    public ResilientNotificationSender(NotificationSenderPort delegate,
                                        CircuitBreaker circuitBreaker,
                                        TimeLimiter timeLimiter,
                                        Executor executor,

@@ -11,11 +11,13 @@
 
 ---
 
-## 결정 1 — `PaymentProvider`는 외부 결제 어댑터 모듈에 둔다
+## 결정 1 — 외부 결제 어댑터는 애플리케이션의 `PaymentPort`를 직접 구현한다
 
-**선택**: `adapter-out-external/.../payment/PaymentProvider.java`
+**선택**: `FakePaymentProvider`, `TossPaymentsProvider`, `ResilientPaymentProvider`가
+`application/.../payment/port/out/PaymentPort.java`를 직접 구현한다.
 
-**이유**: 현재 구조에서는 결제 구현이 외부 연동 어댑터 모듈에 있고, 애플리케이션은 `PaymentPort`를 통해 사용한다. `PaymentProvider`는 외부 결제 구현을 묶는 어댑터 쪽 타입으로 두는 편이 현재 구조와 맞다.
+**이유**: 애플리케이션 경계와 메서드가 완전히 같은 어댑터 전용 alias는 별도 계약을 제공하지 않는다.
+구현체와 테스트가 `PaymentPort`를 직접 사용하면 결제 경계의 단일 소유자가 애플리케이션 포트로 분명해진다.
 
 ---
 
@@ -62,7 +64,7 @@
 
 | 파일 | 역할 |
 |------|------|
-| `adapter-out-external/.../payment/PaymentProvider.java` | 외부 결제 어댑터 인터페이스 |
+| `application/.../payment/port/out/PaymentPort.java` | 외부 결제 애플리케이션 포트 |
 | `application/.../payment/port/out/RefundResult.java` | 환불 결과 VO (success/refundTransactionKey/failReason) |
 | `adapter-out-external/.../payment/FakePaymentProvider.java` | 개발용 항상-성공 어댑터 |
 | `domain/booking/Refund.java` | `markSucceeded()` / `markFailed()` 추가 |

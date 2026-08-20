@@ -1,7 +1,9 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -42,7 +44,7 @@ class ResilientNotificationSenderTest {
     @DisplayName("호출이 시작된 뒤 타임아웃되면 발송 성공 여부를 알 수 없는 결과로 반환한다")
     @Test
     void send_timesOut_returnsDeliveryUnknown() {
-        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
             try {
                 Thread.sleep(1_000);
             } catch (InterruptedException e) {
@@ -69,7 +71,7 @@ class ResilientNotificationSenderTest {
     @Test
     void send_transientFailuresAccumulate_circuitOpenFastFail() {
         AtomicInteger calls = new AtomicInteger();
-        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
             calls.incrementAndGet();
             return NotificationSendResult.TRANSIENT_FAILURE;
         });
@@ -96,7 +98,7 @@ class ResilientNotificationSenderTest {
     @Test
     void send_permanentFailures_doNotOpenCircuit() {
         AtomicInteger calls = new AtomicInteger();
-        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
             calls.incrementAndGet();
             return NotificationSendResult.PERMANENT_FAILURE;
         });
@@ -124,7 +126,7 @@ class ResilientNotificationSenderTest {
     void send_executorQueueFull_returnsFalseAndRecordsRejection() throws Exception {
         CountDownLatch callStarted = new CountDownLatch(1);
         CountDownLatch releaseCall = new CountDownLatch(1);
-        NotificationSender delegate = sender((idempotencyKey, phone, name, eventType) -> {
+        NotificationSenderPort delegate = sender((idempotencyKey, phone, name, eventType) -> {
             callStarted.countDown();
             try {
                 releaseCall.await();
@@ -226,7 +228,7 @@ class ResilientNotificationSenderTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    private ResilientNotificationSender createSender(NotificationSender delegate,
+    private ResilientNotificationSender createSender(NotificationSenderPort delegate,
                                                       CircuitBreaker circuitBreaker,
                                                       NotificationResilienceConfig config,
                                                       NotificationResilienceProperties properties) {
@@ -260,7 +262,7 @@ class ResilientNotificationSenderTest {
                                                                 int poolSize,
                                                                 int queueCapacity) {
         var threadPool = new NotificationResilienceProperties.ThreadPool(poolSize, queueCapacity);
-        var circuitBreaker = new NotificationResilienceProperties.CircuitBreaker(
+        var circuitBreaker = new ExternalCircuitBreakerProperties(
                 50f, slidingWindowSize, minimumNumberOfCalls, Duration.ofSeconds(30), 1);
         return new NotificationResilienceProperties(
                 timeout,
@@ -302,8 +304,8 @@ class ResilientNotificationSenderTest {
         return executor;
     }
 
-    private static NotificationSender sender(SendBehavior behavior) {
-        return new NotificationSender() {
+    private static NotificationSenderPort sender(SendBehavior behavior) {
+        return new NotificationSenderPort() {
             @Override
             public NotificationChannel channel() {
                 return NotificationChannel.KAKAO;
