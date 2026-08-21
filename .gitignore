@@ -40,3 +40,4 @@ memory/
 
 ## Local persistent data
 /data/
+/bootstrap/data/
