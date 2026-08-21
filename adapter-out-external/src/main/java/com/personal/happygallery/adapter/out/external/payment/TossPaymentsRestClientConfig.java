@@ -20,7 +20,7 @@ class TossPaymentsRestClientConfig {
         this.pooledHttpClientFactory = pooledHttpClientFactory;
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     CloseableHttpClient tossPaymentsHttpClient(TossPaymentsProperties props) {
         return pooledHttpClientFactory.create(props);
     }

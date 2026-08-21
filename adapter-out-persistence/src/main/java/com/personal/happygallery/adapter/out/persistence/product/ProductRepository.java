@@ -4,6 +4,7 @@ import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import java.util.Optional;
@@ -24,17 +25,19 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     @Override Optional<Product> findById(Long id);
 
     /** ACTIVE 상품 목록 — 최신 등록순 */
-    @Override
-    @Query("""
-            SELECT p FROM Product p
-            WHERE p.status = com.personal.happygallery.domain.product.ProductStatus.ACTIVE
-            ORDER BY p.createdAt DESC
-            """)
-    List<Product> findActiveProductsByCreatedAtDesc();
+    List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
 
     @Override
-    @Query("SELECT p FROM Product p ORDER BY p.createdAt DESC")
-    List<Product> findAllProductsByCreatedAtDesc();
+    default List<Product> findActiveProductsByCreatedAtDesc() {
+        return findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE);
+    }
+
+    List<Product> findAllByOrderByCreatedAtDesc();
+
+    @Override
+    default List<Product> findAllProductsByCreatedAtDesc() {
+        return findAllByOrderByCreatedAtDesc();
+    }
 
     /** ACTIVE 상품의 카테고리 목록 (distinct, non-null). */
     @Override

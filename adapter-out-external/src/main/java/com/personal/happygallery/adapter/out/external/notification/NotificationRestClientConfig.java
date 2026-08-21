@@ -25,7 +25,7 @@ class NotificationRestClientConfig {
         this.pooledHttpClientFactory = pooledHttpClientFactory;
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     CloseableHttpClient alimtalkHttpClient(AlimtalkNotificationProperties props) {
         Assert.hasText(props.appKey(), "prod 프로필에는 ALIMTALK_APP_KEY가 필요합니다.");
         Assert.hasText(props.secretKey(), "prod 프로필에는 ALIMTALK_SECRET_KEY가 필요합니다.");
@@ -44,7 +44,7 @@ class NotificationRestClientConfig {
                 .build();
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     CloseableHttpClient smsHttpClient(SmsNotificationProperties props) {
         Assert.hasText(props.apiKey(), "prod 프로필에는 SMS_API_KEY가 필요합니다.");
         Assert.hasText(props.apiSecret(), "prod 프로필에는 SMS_API_SECRET가 필요합니다.");

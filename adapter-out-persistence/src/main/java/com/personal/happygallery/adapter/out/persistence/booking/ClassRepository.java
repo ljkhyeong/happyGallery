@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingClassStatus;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -31,14 +32,18 @@ public interface ClassRepository extends JpaRepository<BookingClass, Long>, Clas
     @Query("SELECT c FROM BookingClass c WHERE c.id IN :ids ORDER BY c.id")
     List<BookingClass> findAllByIdForUpdate(@Param("ids") List<Long> ids);
 
-    @Override
-    @Query("SELECT c FROM BookingClass c ORDER BY c.createdAt DESC, c.id DESC")
-    List<BookingClass> findAll();
+    List<BookingClass> findAllByOrderByCreatedAtDescIdDesc();
 
     @Override
-    @Query("SELECT c FROM BookingClass c " +
-           "WHERE c.status = com.personal.happygallery.domain.booking.BookingClassStatus.ACTIVE " +
-           "ORDER BY c.createdAt DESC, c.id DESC")
-    List<BookingClass> findAllActive();
+    default List<BookingClass> findAll() {
+        return findAllByOrderByCreatedAtDescIdDesc();
+    }
+
+    List<BookingClass> findByStatusOrderByCreatedAtDescIdDesc(BookingClassStatus status);
+
+    @Override
+    default List<BookingClass> findAllActive() {
+        return findByStatusOrderByCreatedAtDescIdDesc(BookingClassStatus.ACTIVE);
+    }
 
 }

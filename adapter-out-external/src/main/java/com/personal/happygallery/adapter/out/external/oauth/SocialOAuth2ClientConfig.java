@@ -43,12 +43,12 @@ class SocialOAuth2ClientConfig {
         this.pooledHttpClientFactory = pooledHttpClientFactory;
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     CloseableHttpClient googleOAuthHttpClient(GoogleOAuthProperties properties) {
         return pooledHttpClientFactory.create(properties);
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean
     CloseableHttpClient naverOAuthHttpClient(NaverOAuthProperties properties) {
         return pooledHttpClientFactory.create(properties);
     }
