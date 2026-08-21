@@ -758,13 +758,11 @@ public class DefaultReviewService implements ReviewUseCase {
         if (!reviewable) {
             return ReviewCreationStatus.NOT_REVIEWABLE;
         }
-        if (reservation.isEmpty()) {
-            return ReviewCreationStatus.AVAILABLE;
-        }
-        if (reservation.get().active()) {
-            return ReviewCreationStatus.REVIEW_EXISTS;
-        }
-        return ReviewCreationStatus.RECREATION_BLOCKED;
+        return reservation
+                .map(existing -> existing.active()
+                        ? ReviewCreationStatus.REVIEW_EXISTS
+                        : ReviewCreationStatus.RECREATION_BLOCKED)
+                .orElse(ReviewCreationStatus.AVAILABLE);
     }
 
     private static ReviewPublicCursor.CursorParam decodeCursor(

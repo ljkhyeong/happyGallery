@@ -50,7 +50,7 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
         LocalDateTime now = LocalDateTime.now(clock);
         definition.requirePubliclyClaimableAt(now);
         if (issuedCouponReader.findByUserIdAndDefinitionId(userId, definitionId).isPresent()) {
-            throw alreadyClaimed();
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "이미 발급받은 쿠폰입니다.");
         }
         IssuedCoupon issuedCoupon = issuedCouponStore.save(
                 new IssuedCoupon(definitionId, userId, now));
@@ -120,7 +120,4 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
         }
     }
 
-    private static HappyGalleryException alreadyClaimed() {
-        return new HappyGalleryException(ErrorCode.CONFLICT, "이미 발급받은 쿠폰입니다.");
-    }
 }

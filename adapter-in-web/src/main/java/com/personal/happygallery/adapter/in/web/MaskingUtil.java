@@ -19,10 +19,7 @@ public final class MaskingUtil {
         if (!clusters.find()) return "*";
 
         String firstCluster = clusters.group();
-        int remainingClusters = 0;
-        while (clusters.find()) {
-            remainingClusters++;
-        }
+        int remainingClusters = (int) clusters.results().count();
         return remainingClusters == 0
                 ? "*"
                 : firstCluster + "*".repeat(remainingClusters);

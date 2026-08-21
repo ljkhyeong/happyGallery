@@ -42,10 +42,14 @@ import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 
 @Service
 @Transactional
 public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderClaimUseCase {
+
+    private static final OrderItemApprovedRefundState NO_APPROVED_REFUND =
+            new OrderItemApprovedRefundState(null, 0L, 0L, 0L);
 
     private final OrderReaderPort orderReader;
     private final MemberAccountGuard memberAccountGuard;
@@ -199,7 +203,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                         line.claimItem(),
                         line.orderItem(),
                         approvedStateByItemId.getOrDefault(
-                                line.orderItem().getId(), emptyApprovedState(line.orderItem().getId()))
+                                line.orderItem().getId(), NO_APPROVED_REFUND)
                                 .quantity()))
                 .toList();
         boolean fullOrderClaim = isFullOrderRefundClaim(
@@ -270,7 +274,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private List<RequestedLine> validateRequestedLines(
             List<OrderClaimUseCase.Item> requestedItems, List<OrderItem> orderItems) {
-        if (requestedItems == null || requestedItems.isEmpty()) {
+        if (CollectionUtils.isEmpty(requestedItems)) {
             throw invalid("클레임 상품을 하나 이상 선택해주세요.");
         }
         Map<Long, OrderItem> orderItemsById = orderItems.stream()
@@ -346,7 +350,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                         line -> line.claimItem().getQuantity()));
         return allOrderItems.stream().allMatch(item -> {
             long approvedQuantity = approvedStateByItemId.getOrDefault(
-                    item.getId(), emptyApprovedState(item.getId())).quantity();
+                    item.getId(), NO_APPROVED_REFUND).quantity();
             return approvedQuantity + currentQuantityByItemId.getOrDefault(item.getId(), 0)
                     == item.getQty();
         });
@@ -373,10 +377,6 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT, "클레임 환불 누계가 주문의 결제·혜택 금액을 초과합니다.");
         }
-    }
-
-    private OrderItemApprovedRefundState emptyApprovedState(Long orderItemId) {
-        return new OrderItemApprovedRefundState(orderItemId, 0L, 0L, 0L);
     }
 
     private Order requireOrderForUpdate(Long orderId) {

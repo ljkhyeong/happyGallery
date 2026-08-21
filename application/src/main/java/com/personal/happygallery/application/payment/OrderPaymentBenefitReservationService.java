@@ -90,7 +90,8 @@ class OrderPaymentBenefitReservationService {
         if (attempt.getContext() != PaymentContext.ORDER
                 || !(payload instanceof PreparedOrderPayload orderPayload)
                 || orderPayload.pricing() == null
-                || !hasBenefit(orderPayload.pricing())) {
+                || (orderPayload.pricing().issuedCouponId() == null
+                    && orderPayload.pricing().rewardUsedAmount() == 0L)) {
             return null;
         }
         if (orderPayload.userId() == null
@@ -99,10 +100,6 @@ class OrderPaymentBenefitReservationService {
                     ErrorCode.INVALID_INPUT, "결제 혜택의 회원 정보가 결제 시도와 일치하지 않습니다.");
         }
         return new BenefitReservation(orderPayload.userId(), orderPayload.pricing());
-    }
-
-    private static boolean hasBenefit(OrderPricingSnapshot pricing) {
-        return pricing.issuedCouponId() != null || pricing.rewardUsedAmount() != 0L;
     }
 
     private static void requireReleaseAllowed(PaymentAttemptStatus status) {

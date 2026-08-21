@@ -98,7 +98,9 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
             dataPort.updatePaymentAttempt(new PaymentAttemptRotatedRow(
                     row.id(),
                     encryptNullable(payloadJson),
-                    reencryptNullable(row.accessTokenEnc()),
+                    row.accessTokenEnc() == null
+                            ? null
+                            : fieldEncryptor.reencrypt(row.accessTokenEnc()),
                     rotateOwnerPhoneHmac(row.ownerPhoneHmac(), payloadJson),
                     rotateOwnerPhoneHmacKeyId(row, payloadJson)));
             return true;
@@ -176,10 +178,6 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         if (!fieldEncryptor.activeKeyId().equals(blindIndexKeyRing.activeKeyId())) {
             throw new IllegalStateException("AES와 HMAC 활성 키 ID가 일치해야 합니다.");
         }
-    }
-
-    private String reencryptNullable(String encrypted) {
-        return encrypted == null ? null : fieldEncryptor.reencrypt(encrypted);
     }
 
     private String encryptNullable(String plaintext) {
