@@ -372,15 +372,17 @@ class BookingReminderBatchUseCaseIT {
         BatchResult result = bookingReminderBatchService.sendD1Reminders();
         awaitLogCount(notificationLogProbe, 1);
 
-        await().atMost(2, TimeUnit.SECONDS)
+        List<NotificationOutbox> sentOutboxes = await().atMost(2, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertThat(notificationOutboxRepository.findById(outboxId))
-                        .hasValueSatisfying(saved -> assertThat(saved.getStatus())
-                                .isEqualTo(NotificationOutboxStatus.SENT)));
+                .until(
+                        notificationOutboxRepository::findAll,
+                        candidates -> candidates.stream().anyMatch(candidate ->
+                                candidate.getId().equals(outboxId)
+                                        && candidate.getStatus() == NotificationOutboxStatus.SENT));
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isOne();
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(notificationOutboxRepository.findAll())
+            softly.assertThat(sentOutboxes)
                     .singleElement()
                     .satisfies(saved -> {
                         softly.assertThat(saved.getId()).isEqualTo(outboxId);

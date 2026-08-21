@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 class ReviewEvidenceRetentionServiceTest {
@@ -48,11 +47,9 @@ class ReviewEvidenceRetentionServiceTest {
         int deleted = service.deleteExpiredBatch(now, 10);
 
         assertThat(deleted).isEqualTo(2);
-        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
         var ordered = inOrder(evidencePort, publisher);
         ordered.verify(evidencePort).deleteAll(List.of(first, second));
-        ordered.verify(publisher).publishEvent(event.capture());
-        assertThat(event.getValue()).isEqualTo(new ImageMediaReferenceRemovedEvent(List.of(
+        ordered.verify(publisher).publishEvent(new ImageMediaReferenceRemovedEvent(List.of(
                 "/api/v1/media/images/first.jpg",
                 "/api/v1/media/images/shared.png",
                 "/api/v1/media/images/second.webp")));

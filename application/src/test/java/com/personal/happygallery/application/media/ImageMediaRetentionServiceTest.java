@@ -26,9 +26,6 @@ class ImageMediaRetentionServiceTest {
         ImageMediaStoragePort storage = mock(ImageMediaStoragePort.class);
         ImageMediaReferenceLockPort referenceLock = mock(ImageMediaReferenceLockPort.class);
         Clock clock = Clock.fixed(Instant.parse("2026-07-21T00:00:00Z"), ZoneOffset.UTC);
-        when(referenceReader.findReferencedImageUrls()).thenReturn(List.of(
-                "/api/v1/media/images/product.png",
-                "/api/v1/media/images/class.png"));
         when(referenceReader.findReferencedImageUrls())
                 .thenReturn(
                         List.of(

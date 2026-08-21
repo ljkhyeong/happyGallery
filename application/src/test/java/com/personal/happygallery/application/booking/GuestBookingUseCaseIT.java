@@ -170,9 +170,11 @@ class GuestBookingUseCaseIT {
         var verifications = phoneVerificationRepository.findAll();
         assertSoftly(softly -> {
             softly.assertThat(verifications).hasSize(2);
-            softly.assertThat(verifications.stream().filter(it -> it.isDelivered() && !it.isVerified()))
+            softly.assertThat(verifications)
+                    .filteredOn(it -> it.isDelivered() && !it.isVerified())
                     .hasSize(1);
-            softly.assertThat(verifications.stream().filter(it -> it.isVerified()))
+            softly.assertThat(verifications)
+                    .filteredOn(it -> it.isVerified())
                     .hasSize(1);
         });
     }

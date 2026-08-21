@@ -162,21 +162,23 @@ class PickupDeadlineReminderUseCaseIT {
         order.claimToUser(currentOwner.getId());
         orderStorePort.saveAndFlush(order);
 
-        await()
+        NotificationOutbox sent = await()
                 .atMost(5, TimeUnit.SECONDS)
-                .until(() -> {
-                    notificationOutboxDispatcher.dispatchPending();
-                    return notificationOutboxRepository.findById(outbox.getId())
-                            .map(candidate -> candidate.getStatus() == NotificationOutboxStatus.SENT)
-                            .orElse(false);
-                });
+                .until(
+                        () -> {
+                            notificationOutboxDispatcher.dispatchPending();
+                            return notificationOutboxRepository.findById(outbox.getId());
+                        },
+                        candidate -> candidate
+                                .filter(value -> value.getStatus() == NotificationOutboxStatus.SENT)
+                                .isPresent())
+                .orElseThrow();
         List<NotificationLog> matchingLogs = notificationLogProbe.all().stream()
                 .filter(candidate -> candidate.getEventType()
                         == NotificationEventType.PICKUP_DEADLINE_REMINDER)
                 .filter(candidate -> currentOwner.getId().equals(candidate.getUserId()))
                 .filter(candidate -> candidate.getGuestId() == null)
                 .toList();
-        NotificationOutbox sent = notificationOutboxRepository.findById(outbox.getId()).orElseThrow();
         var currentOwnerInbox = notificationQueryUseCase.listNotifications(
                 currentOwner.getId(), null, 0, 20);
         var previousOwnerInbox = notificationQueryUseCase.listNotifications(

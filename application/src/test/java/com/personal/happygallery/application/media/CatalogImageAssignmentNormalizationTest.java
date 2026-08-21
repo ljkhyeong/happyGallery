@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.media;
 
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
@@ -44,7 +45,7 @@ class CatalogImageAssignmentNormalizationTest {
         ProductStorePort productStore = mock(ProductStorePort.class);
         InventoryService inventoryService = mock(InventoryService.class);
         ImageMediaReferenceGuard guard = mock(ImageMediaReferenceGuard.class);
-        when(productStore.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(productStore.save(any(Product.class))).thenAnswer(returnsFirstArg());
         when(inventoryService.create(any(Product.class), anyInt()))
                 .thenReturn(mock(Inventory.class));
         DefaultProductAdminService service = new DefaultProductAdminService(
@@ -76,7 +77,7 @@ class CatalogImageAssignmentNormalizationTest {
     void bookingClassUsesNormalizedImageUrlForAssignmentGuard() {
         ClassStorePort classStore = mock(ClassStorePort.class);
         ImageMediaReferenceGuard guard = mock(ImageMediaReferenceGuard.class);
-        when(classStore.save(any(BookingClass.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(classStore.save(any(BookingClass.class))).thenAnswer(returnsFirstArg());
         DefaultClassManagementService service = new DefaultClassManagementService(
                 classStore,
                 mock(ClassReaderPort.class),
@@ -102,7 +103,7 @@ class CatalogImageAssignmentNormalizationTest {
     void eventUsesNormalizedImageUrlForAssignmentGuard() {
         EventStorePort eventStore = mock(EventStorePort.class);
         ImageMediaReferenceGuard guard = mock(ImageMediaReferenceGuard.class);
-        when(eventStore.save(any(Event.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventStore.save(any(Event.class))).thenAnswer(returnsFirstArg());
         DefaultEventService service = new DefaultEventService(
                 mock(EventReaderPort.class),
                 eventStore,

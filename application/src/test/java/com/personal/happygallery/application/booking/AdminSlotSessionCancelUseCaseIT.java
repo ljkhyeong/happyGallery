@@ -141,6 +141,7 @@ class AdminSlotSessionCancelUseCaseIT {
         var repeatedCompletion = bookingCancellationTaskUseCase.complete(balanceTask.taskId(), 99L);
         List<TaskView> remainingTasks =
                 bookingCancellationTaskUseCase.listPending();
+        Slot canceledSlot = bookingStateProbe.getSlot(slot.getId());
         User expiredPassOwner = userReaderPort
                 .findById(expiredPass.pass().getUserId())
                 .orElseThrow();
@@ -195,8 +196,8 @@ class AdminSlotSessionCancelUseCaseIT {
                             expiredPass.booking().getId()))
                     .extracting(id -> bookingStateProbe.getBooking(id).getStatus())
                     .containsOnly(BookingStatus.CANCELED);
-            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isZero();
-            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).isAdminActive()).isFalse();
+            softly.assertThat(canceledSlot.getBookedCount()).isZero();
+            softly.assertThat(canceledSlot.isAdminActive()).isFalse();
             softly.assertThat(refunds).extracting(Refund::getStatus).containsOnly(RefundStatus.SUCCEEDED);
             softly.assertThat(passPurchaseReaderPort.findById(validPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())

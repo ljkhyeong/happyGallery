@@ -84,8 +84,9 @@ class AnswerNotificationRequestTest {
 
     private static NotificationRequestedEvent.ForUser capturedEvent(
             ApplicationEventPublisher publisher) {
-        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        ArgumentCaptor<NotificationRequestedEvent.ForUser> captor =
+                ArgumentCaptor.forClass(NotificationRequestedEvent.ForUser.class);
         verify(publisher).publishEvent(captor.capture());
-        return (NotificationRequestedEvent.ForUser) captor.getValue();
+        return captor.getValue();
     }
 }

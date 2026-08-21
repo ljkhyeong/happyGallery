@@ -121,17 +121,14 @@ class RefundExecutionServiceUseCaseIT {
         Refund result = transactionTemplate.execute(status ->
                 refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key"));
 
-        await().atMost(3, TimeUnit.SECONDS)
+        var refunds = await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    var refunds = refundRepository.findAll();
-                    assertThat(refunds).hasSize(1);
-                    var refund = refunds.getFirst();
-                    assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
-                });
+                .until(
+                        refundRepository::findAll,
+                        candidates -> candidates.size() == 1
+                                && candidates.getFirst().getStatus() == RefundStatus.SUCCEEDED);
 
         verify(paymentProvider).refund("payment-key", 55_000L, result.getIdempotencyKey());
-        var refunds = refundRepository.findAll();
         var refund = refunds.getFirst();
         LocalDate today = LocalDate.now(clock);
         var revenue = dashboardQueryUseCase.getRevenueBreakdown(today, today);

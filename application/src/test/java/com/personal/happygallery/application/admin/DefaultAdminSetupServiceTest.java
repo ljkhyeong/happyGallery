@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -41,7 +42,7 @@ class DefaultAdminSetupServiceTest {
     void setup_createsInitialAdmin_whenNoAdminExists() {
         given(adminUserPort.count()).willReturn(0L);
         given(passwordEncoder.encode("admin123456")).willReturn("encoded-password");
-        given(adminUserPort.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(adminUserPort.save(any())).willAnswer(returnsFirstArg());
 
         adminSetupService.setup("admin", "admin123456");
 

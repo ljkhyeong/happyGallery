@@ -17,12 +17,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -59,7 +58,7 @@ class ReviewImageAttachmentServiceTest {
         when(reviewReader.findByIdAndUserIdForUpdate(2L, 1L)).thenReturn(Optional.of(review));
         when(imagePort.findByReviewId(2L)).thenReturn(List.of());
         when(imagePort.save(any(ReviewImage.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+                .thenAnswer(returnsFirstArg());
 
         service.attach(1L, 2L, imageUrl);
 
@@ -81,13 +80,11 @@ class ReviewImageAttachmentServiceTest {
 
         service.remove(1L, 2L, 3L);
 
-        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
         verify(imagePort).delete(image);
         verify(review).recordContentChange(LocalDateTime.of(2026, 8, 9, 0, 0));
         verify(reviewStore).save(review);
-        verify(eventPublisher).publishEvent(event.capture());
-        assertThat(event.getValue())
-                .isEqualTo(new ImageMediaReferenceRemovedEvent(List.of(imageUrl)));
+        verify(eventPublisher).publishEvent(
+                new ImageMediaReferenceRemovedEvent(List.of(imageUrl)));
     }
 
     @Test
@@ -101,10 +98,8 @@ class ReviewImageAttachmentServiceTest {
 
         service.removeAll(2L);
 
-        ArgumentCaptor<Object> event = ArgumentCaptor.forClass(Object.class);
         verify(imagePort).deleteByReviewId(2L);
-        verify(eventPublisher).publishEvent(event.capture());
-        assertThat(event.getValue()).isEqualTo(new ImageMediaReferenceRemovedEvent(List.of(
+        verify(eventPublisher).publishEvent(new ImageMediaReferenceRemovedEvent(List.of(
                 "/api/v1/media/images/first.jpg",
                 "/api/v1/media/images/second.png")));
     }

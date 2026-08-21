@@ -519,7 +519,7 @@ class AdminLoginUseCaseIT {
     }
 
     private JsonNode responseBody(
-            org.springframework.test.web.servlet.MvcResult result) throws Exception {
+            MvcResult result) throws Exception {
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 }

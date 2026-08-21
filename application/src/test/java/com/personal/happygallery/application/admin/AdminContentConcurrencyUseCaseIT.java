@@ -132,8 +132,7 @@ class AdminContentConcurrencyUseCaseIT {
             Notice persisted = noticeRepository.findById(notice.getId()).orElseThrow();
 
             assertSoftly(softly -> {
-                softly.assertThat(results.stream().filter(Objects::isNull).count())
-                        .isEqualTo(1);
+                softly.assertThat(results).filteredOn(Objects::isNull).hasSize(1);
                 softly.assertThat(failure)
                         .isInstanceOf(OptimisticLockingFailureException.class);
                 softly.assertThat(persisted.getTitle())

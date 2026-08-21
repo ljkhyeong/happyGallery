@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -31,17 +32,20 @@ class ReviewNotificationPublisherTest {
 
         verify(eventPublisher, times(3)).publishEvent(captor.capture());
         List<NotificationRequestedEvent> events = captor.getAllValues();
-        assertSoftly(softly -> {
-            softly.assertThat(events)
-                    .extracting(NotificationRequestedEvent::eventType)
-                    .containsOnly(NotificationEventType.REVIEW_REQUEST);
-            softly.assertThat(events.get(0).idempotencyKey())
-                    .isEqualTo("AGGREGATE:REVIEW_REQUEST:ORDER:100");
-            softly.assertThat(events.get(1).idempotencyKey())
-                    .isEqualTo(events.get(0).idempotencyKey());
-            softly.assertThat(events.get(2).idempotencyKey())
-                    .isEqualTo("AGGREGATE:REVIEW_REQUEST:BOOKING:200");
-        });
+        assertThat(events)
+                .extracting(
+                        NotificationRequestedEvent::eventType,
+                        NotificationRequestedEvent::idempotencyKey)
+                .containsExactly(
+                        tuple(
+                                NotificationEventType.REVIEW_REQUEST,
+                                "AGGREGATE:REVIEW_REQUEST:ORDER:100"),
+                        tuple(
+                                NotificationEventType.REVIEW_REQUEST,
+                                "AGGREGATE:REVIEW_REQUEST:ORDER:100"),
+                        tuple(
+                                NotificationEventType.REVIEW_REQUEST,
+                                "AGGREGATE:REVIEW_REQUEST:BOOKING:200"));
     }
 
     @DisplayName("후기 상태는 조치 ID로, 공식 답글은 후기 ID로 알림을 발행한다")
@@ -57,28 +61,28 @@ class ReviewNotificationPublisherTest {
         publisher.publishOwnerReplied(10L, 30L);
 
         verify(eventPublisher, times(3)).publishEvent(captor.capture());
-        assertSoftly(softly -> {
-            softly.assertThat(captor.getAllValues())
-                    .extracting(NotificationRequestedEvent::eventType)
-                    .containsExactly(
-                            NotificationEventType.REVIEW_HIDDEN,
-                            NotificationEventType.REVIEW_REPUBLISHED,
-                            NotificationEventType.REVIEW_OWNER_REPLIED);
-            softly.assertThat(captor.getAllValues().get(0).aggregateType())
-                    .isEqualTo("REVIEW_MODERATION_ACTION");
-            softly.assertThat(captor.getAllValues().get(0).aggregateId()).isEqualTo(40L);
-            softly.assertThat(captor.getAllValues().get(1).aggregateType())
-                    .isEqualTo("REVIEW_MODERATION_ACTION");
-            softly.assertThat(captor.getAllValues().get(1).aggregateId()).isEqualTo(50L);
-            softly.assertThat(captor.getAllValues().get(2).aggregateType()).isEqualTo("REVIEW");
-            softly.assertThat(captor.getAllValues().get(2).aggregateId()).isEqualTo(30L);
-            softly.assertThat(captor.getAllValues().get(0).idempotencyKey())
-                    .isEqualTo("USER:10:REVIEW_HIDDEN:REVIEW_MODERATION_ACTION:40");
-            softly.assertThat(captor.getAllValues().get(1).idempotencyKey())
-                    .isEqualTo("USER:10:REVIEW_REPUBLISHED:REVIEW_MODERATION_ACTION:50");
-            softly.assertThat(captor.getAllValues().get(2).idempotencyKey())
-                    .isEqualTo("USER:10:REVIEW_OWNER_REPLIED:REVIEW:30");
-        });
+        assertThat(captor.getAllValues())
+                .extracting(
+                        NotificationRequestedEvent::eventType,
+                        NotificationRequestedEvent::aggregateType,
+                        NotificationRequestedEvent::aggregateId,
+                        NotificationRequestedEvent::idempotencyKey)
+                .containsExactly(
+                        tuple(
+                                NotificationEventType.REVIEW_HIDDEN,
+                                "REVIEW_MODERATION_ACTION",
+                                40L,
+                                "USER:10:REVIEW_HIDDEN:REVIEW_MODERATION_ACTION:40"),
+                        tuple(
+                                NotificationEventType.REVIEW_REPUBLISHED,
+                                "REVIEW_MODERATION_ACTION",
+                                50L,
+                                "USER:10:REVIEW_REPUBLISHED:REVIEW_MODERATION_ACTION:50"),
+                        tuple(
+                                NotificationEventType.REVIEW_OWNER_REPLIED,
+                                "REVIEW",
+                                30L,
+                                "USER:10:REVIEW_OWNER_REPLIED:REVIEW:30"));
     }
 
     @DisplayName("회원이 없는 완료 원천은 후기 알림 요청을 발행하지 않는다")

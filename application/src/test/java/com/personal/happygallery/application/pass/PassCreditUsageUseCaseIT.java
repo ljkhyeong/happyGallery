@@ -318,7 +318,9 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(ledgers).hasSize(2); // USE + REFUND
-            softly.assertThat(ledgers.stream().filter(l -> l.getType() == PassLedgerType.REFUND).count()).isEqualTo(1);
+            softly.assertThat(ledgers)
+                    .filteredOn(ledger -> ledger.getType() == PassLedgerType.REFUND)
+                    .hasSize(1);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(refundRepository.count()).isEqualTo(0);
         });
