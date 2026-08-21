@@ -146,9 +146,12 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
     // ── 커서 기반 페이지네이션 ──
 
     /** 전체 주문 — 첫 페이지 */
+    List<Order> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
+
     @Override
-    @Query("SELECT o FROM Order o ORDER BY o.createdAt DESC, o.id DESC LIMIT :limit")
-    List<Order> findAllOrderByCreatedAtDesc(@Param("limit") int limit);
+    default List<Order> findAllOrderByCreatedAtDesc(int limit) {
+        return findAllByOrderByCreatedAtDescIdDesc(PageRequest.ofSize(limit));
+    }
 
     /** 전체 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
     @Override
@@ -170,11 +173,15 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("limit") int limit);
 
     /** 상태별 주문 — 첫 페이지 */
+    List<Order> findByStatusOrderByCreatedAtDescIdDesc(
+            OrderStatus status, Pageable pageable);
+
     @Override
-    @Query("SELECT o FROM Order o WHERE o.status = :status ORDER BY o.createdAt DESC, o.id DESC LIMIT :limit")
-    List<Order> findByStatusOrderByCreatedAtDesc(
-            @Param("status") OrderStatus status,
-            @Param("limit") int limit);
+    default List<Order> findByStatusOrderByCreatedAtDesc(
+            OrderStatus status, int limit) {
+        return findByStatusOrderByCreatedAtDescIdDesc(
+                status, PageRequest.ofSize(limit));
+    }
 
     /** 상태별 주문 — 커서 이후 (tuple comparison으로 복합 인덱스 range scan 활용) */
     @Override

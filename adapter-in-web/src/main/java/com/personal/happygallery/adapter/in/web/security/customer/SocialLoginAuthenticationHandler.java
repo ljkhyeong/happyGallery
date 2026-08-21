@@ -14,6 +14,7 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.web.RedirectStrategy;
@@ -110,7 +111,7 @@ public class SocialLoginAuthenticationHandler
     @Override
     public void onAuthenticationFailure(HttpServletRequest request,
                                         HttpServletResponse response,
-                                        org.springframework.security.core.AuthenticationException exception)
+                                        AuthenticationException exception)
             throws IOException, ServletException {
         linkIntentStore.clear(request);
         signupIntentStore.clear(request);

@@ -42,6 +42,8 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -722,7 +724,7 @@ public class DefaultReviewService implements ReviewUseCase {
 
     private Map<Long, ReviewEvidenceSnapshot> evidenceById(List<Long> snapshotIds) {
         List<Long> normalized = snapshotIds.stream()
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
         return evidencePort.findByIds(normalized).stream()
@@ -752,7 +754,7 @@ public class DefaultReviewService implements ReviewUseCase {
 
     private static ReviewCreationStatus creationStatus(
             boolean reviewable,
-            java.util.Optional<ReviewSourceReservationView> reservation) {
+            Optional<ReviewSourceReservationView> reservation) {
         if (!reviewable) {
             return ReviewCreationStatus.NOT_REVIEWABLE;
         }

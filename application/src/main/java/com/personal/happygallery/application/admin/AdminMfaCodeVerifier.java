@@ -35,7 +35,7 @@ class AdminMfaCodeVerifier {
             String secret,
             String rawCode,
             LocalDateTime now) {
-        String code = normalize(rawCode);
+        String code = rawCode.trim().toLowerCase(Locale.ROOT);
         if (verifyAndUseTotp(admin, secret, code)) {
             return Verification.TOTP;
         }
@@ -60,10 +60,6 @@ class AdminMfaCodeVerifier {
         }
         OptionalLong timeStep = totpPort.findMatchingTimeStep(secret, code);
         return timeStep.isPresent() && admin.acceptTotpStep(timeStep.getAsLong());
-    }
-
-    private static String normalize(String code) {
-        return code.trim().toLowerCase(Locale.ROOT);
     }
 
     enum Verification {

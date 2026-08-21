@@ -45,8 +45,7 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
             """)
     boolean existsActiveByUserId(@Param("userId") Long userId);
 
-    @Query("SELECT c FROM OrderClaim c ORDER BY c.requestedAt DESC, c.id DESC")
-    List<OrderClaim> findRecentPage(Pageable pageable);
+    List<OrderClaim> findAllByOrderByRequestedAtDescIdDesc(Pageable pageable);
 
     @Query("""
             SELECT c FROM OrderClaim c
@@ -59,13 +58,8 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
             @Param("id") Long id,
             Pageable pageable);
 
-    @Query("""
-            SELECT c FROM OrderClaim c
-            WHERE c.status = :status
-            ORDER BY c.requestedAt DESC, c.id DESC
-            """)
-    List<OrderClaim> findRecentByStatusPage(
-            @Param("status") OrderClaimStatus status, Pageable pageable);
+    List<OrderClaim> findByStatusOrderByRequestedAtDescIdDesc(
+            OrderClaimStatus status, Pageable pageable);
 
     @Query("""
             SELECT c FROM OrderClaim c
@@ -82,7 +76,7 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
 
     @Override
     default List<OrderClaim> findRecent(int limit) {
-        return findRecentPage(PageRequest.ofSize(limit));
+        return findAllByOrderByRequestedAtDescIdDesc(PageRequest.ofSize(limit));
     }
 
     @Override
@@ -92,7 +86,8 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
 
     @Override
     default List<OrderClaim> findRecentByStatus(OrderClaimStatus status, int limit) {
-        return findRecentByStatusPage(status, PageRequest.ofSize(limit));
+        return findByStatusOrderByRequestedAtDescIdDesc(
+                status, PageRequest.ofSize(limit));
     }
 
     @Override

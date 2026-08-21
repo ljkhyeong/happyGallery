@@ -13,6 +13,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** 휴대폰 인증 코드 임시 저장 — phone_verifications 테이블 */
@@ -65,7 +66,7 @@ public class PhoneVerification {
                              LocalDateTime expiresAt) {
         this.phone = KoreanPhoneNumber.required(phone);
         this.code = requireCode(code);
-        this.purpose = java.util.Objects.requireNonNull(purpose, "purpose");
+        this.purpose = Objects.requireNonNull(purpose, "purpose");
         this.expiresAt = expiresAt;
         this.delivered = false;
         this.verified = false;

@@ -156,7 +156,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView resolve(Long claimId, Long adminId, ResolveCommand command) {
-        Long expectedOrderId = requireClaimOrderId(claimId);
+        Long expectedOrderId = orderClaimPort.findOrderIdById(claimId)
+                .orElseThrow(NotFoundException.supplier("주문 클레임"));
         Order order = requireOrderForUpdate(expectedOrderId);
         OrderClaim claim = requireClaimForUpdate(claimId);
         if (!Objects.equals(claim.getOrderId(), expectedOrderId)) {
@@ -385,11 +386,6 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     private OrderClaim requireClaimForUpdate(Long claimId) {
         return orderClaimPort.findByIdForUpdate(claimId)
-                .orElseThrow(NotFoundException.supplier("주문 클레임"));
-    }
-
-    private Long requireClaimOrderId(Long claimId) {
-        return orderClaimPort.findOrderIdById(claimId)
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
     }
 

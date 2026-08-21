@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.persistence.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,17 +36,13 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(
             @Param("idempotencyKey") String idempotencyKey);
 
-    @Query("""
-            SELECT n
-            FROM NotificationOutbox n
-            WHERE n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.FAILED
-            ORDER BY n.createdAt, n.id
-            """)
-    List<NotificationOutbox> findFailedPage(Pageable pageable);
+    List<NotificationOutbox> findByStatusOrderByCreatedAtAscIdAsc(
+            NotificationOutboxStatus status, Pageable pageable);
 
     @Override
     default List<NotificationOutbox> findFailed(int limit) {
-        return findFailedPage(PageRequest.ofSize(limit));
+        return findByStatusOrderByCreatedAtAscIdAsc(
+                NotificationOutboxStatus.FAILED, PageRequest.ofSize(limit));
     }
 
     @Query("""

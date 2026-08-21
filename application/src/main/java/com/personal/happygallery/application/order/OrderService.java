@@ -100,7 +100,8 @@ public class OrderService {
                                                long shippingFee,
                                                MadeToOrderConsent madeToOrderConsent) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = totalAmount(items, shippingFee);
+        long totalAmount = OrderAmountCalculator.addShippingFee(
+                productAmount(items), shippingFee);
         requireMatchingShippingFee(fulfillmentType, shippingFee);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
@@ -204,10 +205,6 @@ public class OrderService {
                         item.productionLeadDays(),
                         item.pricing()))
                 .toList());
-    }
-
-    private static long totalAmount(List<OrderItemRequest> items, long shippingFee) {
-        return OrderAmountCalculator.addShippingFee(productAmount(items), shippingFee);
     }
 
     private static long productAmount(List<OrderItemRequest> items) {

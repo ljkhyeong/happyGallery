@@ -14,6 +14,7 @@ import com.personal.happygallery.application.payment.context.PreparedPaymentPayl
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -204,7 +205,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     @FunctionalInterface
     private interface PageReader<T extends IdentifiedRow> {
-        java.util.List<T> read(long afterId, int limit);
+        List<T> read(long afterId, int limit);
     }
 
     @FunctionalInterface

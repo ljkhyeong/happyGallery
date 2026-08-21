@@ -30,13 +30,13 @@ public interface NoticeRepository extends JpaRepository<Notice, Long>,
     @Override
     void deleteById(Long id);
 
-    @Override List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
+    @Override
+    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
 
-    @Query("SELECT n FROM Notice n ORDER BY n.pinned DESC, n.createdAt DESC")
-    List<Notice> findRecentPage(Pageable pageable);
+    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(Pageable pageable);
 
     @Override
     default List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(int limit) {
-        return findRecentPage(PageRequest.ofSize(limit));
+        return findAllByOrderByPinnedDescCreatedAtDesc(PageRequest.ofSize(limit));
     }
 }

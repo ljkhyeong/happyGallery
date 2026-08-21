@@ -55,7 +55,8 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         Optional<SocialAccount> socialAccount = socialAccountReader.findByProviderAndProviderId(
                 command.provider(), command.providerId());
         if (socialAccount.isPresent()) {
-            User user = findSocialAccountUserForUpdate(socialAccount.get());
+            User user = userReader.findByIdForUpdate(socialAccount.get().getUserId())
+                    .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
             boolean stillLinked = socialAccountReader.findByProviderAndProviderId(
                             command.provider(), command.providerId())
                     .map(SocialAccount::getUserId)
@@ -180,11 +181,6 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
                 command.userId(), invalidatedCredentialVersion));
         return true;
-    }
-
-    private User findSocialAccountUserForUpdate(SocialAccount socialAccount) {
-        return userReader.findByIdForUpdate(socialAccount.getUserId())
-                .orElseThrow(() -> new HappyGalleryException(ErrorCode.SOCIAL_LOGIN_FAILED));
     }
 
     private User findUserForUpdate(Long userId) {

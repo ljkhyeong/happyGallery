@@ -8,6 +8,7 @@ import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.Objects;
 
 /** 정렬 기준과 별점을 포함해 다른 공개 정렬에 재사용되지 않는 후기 전용 커서. */
 final class ReviewPublicCursor {
@@ -53,7 +54,7 @@ final class ReviewPublicCursor {
             LocalDateTime createdAt = LocalDateTime.parse(parts[4], FORMATTER);
             Long id = Long.valueOf(parts[5]);
             if (sort != expectedSort
-                    || !java.util.Objects.equals(ratingFilter, expectedRatingFilter)
+                    || !Objects.equals(ratingFilter, expectedRatingFilter)
                     || rating < 1
                     || rating > 5
                     || id < 1L) {
