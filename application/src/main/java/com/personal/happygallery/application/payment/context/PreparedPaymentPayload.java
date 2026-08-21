@@ -13,6 +13,7 @@ import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * prepare에서 서버가 확정해 결제 시도에 암호화 저장하는 내부 스냅샷.
@@ -150,7 +151,7 @@ public sealed interface PreparedPaymentPayload {
 
         /** V95 배포 전에 저장된 미확정 결제 시도는 기존 단일 인원 계약으로 복구한다. */
         public int effectiveParticipantCount() {
-            return participantCount == null ? 1 : participantCount;
+            return Objects.requireNonNullElse(participantCount, 1);
         }
     }
 

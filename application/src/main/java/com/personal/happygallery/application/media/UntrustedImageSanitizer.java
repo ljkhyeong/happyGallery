@@ -100,7 +100,7 @@ public class UntrustedImageSanitizer {
     }
 
     private static String normalizeContentType(String contentType) {
-        return contentType == null ? "" : contentType.trim().toLowerCase(Locale.ROOT);
+        return Objects.requireNonNullElse(contentType, "").trim().toLowerCase(Locale.ROOT);
     }
 
     private static void validateDeclaredType(String contentType) {

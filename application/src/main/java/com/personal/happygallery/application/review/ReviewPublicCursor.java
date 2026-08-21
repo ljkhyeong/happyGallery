@@ -29,7 +29,7 @@ final class ReviewPublicCursor {
                 SEPARATOR,
                 VERSION,
                 sort.name(),
-                ratingFilter == null ? "ALL" : ratingFilter.toString(),
+                Objects.toString(ratingFilter, "ALL"),
                 Integer.toString(rating),
                 FORMATTER.format(createdAt),
                 id.toString());

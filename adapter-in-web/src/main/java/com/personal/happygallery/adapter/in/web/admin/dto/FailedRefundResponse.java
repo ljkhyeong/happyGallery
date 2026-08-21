@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 public record FailedRefundResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long refundId,
@@ -41,7 +42,7 @@ public record FailedRefundResponse(
                 refund.isRestoreCoupon(),
                 refund.getStatus(),
                 refund.getAttemptCount(),
-                refund.getFailReason() != null ? refund.getFailReason() : "",
+                Objects.requireNonNullElse(refund.getFailReason(), ""),
                 refund.getCreatedAt()
         );
     }

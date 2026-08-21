@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
-import org.springframework.util.StringUtils;
+import org.springframework.util.Assert;
 
 @Repository
 class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, SocialAccountStorePort {
@@ -101,9 +101,7 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
     }
 
     private String requireProviderId(String providerId) {
-        if (!StringUtils.hasText(providerId)) {
-            throw new IllegalArgumentException("providerId must not be blank");
-        }
+        Assert.hasText(providerId, "providerId must not be blank");
         return providerId;
     }
 

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.admin.port.AdminAuthenticationMetho
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.security.Principal;
+import java.util.Objects;
 
 public final class AdminPrincipal implements Principal {
 
@@ -98,6 +99,6 @@ public final class AdminPrincipal implements Principal {
 
     @Override
     public String getName() {
-        return username != null ? username : "local-api-key";
+        return Objects.requireNonNullElse(username, "local-api-key");
     }
 }

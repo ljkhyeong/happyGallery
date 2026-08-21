@@ -22,12 +22,11 @@ public interface ReviewEvidenceSnapshotRepository
     Optional<ReviewEvidenceSnapshot> findById(Long snapshotId);
 
     @EntityGraph(attributePaths = "imageUrls")
-    @Query("SELECT DISTINCT s FROM ReviewEvidenceSnapshot s WHERE s.id IN :ids")
-    List<ReviewEvidenceSnapshot> findWithImagesByIdIn(@Param("ids") List<Long> ids);
+    List<ReviewEvidenceSnapshot> findDistinctByIdIn(List<Long> ids);
 
     @Override
     default List<ReviewEvidenceSnapshot> findByIds(List<Long> snapshotIds) {
-        return snapshotIds.isEmpty() ? List.of() : findWithImagesByIdIn(snapshotIds);
+        return snapshotIds.isEmpty() ? List.of() : findDistinctByIdIn(snapshotIds);
     }
 
     @Query("""

@@ -5,8 +5,6 @@ import com.personal.happygallery.domain.review.ReviewImage;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface ReviewImageRepository extends JpaRepository<ReviewImage, Long>, ReviewImagePort {
 
@@ -16,18 +14,21 @@ public interface ReviewImageRepository extends JpaRepository<ReviewImage, Long>,
     @Override
     Optional<ReviewImage> findByIdAndReviewId(Long imageId, Long reviewId);
 
-    @Override
-    @Query("SELECT i FROM ReviewImage i WHERE i.reviewId = :reviewId "
-            + "ORDER BY i.sortOrder ASC, i.id ASC")
-    List<ReviewImage> findByReviewId(@Param("reviewId") Long reviewId);
+    List<ReviewImage> findByReviewIdOrderBySortOrderAscIdAsc(Long reviewId);
 
-    @Query("SELECT i FROM ReviewImage i WHERE i.reviewId IN :reviewIds "
-            + "ORDER BY i.reviewId ASC, i.sortOrder ASC, i.id ASC")
-    List<ReviewImage> findByReviewIdRows(@Param("reviewIds") List<Long> reviewIds);
+    @Override
+    default List<ReviewImage> findByReviewId(Long reviewId) {
+        return findByReviewIdOrderBySortOrderAscIdAsc(reviewId);
+    }
+
+    List<ReviewImage> findByReviewIdInOrderByReviewIdAscSortOrderAscIdAsc(
+            List<Long> reviewIds);
 
     @Override
     default List<ReviewImage> findByReviewIds(List<Long> reviewIds) {
-        return reviewIds.isEmpty() ? List.of() : findByReviewIdRows(reviewIds);
+        return reviewIds.isEmpty()
+                ? List.of()
+                : findByReviewIdInOrderByReviewIdAscSortOrderAscIdAsc(reviewIds);
     }
 
     @Override

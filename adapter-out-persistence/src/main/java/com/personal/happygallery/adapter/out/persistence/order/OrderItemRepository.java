@@ -23,9 +23,12 @@ public interface OrderItemRepository extends JpaRepository<OrderItem, Long>, Ord
     @Override
     List<OrderItem> findByIdIn(Collection<Long> ids);
 
+    List<OrderItem> findByOrderIdInOrderByIdAsc(Collection<Long> orderIds);
+
     @Override
-    @Query("SELECT oi FROM OrderItem oi WHERE oi.order.id IN :orderIds ORDER BY oi.id")
-    List<OrderItem> findByOrderIdIn(@Param("orderIds") Collection<Long> orderIds);
+    default List<OrderItem> findByOrderIdIn(Collection<Long> orderIds) {
+        return findByOrderIdInOrderByIdAsc(orderIds);
+    }
 
     /** 결제 당시 주문제작 상품 포함 여부. 구주문은 주문제작 동의 스냅샷으로 보완한다. */
     @Override

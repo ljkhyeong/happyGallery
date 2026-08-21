@@ -13,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import org.springframework.http.HttpHeaders;
@@ -214,7 +215,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     String resolveClientKey(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
-        return remoteAddr == null ? "unknown" : remoteAddr;
+        return Objects.requireNonNullElse(remoteAddr, "unknown");
     }
 
     private void writeServiceUnavailable(HttpServletResponse response) throws IOException {

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
@@ -87,7 +88,7 @@ public class NhnAlimtalkSender implements NotificationSenderPort {
                         String.valueOf(header.resultCode()));
             }
             List<SendResult> sendResults = message == null ? null : message.sendResults();
-            if (sendResults == null || sendResults.isEmpty()) {
+            if (CollectionUtils.isEmpty(sendResults)) {
                 return new ResponseOutcome(NotificationSendResult.DELIVERY_UNKNOWN, "NO_SEND_RESULT");
             }
             if (sendResults.size() != 1) {

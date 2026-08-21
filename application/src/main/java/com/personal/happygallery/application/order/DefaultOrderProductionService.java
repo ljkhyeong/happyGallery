@@ -17,6 +17,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.LocalDate;
+import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -114,8 +115,8 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
     private static String shipDateChangeReason(LocalDate previousShipDate, LocalDate nextShipDate) {
         return "예상 출고일: %s -> %s".formatted(
-                previousShipDate == null ? "미설정" : previousShipDate,
-                nextShipDate == null ? "미설정" : nextShipDate);
+                Objects.toString(previousShipDate, "미설정"),
+                Objects.toString(nextShipDate, "미설정"));
     }
 
     /**

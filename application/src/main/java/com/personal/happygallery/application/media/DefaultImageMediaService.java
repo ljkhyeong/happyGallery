@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,8 @@ public class DefaultImageMediaService implements ImageMediaUseCase {
         if (bytes == null || bytes.length == 0 || bytes.length > MAX_IMAGE_BYTES) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미지는 5MB 이하여야 합니다.");
         }
-        String normalizedType = contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
+        String normalizedType = Objects.requireNonNullElse(contentType, "")
+                .toLowerCase(Locale.ROOT);
         String extension = EXTENSIONS.get(normalizedType);
         if (extension == null || !matchesSignature(bytes, normalizedType)) {
             throw new HappyGalleryException(
@@ -57,20 +59,21 @@ public class DefaultImageMediaService implements ImageMediaUseCase {
     private static boolean matchesSignature(byte[] bytes, String contentType) {
         return switch (contentType) {
             case "image/jpeg" -> bytes.length >= 3
-                    && unsigned(bytes[0]) == 0xFF && unsigned(bytes[1]) == 0xD8 && unsigned(bytes[2]) == 0xFF;
+                    && Byte.toUnsignedInt(bytes[0]) == 0xFF
+                    && Byte.toUnsignedInt(bytes[1]) == 0xD8
+                    && Byte.toUnsignedInt(bytes[2]) == 0xFF;
             case "image/png" -> bytes.length >= 8
-                    && unsigned(bytes[0]) == 0x89 && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G'
-                    && unsigned(bytes[4]) == 0x0D && unsigned(bytes[5]) == 0x0A
-                    && unsigned(bytes[6]) == 0x1A && unsigned(bytes[7]) == 0x0A;
+                    && Byte.toUnsignedInt(bytes[0]) == 0x89
+                    && bytes[1] == 'P' && bytes[2] == 'N' && bytes[3] == 'G'
+                    && Byte.toUnsignedInt(bytes[4]) == 0x0D
+                    && Byte.toUnsignedInt(bytes[5]) == 0x0A
+                    && Byte.toUnsignedInt(bytes[6]) == 0x1A
+                    && Byte.toUnsignedInt(bytes[7]) == 0x0A;
             case "image/webp" -> bytes.length >= 12
                     && bytes[0] == 'R' && bytes[1] == 'I' && bytes[2] == 'F' && bytes[3] == 'F'
                     && bytes[8] == 'W' && bytes[9] == 'E' && bytes[10] == 'B' && bytes[11] == 'P';
             default -> false;
         };
-    }
-
-    private static int unsigned(byte value) {
-        return Byte.toUnsignedInt(value);
     }
 
     private static String contentType(String fileName) {

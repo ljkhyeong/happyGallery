@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Objects;
 
 @Schema(name = "OrderPayload")
 public record OrderPaymentPayloadRequest(
@@ -87,7 +88,7 @@ public record OrderPaymentPayloadRequest(
                 policyAcceptance == null ? null : policyAcceptance.toCommand(),
                 expectedCartVersion,
                 issuedCouponId,
-                rewardAmount == null ? 0L : rewardAmount);
+                Objects.requireNonNullElse(rewardAmount, 0L));
     }
 
     @Schema(name = "OrderItemRef")

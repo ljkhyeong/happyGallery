@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.PersonalName;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** 주문 시점에 확정하는 국내 배송지 스냅샷. */
@@ -27,7 +28,7 @@ public record ShippingAddress(
     }
 
     private static String requirePostalCode(String value) {
-        String normalized = value == null ? "" : value.strip();
+        String normalized = Objects.requireNonNullElse(value, "").strip();
         if (!POSTAL_CODE.matcher(normalized).matches()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "우편번호는 숫자 5자리여야 합니다.");
         }
