@@ -679,11 +679,9 @@ class PaymentConfirmUseCaseIT {
                             softly.assertThat(e.getMessage()).contains("결제 금액");
                         }));
 
-        assertSoftly(softly -> {
-            softly.assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
-                    .hasValueSatisfying(attempt -> softly.assertThat(attempt.getStatus())
-                            .isEqualTo(PaymentAttemptStatus.PENDING));
-        });
+        assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
+                .hasValueSatisfying(attempt -> assertThat(attempt.getStatus())
+                        .isEqualTo(PaymentAttemptStatus.PENDING));
     }
 
     @DisplayName("PG 확정 실패는 외부 호출 트랜잭션과 분리되어 FAILED 상태로 저장된다")

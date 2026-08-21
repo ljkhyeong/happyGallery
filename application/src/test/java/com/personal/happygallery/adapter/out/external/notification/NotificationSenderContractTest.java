@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -66,7 +67,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS));
+        assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
     }
 
     @DisplayName("NHN 알림톡의 수신자별 결과 코드가 실패면 HTTP 200도 발송 실패로 판정한다")
@@ -103,8 +104,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result)
-                .isEqualTo(NotificationSendResult.PERMANENT_FAILURE));
+        assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
     }
 
     @DisplayName("모든 알림톡 이벤트는 NHN 템플릿 코드 길이 계약을 지킨다")
@@ -162,7 +162,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result).isEqualTo(NotificationSendResult.SUCCESS));
+        assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
     }
 
     @DisplayName("휴대폰 인증 SMS는 인증 코드와 유효 시간을 NHN Cloud 요청으로 보낸다")
@@ -192,7 +192,7 @@ class NotificationSenderContractTest {
         boolean sent = sender.send("01012345678", "123456");
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(sent).isTrue());
+        assertThat(sent).isTrue();
     }
 
     @DisplayName("NHN Cloud가 HTTP 200 본문으로 실패를 반환하면 SMS 발송 실패로 판정한다")
@@ -217,8 +217,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result)
-                .isEqualTo(NotificationSendResult.PERMANENT_FAILURE));
+        assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
     }
 
     @DisplayName("NHN Cloud의 전송 전 시스템 오류는 재시도 가능한 SMS 실패로 분류한다")
@@ -244,8 +243,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result)
-                .isEqualTo(NotificationSendResult.TRANSIENT_FAILURE));
+        assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
     }
 
     @DisplayName("NHN Cloud의 503 응답은 재시도 가능한 SMS 실패로 분류한다")
@@ -262,8 +260,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertSoftly(softly -> softly.assertThat(result)
-                .isEqualTo(NotificationSendResult.TRANSIENT_FAILURE));
+        assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
     }
 
     private static String successResponse() {

@@ -283,12 +283,13 @@ class AdminSlotSessionCancelUseCaseIT {
     }
 
     private List<Refund> awaitSucceededRefunds(int expectedCount) {
-        await().atMost(3, TimeUnit.SECONDS)
+        return await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> assertThat(bookingStateProbe.refunds())
-                        .hasSize(expectedCount)
-                        .allSatisfy(refund -> assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED)));
-        return bookingStateProbe.refunds();
+                .until(
+                        bookingStateProbe::refunds,
+                        refunds -> refunds.size() == expectedCount
+                                && refunds.stream().allMatch(
+                                        refund -> refund.getStatus() == RefundStatus.SUCCEEDED));
     }
 
     private void cleanup() {

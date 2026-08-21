@@ -2,9 +2,12 @@ package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -54,33 +57,22 @@ class RequestIdFilterUseCaseIT {
                 .andExpect(header().string("X-Request-Id", "test-request-id-123"));
     }
 
-    @DisplayName("안전하지 않은 요청 ID를 전달하면 서버가 새 UUID로 교체한다")
-    @Test
-    void whenUnsafeRequestIdProvided_replacesWithUuid() throws Exception {
-        String unsafeRequestId = "request-id\r\nInjected-Header:value";
-
+    @DisplayName("제어 문자가 있거나 64자를 초과한 요청 ID는 새 UUID로 교체한다")
+    @ParameterizedTest(name = "[{index}] 안전하지 않은 요청 ID를 교체한다")
+    @MethodSource("unsafeRequestIds")
+    void whenUnsafeRequestIdProvided_replacesWithUuid(String unsafeRequestId) throws Exception {
         var result = mockMvc.perform(get("/api/v1/classes")
                         .header("X-Request-Id", unsafeRequestId))
                 .andExpect(status().isOk())
                 .andReturn();
 
         String requestId = result.getResponse().getHeader("X-Request-Id");
-        assertThat(requestId).isNotEqualTo(unsafeRequestId);
         assertThat(UUID.fromString(requestId).toString()).isEqualTo(requestId);
     }
 
-    @DisplayName("64자를 초과한 요청 ID를 전달하면 서버가 새 UUID로 교체한다")
-    @Test
-    void whenRequestIdExceedsLimit_replacesWithUuid() throws Exception {
-        String oversizedRequestId = "a".repeat(65);
-
-        var result = mockMvc.perform(get("/api/v1/classes")
-                        .header("X-Request-Id", oversizedRequestId))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String requestId = result.getResponse().getHeader("X-Request-Id");
-        assertThat(requestId).isNotEqualTo(oversizedRequestId);
-        assertThat(UUID.fromString(requestId).toString()).isEqualTo(requestId);
+    private static Stream<String> unsafeRequestIds() {
+        return Stream.of(
+                "request-id\r\nInjected-Header:value",
+                "a".repeat(65));
     }
 }

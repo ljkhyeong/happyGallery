@@ -8,11 +8,14 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.product.Product;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
@@ -42,63 +45,37 @@ class GlobalExceptionHandlerTest {
 
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
-    @DisplayName("예약 낙관적 락 충돌은 BOOKING_CONFLICT로 매핑된다")
-    @Test
-    void optimisticLock_booking_mapsToBookingConflict() {
+    @DisplayName("낙관적 락 충돌은 대상에 맞는 오류로 매핑된다")
+    @ParameterizedTest(name = "[{index}] {0} -> {1}")
+    @MethodSource("optimisticLockCases")
+    void optimisticLock_mapsToTargetError(Class<?> entityType, ErrorCode expected) {
         ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
-                new ObjectOptimisticLockingFailureException(Booking.class.getName(), 1L));
+                new ObjectOptimisticLockingFailureException(entityType.getName(), 1L));
 
         assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.BOOKING_CONFLICT));
+            softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
+            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
         });
     }
 
-    @DisplayName("비예약 낙관적 락 충돌은 CONFLICT로 매핑된다")
-    @Test
-    void optimisticLock_nonBooking_mapsToConflict() {
-        ResponseEntity<ErrorResponse> response = handler.handleOptimisticLockingFailure(
-                new ObjectOptimisticLockingFailureException(Product.class.getName(), 1L));
-
-        assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.CONFLICT));
-        });
+    private static Stream<Arguments> optimisticLockCases() {
+        return Stream.of(
+                Arguments.of(Booking.class, ErrorCode.BOOKING_CONFLICT),
+                Arguments.of(Product.class, ErrorCode.CONFLICT));
     }
 
-    @DisplayName("슬롯 유니크 제약 위반은 INVALID_INPUT으로 매핑된다")
-    @Test
-    void dataIntegrity_slotUnique_mapsToInvalidInput() {
-        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
-                constraintViolation("uq_slot_class_start"));
-
-        assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(400);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INVALID_INPUT));
-        });
-    }
-
-    @DisplayName("활성 예약 유니크 제약 위반은 DUPLICATE_BOOKING으로 매핑된다")
-    @Test
-    void dataIntegrity_activeBookingUnique_mapsToDuplicateBooking() {
-        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
-                constraintViolation("bookings.uq_bookings_active_phone_slot"));
-
-        assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(409);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.DUPLICATE_BOOKING));
-        });
-    }
-
-    @DisplayName("회원·소셜 계정·쿠폰 유니크 제약은 해당 충돌 코드로 매핑된다")
+    @DisplayName("DB 제약 위반은 제약 이름에 맞는 오류로 매핑된다")
     @ParameterizedTest
     @CsvSource({
+            "uq_slot_class_start, INVALID_INPUT",
+            "bookings.uq_bookings_active_phone_slot, DUPLICATE_BOOKING",
             "uq_users_phone_hmac, PHONE_ALREADY_IN_USE",
             "uq_user_social_accounts_provider_identity, SOCIAL_ACCOUNT_ALREADY_LINKED",
             "uq_user_social_accounts_user_provider, SOCIAL_PROVIDER_ALREADY_LINKED",
-            "uq_issued_coupons_user_definition, CONFLICT"
+            "uq_issued_coupons_user_definition, CONFLICT",
+            "uq_unmapped_constraint, INTERNAL_ERROR"
     })
-    void dataIntegrity_knownUserConstraint_mapsToSpecificConflict(
+    void dataIntegrity_mapsToConstraintError(
             String constraint,
             ErrorCode expected
     ) {
@@ -108,18 +85,6 @@ class GlobalExceptionHandlerTest {
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
             softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
-        });
-    }
-
-    @DisplayName("알 수 없는 DB 제약 위반은 INTERNAL_ERROR로 매핑된다")
-    @Test
-    void dataIntegrity_unknownConstraint_mapsToInternalError() {
-        ResponseEntity<ErrorResponse> response = handler.handleDataIntegrityViolation(
-                constraintViolation("uq_unmapped_constraint"));
-
-        assertSoftly(softly -> {
-            softly.assertThat(response.getStatusCode().value()).isEqualTo(500);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
         });
     }
 

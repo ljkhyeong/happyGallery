@@ -642,14 +642,12 @@ class PassCreditUsageUseCaseIT {
     }
 
     private Refund awaitRefundStatus(RefundStatus status) {
-        await().atMost(3, TimeUnit.SECONDS)
+        List<Refund> refunds = await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    var refunds = refundRepository.findAll();
-                    assertThat(refunds).hasSize(1);
-                    assertThat(refunds.getFirst().getStatus()).isEqualTo(status);
-                });
-        return refundRepository.findAll().getFirst();
+                .until(
+                        refundRepository::findAll,
+                        found -> found.size() == 1 && found.getFirst().getStatus() == status);
+        return refunds.getFirst();
     }
 
 }

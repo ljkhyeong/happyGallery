@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -97,7 +98,7 @@ class ReviewNotificationPreparationTest {
 
         boolean enqueued = service.enqueue(event);
 
-        assertSoftly(softly -> softly.assertThat(enqueued).isFalse());
+        assertThat(enqueued).isFalse();
         verifyNoInteractions(outboxPort, eventPublisher);
     }
 

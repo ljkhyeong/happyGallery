@@ -3,6 +3,7 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderClaimItem;
 import com.personal.happygallery.domain.order.OrderItem;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ class OrderClaimRefundCalculatorTest {
         OrderClaimLine line = new OrderClaimLine(claimItem, orderItem);
 
         var allocation = OrderClaimRefundCalculator.allocateRefundAmount(
-                order, java.util.List.of(line), 2_500L, 0L, 60L, 0L);
+                order, List.of(line), 2_500L, 0L, 60L, 0L);
 
         assertSoftly(softly -> {
             softly.assertThat(allocation.pgRefundAmount()).isEqualTo(1_500L);
@@ -60,7 +61,7 @@ class OrderClaimRefundCalculatorTest {
                 claimItem, item(100L, 2, 6_000L, 4_000L));
 
         var allocation = OrderClaimRefundCalculator.allocateRefundAmount(
-                order, java.util.List.of(line), 13_000L, 0L, 60L, 0L);
+                order, List.of(line), 13_000L, 0L, 60L, 0L);
 
         assertSoftly(softly -> {
             softly.assertThat(allocation.shippingRefundAmount()).isEqualTo(3_000L);

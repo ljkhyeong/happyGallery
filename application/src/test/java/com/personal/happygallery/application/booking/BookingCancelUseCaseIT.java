@@ -319,14 +319,12 @@ class BookingCancelUseCaseIT {
     }
 
     private Refund awaitRefundStatus(RefundStatus status) {
-        await().atMost(3, TimeUnit.SECONDS)
+        List<Refund> refunds = await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
-                .untilAsserted(() -> {
-                    var refunds = bookingStateProbe.refunds();
-                    assertThat(refunds).hasSize(1);
-                    assertThat(refunds.getFirst().getStatus()).isEqualTo(status);
-                });
-        return bookingStateProbe.refunds().getFirst();
+                .until(
+                        bookingStateProbe::refunds,
+                        found -> found.size() == 1 && found.getFirst().getStatus() == status);
+        return refunds.getFirst();
     }
 
 }

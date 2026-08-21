@@ -29,7 +29,6 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -316,7 +315,7 @@ class GuestBookingUseCaseIT {
             Guest reused = getOrCreateGuestInTx("변경된 이름");
 
             assertSoftly(softly -> {
-                softly.assertThat(new HashSet<>(guestIds)).hasSize(1);
+                softly.assertThat(guestIds).containsOnly(guestIds.getFirst());
                 softly.assertThat(guestRepository.count()).isEqualTo(1L);
                 softly.assertThat(reused.getId()).isEqualTo(stored.getId());
                 softly.assertThat(guestPersonalDataProtector.decryptName(reused)).isEqualTo("홍길동");
@@ -389,7 +388,7 @@ class GuestBookingUseCaseIT {
         for (int i = 0; i < 8; i++) {
             String phone = "0101234567" + i;
             String code = helper.sendVerificationAndGetCode(phone);
-            paymentHelper.createGuestBooking(phone, code, "예약자%d".formatted(i), slotId);
+            paymentHelper.createGuestBooking(phone, code, "예약자%d".formatted(i), slotId, 1);
         }
 
         // 9번째 예약 → 정원 초과

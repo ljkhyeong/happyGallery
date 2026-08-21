@@ -8,7 +8,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.event.Event;
 import java.time.LocalDateTime;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
@@ -69,8 +69,7 @@ class EventPolicyTest {
     @DisplayName("이벤트의 연관 상품 ID는 양수만 허용한다")
     @Test
     void event_rejectsInvalidRelatedProductIds() {
-        Set<Long> nullId = new HashSet<>();
-        nullId.add(null);
+        Set<Long> nullId = Collections.singleton(null);
 
         assertInvalidInput(() -> event(START_AT, END_AT, Set.of(0L)));
         assertInvalidInput(() -> event(START_AT, END_AT, Set.of(-1L)));

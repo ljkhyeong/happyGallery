@@ -97,13 +97,6 @@ public final class PaymentTestHelper {
     public ConfirmedPayment createGuestBooking(String phone,
                                                String verificationCode,
                                                String name,
-                                               Long slotId) throws Exception {
-        return createGuestBooking(phone, verificationCode, name, slotId, 1);
-    }
-
-    public ConfirmedPayment createGuestBooking(String phone,
-                                               String verificationCode,
-                                               String name,
                                                Long slotId,
                                                int participantCount) throws Exception {
         PreparedPayment prepared = preparePayment(
