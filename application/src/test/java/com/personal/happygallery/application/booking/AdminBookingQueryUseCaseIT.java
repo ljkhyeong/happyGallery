@@ -93,7 +93,6 @@ class AdminBookingQueryUseCaseIT {
         List<AdminBookingResponse> responses = adminBookingQueryService.listBookings(tomorrow, null);
 
         assertSoftly(softly -> {
-            softly.assertThat(responses).hasSize(3);
             softly.assertThat(responses)
                     .extracting(
                             AdminBookingResponse::className,

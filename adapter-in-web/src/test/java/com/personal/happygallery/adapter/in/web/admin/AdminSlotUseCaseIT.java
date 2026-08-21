@@ -137,7 +137,6 @@ class AdminSlotUseCaseIT {
 
         // then — DB 상태 확인
         assertThat(slotReaderPort.findById(slotId))
-                .isPresent()
                 .hasValueSatisfying(slot -> assertThat(slot.isActive()).isFalse());
 
         mockMvc.perform(patch("/api/v1/admin/slots/{id}/activate", slotId)

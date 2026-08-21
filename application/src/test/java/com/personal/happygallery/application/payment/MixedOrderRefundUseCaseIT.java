@@ -40,9 +40,7 @@ import static org.assertj.core.groups.Tuple.tuple;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -126,9 +124,9 @@ class MixedOrderRefundUseCaseIT {
 
         var completedRefund = refundRepository.findDirectByOrderId(orderId).orElseThrow();
         verify(paymentProvider).refund(
-                eq("mixed-order-payment-key"),
-                eq(15_000L),
-                eq(completedRefund.getIdempotencyKey()));
+                "mixed-order-payment-key",
+                15_000L,
+                completedRefund.getIdempotencyKey());
 
         refundDispatcher.dispatch(completedRefund.getId(), "completed mixed refund replay");
 
@@ -151,7 +149,7 @@ class MixedOrderRefundUseCaseIT {
                             tuple(RewardLedgerType.RESTORE, 5_000L),
                             tuple(RewardLedgerType.REVOKE, 150L));
         });
-        verify(paymentProvider, times(1)).refund(any(), anyLong(), any());
+        verify(paymentProvider).refund(any(), anyLong(), any());
     }
 
     @DisplayName("PG 0원 회원 주문 환불은 외부 호출 없이 성공하고 적립금과 쿠폰을 복원한다")

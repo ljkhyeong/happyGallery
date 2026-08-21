@@ -59,7 +59,6 @@ class DefaultCustomerAuthServiceTest {
                 eq("wrong-password"),
                 hashCaptor.capture());
         assertThat(hashCaptor.getAllValues())
-                .hasSize(2)
                 .allSatisfy(hash -> assertThat(hash).startsWith("$2a$"))
                 .containsOnly(hashCaptor.getAllValues().getFirst());
         verify(userReader, never()).findByIdForUpdate(anyLong());

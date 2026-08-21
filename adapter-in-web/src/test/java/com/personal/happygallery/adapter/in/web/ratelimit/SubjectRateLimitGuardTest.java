@@ -26,7 +26,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 class SubjectRateLimitGuardTest {
@@ -134,9 +133,9 @@ class SubjectRateLimitGuardTest {
         RateLimitProperties properties = properties();
         RedisRateLimiter rateLimiter = Mockito.mock(RedisRateLimiter.class);
         when(rateLimiter.tryConsume(
-                eq("ADMIN_MFA_RECOVERY_USER"),
-                eq("42"),
-                eq(properties.subject().adminMfaRecovery())))
+                "ADMIN_MFA_RECOVERY_USER",
+                "42",
+                properties.subject().adminMfaRecovery()))
                 .thenReturn(Optional.empty());
         SubjectRateLimitGuard guard = new SubjectRateLimitGuard(properties, rateLimiter);
 

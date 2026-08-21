@@ -157,7 +157,6 @@ class MePassUseCaseIT {
         assertThat(slotRepository.findById(savedSlot.getId()).orElseThrow().getBookedCount()).isZero();
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
                 assertThat(refundRepository.findByPassPurchaseId(passId))
-                        .isPresent()
                         .hasValueSatisfying(refund ->
                                 assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED)));
     }

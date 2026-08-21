@@ -92,7 +92,6 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -519,7 +518,7 @@ class PaymentConfirmUseCaseIT {
                     .isNotBlank()
                     .doesNotContain(first.accessToken());
         });
-        verify(paymentProvider, times(1)).confirm(
+        verify(paymentProvider).confirm(
                 "guest-idempotent-payment-key", prepared.orderId(), prepared.amount(), prepared.orderId());
     }
 
@@ -723,7 +722,7 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(attempt.getFailReason()).isEqualTo("PG 승인 거절");
             softly.assertThat(orderReader.count()).isZero();
         });
-        verify(paymentProvider, times(1)).confirm(
+        verify(paymentProvider).confirm(
                 "payment-key-failure", prepared.orderId(), prepared.amount(), prepared.orderId());
     }
 
@@ -951,8 +950,8 @@ class PaymentConfirmUseCaseIT {
                         .hasValueSatisfying(attempt -> softly.assertThat(attempt.getStatus())
                                 .isEqualTo(PaymentAttemptStatus.CONFIRMED));
             });
-            verify(paymentProvider, times(1)).confirm(
-                    eq("payment-key-concurrent"), eq(prepared.orderId()), eq(prepared.amount()), eq(prepared.orderId()));
+            verify(paymentProvider).confirm(
+                    "payment-key-concurrent", prepared.orderId(), prepared.amount(), prepared.orderId());
         } finally {
             releasePg.countDown();
             executor.shutdownNow();
@@ -1008,7 +1007,7 @@ class PaymentConfirmUseCaseIT {
                 softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             });
             verify(paymentProvider, times(2)).confirm(
-                    eq("payment-key-stale"), eq(prepared.orderId()), eq(prepared.amount()), eq(prepared.orderId()));
+                    "payment-key-stale", prepared.orderId(), prepared.amount(), prepared.orderId());
         } finally {
             releaseFirstPg.countDown();
             executor.shutdownNow();
