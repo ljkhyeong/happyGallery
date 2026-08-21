@@ -126,7 +126,8 @@ public class TossPaymentsProvider implements PaymentPort {
     @Override
     public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
-            RefundRequest body = new RefundRequest(cancelReason(idempotencyKey), amount);
+            String expectedReason = cancelReason(idempotencyKey);
+            RefundRequest body = new RefundRequest(expectedReason, amount);
             RefundResponse response = restClient.post()
                     .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                     .header(IDEMPOTENCY_KEY, idempotencyKey)
@@ -134,7 +135,7 @@ public class TossPaymentsProvider implements PaymentPort {
                     .body(body)
                     .retrieve()
                     .body(RefundResponse.class);
-            RefundLookupResult lookup = resolveRefund(response, paymentKey, amount, idempotencyKey);
+            RefundLookupResult lookup = resolveRefund(response, paymentKey, amount, expectedReason);
             if (lookup.status() == RefundLookupResult.Status.REFUNDED) {
                 return RefundResult.success(lookup.refundTransactionKey());
             }
@@ -162,7 +163,7 @@ public class TossPaymentsProvider implements PaymentPort {
                     .uri("/v1/payments/{paymentKey}", paymentKey)
                     .retrieve()
                     .body(RefundResponse.class);
-            return resolveRefund(response, paymentKey, amount, idempotencyKey);
+            return resolveRefund(response, paymentKey, amount, cancelReason(idempotencyKey));
         } catch (RestClientResponseException e) {
             log.warn("Toss 환불 조회 실패 [status={}]", e.getStatusCode());
             return RefundLookupResult.unavailable(paymentKey, REFUND_LOOKUP_UNAVAILABLE);
@@ -181,7 +182,7 @@ public class TossPaymentsProvider implements PaymentPort {
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 
     private RefundLookupResult resolveRefund(
-            RefundResponse response, String paymentKey, long amount, String idempotencyKey) {
+            RefundResponse response, String paymentKey, long amount, String expectedReason) {
         if (response == null) {
             return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 응답이 비어 있습니다.");
         }
@@ -189,7 +190,7 @@ public class TossPaymentsProvider implements PaymentPort {
             return RefundLookupResult.reviewRequired(paymentKey, "PG 환불 조회 식별자가 일치하지 않습니다.");
         }
 
-        CancelResponse cancel = findCancel(response.cancels(), cancelReason(idempotencyKey));
+        CancelResponse cancel = findCancel(response.cancels(), expectedReason);
         if (cancel == null) {
             if (isClearlyNotRefundedPaymentStatus(response.status())) {
                 return RefundLookupResult.notRefunded(

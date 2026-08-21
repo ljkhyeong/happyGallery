@@ -121,7 +121,11 @@ public class AdminSessionStore implements AdminSessionPort {
 
     @Override
     public Optional<AdminSession> validate(String token) {
-        String encrypted = redisTemplate.opsForValue().get(key(token));
+        return validateByTokenHash(blindIndexer.index(token));
+    }
+
+    private Optional<AdminSession> validateByTokenHash(String tokenHash) {
+        String encrypted = redisTemplate.opsForValue().get(sessionKey(tokenHash));
         if (encrypted == null) {
             return Optional.empty();
         }
@@ -139,7 +143,7 @@ public class AdminSessionStore implements AdminSessionPort {
     @Override
     public void remove(String token) {
         String tokenHash = blindIndexer.index(token);
-        Optional<AdminSession> session = validate(token);
+        Optional<AdminSession> session = validateByTokenHash(tokenHash);
         redisTemplate.delete(sessionKey(tokenHash));
         session.ifPresent(value -> redisTemplate.opsForSet()
                 .remove(adminIndexKey(value.adminUserId(), value.credentialVersion()), tokenHash));
@@ -156,10 +160,6 @@ public class AdminSessionStore implements AdminSessionPort {
             redisTemplate.delete(sessionKeys);
         }
         redisTemplate.delete(indexKey);
-    }
-
-    private String key(String token) {
-        return sessionKey(blindIndexer.index(token));
     }
 
     private String sessionKey(String tokenHash) {

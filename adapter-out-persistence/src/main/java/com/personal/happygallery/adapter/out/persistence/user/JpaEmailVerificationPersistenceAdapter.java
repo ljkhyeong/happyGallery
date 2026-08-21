@@ -30,7 +30,7 @@ class JpaEmailVerificationPersistenceAdapter
 
     @Override
     public EmailVerification save(EmailVerification verification) {
-        String email = EmailAddress.required(verification.getEmail());
+        String email = verification.getEmail();
         String code = verification.getCode();
         verification.protect(
                 indexEmail(email),

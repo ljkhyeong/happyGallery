@@ -9,7 +9,6 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.EmailAddress;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
-import com.personal.happygallery.domain.user.PersonalName;
 import com.personal.happygallery.domain.user.User;
 import java.util.List;
 import java.util.Optional;
@@ -117,8 +116,8 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
     }
 
     private void protect(User user) {
-        String email = EmailAddress.optional(user.getEmail());
-        String name = PersonalName.required(user.getName());
+        String email = user.getEmail();
+        String name = user.getName();
         String phone = user.getPhone();
         user.protect(
                 email == null ? null : fieldEncryptor.encrypt(email),

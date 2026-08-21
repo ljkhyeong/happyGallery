@@ -29,7 +29,7 @@ class JpaPhoneVerificationPersistenceAdapter
 
     @Override
     public PhoneVerification save(PhoneVerification verification) {
-        String phone = KoreanPhoneNumber.required(verification.getPhone());
+        String phone = verification.getPhone();
         String code = verification.getCode();
         verification.protect(
                 indexPhone(phone),
