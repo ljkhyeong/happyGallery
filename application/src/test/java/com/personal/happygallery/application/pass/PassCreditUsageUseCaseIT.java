@@ -20,6 +20,7 @@ import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -152,21 +153,17 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         var bookings = bookingRepository.findAll();
         assertSoftly(softly -> {
-            softly.assertThat(ledgers).hasSize(1);
-            if (!ledgers.isEmpty()) {
-                var ledger = ledgers.getFirst();
+            softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
                 softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.USE);
                 softly.assertThat(ledger.getAmount()).isEqualTo(1);
                 softly.assertThat(ledger.getRelatedBookingId()).isEqualTo(confirmed.domainId());
-            }
+            });
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
-            softly.assertThat(bookings).hasSize(1);
-            if (!bookings.isEmpty()) {
-                var booking = bookings.getFirst();
+            softly.assertThat(bookings).singleElement().satisfies(booking -> {
                 softly.assertThat(booking.getId()).isEqualTo(confirmed.domainId());
                 softly.assertThat(booking.isPassBooking()).isTrue();
                 softly.assertThat(booking.getBalanceStatus()).isEqualTo(BalanceStatus.PAID);
-            }
+            });
         });
     }
 
@@ -320,7 +317,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(ledgers).hasSize(2); // USE + REFUND
             softly.assertThat(ledgers)
                     .filteredOn(ledger -> ledger.getType() == PassLedgerType.REFUND)
-                    .hasSize(1);
+                    .singleElement();
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(refundRepository.count()).isEqualTo(0);
         });
@@ -378,8 +375,9 @@ class PassCreditUsageUseCaseIT {
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.getFirst().getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers).singleElement()
+                    .extracting(PassLedger::getType)
+                    .isEqualTo(PassLedgerType.USE);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -410,8 +408,9 @@ class PassCreditUsageUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(bookingRepository.findById(bookingId))
                     .hasValueSatisfying(b -> assertThat(b.getStatus()).isEqualTo(BookingStatus.NO_SHOW));
-            softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledgers.getFirst().getType()).isEqualTo(PassLedgerType.USE);
+            softly.assertThat(ledgers).singleElement()
+                    .extracting(PassLedger::getType)
+                    .isEqualTo(PassLedgerType.USE);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
         });
     }
@@ -462,8 +461,7 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.refundAmount").value(320_000)); // 8 × (320000/8)
 
         var bookings = bookingRepository.findAll();
-        var refundLedgers = passLedgerRepository.findByPassPurchaseId(pass.getId())
-                .stream().filter(l -> l.getType() == PassLedgerType.REFUND).toList();
+        var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
         Refund refund = awaitRefundStatus(RefundStatus.SUCCEEDED);
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
@@ -498,8 +496,11 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(refund.getPaymentKey()).isEqualTo("test-pass-payment-key");
             softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("FAKE-TEST-PASS-REF");
-            softly.assertThat(refundLedgers).hasSize(1);
-            softly.assertThat(refundLedgers.getFirst().getAmount()).isEqualTo(8);
+            softly.assertThat(ledgers)
+                    .filteredOn(ledger -> ledger.getType() == PassLedgerType.REFUND)
+                    .singleElement()
+                    .extracting(PassLedger::getAmount)
+                    .isEqualTo(8);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             // Q1-T4: slot bookedCount 복구 확인
             softly.assertThat(reloadedSlot1.getBookedCount()).as("slot1 bookedCount").isEqualTo(0);

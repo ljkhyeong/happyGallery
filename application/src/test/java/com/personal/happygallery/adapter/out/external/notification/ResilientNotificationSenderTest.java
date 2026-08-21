@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +29,8 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ResilientNotificationSenderTest {
@@ -77,14 +78,10 @@ class ResilientNotificationSenderTest {
     @DisplayName("일시 발송 실패가 누적되면 서킷이 열리고 이후 호출을 차단한다")
     @Test
     void send_transientFailuresAccumulate_circuitOpenFastFail() {
-        AtomicInteger calls = new AtomicInteger();
         NotificationSenderPort delegate = mock(NotificationSenderPort.class);
         when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
         when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
-                .thenAnswer(invocation -> {
-                    calls.incrementAndGet();
-                    return NotificationSendResult.TRANSIENT_FAILURE;
-                });
+                .thenReturn(NotificationSendResult.TRANSIENT_FAILURE);
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -98,23 +95,20 @@ class ResilientNotificationSenderTest {
 
         assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
-            softly.assertThat(calls).hasValue(2);
             softly.assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             softly.assertThat(circuitBreaker.getMetrics().getNumberOfFailedCalls()).isEqualTo(2);
         });
+        verify(delegate, times(2)).send(
+                anyString(), anyString(), anyString(), any(NotificationEventType.class));
     }
 
     @DisplayName("영구 발송 거절은 다음 채널로 넘기되 서킷 장애율에는 포함하지 않는다")
     @Test
     void send_permanentFailures_doNotOpenCircuit() {
-        AtomicInteger calls = new AtomicInteger();
         NotificationSenderPort delegate = mock(NotificationSenderPort.class);
         when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
         when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
-                .thenAnswer(invocation -> {
-                    calls.incrementAndGet();
-                    return NotificationSendResult.PERMANENT_FAILURE;
-                });
+                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -128,10 +122,11 @@ class ResilientNotificationSenderTest {
 
         assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
-            softly.assertThat(calls).hasValue(3);
             softly.assertThat(circuitBreaker.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
             softly.assertThat(circuitBreaker.getMetrics().getNumberOfFailedCalls()).isZero();
         });
+        verify(delegate, times(3)).send(
+                anyString(), anyString(), anyString(), any(NotificationEventType.class));
     }
 
     @DisplayName("알림 호출 대기열이 가득 차면 즉시 실패하고 거절 횟수를 기록한다")

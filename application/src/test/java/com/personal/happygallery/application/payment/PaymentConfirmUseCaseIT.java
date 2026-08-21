@@ -237,10 +237,11 @@ class PaymentConfirmUseCaseIT {
             softly.assertThat(order.getStatus()).isEqualTo(OrderStatus.PAID_APPROVAL_PENDING);
             softly.assertThat(order.getTotalAmount()).isEqualTo(31_000L);
             softly.assertThat(order.getPaymentKey()).isEqualTo("confirmed-payment-key");
-            softly.assertThat(orderItems).hasSize(1);
-            softly.assertThat(orderItems.getFirst().getProductName()).isEqualTo("확정 상품");
-            softly.assertThat(orderItems.getFirst().getProductType()).isEqualTo(ProductType.READY_STOCK);
-            softly.assertThat(orderItems.getFirst().getUnitPrice()).isEqualTo(31_000L);
+            softly.assertThat(orderItems).singleElement().satisfies(item -> {
+                softly.assertThat(item.getProductName()).isEqualTo("확정 상품");
+                softly.assertThat(item.getProductType()).isEqualTo(ProductType.READY_STOCK);
+                softly.assertThat(item.getUnitPrice()).isEqualTo(31_000L);
+            });
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key-confirm");
             softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");

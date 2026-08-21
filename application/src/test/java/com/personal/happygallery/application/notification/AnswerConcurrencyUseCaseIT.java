@@ -16,13 +16,13 @@ import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -134,23 +134,20 @@ class AnswerConcurrencyUseCaseIT {
                                     String persistedReply,
                                     Long persistedAdminId,
                                     String duplicateMessage) {
-        Throwable failure = Stream.of(result.firstFailure(), result.secondFailure())
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElseThrow();
-        long successCount = Stream.of(result.firstFailure(), result.secondFailure())
-                .filter(Objects::isNull)
-                .count();
+        var outcomes = Arrays.asList(result.firstFailure(), result.secondFailure());
         Long expectedAdminId = FIRST_REPLY.equals(persistedReply)
                 ? FIRST_ADMIN_ID
                 : SECOND_ADMIN_ID;
 
         assertSoftly(softly -> {
-            softly.assertThat(successCount).isEqualTo(1L);
-            softly.assertThat(failure)
-                    .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                            softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT))
-                    .hasMessage(duplicateMessage);
+            softly.assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+            softly.assertThat(outcomes)
+                    .filteredOn(Objects::nonNull)
+                    .singleElement()
+                    .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
+                        softly.assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+                        softly.assertThat(exception).hasMessage(duplicateMessage);
+                    });
             softly.assertThat(persistedReply).isIn(FIRST_REPLY, SECOND_REPLY);
             softly.assertThat(persistedAdminId).isEqualTo(expectedAdminId);
             softly.assertThat(outboxRepository.count()).isEqualTo(1L);

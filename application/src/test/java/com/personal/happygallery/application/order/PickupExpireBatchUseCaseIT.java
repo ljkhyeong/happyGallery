@@ -16,6 +16,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -123,8 +124,9 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
             softly.assertThat(restoredQuantity).isEqualTo(1);
-            softly.assertThat(refunds).hasSize(1);
-            softly.assertThat(refunds.getFirst().getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refunds).singleElement()
+                    .extracting(Refund::getOrderId)
+                    .isEqualTo(order.getId());
             softly.assertThat(decisions).containsExactly(
                     OrderApprovalDecision.APPROVE,
                     OrderApprovalDecision.PICKUP_READY,

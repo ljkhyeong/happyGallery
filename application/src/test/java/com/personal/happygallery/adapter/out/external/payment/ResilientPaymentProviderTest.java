@@ -46,9 +46,8 @@ class ResilientPaymentProviderTest {
     @Test
     void refund_delegateThrows_returnsFailure() {
         PaymentPort delegate = mock(PaymentPort.class);
-        when(delegate.refund(anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
-            throw new RuntimeException("PG error");
-        });
+        when(delegate.refund(anyString(), anyLong(), anyString()))
+                .thenThrow(new RuntimeException("PG error"));
 
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 20, 10, Duration.ofSeconds(30), 3));
@@ -165,9 +164,8 @@ class ResilientPaymentProviderTest {
     @Test
     void confirm_delegateThrows_returnsFailure() {
         PaymentPort delegate = mock(PaymentPort.class);
-        when(delegate.confirm(anyString(), anyString(), anyLong(), anyString())).thenAnswer(invocation -> {
-            throw new RuntimeException("PG confirm error");
-        });
+        when(delegate.confirm(anyString(), anyString(), anyLong(), anyString()))
+                .thenThrow(new RuntimeException("PG confirm error"));
 
         provider = createProvider(delegate, properties(
                 Duration.ofSeconds(3), 50f, 20, 10, Duration.ofSeconds(30), 3));

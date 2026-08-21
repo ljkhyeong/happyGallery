@@ -37,6 +37,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -222,17 +223,13 @@ class ReviewUseCaseIT {
                     second.get(10, TimeUnit.SECONDS));
         }
 
-        Throwable failure = Stream.of(result.firstFailure(), result.secondFailure())
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElseThrow();
+        var outcomes = Arrays.asList(result.firstFailure(), result.secondFailure());
 
         assertSoftly(softly -> {
-            softly.assertThat(Stream.of(result.firstFailure(), result.secondFailure())
-                            .filter(Objects::isNull)
-                            .count())
-                    .isEqualTo(1L);
-            softly.assertThat(failure)
+            softly.assertThat(outcomes).filteredOn(Objects::isNull).hasSize(1);
+            softly.assertThat(outcomes)
+                    .filteredOn(Objects::nonNull)
+                    .singleElement()
                     .isInstanceOfSatisfying(
                             HappyGalleryException.class,
                             exception -> softly.assertThat(exception.getErrorCode())
@@ -1125,7 +1122,6 @@ class ReviewUseCaseIT {
         ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
         assertSoftly(softly -> {
             softly.assertThat(current.version()).isEqualTo(latest.version());
-            softly.assertThat(current.officialReply()).isNotNull();
             softly.assertThat(current.officialReply().content()).isEqualTo("최신 공식 답글");
             softly.assertThat(current.officialReply().editedAt()).isNotNull();
         });

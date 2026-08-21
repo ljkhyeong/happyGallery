@@ -42,6 +42,7 @@ import static com.personal.happygallery.support.TestFixtures.booking;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
 import static com.personal.happygallery.support.TestFixtures.slot;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -128,13 +129,17 @@ class AdminBookingQueryUseCaseIT {
                 adminBookingSearchUseCase.search(null, targetDate, targetDate, "010-1212-1212", 0, 20);
 
         assertSoftly(softly -> {
-            softly.assertThat(responses).hasSize(1);
-            softly.assertThat(responses.getFirst().customerSummary().type()).isEqualTo("GUEST");
-            softly.assertThat(responses.getFirst().customerSummary().phone()).isEqualTo("01012121212");
-            softly.assertThat(searchResult.content()).hasSize(1);
-            softly.assertThat(searchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
-            softly.assertThat(phoneSearchResult.content()).hasSize(1);
-            softly.assertThat(phoneSearchResult.content().getFirst().bookerPhone()).isEqualTo("01012121212");
+            softly.assertThat(responses).singleElement()
+                    .extracting(
+                            response -> response.customerSummary().type(),
+                            response -> response.customerSummary().phone())
+                    .containsExactly("GUEST", "01012121212");
+            softly.assertThat(searchResult.content()).singleElement()
+                    .extracting(AdminBookingSearchRow::bookerPhone)
+                    .isEqualTo("01012121212");
+            softly.assertThat(phoneSearchResult.content()).singleElement()
+                    .extracting(AdminBookingSearchRow::bookerPhone)
+                    .isEqualTo("01012121212");
         });
     }
 
@@ -162,11 +167,13 @@ class AdminBookingQueryUseCaseIT {
 
         Long completedBookingId = completed.getId();
         assertSoftly(softly -> {
-            softly.assertThat(responses).hasSize(1);
-            softly.assertThat(responses.getFirst().bookingId()).isEqualTo(completedBookingId);
-            softly.assertThat(responses.getFirst().customerSummary().type()).isEqualTo("MEMBER");
-            softly.assertThat(responses.getFirst().customerSummary().name()).isEqualTo("탈퇴회원");
-            softly.assertThat(responses.getFirst().customerSummary().phone()).isNull();
+            softly.assertThat(responses).singleElement()
+                    .extracting(
+                            AdminBookingResponse::bookingId,
+                            response -> response.customerSummary().type(),
+                            response -> response.customerSummary().name(),
+                            response -> response.customerSummary().phone())
+                    .containsExactly(completedBookingId, "MEMBER", "탈퇴회원", null);
         });
     }
 
@@ -206,10 +213,9 @@ class AdminBookingQueryUseCaseIT {
 
         var utilization = dashboardQueryUseCase.getSlotUtilization(date, date);
 
-        assertSoftly(softly -> {
-            softly.assertThat(utilization).hasSize(1);
-            softly.assertThat(utilization.getFirst().date()).isEqualTo(date);
-        });
+        assertThat(utilization).singleElement()
+                .extracting(value -> value.date())
+                .isEqualTo(date);
     }
 
     // ── reminder batch: claimed booking ──────────────────────

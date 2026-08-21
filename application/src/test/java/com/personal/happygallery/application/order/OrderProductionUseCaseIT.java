@@ -25,6 +25,7 @@ import com.personal.happygallery.domain.order.OrderDelayDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -287,8 +288,9 @@ class OrderProductionUseCaseIT {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.DELAY_REJECTED_CANCELED);
             softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity())
                     .isEqualTo(1);
-            softly.assertThat(refunds).hasSize(1);
-            softly.assertThat(refunds.getFirst().getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refunds).singleElement()
+                    .extracting(Refund::getOrderId)
+                    .isEqualTo(order.getId());
             softly.assertThat(result.refund().getId()).isNotNull();
             softly.assertThat(result.refund().getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(histories)

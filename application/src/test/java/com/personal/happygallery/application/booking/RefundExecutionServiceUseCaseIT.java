@@ -136,10 +136,8 @@ class RefundExecutionServiceUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(transactionActiveDuringPaymentCall.get()).isFalse();
             softly.assertThat(paymentCallThreadName.get()).startsWith("refund-");
-            softly.assertThat(result).isNotNull();
             softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(result.getRefundTransactionKey()).isNull();
-            softly.assertThat(refunds).hasSize(1);
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(refund.getRefundTransactionKey()).isEqualTo("refund-transaction-key");
             softly.assertThat(revenue.orderRevenue()).isZero();
@@ -164,11 +162,10 @@ class RefundExecutionServiceUseCaseIT {
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
-                    var refunds = refundRepository.findAll();
-                    assertThat(refunds).hasSize(1);
-                    var refund = refunds.getFirst();
-                    assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
-                    assertThat(refund.getFailReason()).contains("paymentKey");
+                    assertThat(refundRepository.findAll()).singleElement().satisfies(refund -> {
+                        assertThat(refund.getStatus()).isEqualTo(RefundStatus.FAILED);
+                        assertThat(refund.getFailReason()).contains("paymentKey");
+                    });
                 });
 
         verify(paymentProvider, after(300).never()).refund(any(), anyLong(), any());
@@ -176,7 +173,6 @@ class RefundExecutionServiceUseCaseIT {
         var revenue = dashboardQueryUseCase.getRevenueBreakdown(today, today);
         var refundStats = dashboardQueryUseCase.getRefundStats(today, today);
         assertSoftly(softly -> {
-            softly.assertThat(result).isNotNull();
             softly.assertThat(result.getStatus()).isEqualTo(RefundStatus.REQUESTED);
             softly.assertThat(revenue.orderRevenue()).isEqualTo(55_000L);
             softly.assertThat(revenue.totalRevenue()).isEqualTo(55_000L);

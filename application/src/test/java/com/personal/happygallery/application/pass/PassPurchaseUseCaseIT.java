@@ -59,7 +59,6 @@ class PassPurchaseUseCaseIT {
 
         // Proof: EARN ledger 1건, amount=8
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
-        var ledger = ledgers.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
             softly.assertThat(purchased.getExpiresAt())
@@ -67,9 +66,10 @@ class PassPurchaseUseCaseIT {
             softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
             softly.assertThat(purchased.getTotalPrice()).isEqualTo(PREPARED_TOTAL_PRICE);
             softly.assertThat(purchased.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_8);
-            softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
-            softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
+                softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
+                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            });
             softly.assertThat(notificationOutboxRepository.findAll())
                     .singleElement()
                     .satisfies(outbox -> {
@@ -99,14 +99,14 @@ class PassPurchaseUseCaseIT {
 
         // Proof: EARN(구매 직접 저장 시 없음) + EXPIRE ledger 1건
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(expiredPass.getId());
-        var ledger = ledgers.getFirst();
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
-            softly.assertThat(ledgers).hasSize(1);
-            softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
-            softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
+                softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
+                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+            });
         });
     }
 

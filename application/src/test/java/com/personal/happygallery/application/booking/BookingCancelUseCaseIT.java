@@ -271,7 +271,6 @@ class BookingCancelUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.booking().getStatus().name()).isEqualTo("CANCELED");
             softly.assertThat(result.balanceSettlementRequired()).isTrue();
-            softly.assertThat(result.refund()).isNotNull();
             softly.assertThat(result.refund().getAmount()).isEqualTo(5000L);
             softly.assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED);
             softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isZero();

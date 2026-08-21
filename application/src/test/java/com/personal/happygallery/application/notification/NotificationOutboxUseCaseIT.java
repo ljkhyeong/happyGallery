@@ -78,9 +78,9 @@ class NotificationOutboxUseCaseIT {
         await().atMost(2, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
-                    var outboxes = outboxRepository.findAll();
-                    assertThat(outboxes).hasSize(1);
-                    assertThat(outboxes.getFirst().getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
+                    assertThat(outboxRepository.findAll()).singleElement()
+                            .extracting(NotificationOutbox::getStatus)
+                            .isEqualTo(NotificationOutboxStatus.SENT);
                 });
     }
 
