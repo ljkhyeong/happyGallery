@@ -33,9 +33,7 @@ public class DefaultClassQueryService implements ClassQueryUseCase {
     /** 공개 클래스 단건 조회 — 존재 여부와 현재 운영 상태를 함께 확인한다. */
     @Override
     public BookingClass getActive(Long id) {
-        BookingClass bookingClass = classReaderPort.findById(id)
+        return classReaderPort.findActiveById(id)
                 .orElseThrow(NotFoundException.supplier("클래스"));
-        bookingClass.requireActive();
-        return bookingClass;
     }
 }

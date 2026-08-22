@@ -30,7 +30,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
     /** 상품 단건 조회 */
     @Override
     public ProductWithInventory getProduct(Long productId) {
-        Product product = productReaderPort.findById(productId)
+        Product product = productReaderPort.findActiveById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         Inventory inventory = inventoryReaderPort.findByProductId(productId)
                 .orElseThrow(NotFoundException.supplier("재고"));

@@ -24,6 +24,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
 
     @Override Optional<Product> findById(Long id);
 
+    Optional<Product> findByIdAndStatus(Long id, ProductStatus status);
+
+    @Override
+    default Optional<Product> findActiveById(Long id) {
+        return findByIdAndStatus(id, ProductStatus.ACTIVE);
+    }
+
     /** ACTIVE 상품 목록 — 최신 등록순 */
     List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
 

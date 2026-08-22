@@ -201,17 +201,17 @@ class ProductInventoryUseCaseIT {
                 .andExpect(jsonPath("$.available").value(true));
     }
 
-    @DisplayName("판매 중지 상품은 재고가 있어도 공개 상세에서 구매 불가하고 관리자 목록에는 남는다")
+    @DisplayName("판매 중지 상품은 공개 상세에서 숨기고 관리자 목록에는 남긴다")
     @Test
-    void inactiveProduct_isUnavailableButVisibleToAdmin() throws Exception {
+    void inactiveProduct_isHiddenFromPublicButVisibleToAdmin() throws Exception {
         Product product = productRepository.save(readyStockProduct("판매 중지 작품", 48000L));
         inventoryRepository.save(inventory(product, 1));
 
         productAdminUseCase.changeStatus(product.getId(), ProductStatus.INACTIVE);
 
         mockMvc.perform(get("/api/v1/products/{id}", product.getId()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.available").value(false));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
         mockMvc.perform(get("/api/v1/admin/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(product.getId()))

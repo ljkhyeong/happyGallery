@@ -22,6 +22,13 @@ public interface ClassRepository extends JpaRepository<BookingClass, Long>, Clas
 
     @Override Optional<BookingClass> findById(Long id);
 
+    Optional<BookingClass> findByIdAndStatus(Long id, BookingClassStatus status);
+
+    @Override
+    default Optional<BookingClass> findActiveById(Long id) {
+        return findByIdAndStatus(id, BookingClassStatus.ACTIVE);
+    }
+
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM BookingClass c WHERE c.id = :id")

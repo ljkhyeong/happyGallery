@@ -105,6 +105,9 @@ class AdminClassUseCaseIT {
         mockMvc.perform(get("/api/v1/classes"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/v1/classes/{id}", classId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
         assertThat(classReaderPort.findAll())
                 .singleElement()

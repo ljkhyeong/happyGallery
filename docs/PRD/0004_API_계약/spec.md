@@ -535,9 +535,9 @@ GET /api/v1/products/{id}
 
 - 성공: `200 OK`
 - 에러:
-  - `404 NOT_FOUND` — productId 미존재
+  - `404 NOT_FOUND` — productId 미존재 또는 판매 중지 상품
 - 정책:
-  - 판매 중지 상품의 기존 상세 링크는 유지하되, 재고가 남아 있어도 `available=false`를 반환한다.
+  - `ACTIVE` 상품만 반환하며, 판매 중지 상품은 존재 여부를 구분하지 않고 `404 NOT_FOUND`로 응답한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
@@ -573,8 +573,8 @@ GET /api/v1/classes
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
-공개 클래스 상세는 `GET /api/v1/classes/{id}`로 같은 `ClassResponse` 한 건을 반환한다.
-없는 클래스는 `404 NOT_FOUND`, 비활성 클래스는 `422 CLASS_INACTIVE`로 거절한다.
+공개 클래스 상세는 `GET /api/v1/classes/{id}`로 `ACTIVE` 클래스의 같은 `ClassResponse` 한 건을 반환한다.
+없거나 비활성인 클래스는 존재 여부를 구분하지 않고 `404 NOT_FOUND`로 응답한다. 예약·슬롯·결제 내부 흐름에서는 기존처럼 비활성 클래스를 `422 CLASS_INACTIVE`로 거절한다.
 
 #### 2.2.4 공개 예약 가능 슬롯 조회
 
@@ -2975,7 +2975,7 @@ GET /api/v1/products/{productId}/qna/{id}
 - 최신순은 `(createdAt,id)`, 별점순은 `(rating,createdAt,id)`를 사용한다. `cursor`는 정렬 종류를 포함하는 opaque 값이며 다른 정렬에 재사용하면 `400 INVALID_INPUT`이다.
 - 공개 응답은 검증된 거래·수정 표식, 공방 답글, 도움돼요 수와 사진만 포함한다. 현재 회원의 반응 여부는 포함하지 않는다.
 - 공개 후기가 없으면 `reviewCount=0`, `averageRating=0.0`, 모든 분포 `0`, `filteredCount=0`, `content=[]`를 반환한다.
-- 상품이나 클래스가 없으면 `404 NOT_FOUND`다. 비활성 클래스는 공개 클래스 상세와 같이 `422 CLASS_INACTIVE`로 거절한다.
+- 상품이나 클래스가 없으면 `404 NOT_FOUND`다. 비활성 클래스의 후기 목록은 후기 대상 검증 정책에 따라 `422 CLASS_INACTIVE`로 거절한다.
 
 회원 작성·조회·수정·삭제:
 

@@ -12,6 +12,8 @@ public interface ProductReaderPort {
 
     Optional<Product> findById(Long id);
 
+    Optional<Product> findActiveById(Long id);
+
     List<Product> findAllById(Iterable<Long> ids);
 
     List<Product> findActiveProductsByCreatedAtDesc();

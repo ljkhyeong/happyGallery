@@ -129,7 +129,7 @@
 - `products`
   - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `status(ACTIVE|INACTIVE)`, `version`
   - 주문제작은 `specification`과 1~180일 `production_lead_days`가 필수고, 기성품은 제작 기간을 두지 않는다.
-  - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. `version` 낙관적 락으로 동시에 먼저 읽은 관리자 수정이 앞선 변경을 덮지 못하게 하고 충돌은 409로 반환한다. 공개 목록과 주문 prepare는 `ACTIVE` 상품만 대상으로 한다. 기존 상세 URL은 비활성 상품도 조회하되 `available=false`로 표시한다.
+  - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. `version` 낙관적 락으로 동시에 먼저 읽은 관리자 수정이 앞선 변경을 덮지 못하게 하고 충돌은 409로 반환한다. 공개 목록·상세와 주문 prepare는 `ACTIVE` 상품만 대상으로 하며, 없거나 비활성인 공개 상세는 동일하게 404로 응답한다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
@@ -209,7 +209,7 @@
 
 - `classes`
   - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
-  - 공개 목록과 슬롯 생성·결제는 `ACTIVE` 클래스만 대상으로 한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
+  - 공개 목록·상세와 슬롯 생성·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 슬롯·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
   - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `buffer_block_count`
