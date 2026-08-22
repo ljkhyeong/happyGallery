@@ -33,6 +33,7 @@ port=${LOCAL_MANAGEMENT_PORT:-18081}
 prometheus_port=${LOCAL_PROMETHEUS_PORT:-19090}
 log_file=$(mktemp "${TMPDIR:-/tmp}/happygallery-port-forward.XXXXXX")
 prometheus_log_file=$(mktemp "${TMPDIR:-/tmp}/happygallery-prometheus-port-forward.XXXXXX")
+public_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-public-check.XXXXXX")
 kube -n "$NAMESPACE" port-forward service/app-management "$port:8081" >"$log_file" 2>&1 &
 port_forward_pid=$!
 kube -n "$NAMESPACE" port-forward service/prometheus "$prometheus_port:9090" >"$prometheus_log_file" 2>&1 &
@@ -42,7 +43,8 @@ cleanup() {
     kill "$prometheus_port_forward_pid" >/dev/null 2>&1 || true
     wait "$port_forward_pid" >/dev/null 2>&1 || true
     wait "$prometheus_port_forward_pid" >/dev/null 2>&1 || true
-    rm -f "$log_file" "$prometheus_log_file" "$log_file.headers" "$log_file.body"
+    rm -f "$log_file" "$prometheus_log_file"
+    rm -rf "$public_check_dir"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -86,13 +88,53 @@ case "$http_code" in
     *) die "HTTP 요청이 HTTPS로 redirect되지 않았습니다: $http_code" ;;
 esac
 
-curl -fsS "https://$public_host/" >/dev/null
-curl -sS -D "$log_file.headers" -o "$log_file.body" \
-    "https://$public_host/api/v1/definitely-not-a-route"
-grep -qi '^content-type: application/json' "$log_file.headers" \
+root_code=$(curl -sS -D "$public_check_dir/root.headers" -o "$public_check_dir/root.body" \
+    -w '%{http_code}' "https://$public_host/")
+[ "$root_code" -eq 200 ] || die "루트 SSR 문서가 200을 반환하지 않았습니다: $root_code"
+grep -qi '^content-type: text/html' "$public_check_dir/root.headers" \
+    || die "루트 SSR 응답이 HTML이 아닙니다."
+grep -Fq "<link rel=\"canonical\" href=\"https://$public_host/\"" "$public_check_dir/root.body" \
+    || die "루트 SSR HTML에 대표 origin canonical이 없습니다."
+grep -Eq '<h1[^>]*>[^<]*해피갤러리[^<]*</h1>' "$public_check_dir/root.body" \
+    || die "루트 SSR HTML에 해피갤러리 H1 본문이 없습니다."
+csp_header=$(grep -i '^content-security-policy-report-only:' "$public_check_dir/root.headers" | head -n 1 | tr -d '\r')
+[ -n "$csp_header" ] || die "루트 SSR 응답에 CSP Report-Only 헤더가 없습니다."
+csp_nonce=$(printf '%s' "$csp_header" | sed -n "s/.*'nonce-\([^']*\)'.*/\1/p")
+[ -n "$csp_nonce" ] || die "CSP Report-Only 헤더에 요청별 nonce가 없습니다."
+grep -Fq "nonce=\"$csp_nonce\"" "$public_check_dir/root.body" \
+    || die "CSP 헤더 nonce와 SSR inline script nonce가 다릅니다."
+
+robots_code=$(curl -sS -D "$public_check_dir/robots.headers" -o "$public_check_dir/robots.body" \
+    -w '%{http_code}' "https://$public_host/robots.txt")
+[ "$robots_code" -eq 200 ] || die "robots.txt가 200을 반환하지 않았습니다: $robots_code"
+grep -qi '^content-type: text/plain' "$public_check_dir/robots.headers" \
+    || die "robots.txt Content-Type이 text/plain이 아닙니다."
+grep -Fqx "Sitemap: https://$public_host/sitemap.xml" "$public_check_dir/robots.body" \
+    || die "robots.txt에 대표 origin sitemap 선언이 없습니다."
+
+sitemap_code=$(curl -sS -D "$public_check_dir/sitemap.headers" -o "$public_check_dir/sitemap.body" \
+    -w '%{http_code}' "https://$public_host/sitemap.xml")
+[ "$sitemap_code" -eq 200 ] || die "sitemap.xml이 200을 반환하지 않았습니다: $sitemap_code"
+grep -qi '^content-type: application/xml' "$public_check_dir/sitemap.headers" \
+    || die "sitemap.xml Content-Type이 application/xml이 아닙니다."
+grep -Fq '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' "$public_check_dir/sitemap.body" \
+    || die "sitemap.xml에 표준 urlset root가 없습니다."
+grep -Fq "<loc>https://$public_host/</loc>" "$public_check_dir/sitemap.body" \
+    || die "sitemap.xml에 대표 루트 URL이 없습니다."
+
+not_found_code=$(curl -sS -D "$public_check_dir/not-found.headers" -o "$public_check_dir/not-found.body" \
+    -w '%{http_code}' "https://$public_host/__happygallery_verify_not_found__")
+[ "$not_found_code" -eq 404 ] || die "알 수 없는 SSR route가 404를 반환하지 않았습니다: $not_found_code"
+grep -qi '^content-type: text/html' "$public_check_dir/not-found.headers" \
+    || die "알 수 없는 SSR route가 HTML 404를 반환하지 않았습니다."
+
+api_code=$(curl -sS -D "$public_check_dir/api.headers" -o "$public_check_dir/api.body" \
+    -w '%{http_code}' "https://$public_host/api/v1/definitely-not-a-route")
+[ "$api_code" -eq 404 ] || die "알 수 없는 API 경로가 404를 반환하지 않았습니다: $api_code"
+grep -qi '^content-type: application/json' "$public_check_dir/api.headers" \
     || die "알 수 없는 API 경로가 JSON이 아닌 응답을 반환했습니다."
-if grep -qi '<!doctype html' "$log_file.body"; then
-    die "API 오류가 SPA index.html로 치환됐습니다."
+if grep -qi '<!doctype html' "$public_check_dir/api.body"; then
+    die "API 오류가 frontend SSR HTML로 치환됐습니다."
 fi
 
-info "Pod/PVC/Actuator/HTTP redirect/TLS/API-SPA 경계 검증 완료"
+info "Pod/PVC/Actuator/HTTP redirect/TLS/SSR SEO/API 경계 검증 완료"

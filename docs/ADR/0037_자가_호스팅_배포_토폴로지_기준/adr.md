@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-07-30
+**최종 갱신**: 2026-08-22
 **상태**: Accepted
 
 ---
@@ -30,13 +30,14 @@
   -> DNS / 공유기 또는 방화벽
   -> k3s Ingress (TLS 종료, HTTP -> HTTPS)
        -> /api/* -> Spring Boot app -> cluster 내부 MySQL / Redis
-       -> 그 외   -> React 정적 파일과 SPA fallback
+       -> 그 외   -> React Router Node SSR
 ```
 
 - 프론트엔드와 API는 같은 origin에서 제공한다.
 - 외부에는 ingress의 HTTP/HTTPS 포트만 열고 애플리케이션, MySQL, Redis와 관리·모니터링 포트는 직접 공개하지 않는다.
 - 인증서 발급·갱신, DNS, 공유기 포트 전달과 방화벽 규칙은 manifest와 운영 절차에서 구체화한다.
-- CSP는 HTML과 정적 자원을 반환하는 frontend Nginx가 한 번만 설정하고 Traefik Ingress에는 중복하지 않는다. Toss Payments, 외부 폰트, Sentry와 inline JSON-LD hash를 포함한 정책을 먼저 `Content-Security-Policy-Report-Only`로 배포한다. 중앙 report endpoint가 없는 현재 단계에서는 브라우저 콘솔 검증만 가능하다고 명시하며, 실제 위반 검토와 수집 개인정보 정책을 정한 뒤 강제 정책으로 전환한다.
+- CSP는 HTML을 반환하는 frontend SSR 서버가 응답별 nonce를 생성해 한 번만 설정하고 Traefik Ingress에는 중복하지 않는다. Toss Payments, 외부 폰트와 Sentry를 포함한 정책을 먼저 `Content-Security-Policy-Report-Only`로 배포한다. 중앙 report endpoint가 없는 현재 단계에서는 브라우저 콘솔 검증만 가능하다고 명시하며, 실제 위반 검토와 수집 개인정보 정책을 정한 뒤 강제 정책으로 전환한다.
+- 대표 origin은 `https://happy-gallery.com`으로 고정하고 HTTP는 HTTPS로 영구 전환한다. 공개 문서 SSR, canonical, robots과 sitemap 경계는 ADR-0045를 따른다.
 
 ### 3. 전달 헤더는 통제된 ingress만 신뢰한다
 
@@ -129,13 +130,14 @@
 
 ## 현재 구현 상태와 남은 작업
 
-2026-07-23 기준 `deploy/k3s`에 다음 산출물을 구현했다.
+2026-08-22 기준 `deploy/k3s`에 다음 산출물을 구현했다.
 
 - namespace, app/frontend/MySQL/Redis/Prometheus/Alertmanager/Grafana workload, ClusterIP Service, TLS Ingress와 MySQL·미디어·모니터링 Retain PVC
 - 관리자 전용 이미지 업로드·보호 미리보기, 현재 공개 참조만 허용하는 `no-store` 이미지 조회, 파일 형식·용량 검증과 원자적 로컬 파일 저장
 - 5Gi `app-media` Retain PVC를 `/var/lib/happygallery/media`에 mount하고 maintenance Pod를 통해서만 백업·복원하는 구성
 - Traefik 전달 헤더 기준, ingress·Prometheus만 허용하는 Actuator NetworkPolicy
-- frontend Nginx의 CSP Report-Only와 JSON-LD hash·외부 출처·Ingress 비중복 정적 검증
+- frontend Node SSR, 실제 HTTPS 응답의 CSP nonce 일치·Ingress 비중복 검증, frontend에서 app 8080으로의 제한된 내부 호출
+- `happy-gallery.com` 기준 canonical·robots·sitemap, 공개 상세의 실제 SSR 본문과 404 응답
 - 저장소 밖 env와 HTTPS webhook URL 파일에서 허용 키만 runtime Secret으로 생성·교체하고 운영 profile·보안 불변식 shadowing을 차단하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
 - 6시간 간격 app 쓰기 중단 후 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
@@ -150,7 +152,7 @@
 - 실제 외부 매체 또는 원격 mount 백업, 분리 보관한 age·필드 암호화 키로 DB·상품 이미지 복원 훈련
 - 실제 운영 키로 필드·비회원 토큰 회전과 previous 키 제거, 회전 전후 백업 복원 훈련
 - 외부 uptime 감시와 전원·디스크·네트워크 장애 알림. 애플리케이션 메트릭은 내부 Alertmanager에서 외부 HTTPS webhook으로 전달하지만 노트북 자체 중단은 감지할 수 없다.
-- 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름과 CSP Report-Only 콘솔 검증, 공개 운영 주소 확정
+- 실제 브라우저의 세션·CSRF·OAuth·결제·SMS 핵심 흐름과 CSP Report-Only 콘솔 검증, `happy-gallery.com` DNS·TLS·Google Search Console·네이버 서치어드바이저 소유 확인
 
 따라서 저장소 구성은 `배포 준비 완료`, 실제 서비스는 위 검증 전까지 `운영 미개시`로 표현한다.
 

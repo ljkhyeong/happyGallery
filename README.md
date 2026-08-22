@@ -1,7 +1,7 @@
 # happyGallery
 
 `happyGallery`는 오프라인 공방의 상품 주문, 클래스 예약, 8회권, 이벤트, 회원 쿠폰·적립금과 관리자 운영을 다루는 서비스다.
-백엔드는 Spring Boot 멀티 모듈 애플리케이션이고, 프론트엔드는 Vite + React SPA다.
+백엔드는 Spring Boot 멀티 모듈 애플리케이션이고, 프론트엔드는 React Router + Vite 기반으로 공개 경로 SSR과 회원·관리자 경로 CSR을 함께 제공한다.
 
 ## 한눈에 보기
 
@@ -166,11 +166,11 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 ## 기술 스택
 
 - 백엔드: Spring Boot 4.1.0, Spring Security, Java 25, Gradle
-- 프론트엔드: Vite, React 19, TypeScript, Orval
+- 프론트엔드: React Router Framework Mode, React 19, Vite, TypeScript, Orval
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
 - 인프라 목표: 단일 노트북 k3s, Kubernetes Ingress, MySQL 영속 볼륨, cluster 내부 Redis
-- 로컬 개발·복구 진단: Docker Compose, Nginx
+- 로컬 개발·복구 진단: Docker Compose, Nginx reverse proxy
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
 - API 계약: Spring REST Docs, Springdoc OpenAPI
 - 테스트: JUnit 5, Testcontainers, Playwright
@@ -181,7 +181,8 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 - 본문은 Pretendard, 전시 제목과 브랜드 표기는 Gowun Batang 계열을 사용한다.
 - 공통 색상과 컴포넌트 변수는 `frontend/src/styles/_variables.scss`에서 관리한다. `frontend/src/styles/global.scss`는 Bootstrap과 `_foundation.scss`, `_admin.scss`, `_storefront.scss`, `_atelier.scss`, `_brand.scss`의 로딩 순서만 소유한다.
 - 홈과 클래스·단체수업 화면은 `frontend/src/assets/happygallery`의 실제 공방 사진을 사용한다. 사진 원문은 같은 디렉터리의 `SOURCES.md`에 기록하며, 외부 이미지 CDN에 런타임 의존하지 않는다.
-- SPA 경로 변경 때 공개 화면의 제목·설명·Open Graph 메타를 갱신하고, 인증·결제·고객 이력·관리자 경로는 `noindex`와 `robots.txt`로 검색 노출 대상에서 제외한다.
+- 공개 화면은 요청 시점 SSR로 본문·제목·설명·canonical·Open Graph·JSON-LD를 제공하고, 인증·결제·고객 이력·관리자 경로는 client-only 화면과 `noindex`로 분리한다.
+- 대표 운영 origin은 `https://happy-gallery.com`이며 robots·sitemap·canonical에서 같은 origin만 사용한다.
 
 ## 운영/배포
 
@@ -190,7 +191,7 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 ```text
 브라우저 -> DNS/공유기/방화벽 -> k3s Ingress(TLS)
                                   -> /api/* -> Spring Boot -> cluster 내부 MySQL/Redis
-                                  -> 그 외   -> React SPA
+                                  -> 그 외   -> React Router SSR
 ```
 
 - 프론트엔드와 API는 같은 origin으로 제공하고 외부에는 ingress의 HTTP/HTTPS 포트만 연다.
@@ -199,11 +200,11 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - [`deploy/k3s`](deploy/k3s/README.md)에 namespace, ingress/TLS, MySQL·미디어 PVC, 비공개 Actuator/Prometheus, secret 주입, 불변 이미지 import, rollout·rollback, DB·미디어 암호화 백업·복원 절차를 둔다.
 - k3s Secret 생성은 파일별 허용 키만 받는다. 운영 모드·`prod` 단일 프로필·관리자 MFA 등록 강제·처리율 제한·Secure cookie 같은 불변식은 Secret보다 우선하는 manifest 환경 변수와 Spring context·Flyway 생성 전 환경 검증으로 고정한다.
 - 운영 관리자 로그인은 MFA 미등록 세션을 등록 전용으로 제한한다. 인증 앱을 잃었지만 복구 코드가 남아 있으면 해당 코드로 로그인한 세션에서 현재 비밀번호를 확인해 MFA를 초기화하고 다시 등록할 수 있다. 초기화는 관리자 ID별 5회/10분 fail-closed 제한을 적용한 뒤 DB 잠금과 비밀번호 확인을 수행한다. DB·미디어 복원 뒤에도 app은 자동 기동하지 않는다. 복구 묶음마다 백업 생성시각과 복구 환경 해시로 일회성 대사 토큰을 만들고, 운영자가 PG·알림·개인정보 요청 대사를 완료한 뒤 같은 토큰으로 세 확인값을 제출해야 호환 이미지를 한 번만 활성화한다.
-- 운영 프런트 Nginx는 Toss SDK, 외부 폰트, Sentry와 JSON-LD hash를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
-- 현재 공개 운영 주소와 자동 배포 workflow는 없다. 실제 노트북에서 DNS·공유기·방화벽·TLS·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
+- 운영 프런트 Node SSR 서버는 응답별 nonce와 Toss SDK, 외부 폰트, Sentry를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
+- 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 노트북에서 DNS·공유기·방화벽·TLS·검색엔진 소유확인·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
-운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
+운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을, 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 경계는 [ADR-0045 공개 페이지 SSR과 SEO 전달 경계](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
 
 ## 주요 환경 변수
 

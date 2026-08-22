@@ -5,7 +5,7 @@
 ```text
 Internet -> router/firewall :80/:443 -> k3s Traefik
                                       -> /api/* -> app:8080
-                                      -> 그 외   -> frontend:8080
+                                      -> 그 외   -> frontend:8080 (React Router Node SSR)
 app -> mysql:3306 (Retain PVC)
 app -> redis:6379 (비영속 세션/처리율 상태)
 prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
@@ -23,7 +23,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | --- | --- |
 | `base/` | Namespace, Deployment/StatefulSet, ClusterIP Service, Ingress/TLS, PVC, NetworkPolicy |
 | `cluster/` | k3s 기본 Traefik의 전달 헤더 신뢰 경계 설정 |
-| `images/` | React 정적 이미지와 SPA/API 경계·브라우저 보안 헤더 Nginx 설정 |
+| `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
 | `systemd/` | 노트북 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
@@ -58,17 +58,21 @@ sudo k3s secrets-encrypt status
 
 ### 프런트엔드 CSP 기준선
 
-브라우저 자원 정책은 React 정적 파일을 실제로 반환하는 `images/frontend-nginx.conf` 한 곳에서 소유한다. Traefik Ingress에는 CSP를 중복 설정하지 않는다. 현재 정책은 다음 자원을 명시적으로 반영한다.
+브라우저 자원 정책은 HTML을 반환하는 `frontend/src/entry.server.tsx`가 소유한다. SSR 서버는 요청마다 새 nonce를 만들어 CSP 헤더와 React Router·stream renderer에 같은 값을 전달한다. Traefik Ingress에는 CSP를 중복 설정하지 않는다. 현재 정책은 다음 자원을 명시적으로 반영한다.
 
 - same-origin API·정적 자원과 `data:` 이미지·폰트
 - Toss Payments SDK와 결제 도메인
 - jsDelivr Pretendard, Google Fonts
 - Sentry ingest 도메인
-- `index.html`의 inline JSON-LD SHA-256 hash
+- SSR inline script와 JSON-LD의 요청별 nonce
 
 현재는 `Content-Security-Policy-Report-Only`이므로 위반을 차단하지 않는다. `report-uri`나 `report-to`도 아직 없어서 중앙 수집되는 것이 아니라 브라우저 개발자 도구 콘솔에서만 확인할 수 있다. 공개 전 k3s 프런트 이미지를 실제 HTTPS 경로로 열고 홈, 로그인, 결제창 호출과 Sentry 이벤트 전송을 확인한다. 예상하지 않은 출처가 없다는 것을 확인하고 중앙 수집 경로와 개인정보 처리 기준을 정한 뒤 enforced CSP 전환을 별도 변경으로 수행한다.
 
-`validate.sh`는 JSON-LD 본문 hash와 Nginx의 허용 출처가 일치하는지, Ingress에 CSP가 중복되지 않는지 검사한다. 사업자 구조화 데이터를 바꾸면 CSP hash도 함께 갱신해야 한다.
+운영 Node 서버는 React Router Express adapter를 사용하고 request access log를 남기지 않는다. Toss 성공 callback의 `paymentKey`와 `orderId`를 포함한 query가 Pod 로그에 들어가지 않게 하는 경계이며, 애플리케이션 오류 로그는 기존 마스킹·안전 메시지 기준을 유지한다.
+
+`validate.sh`는 Ingress가 CSP를 중복 소유하지 않는지 검사한다. `verify.sh`는 실제 HTTPS 응답의 CSP nonce와 SSR inline script nonce가 같은지 확인한다. 허용 출처는 배포 전 실제 브라우저 콘솔에서 확인하며, 구조화 데이터 본문은 정적 hash 대신 같은 요청 nonce를 사용한다.
+
+frontend Deployment는 `INTERNAL_API_ORIGIN=http://app:8080`으로 공개 loader의 내부 API 대상을 고정한다. canonical·robots·sitemap의 대표 origin은 `frontend/src/shared/seo/metadata.ts`의 `https://happy-gallery.com` 한 곳에서 소유한다. manifest 렌더러는 `PUBLIC_HOST=happy-gallery.com`만 받아 Ingress·OAuth callback·SEO origin이 적용 전에 어괋나지 않게 한다. app ingress NetworkPolicy는 frontend Pod의 TCP 8080 접근만 명시적으로 허용한다.
 
 ## 2. Secret 준비
 
@@ -207,7 +211,7 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 2. 실제 host, ACME email, commit SHA tag와 content digest로 manifest 렌더링
 3. server-side dry-run
 4. MySQL, Redis, app, frontend, Prometheus, Alertmanager, Grafana rollout 대기
-5. Certificate Ready, 내부 Actuator, Prometheus target, HTTP -> HTTPS, SPA/API 경계 검증
+5. Certificate Ready, 내부 Actuator, Prometheus target, HTTP -> HTTPS, SSR SEO/API 경계 검증
 6. 적용한 manifest와 이미지 식별자를 `$HOME/.local/state/happygallery/releases`에 보존
 
 실패 시 자동 rollback하지 않는다. 새 이미지의 Flyway가 이미 실행됐을 수 있으므로 DB 호환성과 백업을 먼저 확인한다.
@@ -221,14 +225,14 @@ V102 적용 전에는 app 쓰기를 중단한 상태에서 복구 묶음을 확�
 ## 6. 검증과 내부 관리 접근
 
 ```bash
-./deploy/k3s/scripts/verify.sh gallery.example.com
+./deploy/k3s/scripts/verify.sh happy-gallery.com
 kubectl -n happygallery get events --sort-by=.lastTimestamp
 kubectl -n happygallery logs deployment/app --since=15m
 kubectl -n happygallery port-forward service/prometheus 9090:9090
 kubectl -n happygallery port-forward service/grafana 3000:3000
 ```
 
-검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
+검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 공개 경로에서는 루트 SSR HTML의 canonical·실제 본문·CSP nonce, `robots.txt`, `sitemap.xml`, 알 수 없는 route의 HTTP 404를 함께 검증한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 호스트/공유기에서는 다음도 별도로 확인한다.
 
@@ -304,7 +308,7 @@ export CONFIRM_RESTORED_NOTIFICATION_RECONCILIATION="$RESTORE_RECONCILIATION_TOK
 export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_TOKEN"
 ./deploy/k3s/scripts/activate-restored-release.sh \
   /mnt/off-device/happygallery/releases/"$RESTORED_IMAGE_TAG"
-./deploy/k3s/scripts/verify.sh gallery.example.com
+./deploy/k3s/scripts/verify.sh happy-gallery.com
 ```
 
 복원 절차는 다음 조건을 강제한다.
@@ -356,4 +360,4 @@ DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, 프런트 CSP Report-Only의 JSON-LD hash·외부 출처·Ingress 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, frontend SSR의 내부 API·app 8080 ingress, Ingress의 CSP 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, SSR nonce 일치, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.

@@ -13,7 +13,7 @@ tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-k3s-validate.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 rendered="$tmp_dir/rendered.yaml"
 
-PUBLIC_HOST=gallery.example.com \
+PUBLIC_HOST=happy-gallery.com \
 ACME_EMAIL=ops@example.com \
 APP_IMAGE=localhost/happygallery-app:0123456789abcdef0123456789abcdef01234567 \
 FRONTEND_IMAGE=localhost/happygallery-frontend:0123456789abcdef0123456789abcdef01234567 \
@@ -93,7 +93,7 @@ ruby -e '
   ingresses = documents.select { |d| d["kind"] == "Ingress" }
   ingress_headers = documents.select { |d| d["kind"] == "Middleware" }
                              .flat_map { |d| d.dig("spec", "headers", "customResponseHeaders")&.keys || [] }
-  abort "CSP는 frontend Nginx 한 곳에서만 설정해야 합니다." if ingress_headers.any? do |name|
+  abort "CSP는 frontend SSR 서버 한 곳에서만 설정해야 합니다." if ingress_headers.any? do |name|
     name.downcase.start_with?("content-security-policy")
   end
   paths = ingresses.flat_map { |d| d.dig("spec", "rules") || [] }
@@ -112,6 +112,21 @@ ruby -e '
   abort "app/frontend 이미지는 sha256 digest로 고정해야 합니다." unless release_deployments.size == 2 && release_deployments.all? do |d|
     d.dig("spec", "template", "spec", "containers", 0, "image")&.match?(/@sha256:[a-f0-9]{64}\z/)
   end
+  public_hosts = ingresses.flat_map { |d| d.dig("spec", "rules") || [] }
+                          .map { |rule| rule["host"] }
+                          .compact
+                          .uniq
+  abort "Ingress 공개 host는 하나여야 합니다." unless public_hosts.size == 1
+  frontend_deployment = release_deployments.find { |d| d.dig("metadata", "name") == "frontend" }
+  frontend_container = frontend_deployment&.dig("spec", "template", "spec", "containers", 0)
+  frontend_explicit_env = frontend_container&.fetch("env", [])&.to_h do |entry|
+    [entry.fetch("name"), entry["value"]]
+  end
+  expected_frontend_env = {
+    "INTERNAL_API_ORIGIN" => "http://app:8080"
+  }
+  abort "frontend SSR의 내부 API가 명시적 env로 고정되지 않았습니다." unless
+    frontend_explicit_env&.slice(*expected_frontend_env.keys) == expected_frontend_env
   media_pvc = documents.find { |d| d["kind"] == "PersistentVolumeClaim" && d.dig("metadata", "name") == "app-media" }
   abort "app-media PVC는 local-path-retain 5Gi ReadWriteOnce여야 합니다." unless media_pvc &&
     media_pvc.dig("spec", "storageClassName") == "local-path-retain" &&
@@ -186,6 +201,20 @@ ruby -e '
     end
     abort "#{name}이 kube-system 전체 Pod를 허용합니다." unless exact
   end
+  app_ingress_rules = policies.fetch("allow-ingress-to-app").dig("spec", "ingress") || []
+  frontend_app_rules = app_ingress_rules.select do |rule|
+    (rule["from"] || []).any? do |peer|
+      peer.dig("podSelector", "matchLabels", "app.kubernetes.io/name") == "frontend"
+    end
+  end
+  frontend_app_rule = frontend_app_rules.one? ? frontend_app_rules.first : nil
+  frontend_app_peers = frontend_app_rule&.fetch("from", []) || []
+  frontend_app_ports = frontend_app_rule&.fetch("ports", []) || []
+  abort "app ingress는 frontend Pod의 TCP 8080 접근만 명시적으로 허용해야 합니다." unless
+    frontend_app_peers.size == 1 &&
+    frontend_app_peers.first.dig("podSelector", "matchLabels", "app.kubernetes.io/name") == "frontend" &&
+    frontend_app_peers.first["namespaceSelector"].nil? &&
+    frontend_app_ports == [{"protocol" => "TCP", "port" => 8080}]
   mysql_policy = policies.fetch("allow-app-to-mysql")
   mysql_rules = mysql_policy.dig("spec", "ingress") || []
   mysql_peers = mysql_rules.flat_map { |rule| rule["from"] || [] }
@@ -219,32 +248,6 @@ ruby -e '
     "$REPO_ROOT/monitoring/alerts.yml" \
     "$REPO_ROOT/monitoring/dashboards/system.json" \
     "$REPO_ROOT/monitoring/dashboards/funnel.json"
-
-ruby -ropenssl -rbase64 -e '
-  nginx_path = ARGV.pop
-  nginx = File.read(nginx_path)
-  abort "frontend Nginx에 CSP Report-Only가 없습니다." unless nginx.include?("Content-Security-Policy-Report-Only")
-  ARGV.each do |html_path|
-    html = File.read(html_path)
-    json_ld = html.match(%r{<script type="application/ld\+json">(.*?)</script>}m)&.[](1)
-    abort "JSON-LD script를 찾을 수 없습니다: #{html_path}" unless json_ld
-    json_ld_hash = "sha256-#{Base64.strict_encode64(OpenSSL::Digest::SHA256.digest(json_ld))}"
-    abort "JSON-LD CSP hash가 현재 index.html과 다릅니다: #{html_path}" unless nginx.include?(json_ld_hash)
-  end
-  %w[
-    https://js.tosspayments.com
-    https://cdn.jsdelivr.net
-    https://fonts.googleapis.com
-    https://fonts.gstatic.com
-    https://*.ingest.sentry.io
-  ].each do |source|
-    abort "CSP 외부 자원 허용 목록이 누락됐습니다: #{source}" unless nginx.include?(source)
-  end
-  abort "CSP Report-Only는 아직 중앙 report endpoint를 사용하지 않습니다." if nginx.match?(/\breport-(?:to|uri)\b/)
-' \
-    "$REPO_ROOT/frontend/index.html" \
-    ${REQUIRE_FRONTEND_DIST:+"$REPO_ROOT/frontend/dist/index.html"} \
-    "$REPO_ROOT/deploy/k3s/images/frontend-nginx.conf"
 
 for script in "$SCRIPT_DIR"/*.sh; do
     case "$(head -n 1 "$script")" in
@@ -324,9 +327,9 @@ grep -q 'receiver: webhook-business' "$rendered" \
     && grep -q 'category="business"' "$rendered" \
     && grep -q 'repeat_interval: 30m' "$rendered" \
     || die "업무 backlog 경보의 30분 재알림 경로가 없습니다."
-grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/google' "$rendered" \
+grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
-grep -q 'NAVER_OAUTH_REDIRECT_URI: https://gallery.example.com/api/v1/auth/social/callback/naver' "$rendered" \
+grep -q 'NAVER_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/naver' "$rendered" \
     || die "Naver OAuth callback이 공개 host와 일치하지 않습니다."
 
 if grep -Eq 'type: (NodePort|LoadBalancer)|hostPort:' "$rendered"; then

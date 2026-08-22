@@ -26,11 +26,11 @@
 | ~~프론트가 offset 없는 `LocalDateTime` 응답을 브라우저 현지 시간으로 해석해 사용자 시간대에 따라 표시 시각이 달라질 수 있다.~~ | ~~웹 클라이언트가 offset 없는 응답을 `Asia/Seoul`로 해석하고 offset이 있는 응답은 절대 시각으로 보존하도록 표시 정책을 통일한다.~~ |
 | ~~고객 주문은 결제 후 조회만 제공하고 일반 취소 상태와 API가 없다.~~ | ~~`PAID_APPROVAL_PENDING`에서만 고객 취소를 허용하고, 관리자 `REJECTED`와 다른 상태·회원/비회원 소유권·재고 복구·이력·커밋 후 환불을 함께 구현한다.~~ |
 | ~~관리자 8회권 환불은 환불할 `passId`를 직접 입력해야 하고 관리자용 8회권 검색·목록 API가 없다.~~ | ~~회원명·전화번호·8회권 번호로 조회한 목록에서 잔여 횟수와 환불 예상액을 확인한 뒤 환불하도록 관리자 조회 API와 목록 기반 액션을 추가한다.~~ |
-| 운영 공개 도메인이 정해지지 않아 절대 URL이 필요한 canonical, sitemap, `og:url`을 확정할 수 없다. | DNS와 운영 origin을 확정할 때 공개 경로 sitemap을 생성하고 canonical·Open Graph URL을 같은 origin으로 설정한다. |
 | 비밀번호 해시는 롤백 호환을 위해 식별자 없는 BCrypt로 쓰고 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽는다. | 이 호환 릴리스가 운영과 롤백 기준선이 된 뒤 `{bcrypt}` 쓰기로 전환하고 기존 해시는 별도 migration으로 백필한다. |
 | ~~29개 Spring Data repository가 애플리케이션 저장 포트의 구체 `save(Entity)`와 `JpaRepository`의 제네릭 `save(S)`를 한 인터페이스에서 함께 선언해 unchecked bridge 경고를 낸다.~~ | ~~저장 포트를 구현하는 전용 persistence adapter와 Spring Data repository를 분리해 제네릭 메서드 충돌을 없애고 컴파일 경고를 실제 신규 위험 신호로 사용할 수 있게 한다.~~ |
 | ~~`BoundedExecutorFactory`의 수동 Micrometer 바인딩과 Spring Boot의 executor 자동 바인딩이 같은 meter를 등록해 기동 시 중복 경고가 발생한다.~~ | ~~executor meter 바인딩 책임을 한 곳으로 통합하고 직접 생성 테스트는 별도 binder 계약 테스트로 분리한다.~~ |
 | ~~일부 Spring 통합 테스트 종료 시 Spring Session 정리 스레드가 먼저 닫힌 `LettuceConnectionFactory`를 한 번 더 참조해 오류 로그를 남긴다.~~ | ~~테스트 컨텍스트 종료 전에 세션 정리 스케줄러를 정지시키거나 테스트 프로필에서 해당 정리 작업을 비활성화해 실제 실패 로그와 종료 노이즈를 구분한다.~~ |
+| ~~운영 공개 도메인이 정해지지 않아 절대 URL이 필요한 canonical, sitemap, `og:url`을 확정할 수 없다.~~ | ~~`https://happy-gallery.com`을 대표 origin으로 확정하고 SSR 공개 경로의 canonical·Open Graph·robots·sitemap을 한 origin으로 제공한다.~~ |
 | ~~공개 후기 최신순·별점순 조회가 정렬 종류를 한 JPQL의 동적 `CASE` 표현식으로 선택하며, 운영 규모 데이터에서 MySQL 실행계획을 아직 확인하지 않았다.~~ | ~~운영 규모 표본의 `EXPLAIN ANALYZE`로 병목을 확인하고 대상·정렬별 고정 쿼리와 저평점 전용 인덱스로 분리했다.~~ |
 | ~~관리자 신고 목록이 신고자 정보와 전체 증거 본문·사진을 각 목록 항목에 함께 반환해 목록 payload와 민감정보 노출 범위가 크다.~~ | ~~목록은 판단에 필요한 summary만 반환하고 신고자·전체 evidence는 Bearer 단건 상세 API로 분리했다.~~ |
 | ~~숨김 이력이 없는 후기를 삭제·재작성할 때마다 비식별 tombstone 행이 누적되며 현재는 회원별 처리율 제한만 있다.~~ | ~~재활성화 시 과거 생명주기 식별자가 섞이는 문제를 피해, 증거 없는 비차단 tombstone을 30일 뒤 배치 파기한다.~~ |

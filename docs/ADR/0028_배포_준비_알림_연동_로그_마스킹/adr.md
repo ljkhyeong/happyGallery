@@ -60,14 +60,14 @@
   - Access 토큰: legacy SHA-256 hex와 현재 `base64url(payload).base64url(signature)` 형식을 `X-Access-Token=xxx` → `X-Access-Token=***`로 치환한다. `:`, `=`, JSON 따옴표 표기를 모두 보존한다.
 - 마스킹은 예기치 않은 문자열 유입을 막는 방어선으로 유지하되, 애플리케이션 로그 호출 자체에도 전화번호·이름·인증 코드·결제 키를 전달하지 않는다.
 - 알림·결제 외부 호출 실패는 예외 원문 대신 HTTP 상태, 예외 타입과 내부 식별자만 기록한다. `notification_log.fail_reason` 등 영속 실패 사유에는 `DELIVERY_EXCEPTION` 같은 통제된 문구를 저장한다.
-- 운영 프런트 Nginx access log는 `$request_uri`나 기본 `$request`, `$http_referer`를 사용하지 않고 `$request_method $uri $server_protocol`만 기록한다. 따라서 Toss 성공 callback의 `paymentKey` query와 same-origin Referer query가 최초 요청 로그에 남지 않는다.
+- 운영 프런트 Node SSR 서버는 request access log를 남기지 않는다. React Router의 기본 운영 서버는 query string을 포함한 URL을 기록하므로 사용하지 않고, 공식 Express adapter로 정적 자원과 route handler만 연결한다. 따라서 Toss 성공 callback의 `paymentKey`와 `orderId`, 로그인·관리 화면 query가 Pod 로그에 남지 않는다.
 - 전역 예외 처리와 Sentry 전송은 DB·JSON·외부 서비스 예외 원문 대신 예외 종류와 공통 오류 메시지만 남긴다. Sentry event·breadcrumb·API 경로 태그와 Referer의 URL은 경로만 남기고 query와 fragment를 제거한다. 요청 본문·쿠키·query string과 인증·CSRF·비회원 접근 토큰 헤더도 제거해 관리자 검색어, 결제 키와 내부 식별자를 전송하지 않는다.
 - 로컬 Hibernate SQL bind 로깅도 개인정보가 노출되지 않도록 `WARN` 수준으로 유지한다.
 - `logstash-logback-encoder`를 `runtimeOnly` → `implementation`으로 변경 (커스텀 JsonProvider 컴파일에 필요).
 
 ### 5. 배포 인프라
 
-- `nginx/nginx.conf`와 `docker-compose.yml`의 Nginx 서비스는 SPA fallback과 API 프록시를 포함한 로컬 통합 검증·복구 진단용으로 유지한다.
+- `nginx/nginx.conf`와 `docker-compose.yml`의 Nginx 서비스는 로컬 React Router SSR frontend와 API를 한 origin으로 연결하는 reverse proxy 통합 검증·복구 진단용으로 유지한다. 로컬 reverse proxy도 access log를 끄고 결제 callback query를 기록하지 않는다.
 - 운영 목표는 ADR-0037에 따라 단일 노트북의 단일 노드 k3s와 Kubernetes Ingress로 전환한다. Docker Compose의 `local` 프로필과 개발 기본값을 운영 구성으로 사용하지 않는다.
 - ingress는 `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`를 덮어쓰거나 정규화하고 애플리케이션 직접 접근을 차단한다.
 - `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를
@@ -109,7 +109,7 @@
 
 ## Update (2026-07-28)
 
-- 운영 프런트 access log에서 query string과 Referer를 제거했다.
+- 운영 프런트 access log를 비활성화해 query string과 Referer를 기록하지 않는다.
 - Toss와 결제 resilience 경계는 결제 키가 포함될 수 있는 throwable 원문을 로그 호출에 전달하지 않고 예외 타입과 안전한 내부 식별자만 남긴다.
 
 ## 참고

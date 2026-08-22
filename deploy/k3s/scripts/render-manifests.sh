@@ -14,6 +14,8 @@ output=$1
 : "${FRONTEND_IMAGE_DIGEST:?FRONTEND_IMAGE_DIGEST가 필요합니다.}"
 : "${IMAGE_TAG:?IMAGE_TAG가 필요합니다.}"
 
+[ "$PUBLIC_HOST" = "happy-gallery.com" ] \
+    || die "PUBLIC_HOST는 SEO 대표 host인 happy-gallery.com이어야 합니다."
 printf '%s' "$PUBLIC_HOST" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$' \
     || die "PUBLIC_HOST는 소문자 DNS 이름이어야 합니다."
 printf '%s' "$ACME_EMAIL" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$' \

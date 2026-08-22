@@ -51,6 +51,9 @@ spec:
         - name: frontend
           image: __FRONTEND_IMAGE__
           imagePullPolicy: Never
+          env:
+            - name: INTERNAL_API_ORIGIN
+              value: http://app:8080
           ports:
             - name: http
               containerPort: 8080
@@ -77,11 +80,11 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: 25m
-              memory: 32Mi
+              cpu: 50m
+              memory: 64Mi
             limits:
-              cpu: 250m
-              memory: 128Mi
+              cpu: 500m
+              memory: 256Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
