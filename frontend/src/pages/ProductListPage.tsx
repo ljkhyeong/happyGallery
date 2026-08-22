@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { Container, Row, Col } from "react-bootstrap";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
@@ -8,8 +7,18 @@ import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import type { ProductFilterParams, ProductSortOrder, ProductType } from "@/shared/types";
+import type { ProductDetailResponse } from "@/generated/api/product";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
-export function ProductListPage() {
+interface ProductListPageProps {
+  initialProducts: ProductDetailResponse[];
+  initialCategories: string[];
+}
+
+export function ProductListPage({
+  initialProducts,
+  initialCategories,
+}: ProductListPageProps) {
   const [keyword, setKeyword] = useState("");
   const [type, setType] = useState("ALL");
   const [category, setCategory] = useState("ALL");
@@ -18,30 +27,40 @@ export function ProductListPage() {
   const debouncedKeyword = useDebouncedValue(keyword, 300);
   const normalizedKeyword = debouncedKeyword.trim();
 
-  const filterParams: ProductFilterParams = {
+  const filterParams = useMemo<ProductFilterParams>(() => ({
     ...(type !== "ALL" && { type: type as ProductType }),
     ...(category !== "ALL" && { category }),
     ...(normalizedKeyword && { keyword: normalizedKeyword }),
     ...(sort !== "newest" && { sort }),
-  };
+  }), [category, normalizedKeyword, sort, type]);
 
   const hasActiveFilter = Object.keys(filterParams).length > 0;
+  const productsQueryKey = useMemo(
+    () => hasActiveFilter
+      ? [queryKeys.catalog.products[0], filterParams] as const
+      : queryKeys.catalog.products,
+    [filterParams, hasActiveFilter],
+  );
 
   const {
     data: products,
-    isLoading,
     error,
-  } = useQuery({
-    queryKey: hasActiveFilter ? ["products", filterParams] : ["products"],
+    isLoading,
+  } = useLoaderBackedQuery({
+    queryKey: productsQueryKey,
     queryFn: () => fetchProducts(hasActiveFilter ? filterParams : undefined),
     staleTime: PUBLIC_DATA_STALE_TIME,
-  });
+  }, hasActiveFilter ? undefined : initialProducts);
 
-  const categoriesQuery = useQuery({
-    queryKey: ["product-categories"],
+  const {
+    data: categories,
+    error: categoriesError,
+    query: categoriesQuery,
+  } = useLoaderBackedQuery({
+    queryKey: queryKeys.catalog.productCategories,
     queryFn: fetchCategories,
     staleTime: REFERENCE_DATA_STALE_TIME,
-  });
+  }, initialCategories);
 
   function handleReset() {
     setKeyword("");
@@ -72,7 +91,7 @@ export function ProductListPage() {
           onTypeChange={setType}
           category={category}
           onCategoryChange={setCategory}
-          categories={categoriesQuery.data ?? []}
+          categories={categories ?? []}
           sort={sort}
           onSortChange={setSort}
           resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
@@ -81,7 +100,7 @@ export function ProductListPage() {
       </div>
 
       <ErrorAlert
-        error={categoriesQuery.error}
+        error={categoriesError}
         onRetry={() => { void categoriesQuery.refetch(); }}
         retrying={categoriesQuery.isFetching}
       />

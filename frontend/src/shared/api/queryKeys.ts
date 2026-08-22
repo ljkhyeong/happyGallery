@@ -38,9 +38,13 @@ export const queryKeys = {
     bookingCancellationTasks: ["admin", "bookings", "cancellation-tasks"] as const,
   },
   catalog: {
+    products: ["products"] as const,
+    productCategories: ["product-categories"] as const,
+    productDetail: (productId: number) => ["products", productId] as const,
     classes: ["classes"] as const,
     classDetail: (classId: number) => ["classes", classId] as const,
   },
+  workshop: ["workshop-profile"] as const,
   notices: {
     all: ["notices"] as const,
     detail: (noticeId: number) => ["notices", noticeId] as const,

@@ -1,7 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useEffect, useRef, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { useMutation } from "@tanstack/react-query";
 import { Alert, Container, Card, Badge, Button, Form, Row, Col } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { fetchProduct } from "@/features/product/api";
@@ -15,14 +15,12 @@ import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import {
   formatKRW,
-  isPositiveSafeIntegerString,
   PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
-import { NotFoundPage } from "@/pages/NotFoundPage";
 import {
   FulfillmentForm,
   fulfillmentPayload,
@@ -35,20 +33,23 @@ import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
-import { runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
+import type { ProductDetailResponse } from "@/generated/api/product";
 
-export function ProductDetailPage() {
+export function ProductDetailPage({ initialProduct }: { initialProduct: ProductDetailResponse }) {
   const { sessionVersion } = useCustomerAuth();
-  return <ProductDetailContent key={sessionVersion} />;
+  return <ProductDetailContent key={sessionVersion} initialProduct={initialProduct} />;
 }
 
-function ProductDetailContent() {
-  const { id } = useParams<{ id: string }>();
-  const productId = Number(id);
-  const validProductId = isPositiveSafeIntegerString(id);
+function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetailResponse }) {
+  const productId = initialProduct.id;
+  const productQueryKey = useMemo(
+    () => queryKeys.catalog.productDetail(productId),
+    [productId],
+  );
   const navigate = useNavigate();
   const toast = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
@@ -62,12 +63,15 @@ function ProductDetailContent() {
   );
   const { addItem: addToCart } = useCart();
 
-  const { data: product, isLoading, error } = useQuery({
-    queryKey: ["products", productId],
+  const {
+    data: product,
+    error,
+    isLoading,
+  } = useLoaderBackedQuery({
+    queryKey: productQueryKey,
     queryFn: () => fetchProduct(productId),
-    enabled: validProductId,
     staleTime: PUBLIC_DATA_STALE_TIME,
-  });
+  }, initialProduct);
   const requiresMadeToOrderConsent = product?.type === "MADE_TO_ORDER";
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
 
@@ -116,7 +120,6 @@ function ProductDetailContent() {
     return () => observer.disconnect();
   }, [product]);
 
-  if (!validProductId) return <NotFoundPage />;
   if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;
@@ -153,7 +156,7 @@ function ProductDetailContent() {
                   <div className="store-detail-kicker mb-2">
                     {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
                   </div>
-                  <h2 className="store-detail-title mb-2">{product.name}</h2>
+                  <h1 className="store-detail-title mb-2">{product.name}</h1>
                   <p className="text-muted-soft store-section-desc mb-0">
                     {product.description || (product.type === "MADE_TO_ORDER"
                       ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."

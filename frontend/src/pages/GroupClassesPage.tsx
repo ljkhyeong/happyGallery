@@ -4,6 +4,7 @@ import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import type { WorkshopProfileResponse } from "@/generated/api/workshop";
 
 const PROCESS = [
   ["01", "수업 문의", "참여 인원과 장소, 희망 일정과 관심 공예를 알려주세요."],
@@ -11,15 +12,14 @@ const PROCESS = [
   ["03", "함께 만들기", "준비한 재료로 각자의 작품을 완성하는 시간을 진행합니다."],
 ] as const;
 
-export function GroupClassesPage() {
+export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: WorkshopProfileResponse }) {
   const toast = useToast();
   const {
     data: workshop,
-    isLoading,
-    isFetching,
     error,
-    refetch,
-  } = useWorkshopProfile();
+    isLoading,
+    query: { isFetching, refetch },
+  } = useWorkshopProfile(initialWorkshop);
   const inquiryHref = workshop?.naverTalkUrl;
   const kakaoTalkId = workshop?.kakaoTalkId;
   const phone = workshop?.phone;

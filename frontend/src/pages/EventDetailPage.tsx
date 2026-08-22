@@ -1,30 +1,34 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Badge, Container } from "react-bootstrap";
-import { Link, useParams } from "react-router";
-import { fetchEvent } from "@/features/event/api";
+import { Link } from "react-router";
+import { fetchEvent, type EventResponse } from "@/features/event/api";
 import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
-import { ApiError, queryKeys } from "@/shared/api";
-import { formatDateTime, isPositiveSafeIntegerString } from "@/shared/lib";
+import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
+import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
-export function EventDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const eventId = Number(id);
-  const validEventId = isPositiveSafeIntegerString(id);
-  const eventQuery = useQuery({
-    queryKey: queryKeys.events.detail(eventId),
+export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse }) {
+  const eventId = initialEvent.id;
+  const eventQueryKey = useMemo(
+    () => queryKeys.events.detail(eventId),
+    [eventId],
+  );
+  const {
+    data: event,
+    error,
+    isLoading,
+    query: eventQuery,
+  } = useLoaderBackedQuery({
+    queryKey: eventQueryKey,
     queryFn: ({ signal }) => fetchEvent(eventId, signal),
-    enabled: validEventId,
     retry: (failureCount, error) => !isNotFoundError(error) && failureCount < 3,
     refetchInterval: ({ state }) => state.error
       ? false
       : eventRefetchInterval(state.data ? [state.data] : undefined),
-  });
+  }, initialEvent);
 
-  if (!validEventId || isNotFoundError(eventQuery.error)) return <NotFoundPage />;
-
-  const event = eventQuery.data;
+  if (isNotFoundError(error)) return <NotFoundPage />;
 
   return (
     <Container className="page-container" style={{ maxWidth: 900 }}>
@@ -32,9 +36,9 @@ export function EventDetailPage() {
         &larr; 이벤트 목록
       </Link>
 
-      {eventQuery.isLoading && <LoadingSpinner text="이벤트를 불러오는 중입니다" />}
+      {isLoading && <LoadingSpinner text="이벤트를 불러오는 중입니다" />}
       <ErrorAlert
-        error={eventQuery.error}
+        error={error}
         onRetry={() => void eventQuery.refetch()}
         retrying={eventQuery.isFetching}
       />

@@ -7,14 +7,16 @@
     "node": ">=22.22.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "react-router dev",
+    "build": "react-router typegen && tsc -b && react-router build",
+    "start": "node ./server.mjs",
+    "typecheck": "react-router typegen && tsc -b",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "lint": "eslint . --max-warnings 0",
     "audit:dependencies": "npm audit --audit-level=high",
     "api:generate": "rm -rf src/generated/api && orval --config orval.config.ts",
     "api:check": "npm run api:generate && git diff --exit-code -- src/generated/api && test -z \"$(git ls-files --others --exclude-standard -- src/generated/api)\"",
-    "preview": "vite preview",
+    "preview": "npm run start",
     "e2e": "PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1 playwright test --grep @smoke",
     "e2e:full": "playwright test",
     "e2e:payment": "PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1 playwright test --grep @payment",
@@ -25,9 +27,14 @@
     "e2e:install": "playwright install chromium"
   },
   "dependencies": {
+    "@react-router/express": "^8.3.0",
+    "@react-router/node": "^8.3.0",
     "@sentry/react": "^10.43.0",
     "@tanstack/react-query": "^5.90.21",
     "bootstrap": "^5.3.8",
+    "compression": "^1.8.1",
+    "express": "^5.2.1",
+    "isbot": "^5.2.1",
     "lucide-react": "^1.25.0",
     "react": "^19.2.8",
     "react-bootstrap": "^2.10.10",
@@ -37,10 +44,10 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.2",
+    "@react-router/dev": "^8.3.0",
     "@types/node": "^25.3.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^10.7.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.7.0",
@@ -48,7 +55,7 @@
     "sass-embedded": "^1.97.3",
     "typescript": "~5.7.0",
     "typescript-eslint": "^8.65.0",
-    "vite": "^6.2.0"
+    "vite": "^7.3.6"
   },
   "overrides": {
     "js-yaml": "^4.3.0"

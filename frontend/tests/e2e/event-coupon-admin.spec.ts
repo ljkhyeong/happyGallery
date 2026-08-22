@@ -1,7 +1,16 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "event-coupon-admin-token";
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -43,14 +52,19 @@ test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 
     relatedProductIds: [],
   };
 
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture("/events", [upcomingEvent, endedEvent]),
+    ssrApiFixture("/events/21", upcomingEvent),
+  );
+
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/events") {
-      await fulfillJson(route, [upcomingEvent, endedEvent]);
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/events/21") {
-      await fulfillJson(route, upcomingEvent);
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/workshop") {
@@ -98,6 +112,8 @@ test("열어 둔 이벤트가 종료되면 상세를 404로 전환하고 반복 
     version: 1,
   };
 
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/events/23", expiringEvent));
+
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/events/23") {
@@ -130,6 +146,25 @@ test("열어 둔 이벤트가 종료되면 상세를 404로 전환하고 반복 
 });
 
 test("이벤트 상세에서 이탈하면 진행 중인 상세 요청을 브라우저에서 취소한다", async ({ page }) => {
+  const now = new Date("2026-08-08T01:00:00Z");
+  await page.clock.install({ time: now });
+  const initialEvent = {
+    id: 24,
+    title: "요청 취소 확인 이벤트",
+    summary: "상세 요청 취소를 확인합니다.",
+    content: "이벤트 상세 내용",
+    imageUrl: null,
+    startAt: new Date(now.getTime() - 60_000).toISOString(),
+    endAt: new Date(now.getTime() + 4_000).toISOString(),
+    published: true,
+    featured: false,
+    relatedProductIds: [],
+    version: 1,
+  };
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture("/events/24", initialEvent),
+    ssrApiFixture("/events", []),
+  );
   let notifyDetailRequestStarted: (() => void) | undefined;
   const detailRequestStarted = new Promise<void>((resolve) => {
     notifyDetailRequestStarted = resolve;
@@ -156,6 +191,7 @@ test("이벤트 상세에서 이탈하면 진행 중인 상세 요청을 브라�
   });
 
   await page.goto("/events/24");
+  await page.clock.fastForward(4_250);
   await detailRequestStarted;
   await page.getByRole("link", { name: "이벤트 목록" }).click();
 

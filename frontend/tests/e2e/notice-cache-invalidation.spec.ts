@@ -1,6 +1,20 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  homeSsrFixtures,
+  replaceSsrUpstreamFixtures,
+} from "./ssr-upstream-fixture";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
+const workshop = {
+  name: "해피갤러리",
+  updatedAt: "2026-08-08T10:00:00",
+  version: 1,
+};
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -17,13 +31,25 @@ async function navigateInApp(page: Page, path: string) {
   }, path);
 }
 
-test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 조회한다", async ({ page }) => {
-  let publicNoticeReads = 0;
+test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최신 내용을 표시한다", async ({ page }) => {
   let publicTitle = "변경 전 공지";
+  let publicVersion = 1;
+  const updatePublicHomeFixture = () => replaceSsrUpstreamFixtures(...homeSsrFixtures({
+    workshop,
+    notices: [{
+      id: 1,
+      title: publicTitle,
+      pinned: true,
+      viewCount: 0,
+      version: publicVersion,
+      createdAt: "2026-08-08T10:00:00",
+    }],
+  }));
 
   await page.addInitScript(([key, token]) => {
     sessionStorage.setItem(key, token);
   }, [ADMIN_TOKEN_KEY, "notice-cache-admin-token"] as const);
+  await updatePublicHomeFixture();
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -37,15 +63,7 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 �
       return;
     }
     if (pathname === "/api/v1/notices") {
-      publicNoticeReads += 1;
-      await fulfillJson(route, [{
-        id: 1,
-        title: publicTitle,
-        pinned: true,
-        viewCount: 0,
-        version: publicNoticeReads,
-        createdAt: "2026-08-08T10:00:00",
-      }]);
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/admin/notices" && request.method() === "GET") {
@@ -55,6 +73,8 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 �
     if (pathname === "/api/v1/admin/notices" && request.method() === "POST") {
       const body = request.postDataJSON() as { title: string };
       publicTitle = body.title;
+      publicVersion += 1;
+      await updatePublicHomeFixture();
       await fulfillJson(route, {
         id: 2,
         ...body,
@@ -72,15 +92,13 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 �
       return;
     }
     if (pathname === "/api/v1/workshop") {
-      await fulfillJson(route, {
-        name: "해피갤러리",
-        updatedAt: "2026-08-08T10:00:00",
-        version: 1,
-      });
+      await route.fallback();
       return;
     }
-    if (pathname === "/api/v1/products" || pathname === "/api/v1/classes") {
-      await fulfillJson(route, []);
+    if (pathname === "/api/v1/products"
+      || pathname === "/api/v1/classes"
+      || pathname === "/api/v1/events") {
+      await route.fallback();
       return;
     }
 
@@ -89,7 +107,6 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 �
 
   await page.goto("/");
   await expect(page.getByText("변경 전 공지", { exact: true })).toBeVisible();
-  expect(publicNoticeReads).toBe(1);
 
   await navigateInApp(page, "/admin?view=support");
   await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
@@ -101,5 +118,4 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 캐시도 즉시 다시 �
 
   await navigateInApp(page, "/");
   await expect(page.getByText("변경 후 공지", { exact: true })).toBeVisible();
-  expect(publicNoticeReads).toBe(2);
 });

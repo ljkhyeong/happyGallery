@@ -1,24 +1,23 @@
 import { Badge } from "react-bootstrap";
 import { Link } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import { fetchNotices } from "./api";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import type { NoticeListResponse } from "@/generated/api/notice";
 
-export function NoticeListWidget() {
+export function NoticeListWidget({ initialNotices }: { initialNotices: NoticeListResponse[] }) {
   const {
     data: notices,
     error,
     isLoading,
-    isFetching,
-    refetch,
-  } = useQuery({
+    query: { isFetching, refetch },
+  } = useLoaderBackedQuery({
     queryKey: queryKeys.notices.all,
     queryFn: fetchNotices,
     staleTime: PUBLIC_DATA_STALE_TIME,
-  });
+  }, initialNotices);
 
   const recent = notices?.slice(0, 5) ?? [];
 

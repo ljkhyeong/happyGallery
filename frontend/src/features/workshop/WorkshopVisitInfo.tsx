@@ -6,7 +6,11 @@ interface Props {
 }
 
 export function WorkshopVisitInfo({ compact = false }: Props) {
-  const { data: profile, error, isFetching, refetch } = useWorkshopProfile();
+  const {
+    data: profile,
+    error,
+    query: { isFetching, refetch },
+  } = useWorkshopProfile();
   if (!profile && error) {
     return (
       <ErrorAlert

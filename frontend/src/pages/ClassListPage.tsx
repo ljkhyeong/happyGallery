@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import leatherClass from "@/assets/happygallery/leather-class.jpg";
@@ -8,13 +7,19 @@ import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
+import type { ClassResponse } from "@/generated/api/booking";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
-export function ClassListPage() {
-  const classesQuery = useQuery({
-    queryKey: ["classes"],
+export function ClassListPage({ initialClasses }: { initialClasses: ClassResponse[] }) {
+  const {
+    data: classes,
+    error: classesError,
+    isLoading: classesLoading,
+  } = useLoaderBackedQuery({
+    queryKey: queryKeys.catalog.classes,
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
-  });
+  }, initialClasses);
   const heroStyle = { "--hg-class-hero-image": `url(${leatherClass})` } as CSSProperties;
 
   return (
@@ -38,12 +43,12 @@ export function ClassListPage() {
           <LinkButton to="/group-classes" variant="outline-dark">단체수업 문의</LinkButton>
         </header>
 
-        {classesQuery.isLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
-        <ErrorAlert error={classesQuery.error} />
-        {classesQuery.data?.length === 0 && <EmptyState message="예약 가능한 클래스를 준비하고 있습니다." />}
+        {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
+        <ErrorAlert error={classesError} />
+        {classes?.length === 0 && <EmptyState message="예약 가능한 클래스를 준비하고 있습니다." />}
 
         <div className="class-catalog-list">
-          {classesQuery.data?.map((bookingClass, index) => (
+          {classes?.map((bookingClass, index) => (
             <article
               className={bookingClass.imageUrl ? "class-catalog-item has-media" : "class-catalog-item"}
               key={bookingClass.id}

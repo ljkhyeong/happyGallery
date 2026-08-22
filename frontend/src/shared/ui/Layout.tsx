@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, Link, useLocation } from "react-router";
+import { Outlet, Link, useLocation, useMatches } from "react-router";
 import { Container, Navbar, Nav } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CartBadge } from "@/features/cart/CartBadge";
@@ -8,6 +8,7 @@ import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
 import { ErrorAlert } from "./ErrorAlert";
+import type { WorkshopProfile } from "@/shared/types";
 
 const NAV_ITEMS = [
   { path: "/classes", label: "클래스" },
@@ -27,8 +28,19 @@ function isMainNavActive(pathname: string, itemPath: string): boolean {
     || (itemPath === "/classes" && isActive(pathname, "/bookings/new"));
 }
 
+function initialWorkshopFromMatches(
+  matches: ReturnType<typeof useMatches>,
+): WorkshopProfile | undefined {
+  const match = matches.find(({ loaderData }) =>
+    typeof loaderData === "object"
+    && loaderData !== null
+    && "workshop" in loaderData);
+  return (match?.loaderData as { workshop?: WorkshopProfile } | undefined)?.workshop;
+}
+
 export function Layout() {
   const { pathname } = useLocation();
+  const matches = useMatches();
   const {
     user,
     status: authStatus,
@@ -44,9 +56,11 @@ export function Layout() {
   const {
     data: workshop,
     error: workshopError,
-    isFetching: workshopFetching,
-    refetch: refetchWorkshop,
-  } = useWorkshopProfile();
+    query: {
+      isFetching: workshopFetching,
+      refetch: refetchWorkshop,
+    },
+  } = useWorkshopProfile(initialWorkshopFromMatches(matches));
 
   const handleLogout = async () => {
     setLoggingOut(true);

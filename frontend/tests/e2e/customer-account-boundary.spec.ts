@@ -1,4 +1,9 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 interface Customer {
   id: number;
@@ -10,6 +15,43 @@ interface Customer {
 }
 
 const EMPTY_CART_VERSION = "0".repeat(64);
+const EMPTY_REVIEW_PAGE = {
+  content: [],
+  filteredCount: 0,
+  hasMore: false,
+  nextCursor: null,
+  summary: {
+    averageRating: 0,
+    histogram: {
+      rating1: 0,
+      rating2: 0,
+      rating3: 0,
+      rating4: 0,
+      rating5: 0,
+    },
+    reviewCount: 0,
+  },
+};
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
+
+function productFixture(name: string) {
+  return {
+    id: 42,
+    name,
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 30000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+}
 
 const customerA: Customer = {
   id: 101,
@@ -60,6 +102,8 @@ async function loginInPage(page: Page, customer: Customer) {
 test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력을 유지한다", async ({
   page,
 }) => {
+  const product = productFixture("비회원 입력 유지 작품");
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   let releaseMe: (() => void) | undefined;
   const meRelease = new Promise<void>((resolve) => {
     releaseMe = resolve;
@@ -77,19 +121,11 @@ test("@identity 최초 비회원 확인이 늦게 끝나도 공개 화면 입력
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "비회원 입력 유지 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/42/qna/92") {
@@ -200,6 +236,9 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
     });
   });
 
+  const product = productFixture("지연 결제 테스트 작품");
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
+
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -237,19 +276,11 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "지연 결제 테스트 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page"
@@ -660,6 +691,9 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     });
   });
 
+  const product = productFixture("탭 경계 테스트 작품");
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
+
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -701,19 +735,11 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "탭 경계 테스트 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (
@@ -1189,6 +1215,8 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
   }
 
   let currentCustomer: Customer | null = customerA;
+  const product = productFixture("계정 경계 테스트 작품");
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   await page.context().addCookies([{
     name: "XSRF-TOKEN",
     value: "customer-boundary-test-token",
@@ -1229,6 +1257,19 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       await fulfillJson(route, { count: 0 });
       return;
     }
+    if (pathname === "/api/v1/me/coupons") {
+      await fulfillJson(route, []);
+      return;
+    }
+    if (pathname === "/api/v1/me/rewards") {
+      await fulfillJson(route, {
+        availableBalance: 0,
+        debtBalance: 0,
+        history: [],
+        reservedBalance: 0,
+      });
+      return;
+    }
     if (pathname === "/api/v1/workshop") {
       await fulfillJson(route, {
         name: "해피갤러리",
@@ -1255,19 +1296,11 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "계정 경계 테스트 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/products/42/reviews") {
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {

@@ -1,35 +1,37 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { Badge, Card, Col, Container, Row } from "react-bootstrap";
-import { Link, useParams } from "react-router";
-import { getPublicClass } from "@/generated/api/booking";
+import { Link } from "react-router";
+import { getPublicClass, type ClassResponse } from "@/generated/api/booking";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { formatKRW, isPositiveSafeIntegerString } from "@/shared/lib";
+import { formatKRW } from "@/shared/lib";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
-import { NotFoundPage } from "@/pages/NotFoundPage";
 
-export function ClassDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const classId = Number(id);
-  const validClassId = isPositiveSafeIntegerString(id);
-  const classQuery = useQuery({
-    queryKey: queryKeys.catalog.classDetail(classId),
+export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse }) {
+  const classId = initialClass.id;
+  const classQueryKey = useMemo(
+    () => queryKeys.catalog.classDetail(classId),
+    [classId],
+  );
+  const {
+    data: bookingClass,
+    error,
+    isLoading,
+  } = useLoaderBackedQuery({
+    queryKey: classQueryKey,
     queryFn: ({ signal }) => getPublicClass(classId, { signal }),
-    enabled: validClassId,
     staleTime: REFERENCE_DATA_STALE_TIME,
-  });
+  }, initialClass);
 
-  if (!validClassId) return <NotFoundPage />;
-  if (classQuery.isLoading) {
+  if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
-  if (classQuery.error) {
-    return <Container className="page-container"><ErrorAlert error={classQuery.error} /></Container>;
+  if (error) {
+    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
-  if (!classQuery.data) return null;
+  if (!bookingClass) return null;
 
-  const bookingClass = classQuery.data;
   return (
     <Container className="page-container class-detail-page">
       <nav className="store-detail-breadcrumb" aria-label="경로">

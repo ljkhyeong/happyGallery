@@ -1,6 +1,16 @@
 import { expect, test, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  homeSsrFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -22,8 +32,11 @@ const workshop = {
   kakaoTalkId: "happygallery",
 };
 
-test("공방 정보 조회 실패는 문의 채널 부재로 단정하지 않고 다시 조회한다", async ({ page }) => {
-  let workshopAttempts = 0;
+test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문서 요청에서 복구한다", async ({ page }) => {
+  await replaceSsrUpstreamFixtures({
+    ...ssrApiFixture("/workshop", temporaryError),
+    status: 503,
+  });
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -33,12 +46,7 @@ test("공방 정보 조회 실패는 문의 채널 부재로 단정하지 않고
       return;
     }
     if (pathname === "/api/v1/workshop") {
-      workshopAttempts += 1;
-      await fulfillJson(
-        route,
-        workshopAttempts <= 2 ? temporaryError : workshop,
-        workshopAttempts <= 2 ? 503 : 200,
-      );
+      await route.fallback();
       return;
     }
 
@@ -46,18 +54,24 @@ test("공방 정보 조회 실패는 문의 채널 부재로 단정하지 않고
   });
 
   await page.goto("/group-classes");
-  const inquirySection = page.locator(".group-class-inquiry");
-  await expect(inquirySection.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(inquirySection.getByText("수업 문의 채널을 준비하고 있습니다.")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "페이지를 불러오지 못했습니다" })).toBeVisible();
+  await expect(page.getByText("수업 문의 채널을 준비하고 있습니다.")).toHaveCount(0);
 
-  await inquirySection.getByRole("button", { name: "다시 시도" }).click();
-  await expect(inquirySection.getByRole("link", { name: /전화 문의 010-9635-5608/ }))
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/workshop", workshop));
+  await page.reload();
+  await expect(page.getByRole("link", { name: /전화 문의 010-9635-5608/ }))
     .toBeVisible();
 });
 
 test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨기지 않는다", async ({ page }) => {
-  let categoryAttempts = 0;
   let policyAttempts = 0;
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture("/products", []),
+    {
+      ...ssrApiFixture("/products/categories", temporaryError),
+      status: 503,
+    },
+  );
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -71,16 +85,11 @@ test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨
       return;
     }
     if (pathname === "/api/v1/products/categories") {
-      categoryAttempts += 1;
-      await fulfillJson(
-        route,
-        categoryAttempts <= 2 ? temporaryError : ["LEATHER"],
-        categoryAttempts <= 2 ? 503 : 200,
-      );
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/products") {
-      await fulfillJson(route, []);
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/payments/pass-policy") {
@@ -99,13 +108,17 @@ test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨
   });
 
   await page.goto("/products");
-  await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await page.getByRole("button", { name: "다시 시도" }).click();
+  await expect(page.getByRole("heading", { name: "페이지를 불러오지 못했습니다" })).toBeVisible();
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture("/products", []),
+    ssrApiFixture("/products/categories", ["LEATHER"]),
+  );
+  await page.reload();
   await expect(page.getByLabel("카테고리").getByRole("option", { name: "LEATHER" }))
     .toHaveCount(1);
 
   await page.goto("/passes/purchase");
-  await expect(page.getByText("이용 기간은 서버 판매 정책을 확인한 뒤 표시합니다."))
+  await expect(page.getByText("이용 기간은 판매 정책을 확인한 뒤 표시합니다."))
     .toBeVisible();
   await expect(page.getByText(/결제일 포함 90일/)).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();
@@ -114,6 +127,8 @@ test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨
 
 test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 복구한다", async ({ page }) => {
   let unreadAttempts = 0;
+
+  await replaceSsrUpstreamFixtures(...homeSsrFixtures({ workshop }));
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());

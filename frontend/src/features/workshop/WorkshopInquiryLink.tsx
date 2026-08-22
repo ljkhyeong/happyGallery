@@ -10,7 +10,11 @@ interface Props {
 }
 
 export function WorkshopInquiryLink({ className, desiredDate }: Props) {
-  const { data: workshop, error, isFetching, refetch } = useWorkshopProfile();
+  const {
+    data: workshop,
+    error,
+    query: { isFetching, refetch },
+  } = useWorkshopProfile();
   if (!workshop && error) {
     return (
       <ErrorAlert

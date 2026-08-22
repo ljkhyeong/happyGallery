@@ -1,5 +1,4 @@
 import type { CSSProperties } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
@@ -17,6 +16,12 @@ import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/
 import { formatKRW } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
+import type { ClassResponse } from "@/generated/api/booking";
+import type { EventResponse } from "@/generated/api/event";
+import type { NoticeListResponse } from "@/generated/api/notice";
+import type { ProductDetailResponse } from "@/generated/api/product";
+import type { WorkshopProfileResponse } from "@/generated/api/workshop";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
 const CRAFT_SPECIALTIES = [
   "빈티지 가죽공예",
@@ -48,21 +53,43 @@ const BLOG_STORIES = [
   },
 ] as const;
 
-export function HomePage() {
-  const productsQuery = useQuery({
-    queryKey: ["products"],
+interface HomePageProps {
+  initialProducts: ProductDetailResponse[];
+  initialClasses: ClassResponse[];
+  initialEvents: EventResponse[];
+  initialNotices: NoticeListResponse[];
+  initialWorkshop: WorkshopProfileResponse;
+}
+
+export function HomePage({
+  initialProducts,
+  initialClasses,
+  initialEvents,
+  initialNotices,
+  initialWorkshop,
+}: HomePageProps) {
+  const {
+    data: products,
+    error: productsError,
+    isLoading: productsLoading,
+  } = useLoaderBackedQuery({
+    queryKey: queryKeys.catalog.products,
     queryFn: () => fetchProducts(),
     staleTime: PUBLIC_DATA_STALE_TIME,
-  });
-  const classesQuery = useQuery({
-    queryKey: ["classes"],
+  }, initialProducts);
+  const {
+    data: classes,
+    error: classesError,
+    isLoading: classesLoading,
+  } = useLoaderBackedQuery({
+    queryKey: queryKeys.catalog.classes,
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
-  });
-  const { data: workshop } = useWorkshopProfile();
+  }, initialClasses);
+  const { data: workshop } = useWorkshopProfile(initialWorkshop);
 
-  const featuredProducts = productsQuery.data?.filter((product) => product.available).slice(0, 6) ?? [];
-  const featuredClasses = classesQuery.data?.slice(0, 4) ?? [];
+  const featuredProducts = products?.filter((product) => product.available).slice(0, 6) ?? [];
+  const featuredClasses = classes?.slice(0, 4) ?? [];
   const heroStyle = { "--hg-hero-image": `url(${heroWorkshop})` } as CSSProperties;
   const blogUrl = workshop?.naverBlogUrl;
 
@@ -88,7 +115,7 @@ export function HomePage() {
         </Container>
       </section>
 
-      <FeaturedEventWidget />
+      <FeaturedEventWidget initialEvents={initialEvents} />
 
       <section className="home-band home-class-section anim-fade-up">
         <Container>
@@ -114,12 +141,12 @@ export function HomePage() {
               <img src={leatherClass} alt="해피갤러리 가죽공예 수업" />
             </figure>
             <div className="home-class-list">
-              {classesQuery.isLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
-              <ErrorAlert error={classesQuery.error} />
+              {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
+              <ErrorAlert error={classesError} />
               {featuredClasses.map((bookingClass) => (
                 <Link
                   key={bookingClass.id}
-                  to={`/bookings/new?classId=${bookingClass.id}`}
+                  to={`/classes/${bookingClass.id}`}
                   className="home-class-row"
                 >
                   <div>
@@ -129,7 +156,7 @@ export function HomePage() {
                   <span aria-hidden="true">↗</span>
                 </Link>
               ))}
-              {!classesQuery.isLoading && !classesQuery.error && featuredClasses.length === 0 && (
+              {!classesLoading && !classesError && featuredClasses.length === 0 && (
                 <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
               )}
             </div>
@@ -194,8 +221,8 @@ export function HomePage() {
               모든 작품 보기 <span aria-hidden="true">→</span>
             </Link>
           </div>
-          {productsQuery.isLoading && <LoadingSpinner />}
-          <ErrorAlert error={productsQuery.error} />
+          {productsLoading && <LoadingSpinner />}
+          <ErrorAlert error={productsError} />
           {featuredProducts.length > 0 && (
             <Row xs={1} sm={2} md={3} className="g-4">
               {featuredProducts.map((product) => (
@@ -203,14 +230,14 @@ export function HomePage() {
               ))}
             </Row>
           )}
-          {!productsQuery.isLoading && !productsQuery.error && featuredProducts.length === 0 && (
+          {!productsLoading && !productsError && featuredProducts.length === 0 && (
             <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
           )}
         </Container>
       </section>
 
       <section className="home-band home-notice-section anim-fade-up">
-        <Container><NoticeListWidget /></Container>
+        <Container><NoticeListWidget initialNotices={initialNotices} /></Container>
       </section>
 
       <section className="home-band home-workshop-section anim-fade-up">

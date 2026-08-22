@@ -10,7 +10,7 @@ const typescriptRecommended = [
 
 export default tseslint.config(
   {
-    ignores: ["dist", "src/generated"],
+    ignores: ["build", "dist", ".react-router", "src/generated"],
   },
   {
     files: ["src/**/*.{ts,tsx}"],
@@ -28,8 +28,16 @@ export default tseslint.config(
     },
   },
   {
-    files: ["*.config.ts", "tests/**/*.ts"],
+    files: ["*.config.ts", "tests/**/*.{ts,mjs}"],
     extends: typescriptRecommended,
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: globals.node,
+    },
+  },
+  {
+    files: ["server.mjs"],
+    extends: [js.configs.recommended],
     languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,

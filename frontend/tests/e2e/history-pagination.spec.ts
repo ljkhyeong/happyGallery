@@ -1,4 +1,13 @@
 import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -108,25 +117,28 @@ test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 �
 test("공개 Q&A 더 보기는 같은 크기의 내 Q&A 페이지도 함께 전진시켜 비밀글 소유권을 판정한다", async ({ page }) => {
   const publicCursors: Array<string | null> = [];
   const ownerCursors: Array<string | null> = [];
+  const product = {
+    id: 42,
+    name: "페이지 Q&A 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 12000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
   await page.route("**/api/v1/**", async (route) => {
     if (await fulfillCommon(route)) return;
 
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "페이지 Q&A 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 12000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
       return;
     }
     if (url.pathname === "/api/v1/products/42/reviews") {

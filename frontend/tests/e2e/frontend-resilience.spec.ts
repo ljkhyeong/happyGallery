@@ -1,6 +1,16 @@
 import { expect, test, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  homeSsrFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -283,11 +293,25 @@ test("@identity sessionStorage가 차단된 소셜 callback은 기본 경로로 
   await expect(page.getByRole("link", { name: "소셜 콜백 회원" })).toBeVisible();
 });
 
-test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시도를 표시한다", async ({
+test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로 응답한다", async ({
   page,
 }) => {
   let qnaAttempts = 0;
-  let noticeAttempts = 0;
+  const product = {
+    id: 42,
+    name: "오류 복구 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 12000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -301,19 +325,7 @@ test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시�
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "오류 복구 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 12000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {
@@ -349,15 +361,6 @@ test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시�
       });
       return;
     }
-    if (pathname === "/api/v1/notices") {
-      noticeAttempts += 1;
-      await fulfillJson(
-        route,
-        noticeAttempts <= 2 ? temporaryError : [],
-        noticeAttempts <= 2 ? 503 : 200,
-      );
-      return;
-    }
     if (pathname === "/api/v1/products" || pathname === "/api/v1/classes") {
       await fulfillJson(route, []);
       return;
@@ -373,12 +376,14 @@ test("공개 Q&A와 공지 조회 실패는 빈 상태 대신 오류와 재시�
   await qnaSection.getByRole("button", { name: "다시 시도" }).click();
   await expect(qnaSection.getByText("등록된 Q&A가 없습니다.")).toBeVisible();
 
+  const homeFixtures = homeSsrFixtures({ workshop: { name: "해피갤러리" } })
+    .map((fixture) => fixture.path === "/api/v1/notices"
+      ? { ...fixture, status: 503, json: temporaryError }
+      : fixture);
+  await replaceSsrUpstreamFixtures(...homeFixtures);
   await page.goto("/");
-  const noticeSection = page.locator("section").filter({ hasText: "공지사항" }).last();
-  await expect(noticeSection.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(noticeSection.getByText("공지사항이 없습니다.")).toHaveCount(0);
-  await noticeSection.getByRole("button", { name: "다시 시도" }).click();
-  await expect(noticeSection.getByText("공지사항이 없습니다.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "페이지를 불러오지 못했습니다" })).toBeVisible();
+  await expect(page.getByText("공지사항이 없습니다.")).toHaveCount(0);
 });
 
 test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 단정하지 않고 다시 조회한다", async ({

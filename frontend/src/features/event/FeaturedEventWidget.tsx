@@ -1,33 +1,38 @@
-import { useQuery } from "@tanstack/react-query";
 import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvents } from "./api";
 import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import type { EventResponse } from "./api";
 
-export function FeaturedEventWidget() {
-  const eventsQuery = useQuery({
+export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventResponse[] }) {
+  const {
+    data: events,
+    error,
+    isLoading,
+    query: eventsQuery,
+  } = useLoaderBackedQuery({
     queryKey: queryKeys.events.all,
     queryFn: ({ signal }) => fetchEvents(signal),
     staleTime: PUBLIC_DATA_STALE_TIME,
     refetchInterval: ({ state }) => eventRefetchInterval(state.data),
-  });
-  const featuredEvents = eventsQuery.data?.filter(
+  }, initialEvents);
+  const featuredEvents = events?.filter(
     (event) => event.featured && isEventAvailable(event),
   ) ?? [];
   const featured = featuredEvents.find((event) => isEventOngoing(event)) ?? featuredEvents[0];
 
-  if (!eventsQuery.isLoading && !eventsQuery.error && !featured) return null;
+  if (!isLoading && !error && !featured) return null;
 
   return (
     <section className="home-band anim-fade-up">
       <Container>
-        {eventsQuery.isLoading && <LoadingSpinner text="이벤트를 불러오는 중입니다" />}
+        {isLoading && <LoadingSpinner text="이벤트를 불러오는 중입니다" />}
         <ErrorAlert
-          error={eventsQuery.error}
+          error={error}
           onRetry={() => void eventsQuery.refetch()}
           retrying={eventsQuery.isFetching}
         />

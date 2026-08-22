@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
-import {
-  queryClient,
-  queryKeys,
-  runForCurrentCustomer,
-} from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
@@ -31,6 +27,7 @@ export function GuestClaimModal({
   monitoringSource,
 }: Props) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const openTrackedRef = useRef(false);
   const [previewOverride, setPreviewOverride] = useState<Awaited<ReturnType<typeof getGuestClaimPreview>> | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);

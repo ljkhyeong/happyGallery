@@ -137,6 +137,8 @@ export function discardGuestCartMergeRequestWhileLocked(): GuestCartMergeRequest
 }
 
 export function readGuestCartItems(): GuestCartItem[] {
+  if (typeof window === "undefined") return [];
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -165,7 +167,7 @@ function persistGuestCartItemsWhileLocked(items: GuestCartItem[]) {
 }
 
 export function useGuestCart() {
-  const [items, setItems] = useState<GuestCartItem[]>(readGuestCartItems);
+  const [items, setItems] = useState<GuestCartItem[]>([]);
 
   useEffect(() => {
     const synchronizeGuestCart = (event: StorageEvent) => {
@@ -178,6 +180,7 @@ export function useGuestCart() {
       setItems(readGuestCartItems());
     };
 
+    setItems(readGuestCartItems());
     window.addEventListener("storage", synchronizeGuestCart);
     return () => window.removeEventListener("storage", synchronizeGuestCart);
   }, []);

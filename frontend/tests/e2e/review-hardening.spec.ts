@@ -1,4 +1,9 @@
 import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const EMPTY_CART_VERSION = "0".repeat(64);
@@ -6,6 +11,10 @@ const ONE_PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
 );
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -498,6 +507,21 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     averageRating: 5,
     histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 3 },
   };
+  const product = {
+    id: 42,
+    name: "페이지 반응 검증 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 12000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -528,19 +552,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "페이지 반응 검증 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 12000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/orders/policy") {

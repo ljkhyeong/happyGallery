@@ -2,20 +2,46 @@ import { defineConfig } from "@playwright/test";
 
 const frontendPort = Number(process.env.PLAYWRIGHT_FRONTEND_PORT ?? 3000);
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${frontendPort}`;
+const frontendHealthUrl = new URL("/healthz", baseURL).toString();
 const mfaFrontendPort = Number(
   process.env.PLAYWRIGHT_MFA_FRONTEND_PORT ?? frontendPort + 2,
 );
 const mfaBaseURL = process.env.PLAYWRIGHT_MFA_BASE_URL
   ?? `http://127.0.0.1:${mfaFrontendPort}`;
+const mfaFrontendHealthUrl = new URL("/healthz", mfaBaseURL).toString();
 const skipMfaWebServer = process.env.PLAYWRIGHT_SKIP_MFA_WEB_SERVER === "1";
+const ssrUpstreamPort = Number(
+  process.env.PLAYWRIGHT_SSR_UPSTREAM_PORT ?? frontendPort + 1,
+);
+const ssrUpstreamOrigin = process.env.PLAYWRIGHT_SSR_UPSTREAM_ORIGIN
+  ?? `http://127.0.0.1:${ssrUpstreamPort}`;
+const backendOrigin = new URL(
+  process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1",
+).origin;
+
+const ssrUpstreamServer = {
+  command: "node tests/e2e/ssr-upstream.mjs",
+  env: {
+    ...process.env,
+    PLAYWRIGHT_SSR_UPSTREAM_PORT: String(ssrUpstreamPort),
+    PLAYWRIGHT_BACKEND_ORIGIN: backendOrigin,
+  },
+  url: `${ssrUpstreamOrigin}/__e2e/health`,
+  reuseExistingServer: !process.env.CI,
+  stdout: "ignore" as const,
+  stderr: "pipe" as const,
+  timeout: 120_000,
+};
 
 const sharedWebServer = {
   command: `npm run dev -- --host 127.0.0.1 --port ${frontendPort}`,
   env: {
     ...process.env,
+    INTERNAL_API_ORIGIN: ssrUpstreamOrigin,
+    VITE_API_TARGET: ssrUpstreamOrigin,
     VITE_TOSS_CLIENT_KEY: process.env.VITE_TOSS_CLIENT_KEY ?? "test_ck_e2e",
   },
-  url: baseURL,
+  url: frontendHealthUrl,
   reuseExistingServer: !process.env.CI,
   stdout: "ignore" as const,
   stderr: "pipe" as const,
@@ -26,10 +52,12 @@ const mfaWebServer = {
   command: `npm run dev -- --host 127.0.0.1 --port ${mfaFrontendPort}`,
   env: {
     ...process.env,
+    INTERNAL_API_ORIGIN: ssrUpstreamOrigin,
+    VITE_API_TARGET: ssrUpstreamOrigin,
     VITE_TOSS_CLIENT_KEY: process.env.VITE_TOSS_CLIENT_KEY ?? "test_ck_e2e",
     VITE_REQUIRE_ADMIN_MFA_ENROLLMENT: "true",
   },
-  url: mfaBaseURL,
+  url: mfaFrontendHealthUrl,
   reuseExistingServer: false,
   stdout: "ignore" as const,
   stderr: "pipe" as const,
@@ -66,5 +94,7 @@ export default defineConfig({
   },
   webServer: process.env.PLAYWRIGHT_SKIP_WEB_SERVER === "1"
     ? undefined
-    : skipMfaWebServer ? [sharedWebServer] : [sharedWebServer, mfaWebServer],
+    : skipMfaWebServer
+      ? [ssrUpstreamServer, sharedWebServer]
+      : [ssrUpstreamServer, sharedWebServer, mfaWebServer],
 });

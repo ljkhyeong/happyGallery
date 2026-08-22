@@ -1,7 +1,16 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const EMPTY_CART_VERSION = "0".repeat(64);
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -36,6 +45,21 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
   let memberListReads = 0;
   let publicDetailReads = 0;
   let memberDetailReads = 0;
+  const product = {
+    id: 42,
+    name: "Q&A 캐시 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 12000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+  };
+
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
   await page.addInitScript(([key, token]) => {
     sessionStorage.setItem(key, token);
@@ -77,19 +101,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       return;
     }
     if (pathname === "/api/v1/products/42") {
-      await fulfillJson(route, {
-        id: 42,
-        name: "Q&A 캐시 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 12000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      });
+      await route.fallback();
       return;
     }
     if (pathname === "/api/v1/products/42/reviews") {
