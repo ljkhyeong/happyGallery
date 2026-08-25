@@ -72,7 +72,7 @@ sudo k3s secrets-encrypt status
 
 `validate.sh`는 Ingress가 CSP를 중복 소유하지 않는지 검사한다. `verify.sh`는 실제 HTTPS 응답의 CSP nonce와 SSR inline script nonce가 같은지 확인한다. 허용 출처는 배포 전 실제 브라우저 콘솔에서 확인하며, 구조화 데이터 본문은 정적 hash 대신 같은 요청 nonce를 사용한다.
 
-frontend Deployment는 `INTERNAL_API_ORIGIN=http://app:8080`으로 공개 loader의 내부 API 대상을 고정한다. canonical·robots·sitemap의 대표 origin은 `frontend/src/shared/seo/metadata.ts`의 `https://happy-gallery.com` 한 곳에서 소유한다. manifest 렌더러는 `PUBLIC_HOST=happy-gallery.com`만 받아 Ingress·OAuth callback·SEO origin이 적용 전에 어괋나지 않게 한다. app ingress NetworkPolicy는 frontend Pod의 TCP 8080 접근만 명시적으로 허용한다.
+frontend Deployment는 `INTERNAL_API_ORIGIN=http://app:8080`으로 공개 loader의 내부 API 대상을 고정한다. canonical·robots·sitemap의 대표 origin은 `frontend/src/shared/seo/metadata.ts`의 `https://happy-gallery.com` 한 곳에서 소유한다. manifest 렌더러는 `PUBLIC_HOST=happy-gallery.com`만 받아 Ingress·OAuth callback·SEO origin이 모두 같은 주소를 사용하게 한다. app ingress NetworkPolicy는 frontend Pod의 TCP 8080 접근만 명시적으로 허용한다.
 
 ## 2. Secret 준비
 
