@@ -117,7 +117,7 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     }
 
     private static void requireExpectedVersion(CouponDefinition definition, long expectedVersion) {
-        if (expectedVersion < 0L || definition.getVersion() != expectedVersion) {
+        if (definition.getVersion() != expectedVersion) {
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT,
                     "다른 관리자가 쿠폰을 먼저 수정했습니다. 최신 내용을 다시 불러온 뒤 처리해주세요.");

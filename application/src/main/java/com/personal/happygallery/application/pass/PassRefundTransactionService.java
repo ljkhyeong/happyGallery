@@ -62,7 +62,7 @@ class PassRefundTransactionService {
     }
 
     private Optional<PassRefundResult> refundLockedPass(PassPurchase pass) {
-        if (expirationSupport.expireIfReached(pass).expired()) {
+        if (expirationSupport.expireIfReached(pass).isPresent()) {
             return Optional.empty();
         }
 

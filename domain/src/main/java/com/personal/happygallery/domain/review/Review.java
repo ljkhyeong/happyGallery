@@ -179,25 +179,29 @@ public class Review {
         LocalDateTime now = Objects.requireNonNull(updatedAt, "후기 수정 시각은 필수입니다.");
         applyContent(rating, content);
         this.editedAt = now;
-        recordContentChange(now);
+        recordContentChangeUnchecked(now);
     }
 
     public void recordContentChange(LocalDateTime changedAt) {
         requireActive();
+        recordContentChangeUnchecked(changedAt);
+    }
+
+    private void recordContentChangeUnchecked(LocalDateTime changedAt) {
         this.contentRevision = Math.addExact(contentRevision, 1L);
         this.updatedAt = Objects.requireNonNull(changedAt, "후기 콘텐츠 변경 시각은 필수입니다.");
     }
 
     public void requireContentRevision(long expectedContentRevision) {
         requireActive();
-        if (expectedContentRevision < 1L || contentRevision != expectedContentRevision) {
+        if (contentRevision != expectedContentRevision) {
             throw new HappyGalleryException(ErrorCode.REVIEW_CONTENT_CHANGED);
         }
     }
 
     public void requireVersion(long expectedVersion) {
         requireActive();
-        if (expectedVersion < 0L || version != expectedVersion) {
+        if (version != expectedVersion) {
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT,
                     "불러온 뒤 후기 운영 상태가 변경되었습니다. 최신 상태를 다시 확인해 주세요.");

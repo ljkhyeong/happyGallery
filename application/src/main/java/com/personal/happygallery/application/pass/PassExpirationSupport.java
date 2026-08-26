@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.OptionalInt;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,19 +29,14 @@ class PassExpirationSupport {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    ExpirationResult expireIfReached(PassPurchase pass) {
+    OptionalInt expireIfReached(PassPurchase pass) {
         LocalDateTime now = LocalDateTime.now(clock);
-        if (!pass.isExpiredAt(now)) {
-            return new ExpirationResult(false, 0);
-        }
-
-        int expiredCredits = pass.expireIfReached(now);
+        OptionalInt result = pass.expireIfReached(now);
+        int expiredCredits = result.orElse(0);
         if (expiredCredits > 0) {
             passLedgerStore.save(new PassLedger(pass, PassLedgerType.EXPIRE, expiredCredits));
             passPurchaseStore.save(pass);
         }
-        return new ExpirationResult(true, expiredCredits);
+        return result;
     }
-
-    record ExpirationResult(boolean expired, int expiredCredits) {}
 }

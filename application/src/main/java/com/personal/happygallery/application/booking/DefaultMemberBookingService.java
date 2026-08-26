@@ -2,7 +2,9 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
+import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
+import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
@@ -22,18 +24,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultMemberBookingService implements MemberBookingUseCase {
 
     private final BookingReaderPort bookingReaderPort;
+    private final BookingStorePort bookingStorePort;
     private final SlotCapacitySupport slotCapacitySupport;
     private final BookingCreationSupport creationSupport;
     private final MemberAccountGuard memberAccountGuard;
+    private final PassCreditService passCreditService;
 
     public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
+                                       BookingStorePort bookingStorePort,
                                        SlotCapacitySupport slotCapacitySupport,
                                        BookingCreationSupport creationSupport,
-                                       MemberAccountGuard memberAccountGuard) {
+                                       MemberAccountGuard memberAccountGuard,
+                                       PassCreditService passCreditService) {
         this.bookingReaderPort = bookingReaderPort;
+        this.bookingStorePort = bookingStorePort;
         this.slotCapacitySupport = slotCapacitySupport;
         this.creationSupport = creationSupport;
         this.memberAccountGuard = memberAccountGuard;
+        this.passCreditService = passCreditService;
     }
 
     /** 결제 prepare 단계에서 확정한 예약금과 잔금으로 회원 예약을 생성한다. */
@@ -68,11 +76,11 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     public Booking createMemberPassBooking(
             Long userId, Long slotId, Long passId, int participantCount) {
         User user = requireBookableMember(userId);
-        PassPurchase pass = creationSupport.requireOwnedPassForUpdate(passId, userId);
+        PassPurchase pass = passCreditService.requireOwnedForUpdate(passId, userId);
         Slot slot = reserveSlot(user.getPhoneHmac(), slotId, participantCount);
-        Booking booking = creationSupport.save(
+        Booking booking = bookingStorePort.save(
                 Booking.forMemberPass(user, slot, pass, participantCount));
-        creationSupport.deductPassCredit(pass, booking.getId());
+        passCreditService.deductCredit(pass, booking.getId());
         return creationSupport.complete(booking, slot);
     }
 

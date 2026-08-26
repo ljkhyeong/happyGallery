@@ -249,7 +249,7 @@ public class Booking {
      */
     public void cancel() {
         status.requireBooked();
-        if (!isCustomerCancellationAllowed()) {
+        if (!isCustomerCancellationAllowedAfterBooked()) {
             throw new HappyGalleryException(
                     ErrorCode.CHANGE_NOT_ALLOWED,
                     "잔금 결제가 완료된 예약은 고객이 취소할 수 없습니다. 관리자 정산이 필요합니다.");
@@ -266,8 +266,11 @@ public class Booking {
     }
 
     public boolean isCustomerCancellationAllowed() {
-        return status == BookingStatus.BOOKED
-                && (balanceAmount == 0 || balanceStatus != BalanceStatus.PAID);
+        return status == BookingStatus.BOOKED && isCustomerCancellationAllowedAfterBooked();
+    }
+
+    private boolean isCustomerCancellationAllowedAfterBooked() {
+        return balanceAmount == 0 || balanceStatus != BalanceStatus.PAID;
     }
 
     /** 수업 종료 후 결석 처리. 크레딧은 예약 시 이미 소모되었으므로 상태만 변경. */

@@ -27,7 +27,7 @@ public class PassExpireProcessor {
     public boolean process(Long passId) {
         PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));
-        int creditsToExpire = expirationSupport.expireIfReached(pass).expiredCredits();
+        int creditsToExpire = expirationSupport.expireIfReached(pass).orElse(0);
         if (creditsToExpire == 0) {
             return false;
         }

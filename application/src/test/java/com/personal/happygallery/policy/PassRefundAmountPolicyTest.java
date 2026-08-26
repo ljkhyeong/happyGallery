@@ -26,6 +26,18 @@ class PassRefundAmountPolicyTest {
         assertThat(pass.calculateRefundAmount(PassPurchase.TOTAL_CREDITS)).isEqualTo(240_003L);
     }
 
+    @DisplayName("8회권 만료 결과는 아직 유효하면 비어 있고 재처리하면 소멸 수량 0을 유지한다")
+    @Test
+    void expirationResult_distinguishesValidFromAlreadyExpired() {
+        LocalDateTime expiresAt = LocalDateTime.of(2026, 10, 21, 0, 0);
+        PassPurchase pass = PassPurchase.forMember(
+                1L, expiresAt.minusMonths(3), expiresAt, 240_000L, PassPlan.REGULAR_CRAFT_8);
+
+        assertThat(pass.expireIfReached(expiresAt.minusNanos(1))).isEmpty();
+        assertThat(pass.expireIfReached(expiresAt)).hasValue(PassPurchase.TOTAL_CREDITS);
+        assertThat(pass.expireIfReached(expiresAt.plusNanos(1))).hasValue(0);
+    }
+
     @DisplayName("회원 전용 8회권은 회원 식별자 없이 생성할 수 없다")
     @Test
     void forMember_nullUserId_rejected() {

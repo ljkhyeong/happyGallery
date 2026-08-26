@@ -14,6 +14,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.OptionalInt;
 
 /** 8회권 구매 — pass_purchases 테이블 */
 @Entity
@@ -146,15 +147,17 @@ public class PassPurchase {
 
     /**
      * 만료 경계에 도달했다면 잔여 크레딧을 소멸시키고 소멸 수량을 반환한다.
-     * 이미 소멸했거나 아직 유효하면 0을 반환한다.
+     * 아직 유효하면 빈 결과를, 만료됐다면 이미 소멸한 경우까지 포함해 소멸 수량을 반환한다.
      */
-    public int expireIfReached(LocalDateTime checkedAt) {
-        if (!isExpiredAt(checkedAt) || !hasRemainingCredits()) {
-            return 0;
+    public OptionalInt expireIfReached(LocalDateTime checkedAt) {
+        if (!isExpiredAt(checkedAt)) {
+            return OptionalInt.empty();
         }
         int expiredCredits = remainingCredits;
-        expire();
-        return expiredCredits;
+        if (expiredCredits > 0) {
+            expire();
+        }
+        return OptionalInt.of(expiredCredits);
     }
 
     /** 크레딧 단가 = total_price / total_credits */

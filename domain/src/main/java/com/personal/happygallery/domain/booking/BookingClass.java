@@ -76,8 +76,8 @@ public class BookingClass {
 
     public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
         this(name, category, durationMin, price, bufferMin,
-                !"PERFUME".equals(CategoryName.required(category)),
-                null, null, null, null);
+                false, null, null, null, null);
+        this.passEligible = !"PERFUME".equals(this.category);
     }
 
     public BookingClass(String name,

@@ -65,7 +65,7 @@ class DefaultPassCreditService implements PassCreditService {
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
     public boolean restoreCredit(PassPurchase pass, Long bookingId) {
-        if (expirationSupport.expireIfReached(pass).expired()) {
+        if (expirationSupport.expireIfReached(pass).isPresent()) {
             return false;
         }
         passLedgerStore.save(
