@@ -1471,8 +1471,6 @@
             },
             "type" : {
               "enum" : [ "BOOKING" ],
-              "minLength" : 1,
-              "pattern" : "BOOKING",
               "type" : "string"
             },
             "userId" : {
@@ -4034,8 +4032,6 @@
             },
             "type" : {
               "enum" : [ "ORDER" ],
-              "minLength" : 1,
-              "pattern" : "ORDER",
               "type" : "string"
             },
             "userId" : {
@@ -4130,8 +4126,6 @@
           "properties" : {
             "type" : {
               "enum" : [ "PASS" ],
-              "minLength" : 1,
-              "pattern" : "PASS",
               "type" : "string"
             },
             "userId" : {

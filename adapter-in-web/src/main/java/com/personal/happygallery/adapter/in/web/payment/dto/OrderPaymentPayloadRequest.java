@@ -21,8 +21,6 @@ import java.util.Objects;
 
 @Schema(name = "OrderPayload")
 public record OrderPaymentPayloadRequest(
-        @NotBlank
-        @Pattern(regexp = "ORDER")
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "ORDER")
         String type,
         @Schema(nullable = true) Long userId,

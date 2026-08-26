@@ -37,10 +37,6 @@ export interface PaymentPayload {
   type: string;
 }
 
-/**
- * @minLength 1
- * @pattern ORDER
- */
 export type OrderPayloadType = typeof OrderPayloadType[keyof typeof OrderPayloadType];
 
 
@@ -91,10 +87,6 @@ export interface ShippingAddress {
 }
 
 export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
-  /**
-     * @minLength 1
-     * @pattern ORDER
-     */
   type: OrderPayloadType;
   cartCheckout: boolean;
   /**
@@ -132,10 +124,6 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
   verificationCode?: string | null;
 });
 
-/**
- * @minLength 1
- * @pattern BOOKING
- */
 export type BookingPayloadType = typeof BookingPayloadType[keyof typeof BookingPayloadType];
 
 
@@ -155,10 +143,6 @@ export const BookingPayloadPaymentMethod = {
 } as const;
 
 export type BookingPayload = Omit<PaymentPayload, 'type'> & ({
-  /**
-     * @minLength 1
-     * @pattern BOOKING
-     */
   type: BookingPayloadType;
   /** @nullable */
   name?: string | null;
@@ -181,10 +165,6 @@ export type BookingPayload = Omit<PaymentPayload, 'type'> & ({
   verificationCode?: string | null;
 });
 
-/**
- * @minLength 1
- * @pattern PASS
- */
 export type PassPayloadType = typeof PassPayloadType[keyof typeof PassPayloadType];
 
 
@@ -193,10 +173,6 @@ export const PassPayloadType = {
 } as const;
 
 export type PassPayload = Omit<PaymentPayload, 'type'> & {
-  /**
-     * @minLength 1
-     * @pattern PASS
-     */
   type: PassPayloadType;
   userId: number;
 };
