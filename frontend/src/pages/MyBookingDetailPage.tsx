@@ -122,6 +122,7 @@ export function MyBookingDetailPage() {
                 queryKey: queryKeys.member.bookings.all,
               })}
             cancelPolicy={booking.cancelPolicy}
+            depositAmount={booking.depositAmount}
           />
         </div>
       )}

@@ -143,7 +143,9 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   ).slotId).toBe(targetSlot.id);
 
   await page.getByRole("button", { name: "예약 취소" }).click();
-  await page.getByRole("button", { name: "취소 확인" }).click();
+  const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
+  await expect(cancelDialog.getByText("사용한 8회권 1회가 이용 가능 횟수로 복구됩니다.")).toBeVisible();
+  await cancelDialog.getByRole("button", { name: "예약 취소 및 1회 복구" }).click();
   await expect(page.getByText("취소됨")).toBeVisible();
 
   await page.goto("/my/bookings");
@@ -152,7 +154,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
 
-test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미복구 경고를 한국어로 표시한다", async ({
+test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불가를 구분해 안내한다", async ({
   baseURL,
   context,
   page,
@@ -161,6 +163,7 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
 
   const bookingId = 990001;
   let canceled = false;
+  let passBooking = true;
   await context.addCookies([{
     name: "XSRF-TOKEN",
     value: "pass-cancel-warning-token",
@@ -229,21 +232,23 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
         classId: 1,
         slotId: 88,
         status: canceled ? "CANCELED" : "BOOKED",
-        className: "8회권 취소 경고 클래스",
+        className: passBooking ? "8회권 취소 경고 클래스" : "당일 예약금 취소 경고 클래스",
         startAt: "2026-07-12T18:00:00",
         endAt: "2026-07-12T19:00:00",
         participantCount: 1,
-        depositAmount: 0,
+        depositAmount: passBooking ? 0 : 15000,
         balanceAmount: 0,
         balanceStatus: "UNPAID",
-        passBooking: true,
+        passBooking,
         cancelPolicy: {
           cancellable: true,
           refundable: false,
           deadlineAt: "2026-07-12T00:00:00",
           passCreditRestorable: false,
           manualCompensationRequired: false,
-          warningCode: "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE",
+          warningCode: passBooking
+            ? "PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE"
+            : null,
         },
         refund: null,
       }),
@@ -261,8 +266,24 @@ test("P8-10 @payment 8회권 예약의 취소 마감이 지나면 크레딧 미�
   )).toBeVisible();
   await expect(page.getByText("D-1(전날 00:00) 이후에는 예약금 환불이 불가합니다.")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "취소 확인" }).click();
+  await page.getByRole("button", { name: "1회 차감 유지하고 취소" }).click();
   await expect(page.getByText(
     "예약이 취소되었습니다. 사용한 8회권 1회는 복구되지 않았습니다.",
   )).toBeVisible();
+
+  passBooking = false;
+  canceled = false;
+  await page.goto(`/my/bookings/${bookingId}`);
+  await expect(page.getByText("당일 예약금 취소 경고 클래스")).toBeVisible();
+
+  await page.getByRole("button", { name: "예약 취소" }).click();
+
+  const depositCancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
+  await expect(depositCancelDialog.getByText("환불·크레딧 복구 마감")).toBeVisible();
+  await expect(depositCancelDialog.getByText("₩15,000", { exact: true })).toBeVisible();
+  await expect(depositCancelDialog.getByText(
+    "취소 마감이 지나 예약금 ₩15,000은 환불되지 않습니다. 예약만 취소됩니다.",
+  )).toBeVisible();
+  await expect(depositCancelDialog.getByRole("button", { name: "환불 없이 예약 취소" }))
+    .toBeVisible();
 });

@@ -214,6 +214,7 @@ function BookingManageContent() {
                   onCancel={() => cancelBooking(booking.bookingId, currentToken)}
                   onSuccess={refreshBooking}
                   cancelPolicy={booking.cancelPolicy}
+                  depositAmount={booking.depositAmount}
                 />
               </Card.Body>
             </Card>

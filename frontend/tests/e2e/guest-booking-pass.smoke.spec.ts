@@ -77,7 +77,9 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
   ).slotId).toBe(targetSlot.id);
 
   await page.getByRole("button", { name: "예약 취소" }).click();
-  await page.getByRole("button", { name: "취소 확인" }).click();
+  const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
+  await expect(cancelDialog.getByText(/예약금 ₩[\d,]+ 환불이 요청됩니다/)).toBeVisible();
+  await cancelDialog.getByRole("button", { name: "취소 및 환불 요청" }).click();
   await expect(page.getByText("취소됨")).toBeVisible();
 
   await loginAdmin(page);
