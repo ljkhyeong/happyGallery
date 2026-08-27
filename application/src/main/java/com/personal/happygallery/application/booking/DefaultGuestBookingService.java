@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.customer.VerifiedGuestResolver;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.token.GuestTokenService;
@@ -11,7 +10,6 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -36,8 +34,6 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     private final VerifiedGuestResolver verifiedGuestResolver;
     private final PhoneVerificationIssueTransactionService phoneVerificationIssueTransaction;
     private final PhoneVerificationSender phoneVerificationSender;
-    private final BookingReaderPort bookingReaderPort;
-    private final SlotCapacitySupport slotCapacitySupport;
     private final BookingCreationSupport creationSupport;
     private final GuestTokenService guestTokenService;
     private final Clock clock;
@@ -46,16 +42,12 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
     public DefaultGuestBookingService(VerifiedGuestResolver verifiedGuestResolver,
                                       PhoneVerificationIssueTransactionService phoneVerificationIssueTransaction,
                                       PhoneVerificationSender phoneVerificationSender,
-                                      BookingReaderPort bookingReaderPort,
-                                      SlotCapacitySupport slotCapacitySupport,
                                       BookingCreationSupport creationSupport,
                                       GuestTokenService guestTokenService,
                                       Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.phoneVerificationIssueTransaction = phoneVerificationIssueTransaction;
         this.phoneVerificationSender = phoneVerificationSender;
-        this.bookingReaderPort = bookingReaderPort;
-        this.slotCapacitySupport = slotCapacitySupport;
         this.creationSupport = creationSupport;
         this.guestTokenService = guestTokenService;
         this.clock = clock;
@@ -107,14 +99,8 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
             long depositAmount,
             long balanceAmount,
             int participantCount) {
-        slotCapacitySupport.requireAvailableSlot(slotId);
-
-        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmac(
-                slotId, guest.getPhoneHmac())) {
-            throw new DuplicateBookingException();
-        }
-
-        Slot slot = slotCapacitySupport.reserveCapacity(slotId, participantCount);
+        Slot slot = creationSupport.reserveSlot(
+                guest.getPhoneHmac(), slotId, participantCount);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();

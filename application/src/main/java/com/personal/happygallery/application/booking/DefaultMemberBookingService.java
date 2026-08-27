@@ -1,14 +1,12 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.error.DuplicateBookingException;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
@@ -23,22 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultMemberBookingService implements MemberBookingUseCase {
 
-    private final BookingReaderPort bookingReaderPort;
     private final BookingStorePort bookingStorePort;
-    private final SlotCapacitySupport slotCapacitySupport;
     private final BookingCreationSupport creationSupport;
     private final MemberAccountGuard memberAccountGuard;
     private final PassCreditService passCreditService;
 
-    public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
-                                       BookingStorePort bookingStorePort,
-                                       SlotCapacitySupport slotCapacitySupport,
+    public DefaultMemberBookingService(BookingStorePort bookingStorePort,
                                        BookingCreationSupport creationSupport,
                                        MemberAccountGuard memberAccountGuard,
                                        PassCreditService passCreditService) {
-        this.bookingReaderPort = bookingReaderPort;
         this.bookingStorePort = bookingStorePort;
-        this.slotCapacitySupport = slotCapacitySupport;
         this.creationSupport = creationSupport;
         this.memberAccountGuard = memberAccountGuard;
         this.passCreditService = passCreditService;
@@ -59,7 +51,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
                                                long depositAmount, long balanceAmount,
                                                int participantCount) {
         User user = requireBookableMember(userId);
-        Slot slot = reserveSlot(user.getPhoneHmac(), slotId, participantCount);
+        Slot slot = creationSupport.reserveSlot(user.getPhoneHmac(), slotId, participantCount);
         creationSupport.requireValidDeposit(paymentMethod);
         Booking booking = Booking.forMemberDeposit(
                 user, slot, participantCount, depositAmount, balanceAmount, paymentMethod);
@@ -77,7 +69,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
             Long userId, Long slotId, Long passId, int participantCount) {
         User user = requireBookableMember(userId);
         PassPurchase pass = passCreditService.requireOwnedForUpdate(passId, userId);
-        Slot slot = reserveSlot(user.getPhoneHmac(), slotId, participantCount);
+        Slot slot = creationSupport.reserveSlot(user.getPhoneHmac(), slotId, participantCount);
         Booking booking = bookingStorePort.save(
                 Booking.forMemberPass(user, slot, pass, participantCount));
         passCreditService.deductCredit(pass, booking.getId());
@@ -90,14 +82,5 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
             throw new PhoneVerificationRequiredException();
         }
         return user;
-    }
-
-    private Slot reserveSlot(String ownerPhoneHmac, Long slotId, int participantCount) {
-        slotCapacitySupport.requireAvailableSlot(slotId);
-        if (bookingReaderPort.existsBookedBySlotIdAndOwnerPhoneHmac(
-                slotId, ownerPhoneHmac)) {
-            throw new DuplicateBookingException();
-        }
-        return slotCapacitySupport.reserveCapacity(slotId, participantCount);
     }
 }
