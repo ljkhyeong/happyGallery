@@ -30,7 +30,7 @@ class DefaultImageMediaServiceTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("supportedImages")
-    @DisplayName("실제 JPEG, PNG, WebP 파일을 저장하고 공개 경로로 읽는다")
+    @DisplayName("JPEG, PNG, WebP 시그니처를 확인해 저장하고 공개 경로로 읽는다")
     void uploadAndReadImage(
             String imageType,
             byte[] image,
@@ -58,14 +58,23 @@ class DefaultImageMediaServiceTest {
     }
 
     @Test
-    @DisplayName("실제 파일 형식과 선언한 MIME 타입이 다르면 저장하지 않는다")
+    @DisplayName("파일 시그니처와 선언한 MIME 타입이 다르면 저장하지 않는다")
     void rejectMismatchedContentType() {
         byte[] png = {
-                (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
-                0, 0, 0, 0x0D, 'I', 'H', 'D', 'R'
+                (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A
         };
 
         assertThatThrownBy(() -> service.upload(png, "image/jpeg"))
+                .isInstanceOf(HappyGalleryException.class);
+        verify(storage, never()).store(anyString(), any(byte[].class));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("invalidSignatures")
+    @DisplayName("필수 파일 시그니처가 완성되지 않으면 저장하지 않는다")
+    void rejectIncompleteSignature(String imageType, byte[] image, String contentType) {
+        assertThatThrownBy(() -> service.upload(image, contentType))
+                .as(imageType)
                 .isInstanceOf(HappyGalleryException.class);
         verify(storage, never()).store(anyString(), any(byte[].class));
     }
@@ -80,8 +89,7 @@ class DefaultImageMediaServiceTest {
                 Arguments.of(
                         "PNG",
                         new byte[]{
-                                (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A,
-                                0, 0, 0, 0x0D, 'I', 'H', 'D', 'R'
+                                (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A
                         },
                         "image/png",
                         "png"),
@@ -90,5 +98,25 @@ class DefaultImageMediaServiceTest {
                         new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'},
                         "image/webp",
                         "webp"));
+    }
+
+    private static Stream<Arguments> invalidSignatures() {
+        return Stream.of(
+                Arguments.of(
+                        "JPEG 시작 바이트 부족",
+                        new byte[]{(byte) 0xFF, (byte) 0xD8},
+                        "image/jpeg"),
+                Arguments.of(
+                        "JPEG 세 번째 바이트 불일치",
+                        new byte[]{(byte) 0xFF, (byte) 0xD8, 0},
+                        "image/jpeg"),
+                Arguments.of(
+                        "PNG 시그니처 부족",
+                        new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A},
+                        "image/png"),
+                Arguments.of(
+                        "WebP 형식 식별자 불일치",
+                        new byte[]{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'X'},
+                        "image/webp"));
     }
 }
