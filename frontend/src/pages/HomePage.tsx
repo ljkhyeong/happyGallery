@@ -115,7 +115,12 @@ export function HomePage({
         </Container>
       </section>
 
-      <FeaturedEventWidget initialEvents={initialEvents} />
+      <section className="home-band home-updates-section anim-fade-up">
+        <Container className="home-updates-grid">
+          <NoticeListWidget initialNotices={initialNotices} />
+          <FeaturedEventWidget initialEvents={initialEvents} />
+        </Container>
+      </section>
 
       <section className="home-band home-class-section anim-fade-up">
         <Container>
@@ -234,10 +239,6 @@ export function HomePage({
             <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
           )}
         </Container>
-      </section>
-
-      <section className="home-band home-notice-section anim-fade-up">
-        <Container><NoticeListWidget initialNotices={initialNotices} /></Container>
       </section>
 
       <section className="home-band home-workshop-section anim-fade-up">
