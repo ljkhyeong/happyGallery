@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import type { CartItemResponse } from "@/shared/types/cart";
+import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import {
   addToCart,
   fetchCart,
@@ -36,9 +37,14 @@ interface CartContextValue {
   guestCartMergeIssue: GuestCartMergeIssue | null;
   retryGuestCartMerge: () => void;
   discardGuestCartMerge: () => void;
-  addItem: (productId: number, qty: number) => Promise<void>;
-  updateQty: (productId: number, qty: number) => Promise<void>;
-  removeItem: (productId: number) => Promise<void>;
+  addItem: (
+    productId: number,
+    productVariantId: number | null,
+    textInputs: ProductTextInputRequest[],
+    qty: number,
+  ) => Promise<void>;
+  updateQty: (cartItemId: number, qty: number) => Promise<void>;
+  removeItem: (cartItemId: number) => Promise<void>;
 }
 
 export const CartContext = createContext<CartContextValue | null>(null);
@@ -74,25 +80,30 @@ export function CartProvider({ children }: { children: ReactNode }) {
   });
 
   const addMutation = useMutation({
-    mutationFn: ({ productId, qty }: { productId: number; qty: number }) =>
+    mutationFn: ({ productId, productVariantId, textInputs, qty }: {
+      productId: number;
+      productVariantId: number | null;
+      textInputs: ProductTextInputRequest[];
+      qty: number;
+    }) =>
       runForCurrentCustomer(
-        () => addToCart(productId, qty),
+        () => addToCart(productId, productVariantId, textInputs, qty),
         () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
       ),
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ productId, qty }: { productId: number; qty: number }) =>
+    mutationFn: ({ cartItemId, qty }: { cartItemId: number; qty: number }) =>
       runForCurrentCustomer(
-        () => updateCartItemQty(productId, qty),
+        () => updateCartItemQty(cartItemId, qty),
         () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
       ),
   });
 
   const removeMutation = useMutation({
-    mutationFn: (productId: number) =>
+    mutationFn: (cartItemId: number) =>
       runForCurrentCustomer(
-        () => removeCartItem(productId),
+        () => removeCartItem(cartItemId),
         () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
       ),
   });
@@ -118,21 +129,32 @@ export function CartProvider({ children }: { children: ReactNode }) {
       guestCartMergeIssue,
       retryGuestCartMerge,
       discardGuestCartMerge,
-      addItem: (productId, qty) => addMutation.mutateAsync({ productId, qty }),
-      updateQty: (productId, qty) => {
+      addItem: (productId, productVariantId, textInputs, qty) => addMutation.mutateAsync({
+        productId,
+        productVariantId,
+        textInputs,
+        qty,
+      }),
+      updateQty: (cartItemId, qty) => {
         removeMutation.reset();
-        return updateMutation.mutateAsync({ productId, qty });
+        return updateMutation.mutateAsync({ cartItemId, qty });
       },
-      removeItem: (productId) => {
+      removeItem: (cartItemId) => {
         updateMutation.reset();
-        return removeMutation.mutateAsync(productId);
+        return removeMutation.mutateAsync(cartItemId);
       },
     };
   } else {
     value = {
       items: guestItems.map((item) => ({
+        cartItemId: item.productId,
         productId: item.productId,
+        productVariantId: item.productVariantId,
         productName: "",
+        basePrice: 0,
+        variantPriceAdjustment: 0,
+        textOptionPriceAdjustment: 0,
+        options: [],
         price: 0,
         qty: item.qty,
         subtotal: 0,
@@ -154,9 +176,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       guestCartMergeIssue: null,
       retryGuestCartMerge,
       discardGuestCartMerge,
-      addItem: async (productId, qty) => addGuestItem(productId, qty),
-      updateQty: async (productId, qty) => updateGuestQty(productId, qty),
-      removeItem: async (productId) => removeGuestItem(productId),
+      addItem: async (productId, productVariantId, textInputs, qty) =>
+        addGuestItem(productId, productVariantId, textInputs, qty),
+      updateQty: async (cartItemId, qty) => updateGuestQty(cartItemId, qty),
+      removeItem: async (cartItemId) => removeGuestItem(cartItemId),
     };
   }
 

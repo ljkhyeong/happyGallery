@@ -498,6 +498,8 @@ GET /api/v1/products
     "specification": "소이 왁스 200g · 유리 용기",
     "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
     "productionLeadDays": null,
+    "optionGroups": [],
+    "variants": [],
     "available": true
   }
 ]
@@ -529,6 +531,8 @@ GET /api/v1/products/{id}
   "specification": "소이 왁스 200g · 유리 용기",
   "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
   "productionLeadDays": null,
+  "optionGroups": [],
+  "variants": [],
   "available": true
 }
 ```
@@ -538,6 +542,7 @@ GET /api/v1/products/{id}
   - `404 NOT_FOUND` — productId 미존재 또는 판매 중지 상품
 - 정책:
   - `ACTIVE` 상품만 반환하며, 판매 중지 상품은 존재 여부를 구분하지 않고 `404 NOT_FOUND`로 응답한다.
+  - 주문제작 상품은 `optionGroups`에 `SELECT|TEXT` 그룹과 선택값·필수 여부·직접입력 제한을, `variants`에 선택 조합별 `id`, 추가 금액, 재고와 판매 여부를 반환한다. 기성품은 두 배열이 비어 있다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
@@ -639,7 +644,9 @@ Content-Type: application/json
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "specification": "소이 왁스 200g · 유리 용기",
   "careInstructions": "첫 사용은 표면 전체가 녹을 때까지 태워 주세요.",
-  "productionLeadDays": null
+  "productionLeadDays": null,
+  "optionGroups": [],
+  "variants": []
 }
 ```
 
@@ -657,7 +664,9 @@ Content-Type: application/json
   "productionLeadDays": null,
   "status": "ACTIVE",
   "available": true,
-  "quantity": 5
+  "quantity": 5,
+  "optionGroups": [],
+  "variants": []
 }
 ```
 
@@ -671,6 +680,8 @@ Content-Type: application/json
   - `price`는 1원 이상 `9,007,199,254,740,991원` 이하의 정수다. 상한은 웹 클라이언트가 원 단위 금액을 정밀도 손실 없이 전달할 수 있는 기술 경계다.
   - `description`, `imageUrl`, `specification`, `careInstructions`는 선택값이며 `imageUrl`은 `/`로 시작하는 서비스 경로 또는 `http(s)` URL이어야 한다.
   - `MADE_TO_ORDER`는 `specification`과 1~180일 `productionLeadDays`가 필수다. `READY_STOCK`은 `productionLeadDays=null`이어야 한다.
+  - 주문제작은 선택형 옵션 그룹 최대 3개, 직접입력형 최대 5개, 전체 조합 최대 500개다. 선택 그룹은 미선택 조합을 포함하며 각 variant에 선택값, 가격 추가금, 재고, 판매 여부를 보낸다.
+  - 선택형 옵션이 없는 주문제작 상품은 `optionGroups`, `variants`를 생략하고 `quantity`를 보내면 기본 variant 한 개를 만든다. 기성품의 옵션 배열은 생략하거나 빈 배열로 보낸다.
 
 #### 2.3.2 전체 상품 목록 조회
 
@@ -724,6 +735,7 @@ Authorization: Bearer {token}
 Content-Type: application/json
 
 {
+  "productVariantId": null,
   "type": "DECREASE",
   "quantity": 2,
   "reason": "오프라인 매장 판매"
@@ -734,6 +746,7 @@ Content-Type: application/json
 {
   "id": 10,
   "productId": 1,
+  "productVariantId": null,
   "type": "DECREASE",
   "quantity": 2,
   "quantityBefore": 12,
@@ -752,6 +765,7 @@ Content-Type: application/json
   - `409 INVENTORY_NOT_ENOUGH` — 감소 수량이 현재 재고보다 큼
 - 정책:
   - `type`은 `INCREASE`, `DECREASE`를 지원한다.
+  - 기성품은 `productVariantId=null`, 주문제작 상품은 조정할 variant ID를 필수로 보낸다.
   - 재고 행을 비관적 쓰기 잠금으로 조회한 뒤 수량 변경과 조정 이력을 같은 트랜잭션에 저장한다.
   - `adjustedByAdminId`는 관리자 Bearer 세션이면 관리자 ID, 로컬 API key 인증이면 `null`이다. `adjustedBy`에는 관리자명 또는 `local-api-key`를 남긴다.
 
@@ -781,13 +795,16 @@ Content-Type: application/json
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "specification": "소이 왁스 220g · 내열 유리 용기",
   "careInstructions": "심지를 5mm로 정리해 주세요.",
-  "productionLeadDays": null
+  "productionLeadDays": null,
+  "optionGroups": [],
+  "variants": []
 }
 ```
 
 - 성공: `200 OK`, 현재 재고를 포함한 `ProductResponse` 반환
-- 상품 유형과 재고 수량, 판매 상태는 이 API에서 바꾸지 않는다. 재고와 상태는 각 전용 API를 사용한다.
-- 이미 결제된 주문은 `order_items`의 상품명·단가·고정 사양·관리 방법·예상 제작 기간 스냅샷을 사용하므로 이후 상품 변경의 영향을 받지 않는다.
+- 상품 유형과 판매 상태는 이 API에서 바꾸지 않는다. 기성품 재고와 주문제작 variant 재고의 수동 변경은 재고 조정 API를 사용한다.
+- 주문제작은 현재 전체 `optionGroups`, `variants`를 보내 옵션 구성을 교체한다. 서버가 가능한 조합의 누락·중복을 검증하고 유지된 조합은 같은 선택 키로 식별한다.
+- 이미 결제된 주문은 `order_items`의 상품명·기본가·옵션 추가금·최종 단가·선택 옵션·직접입력 문구·고정 사양·관리 방법·예상 제작 기간 스냅샷을 사용하므로 이후 상품 변경의 영향을 받지 않는다.
 
 ### 2.4 예약 API
 
@@ -2765,9 +2782,16 @@ Cookie: HG_SESSION={sessionToken}
 {
   "items": [
     {
+      "cartItemId": 31,
       "productId": 1,
+      "productVariantId": null,
       "productName": "시그니처 캔들",
+      "productType": "READY_STOCK",
+      "basePrice": 39000,
+      "variantPriceAdjustment": 0,
+      "textOptionPriceAdjustment": 0,
       "price": 39000,
+      "options": [],
       "qty": 2,
       "subtotal": 78000,
       "available": true
@@ -2779,28 +2803,28 @@ Cookie: HG_SESSION={sessionToken}
 ```
 
 - `POST /api/v1/me/cart/items`
-  - 요청: `{ "productId": 1, "qty": 2 }`
-  - `productId`, `qty`는 필수다.
+  - 요청: `{ "productId": 1, "productVariantId": null, "textInputs": [], "qty": 2 }`
+  - `productId`, `qty`는 필수다. 주문제작은 `productVariantId`와 직접입력 그룹의 `{groupKey,value}`를 함께 보내며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
   - 응답: `201 Created`
 - `POST /api/v1/me/cart/merge`
-  - 요청: `{ "expectedCustomerId": 1, "idempotencyKey": "UUID", "items": [{ "productId": 1, "qty": 2 }] }`
-  - `expectedCustomerId`, 각 항목의 `productId`, `qty`는 필수다.
+  - 요청: `{ "expectedCustomerId": 1, "idempotencyKey": "UUID", "items": [{ "productId": 1, "productVariantId": null, "textInputs": [], "qty": 2 }] }`
+  - `expectedCustomerId`, 각 항목의 `productId`, `qty`는 필수다. 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
   - `items`는 1~100건이다.
   - 응답: `204 No Content`
   - 로그인 직전의 비회원 장바구니를 한 번에 합친다. 같은 회원과 멱등키의 재요청은 수량을 다시 더하지 않는다.
   - `expectedCustomerId`가 현재 인증된 회원과 다르면 세션 전환 경합으로 보고 `409 CONFLICT`로 거절한다. 클라이언트는 요청 전·후의 세션 스냅샷도 함께 확인해 이전 회원의 병합 결과를 현재 화면에 적용하지 않는다.
   - 같은 회원과 멱등키로 다른 상품·수량을 보내면 `409 CONFLICT`로 거절한다.
-- `PUT /api/v1/me/cart/items/{productId}`
+- `PUT /api/v1/me/cart/items/{cartItemId}`
   - 요청: `{ "qty": 3 }`
   - `qty`는 필수다.
   - 응답: `200 OK` 본문 없음
-- `DELETE /api/v1/me/cart/items/{productId}`
+- `DELETE /api/v1/me/cart/items/{cartItemId}`
   - 응답: `204 No Content`
 - 장바구니 결제는 별도 checkout API를 두지 않는다. `POST /api/v1/payments/prepare`에 `context=ORDER`, `payload.userId`, `payload.cartCheckout=true`, `payload.items=[]`를 보내 시작한다.
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
-- 장바구니는 회원 전용이며 `user_id + product_id` 단위로 중복 없이 관리한다.
+- 장바구니는 회원 전용이며 `상품 + variant + 정규화된 직접입력값` 단위로 중복 없이 관리한다. 같은 SKU라도 각인 문구가 다르면 별도 `cartItemId`를 가진다.
 - 같은 회원의 모든 장바구니 변경은 소유자 잠금을 먼저 획득한다. 최초 추가가 동시에 실행돼 기존 항목 행이 아직 없어도 한 행에 수량을 합산한다.
 - 추가·수정·병합 수량은 상품별 1~99개다. 병합 요청에서 같은 상품이 여러 번 나오면 합산 수량에도 같은 상한을 적용한다.
 - 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
@@ -3067,7 +3091,7 @@ Content-Type: application/json
     "type": "ORDER",
     "userId": 7,
     "items": [
-      { "productId": 1, "qty": 2 }
+      { "productId": 1, "productVariantId": null, "textInputs": [], "qty": 2 }
     ],
     "cartCheckout": false,
     "issuedCouponId": 81,
@@ -3103,10 +3127,10 @@ Content-Type: application/json
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약 또는 픽업 상품 금액을 적립금으로 모두 지불한 주문처럼 외부 PG 호출이 없는 내부 승인에 사용한다.
-    - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일 `productId`의 수량을 먼저 합쳐 상품별 1~99개 제한을 적용하고, 상품을 한 번에 조회한 뒤 `productId.price * qty`를 overflow 검출 산술로 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
+    - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일한 `productId + productVariantId + 직접입력값`의 수량을 먼저 합쳐 SKU별 1~99개 제한을 적용한다. 서버가 상품과 옵션을 일괄 조회해 `기본가 + 조합 추가금 + 직접입력 추가금`에 수량을 곱하고, 같은 variant 재고 요구량을 다시 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
     - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
-  - 서버는 prepare 시점의 `ORDER` 상품명·항목 단가·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비·쿠폰 할인·적립금 사용·품목별 배분, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
+  - 서버는 prepare 시점의 `ORDER` 상품명·기본가·옵션 추가금·항목 단가·variant ID·선택 옵션·직접입력 문구·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비·쿠폰 할인·적립금 사용·품목별 배분, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
@@ -3123,7 +3147,7 @@ Content-Type: application/json
     `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
     OpenAPI 요청 schema에는 노출하지 않는다.
   - OpenAPI의 `PreparePaymentRequest.payload`는 `OrderPayload`, `BookingPayload`, `PassPayload`를 구분하는 `oneOf`다. 공통 `PaymentPayload`는 `type` discriminator mapping만 가지며 subtype `allOf`와 순환하지 않는다.
-  - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`도 필수다.
+  - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`가 필수이며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
   - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 8회권 사용 예약에서 사용한다.
   - `PassPayload`의 필수 필드는 `type`, `userId`다.
   - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의, `expectedCartVersion`, `issuedCouponId`, `rewardAmount`는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.

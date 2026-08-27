@@ -131,7 +131,12 @@ export function useGuestCartMerge({
             await mergeGuestCart(
               userId,
               mergeRequest.idempotencyKey,
-              mergeRequest.items.map(({ productId, qty }) => ({ productId, qty })),
+              mergeRequest.items.map(({
+                productId,
+                productVariantId,
+                textInputs,
+                qty,
+              }) => ({ productId, productVariantId, textInputs, qty })),
             );
             requireMergeCustomerSession(customerSession, userId);
 

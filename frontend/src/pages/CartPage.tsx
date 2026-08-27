@@ -279,12 +279,24 @@ function CartContent() {
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.productId} className={item.available ? "" : "text-muted"}>
+                    <tr key={item.cartItemId} className={item.available ? "" : "text-muted"}>
                       <td>
                         <Link to={`/products/${item.productId}`} className="text-decoration-none">
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted">{formatKRW(item.price)}</div>
+                        {item.options.length > 0 && (
+                          <div className="small text-muted mt-1">
+                            {item.options.map((option) => (
+                              <div key={`${option.sortOrder}-${option.groupName}`}>
+                                {option.groupName}: {option.value}
+                                {option.priceAdjustment > 0
+                                  ? ` (+${formatKRW(option.priceAdjustment)})`
+                                  : ""}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {item.productType && (
                           <div className="mt-2">
                             <ProductPurchaseTerms
@@ -308,7 +320,7 @@ function CartContent() {
                             size="sm"
                             disabled={isItemMutationPending || item.qty <= 1}
                             onClick={() => {
-                              void updateQty(item.productId, item.qty - 1).catch(() => undefined);
+                              void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
                             }}
                           >
                             -
@@ -319,7 +331,7 @@ function CartContent() {
                             size="sm"
                             disabled={isItemMutationPending || item.qty >= MAX_PRODUCT_QUANTITY}
                             onClick={() => {
-                              void updateQty(item.productId, item.qty + 1).catch(() => undefined);
+                              void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
                             }}
                           >
                             +
@@ -334,7 +346,7 @@ function CartContent() {
                           className="text-danger p-0"
                           disabled={isItemMutationPending}
                           onClick={() => {
-                            void removeItem(item.productId).catch(() => undefined);
+                            void removeItem(item.cartItemId).catch(() => undefined);
                           }}
                         >
                           삭제

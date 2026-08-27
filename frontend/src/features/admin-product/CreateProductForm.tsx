@@ -6,6 +6,11 @@ import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ProductType } from "@/shared/types";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
+import {
+  ProductOptionEditor,
+  type OptionGroupDraft,
+  type VariantDraft,
+} from "./ProductOptionEditor";
 
 interface Props {
   adminKey: string;
@@ -25,6 +30,8 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
   const [specification, setSpecification] = useState("");
   const [careInstructions, setCareInstructions] = useState("");
   const [productionLeadDays, setProductionLeadDays] = useState("");
+  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+  const [variants, setVariants] = useState<VariantDraft[]>([]);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () =>
@@ -33,7 +40,10 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         type,
         category: category.trim() || undefined,
         price: Number(price),
-        quantity: Number(quantity),
+        quantity: type === "READY_STOCK"
+          || optionGroups.every((group) => group.type !== "SELECT")
+          ? Number(quantity)
+          : undefined,
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         specification: specification.trim() || undefined,
@@ -41,6 +51,8 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         productionLeadDays: type === "MADE_TO_ORDER"
           ? Number(productionLeadDays)
           : undefined,
+        optionGroups: type === "MADE_TO_ORDER" ? optionGroups : [],
+        variants: type === "MADE_TO_ORDER" ? variants : [],
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -56,6 +68,8 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       setSpecification("");
       setCareInstructions("");
       setProductionLeadDays("");
+      setOptionGroups([]);
+      setVariants([]);
     },
   });
 
@@ -65,10 +79,20 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
       && Number.isInteger(leadDays)
       && leadDays >= 1
       && leadDays <= 180);
+  const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
+  const optionsValid = type === "READY_STOCK" || (
+    optionGroups.every((group) => group.name.trim().length > 0
+      && (group.type !== "SELECT"
+        || group.values.every((value) => value.name.trim().length > 0)))
+    && variants.length <= 500
+    && variants.every((variant) => Number(variant.quantity) >= 0
+      && Number(price) + Number(variant.priceAdjustment ?? 0) > 0)
+  );
   const valid = name.trim().length > 0
     && Number(price) > 0
-    && Number(quantity) >= 1
-    && purchaseTermsValid;
+    && (type === "READY_STOCK" ? Number(quantity) >= 1 : Number(quantity) >= 0)
+    && purchaseTermsValid
+    && optionsValid;
 
   return (
     <Form
@@ -98,7 +122,11 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
               onChange={(e) => {
                 const nextType = e.target.value as ProductType;
                 setType(nextType);
-                if (nextType === "READY_STOCK") setProductionLeadDays("");
+                if (nextType === "READY_STOCK") {
+                  setProductionLeadDays("");
+                  setOptionGroups([]);
+                  setVariants([]);
+                }
               }}
             >
               <option value="READY_STOCK">기존 재고</option>
@@ -131,11 +159,12 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col xs={12} sm={6} md={2}>
           <Form.Group controlId="admin-product-quantity">
-            <Form.Label>수량</Form.Label>
+            <Form.Label>{type === "MADE_TO_ORDER" ? "기본 조합 재고" : "수량"}</Form.Label>
             <Form.Control
               type="number"
-              min={1}
+              min={type === "READY_STOCK" ? 1 : 0}
               value={quantity}
+              disabled={type === "MADE_TO_ORDER" && hasSelectOptions}
               onChange={(e) => setQuantity(e.target.value)}
             />
           </Form.Group>
@@ -150,6 +179,18 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
             previewAlt="등록할 상품 대표 이미지 미리보기"
           />
         </Col>
+        {type === "MADE_TO_ORDER" && (
+          <Col xs={12}>
+            <ProductOptionEditor
+              groups={optionGroups}
+              variants={variants}
+              onChange={(nextGroups, nextVariants) => {
+                setOptionGroups(nextGroups);
+                setVariants(nextVariants);
+              }}
+            />
+          </Col>
+        )}
         <Col xs={12} md={8}>
           <Form.Group controlId="admin-product-specification">
             <Form.Label>

@@ -2,7 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.AdjustInventoryCommand;
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductInventoryResult;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductResult;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdjustInventoryRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateProductRequest;
@@ -42,10 +42,7 @@ public class AdminProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
-        ProductInventoryResult result = productAdminUseCase.register(
-                request.name(), request.type(), request.category(), request.price(), request.quantity(),
-                request.description(), request.imageUrl(), request.specification(),
-                request.careInstructions(), request.productionLeadDays());
+        ProductResult result = productAdminUseCase.register(request.toCommand());
         return ProductResponse.from(result);
     }
 
@@ -53,10 +50,7 @@ public class AdminProductController {
     @Operation(operationId = "updateAdminProduct")
     public ProductResponse update(@PathVariable Long id,
                                   @RequestBody @Valid UpdateProductRequest request) {
-        return ProductResponse.from(productAdminUseCase.update(
-                id, request.name(), request.category(), request.price(),
-                request.description(), request.imageUrl(), request.specification(),
-                request.careInstructions(), request.productionLeadDays()));
+        return ProductResponse.from(productAdminUseCase.update(id, request.toCommand()));
     }
 
     /** GET /api/v1/admin/products — 판매 중지 상품을 포함한 전체 목록 */
@@ -80,6 +74,7 @@ public class AdminProductController {
             @AuthenticationPrincipal AdminPrincipal admin) {
         return InventoryAdjustmentResponse.from(productAdminUseCase.adjustInventory(new AdjustInventoryCommand(
                 id,
+                request.productVariantId(),
                 request.type(),
                 request.quantity(),
                 request.reason(),

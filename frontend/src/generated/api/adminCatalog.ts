@@ -138,6 +138,48 @@ export const ProductResponseType = {
   MADE_TO_ORDER: 'MADE_TO_ORDER',
 } as const;
 
+export type ProductOptionGroupResponseType = typeof ProductOptionGroupResponseType[keyof typeof ProductOptionGroupResponseType];
+
+
+export const ProductOptionGroupResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface ProductOptionValueResponse {
+  key: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface ProductOptionGroupResponse {
+  /** @nullable */
+  inputMaxLength: number | null;
+  /** @nullable */
+  inputPlaceholder: string | null;
+  /** @nullable */
+  inputPriceAdjustment: number | null;
+  key: string;
+  name: string;
+  required: boolean;
+  sortOrder: number;
+  type: ProductOptionGroupResponseType;
+  values: ProductOptionValueResponse[];
+}
+
+export interface ProductVariantSelectionResponse {
+  groupKey: string;
+  valueKey: string;
+}
+
+export interface ProductVariantResponse {
+  active: boolean;
+  id: number;
+  priceAdjustment: number;
+  quantity: number;
+  selections: ProductVariantSelectionResponse[];
+}
+
 export interface ProductResponse {
   available: boolean;
   /** @nullable */
@@ -150,6 +192,7 @@ export interface ProductResponse {
   /** @nullable */
   imageUrl: string | null;
   name: string;
+  optionGroups: ProductOptionGroupResponse[];
   price: number;
   /** @nullable */
   productionLeadDays: number | null;
@@ -158,6 +201,7 @@ export interface ProductResponse {
   specification: string | null;
   status: ProductResponseStatus;
   type: ProductResponseType;
+  variants: ProductVariantResponse[];
 }
 
 export type CreateProductRequestType = typeof CreateProductRequestType[keyof typeof CreateProductRequestType];
@@ -167,6 +211,85 @@ export const CreateProductRequestType = {
   READY_STOCK: 'READY_STOCK',
   MADE_TO_ORDER: 'MADE_TO_ORDER',
 } as const;
+
+export type ProductOptionGroupRequestType = typeof ProductOptionGroupRequestType[keyof typeof ProductOptionGroupRequestType];
+
+
+export const ProductOptionGroupRequestType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface ProductOptionValueRequest {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  key: string;
+  /**
+     * @minLength 0
+     * @maxLength 25
+     */
+  name: string;
+  sortOrder?: number;
+}
+
+export interface ProductOptionGroupRequest {
+  /**
+     * @minimum 1
+     * @maximum 200
+     */
+  inputMaxLength?: number;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  inputPlaceholder?: string;
+  /** @maximum 9007199254740991 */
+  inputPriceAdjustment?: number;
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  key: string;
+  /**
+     * @minLength 0
+     * @maxLength 25
+     */
+  name: string;
+  required?: boolean;
+  sortOrder?: number;
+  type: ProductOptionGroupRequestType;
+  /**
+     * @minItems 0
+     * @maxItems 500
+     */
+  values: ProductOptionValueRequest[];
+}
+
+export interface ProductVariantSelectionRequest {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  groupKey: string;
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  valueKey: string;
+}
+
+export interface ProductVariantRequest {
+  active?: boolean;
+  priceAdjustment?: number;
+  quantity?: number;
+  /**
+     * @minItems 0
+     * @maxItems 3
+     */
+  selections: ProductVariantSelectionRequest[];
+}
 
 export interface CreateProductRequest {
   /**
@@ -194,6 +317,11 @@ export interface CreateProductRequest {
      * @maxLength 100
      */
   name: string;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     */
+  optionGroups?: ProductOptionGroupRequest[];
   /** @maximum 9007199254740991 */
   price: number;
   /**
@@ -201,14 +329,19 @@ export interface CreateProductRequest {
      * @maximum 180
      */
   productionLeadDays?: number;
-  /** @minimum 1 */
-  quantity: number;
+  /** @nullable */
+  quantity?: number | null;
   /**
      * @minLength 0
      * @maxLength 2000
      */
   specification?: string;
   type: CreateProductRequestType;
+  /**
+     * @minItems 0
+     * @maxItems 500
+     */
+  variants?: ProductVariantRequest[];
 }
 
 export interface UpdateProductRequest {
@@ -237,6 +370,11 @@ export interface UpdateProductRequest {
      * @maxLength 100
      */
   name: string;
+  /**
+     * @minItems 0
+     * @maxItems 8
+     */
+  optionGroups?: ProductOptionGroupRequest[];
   /** @maximum 9007199254740991 */
   price: number;
   /**
@@ -244,11 +382,18 @@ export interface UpdateProductRequest {
      * @maximum 180
      */
   productionLeadDays?: number;
+  /** @nullable */
+  quantity?: number | null;
   /**
      * @minLength 0
      * @maxLength 2000
      */
   specification?: string;
+  /**
+     * @minItems 0
+     * @maxItems 500
+     */
+  variants?: ProductVariantRequest[];
 }
 
 export type InventoryAdjustmentResponseType = typeof InventoryAdjustmentResponseType[keyof typeof InventoryAdjustmentResponseType];
@@ -266,6 +411,8 @@ export interface InventoryAdjustmentResponse {
   adjustedByAdminId: number | null;
   id: number;
   productId: number;
+  /** @nullable */
+  productVariantId: number | null;
   quantity: number;
   quantityAfter: number;
   quantityBefore: number;
@@ -282,6 +429,8 @@ export const AdjustInventoryRequestType = {
 } as const;
 
 export interface AdjustInventoryRequest {
+  /** @nullable */
+  productVariantId?: number | null;
   quantity: number;
   /**
      * @minLength 0

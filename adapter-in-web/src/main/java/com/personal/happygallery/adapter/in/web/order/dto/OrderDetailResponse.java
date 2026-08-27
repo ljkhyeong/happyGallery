@@ -70,6 +70,16 @@ public record OrderDetailResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             long netPaidAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            Long productVariantId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long basePrice,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long variantPriceAdjustment,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long textOptionPriceAdjustment,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            List<OrderOptionSnapshotResponse> options,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String specification,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String careInstructions,
@@ -88,6 +98,13 @@ public record OrderDetailResponse(
                     item.getCouponDiscountAmount(),
                     item.getRewardUsedAmount(),
                     item.getNetPaidAmount(),
+                    item.getProductVariantId(),
+                    item.getBasePrice(),
+                    item.getVariantPriceAdjustment(),
+                    item.getTextOptionPriceAdjustment(),
+                    item.getOptionSnapshots().stream()
+                            .map(OrderOptionSnapshotResponse::from)
+                            .toList(),
                     item.getSpecification(),
                     item.getCareInstructions(),
                     item.getProductionLeadDays());

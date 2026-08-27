@@ -38,6 +38,10 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
+import {
+  ProductPurchaseOptions,
+  type PurchaseLine,
+} from "@/features/product/ProductPurchaseOptions";
 
 export function ProductDetailPage({ initialProduct }: { initialProduct: ProductDetailResponse }) {
   const { sessionVersion } = useCustomerAuth();
@@ -55,6 +59,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
   const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
   const purchasePanelRef = useRef<HTMLDivElement>(null);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
@@ -78,11 +83,26 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
+      const items = product?.optionGroups.length
+        ? purchaseLines.map((line) => ({
+          productId,
+          productVariantId: line.productVariantId,
+          textInputs: line.textInputs,
+          qty: line.qty,
+        }))
+        : [{
+          productId,
+          productVariantId: product?.type === "MADE_TO_ORDER"
+            ? (product.variants[0]?.id ?? null)
+            : null,
+          textInputs: [],
+          qty,
+        }];
       const payload: OrderPayload = {
         type: "ORDER",
         userId: user.id,
         name: user.name,
-        items: [{ productId, qty }],
+        items,
         cartCheckout: false,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
@@ -91,7 +111,9 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
       await executePaymentFlow({
         context: "ORDER",
         payload,
-        orderName: product ? `${product.name} (${qty}개)` : `상품 주문 (${qty}개)`,
+        orderName: product
+          ? `${product.name} (${items.reduce((sum, item) => sum + item.qty, 0)}개)`
+          : "상품 주문",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
@@ -102,7 +124,21 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   });
   const cartMutation = useMutation({
     mutationFn: () => runForCurrentCustomer(
-      () => addToCart(productId, qty),
+      async () => {
+        if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
+        if (product.optionGroups.length) {
+          for (const line of purchaseLines) {
+            await addToCart(productId, line.productVariantId, line.textInputs, line.qty);
+          }
+          return;
+        }
+        await addToCart(
+          productId,
+          product.type === "MADE_TO_ORDER" ? (product.variants[0]?.id ?? null) : null,
+          [],
+          qty,
+        );
+      },
       () => toast.show("장바구니에 추가되었습니다."),
     ),
   });
@@ -124,8 +160,17 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;
 
-  const itemAmount = product.price * qty;
-  const canBuy = product.available && qty >= 1 && qty <= MAX_PRODUCT_QUANTITY;
+  const hasConfiguredOptions = product.optionGroups.length > 0;
+  const selectedQuantity = hasConfiguredOptions
+    ? purchaseLines.reduce((sum, line) => sum + line.qty, 0)
+    : qty;
+  const itemAmount = hasConfiguredOptions
+    ? purchaseLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0)
+    : product.price * qty;
+  const canBuy = product.available
+    && selectedQuantity >= 1
+    && (hasConfiguredOptions || selectedQuantity <= MAX_PRODUCT_QUANTITY)
+    && purchaseLines.every((line) => line.qty <= line.availableQuantity);
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
@@ -213,6 +258,15 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               <div className="store-purchase-kicker mb-1">작품 주문</div>
               <h5 className="store-purchase-title mb-4">바로 주문하기</h5>
 
+              {hasConfiguredOptions ? (
+                <div className="mb-4">
+                  <ProductPurchaseOptions
+                    product={product}
+                    lines={purchaseLines}
+                    onChange={setPurchaseLines}
+                  />
+                </div>
+              ) : (
               <Row className="align-items-center g-3 mb-3">
                 <Col xs={4}>
                   <Form.Label htmlFor="product-qty" className="mb-0 small store-purchase-qty-label">수량</Form.Label>
@@ -254,6 +308,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   </div>
                 </Col>
               </Row>
+              )}
 
               <div className="store-purchase-summary mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-2">
@@ -262,7 +317,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                 </div>
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
-                  <span className="store-purchase-line">{qty}개</span>
+                  <span className="store-purchase-line">{selectedQuantity}개</span>
                 </div>
                 <OrderPriceSummary
                   itemAmount={itemAmount}
@@ -356,13 +411,30 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   >
                     {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                   </Button>
-                  <LinkButton
-                    to={guestFallbackPath}
-                    variant="link"
-                    className="w-100 text-muted-soft store-purchase-guest-link"
-                  >
-                    비회원 주문하기 →
-                  </LinkButton>
+                  {hasConfiguredOptions ? (
+                    <Button
+                      variant="link"
+                      className="w-100 text-muted-soft store-purchase-guest-link"
+                      disabled={!canBuy}
+                      onClick={() => {
+                        sessionStorage.setItem("hg_guest_order_draft", JSON.stringify({
+                          productId,
+                          items: purchaseLines,
+                        }));
+                        navigate(`/orders/new?productId=${productId}&draft=options`);
+                      }}
+                    >
+                      비회원 주문하기 →
+                    </Button>
+                  ) : (
+                    <LinkButton
+                      to={guestFallbackPath}
+                      variant="link"
+                      className="w-100 text-muted-soft store-purchase-guest-link"
+                    >
+                      비회원 주문하기 →
+                    </LinkButton>
+                  )}
                   <p className="store-purchase-helper mb-0 mt-2">
                     비회원 주문은 별도 경로로 이어지며, 선택한 상품과 수량을 미리 담아둡니다.
                   </p>

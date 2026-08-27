@@ -6,6 +6,7 @@ import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -20,43 +21,44 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
 
     private final ProductReaderPort productReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
+    private final ProductOptionConfigurationService optionConfigurationService;
 
     public DefaultProductQueryService(ProductReaderPort productReaderPort,
-                                      InventoryReaderPort inventoryReaderPort) {
+                                      InventoryReaderPort inventoryReaderPort,
+                                      ProductOptionConfigurationService optionConfigurationService) {
         this.productReaderPort = productReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
+        this.optionConfigurationService = optionConfigurationService;
     }
 
     /** 상품 단건 조회 */
     @Override
-    public ProductWithInventory getProduct(Long productId) {
+    public ProductView getProduct(Long productId) {
         Product product = productReaderPort.findActiveById(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
-        Inventory inventory = inventoryReaderPort.findByProductId(productId)
-                .orElseThrow(NotFoundException.supplier("재고"));
-        return new ProductWithInventory(product, inventory);
+        return toProductViews(List.of(product), false).getFirst();
     }
 
     /** ACTIVE 상품 목록 조회 — 최신 등록순 (N+1 방지: 재고 일괄 조회) */
     @Override
-    public List<ProductWithInventory> listActiveProducts() {
+    public List<ProductView> listActiveProducts() {
         List<Product> products = productReaderPort.findActiveProductsByCreatedAtDesc();
-        return toProductWithInventoryList(products);
+        return toProductViews(products, false);
     }
 
     @Override
-    public List<ProductWithInventory> listAllProducts() {
-        return toProductWithInventoryList(productReaderPort.findAllProductsByCreatedAtDesc());
+    public List<ProductView> listAllProducts() {
+        return toProductViews(productReaderPort.findAllProductsByCreatedAtDesc(), true);
     }
 
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
     @Override
-    public List<ProductWithInventory> listActiveProducts(ProductFilter filter) {
+    public List<ProductView> listActiveProducts(ProductFilter filter) {
         if (filter.isDefault()) {
             return listActiveProducts();
         }
         List<Product> products = productReaderPort.findActiveByFilter(filter);
-        return toProductWithInventoryList(products);
+        return toProductViews(products, false);
     }
 
     /** ACTIVE 상품에 존재하는 카테고리 목록. */
@@ -65,7 +67,7 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
         return productReaderPort.findDistinctActiveCategories();
     }
 
-    private List<ProductWithInventory> toProductWithInventoryList(List<Product> products) {
+    private List<ProductView> toProductViews(List<Product> products, boolean adminView) {
         if (products.isEmpty()) {
             return List.of();
         }
@@ -75,13 +77,21 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
                 .stream()
                 .collect(toMap(Inventory::getProductId, Function.identity()));
 
+        Map<Long, ProductOptions> optionsByProductId = optionConfigurationService
+                .getAll(productIds, adminView);
         return products.stream()
                 .map(p -> {
                     Inventory inv = inventoryMap.get(p.getId());
                     if (inv == null) {
                         throw new NotFoundException("재고");
                     }
-                    return new ProductWithInventory(p, inv);
+                    if (p.getType() == ProductType.READY_STOCK) {
+                        return new ProductView(
+                                p, inv.getQuantity(), inv.isAvailable(), ProductOptions.EMPTY);
+                    }
+                    ProductOptions options = optionsByProductId.getOrDefault(
+                            p.getId(), ProductOptions.EMPTY);
+                    return new ProductView(p, options.quantity(), options.available(), options);
                 })
                 .toList();
     }

@@ -18,13 +18,26 @@ final class CartSnapshotVersion {
         StringBuilder canonical = new StringBuilder();
         append(canonical, items.size());
         for (CartItemView item : items) {
+            append(canonical, item.cartItemId());
             append(canonical, item.productId());
+            append(canonical, item.productVariantId());
             append(canonical, item.productName());
             append(canonical, item.productType());
+            append(canonical, item.basePrice());
+            append(canonical, item.variantPriceAdjustment());
+            append(canonical, item.textOptionPriceAdjustment());
             append(canonical, item.price());
             append(canonical, item.specification());
             append(canonical, item.careInstructions());
             append(canonical, item.productionLeadDays());
+            append(canonical, item.options().size());
+            item.options().forEach(option -> {
+                append(canonical, option.type());
+                append(canonical, option.groupName());
+                append(canonical, option.value());
+                append(canonical, option.priceAdjustment());
+                append(canonical, option.sortOrder());
+            });
             append(canonical, item.qty());
             append(canonical, item.available());
         }

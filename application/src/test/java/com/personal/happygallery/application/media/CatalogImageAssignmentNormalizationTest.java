@@ -17,6 +17,9 @@ import com.personal.happygallery.application.event.port.out.EventReaderPort;
 import com.personal.happygallery.application.event.port.out.EventStorePort;
 import com.personal.happygallery.application.product.DefaultProductAdminService;
 import com.personal.happygallery.application.product.InventoryService;
+import com.personal.happygallery.application.product.ProductOptionConfigurationService;
+import com.personal.happygallery.application.product.ProductVariantStockService;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.out.InventoryAdjustmentHistoryPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
@@ -28,6 +31,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,20 +58,14 @@ class CatalogImageAssignmentNormalizationTest {
                 mock(InventoryReaderPort.class),
                 mock(InventoryAdjustmentHistoryPort.class),
                 inventoryService,
+                mock(ProductVariantStockService.class),
+                mock(ProductOptionConfigurationService.class),
                 guard,
                 Clock.systemUTC());
 
-        service.register(
-                "원목 트레이",
-                ProductType.READY_STOCK,
-                "WOOD",
-                30_000L,
-                1,
-                null,
-                RAW_IMAGE_URL,
-                null,
-                null,
-                null);
+        service.register(new SaveProductCommand(
+                "원목 트레이", ProductType.READY_STOCK, "WOOD", 30_000L, 1,
+                null, RAW_IMAGE_URL, null, null, null, List.of(), List.of()));
 
         verify(guard).validateAssignment(NORMALIZED_IMAGE_URL);
     }

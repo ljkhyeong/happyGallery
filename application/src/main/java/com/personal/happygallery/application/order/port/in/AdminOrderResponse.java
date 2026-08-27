@@ -4,8 +4,10 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderOptionSnapshot;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.ProductOptionType;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -44,6 +46,11 @@ public record AdminOrderResponse(
             long couponDiscountAmount,
             long rewardUsedAmount,
             long netPaidAmount,
+            Long productVariantId,
+            long basePrice,
+            long variantPriceAdjustment,
+            long textOptionPriceAdjustment,
+            List<OrderOptionView> options,
             String specification,
             String careInstructions,
             Integer productionLeadDays
@@ -59,7 +66,8 @@ public record AdminOrderResponse(
                 Integer productionLeadDays) {
             this(productId, productName, productType, qty, unitPrice,
                     Math.multiplyExact(qty, unitPrice), 0L, 0L,
-                    Math.multiplyExact(qty, unitPrice),
+                    Math.multiplyExact(qty, unitPrice), null, unitPrice,
+                    0L, 0L, List.of(),
                     specification, careInstructions, productionLeadDays);
         }
 
@@ -74,9 +82,27 @@ public record AdminOrderResponse(
                     item.getCouponDiscountAmount(),
                     item.getRewardUsedAmount(),
                     item.getNetPaidAmount(),
+                    item.getProductVariantId(),
+                    item.getBasePrice(),
+                    item.getVariantPriceAdjustment(),
+                    item.getTextOptionPriceAdjustment(),
+                    item.getOptionSnapshots().stream().map(OrderOptionView::from).toList(),
                     item.getSpecification(),
                     item.getCareInstructions(),
                     item.getProductionLeadDays());
+        }
+    }
+
+    public record OrderOptionView(
+            ProductOptionType type,
+            String groupName,
+            String value,
+            long priceAdjustment
+    ) {
+        private static OrderOptionView from(OrderOptionSnapshot option) {
+            return new OrderOptionView(
+                    option.getType(), option.getGroupName(),
+                    option.getValue(), option.getPriceAdjustment());
         }
     }
 

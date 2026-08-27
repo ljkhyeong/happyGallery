@@ -1,7 +1,7 @@
 # ADR-0033: 결제 confirm 트랜잭션과 보상 경계
 
 **날짜**: 2026-07-12  
-**최종 갱신**: 2026-07-24
+**최종 갱신**: 2026-08-27
 **상태**: Accepted
 
 ---
@@ -78,15 +78,15 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 3. 도메인 생성 금액은 prepare 시점에 확정한다
 
-- 공개 입력인 `OrderPayload`에는 `productId`, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
-- `OrderPreparer`는 동일 상품 요청을 먼저 합산해 상품별 1~99개 제한을 적용하고, `ACTIVE` 상품을 ID 목록으로 한 번에 조회한다. 서버 상품가·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
+- 공개 입력인 `OrderPayload`에는 `productId`, `productVariantId`, 직접입력 옵션, `qty`와 고객이 선택한 수령 방식, 배송 주문의 구조화된 배송지를 받는다.
+- `OrderPreparer`는 같은 상품·SKU·직접입력 요청을 먼저 합산해 SKU별 1~99개 제한을 적용하고, `ACTIVE` 상품과 옵션 구성을 ID 목록으로 일괄 조회한다. 서버는 기본가·조합 추가금·직접입력 추가금, SKU·옵션·수령 방식·배송지 스냅샷을 포함한 내부용 `PreparedOrderPayload`와 amount를 함께 만들며, SKU별 재고 요구량을 합산해 확인하고 상품가와 총액은 웹 안전 정수 상한을 넘지 않게 한다.
 - 공개 prepare 입력은 `PaymentPayload`의 `ORDER/BOOKING/PASS`만 허용한다. 서버 확정 스냅샷은 별도
   `PreparedPaymentPayload`의 `PREPARED_ORDER/PREPARED_BOOKING/PREPARED_PASS`로 분리한다. 내부 스냅샷은
   HTTP schema에 노출하지 않고, 공개 요청 타입은 fulfiller 계약에 전달하지 않는다. 저장 JSON의 기존 subtype
   이름은 유지해 암호화된 레코드와 키 회전 호환성을 보존한다.
 - 내부용 payload는 AES-GCM으로 암호화해 `payment_attempt.payload_enc`에 저장하고, confirm 단계 결정과 fulfillment에서만 복호화한다. 비회원 공개 입력의 인증 코드 원문은 저장하지 않고 결제 귀속 HMAC 증거로 교체한다. V46은 기존 평문 JSON도 암호문으로 전환한다.
 - confirm 단계 결정에서 항목 단가 합계와 `payment_attempt.amount`를 대조한 뒤 PG를 호출한다.
-- `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 단가로 `OrderItemRequest`를 만들며, 주문과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
+- `OrderFulfiller`는 상품을 다시 조회하지 않고 저장된 가격 구성과 옵션 스냅샷으로 `OrderItemRequest`를 만들며, 주문·SKU 재고 차감과 선택된 fulfillment를 같은 트랜잭션에 저장한다. 배송지는 별도 AES-GCM 암호문으로 `fulfillments.shipping_address_enc`에 보존한다.
 - `BookingPreparer`는 예약금과 잔금을 `PreparedBookingPayload`에, `PassPreparer`는 총 가격을 `PreparedPassPayload`에 저장한다.
 - 예약과 8회권 fulfillment도 현재 가격을 다시 계산하지 않고 저장된 스냅샷으로 생성한다.
 - 변경 전 생성되어 서버 가격이 없는 미확정 결제 시도는 confirm하지 않고 새 prepare를 요구한다.

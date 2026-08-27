@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -228,14 +230,10 @@ class ProductInventoryUseCaseIT {
 
         productAdminUseCase.update(
                 staleProduct.getId(),
-                "먼저 반영된 이름",
-                null,
-                50_000L,
-                null,
-                null,
-                null,
-                null,
-                null);
+                new ProductAdminUseCase.SaveProductCommand(
+                        "먼저 반영된 이름", ProductType.READY_STOCK, null,
+                        50_000L, null, null, null, null, null, null,
+                        List.of(), List.of()));
         staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null);
 
         assertThatThrownBy(() -> productRepository.saveAndFlush(staleProduct))
@@ -310,6 +308,7 @@ class ProductInventoryUseCaseIT {
         InventoryAdjustment adjustment = productAdminUseCase.adjustInventory(
                 new ProductAdminUseCase.AdjustInventoryCommand(
                         product.getId(),
+                        null,
                         InventoryAdjustmentType.DECREASE,
                         2,
                         "오프라인 매장 판매",
@@ -319,6 +318,7 @@ class ProductInventoryUseCaseIT {
         assertThatThrownBy(() -> productAdminUseCase.adjustInventory(
                 new ProductAdminUseCase.AdjustInventoryCommand(
                         product.getId(),
+                        null,
                         InventoryAdjustmentType.DECREASE,
                         4,
                         "재고보다 큰 수량 차감",

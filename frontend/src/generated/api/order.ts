@@ -108,6 +108,21 @@ export interface FulfillmentDto {
   type: FulfillmentDtoType;
 }
 
+export type OrderOptionSnapshotResponseType = typeof OrderOptionSnapshotResponseType[keyof typeof OrderOptionSnapshotResponseType];
+
+
+export const OrderOptionSnapshotResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface OrderOptionSnapshotResponse {
+  groupName: string;
+  priceAdjustment: number;
+  type: OrderOptionSnapshotResponseType;
+  value: string;
+}
+
 /**
  * @nullable
  */
@@ -120,23 +135,29 @@ export const ItemDtoProductType = {
 } as const;
 
 export interface ItemDto {
+  basePrice: number;
   /** @nullable */
   careInstructions: string | null;
   couponDiscountAmount: number;
   grossAmount: number;
   netPaidAmount: number;
+  options: OrderOptionSnapshotResponse[];
   orderItemId: number;
   productId: number;
   productName: string;
   /** @nullable */
   productType: ItemDtoProductType;
   /** @nullable */
+  productVariantId: number | null;
+  /** @nullable */
   productionLeadDays: number | null;
   qty: number;
   rewardUsedAmount: number;
   /** @nullable */
   specification: string | null;
+  textOptionPriceAdjustment: number;
   unitPrice: number;
+  variantPriceAdjustment: number;
 }
 
 export interface OrderDetailResponse {

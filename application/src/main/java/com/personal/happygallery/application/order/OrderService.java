@@ -4,8 +4,7 @@ import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
-import com.personal.happygallery.application.product.InventoryService;
-import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -13,6 +12,7 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderOptionSnapshot;
 import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentPolicy;
@@ -40,7 +40,7 @@ public class OrderService {
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
-    private final InventoryService inventoryService;
+    private final OrderStockService orderStockService;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
     private final ShippingAddressProtector shippingAddressProtector;
@@ -50,7 +50,7 @@ public class OrderService {
     public OrderService(OrderStorePort orderStore,
                         OrderItemPort orderItemPort,
                         FulfillmentPort fulfillmentPort,
-                        InventoryService inventoryService,
+                        OrderStockService orderStockService,
                         ApplicationEventPublisher eventPublisher,
                         GuestTokenService guestTokenService,
                         ShippingAddressProtector shippingAddressProtector,
@@ -59,7 +59,7 @@ public class OrderService {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
-        this.inventoryService = inventoryService;
+        this.orderStockService = orderStockService;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
         this.shippingAddressProtector = shippingAddressProtector;
@@ -189,17 +189,23 @@ public class OrderService {
     }
 
     private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
-        inventoryService.deductAll(items.stream()
-                .map(item -> new InventoryAdjustment(item.productId(), item.qty()))
+        orderStockService.deductAll(items.stream()
+                .map(item -> new StockAdjustment(
+                        item.productId(), item.productVariantId(), item.qty()))
                 .toList());
         orderItemPort.saveAll(items.stream()
                 .map(item -> new OrderItem(
                         order,
                         item.productId(),
+                        item.productVariantId(),
                         item.productName(),
                         item.productType(),
                         item.qty(),
                         item.unitPrice(),
+                        item.basePrice(),
+                        item.variantPriceAdjustment(),
+                        item.textOptionPriceAdjustment(),
+                        item.optionSnapshots(),
                         item.specification(),
                         item.careInstructions(),
                         item.productionLeadDays(),
@@ -255,18 +261,23 @@ public class OrderService {
 
     public record OrderItemRequest(
             Long productId,
+            Long productVariantId,
             String productName,
             ProductType productType,
             int qty,
             long unitPrice,
+            long basePrice,
+            long variantPriceAdjustment,
+            long textOptionPriceAdjustment,
+            List<OrderOptionSnapshot> optionSnapshots,
             String specification,
             String careInstructions,
             Integer productionLeadDays,
             OrderItemPricing pricing
     ) {
         public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
-            this(productId, productName, ProductType.READY_STOCK,
-                    qty, unitPrice, null, null, null,
+            this(productId, null, productName, ProductType.READY_STOCK,
+                    qty, unitPrice, unitPrice, 0L, 0L, List.of(), null, null, null,
                     OrderItemPricing.fullPrice(qty, unitPrice));
         }
 
@@ -279,9 +290,10 @@ public class OrderService {
                 String careInstructions,
                 Integer productionLeadDays
         ) {
-            this(productId, productName,
+            this(productId, null, productName,
                     productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
-                    qty, unitPrice, specification, careInstructions, productionLeadDays,
+                    qty, unitPrice, unitPrice, 0L, 0L, List.of(),
+                    specification, careInstructions, productionLeadDays,
                     OrderItemPricing.fullPrice(qty, unitPrice));
         }
 
@@ -295,9 +307,26 @@ public class OrderService {
                 String careInstructions,
                 Integer productionLeadDays
         ) {
-            this(productId, productName, productType, qty, unitPrice,
+            this(productId, null, productName, productType, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(),
                     specification, careInstructions, productionLeadDays,
                     OrderItemPricing.fullPrice(qty, unitPrice));
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                ProductType productType,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays,
+                OrderItemPricing pricing
+        ) {
+            this(productId, null, productName, productType, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
+                    productionLeadDays, pricing);
         }
 
         public OrderItemRequest {
@@ -307,6 +336,7 @@ public class OrderService {
             if (pricing == null) {
                 throw new IllegalArgumentException("주문 품목 가격 스냅샷은 필수입니다.");
             }
+            optionSnapshots = List.copyOf(optionSnapshots);
         }
     }
 

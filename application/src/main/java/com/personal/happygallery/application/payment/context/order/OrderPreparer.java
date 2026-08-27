@@ -9,16 +9,24 @@ import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.payment.GuestPaymentVerificationService;
 import com.personal.happygallery.application.payment.context.PaymentPreparer;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderOption;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
+import com.personal.happygallery.application.product.ProductOptionConfigurationService;
+import com.personal.happygallery.application.product.ProductOptions.OptionSnapshot;
+import com.personal.happygallery.application.product.ProductOptions.PurchaseRequest;
+import com.personal.happygallery.application.product.ProductOptions.ResolvedLine;
+import com.personal.happygallery.application.product.ProductOptions.ResolvedPurchase;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
@@ -36,7 +44,7 @@ import com.personal.happygallery.domain.user.PersonalName;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -50,6 +58,7 @@ public class OrderPreparer implements PaymentPreparer {
 
     private final ProductReaderPort productReader;
     private final InventoryReaderPort inventoryReader;
+    private final ProductOptionConfigurationService optionConfigurationService;
     private final CartUseCase cartUseCase;
     private final OrderPriceProperties orderPriceProperties;
     private final GuestPaymentVerificationService guestPaymentVerification;
@@ -59,6 +68,7 @@ public class OrderPreparer implements PaymentPreparer {
 
     public OrderPreparer(ProductReaderPort productReader,
                          InventoryReaderPort inventoryReader,
+                         ProductOptionConfigurationService optionConfigurationService,
                          CartUseCase cartUseCase,
                          OrderPriceProperties orderPriceProperties,
                          GuestPaymentVerificationService guestPaymentVerification,
@@ -67,6 +77,7 @@ public class OrderPreparer implements PaymentPreparer {
                          Clock clock) {
         this.productReader = productReader;
         this.inventoryReader = inventoryReader;
+        this.optionConfigurationService = optionConfigurationService;
         this.cartUseCase = cartUseCase;
         this.orderPriceProperties = orderPriceProperties;
         this.guestPaymentVerification = guestPaymentVerification;
@@ -133,12 +144,23 @@ public class OrderPreparer implements PaymentPreparer {
         Map<Long, Product> productsById = productReader.findAllById(productIds)
                 .stream()
                 .collect(toMap(Product::getId, Function.identity()));
-        Map<Long, Inventory> inventoriesByProductId = inventoryReader.findByProductIdIn(productIds)
+        List<Long> readyStockProductIds = productsById.values().stream()
+                .filter(product -> product.getType() == ProductType.READY_STOCK)
+                .map(Product::getId)
+                .toList();
+        Map<Long, Inventory> inventoriesByProductId = inventoryReader.findByProductIdIn(readyStockProductIds)
                 .stream()
                 .collect(toMap(Inventory::getProductId, Function.identity()));
-        List<PreparedOrderItem> grossPreparedItems = items.stream()
-                .map(item -> prepareItem(item, productsById, inventoriesByProductId))
-                .toList();
+        Map<Integer, ResolvedLine> resolvedByIndex = optionConfigurationService
+                .resolvePurchases(purchaseRequests(items))
+                .stream()
+                .collect(toMap(ResolvedLine::index, Function.identity()));
+        requireAvailableQuantity(items, resolvedByIndex, inventoriesByProductId);
+        List<PreparedOrderItem> grossPreparedItems = new ArrayList<>(items.size());
+        for (int index = 0; index < items.size(); index++) {
+            grossPreparedItems.add(prepareItem(
+                    items.get(index), resolvedByIndex.get(index), productsById));
+        }
         MadeToOrderConsent madeToOrderConsent = madeToOrderConsent(op, productsById);
         long productAmount = 0L;
         for (PreparedOrderItem item : grossPreparedItems) {
@@ -197,9 +219,14 @@ public class OrderPreparer implements PaymentPreparer {
             allocated.add(new PreparedOrderItem(
                     item.cartItemId(),
                     item.productId(),
+                    item.productVariantId(),
                     item.productName(),
                     item.qty(),
                     item.unitPrice(),
+                    item.effectiveBasePrice(),
+                    item.variantPriceAdjustment(),
+                    item.textOptionPriceAdjustment(),
+                    item.optionSnapshots(),
                     item.specification(),
                     item.careInstructions(),
                     item.productionLeadDays(),
@@ -242,55 +269,119 @@ public class OrderPreparer implements PaymentPreparer {
     }
 
     private List<ItemToPrepare> mergeDirectItems(List<OrderItemRef> requestedItems) {
-        Map<Long, Integer> quantitiesByProductId = new LinkedHashMap<>();
+        List<ItemToPrepare> items = new ArrayList<>(requestedItems.size());
         for (OrderItemRef item : requestedItems) {
             if (item == null || item.productId() == null) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 상품이 지정되지 않았습니다.");
             }
             OrderAmountCalculator.requireQuantity(item.qty());
-            try {
-                int quantity = quantitiesByProductId.merge(item.productId(), item.qty(), Math::addExact);
-                OrderAmountCalculator.requireQuantity(quantity);
-            } catch (ArithmeticException e) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 수량이 너무 큽니다.");
-            }
+            List<TextInput> textInputs = item.textInputs().stream()
+                    .map(input -> new TextInput(input.groupKey(), input.value()))
+                    .toList();
+            items.add(new ItemToPrepare(
+                    null, item.productId(), item.productVariantId(), textInputs, item.qty()));
         }
-        return quantitiesByProductId.entrySet().stream()
-                .map(entry -> new ItemToPrepare(null, entry.getKey(), entry.getValue()))
-                .toList();
+        return List.copyOf(items);
     }
 
-    private PreparedOrderItem prepareItem(ItemToPrepare item,
-                                          Map<Long, Product> productsById,
-                                          Map<Long, Inventory> inventoriesByProductId) {
+    private PreparedOrderItem prepareItem(
+            ItemToPrepare item, ResolvedLine resolvedLine, Map<Long, Product> productsById) {
         Product product = productsById.get(item.productId());
-        if (product == null) {
+        if (product == null || resolvedLine == null) {
             throw new NotFoundException("상품");
         }
         if (product.getStatus() != ProductStatus.ACTIVE) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "판매 중인 상품만 주문할 수 있습니다.");
         }
-        Inventory inventory = inventoriesByProductId.get(item.productId());
-        if (inventory == null) {
-            throw new NotFoundException("재고");
-        }
-        inventory.requireSufficient(item.qty());
+        ResolvedPurchase purchase = resolvedLine.purchase();
         return new PreparedOrderItem(
                 item.cartItemId(),
                 item.productId(),
+                purchase.variantId(),
                 product.getName(),
                 item.qty(),
-                product.getPrice(),
+                purchase.unitPrice(),
+                purchase.basePrice(),
+                purchase.variantPriceAdjustment(),
+                purchase.textOptionPriceAdjustment(),
+                purchase.optionSnapshots().stream().map(OrderPreparer::toPreparedOption).toList(),
                 product.getSpecification(),
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
-                product.getType());
+                product.getType(),
+                null);
     }
 
-    private record ItemToPrepare(Long cartItemId, Long productId, int qty) {
+    private static List<PurchaseRequest> purchaseRequests(List<ItemToPrepare> items) {
+        List<PurchaseRequest> requests = new ArrayList<>(items.size());
+        for (int index = 0; index < items.size(); index++) {
+            ItemToPrepare item = items.get(index);
+            requests.add(new PurchaseRequest(
+                    index, item.productId(), item.productVariantId(), item.textInputs()));
+        }
+        return List.copyOf(requests);
+    }
+
+    private static void requireAvailableQuantity(
+            List<ItemToPrepare> items,
+            Map<Integer, ResolvedLine> resolvedByIndex,
+            Map<Long, Inventory> inventoriesByProductId) {
+        Map<StockKey, Integer> requestedByStock = new HashMap<>();
+        for (int index = 0; index < items.size(); index++) {
+            ItemToPrepare item = items.get(index);
+            ResolvedLine resolved = resolvedByIndex.get(index);
+            if (resolved == null) {
+                throw new NotFoundException("상품");
+            }
+            StockKey stockKey;
+            int availableQuantity;
+            if (resolved.product().getType() == ProductType.MADE_TO_ORDER) {
+                stockKey = new StockKey(null, resolved.purchase().variantId());
+                availableQuantity = resolved.purchase().availableQuantity();
+            } else {
+                Inventory inventory = inventoriesByProductId.get(item.productId());
+                if (inventory == null) {
+                    throw new NotFoundException("재고");
+                }
+                stockKey = new StockKey(item.productId(), null);
+                availableQuantity = inventory.getQuantity();
+            }
+            int requested;
+            try {
+                requested = requestedByStock.merge(stockKey, item.qty(), Math::addExact);
+            } catch (ArithmeticException exception) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "주문 수량이 너무 큽니다.");
+            }
+            OrderAmountCalculator.requireQuantity(requested);
+            if (requested > availableQuantity) {
+                throw new InventoryNotEnoughException();
+            }
+        }
+    }
+
+    private static PreparedOrderOption toPreparedOption(OptionSnapshot option) {
+        return new PreparedOrderOption(
+                option.type(), option.groupName(), option.value(),
+                option.priceAdjustment(), option.sortOrder());
+    }
+
+    private record StockKey(Long productId, Long variantId) {}
+
+    private record ItemToPrepare(
+            Long cartItemId,
+            Long productId,
+            Long productVariantId,
+            List<TextInput> textInputs,
+            int qty) {
+
+        private ItemToPrepare {
+            textInputs = List.copyOf(textInputs);
+        }
 
         private static ItemToPrepare from(CartPurchaseItem item) {
-            return new ItemToPrepare(item.cartItemId(), item.productId(), item.qty());
+            return new ItemToPrepare(
+                    item.cartItemId(), item.productId(), item.productVariantId(),
+                    item.textInputs(), item.qty());
         }
     }
 }

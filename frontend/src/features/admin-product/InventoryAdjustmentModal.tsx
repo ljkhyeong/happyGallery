@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
@@ -23,6 +23,13 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   const [quantity, setQuantity] = useState("1");
   const [reason, setReason] = useState("");
   const [showImpactConfirm, setShowImpactConfirm] = useState(false);
+  const [productVariantId, setProductVariantId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setProductVariantId(product?.type === "MADE_TO_ORDER"
+      ? (product.variants.find((variant) => variant.active)?.id ?? product.variants[0]?.id ?? null)
+      : null);
+  }, [product]);
 
   const historyQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "inventory-adjustments"],
@@ -32,6 +39,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => adjustInventory(adminKey, product!.id, {
+      productVariantId,
       type,
       quantity: Number(quantity),
       reason,
@@ -50,7 +58,10 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   });
 
   const quantityNumber = Number(quantity);
-  const currentQuantity = mutation.data?.quantityAfter ?? product?.quantity ?? 0;
+  const selectedVariant = product?.variants.find((variant) => variant.id === productVariantId);
+  const currentQuantity = mutation.data?.productVariantId === productVariantId
+    ? mutation.data.quantityAfter
+    : (selectedVariant?.quantity ?? product?.quantity ?? 0);
   const projectedQuantity = type === "INCREASE"
     ? currentQuantity + quantityNumber
     : currentQuantity - quantityNumber;
@@ -60,6 +71,7 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
   const valid = Number.isSafeInteger(quantityNumber)
     && quantityNumber > 0
     && projectedQuantity >= 0
+    && (product?.type !== "MADE_TO_ORDER" || productVariantId !== null)
     && reason.trim().length > 0
     && reason.length <= 500;
 
@@ -86,6 +98,35 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {product?.type === "MADE_TO_ORDER" && (
+          <Form.Group className="mb-3" controlId="inventory-adjustment-variant">
+            <Form.Label>옵션 조합</Form.Label>
+            <Form.Select
+              value={productVariantId ?? ""}
+              onChange={(event) => {
+                setProductVariantId(Number(event.target.value));
+                mutation.reset();
+                setShowImpactConfirm(false);
+              }}
+            >
+              {product.variants.map((variant) => (
+                <option key={variant.id} value={variant.id}>
+                  {variant.selections.length === 0
+                    ? "기본 조합"
+                    : variant.selections.map((selection) => {
+                      const group = product.optionGroups.find(
+                        (candidate) => candidate.key === selection.groupKey,
+                      );
+                      const value = group?.values.find(
+                        (candidate) => candidate.key === selection.valueKey,
+                      );
+                      return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
+                    }).join(" / ")} ({variant.quantity}개)
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        )}
         <div className="d-flex align-items-center justify-content-between mb-3">
           <span className="text-muted">현재 재고</span>
           <strong>{currentQuantity}개</strong>

@@ -15,6 +15,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderTextInput;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
@@ -33,7 +34,9 @@ import com.personal.happygallery.adapter.out.persistence.notification.Notificati
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -54,6 +57,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -116,6 +120,8 @@ class PaymentConfirmUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired ProductStorePort productStorePort;
+    @Autowired ProductAdminUseCase productAdminUseCase;
+    @Autowired ProductVariantReaderPort productVariantReaderPort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired UserStorePort userStorePort;
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
@@ -261,25 +267,27 @@ class PaymentConfirmUseCaseIT {
     void confirm_madeToOrder_requiresAndSnapshotsConsent() {
         User user = userStorePort.save(new User(
                 "made-to-order-consent@example.com", "hashed", "제작 동의 회원", "01033335555"));
-        Product product = productStorePort.save(
-                new Product(
-                        "주문제작 가죽 소품",
-                        ProductType.MADE_TO_ORDER,
-                        null,
-                        120_000L,
-                        null,
-                        null,
+        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "주문제작 가죽 소품", ProductType.MADE_TO_ORDER, null,
+                        120_000L, 1, null, null,
                         "재료: 소가죽\n크기: 12 x 8 cm\n사양: 내추럴 브라운",
-                        "물에 젖으면 마른 천으로 닦아 주세요.",
-                        21));
-        inventoryStorePort.save(inventory(product, 1));
+                        "물에 젖으면 마른 천으로 닦아 주세요.", 21,
+                        List.of(new ProductAdminUseCase.OptionGroupDefinition(
+                                "engraving", ProductOptionType.TEXT, "각인 문구", true, 0,
+                                "영문 20자", 20, 3_000L, List.of())),
+                        List.of()));
+        Product product = registered.product();
+        Long variantId = registered.options().variants().getFirst().id();
         AuthContext auth = AuthContext.member(user.getId());
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
                 new OrderPayload(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(new OrderItemRef(
+                                product.getId(), variantId,
+                                List.of(new OrderTextInput("engraving", "HAPPY")), 1))),
                 auth)))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("청약철회 제한 안내");
@@ -288,7 +296,9 @@ class PaymentConfirmUseCaseIT {
                 PaymentContext.ORDER,
                 new OrderPayload(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        List.of(new OrderItemRef(
+                                product.getId(), variantId,
+                                List.of(new OrderTextInput("engraving", "HAPPY")), 1)), false,
                         FulfillmentType.PICKUP, null,
                         MadeToOrderConsent.CURRENT_VERSION, true),
                 auth));
@@ -321,7 +331,20 @@ class PaymentConfirmUseCaseIT {
                         softly.assertThat(item.getCareInstructions())
                                 .isEqualTo("물에 젖으면 마른 천으로 닦아 주세요.");
                         softly.assertThat(item.getProductionLeadDays()).isEqualTo(21);
+                        softly.assertThat(item.getProductVariantId()).isEqualTo(variantId);
+                        softly.assertThat(item.getBasePrice()).isEqualTo(120_000L);
+                        softly.assertThat(item.getTextOptionPriceAdjustment()).isEqualTo(3_000L);
+                        softly.assertThat(item.getUnitPrice()).isEqualTo(123_000L);
+                        softly.assertThat(item.getOptionSnapshots())
+                                .singleElement()
+                                .satisfies(option -> {
+                                    softly.assertThat(option.getGroupName()).isEqualTo("각인 문구");
+                                    softly.assertThat(option.getValue()).isEqualTo("HAPPY");
+                                });
                     });
+            softly.assertThat(productVariantReaderPort.findWithSelectionsById(variantId))
+                    .hasValueSatisfying(variant ->
+                            softly.assertThat(variant.getQuantity()).isZero());
         });
     }
 
@@ -382,17 +405,13 @@ class PaymentConfirmUseCaseIT {
     void confirm_legacyMadeToOrderPayloadWithoutPurchaseTerms_rejectedBeforePgCall() {
         User user = userStorePort.save(new User(
                 "legacy-made-to-order@example.com", "hashed", "구형 결제 회원", "01077773333"));
-        Product product = productStorePort.save(new Product(
-                "구형 주문제작 결제",
-                ProductType.MADE_TO_ORDER,
-                null,
-                95_000L,
-                null,
-                null,
-                "재료: 월넛\n크기: 20 x 12 cm\n사양: 오일 마감",
-                null,
-                14));
-        inventoryStorePort.save(inventory(product, 1));
+        Product product = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "구형 주문제작 결제", ProductType.MADE_TO_ORDER, null,
+                        95_000L, 1, null, null,
+                        "재료: 월넛\n크기: 20 x 12 cm\n사양: 오일 마감",
+                        null, 14, List.of(), List.of()))
+                .product();
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,

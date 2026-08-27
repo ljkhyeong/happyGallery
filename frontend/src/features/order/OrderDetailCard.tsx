@@ -48,6 +48,18 @@ export function OrderDetailCard({ order }: Props) {
               <tr key={i}>
                 <td>
                   <div>{item.productName}</div>
+                  {item.options.length > 0 && (
+                    <div className="small text-muted mt-1">
+                      {item.options.map((option) => (
+                        <div key={`${option.type}-${option.groupName}`}>
+                          {option.groupName}: {option.value}
+                          {option.priceAdjustment > 0
+                            ? ` (+${formatKRW(option.priceAdjustment)})`
+                            : ""}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-2">
                     <ProductPurchaseTerms
                       productName={item.productName}

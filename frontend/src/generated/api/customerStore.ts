@@ -1,4 +1,20 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type ProductOptionSnapshotResponseType = typeof ProductOptionSnapshotResponseType[keyof typeof ProductOptionSnapshotResponseType];
+
+
+export const ProductOptionSnapshotResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface ProductOptionSnapshotResponse {
+  groupName: string;
+  priceAdjustment: number;
+  sortOrder: number;
+  type: ProductOptionSnapshotResponseType;
+  value: string;
+}
+
 export type CartItemResponseProductType = typeof CartItemResponseProductType[keyof typeof CartItemResponseProductType];
 
 
@@ -9,18 +25,25 @@ export const CartItemResponseProductType = {
 
 export interface CartItemResponse {
   available: boolean;
+  basePrice: number;
   /** @nullable */
   careInstructions: string | null;
+  cartItemId: number;
+  options: ProductOptionSnapshotResponse[];
   price: number;
   productId: number;
   productName: string;
   productType: CartItemResponseProductType;
+  /** @nullable */
+  productVariantId: number | null;
   /** @nullable */
   productionLeadDays: number | null;
   qty: number;
   /** @nullable */
   specification: string | null;
   subtotal: number;
+  textOptionPriceAdjustment: number;
+  variantPriceAdjustment: number;
 }
 
 export interface CartResponse {
@@ -29,13 +52,33 @@ export interface CartResponse {
   totalAmount: number;
 }
 
+export interface ProductTextInputRequest {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  groupKey: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  value?: string;
+}
+
 export interface AddCartItemRequest {
   productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
   /**
      * @minimum 1
      * @maximum 99
      */
   qty: number;
+  /**
+     * @minItems 0
+     * @maxItems 5
+     */
+  textInputs?: ProductTextInputRequest[];
 }
 
 export interface UpdateCartItemRequest {
@@ -48,11 +91,18 @@ export interface UpdateCartItemRequest {
 
 export interface MergeCartItemRequest {
   productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
   /**
      * @minimum 1
      * @maximum 99
      */
   qty: number;
+  /**
+     * @minItems 0
+     * @maxItems 5
+     */
+  textInputs?: ProductTextInputRequest[];
 }
 
 export interface MergeCartRequest {
@@ -316,6 +366,21 @@ export interface FulfillmentDto {
   type: FulfillmentDtoType;
 }
 
+export type OrderOptionSnapshotResponseType = typeof OrderOptionSnapshotResponseType[keyof typeof OrderOptionSnapshotResponseType];
+
+
+export const OrderOptionSnapshotResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface OrderOptionSnapshotResponse {
+  groupName: string;
+  priceAdjustment: number;
+  type: OrderOptionSnapshotResponseType;
+  value: string;
+}
+
 /**
  * @nullable
  */
@@ -328,23 +393,29 @@ export const ItemDtoProductType = {
 } as const;
 
 export interface ItemDto {
+  basePrice: number;
   /** @nullable */
   careInstructions: string | null;
   couponDiscountAmount: number;
   grossAmount: number;
   netPaidAmount: number;
+  options: OrderOptionSnapshotResponse[];
   orderItemId: number;
   productId: number;
   productName: string;
   /** @nullable */
   productType: ItemDtoProductType;
   /** @nullable */
+  productVariantId: number | null;
+  /** @nullable */
   productionLeadDays: number | null;
   qty: number;
   rewardUsedAmount: number;
   /** @nullable */
   specification: string | null;
+  textOptionPriceAdjustment: number;
   unitPrice: number;
+  variantPriceAdjustment: number;
 }
 
 export interface OrderDetailResponse {
@@ -500,17 +571,17 @@ export const addMyCartItem = async (addCartItemRequest: AddCartItemRequest, opti
 
 
 
-export const getRemoveMyCartItemUrl = (productId: number,) => {
+export const getRemoveMyCartItemUrl = (cartItemId: number,) => {
 
 
 
 
-  return `/api/v1/me/cart/items/${productId}`
+  return `/api/v1/me/cart/items/${cartItemId}`
 }
 
-export const removeMyCartItem = async (productId: number, options?: RequestInit): Promise<void> => {
+export const removeMyCartItem = async (cartItemId: number, options?: RequestInit): Promise<void> => {
 
-  return generatedApiClient<void>(getRemoveMyCartItemUrl(productId),
+  return generatedApiClient<void>(getRemoveMyCartItemUrl(cartItemId),
   {
     ...options,
     method: 'DELETE'
@@ -521,18 +592,18 @@ export const removeMyCartItem = async (productId: number, options?: RequestInit)
 
 
 
-export const getUpdateMyCartItemQuantityUrl = (productId: number,) => {
+export const getUpdateMyCartItemQuantityUrl = (cartItemId: number,) => {
 
 
 
 
-  return `/api/v1/me/cart/items/${productId}`
+  return `/api/v1/me/cart/items/${cartItemId}`
 }
 
-export const updateMyCartItemQuantity = async (productId: number,
+export const updateMyCartItemQuantity = async (cartItemId: number,
     updateCartItemRequest: UpdateCartItemRequest, options?: RequestInit): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateMyCartItemQuantityUrl(productId),
+  return generatedApiClient<void>(getUpdateMyCartItemQuantityUrl(cartItemId),
   {
     ...options,
     method: 'PUT',

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.adapter.in.web.order.dto.OrderOptionSnapshotResponse;
 import com.personal.happygallery.application.order.port.in.AdminOrderResponse;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.OrderStatus;
@@ -62,6 +63,16 @@ public record AdminOrderListItemResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             long unitPrice,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            Long productVariantId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long basePrice,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long variantPriceAdjustment,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long textOptionPriceAdjustment,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            List<OrderOptionSnapshotResponse> options,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String specification,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String careInstructions,
@@ -75,6 +86,15 @@ public record AdminOrderListItemResponse(
                     item.productType(),
                     item.qty(),
                     item.unitPrice(),
+                    item.productVariantId(),
+                    item.basePrice(),
+                    item.variantPriceAdjustment(),
+                    item.textOptionPriceAdjustment(),
+                    item.options().stream()
+                            .map(option -> new OrderOptionSnapshotResponse(
+                                    option.type(), option.groupName(),
+                                    option.value(), option.priceAdjustment()))
+                            .toList(),
                     item.specification(),
                     item.careInstructions(),
                     item.productionLeadDays());

@@ -6,6 +6,7 @@ import {
   updateMyCartItemQuantity,
   type CartResponse,
   type MergeCartItemRequest,
+  type ProductTextInputRequest,
 } from "@/generated/api/customerStore";
 
 type CartMergeItem = MergeCartItemRequest;
@@ -14,8 +15,13 @@ export function fetchCart(): Promise<CartResponse> {
   return getMyCart();
 }
 
-export function addToCart(productId: number, qty: number) {
-  return addMyCartItem({ productId, qty });
+export function addToCart(
+  productId: number,
+  productVariantId: number | null,
+  textInputs: ProductTextInputRequest[],
+  qty: number,
+) {
+  return addMyCartItem({ productId, productVariantId, textInputs, qty });
 }
 
 export function mergeGuestCart(
@@ -26,10 +32,10 @@ export function mergeGuestCart(
   return mergeMyCartItems({ expectedCustomerId, idempotencyKey, items });
 }
 
-export function updateCartItemQty(productId: number, qty: number) {
-  return updateMyCartItemQuantity(productId, { qty });
+export function updateCartItemQty(cartItemId: number, qty: number) {
+  return updateMyCartItemQuantity(cartItemId, { qty });
 }
 
-export function removeCartItem(productId: number) {
-  return removeMyCartItem(productId);
+export function removeCartItem(cartItemId: number) {
+  return removeMyCartItem(cartItemId);
 }

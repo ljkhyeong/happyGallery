@@ -12,8 +12,11 @@ public record CartResponse(
     public static CartResponse from(CartView view) {
         List<CartItemResponse> items = view.items().stream()
                 .map(i -> new CartItemResponse(
-                        i.productId(), i.productName(), i.productType(), i.price(),
+                        i.cartItemId(), i.productId(), i.productVariantId(),
+                        i.productName(), i.productType(), i.basePrice(),
+                        i.variantPriceAdjustment(), i.textOptionPriceAdjustment(), i.price(),
                         i.specification(), i.careInstructions(), i.productionLeadDays(),
+                        i.options().stream().map(ProductOptionSnapshotResponse::from).toList(),
                         i.qty(), i.subtotal(), i.available()))
                 .toList();
         return new CartResponse(items, view.totalAmount(), view.cartVersion());

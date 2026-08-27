@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { editGuestCartExclusive } from "./guestCartLock";
+import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 
 const STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
 
 export interface GuestCartItem {
   productId: number;
+  productVariantId: number | null;
+  textInputs: ProductTextInputRequest[];
+  lineKey: string;
   qty: number;
   lineageId: string;
 }
@@ -30,6 +34,18 @@ function requireCartQuantity(qty: number) {
   }
 }
 
+function guestLineKey(
+  productId: number,
+  productVariantId: number | null,
+  textInputs: ProductTextInputRequest[],
+) {
+  const inputs = [...textInputs]
+    .sort((left, right) => left.groupKey.localeCompare(right.groupKey))
+    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
+    .join("|");
+  return `${productId}:${productVariantId ?? 0}:${inputs}`;
+}
+
 function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const item = value as Partial<GuestCartItem>;
@@ -37,6 +53,10 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     typeof item.productId !== "number"
     || !Number.isSafeInteger(item.productId)
     || item.productId <= 0
+    || (item.productVariantId !== undefined
+      && item.productVariantId !== null
+      && (!Number.isSafeInteger(item.productVariantId) || item.productVariantId <= 0))
+    || (item.textInputs !== undefined && !Array.isArray(item.textInputs))
     || typeof item.qty !== "number"
     || !Number.isSafeInteger(item.qty)
     || item.qty <= 0
@@ -46,8 +66,19 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
   ) {
     return undefined;
   }
+  const textInputs = (item.textInputs ?? []).filter((input) => (
+    typeof input === "object"
+    && input !== null
+    && typeof input.groupKey === "string"
+    && (input.value === undefined || typeof input.value === "string")
+  )) as ProductTextInputRequest[];
+  if (textInputs.length !== (item.textInputs ?? []).length) return undefined;
+  const productVariantId = item.productVariantId ?? null;
   return {
     productId: item.productId,
+    productVariantId,
+    textInputs,
+    lineKey: guestLineKey(item.productId, productVariantId, textInputs),
     qty: item.qty,
     lineageId: item.lineageId ?? `legacy:${item.productId}`,
   };
@@ -62,7 +93,7 @@ function normalizeGuestCartItems(value: unknown): GuestCartItem[] | undefined {
     if (!item) return undefined;
     items.push(item);
   }
-  return new Set(items.map((item) => item.productId)).size === items.length
+  return new Set(items.map((item) => item.lineKey)).size === items.length
     ? items
     : undefined;
 }
@@ -115,7 +146,7 @@ export function getOrCreateGuestCartMergeRequestWhileLocked(
 
   const snapshot = items
     .map((item) => ({ ...item }))
-    .sort((left, right) => left.productId - right.productId);
+    .sort((left, right) => left.lineKey.localeCompare(right.lineKey));
   const request = { userId, idempotencyKey: crypto.randomUUID(), items: snapshot };
   localStorage.setItem(MERGE_REQUEST_STORAGE_KEY, JSON.stringify(request));
   return request;
@@ -201,17 +232,30 @@ export function useGuestCart() {
     [updateItemsWhileLocked],
   );
 
-  const addItem = useCallback(async (productId: number, qty: number) => {
+  const addItem = useCallback(async (
+    productId: number,
+    productVariantId: number | null,
+    textInputs: ProductTextInputRequest[],
+    qty: number,
+  ) => {
     requireCartQuantity(qty);
+    const lineKey = guestLineKey(productId, productVariantId, textInputs);
     await updateItems((prev) => {
-      const existing = prev.find((i) => i.productId === productId);
+      const existing = prev.find((item) => item.lineKey === lineKey);
       const nextQty = (existing?.qty ?? 0) + qty;
       requireCartQuantity(nextQty);
       return existing
         ? prev.map((i) =>
-          i.productId === productId ? { ...i, qty: nextQty } : i,
+          i.lineKey === lineKey ? { ...i, qty: nextQty } : i,
         )
-        : [...prev, { productId, qty, lineageId: crypto.randomUUID() }];
+        : [...prev, {
+          productId,
+          productVariantId,
+          textInputs,
+          lineKey,
+          qty,
+          lineageId: crypto.randomUUID(),
+        }];
     });
   }, [updateItems]);
 

@@ -10,7 +10,6 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
-import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -115,7 +114,7 @@ class DefaultOrderClaimServiceTest {
                 mock(RefundExecutionService.class);
         private final RefundPort refundPort = mock(RefundPort.class);
         private final RewardBenefitService rewardBenefitService = mock(RewardBenefitService.class);
-        private final InventoryService inventoryService = mock(InventoryService.class);
+        private final OrderStockService orderStockService = mock(OrderStockService.class);
         private final GuestTokenService guestTokenService = mock(GuestTokenService.class);
         private final ApplicationEventPublisher eventPublisher =
                 mock(ApplicationEventPublisher.class);
@@ -131,7 +130,7 @@ class DefaultOrderClaimServiceTest {
                     refundExecutionService,
                     refundPort,
                     rewardBenefitService,
-                    inventoryService,
+                    orderStockService,
                     guestTokenService,
                     eventPublisher,
                     CLOCK);

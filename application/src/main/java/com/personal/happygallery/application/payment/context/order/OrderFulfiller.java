@@ -10,7 +10,9 @@ import com.personal.happygallery.application.order.OrderService.OrderItemRequest
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderOption;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
+import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -18,16 +20,22 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderOptionSnapshot;
 import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.ProductVariant;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +48,7 @@ public class OrderFulfiller implements PaymentFulfiller {
     private final CartUseCase cartUseCase;
     private final CouponRedemptionUseCase couponRedemptionUseCase;
     private final RewardBenefitService rewardBenefitService;
+    private final ProductVariantReaderPort variantReaderPort;
     private final Clock clock;
 
     public OrderFulfiller(VerifiedGuestResolver verifiedGuestResolver,
@@ -47,12 +56,14 @@ public class OrderFulfiller implements PaymentFulfiller {
                           CartUseCase cartUseCase,
                           CouponRedemptionUseCase couponRedemptionUseCase,
                           RewardBenefitService rewardBenefitService,
+                          ProductVariantReaderPort variantReaderPort,
                           Clock clock) {
         this.verifiedGuestResolver = verifiedGuestResolver;
         this.orderService = orderService;
         this.cartUseCase = cartUseCase;
         this.couponRedemptionUseCase = couponRedemptionUseCase;
         this.rewardBenefitService = rewardBenefitService;
+        this.variantReaderPort = variantReaderPort;
         this.clock = clock;
     }
 
@@ -101,6 +112,7 @@ public class OrderFulfiller implements PaymentFulfiller {
                         ErrorCode.INVALID_INPUT,
                         "기성품 결제에 제작 기간이 저장되어 있습니다. 결제를 다시 준비해 주세요.");
             }
+            requireOptionPricing(item);
             long grossAmount = OrderAmountCalculator.addLine(0L, item.qty(), item.unitPrice());
             preparedAmount = safeAdd(preparedAmount, grossAmount);
             if (op.pricing() != null && item.pricing() == null) {
@@ -145,13 +157,19 @@ public class OrderFulfiller implements PaymentFulfiller {
         validateOrderPayload(attempt, payload, false);
         PreparedOrderPayload op = (PreparedOrderPayload) payload;
         OrderPricingSnapshot pricing = effectivePricing(op, productAmount(op.items()));
+        Map<Long, ProductVariant> defaultVariantsByProductId = defaultVariants(op.items());
         List<OrderItemRequest> orderItems = op.items().stream()
                 .map(item -> new OrderItemRequest(
                         item.productId(),
+                        effectiveVariantId(item, defaultVariantsByProductId),
                         item.productName(),
                         normalizeLegacyReadyStockType(item),
                         item.qty(),
                         item.unitPrice(),
+                        item.effectiveBasePrice(),
+                        item.variantPriceAdjustment(),
+                        item.textOptionPriceAdjustment(),
+                        item.optionSnapshots().stream().map(OrderFulfiller::toOrderOption).toList(),
                         item.specification(),
                         item.careInstructions(),
                         item.productionLeadDays(),
@@ -189,6 +207,85 @@ public class OrderFulfiller implements PaymentFulfiller {
 
     private static ProductType normalizeLegacyReadyStockType(PreparedOrderItem item) {
         return item.productType() == null ? ProductType.READY_STOCK : item.productType();
+    }
+
+    private Map<Long, ProductVariant> defaultVariants(List<PreparedOrderItem> items) {
+        List<Long> legacyProductIds = items.stream()
+                .filter(item -> item.productType() == ProductType.MADE_TO_ORDER
+                        && item.productVariantId() == null)
+                .map(PreparedOrderItem::productId)
+                .distinct()
+                .toList();
+        if (legacyProductIds.isEmpty()) {
+            return Map.of();
+        }
+        return variantReaderPort.findWithSelectionsByProductIdIn(legacyProductIds).stream()
+                .filter(variant -> ProductVariant.DEFAULT_COMBINATION_KEY.equals(
+                        variant.getCombinationKey()))
+                .collect(Collectors.toMap(ProductVariant::getProductId, Function.identity()));
+    }
+
+    private static Long effectiveVariantId(
+            PreparedOrderItem item, Map<Long, ProductVariant> defaultVariantsByProductId) {
+        if (item.productVariantId() != null || item.productType() != ProductType.MADE_TO_ORDER) {
+            return item.productVariantId();
+        }
+        ProductVariant variant = defaultVariantsByProductId.get(item.productId());
+        if (variant == null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "주문제작 상품의 기본 옵션 조합을 찾을 수 없습니다. 결제를 다시 준비해 주세요.");
+        }
+        return variant.getId();
+    }
+
+    private static OrderOptionSnapshot toOrderOption(PreparedOrderOption option) {
+        return new OrderOptionSnapshot(
+                option.type(), option.groupName(), option.value(),
+                option.priceAdjustment(), option.sortOrder());
+    }
+
+    private static void requireOptionPricing(PreparedOrderItem item) {
+        long expectedUnitPrice;
+        try {
+            expectedUnitPrice = Math.addExact(
+                    Math.addExact(item.effectiveBasePrice(), item.variantPriceAdjustment()),
+                    item.textOptionPriceAdjustment());
+        } catch (ArithmeticException exception) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "저장된 주문 옵션 금액이 허용 범위를 초과했습니다.");
+        }
+        if (item.effectiveBasePrice() < 1L
+                || item.textOptionPriceAdjustment() < 0L
+                || expectedUnitPrice != item.unitPrice()) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "저장된 주문 옵션 금액이 상품 단가와 일치하지 않습니다.");
+        }
+        long textAdjustment = 0L;
+        for (PreparedOrderOption option : item.optionSnapshots()) {
+            if (option == null || option.type() == null
+                    || option.groupName() == null || option.groupName().isBlank()
+                    || option.value() == null || option.value().isBlank()
+                    || option.priceAdjustment() < 0L) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "저장된 주문 옵션 정보가 올바르지 않습니다.");
+            }
+            if (option.type() == ProductOptionType.TEXT) {
+                textAdjustment = safeAdd(textAdjustment, option.priceAdjustment());
+            }
+        }
+        if (textAdjustment != item.textOptionPriceAdjustment()) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "직접입력형 옵션 금액이 저장된 상품 단가와 일치하지 않습니다.");
+        }
+        if (item.productType() == ProductType.READY_STOCK
+                && (item.productVariantId() != null
+                    || item.variantPriceAdjustment() != 0L
+                    || item.textOptionPriceAdjustment() != 0L
+                    || !item.optionSnapshots().isEmpty())) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "기성품 결제에는 주문제작 옵션을 저장할 수 없습니다.");
+        }
     }
 
     private static long productAmount(List<PreparedOrderItem> items) {

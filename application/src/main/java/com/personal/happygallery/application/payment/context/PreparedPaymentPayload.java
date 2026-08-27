@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.order.OrderItemPricing;
 import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.ProductOptionType;
 import java.util.List;
 import java.util.Objects;
 
@@ -99,9 +100,14 @@ public sealed interface PreparedPaymentPayload {
     record PreparedOrderItem(
             Long cartItemId,
             Long productId,
+            Long productVariantId,
             String productName,
             int qty,
             long unitPrice,
+            long basePrice,
+            long variantPriceAdjustment,
+            long textOptionPriceAdjustment,
+            List<PreparedOrderOption> optionSnapshots,
             String specification,
             String careInstructions,
             Integer productionLeadDays,
@@ -109,15 +115,25 @@ public sealed interface PreparedPaymentPayload {
             OrderItemPricing pricing
     ) {
 
+        public PreparedOrderItem {
+            optionSnapshots = optionSnapshots == null ? List.of() : List.copyOf(optionSnapshots);
+        }
+
+        public long effectiveBasePrice() {
+            return basePrice == 0L ? unitPrice : basePrice;
+        }
+
         /** V97 이전 저장 JSON과 테스트 fixture는 구매 조건과 상품 유형이 모두 null이다. */
         public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
-            this(null, productId, productName, qty, unitPrice, null, null, null, null, null);
+            this(null, productId, null, productName, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(), null, null, null, null, null);
         }
 
         /** V97 이전 장바구니 결제 스냅샷 호환 생성자. */
         public PreparedOrderItem(
                 Long cartItemId, Long productId, String productName, int qty, long unitPrice) {
-            this(cartItemId, productId, productName, qty, unitPrice, null, null, null, null, null);
+            this(cartItemId, productId, null, productName, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(), null, null, null, null, null);
         }
 
         /** 혜택 스냅샷 도입 전 호출부·저장 JSON 호환 생성자. */
@@ -134,7 +150,31 @@ public sealed interface PreparedPaymentPayload {
             this(cartItemId, productId, productName, qty, unitPrice,
                     specification, careInstructions, productionLeadDays, productType, null);
         }
+
+        public PreparedOrderItem(
+                Long cartItemId,
+                Long productId,
+                String productName,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays,
+                ProductType productType,
+                OrderItemPricing pricing) {
+            this(cartItemId, productId, null, productName, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
+                    productionLeadDays, productType, pricing);
+        }
     }
+
+    record PreparedOrderOption(
+            ProductOptionType type,
+            String groupName,
+            String value,
+            long priceAdjustment,
+            int sortOrder
+    ) {}
 
     record PreparedBookingPayload(
             Long userId,

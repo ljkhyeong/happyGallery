@@ -6,6 +6,7 @@ import com.personal.happygallery.application.cart.port.in.CartUseCase.MergeItem;
 import com.personal.happygallery.adapter.in.web.customer.dto.AddCartItemRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.CartResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MergeCartRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.ProductTextInputRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.UpdateCartItemRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -46,7 +47,10 @@ public class MeCartController {
     @Operation(operationId = "addMyCartItem")
     public void addItem(@RequestBody @Valid AddCartItemRequest req,
                         @AuthenticationPrincipal CustomerPrincipal customer) {
-        cartUseCase.addItem(customer.userId(), req.productId(), req.qty());
+        cartUseCase.addItem(
+                customer.userId(), req.productId(), req.productVariantId(),
+                req.textInputs().stream().map(ProductTextInputRequest::toCommand).toList(),
+                req.qty());
     }
 
     @PostMapping("/merge")
@@ -63,23 +67,28 @@ public class MeCartController {
                 customer.userId(),
                 request.idempotencyKey(),
                 request.items().stream()
-                        .map(item -> new MergeItem(item.productId(), item.qty()))
+                        .map(item -> new MergeItem(
+                                item.productId(), item.productVariantId(),
+                                item.textInputs().stream()
+                                        .map(ProductTextInputRequest::toCommand)
+                                        .toList(),
+                                item.qty()))
                         .toList());
     }
 
-    @PutMapping("/items/{productId}")
+    @PutMapping("/items/{cartItemId}")
     @Operation(operationId = "updateMyCartItemQuantity")
-    public void updateItemQty(@PathVariable Long productId,
+    public void updateItemQty(@PathVariable Long cartItemId,
                               @RequestBody @Valid UpdateCartItemRequest req,
                               @AuthenticationPrincipal CustomerPrincipal customer) {
-        cartUseCase.updateItemQty(customer.userId(), productId, req.qty());
+        cartUseCase.updateItemQty(customer.userId(), cartItemId, req.qty());
     }
 
-    @DeleteMapping("/items/{productId}")
+    @DeleteMapping("/items/{cartItemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "removeMyCartItem")
-    public void removeItem(@PathVariable Long productId,
+    public void removeItem(@PathVariable Long cartItemId,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
-        cartUseCase.removeItem(customer.userId(), productId);
+        cartUseCase.removeItem(customer.userId(), cartItemId);
     }
 }

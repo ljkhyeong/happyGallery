@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.BalanceStatus;
@@ -21,7 +22,6 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
@@ -50,11 +50,11 @@ final class RestDocsFixtures {
         return Clock.fixed(NOW.atZone(Clocks.SEOUL).toInstant(), Clocks.SEOUL);
     }
 
-    static ProductQueryUseCase.ProductWithInventory productWithInventory() {
+    static ProductQueryUseCase.ProductView productWithInventory() {
         return productWithInventory(ProductStatus.ACTIVE);
     }
 
-    static ProductQueryUseCase.ProductWithInventory productWithInventory(ProductStatus status) {
+    static ProductQueryUseCase.ProductView productWithInventory(ProductStatus status) {
         Product product = mock(Product.class);
         when(product.getId()).thenReturn(1L);
         when(product.getName()).thenReturn("시그니처 캔들");
@@ -63,11 +63,9 @@ final class RestDocsFixtures {
         when(product.getPrice()).thenReturn(39000L);
         when(product.getStatus()).thenReturn(status);
 
-        Inventory inventory = mock(Inventory.class);
-        when(inventory.isAvailable()).thenReturn(true);
-        when(inventory.getQuantity()).thenReturn(12);
-
-        return new ProductQueryUseCase.ProductWithInventory(product, inventory);
+        return new ProductQueryUseCase.ProductView(
+                product, 12L, true,
+                ProductOptions.EMPTY);
     }
 
     static BookingClass bookingClass() {

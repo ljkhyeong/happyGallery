@@ -12,8 +12,7 @@ import com.personal.happygallery.application.order.port.out.OrderItemApprovedRef
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
-import com.personal.happygallery.application.product.InventoryService;
-import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.application.reward.RewardBenefitService.RewardEarnedSnapshot;
 import com.personal.happygallery.application.shared.page.CursorPage;
@@ -60,7 +59,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     private final RefundExecutionService refundExecutionService;
     private final RefundPort refundPort;
     private final RewardBenefitService rewardBenefitService;
-    private final InventoryService inventoryService;
+    private final OrderStockService orderStockService;
     private final GuestTokenService guestTokenService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
@@ -74,7 +73,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                                     RefundExecutionService refundExecutionService,
                                     RefundPort refundPort,
                                     RewardBenefitService rewardBenefitService,
-                                    InventoryService inventoryService,
+                                    OrderStockService orderStockService,
                                     GuestTokenService guestTokenService,
                                     ApplicationEventPublisher eventPublisher,
                                     Clock clock) {
@@ -87,7 +86,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         this.refundExecutionService = refundExecutionService;
         this.refundPort = refundPort;
         this.rewardBenefitService = rewardBenefitService;
-        this.inventoryService = inventoryService;
+        this.orderStockService = orderStockService;
         this.guestTokenService = guestTokenService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -177,15 +176,17 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             return viewAssembler.assemble(saved);
         }
 
-        List<InventoryAdjustment> inventoryAdjustments = lines.stream()
-                .map(line -> new InventoryAdjustment(
-                        line.orderItem().getProductId(), line.claimItem().getQuantity()))
+        List<StockAdjustment> inventoryAdjustments = lines.stream()
+                .map(line -> new StockAdjustment(
+                        line.orderItem().getProductId(),
+                        line.orderItem().getProductVariantId(),
+                        line.claimItem().getQuantity()))
                 .toList();
         if (claim.getRequestedResolution() == OrderClaimResolution.EXCHANGE) {
             if (command.restoreInventory()) {
-                inventoryService.restoreAll(inventoryAdjustments);
+                orderStockService.restoreAll(inventoryAdjustments);
             }
-            inventoryService.deductAll(inventoryAdjustments);
+            orderStockService.deductAll(inventoryAdjustments);
             claim.approveExchange(adminId, command.note(), now());
             OrderClaim saved = orderClaimPort.save(claim);
             notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
@@ -193,7 +194,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         }
 
         if (command.restoreInventory()) {
-            inventoryService.restoreAll(inventoryAdjustments);
+            orderStockService.restoreAll(inventoryAdjustments);
         }
         List<OrderItem> allOrderItems = orderItemPort.findByOrder(order);
         Map<Long, OrderItemApprovedRefundState> approvedStateByItemId =

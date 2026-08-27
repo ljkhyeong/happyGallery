@@ -2,11 +2,13 @@ package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
-import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.adapter.in.web.product.dto.ProductOptionGroupResponse;
+import com.personal.happygallery.adapter.in.web.product.dto.ProductVariantResponse;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 public record ProductResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
@@ -24,17 +26,20 @@ public record ProductResponse(
         Integer productionLeadDays,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ProductStatus status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean available,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int quantity
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long quantity,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductOptionGroupResponse> optionGroups,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductVariantResponse> variants
 ) {
-    public static ProductResponse from(ProductQueryUseCase.ProductWithInventory r) {
-        return from(r.product(), r.inventory());
+    public static ProductResponse from(ProductQueryUseCase.ProductView result) {
+        return from(result.product(), result.quantity(), result.available(), result.options());
     }
 
-    public static ProductResponse from(ProductAdminUseCase.ProductInventoryResult r) {
-        return from(r.product(), r.inventory());
+    public static ProductResponse from(ProductAdminUseCase.ProductResult result) {
+        return from(result.product(), result.quantity(), result.available(), result.options());
     }
 
-    private static ProductResponse from(Product product, Inventory inventory) {
+    private static ProductResponse from(Product product, long quantity, boolean stockAvailable,
+                                        com.personal.happygallery.application.product.ProductOptions options) {
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -47,8 +52,10 @@ public record ProductResponse(
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
                 product.getStatus(),
-                product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable(),
-                inventory.getQuantity()
+                product.getStatus() == ProductStatus.ACTIVE && stockAvailable,
+                quantity,
+                options.groups().stream().map(ProductOptionGroupResponse::from).toList(),
+                options.variants().stream().map(ProductVariantResponse::from).toList()
         );
     }
 }

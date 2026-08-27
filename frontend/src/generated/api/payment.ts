@@ -52,13 +52,33 @@ export const OrderPayloadFulfillmentType = {
   PICKUP: 'PICKUP',
 } as const;
 
+export interface OrderTextInput {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Za-z0-9_-]{1,64}$
+     */
+  groupKey: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  value?: string;
+}
+
 export interface OrderItemRef {
   productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
   /**
      * @minimum 1
      * @maximum 99
      */
   qty: number;
+  /**
+     * @minItems 0
+     * @maxItems 5
+     */
+  textInputs?: OrderTextInput[];
 }
 
 export interface PolicyAcceptanceRequest {

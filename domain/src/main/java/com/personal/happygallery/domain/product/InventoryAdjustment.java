@@ -22,6 +22,9 @@ public class InventoryAdjustment {
     @Column(name = "product_id", nullable = false)
     private Long productId;
 
+    @Column(name = "product_variant_id")
+    private Long productVariantId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private InventoryAdjustmentType type;
@@ -50,6 +53,7 @@ public class InventoryAdjustment {
     protected InventoryAdjustment() {}
 
     public InventoryAdjustment(Long productId,
+                               Long productVariantId,
                                InventoryAdjustmentType type,
                                int quantity,
                                int quantityBefore,
@@ -59,6 +63,7 @@ public class InventoryAdjustment {
                                String adjustedBy,
                                LocalDateTime adjustedAt) {
         this.productId = productId;
+        this.productVariantId = productVariantId;
         this.type = type;
         this.quantity = quantity;
         this.quantityBefore = quantityBefore;
@@ -69,8 +74,22 @@ public class InventoryAdjustment {
         this.adjustedAt = adjustedAt;
     }
 
+    public InventoryAdjustment(Long productId,
+                               InventoryAdjustmentType type,
+                               int quantity,
+                               int quantityBefore,
+                               int quantityAfter,
+                               String reason,
+                               Long adjustedByAdminId,
+                               String adjustedBy,
+                               LocalDateTime adjustedAt) {
+        this(productId, null, type, quantity, quantityBefore, quantityAfter,
+                reason, adjustedByAdminId, adjustedBy, adjustedAt);
+    }
+
     public Long getId() { return id; }
     public Long getProductId() { return productId; }
+    public Long getProductVariantId() { return productVariantId; }
     public InventoryAdjustmentType getType() { return type; }
     public int getQuantity() { return quantity; }
     public int getQuantityBefore() { return quantityBefore; }

@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-08
+**갱신**: 2026-08-27
 
 ---
 
@@ -130,16 +130,25 @@
   - `id`, `name`, `type(READY_STOCK|MADE_TO_ORDER)`, `category nullable`, `price`, `description nullable`, `image_url nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `status(ACTIVE|INACTIVE)`, `version`
   - 주문제작은 `specification`과 1~180일 `production_lead_days`가 필수고, 기성품은 제작 기간을 두지 않는다.
   - 관리자는 표시 정보와 대표 이미지를 수정하고 상태를 별도 변경한다. `version` 낙관적 락으로 동시에 먼저 읽은 관리자 수정이 앞선 변경을 덮지 못하게 하고 충돌은 409로 반환한다. 공개 목록·상세와 주문 prepare는 `ACTIVE` 상품만 대상으로 하며, 없거나 비활성인 공개 상세는 동일하게 404로 응답한다.
+- `product_option_groups`, `product_option_values`
+  - 주문제작 상품의 `SELECT | TEXT` 그룹과 선택값을 안정적인 option key, 표시 순서, 필수 여부로 저장한다.
+  - 직접입력 그룹은 안내 문구, 최대 200자 입력 길이와 추가 금액을 가진다. 선택형 그룹에는 선택값을 별도 행으로 둔다.
+- `product_variants`, `product_variant_selections`
+  - 주문제작 상품의 선택형 옵션 조합마다 `combination_key`, 가격 추가금, 재고, 판매 여부와 낙관적 락 버전을 저장한다.
+  - 선택형 옵션이 없으면 `DEFAULT` 조합 한 개를 사용하고, 조합 선택 행은 그룹·값 ID와 표시 순서를 보존한다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
 - `inventory_adjustments`
-  - `id`, `product_id(FK)`, `type(INCREASE|DECREASE)`, `quantity`, `quantity_before`, `quantity_after`, `reason`
+  - `id`, `product_id(FK)`, `product_variant_id nullable`, `type(INCREASE|DECREASE)`, `quantity`, `quantity_before`, `quantity_after`, `reason`
   - `adjusted_by_admin_id nullable`, `adjusted_by`, `adjusted_at`
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
 - `cart_items`
-  - `id`, `user_id(FK)`, `product_id(FK)`, `qty`, `created_at`, `updated_at`
-  - `(user_id, product_id)`를 유일하게 유지한다.
+  - `id`, `user_id(FK)`, `product_id(FK)`, `product_variant_id nullable`, `line_key`, `qty`, `created_at`, `updated_at`
+  - `(user_id, line_key)`를 유일하게 유지한다. `line_key`는 상품·SKU·정규화된 직접입력값을 식별한다.
+- `cart_item_text_inputs`
+  - `cart_item_id`, `option_group_id`, `option_key`, `value`, `sort_order`
+  - 같은 SKU라도 직접입력 제작 문구가 다른 장바구니 행의 선택을 보존한다.
 - `cart_merge_requests`
   - `user_id(FK)`, `idempotency_key`, `payload_hash`, `created_at`
   - `(user_id, idempotency_key)`가 기본 키이며 정규화한 상품·수량의 SHA-256 해시를 함께 저장한다.
@@ -158,9 +167,12 @@
   - `total_amount`는 쿠폰 할인 전 상품 합계와 배송비를 포함한다. 고객 결제 총액은 `total_amount - coupon_discount_amount`이고, 이를 적립금과 PG로 나눈 값이 각각 `reward_used_amount`, `pg_paid_amount`다. 배송비는 prepare 당시 서버 정책을 `shipping_fee`에 스냅샷으로 저장하고 픽업은 0원이다.
   - `issued_coupon_id`는 `issued_coupons.id`를 FK로 참조하며, 쿠폰 할인액이 0원보다 큰 주문만 발급 쿠폰을 참조한다.
 - `order_items`
-  - `id`, `order_id`, `product_id`, `product_name`, `product_type nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `qty`, `unit_price`, `gross_amount`, `coupon_discount_amount`, `reward_used_amount`, `net_paid_amount`
-  - 상품명·유형·단가와 구매조건은 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. `product_type=null`인 기존 주문 항목은 알 수 없는 당시 조건을 현재 상품 값으로 역보정하지 않는다.
+  - `id`, `order_id`, `product_id`, `product_variant_id nullable`, `product_name`, `product_type nullable`, `specification nullable`, `care_instructions nullable`, `production_lead_days nullable`, `qty`, `base_price`, `variant_price_adjustment`, `text_option_price_adjustment`, `unit_price`, `gross_amount`, `coupon_discount_amount`, `reward_used_amount`, `net_paid_amount`
+  - 상품명·유형·기본가·옵션 추가금·최종 단가와 구매조건은 상품 변경과 무관하게 결제 준비 시점 표시를 보존한다. `product_type=null`인 기존 주문 항목은 알 수 없는 당시 조건을 현재 상품 값으로 역보정하지 않는다.
   - `qty`는 1~99, `unit_price`는 1원 이상이고 `gross_amount = qty * unit_price`이며, V121 `CHECK`가 도메인 산술 불변식을 DB에서도 강제한다.
+- `order_item_option_snapshots`
+  - `id`, `order_item_id`, `option_type`, `group_name`, `value`, `price_adjustment`, `sort_order`
+  - 선택형 옵션명·값과 직접입력 문구를 당시 표시 순서로 보존하고 주문 항목 삭제 시 함께 제거한다.
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
@@ -414,6 +426,8 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `cart_merge_requests(created_at, user_id, idempotency_key)` 보존 기간 만료 삭제
 - `inventory(product_id, version)`
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
+- `product_variants(product_id, active, id)` 주문제작 상품의 판매 가능 SKU 일괄 조회
+- `inventory_adjustments(product_variant_id, adjusted_at DESC, id DESC)` 주문제작 SKU 수동 조정 이력 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리

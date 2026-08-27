@@ -15,6 +15,7 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderTextInput;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
@@ -24,6 +25,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentAttemptRead
 import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -42,6 +44,7 @@ import com.personal.happygallery.domain.error.PassExpiredException;
 import com.personal.happygallery.domain.error.PhoneVerificationFailedException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -49,6 +52,8 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.policy.PolicyConsentType;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductOptionType;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -93,6 +98,7 @@ class PaymentPrepareUseCaseTest {
     @Autowired PolicyConsentRepository policyConsentRepository;
     @Autowired PaymentStatusQueryUseCase statusQueryUseCase;
     @Autowired ProductStorePort productStorePort;
+    @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
@@ -150,6 +156,97 @@ class PaymentPrepareUseCaseTest {
                         softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PENDING);
                     });
         });
+    }
+
+    @DisplayName("주문제작 옵션 가격은 서버 설정으로 계산하고 조합 재고를 합산해 확인한다")
+    @Test
+    void prepare_madeToOrderOptionsUsesServerPriceAndVariantStock() {
+        User user = userStorePort.save(new User(
+                "option-payment@example.com", "hashed", "옵션 회원", "01023456789"));
+        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "각인 가죽 지갑",
+                        ProductType.MADE_TO_ORDER,
+                        "LEATHER",
+                        50_000L,
+                        null,
+                        null,
+                        null,
+                        "천연 소가죽",
+                        null,
+                        7,
+                        List.of(
+                                new ProductAdminUseCase.OptionGroupDefinition(
+                                        "color", ProductOptionType.SELECT, "색상", true, 0,
+                                        null, null, null,
+                                        List.of(
+                                                new ProductAdminUseCase.OptionValueDefinition(
+                                                        "brown", "브라운", 0),
+                                                new ProductAdminUseCase.OptionValueDefinition(
+                                                        "black", "블랙", 1))),
+                                new ProductAdminUseCase.OptionGroupDefinition(
+                                        "gift", ProductOptionType.SELECT, "선물 포장", false, 1,
+                                        null, null, null,
+                                        List.of(new ProductAdminUseCase.OptionValueDefinition(
+                                                "box", "선물 상자", 0))),
+                                new ProductAdminUseCase.OptionGroupDefinition(
+                                        "engraving", ProductOptionType.TEXT, "각인 문구", true, 2,
+                                        "영문 20자", 20, 3_000L, List.of())),
+                        List.of(
+                                new ProductAdminUseCase.VariantDefinition(
+                                        List.of(new ProductAdminUseCase.SelectionDefinition(
+                                                "color", "brown")),
+                                        2_000L, 2, true),
+                                new ProductAdminUseCase.VariantDefinition(
+                                        List.of(
+                                                new ProductAdminUseCase.SelectionDefinition(
+                                                        "color", "brown"),
+                                                new ProductAdminUseCase.SelectionDefinition(
+                                                        "gift", "box")),
+                                        4_000L, 1, true),
+                                new ProductAdminUseCase.VariantDefinition(
+                                        List.of(new ProductAdminUseCase.SelectionDefinition(
+                                                "color", "black")),
+                                        5_000L, 1, true),
+                                new ProductAdminUseCase.VariantDefinition(
+                                        List.of(
+                                                new ProductAdminUseCase.SelectionDefinition(
+                                                        "color", "black"),
+                                                new ProductAdminUseCase.SelectionDefinition(
+                                                        "gift", "box")),
+                                        7_000L, 1, true))));
+        assertThat(registered.options().variants()).hasSize(4);
+        Long brownVariantId = registered.options().variants().stream()
+                .filter(variant -> variant.selections().stream()
+                        .anyMatch(selection -> selection.valueKey().equals("brown")))
+                .findFirst()
+                .orElseThrow()
+                .id();
+        OrderItemRef requested = new OrderItemRef(
+                registered.product().getId(),
+                brownVariantId,
+                List.of(new OrderTextInput("engraving", "HAPPY")),
+                2);
+        OrderPayload payload = new OrderPayload(
+                user.getId(), null, null, null,
+                List.of(requested), false, FulfillmentType.PICKUP, null,
+                MadeToOrderConsent.CURRENT_VERSION, true);
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(
+                new PrepareCommand(PaymentContext.ORDER, payload, AuthContext.member(user.getId())));
+
+        assertThat(prepared.amount()).isEqualTo(110_000L);
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(
+                        user.getId(), null, null, null,
+                        List.of(requested, new OrderItemRef(
+                                registered.product().getId(), brownVariantId,
+                                List.of(new OrderTextInput("engraving", "OTHER")), 1)),
+                        false, FulfillmentType.PICKUP, null,
+                        MadeToOrderConsent.CURRENT_VERSION, true),
+                AuthContext.member(user.getId()))))
+                .isInstanceOf(InventoryNotEnoughException.class);
     }
 
     @DisplayName("진행 중인 회원 결제 준비가 있으면 회원 탈퇴를 거절한다")
@@ -324,10 +421,10 @@ class PaymentPrepareUseCaseTest {
                 "cart-snapshot@example.com", "hashed", "장바구니 회원", "01012123434"));
         Product product = productStorePort.save(readyStockProduct("스냅샷 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 5));
-        cartItemStorePort.save(new CartItem(
+        CartItem cartItem = cartItemStorePort.save(new CartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
         String staleVersion = cartUseCase.getCart(user.getId()).cartVersion();
-        cartUseCase.updateItemQty(user.getId(), product.getId(), 2);
+        cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,

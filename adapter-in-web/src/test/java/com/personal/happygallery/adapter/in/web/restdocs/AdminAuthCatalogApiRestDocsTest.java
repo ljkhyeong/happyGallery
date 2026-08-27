@@ -47,8 +47,6 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -96,8 +94,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         slotQueryUseCase = mock(SlotQueryUseCase.class);
         imageMediaUseCase = mock(ImageMediaUseCase.class);
 
-        ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
-        ProductQueryUseCase.ProductWithInventory inactiveProduct =
+        ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
+        ProductQueryUseCase.ProductView inactiveProduct =
                 RestDocsFixtures.productWithInventory(ProductStatus.INACTIVE);
         InventoryAdjustment inventoryAdjustment = inventoryAdjustment();
         BookingClass bookingClass = RestDocsFixtures.bookingClass();
@@ -120,18 +118,17 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "aaaa-bbbb-cccc-0001",
                         "aaaa-bbbb-cccc-0002")));
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
-        when(productAdminUseCase.register(
-                any(), any(), any(), anyLong(), anyInt(), any(), any(), any(), any(), any()))
-                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
-                        product.product(), product.inventory()));
+        when(productAdminUseCase.register(any()))
+                .thenReturn(new ProductAdminUseCase.ProductResult(
+                        product.product(), product.quantity(), product.available(), product.options()));
         when(productQueryUseCase.listAllProducts()).thenReturn(List.of(product));
-        when(productAdminUseCase.update(
-                eq(1L), any(), any(), anyLong(), any(), any(), any(), any(), any()))
-                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
-                        product.product(), product.inventory()));
+        when(productAdminUseCase.update(eq(1L), any()))
+                .thenReturn(new ProductAdminUseCase.ProductResult(
+                        product.product(), product.quantity(), product.available(), product.options()));
         when(productAdminUseCase.changeStatus(1L, ProductStatus.INACTIVE))
-                .thenReturn(new ProductAdminUseCase.ProductInventoryResult(
-                        inactiveProduct.product(), inactiveProduct.inventory()));
+                .thenReturn(new ProductAdminUseCase.ProductResult(
+                        inactiveProduct.product(), inactiveProduct.quantity(),
+                        inactiveProduct.available(), inactiveProduct.options()));
         when(productAdminUseCase.adjustInventory(any())).thenReturn(inventoryAdjustment);
         when(productAdminUseCase.listRecentInventoryAdjustments(1L))
                 .thenReturn(List.of(inventoryAdjustment));
@@ -308,7 +305,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "type": "READY_STOCK",
                                   "category": "CANDLE",
                                   "price": 39000,
-                                  "quantity": 12
+                                  "quantity": 12,
+                                  "optionGroups": [],
+                                  "variants": []
                                 }
                                 """))
                 .andExpect(status().isCreated());
@@ -395,7 +394,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "category": "CANDLE",
                                   "price": 42000,
                                   "description": "소이 왁스로 만든 작품",
-                                  "imageUrl": "https://images.example.com/candle.jpg"
+                                  "imageUrl": "https://images.example.com/candle.jpg",
+                                  "optionGroups": [],
+                                  "variants": []
                                 }
                                 """))
                 .andExpect(status().isOk());

@@ -32,6 +32,7 @@ tasks.named('check') {
 // 테스트 로깅
 tasks.withType(Test).configureEach {
 	useJUnitPlatform()
+	maxHeapSize = '1g'
 
 	testLogging {
 		events "passed", "skipped", "failed"

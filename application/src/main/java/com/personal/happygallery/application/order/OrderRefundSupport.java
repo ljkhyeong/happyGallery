@@ -2,8 +2,7 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.payment.RefundExecutionService;
-import com.personal.happygallery.application.product.InventoryService;
-import com.personal.happygallery.application.product.InventoryService.InventoryAdjustment;
+import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
@@ -24,16 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 class OrderRefundSupport {
 
     private final OrderItemPort orderItemPort;
-    private final InventoryService inventoryService;
+    private final OrderStockService orderStockService;
     private final RefundExecutionService refundExecutionService;
     private final RewardBenefitService rewardBenefitService;
 
     OrderRefundSupport(OrderItemPort orderItemPort,
-                       InventoryService inventoryService,
+                       OrderStockService orderStockService,
                        RefundExecutionService refundExecutionService,
                        RewardBenefitService rewardBenefitService) {
         this.orderItemPort = orderItemPort;
-        this.inventoryService = inventoryService;
+        this.orderStockService = orderStockService;
         this.refundExecutionService = refundExecutionService;
         this.rewardBenefitService = rewardBenefitService;
     }
@@ -44,8 +43,9 @@ class OrderRefundSupport {
     @Transactional(propagation = Propagation.MANDATORY)
     Refund refundOrder(Order order) {
         List<OrderItem> items = orderItemPort.findByOrder(order);
-        inventoryService.restoreAll(items.stream()
-                .map(item -> new InventoryAdjustment(item.getProductId(), item.getQty()))
+        orderStockService.restoreAll(items.stream()
+                .map(item -> new StockAdjustment(
+                        item.getProductId(), item.getProductVariantId(), item.getQty()))
                 .toList());
 
         long rewardRevokeAmount = order.getUserId() == null

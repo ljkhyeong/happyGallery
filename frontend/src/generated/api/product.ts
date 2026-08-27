@@ -7,6 +7,48 @@ export const ProductDetailResponseType = {
   MADE_TO_ORDER: 'MADE_TO_ORDER',
 } as const;
 
+export type ProductOptionGroupResponseType = typeof ProductOptionGroupResponseType[keyof typeof ProductOptionGroupResponseType];
+
+
+export const ProductOptionGroupResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface ProductOptionValueResponse {
+  key: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface ProductOptionGroupResponse {
+  /** @nullable */
+  inputMaxLength: number | null;
+  /** @nullable */
+  inputPlaceholder: string | null;
+  /** @nullable */
+  inputPriceAdjustment: number | null;
+  key: string;
+  name: string;
+  required: boolean;
+  sortOrder: number;
+  type: ProductOptionGroupResponseType;
+  values: ProductOptionValueResponse[];
+}
+
+export interface ProductVariantSelectionResponse {
+  groupKey: string;
+  valueKey: string;
+}
+
+export interface ProductVariantResponse {
+  active: boolean;
+  id: number;
+  priceAdjustment: number;
+  quantity: number;
+  selections: ProductVariantSelectionResponse[];
+}
+
 export interface ProductDetailResponse {
   available: boolean;
   /** @nullable */
@@ -19,12 +61,14 @@ export interface ProductDetailResponse {
   /** @nullable */
   imageUrl: string | null;
   name: string;
+  optionGroups: ProductOptionGroupResponse[];
   price: number;
   /** @nullable */
   productionLeadDays: number | null;
   /** @nullable */
   specification: string | null;
   type: ProductDetailResponseType;
+  variants: ProductVariantResponse[];
 }
 
 export type ListProductsParams = {

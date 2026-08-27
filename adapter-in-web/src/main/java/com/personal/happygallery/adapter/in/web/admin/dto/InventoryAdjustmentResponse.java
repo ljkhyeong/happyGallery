@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 public record InventoryAdjustmentResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long productId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long productVariantId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) InventoryAdjustmentType type,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int quantity,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int quantityBefore,
@@ -21,6 +22,7 @@ public record InventoryAdjustmentResponse(
         return new InventoryAdjustmentResponse(
                 adjustment.getId(),
                 adjustment.getProductId(),
+                adjustment.getProductVariantId(),
                 adjustment.getType(),
                 adjustment.getQuantity(),
                 adjustment.getQuantityBefore(),

@@ -124,7 +124,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
 
-        ProductQueryUseCase.ProductWithInventory product = RestDocsFixtures.productWithInventory();
+        ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
         ProductQnaUseCase.PublicQnaListView publicQna =
                 new ProductQnaUseCase.PublicQnaListView(

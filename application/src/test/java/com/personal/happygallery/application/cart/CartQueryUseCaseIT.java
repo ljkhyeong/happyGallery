@@ -5,11 +5,15 @@ import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.ProductOptionType;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -36,6 +40,7 @@ class CartQueryUseCaseIT {
     @Autowired CartItemStorePort cartItemStore;
     @Autowired UserStorePort userStore;
     @Autowired ProductStorePort productStore;
+    @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired InventoryStorePort inventoryStore;
     @Autowired Clock clock;
 
@@ -49,19 +54,26 @@ class CartQueryUseCaseIT {
         Product unavailableProduct = productStore.save(readyStockProduct("재고 없는 상품", 15_000L));
 
         LocalDateTime createdAt = LocalDateTime.now(clock);
-        cartItemStore.save(new CartItem(user.getId(), availableProduct.getId(), 2, createdAt));
-        cartItemStore.save(new CartItem(user.getId(), unavailableProduct.getId(), 1, createdAt.plusSeconds(1)));
+        CartItem availableItem = cartItemStore.save(
+                new CartItem(user.getId(), availableProduct.getId(), 2, createdAt));
+        CartItem unavailableItem = cartItemStore.save(
+                new CartItem(user.getId(), unavailableProduct.getId(), 1, createdAt.plusSeconds(1)));
 
         CartUseCase.CartView cart = cartUseCase.getCart(user.getId());
 
         assertSoftly(softly -> {
-            softly.assertThat(cart.items()).containsExactly(
+            softly.assertThat(cart.items())
+                    .usingRecursiveFieldByFieldElementComparatorIgnoringFields("cartItemId")
+                    .containsExactly(
                     new CartUseCase.CartItemView(
                             availableProduct.getId(), "재고 상품", availableProduct.getType(),
                             39_000L, 2, true),
                     new CartUseCase.CartItemView(
                             unavailableProduct.getId(), "재고 없는 상품", unavailableProduct.getType(),
                             15_000L, 1, false));
+            softly.assertThat(cart.items())
+                    .extracting(CartUseCase.CartItemView::cartItemId)
+                    .containsExactly(availableItem.getId(), unavailableItem.getId());
             softly.assertThat(cart.totalAmount()).isEqualTo(78_000L);
             softly.assertThat(cart.cartVersion()).matches("[0-9a-f]{64}");
         });
@@ -74,12 +86,12 @@ class CartQueryUseCaseIT {
                 "cart-version@example.com", "hashed", "버전 회원", "01011112222"));
         Product product = productStore.save(readyStockProduct("버전 상품", 19_000L));
         Inventory inventory = inventoryStore.save(inventory(product, 5));
-        cartItemStore.save(new CartItem(
+        CartItem cartItem = cartItemStore.save(new CartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
 
         String firstVersion = cartUseCase.getCart(user.getId()).cartVersion();
         String repeatedVersion = cartUseCase.getCart(user.getId()).cartVersion();
-        cartUseCase.updateItemQty(user.getId(), product.getId(), 2);
+        cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
         CartUseCase.CartView quantityChanged = cartUseCase.getCart(user.getId());
         product.updateDetails("버전 상품", null, 20_000L, null, null);
         productStore.save(product);
@@ -133,5 +145,45 @@ class CartQueryUseCaseIT {
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
+    }
+
+    @DisplayName("같은 주문제작 조합도 직접입력 값이 다르면 별도 장바구니 라인으로 계산한다")
+    @Test
+    void getCart_separatesTextOptionLinesAndCalculatesPrice() {
+        User user = userStore.save(new User(
+                "cart-options@example.com", "hashed", "옵션 장바구니", "01087654321"));
+        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "각인 키링", ProductType.MADE_TO_ORDER, null,
+                        20_000L, 3, null, null, "소가죽 키링", null, 5,
+                        List.of(new ProductAdminUseCase.OptionGroupDefinition(
+                                "engraving", ProductOptionType.TEXT, "각인 문구", true, 0,
+                                null, 20, 2_000L, List.of())),
+                        List.of()));
+        Long variantId = registered.options().variants().getFirst().id();
+
+        cartUseCase.addItem(
+                user.getId(), registered.product().getId(), variantId,
+                List.of(new TextInput("engraving", "HAPPY")), 1);
+        cartUseCase.addItem(
+                user.getId(), registered.product().getId(), variantId,
+                List.of(new TextInput("engraving", "GALLERY")), 1);
+
+        CartUseCase.CartView cart = cartUseCase.getCart(user.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(cart.items()).hasSize(2)
+                    .allSatisfy(item -> {
+                        softly.assertThat(item.productVariantId()).isEqualTo(variantId);
+                        softly.assertThat(item.price()).isEqualTo(22_000L);
+                        softly.assertThat(item.available()).isTrue();
+                    });
+            softly.assertThat(cart.items().stream()
+                            .flatMap(item -> item.options().stream())
+                            .map(option -> option.value())
+                            .toList())
+                    .containsExactlyInAnyOrder("HAPPY", "GALLERY");
+            softly.assertThat(cart.totalAmount()).isEqualTo(44_000L);
+        });
     }
 }

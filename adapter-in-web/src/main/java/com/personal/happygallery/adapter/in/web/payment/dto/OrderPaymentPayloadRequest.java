@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.product.ProductOptionPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -92,13 +93,37 @@ public record OrderPaymentPayloadRequest(
     @Schema(name = "OrderItemRef")
     public record OrderItemRefRequest(
             @NotNull @Positive Long productId,
+            @Positive @Schema(nullable = true) Long productVariantId,
+            @Size(max = 5) List<@NotNull @Valid OrderTextInputRequest> textInputs,
             @Min(1)
             @Max(OrderAmountCalculator.MAX_ITEM_QUANTITY)
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             int qty
     ) {
+        public OrderItemRefRequest {
+            textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
+        }
+
+        public OrderItemRefRequest(Long productId, int qty) {
+            this(productId, null, List.of(), qty);
+        }
+
         private PaymentPayload.OrderItemRef toCommand() {
-            return new PaymentPayload.OrderItemRef(productId, qty);
+            return new PaymentPayload.OrderItemRef(
+                    productId,
+                    productVariantId,
+                    textInputs.stream().map(OrderTextInputRequest::toCommand).toList(),
+                    qty);
+        }
+    }
+
+    @Schema(name = "OrderTextInput")
+    public record OrderTextInputRequest(
+            @NotBlank @Pattern(regexp = "^[A-Za-z0-9_-]{1,64}$") String groupKey,
+            @Size(max = ProductOptionPolicy.MAX_INPUT_LENGTH) String value
+    ) {
+        private PaymentPayload.OrderTextInput toCommand() {
+            return new PaymentPayload.OrderTextInput(groupKey, value);
         }
     }
 

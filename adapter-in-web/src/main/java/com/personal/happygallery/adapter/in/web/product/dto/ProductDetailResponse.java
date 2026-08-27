@@ -1,11 +1,11 @@
 package com.personal.happygallery.adapter.in.web.product.dto;
 
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
-import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 public record ProductDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
@@ -29,11 +29,12 @@ public record ProductDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         Integer productionLeadDays,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
-        boolean available
+        boolean available,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductOptionGroupResponse> optionGroups,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductVariantResponse> variants
 ) {
-    public static ProductDetailResponse from(ProductQueryUseCase.ProductWithInventory r) {
+    public static ProductDetailResponse from(ProductQueryUseCase.ProductView r) {
         Product product = r.product();
-        Inventory inventory = r.inventory();
         return new ProductDetailResponse(
                 product.getId(),
                 product.getName(),
@@ -45,7 +46,9 @@ public record ProductDetailResponse(
                 product.getSpecification(),
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
-                product.getStatus() == ProductStatus.ACTIVE && inventory.isAvailable()
+                product.getStatus() == ProductStatus.ACTIVE && r.available(),
+                r.options().groups().stream().map(ProductOptionGroupResponse::from).toList(),
+                r.options().variants().stream().map(ProductVariantResponse::from).toList()
         );
     }
 }

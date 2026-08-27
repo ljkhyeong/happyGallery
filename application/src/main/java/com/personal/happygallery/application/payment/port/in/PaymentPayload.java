@@ -131,7 +131,22 @@ public sealed interface PaymentPayload {
         }
     }
 
-    record OrderItemRef(Long productId, int qty) {}
+    record OrderItemRef(
+            Long productId,
+            Long productVariantId,
+            List<OrderTextInput> textInputs,
+            int qty
+    ) {
+        public OrderItemRef {
+            textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
+        }
+
+        public OrderItemRef(Long productId, int qty) {
+            this(productId, null, List.of(), qty);
+        }
+    }
+
+    record OrderTextInput(String groupKey, String value) {}
 
     /**
      * 예약 결제 payload. 회원 8회권 사용 시 {@code passId}만 세팅(amount=0).

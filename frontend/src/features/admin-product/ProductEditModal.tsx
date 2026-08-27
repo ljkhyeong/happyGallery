@@ -6,6 +6,12 @@ import { ErrorAlert, useToast } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import type { ProductResponse } from "@/shared/types";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
+import {
+  optionDraftsFromProduct,
+  ProductOptionEditor,
+  type OptionGroupDraft,
+  type VariantDraft,
+} from "./ProductOptionEditor";
 
 interface Props {
   adminKey: string;
@@ -25,6 +31,9 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
   const [specification, setSpecification] = useState("");
   const [careInstructions, setCareInstructions] = useState("");
   const [productionLeadDays, setProductionLeadDays] = useState("");
+  const [quantity, setQuantity] = useState("0");
+  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+  const [variants, setVariants] = useState<VariantDraft[]>([]);
 
   useEffect(() => {
     if (!product) return;
@@ -36,6 +45,10 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
     setSpecification(product.specification ?? "");
     setCareInstructions(product.careInstructions ?? "");
     setProductionLeadDays(product.productionLeadDays?.toString() ?? "");
+    setQuantity(String(product.quantity));
+    const drafts = optionDraftsFromProduct(product);
+    setOptionGroups(drafts.groups);
+    setVariants(drafts.variants);
   }, [product]);
 
   const mutation = useAdminMutation(onAuthError, {
@@ -50,6 +63,12 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       productionLeadDays: product!.type === "MADE_TO_ORDER"
         ? Number(productionLeadDays)
         : undefined,
+      quantity: product!.type === "MADE_TO_ORDER"
+        && optionGroups.every((group) => group.type !== "SELECT")
+        ? Number(quantity)
+        : undefined,
+      optionGroups: product!.type === "MADE_TO_ORDER" ? optionGroups : [],
+      variants: product!.type === "MADE_TO_ORDER" ? variants : [],
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
@@ -66,7 +85,20 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       && Number.isInteger(leadDays)
       && leadDays >= 1
       && leadDays <= 180);
-  const valid = name.trim().length > 0 && Number(price) > 0 && purchaseTermsValid;
+  const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
+  const optionsValid = product?.type !== "MADE_TO_ORDER" || (
+    optionGroups.every((group) => group.name.trim().length > 0
+      && (group.type !== "SELECT"
+        || group.values.every((value) => value.name.trim().length > 0)))
+    && variants.length <= 500
+    && variants.every((variant) => Number(variant.quantity) >= 0
+      && Number(price) + Number(variant.priceAdjustment ?? 0) > 0)
+  );
+  const valid = name.trim().length > 0
+    && Number(price) > 0
+    && Number(quantity) >= 0
+    && purchaseTermsValid
+    && optionsValid;
 
   return (
     <Modal
@@ -74,6 +106,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       aria-labelledby="admin-product-edit-title"
       onHide={onClose}
       centered
+      size="xl"
     >
       <Form onSubmit={(event) => {
         event.preventDefault();
@@ -118,18 +151,42 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
               </Form.Group>
             </Col>
             {product?.type === "MADE_TO_ORDER" && (
-              <Col xs={12}>
-                <Form.Group controlId="admin-edit-product-production-lead-days">
-                  <Form.Label>제작 기간 (일) <span className="text-danger">*</span></Form.Label>
-                  <Form.Control
-                    type="number"
-                    min={1}
-                    max={180}
-                    value={productionLeadDays}
-                    onChange={(e) => setProductionLeadDays(e.target.value)}
+              <>
+                <Col xs={12} md={6}>
+                  <Form.Group controlId="admin-edit-product-production-lead-days">
+                    <Form.Label>제작 기간 (일) <span className="text-danger">*</span></Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={1}
+                      max={180}
+                      value={productionLeadDays}
+                      onChange={(e) => setProductionLeadDays(e.target.value)}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col xs={12} md={6}>
+                  <Form.Group controlId="admin-edit-product-default-quantity">
+                    <Form.Label>기본 조합 재고</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min={0}
+                      value={quantity}
+                      disabled={hasSelectOptions}
+                      onChange={(event) => setQuantity(event.target.value)}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col xs={12}>
+                  <ProductOptionEditor
+                    groups={optionGroups}
+                    variants={variants}
+                    onChange={(nextGroups, nextVariants) => {
+                      setOptionGroups(nextGroups);
+                      setVariants(nextVariants);
+                    }}
                   />
-                </Form.Group>
-              </Col>
+                </Col>
+              </>
             )}
             <Col xs={12}>
               <Form.Group controlId="admin-edit-product-care-instructions">

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.repository.query.Param;
@@ -23,6 +24,11 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
     <S extends Product> S save(S product);
 
     @Override Optional<Product> findById(Long id);
+
+    @Override
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select product from Product product where product.id = :id")
+    Optional<Product> findByIdWithLock(@Param("id") Long id);
 
     Optional<Product> findByIdAndStatus(Long id, ProductStatus status);
 

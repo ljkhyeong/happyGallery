@@ -183,8 +183,13 @@ export function OrderListSection({
                   <td>{o.orderNumber}</td>
                   <td>
                     {o.items.map((item) => (
-                      <div key={item.productId} className="mb-2">
+                      <div key={`${item.productId}-${item.productVariantId ?? 0}`} className="mb-2">
                         <small>{item.productName} x {item.qty}</small>
+                        {item.options.map((option) => (
+                          <div key={`${option.type}-${option.groupName}`} className="small text-muted">
+                            {option.groupName}: {option.value}
+                          </div>
+                        ))}
                         <ProductPurchaseTerms
                           productName={item.productName}
                           type={item.productType}

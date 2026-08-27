@@ -10,6 +10,21 @@ export const AdminOrderListItemResponseFulfillmentType = {
   PICKUP: 'PICKUP',
 } as const;
 
+export type OrderOptionSnapshotResponseType = typeof OrderOptionSnapshotResponseType[keyof typeof OrderOptionSnapshotResponseType];
+
+
+export const OrderOptionSnapshotResponseType = {
+  SELECT: 'SELECT',
+  TEXT: 'TEXT',
+} as const;
+
+export interface OrderOptionSnapshotResponse {
+  groupName: string;
+  priceAdjustment: number;
+  type: OrderOptionSnapshotResponseType;
+  value: string;
+}
+
 /**
  * @nullable
  */
@@ -22,18 +37,24 @@ export const AdminOrderItemResponseProductType = {
 } as const;
 
 export interface AdminOrderItemResponse {
+  basePrice: number;
   /** @nullable */
   careInstructions: string | null;
+  options: OrderOptionSnapshotResponse[];
   productId: number;
   productName: string;
   /** @nullable */
   productType: AdminOrderItemResponseProductType;
   /** @nullable */
+  productVariantId: number | null;
+  /** @nullable */
   productionLeadDays: number | null;
   qty: number;
   /** @nullable */
   specification: string | null;
+  textOptionPriceAdjustment: number;
   unitPrice: number;
+  variantPriceAdjustment: number;
 }
 
 export type AdminOrderListItemResponseStatus = typeof AdminOrderListItemResponseStatus[keyof typeof AdminOrderListItemResponseStatus];

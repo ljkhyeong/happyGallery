@@ -181,6 +181,7 @@ public class TestCleanupSupport {
         orderRepository.deleteAllInBatch();
         inventoryAdjustmentRepository.deleteAllInBatch();
         inventoryRepository.deleteAllInBatch();
+        clearProductOptionData();
         productRepository.deleteAllInBatch();
         paymentAttemptRepository.deleteAllInBatch();
     }
@@ -189,12 +190,24 @@ public class TestCleanupSupport {
         clearReviewData();
         inventoryAdjustmentRepository.deleteAllInBatch();
         inventoryRepository.deleteAllInBatch();
+        clearProductOptionData();
         productRepository.deleteAllInBatch();
     }
 
     public void clearCartData() {
         JdbcTestUtils.deleteFromTables(
                 jdbcTemplate, "cart_merge_requests", "cart_items");
+    }
+
+    private void clearProductOptionData() {
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate,
+                "cart_item_text_inputs",
+                "cart_items",
+                "product_variant_selections",
+                "product_variants",
+                "product_option_values",
+                "product_option_groups");
     }
 
     public void clearPassData() {

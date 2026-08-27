@@ -28,6 +28,26 @@ function getProductTypes(
   ));
 }
 
+function itemKey(item: OrderItemInput) {
+  return `${item.productId}:${item.productVariantId ?? 0}:${(item.textInputs ?? [])
+    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
+    .sort()
+    .join("|")}`;
+}
+
+function unitPrice(item: OrderItemInput, product: ProductDetailResponse) {
+  const variantAdjustment = product.variants.find(
+    (variant) => variant.id === item.productVariantId,
+  )?.priceAdjustment ?? 0;
+  const textAdjustment = (item.textInputs ?? []).reduce((sum, input) => {
+    if (!input.value?.trim()) return sum;
+    return sum + (product.optionGroups.find(
+      (group) => group.key === input.groupKey,
+    )?.inputPriceAdjustment ?? 0);
+  }, 0);
+  return product.price + variantAdjustment + textAdjustment;
+}
+
 export function OrderItemsForm({
   items,
   onChange,
@@ -60,24 +80,35 @@ export function OrderItemsForm({
   const addItem = () => {
     const pid = Number(selectedId);
     if (pid > 0 && qtyValid) {
-      const existing = items.find((i) => i.productId === pid);
+      const product = productMap.get(pid);
+      if (!product || product.optionGroups.length > 0) return;
+      const nextItem: OrderItemInput = {
+        productId: pid,
+        productVariantId: product.type === "MADE_TO_ORDER"
+          ? (product.variants[0]?.id ?? null)
+          : null,
+        textInputs: [],
+        qty: qtyNum,
+      };
+      const key = itemKey(nextItem);
+      const existing = items.find((item) => itemKey(item) === key);
       if (existing) {
         const newQty = Math.min(existing.qty + qtyNum, MAX_PRODUCT_QUANTITY);
-        updateItems(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
+        updateItems(items.map((item) => itemKey(item) === key ? { ...item, qty: newQty } : item));
       } else {
-        updateItems([...items, { productId: pid, qty: qtyNum }]);
+        updateItems([...items, nextItem]);
       }
       setQty("1");
     }
   };
 
-  const removeItem = (productId: number) => {
-    updateItems(items.filter((i) => i.productId !== productId));
+  const removeItem = (key: string) => {
+    updateItems(items.filter((item) => itemKey(item) !== key));
   };
 
   const totalAmount = items.reduce((sum, item) => {
     const product = productMap.get(item.productId);
-    return sum + (product ? product.price * item.qty : 0);
+    return sum + (product ? unitPrice(item, product) * item.qty : 0);
   }, 0);
   const selectedProductTypes = useMemo(
     () => getProductTypes(items, productMap),
@@ -104,7 +135,7 @@ export function OrderItemsForm({
             <Form.Label>상품</Form.Label>
             <Form.Select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">선택하세요</option>
-              {products?.filter((p) => p.available).map((p) => (
+              {products?.filter((p) => p.available && p.optionGroups.length === 0).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({formatKRW(p.price)})
                 </option>
@@ -144,19 +175,19 @@ export function OrderItemsForm({
             {items.map((item) => {
               const product = productMap.get(item.productId);
               return (
-                <ListGroup.Item key={item.productId}>
+                <ListGroup.Item key={itemKey(item)}>
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <span>
                       {product?.name ?? `상품 #${item.productId}`}
                       <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
                       {product && (
                         <small className="text-muted-soft ms-2">
-                          {formatKRW(product.price * item.qty)}
+                          {formatKRW(unitPrice(item, product) * item.qty)}
                         </small>
                       )}
                     </span>
                     <Button size="sm" variant="outline-danger"
-                      onClick={() => removeItem(item.productId)}>삭제</Button>
+                      onClick={() => removeItem(itemKey(item))}>삭제</Button>
                   </div>
                   {product && (
                     <ProductPurchaseTerms

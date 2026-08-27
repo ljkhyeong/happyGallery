@@ -36,6 +36,39 @@ import { queryKeys } from "@/shared/api";
 
 type Step = "verify" | "items";
 
+function readOptionDraft(productId: number): OrderItemInput[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem("hg_guest_order_draft");
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as {
+      productId?: unknown;
+      items?: Array<{
+        productVariantId?: unknown;
+        textInputs?: unknown;
+        qty?: unknown;
+      }>;
+    };
+    if (draft.productId !== productId || !Array.isArray(draft.items)) return null;
+    const items = draft.items.flatMap((item): OrderItemInput[] => (
+      Number.isSafeInteger(item.productVariantId)
+      && Number.isSafeInteger(item.qty)
+      && Number(item.qty) >= 1
+      && Array.isArray(item.textInputs)
+        ? [{
+          productId,
+          productVariantId: Number(item.productVariantId),
+          textInputs: item.textInputs as OrderItemInput["textInputs"],
+          qty: Number(item.qty),
+        }]
+        : []
+    ));
+    return items.length === draft.items.length ? items : null;
+  } catch {
+    return null;
+  }
+}
+
 export function OrderCreatePage() {
   const { isLoading, sessionVersion } = useCustomerAuth();
   if (isLoading) {
@@ -73,6 +106,7 @@ function OrderCreateForm() {
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
+  const orderDraftType = searchParams.get("draft");
   const hasPrefilledItem = Number.isSafeInteger(prefilledProductId) && prefilledProductId > 0;
   const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
     ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY)
@@ -86,12 +120,20 @@ function OrderCreateForm() {
   useEffect(() => {
     setSelectedProductTypes(null);
     if (hasPrefilledItem) {
-      setItems([{ productId: prefilledProductId, qty: normalizedPrefilledQty }]);
+      const optionDraft = orderDraftType === "options"
+        ? readOptionDraft(prefilledProductId)
+        : null;
+      setItems(optionDraft ?? [{
+        productId: prefilledProductId,
+        productVariantId: null,
+        textInputs: [],
+        qty: normalizedPrefilledQty,
+      }]);
       setManualEntryConfirmed(true);
       return;
     }
     setItems([]);
-  }, [hasPrefilledItem, normalizedPrefilledQty, prefilledProductId]);
+  }, [hasPrefilledItem, normalizedPrefilledQty, orderDraftType, prefilledProductId]);
 
   useEffect(() => {
     if (!user) return;

@@ -29,6 +29,7 @@ import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -90,6 +91,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PassPurchaseRepository passPurchaseRepository;
     @Autowired OrderRepository orderReader;
     @Autowired ProductStorePort productStorePort;
+    @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
@@ -484,17 +486,13 @@ class PaymentConfirmRecoveryUseCaseIT {
     void recover_approvedLegacyMadeToOrderWithoutPurchaseTerms_compensatesWithoutOrder() {
         User user = userStorePort.save(new User(
                 "recover-legacy-made@example.com", "hashed", "구형 복구 회원", "01010000012"));
-        Product product = productStorePort.save(new Product(
-                "복구 구형 주문제작",
-                ProductType.MADE_TO_ORDER,
-                null,
-                72_000L,
-                null,
-                null,
-                "재료: 자작나무\n크기: 18 x 10 cm\n사양: 무광 마감",
-                null,
-                10));
-        inventoryStorePort.save(inventory(product, 1));
+        Product product = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "복구 구형 주문제작", ProductType.MADE_TO_ORDER, null,
+                        72_000L, 1, null, null,
+                        "재료: 자작나무\n크기: 18 x 10 cm\n사양: 무광 마감",
+                        null, 10, List.of(), List.of()))
+                .product();
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
