@@ -31,7 +31,7 @@ public class Slot {
     private LocalDateTime endAt;
 
     @Column(nullable = false)
-    private int capacity = SlotCapacity.MAX;
+    private int capacity = SlotCapacity.DEFAULT;
 
     @Column(name = "booked_count", nullable = false)
     private int bookedCount = 0;
@@ -55,7 +55,7 @@ public class Slot {
         this.bookingClass = bookingClass;
         this.startAt = startAt;
         this.endAt = endAt;
-        this.capacity = SlotCapacity.MAX;
+        this.capacity = bookingClass.getCapacity();
         this.bookedCount = 0;
         this.adminActive = true;
         this.calendarActive = true;
@@ -100,7 +100,7 @@ public class Slot {
 
     /** 예약 인원만큼 점유 인원을 추가한다. */
     public void incrementBookedCount(int participantCount) {
-        SlotCapacity.checkAvailable(this.bookedCount, participantCount);
+        SlotCapacity.checkAvailable(this.capacity, this.bookedCount, participantCount);
         this.bookedCount += participantCount;
     }
 

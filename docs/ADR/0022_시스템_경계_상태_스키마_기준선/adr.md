@@ -223,11 +223,12 @@
 #### 클래스, 슬롯, 예약
 
 - `classes`
-  - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
+  - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `capacity`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
   - 공개 목록·상세와 자동 회차 조회·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 회차·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
   - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
-  - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `calendar_active`, `buffer_block_count`
+  - `id`, `class_id`, `start_at`, `end_at`, `capacity`, `booked_count`, `admin_active`, `calendar_active`, `buffer_block_count`
+  - 신규 슬롯은 클래스의 `capacity`를 복사해 생성하며 기존 클래스는 V145에서 8명으로 이관한다.
   - 실제 활성 상태는 `admin_active=true AND calendar_active=true AND buffer_block_count=0`으로 판정한다.
 - `booking_calendar_settings`
   - 단일 행 `id=1`, `open_time`, `close_time`, `slot_interval_min`, `block_public_holidays`, `version`
@@ -247,7 +248,8 @@
   - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
-  - `participant_count`는 1~8이며 `slots.booked_count`에 인원 단위로 반영한다. 8회권 예약은 1명만 허용한다.
+  - `participant_count`는 1명 이상이면서 선택한 슬롯의 남은 정원 이하이며 `slots.booked_count`에 인원 단위로 반영한다. 8회권 예약은 1명만 허용한다.
+  - V145 적용 뒤 8명을 초과한 예약이 생성되면 V145 이전 애플리케이션은 해당 예약을 정상 처리할 수 없으므로 이전 버전으로 롤백하지 않고 수정 버전으로 전진 배포한다.
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
 

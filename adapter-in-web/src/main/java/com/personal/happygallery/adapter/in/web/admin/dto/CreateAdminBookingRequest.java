@@ -2,9 +2,7 @@ package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.application.booking.port.in.AdminBookingCreateUseCase.CreateAdminBookingCommand;
 import com.personal.happygallery.domain.booking.BookingSource;
-import com.personal.happygallery.domain.booking.SlotCapacity;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -21,8 +19,8 @@ public record CreateAdminBookingRequest(
         @NotBlank @Size(min = 1, max = 20)
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         String phone,
-        @Min(1) @Max(SlotCapacity.MAX)
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Min(1)
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @NotNull
         @Schema(

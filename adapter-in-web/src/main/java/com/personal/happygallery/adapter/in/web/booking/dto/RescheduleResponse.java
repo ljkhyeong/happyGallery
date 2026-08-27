@@ -13,7 +13,7 @@ public record RescheduleResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String className,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "BOOKED")
         String status,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount
 ) {
     public static RescheduleResponse from(Booking booking) {

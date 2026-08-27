@@ -9,6 +9,8 @@ export const AdminClassResponseStatus = {
 
 export interface AdminClassResponse {
   bufferMin: number;
+  /** @minimum 1 */
+  capacity: number;
   category: string;
   /** @nullable */
   description: string | null;
@@ -28,6 +30,8 @@ export interface AdminClassResponse {
 
 export interface CreateClassRequest {
   bufferMin: number;
+  /** @minimum 1 */
+  capacity: number;
   /**
      * @minLength 0
      * @maxLength 30

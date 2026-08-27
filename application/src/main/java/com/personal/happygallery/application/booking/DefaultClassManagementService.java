@@ -34,6 +34,7 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
                 command.durationMin(),
                 command.price(),
                 command.bufferMin(),
+                command.capacity(),
                 command.passEligible(),
                 command.description(),
                 command.imageUrl(),

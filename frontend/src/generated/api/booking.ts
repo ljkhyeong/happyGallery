@@ -59,10 +59,7 @@ export interface RefundProgressResponse {
 export interface CancelResponse {
   bookingId: number;
   manualCompensationRequired: boolean;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   refund: RefundProgressResponse | null;
   refundAmount: number;
@@ -101,10 +98,7 @@ export interface BookingDetailResponse {
   endAt: string;
   guestName: string;
   guestPhone: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   refund: RefundProgressResponse | null;
   slotId: number;
@@ -128,10 +122,7 @@ export interface RescheduleResponse {
   bookingNumber: string;
   className: string;
   endAt: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   slotId: number;
   startAt: string;
@@ -148,6 +139,8 @@ export const ClassResponseStatus = {
 
 export interface ClassResponse {
   bufferMin: number;
+  /** @minimum 1 */
+  capacity: number;
   category: string;
   /** @nullable */
   description: string | null;
@@ -180,10 +173,7 @@ export interface MyBookingSummary {
   className: string;
   depositAmount: number;
   endAt: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   startAt: string;
   status: MyBookingSummaryStatus;
@@ -223,10 +213,7 @@ export interface MyBookingDetail {
   className: string;
   depositAmount: number;
   endAt: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   passBooking: boolean;
   refund: RefundProgressResponse | null;

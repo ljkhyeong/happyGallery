@@ -14,6 +14,7 @@ public interface ClassManagementUseCase {
             int durationMin,
             long price,
             int bufferMin,
+            int capacity,
             boolean passEligible,
             String description,
             String imageUrl,

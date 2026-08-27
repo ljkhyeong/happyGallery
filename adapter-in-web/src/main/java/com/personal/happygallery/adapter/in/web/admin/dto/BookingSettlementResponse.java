@@ -10,7 +10,7 @@ public record BookingSettlementResponse(
         String status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"UNPAID", "PAID"})
         String balanceStatus,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime balancePaidAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean arrears

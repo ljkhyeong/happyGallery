@@ -57,10 +57,7 @@ export interface AdminBookingResponse {
   /** @nullable */
   depositPaidAt: string | null;
   endAt: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   passBooking: boolean;
   source: AdminBookingResponseSource;
@@ -85,10 +82,7 @@ export interface CreateAdminBookingRequest {
      * @maxLength 100
      */
   name: string;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   /**
      * @minLength 1
@@ -234,10 +228,7 @@ export interface BookingSettlementResponse {
   balancePaidAt: string | null;
   balanceStatus: BookingSettlementResponseBalanceStatus;
   bookingId: number;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   status: BookingSettlementResponseStatus;
 }
@@ -279,10 +270,7 @@ export interface AdminBookingCancelResponse {
   /** @nullable */
   depositRefundStatus: AdminBookingCancelResponseDepositRefundStatus;
   manualCompensationRequired: boolean;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   passCreditRestored: boolean;
   status: AdminBookingCancelResponseStatus;
@@ -297,10 +285,7 @@ export const BookingNoShowResponseStatus = {
 
 export interface BookingNoShowResponse {
   bookingId: number;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   status: BookingNoShowResponseStatus;
 }

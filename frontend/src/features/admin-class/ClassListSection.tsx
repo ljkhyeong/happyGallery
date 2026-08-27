@@ -59,6 +59,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
             <th>클래스명</th>
             <th>수업 종류</th>
             <th>소요 시간</th>
+            <th>회차 정원</th>
             <th className="text-end">가격</th>
             <th>8회권</th>
             <th>운영 상태</th>
@@ -72,6 +73,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
               <td>{bookingClass.name}</td>
               <td>{formatClassCategory(bookingClass.category)}</td>
               <td>{bookingClass.durationMin}분</td>
+              <td>{bookingClass.capacity}명</td>
               <td className="text-end">{formatKRW(bookingClass.price)}</td>
               <td>
                 <Badge bg={bookingClass.passEligible ? "primary" : "secondary"}>

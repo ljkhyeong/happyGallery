@@ -17,14 +17,14 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 슬롯 정원 강제에 **낙관적 락 vs 비관적 락** 중 어느 쪽을 쓸지는 "추후 확정"으로 남겨뒀었다.
 
 결정 배경:
-- 슬롯 1개에 최대 8명 → 예약 피크 시간에 동일 슬롯 경쟁이 빈번하게 발생한다.
+- 클래스별 회차 정원이 다르더라도 예약 피크 시간에는 동일 슬롯 경쟁이 발생한다.
 - "성공 or 즉시 실패(정원 초과)"로 단순하게 처리해야 UX와 운영이 예측 가능하다.
 
 ---
 
 ## 결정
 
-슬롯 정원(capacity=8) 강제에는 **비관적 쓰기 락(SELECT FOR UPDATE)** 을 사용한다.
+클래스 등록 시 정하고 슬롯 생성 시 복사한 `capacity` 강제에는 **비관적 쓰기 락(SELECT FOR UPDATE)** 을 사용한다.
 
 ### 구현 흐름 (`SlotCapacitySupport.reserveCapacity()`을 포함하는 단일 트랜잭션)
 
@@ -46,16 +46,16 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
    → booked_count > 0인 슬롯이 하나라도 있으면 수업·정리 구간 충돌이므로 SlotNotAvailableException
 
 6. Slot.incrementBookedCount(participantCount)
-   → SlotCapacity.checkAvailable(bookedCount, participantCount)
+   → SlotCapacity.checkAvailable(capacity, bookedCount, participantCount)
    → bookedCount += participantCount
-   → 현재 점유와 요청 인원의 합이 8을 넘으면 CapacityExceededException
+   → 현재 점유와 요청 인원의 합이 해당 슬롯 정원을 넘으면 CapacityExceededException
 
 7. slotStorePort.save(slot)                     // booked_count 커밋
 
 8. booked_count가 0 → 양수이면 이미 잠근 양방향 충돌 슬롯의 buffer_block_count++
 ```
 
-`booked_count`는 예약 건수가 아니라 예약 인원 점유다. 일반 예약은 한 건에 1~8명을 점유하고,
+`booked_count`는 예약 건수가 아니라 예약 인원 점유다. 일반 예약은 한 건에 슬롯의 남은 정원까지 점유하고,
 8회권 예약은 1명만 점유한다. 예약 취소·변경의 `releaseCapacity()`는 예약의 `participant_count`만큼
 반납하며, `booked_count`가 양수 → 0이 될 때 같은 충돌 범위를 잠그고 `buffer_block_count--`를
 수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
@@ -122,6 +122,6 @@ native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중
 
 ## References
 
-- `docs/PRD/0001_기준_스펙/spec.md` §4.1 (슬롯 정원 8명), §8.2 (동시성 전략 방향)
+- `docs/PRD/0001_기준_스펙/spec.md` §4.1 (클래스별 슬롯 정원), §8.2 (동시성 전략 방향)
 - ADR-0001 (핵심 스키마 — `bookings.version` 낙관적 락 컬럼)
 - ADR-0002 (상태 전이 가드 — `SlotCapacity.checkAvailable()`)

@@ -242,7 +242,7 @@ function BookingCreateContent({
 
   useEffect(() => {
     if (!selectedSlot) return;
-    const maximumParticipants = Math.min(8, selectedSlot.remainingCapacity);
+    const maximumParticipants = selectedSlot.remainingCapacity;
     if (participantCount > maximumParticipants) {
       setParticipantCount(1);
     }
@@ -254,7 +254,7 @@ function BookingCreateContent({
     : true;
   const participantCountValid = selectedSlot !== null
     && participantCount >= 1
-    && participantCount <= Math.min(8, selectedSlot.remainingCapacity)
+    && participantCount <= selectedSlot.remainingCapacity
     && (paymentPath !== "pass" || participantCount === 1);
   const formReady = selectedSlot !== null
     && passValid
@@ -375,22 +375,19 @@ function BookingCreateContent({
 
             <Form.Group controlId="booking-participant-count" className="mb-3">
               <Form.Label>예약 인원</Form.Label>
-              <Form.Select
+              <Form.Control
+                type="number"
+                min={1}
+                max={selectedSlot.remainingCapacity}
+                step={1}
                 value={participantCount}
                 disabled={paymentPath === "pass"}
                 onChange={(event) => setParticipantCount(Number(event.target.value))}
-              >
-                {Array.from(
-                  { length: Math.min(8, selectedSlot.remainingCapacity) },
-                  (_, index) => index + 1,
-                ).map((count) => (
-                  <option key={count} value={count}>{count}명</option>
-                ))}
-              </Form.Select>
+              />
               <Form.Text className="text-muted">
                 {paymentPath === "pass"
                   ? "8회권 예약은 본인 1명만 이용할 수 있습니다."
-                  : `현재 최대 ${Math.min(8, selectedSlot.remainingCapacity)}명까지 예약할 수 있습니다.`}
+                  : `현재 최대 ${selectedSlot.remainingCapacity}명까지 예약할 수 있습니다.`}
               </Form.Text>
             </Form.Group>
 

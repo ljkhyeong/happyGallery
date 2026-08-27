@@ -491,7 +491,7 @@ class PaymentPrepareUseCaseTest {
                 .isInstanceOf(InventoryNotEnoughException.class);
     }
 
-    @DisplayName("예약 prepare는 허용 범위를 벗어난 인원과 다인 8회권 예약을 거절한다")
+    @DisplayName("예약 prepare는 0명과 슬롯 정원 초과 및 다인 8회권 예약을 거절한다")
     @Test
     void prepare_rejectsParticipantCountOutsideBookingPolicy() {
         User user = userStorePort.save(new User(
@@ -511,10 +511,18 @@ class PaymentPrepareUseCaseTest {
                 PaymentContext.BOOKING,
                 new BookingPayload(
                         user.getId(), null, null, null, slot.getId(), null,
-                        DepositPaymentMethod.CARD, 9, null),
+                        DepositPaymentMethod.CARD, 0, null),
                 auth)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.BOOKING,
+                new BookingPayload(
+                        user.getId(), null, null, null, slot.getId(), null,
+                        DepositPaymentMethod.CARD, 9, null),
+                auth)))
+                .isInstanceOf(CapacityExceededException.class);
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,

@@ -50,6 +50,10 @@ public class BookingClass {
     @Column(name = "buffer_min", nullable = false)
     private int bufferMin = 30;
 
+    /** 자동 생성되는 회차의 최대 예약 인원 */
+    @Column(nullable = false)
+    private int capacity = SlotCapacity.DEFAULT;
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -75,7 +79,7 @@ public class BookingClass {
     protected BookingClass() {}
 
     public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
-        this(name, category, durationMin, price, bufferMin,
+        this(name, category, durationMin, price, bufferMin, SlotCapacity.DEFAULT,
                 !"PERFUME".equals(CategoryName.required(category)),
                 null, null, null, null);
     }
@@ -90,14 +94,31 @@ public class BookingClass {
                         String imageUrl,
                         String preparationInfo,
                         String targetAudience) {
+        this(name, category, durationMin, price, bufferMin, SlotCapacity.DEFAULT,
+                passEligible, description, imageUrl, preparationInfo, targetAudience);
+    }
+
+    public BookingClass(String name,
+                        String category,
+                        int durationMin,
+                        long price,
+                        int bufferMin,
+                        int capacity,
+                        boolean passEligible,
+                        String description,
+                        String imageUrl,
+                        String preparationInfo,
+                        String targetAudience) {
         if (durationMin < 1) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스 소요 시간은 1분 이상이어야 합니다.");
         }
         if (bufferMin < 0) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스 버퍼는 0분 이상이어야 합니다.");
         }
+        SlotCapacity.requireValidCapacity(capacity);
         this.durationMin = durationMin;
         this.bufferMin = bufferMin;
+        this.capacity = capacity;
         applyDetails(
                 name, category, price, passEligible,
                 description, imageUrl, preparationInfo, targetAudience);
@@ -185,6 +206,7 @@ public class BookingClass {
     public int getDurationMin() { return durationMin; }
     public long getPrice() { return price; }
     public int getBufferMin() { return bufferMin; }
+    public int getCapacity() { return capacity; }
     public String getDescription() { return description; }
     public String getImageUrl() { return imageUrl; }
     public String getPreparationInfo() { return preparationInfo; }

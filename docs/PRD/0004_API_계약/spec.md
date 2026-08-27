@@ -333,6 +333,7 @@ Authorization: Bearer {token}
   "durationMin": 120,
   "price": 50000,
   "bufferMin": 30,
+  "capacity": 6,
   "passEligible": false,
   "description": "나만의 향을 조합하는 원데이 클래스입니다.",
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
@@ -349,6 +350,7 @@ Authorization: Bearer {token}
   "durationMin": 120,
   "price": 50000,
   "bufferMin": 30,
+  "capacity": 6,
   "passEligible": false,
   "description": "나만의 향을 조합하는 원데이 클래스입니다.",
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
@@ -360,10 +362,11 @@ Authorization: Bearer {token}
 
 - 성공: `201 Created`
 - 에러:
-  - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin 형식 오류, `passEligible` 누락 또는 콘텐츠 길이 초과
+  - `400 INVALID_INPUT` — 이름/카테고리 공란, durationMin/price/bufferMin/capacity 형식 오류, `passEligible` 누락 또는 콘텐츠 길이 초과
 - 정책:
   - `category`는 앞뒤 공백을 제거하고 대문자 토큰으로 정규화해 저장·응답한다.
   - `price`는 10원 이상 `9,007,199,254,740,991원` 이하의 정수다. 10% 일반 예약금이 최소 1원이 되는 하한이다.
+  - `capacity`는 1명 이상이며 자동 생성되는 모든 회차가 이 정원을 사용한다. 기존 클래스는 8명으로 이관한다.
   - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 상품과 같은 공용 도메인 정책을 적용해 `/`로 시작하되 `//`가 아닌 서비스 경로 또는 호스트가 있는 `http(s)` URL만 허용한다.
   - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 
@@ -494,7 +497,7 @@ Authorization: Bearer {token}
 #### 2.1.5 클래스 전체 조회·수정·상태 변경
 
 - `GET /api/v1/admin/classes` — `ACTIVE`, `INACTIVE` 클래스를 모두 반환한다.
-- `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간과 버퍼는 기존 예약 시간축에 영향을 주므로 이 API에서 바꾸지 않는다.
+- `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간·버퍼·회차 정원은 이미 생성된 회차와 예약에 영향을 주므로 이 API에서 바꾸지 않는다.
 - `PATCH /api/v1/admin/classes/{id}/status` — `{ "status": "ACTIVE|INACTIVE" }`로 공개·예약 가능 상태를 변경한다.
 - 성공: `200 OK`, 응답은 2.1.1의 클래스 응답과 같다.
 - `INACTIVE` 클래스는 공개 목록, 자동 회차 조회와 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
@@ -583,6 +586,7 @@ GET /api/v1/classes
     "durationMin": 120,
     "price": 50000,
     "bufferMin": 30,
+    "capacity": 6,
     "passEligible": false,
     "description": "나만의 향을 만드는 원데이 클래스입니다.",
     "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
@@ -1839,7 +1843,7 @@ Content-Type: application/json
 - 정책:
   - `source`는 운영자 접수 경로인 `PHONE`, `NAVER_TALK`, `KAKAO`, `VISIT`만 허용하며 `WEB`은 받지 않는다.
   - 휴대폰은 표준 숫자 형식으로 저장하고 같은 고객의 같은 슬롯 활성 예약을 중복 생성하지 않는다.
-  - 인원은 1~8명이며 남은 슬롯 정원을 초과할 수 없다.
+  - 인원은 1명 이상이며 남은 슬롯 정원을 초과할 수 없다.
   - 금액은 클라이언트가 보내지 않는다. 서버가 `클래스 1인 가격 × 인원`으로 계산한다.
   - `depositPaid=true`이면 10% 예약금과 입금 시각을 기록하고, 취소 시 같은 금액의 수동 반환 작업을 만든다.
   - `depositPaid=false`이면 예약금은 0원이고 전체 금액을 현장 잔금으로 남기며 취소 시 예약금 환불 작업을 만들지 않는다.
@@ -3278,7 +3282,7 @@ Content-Type: application/json
 ```
 
 - 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
-- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 양방향 수업·정리 구간의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
+- 일반 예약의 `participantCount`는 1명부터 선택한 슬롯의 남은 정원까지이며 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 양방향 수업·정리 구간의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
 - 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 8회권 예약 prepare는 현재 회원 소유권·만료·잔여 횟수를 확인하고, 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족할 때만 0원 결제 시도를 만든다. confirm에서는 이용권 행을 잠근 뒤 같은 조건을 다시 확인하고 크레딧을 차감한다.
 - 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 
@@ -3711,7 +3715,7 @@ file={JPEG|PNG|WebP binary}
 | 406 | `NOT_ACCEPTABLE` | 요청한 응답 미디어 타입을 제공할 수 없음 |
 | 409 | `ALREADY_REFUNDED` | 이미 환불된 주문에 승인·거절 시도 |
 | 409 | `INVENTORY_NOT_ENOUGH` | 재고 차감 시 수량 부족 |
-| 409 | `CAPACITY_EXCEEDED` | 슬롯 정원(8명) 초과 예약 시도 |
+| 409 | `CAPACITY_EXCEEDED` | 클래스별 슬롯 정원 초과 예약 시도 |
 | 409 | `DUPLICATE_BOOKING` | 동일 예약자 + 동일 슬롯 활성 예약 중복 |
 | 409 | `SLOT_NOT_AVAILABLE` | 비활성 슬롯 예약 시도 |
 | 409 | `BOOKING_CONFLICT` | 낙관적 락 충돌에 의한 동시 변경 요청 |

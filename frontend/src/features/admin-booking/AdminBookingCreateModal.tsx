@@ -62,7 +62,7 @@ export function AdminBookingCreateModal({
   );
   const selectedSlot = selectableSlots?.find((slot) => String(slot.id) === slotId);
   const maximumParticipants = selectedSlot
-    ? Math.min(8, selectedSlot.capacity - selectedSlot.bookedCount)
+    ? selectedSlot.capacity - selectedSlot.bookedCount
     : 1;
 
   useEffect(() => {
@@ -220,15 +220,15 @@ export function AdminBookingCreateModal({
               <Col xs={12} md={4}>
                 <Form.Group controlId="admin-manual-booking-count">
                   <Form.Label>인원</Form.Label>
-                  <Form.Select
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    max={maximumParticipants}
+                    step={1}
                     value={participantCount}
                     disabled={!selectedSlot || createMutation.isPending}
                     onChange={(event) => setParticipantCount(Number(event.target.value))}
-                  >
-                    {Array.from({ length: maximumParticipants }, (_, index) => index + 1).map((count) => (
-                      <option key={count} value={count}>{count}명</option>
-                    ))}
-                  </Form.Select>
+                  />
                 </Form.Group>
               </Col>
               <Col xs={12} md={4}>

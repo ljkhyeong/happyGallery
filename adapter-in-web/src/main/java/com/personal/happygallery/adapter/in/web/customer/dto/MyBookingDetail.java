@@ -19,7 +19,7 @@ public record MyBookingDetail(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String className,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long depositAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long balanceAmount,

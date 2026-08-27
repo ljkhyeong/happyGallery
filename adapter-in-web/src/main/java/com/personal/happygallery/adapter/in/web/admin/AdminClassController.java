@@ -41,7 +41,7 @@ public class AdminClassController {
     public AdminClassResponse createClass(@RequestBody @Valid CreateClassRequest request) {
         BookingClass bookingClass = classManagementUseCase.createClass(new CreateClassCommand(
                 request.name(), request.category(), request.durationMin(), request.price(), request.bufferMin(),
-                request.passEligible(), request.description(), request.imageUrl(),
+                request.capacity(), request.passEligible(), request.description(), request.imageUrl(),
                 request.preparationInfo(), request.targetAudience()));
         return AdminClassResponse.from(bookingClass);
     }

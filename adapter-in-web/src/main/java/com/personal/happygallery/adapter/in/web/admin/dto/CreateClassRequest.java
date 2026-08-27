@@ -20,6 +20,8 @@ public record CreateClassRequest(
         @Min(BookingClass.MIN_PRICE) @Max(PaymentAmountPolicy.MAX_AMOUNT) long price,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @PositiveOrZero int bufferMin,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
+        @Positive int capacity,
         @NotNull Boolean passEligible,
         @Size(max = BookingClass.MAX_DESCRIPTION_LENGTH) String description,
         @Size(max = BookingClass.MAX_IMAGE_URL_LENGTH) String imageUrl,

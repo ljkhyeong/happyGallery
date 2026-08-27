@@ -69,6 +69,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 </Link>
                 <dl className="class-catalog-meta">
                   <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
+                  <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
                   <div>
                     <dt>8회권</dt>
                     <dd>

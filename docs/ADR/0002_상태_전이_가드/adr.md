@@ -26,7 +26,7 @@
 | 대상 | 구현 위치 | 가드 메서드 |
 |------|----------|------------|
 | 주문 승인 가능 여부 | `OrderStatus.requireApprovalPending()` | 환불 상태는 `AlreadyRefundedException`, 그 외 승인 대기 외 상태는 `INVALID_INPUT` |
-| 슬롯 정원 | `SlotCapacity.checkAvailable(bookedCount, participantCount)` | 요청 인원이 1~8명이 아니거나 `bookedCount + participantCount > 8`이면 예외 |
+| 슬롯 정원 | `SlotCapacity.checkAvailable(capacity, bookedCount, participantCount)` | 요청 인원이 1명 미만이거나 `bookedCount + participantCount > capacity`이면 예외 |
 | 재고 차감 | `Inventory.requireSufficient(qty)` | 요청 수량이 양수가 아니거나 현재 재고보다 크면 예외 |
 
 ### 예외 체계

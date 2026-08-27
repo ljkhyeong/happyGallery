@@ -87,6 +87,7 @@ class CatalogImageAssignmentNormalizationTest {
                 120,
                 50_000L,
                 30,
+                8,
                 true,
                 null,
                 RAW_IMAGE_URL,

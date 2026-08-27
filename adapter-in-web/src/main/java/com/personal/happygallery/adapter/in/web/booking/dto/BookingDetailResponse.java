@@ -21,7 +21,7 @@ public record BookingDetailResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 allowableValues = {"BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"})
         String status,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long depositAmount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long balanceAmount,

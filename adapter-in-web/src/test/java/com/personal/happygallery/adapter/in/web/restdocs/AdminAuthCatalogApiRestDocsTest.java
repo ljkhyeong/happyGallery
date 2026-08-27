@@ -466,6 +466,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "durationMin": 120,
                                   "price": 50000,
                                   "bufferMin": 30,
+                                  "capacity": 6,
                                   "passEligible": false,
                                   "description": "향을 조합해 나만의 향수를 만듭니다.",
                                   "preparationInfo": "편한 복장",

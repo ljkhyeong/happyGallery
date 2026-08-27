@@ -58,6 +58,7 @@ class AdminClassUseCaseIT {
                                   "durationMin": 120,
                                   "price": 50000,
                                   "bufferMin": 30,
+                                  "capacity": 3,
                                   "passEligible": false,
                                   "description": "향을 조합하는 원데이 클래스",
                                   "preparationInfo": "편한 복장",
@@ -66,6 +67,7 @@ class AdminClassUseCaseIT {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.category").value("PERFUME"))
+                .andExpect(jsonPath("$.capacity").value(3))
                 .andExpect(jsonPath("$.passEligible").value(false))
                 .andExpect(jsonPath("$.description").value("향을 조합하는 원데이 클래스"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
@@ -113,6 +115,7 @@ class AdminClassUseCaseIT {
                 .singleElement()
                 .satisfies(bookingClass -> {
                     assertThat(bookingClass.getName()).isEqualTo("우드 정규 클래스");
+                    assertThat(bookingClass.getCapacity()).isEqualTo(3);
                     assertThat(bookingClass.isPassEligible()).isTrue();
                     assertThat(bookingClass.getStatus()).isEqualTo(BookingClassStatus.INACTIVE);
                 });
@@ -130,6 +133,7 @@ class AdminClassUseCaseIT {
                                   "durationMin": 120,
                                   "price": 50000,
                                   "bufferMin": 30,
+                                  "capacity": 8,
                                   "passEligible": false
                                 }
                                 """))

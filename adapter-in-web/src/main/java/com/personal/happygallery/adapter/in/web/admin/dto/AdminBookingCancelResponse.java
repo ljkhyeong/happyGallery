@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record AdminBookingCancelResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "CANCELED") String status,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean passCreditRestored,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long depositRefundAmount,

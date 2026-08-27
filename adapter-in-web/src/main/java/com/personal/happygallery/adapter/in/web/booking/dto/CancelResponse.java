@@ -8,7 +8,7 @@ public record CancelResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long bookingId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = "CANCELED")
         String status,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1", maximum = "8")
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "1")
         int participantCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean refundable,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long refundAmount,

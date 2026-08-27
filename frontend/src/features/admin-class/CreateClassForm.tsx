@@ -23,6 +23,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
   const [durationMin, setDurationMin] = useState("120");
   const [price, setPrice] = useState("50000");
   const [bufferMin, setBufferMin] = useState("30");
+  const [capacity, setCapacity] = useState("8");
   const [passEligible, setPassEligible] = useState(true);
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -43,6 +44,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       durationMin: Number(durationMin),
       price: Number(price),
       bufferMin: Number(bufferMin),
+      capacity: Number(capacity),
       passEligible,
       description: description.trim() || undefined,
       imageUrl: imageUrl.trim() || undefined,
@@ -58,6 +60,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       setDurationMin("120");
       setPrice("50000");
       setBufferMin("30");
+      setCapacity("8");
       setPassEligible(true);
       setDescription("");
       setImageUrl("");
@@ -71,7 +74,8 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
     categoryValue.category.trim().length > 0 &&
     Number(durationMin) > 0 &&
     Number(price) >= 10 &&
-    Number(bufferMin) >= 0;
+    Number(bufferMin) >= 0 &&
+    Number(capacity) >= 1;
 
   return (
     <Form
@@ -101,7 +105,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             allowEmpty
           />
         </Col>
-        <Col xs={12} sm={4}>
+        <Col xs={12} sm={6} lg={3}>
           <Form.Group controlId="admin-class-duration">
             <Form.Label>소요 시간(분)</Form.Label>
             <Form.Control
@@ -112,7 +116,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={12} sm={4}>
+        <Col xs={12} sm={6} lg={3}>
           <Form.Group controlId="admin-class-price">
             <Form.Label>가격 (원)</Form.Label>
             <Form.Control
@@ -123,7 +127,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             />
           </Form.Group>
         </Col>
-        <Col xs={12} sm={4}>
+        <Col xs={12} sm={6} lg={3}>
           <Form.Group controlId="admin-class-buffer">
             <Form.Label>수업 후 정리 시간(분)</Form.Label>
             <Form.Control
@@ -135,6 +139,19 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             <Form.Text muted>
               예약된 수업이 끝난 뒤 이 시간이 지나기 전에 시작하는 다음 수업은 고객이 예약할 수 없습니다.
             </Form.Text>
+          </Form.Group>
+        </Col>
+        <Col xs={12} sm={6} lg={3}>
+          <Form.Group controlId="admin-class-capacity">
+            <Form.Label>회차당 정원(명)</Form.Label>
+            <Form.Control
+              type="number"
+              min={1}
+              step={1}
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+            />
+            <Form.Text muted>이 클래스의 예약 회차마다 적용됩니다.</Form.Text>
           </Form.Group>
         </Col>
         <Col xs={12}>

@@ -31,9 +31,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 /**
- * [UseCaseIT] 슬롯 정원(8명) 강제 + 뒤쪽 버퍼 차단·자동 해제 검증.
+ * [UseCaseIT] 클래스별 슬롯 정원 강제 + 뒤쪽 버퍼 차단·자동 해제 검증.
  *
- * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §4.1): 같은 슬롯에 9번째 예약 시도는 실패로 귀결.
+ * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §4.1): 클래스에서 정한 슬롯 정원을 초과하면 실패로 귀결.
  */
 @UseCaseIT
 class SlotBookingCapacityUseCaseIT {
@@ -71,20 +71,20 @@ class SlotBookingCapacityUseCaseIT {
         cleanupSupport.clearBookingData();
     }
 
-    @DisplayName("슬롯 정원 8명까지 예약 확정은 모두 성공한다")
+    @DisplayName("기존 클래스의 기본 슬롯 정원 8명까지 예약 확정은 모두 성공한다")
     @Test
     void reserveCapacity_8times_allSucceed() {
-        for (int i = 0; i < SlotCapacity.MAX; i++) {
+        for (int i = 0; i < SlotCapacity.DEFAULT; i++) {
             reserveCapacityInTx(mainSlot.getId());
         }
         Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
-        assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+        assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.DEFAULT);
     }
 
     @DisplayName("9번째 예약 확정 시 정원 초과 예외가 발생한다")
     @Test
     void reserveCapacity_9th_throwsCapacityExceeded() {
-        for (int i = 0; i < SlotCapacity.MAX; i++) {
+        for (int i = 0; i < SlotCapacity.DEFAULT; i++) {
             reserveCapacityInTx(mainSlot.getId());
         }
 
@@ -94,7 +94,25 @@ class SlotBookingCapacityUseCaseIT {
 
             // booked_count 변경 없음 확인
             Slot updated = slotRepository.findById(mainSlot.getId()).orElseThrow();
-            softly.assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.MAX);
+            softly.assertThat(updated.getBookedCount()).isEqualTo(SlotCapacity.DEFAULT);
+        });
+    }
+
+    @DisplayName("클래스 정원 3명으로 생성한 슬롯은 4번째 예약을 거절한다")
+    @Test
+    void reserveCapacity_usesBookingClassCapacity() {
+        BookingClass smallClass = classRepository.save(new BookingClass(
+                "소규모 클래스", "CRAFT", 120, 50_000L, 30, 3,
+                true, null, null, null, null));
+        Slot smallSlot = slotRepository.save(new Slot(smallClass, MAIN_START, MAIN_END));
+
+        reserveCapacityInTx(smallSlot.getId(), 3);
+
+        assertSoftly(softly -> {
+            softly.assertThat(slotRepository.findById(smallSlot.getId()).orElseThrow().getCapacity())
+                    .isEqualTo(3);
+            softly.assertThatThrownBy(() -> reserveCapacityInTx(smallSlot.getId()))
+                    .isInstanceOf(CapacityExceededException.class);
         });
     }
 

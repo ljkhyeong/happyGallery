@@ -5,7 +5,6 @@ import com.personal.happygallery.application.payment.port.in.PaymentPayload;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
@@ -22,7 +21,6 @@ public record BookingPaymentPayloadRequest(
         @Schema(nullable = true, allowableValues = {"CARD", "EASY_PAY"})
         DepositPaymentMethod paymentMethod,
         @Min(1)
-        @Max(8)
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         int participantCount,
         @Valid @Schema(nullable = true) PolicyAcceptanceRequest policyAcceptance

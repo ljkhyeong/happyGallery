@@ -12,6 +12,7 @@ public record SlotSchedulingSnapshot(
         boolean adminActive,
         boolean calendarActive,
         int bufferBlockCount,
+        int capacity,
         int bookedCount,
         int classBufferMin,
         long classPrice,

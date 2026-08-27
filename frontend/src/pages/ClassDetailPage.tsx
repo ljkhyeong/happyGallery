@@ -67,6 +67,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
               <dl className="class-detail-meta">
                 <div><dt>수강료</dt><dd>{formatKRW(bookingClass.price)}</dd></div>
                 <div><dt>소요 시간</dt><dd>{bookingClass.durationMin}분</dd></div>
+                <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
                 {bookingClass.targetAudience && <div><dt>추천 대상</dt><dd>{bookingClass.targetAudience}</dd></div>}
                 {bookingClass.preparationInfo && <div><dt>준비물</dt><dd>{bookingClass.preparationInfo}</dd></div>}
               </dl>

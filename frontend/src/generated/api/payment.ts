@@ -166,10 +166,7 @@ export type BookingPayload = Omit<PaymentPayload, 'type'> & ({
   type: BookingPayloadType;
   /** @nullable */
   name?: string | null;
-  /**
-     * @minimum 1
-     * @maximum 8
-     */
+  /** @minimum 1 */
   participantCount: number;
   /** @nullable */
   passId?: number | null;

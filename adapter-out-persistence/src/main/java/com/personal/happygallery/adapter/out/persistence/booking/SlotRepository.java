@@ -26,7 +26,7 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("""
             SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
                 s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
-                s.adminActive, s.calendarActive, s.bufferBlockCount, s.bookedCount,
+                s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
                 s.bookingClass.bufferMin, s.bookingClass.price,
                 s.bookingClass.category, s.bookingClass.passEligible
             )
@@ -39,7 +39,7 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
     @Query("""
             SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
                 s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
-                s.adminActive, s.calendarActive, s.bufferBlockCount, s.bookedCount,
+                s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
                 s.bookingClass.bufferMin, s.bookingClass.price,
                 s.bookingClass.category, s.bookingClass.passEligible
             )

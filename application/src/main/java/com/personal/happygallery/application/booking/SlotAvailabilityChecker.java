@@ -42,7 +42,7 @@ public class SlotAvailabilityChecker {
             throw new SlotNotAvailableException();
         }
 
-        SlotCapacity.checkAvailable(slot.bookedCount(), participantCount);
+        SlotCapacity.checkAvailable(slot.capacity(), slot.bookedCount(), participantCount);
         return slot;
     }
 }

@@ -83,11 +83,11 @@ class ConcurrentBookingUseCaseIT {
         Slot slot = slotRepository.save(slot(cls, SLOT_START, SLOT_END));
 
         // 슬롯을 MAX-1 상태로 채움
-        for (int i = 0; i < SlotCapacity.MAX - 1; i++) {
+        for (int i = 0; i < SlotCapacity.DEFAULT - 1; i++) {
             reserveCapacityInTx(slot.getId());
         }
         int beforeRaceBookedCount = slotRepository.findById(slot.getId()).orElseThrow().getBookedCount();
-        assertThat(beforeRaceBookedCount).isEqualTo(SlotCapacity.MAX - 1);
+        assertThat(beforeRaceBookedCount).isEqualTo(SlotCapacity.DEFAULT - 1);
 
         int threadCount = 3;
         ExecutorService exec = Executors.newFixedThreadPool(threadCount);
@@ -119,7 +119,7 @@ class ConcurrentBookingUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(successes.get()).isEqualTo(1);
             softly.assertThat(failures.get()).isEqualTo(threadCount - 1);
-            softly.assertThat(bookedCount).isEqualTo(SlotCapacity.MAX);
+            softly.assertThat(bookedCount).isEqualTo(SlotCapacity.DEFAULT);
         });
     }
 
