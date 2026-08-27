@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, ProgressBar, Modal } from "react-bootstrap";
 import { CalendarX2 } from "lucide-react";
@@ -19,6 +19,10 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import type { SlotResponse } from "@/shared/types";
+import {
+  HalfHourDaySchedule,
+  type HalfHourScheduleItem,
+} from "@/features/admin-calendar/HalfHourDaySchedule";
 
 interface Props {
   adminKey: string;
@@ -32,6 +36,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SlotResponse | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [scheduleDate, setScheduleDate] = useState("");
 
   const classesQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.classes,
@@ -81,9 +86,40 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const managedSlots = slotsQuery.data?.filter((slot) =>
+  const managedSlots = useMemo(() => (slotsQuery.data ?? []).filter((slot) =>
     slot.bookedCount > 0 || !slot.adminActive,
+  ), [slotsQuery.data]);
+  const scheduleDates = useMemo(() => Array.from(new Set(
+    managedSlots.map((slot) => slot.startAt.slice(0, 10)),
+  )).sort(), [managedSlots]);
+
+  const activeScheduleDate = scheduleDates.includes(scheduleDate)
+    ? scheduleDate
+    : scheduleDates[0] ?? "";
+  const selectedDateSlots = managedSlots.filter(
+    (slot) => slot.startAt.slice(0, 10) === activeScheduleDate,
   );
+  const slotScheduleItems: HalfHourScheduleItem[] = selectedDateSlots.map((slot) => {
+    const status = !slot.adminActive
+      ? "예약 중지"
+      : !slot.calendarActive
+        ? "달력에서 닫힘"
+        : slot.bufferBlocked
+          ? "다른 수업·정리 시간과 겹침"
+          : "예약 가능";
+    return {
+      id: slot.id,
+      start: slot.startAt,
+      end: slot.endAt,
+      title: `회차 #${slot.id}`,
+      detail: `예약 ${slot.bookedCount}/${slot.capacity} · ${status}`,
+      tone: !slot.adminActive
+        ? "danger"
+        : slot.bufferBlocked || !slot.calendarActive
+          ? "warning"
+          : "success",
+    };
+  });
 
   return (
     <div>
@@ -111,6 +147,21 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                 </Form.Select>
               </Form.Group>
             </Col>
+            <Col xs={12} sm={6}>
+              <Form.Group controlId="admin-slot-schedule-date">
+                <Form.Label>시간표 날짜</Form.Label>
+                <Form.Select
+                  value={activeScheduleDate}
+                  disabled={!classIdNum || scheduleDates.length === 0}
+                  onChange={(event) => setScheduleDate(event.target.value)}
+                >
+                  {scheduleDates.length === 0 && <option value="">관리할 회차 없음</option>}
+                  {scheduleDates.map((slotDate) => (
+                    <option key={slotDate} value={slotDate}>{slotDate}</option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
           </Row>
 
           {!classesQuery.error && !classIdNum && (
@@ -126,12 +177,19 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
           retrying={slotsQuery.isFetching}
         />
       )}
-      {!slotsQuery.error && managedSlots && managedSlots.length === 0 && (
+      {!slotsQuery.error && slotsQuery.data && managedSlots.length === 0 && (
         <EmptyState message="관리할 예약 회차가 없습니다. 빈 회차는 예약 캘린더에서 자동으로 관리됩니다." />
       )}
 
-      {managedSlots && managedSlots.length > 0 && (
-        <Table responsive hover size="sm">
+      {activeScheduleDate && selectedDateSlots.length > 0 && (
+        <>
+          <HalfHourDaySchedule
+            ariaLabel={`${activeScheduleDate} 예약 회차 시간표`}
+            date={activeScheduleDate}
+            items={slotScheduleItems}
+            emptyMessage="표시할 관리 회차가 없습니다."
+          />
+          <Table responsive hover size="sm">
           <thead>
             <tr>
               <th>일정 번호</th>
@@ -143,7 +201,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
             </tr>
           </thead>
           <tbody>
-            {managedSlots.map((s) => {
+            {selectedDateSlots.map((s) => {
               const pct = s.capacity > 0 ? Math.round((s.bookedCount / s.capacity) * 100) : 0;
               const variant = pct >= 80 ? "danger" : pct >= 50 ? "warning" : "success";
               const status = !s.adminActive
@@ -201,7 +259,8 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
               );
             })}
           </tbody>
-        </Table>
+          </Table>
+        </>
       )}
 
       <Modal

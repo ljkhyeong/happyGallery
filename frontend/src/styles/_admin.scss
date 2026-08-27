@@ -384,3 +384,129 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+.admin-day-schedule {
+  margin-bottom: 1rem;
+  border: 1px solid var(--hg-border);
+  background: #FFFFFF;
+}
+
+.admin-day-schedule-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.admin-day-schedule-heading span {
+  color: var(--hg-ink-soft);
+  font-size: 0.75rem;
+}
+
+.admin-day-schedule-scroll {
+  max-height: 32rem;
+  overflow: auto;
+}
+
+.admin-day-schedule-grid {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(26rem, 1fr);
+  min-width: 30.25rem;
+}
+
+.admin-day-schedule-axis,
+.admin-day-schedule-canvas {
+  position: relative;
+}
+
+.admin-day-schedule-axis {
+  border-right: 1px solid var(--hg-border);
+  background: var(--hg-surface-alt);
+}
+
+.admin-day-schedule-axis time {
+  position: absolute;
+  right: 0.65rem;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--hg-ink-soft);
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.admin-day-schedule-axis time.is-first {
+  transform: translateY(0.25rem);
+}
+
+.admin-day-schedule-axis time.is-last {
+  transform: translateY(calc(-100% - 0.25rem));
+}
+
+.admin-day-schedule-canvas {
+  min-width: 26rem;
+}
+
+.admin-day-schedule-line {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px dashed #D9DEE0;
+}
+
+.admin-day-schedule-item {
+  position: absolute;
+  z-index: 2;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0.3rem 0.45rem;
+  border-left: 3px solid currentColor;
+  border-radius: 0.2rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.admin-day-schedule-item strong,
+.admin-day-schedule-item small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-day-schedule-item.is-primary {
+  color: #165D63;
+  background: #DDF1F2;
+}
+
+.admin-day-schedule-item.is-success {
+  color: #24613B;
+  background: #E2F1E6;
+}
+
+.admin-day-schedule-item.is-warning {
+  color: #795300;
+  background: #FFF1C7;
+}
+
+.admin-day-schedule-item.is-danger {
+  color: #8C2F2F;
+  background: #FBE0E0;
+}
+
+.admin-day-schedule-item.is-muted {
+  color: #4E5A5F;
+  background: #E8EBEC;
+}
+
+.admin-day-schedule-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 1rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
+  text-align: center;
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Table, Button, Badge, Form, Row, Col, Modal } from "react-bootstrap";
 import { CalendarPlus, CalendarX2 } from "lucide-react";
@@ -29,6 +29,10 @@ import type {
 } from "@/generated/api/adminBooking";
 import type { RefundStatus } from "@/shared/types";
 import { AdminBookingCreateModal } from "./AdminBookingCreateModal";
+import {
+  HalfHourDaySchedule,
+  type HalfHourScheduleItem,
+} from "@/features/admin-calendar/HalfHourDaySchedule";
 
 interface Props {
   adminKey: string;
@@ -106,6 +110,48 @@ export function BookingListSection({
     queryFn: () => fetchBookings(adminKey, date, statusFilter || undefined),
     enabled: date.length > 0,
   });
+
+  const bookingScheduleItems = useMemo<HalfHourScheduleItem[]>(() => {
+    const grouped = new Map<string, {
+      start: string;
+      end: string;
+      className: string;
+      status: AdminBookingResponse["status"];
+      bookingCount: number;
+      participantCount: number;
+    }>();
+    for (const booking of bookings ?? []) {
+      const key = [booking.startAt, booking.endAt, booking.className, booking.status].join("|");
+      const current = grouped.get(key);
+      if (current) {
+        current.bookingCount += 1;
+        current.participantCount += booking.participantCount;
+      } else {
+        grouped.set(key, {
+          start: booking.startAt,
+          end: booking.endAt,
+          className: booking.className,
+          status: booking.status,
+          bookingCount: 1,
+          participantCount: booking.participantCount,
+        });
+      }
+    }
+    return Array.from(grouped.entries()).map(([id, group]) => ({
+      id,
+      start: group.start,
+      end: group.end,
+      title: group.className,
+      detail: `${group.bookingCount}건 · ${group.participantCount}명 · ${getStatusLabel(group.status, "admin")}`,
+      tone: group.status === "BOOKED"
+        ? "primary"
+        : group.status === "COMPLETED"
+          ? "success"
+          : group.status === "NO_SHOW"
+            ? "danger"
+            : "muted",
+    }));
+  }, [bookings]);
 
   const noShowMutation = useAdminMutation(onAuthError, {
     mutationFn: (bookingId: number) => markNoShow(adminKey, bookingId),
@@ -211,7 +257,14 @@ export function BookingListSection({
       {bookings && bookings.length === 0 && <EmptyState message="해당 날짜에 예약이 없습니다." />}
 
       {bookings && bookings.length > 0 && (
-        <Table responsive hover size="sm">
+        <>
+          <HalfHourDaySchedule
+            ariaLabel={`${date} 예약 시간표`}
+            date={date}
+            items={bookingScheduleItems}
+            emptyMessage="표시할 예약이 없습니다."
+          />
+          <Table responsive hover size="sm">
           <thead>
             <tr>
               <th>예약번호</th>
@@ -349,7 +402,8 @@ export function BookingListSection({
               </tr>
             ))}
           </tbody>
-        </Table>
+          </Table>
+        </>
       )}
 
       {mutationError && !(mutationError instanceof ApiError && mutationError.status === 401) && (

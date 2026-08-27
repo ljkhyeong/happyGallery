@@ -17,6 +17,10 @@ import { ApiError, invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import {
+  HalfHourDaySchedule,
+  type HalfHourScheduleItem,
+} from "@/features/admin-calendar/HalfHourDaySchedule";
 
 interface Props {
   adminKey: string;
@@ -83,6 +87,26 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
   }, [calendarQuery.data]);
 
   const selectedDay = calendarQuery.data?.days.find((day) => day.date === selectedDate);
+  const savedSettings = calendarQuery.data?.settings;
+  const selectedDaySchedule: HalfHourScheduleItem[] = selectedDay && savedSettings
+    ? selectedDay.effectiveAvailability === "CLOSED"
+      ? [{
+        id: `closed-${selectedDay.date}`,
+        start: savedSettings.openTime,
+        end: savedSettings.closeTime,
+        title: "종일 닫힘",
+        detail: selectedDay.reason ?? undefined,
+        tone: "muted",
+      }]
+      : selectedDay.timeBlocks.map((block) => ({
+        id: block.id,
+        start: block.startTime,
+        end: block.endTime,
+        title: "예약 차단",
+        detail: block.reason ?? undefined,
+        tone: "danger" as const,
+      }))
+    : [];
   useEffect(() => {
     setDayReason(selectedDay?.reason ?? "");
   }, [selectedDay?.date, selectedDay?.reason]);
@@ -204,6 +228,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                   <option key={minutes} value={minutes}>{minutes}분</option>
                 ))}
               </Form.Select>
+              <Form.Text className="text-muted">시간표 눈금은 설정과 관계없이 30분입니다.</Form.Text>
             </Form.Group>
           </Col>
           <Col xs={12} md={3}>
@@ -303,6 +328,15 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                     </Badge>
                   </Stack>
                 </div>
+
+                <HalfHourDaySchedule
+                  ariaLabel={`${selectedDay.date} 예약 운영 시간표`}
+                  date={selectedDay.date}
+                  startTime={calendarQuery.data.settings.openTime}
+                  endTime={calendarQuery.data.settings.closeTime}
+                  items={selectedDaySchedule}
+                  emptyMessage="기본 운영시간 전체가 예약 가능 상태입니다."
+                />
 
                 <Form.Group controlId="booking-calendar-day-reason" className="mb-3">
                   <Form.Label>사유</Form.Label>
