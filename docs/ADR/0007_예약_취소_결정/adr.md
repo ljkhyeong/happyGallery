@@ -36,7 +36,7 @@
 
 ## 결정 3: 취소 시 슬롯 booked_count 반납 (reschedule과 동일 패턴)
 
-**결정**: `SlotCapacitySupport.releaseCapacity(slotId, participantCount)`가 클래스와 버퍼 범위 슬롯을
+**결정**: `SlotCapacitySupport.releaseCapacity(slotId, participantCount)`가 클래스와 수업·정리 충돌 범위 슬롯을
 같은 잠금 순서로 읽고 `slot.decrementBookedCount(participantCount)`를 수행한다. 마지막 예약 인원이 빠져
 `booked_count`가 양수에서 0이 될 때만 버퍼 차단 수를 줄인다.
 

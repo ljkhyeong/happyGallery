@@ -29,21 +29,21 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 ### 구현 흐름 (`SlotCapacitySupport.reserveCapacity()`을 포함하는 단일 트랜잭션)
 
 ```
-1. 원인 슬롯의 scheduling projection에서 classId와 버퍼 범위를 계산
+1. 원인 슬롯의 scheduling projection에서 classId와 `[startAt, endAt + bufferMin)` 충돌 범위를 계산
 
 2. classes 행을 SELECT FOR UPDATE로 잠금
    → 같은 클래스의 슬롯 생성·예약·반납을 직렬화
 
 3. JpaSlotLockAdapter.lockScope(classId, sourceSlotId, windowStart, windowEnd)
-   → native scalar ID 조회로 원인 슬롯과 버퍼 범위를 PK 오름차순 SELECT FOR UPDATE
+   → native scalar ID 조회로 원인 슬롯과 양방향 충돌 범위를 PK 오름차순 SELECT FOR UPDATE
    → MySQL REPEATABLE READ의 이전 스냅샷이 아니라 잠금 현재 읽기로 직전에 생성된 슬롯까지 포함
    → 이미 관리 중인 후보 Slot만 detach하고, 잠근 ID를 같은 트랜잭션에서 한 번에 다시 적재해 최신 상태 사용
 
 4. 주입된 Clock 기준으로 슬롯 시작 전이고 실제 활성 상태인지 재확인
    → 조회 이후 시간이 지났거나 관리자/버퍼 상태가 바뀌었으면 SlotNotAvailableException
 
-5. 잠긴 뒤쪽 버퍼 슬롯의 예약 점유 확인
-   → booked_count > 0인 슬롯이 하나라도 있으면 역방향 버퍼 충돌이므로 SlotNotAvailableException
+5. 잠긴 충돌 슬롯의 예약 점유 확인
+   → booked_count > 0인 슬롯이 하나라도 있으면 수업·정리 구간 충돌이므로 SlotNotAvailableException
 
 6. Slot.incrementBookedCount(participantCount)
    → SlotCapacity.checkAvailable(bookedCount, participantCount)
@@ -52,12 +52,12 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 
 7. slotStorePort.save(slot)                     // booked_count 커밋
 
-8. booked_count가 0 → 양수이면 이미 잠근 버퍼 윈도우 슬롯의 buffer_block_count++
+8. booked_count가 0 → 양수이면 이미 잠근 양방향 충돌 슬롯의 buffer_block_count++
 ```
 
 `booked_count`는 예약 건수가 아니라 예약 인원 점유다. 일반 예약은 한 건에 1~8명을 점유하고,
 8회권 예약은 1명만 점유한다. 예약 취소·변경의 `releaseCapacity()`는 예약의 `participant_count`만큼
-반납하며, `booked_count`가 양수 → 0이 될 때 같은 버퍼 윈도우를 잠그고 `buffer_block_count--`를
+반납하며, `booked_count`가 양수 → 0이 될 때 같은 충돌 범위를 잠그고 `buffer_block_count--`를
 수행한다. 버퍼가 겹치는 슬롯은 차단 수가 0이 된 뒤에만 실제 활성 상태가 된다.
 
 범위 슬롯만 잠그면 버퍼 ID 조회와 관리자 슬롯 INSERT 사이에 phantom이 생길 수 있다. 반대로 원인 슬롯부터
@@ -78,7 +78,7 @@ native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중
 다시 적재한다. 전체 영속성 컨텍스트를 비우지 않아 함께 처리 중인 다른 애그리거트는 유지된다.
 
 규칙 적용 전에 이미 충돌한 예약 데이터는 자동 취소하지 않는다. 그러나 이후 예약 확정은 매번 잠긴
-버퍼 범위의 기존 예약을 확인하므로, 어느 쪽 슬롯이 먼저 예약됐는지와 관계없이 충돌을 새로 만들거나
+양방향 충돌 범위의 기존 예약을 확인하므로, 어느 쪽 슬롯이 먼저 예약됐는지와 관계없이 충돌을 새로 만들거나
 확대하는 예약은 거절한다.
 
 ### 역할 분리
@@ -86,7 +86,7 @@ native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중
 | 락 전략 | 대상 | 이유 |
 |---------|------|------|
 | **비관적 락 (SELECT FOR UPDATE)** | 클래스 행 | 같은 클래스의 슬롯 생성·예약·반납 순서를 직렬화해 phantom 방지 |
-| **비관적 락 (SELECT FOR UPDATE)** | 원인 슬롯과 뒤쪽 버퍼 슬롯 | 정원과 버퍼 충돌을 같은 경계에서 직렬화 |
+| **비관적 락 (SELECT FOR UPDATE)** | 원인 슬롯과 양방향 충돌 슬롯 | 정원과 수업·정리 시간 충돌을 같은 경계에서 직렬화 |
 | **비관적 락 (SELECT FOR UPDATE)** | 크레딧을 변경하는 8회권 행 | 서로 다른 클래스의 동시 예약과 예약·환불·만료 경합을 직렬화 |
 | **낙관적 락 (`@Version`)** | `bookings` 예약 행 | 동시 변경 드물고 재시도 허용 가능 (§5.3 구현 시) |
 

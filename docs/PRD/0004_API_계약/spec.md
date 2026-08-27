@@ -367,7 +367,89 @@ Authorization: Bearer {token}
   - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 상품과 같은 공용 도메인 정책을 적용해 `/`로 시작하되 `//`가 아닌 서비스 경로 또는 호스트가 있는 `http(s)` URL만 허용한다.
   - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
 
-#### 2.1.2 슬롯 생성
+#### 2.1.2 기본 개방 예약 캘린더
+
+관리자는 슬롯을 날짜별로 미리 만들지 않고 기본 운영시간을 설정한 뒤 운영하지 않는 날짜·시간만 닫는다.
+
+```http
+GET /api/v1/admin/slots/calendar?dateFrom=2026-08-01&dateTo=2026-08-31
+Authorization: Bearer {token}
+```
+
+```json
+{
+  "settings": {
+    "openTime": "10:00:00",
+    "closeTime": "19:00:00",
+    "slotIntervalMin": 30,
+    "blockPublicHolidays": true,
+    "version": 0
+  },
+  "days": [
+    {
+      "date": "2026-08-15",
+      "publicHoliday": true,
+      "effectiveAvailability": "CLOSED",
+      "overrideMode": "DEFAULT",
+      "reason": null,
+      "timeBlocks": []
+    }
+  ]
+}
+```
+
+- 조회 기간은 시작일·종료일을 포함해 최대 93일이다.
+- `effectiveAvailability`는 `OPEN|CLOSED`, `overrideMode`는 `DEFAULT|OPEN|CLOSED`다.
+- 법정·대체공휴일은 설정에 따라 기본 차단하며, 공휴일 날짜를 `OPEN`으로 지정하면 예약을 받는다. 정기 일요일은 공휴일 기본 차단 대상이 아니다.
+
+```http
+PATCH /api/v1/admin/slots/calendar/settings
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "expectedVersion": 0,
+  "openTime": "10:00",
+  "closeTime": "19:00",
+  "slotIntervalMin": 30,
+  "blockPublicHolidays": true
+}
+```
+
+- 시작 시각은 종료 시각보다 빨라야 하고 예약 시작 간격은 10~120분이다.
+- 설정을 읽은 뒤 다른 관리자가 먼저 수정했으면 `409 CONFLICT`를 반환한다.
+
+```http
+PUT /api/v1/admin/slots/calendar/days/2026-08-15
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "mode": "OPEN", "reason": "광복절 특별 운영" }
+```
+
+- `DEFAULT`는 날짜 예외를 제거하고 기본 공휴일 설정을 다시 적용한다.
+- `OPEN`은 공휴일을 포함해 해당 날짜를 열고, `CLOSED`는 종일 닫는다.
+- 오늘 이후 날짜만 변경할 수 있고 사유는 선택값·최대 200자다.
+
+```http
+POST /api/v1/admin/slots/calendar/time-blocks
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "date": "2026-08-18",
+  "startTime": "12:00",
+  "endTime": "13:00",
+  "reason": "점심시간"
+}
+```
+
+- 성공: `201 Created`; 응답은 `id`, `date`, `startTime`, `endTime`, `reason`을 반환한다.
+- `DELETE /api/v1/admin/slots/calendar/time-blocks/{id}`는 등록한 차단을 해제하고 `204 No Content`를 반환한다.
+- 시간 차단과 수업 시간이 한 번이라도 겹치는 자동 회차는 공개하지 않는다.
+- 캘린더 변경은 클래스 행을 ID 순서로 먼저 잠근 뒤 기존 슬롯의 `calendarActive`를 갱신한다.
+
+#### 2.1.3 호환용 슬롯 생성
 
 ```http
 POST /api/v1/admin/slots
@@ -389,6 +471,7 @@ Authorization: Bearer {token}
   "capacity": 8,
   "bookedCount": 0,
   "adminActive": true,
+  "calendarActive": true,
   "bufferBlocked": false,
   "isActive": true
 }
@@ -401,12 +484,12 @@ Authorization: Bearer {token}
 - 정책:
   - `endAt`은 요청받지 않고 `startAt + class.durationMin`으로 서버가 계산한다.
   - 같은 클래스의 같은 `startAt`에는 종료 시각과 무관하게 슬롯을 하나만 생성할 수 있다.
-  - 이미 예약된 같은 클래스 슬롯의 뒤쪽 버퍼에 포함되면 생성 응답의 `isActive`는 `false`다.
+  - 이미 예약된 같은 클래스 슬롯과 수업·정리 구간이 겹치면 생성 응답의 `isActive`는 `false`다.
   - 같은 클래스의 슬롯 생성과 예약·반납은 클래스 행 잠금으로 직렬화해, 동시 생성된 버퍼 슬롯도 예약 상태를 빠뜨리지 않는다.
-  - `adminActive`는 관리자 비활성화 여부, `bufferBlocked`는 예약 버퍼 차단 여부다.
-  - `isActive`는 `adminActive=true`이고 `bufferBlocked=false`일 때만 `true`다.
+  - `adminActive`는 관리자 비활성화 여부, `calendarActive`는 기본 운영시간·날짜·시간 차단 적용 여부, `bufferBlocked`는 다른 예약의 수업·정리 구간 차단 여부다.
+  - `isActive`는 `adminActive=true`, `calendarActive=true`, `bufferBlocked=false`일 때만 `true`다.
 
-#### 2.1.3 슬롯 비활성화
+#### 2.1.4 슬롯 비활성화
 
 ```http
 PATCH /api/v1/admin/slots/{id}/deactivate
@@ -422,6 +505,7 @@ Authorization: Bearer {token}
   "capacity": 8,
   "bookedCount": 0,
   "adminActive": false,
+  "calendarActive": true,
   "bufferBlocked": false,
   "isActive": false
 }
@@ -433,21 +517,21 @@ Authorization: Bearer {token}
 - 정책:
   - 관리자 비활성 상태는 예약 취소·변경으로 버퍼 차단이 자동 해제되어도 유지된다.
 
-#### 2.1.4 슬롯 활성화
+#### 2.1.5 슬롯 활성화
 
 ```http
 PATCH /api/v1/admin/slots/{id}/activate
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` + 2.1.2와 같은 슬롯 응답
+- 성공: `200 OK` + 2.1.3과 같은 슬롯 응답
 - 에러:
   - `404 NOT_FOUND` — slotId에 해당하는 슬롯 없음
 - 정책:
   - `adminActive`만 `true`로 복구한다.
   - `bufferBlocked=true`이면 활성화 후에도 `isActive=false`다.
 
-#### 2.1.5 클래스 전체 조회·수정·상태 변경
+#### 2.1.6 클래스 전체 조회·수정·상태 변경
 
 - `GET /api/v1/admin/classes` — `ACTIVE`, `INACTIVE` 클래스를 모두 반환한다.
 - `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간과 버퍼는 기존 예약 시간축에 영향을 주므로 이 API에서 바꾸지 않는다.
@@ -455,7 +539,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`, 응답은 2.1.1의 클래스 응답과 같다.
 - `INACTIVE` 클래스는 공개 목록, 새 슬롯 생성과 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
 
-#### 2.1.6 슬롯 일괄 미리보기·생성
+#### 2.1.7 호환용 슬롯 일괄 미리보기·생성
 
 ```http
 POST /api/v1/admin/slots/bulk/preview
@@ -476,6 +560,7 @@ Content-Type: application/json
 - 미리보기는 DB를 바꾸지 않고 `CREATABLE`, `SKIPPED_DUPLICATE`, `SKIPPED_PAST`와 `bufferBlocked`를 반환한다.
 - 실제 생성은 만들 수 있는 후보를 `CREATED`로 반환하고 과거·중복 후보는 항목별로 건너뛴다. 응답에는 `totalCount`, `creatableCount`, `createdCount`, `skippedCount`, `items`가 포함된다.
 - 비활성 또는 없는 클래스, 역전된 날짜, 빈 요일/시각, 상한 초과는 거절한다.
+- 관리자 화면은 이 API를 사용하지 않는다. 기존 연동과 테스트 fixture 호환을 위해 유지한다.
 
 ### 2.2 공개 조회 API
 
@@ -606,7 +691,8 @@ GET /api/v1/slots?classId=1&date=2026-03-01
   - `400 INVALID_INPUT` — `classId`, `date` 파라미터 누락 또는 형식 오류
 - 정책:
   - `classId` + `date` 기준으로 당일 슬롯만 조회한다.
-  - `admin_active = true`, `buffer_block_count = 0`이고 `booked_count < capacity`인 슬롯만 노출한다.
+  - 조회 트랜잭션이 클래스 행을 잠근 뒤 기본 운영시간·날짜 예외·공휴일·시간 차단에 맞는 슬롯 행을 자동 생성하거나 기존 `calendar_active`를 갱신한다.
+  - `admin_active = true`, `calendar_active = true`, `buffer_block_count = 0`이고 `booked_count < capacity`인 슬롯만 노출한다.
   - 정렬은 `startAt` 오름차순이다.
 
 #### 2.2.4.1 향후 예약 가능 슬롯 조회
@@ -3235,7 +3321,7 @@ Content-Type: application/json
 ```
 
 - 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 크레딧 1회를 차감한다.
-- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 뒤쪽 버퍼 범위의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
+- 일반 예약의 `participantCount`는 1~8이고 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 양방향 수업·정리 구간의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
 - 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 8회권 예약 prepare는 현재 회원 소유권·만료·잔여 횟수를 확인하고, 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족할 때만 0원 결제 시도를 만든다. confirm에서는 이용권 행을 잠근 뒤 같은 조건을 다시 확인하고 크레딧을 차감한다.
 - 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 

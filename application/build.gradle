@@ -45,6 +45,7 @@ dependencies {
 	api project(":domain")
 	api 'com.fasterxml.jackson.core:jackson-annotations'
 	implementation 'com.drewnoakes:metadata-extractor:2.20.0'
+	implementation 'com.github.usingsky:KoreanLunarCalendar:0.4.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-json'

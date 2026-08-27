@@ -37,8 +37,8 @@ public class SlotAvailabilityChecker {
         SlotSchedulingSnapshot slot = requireSchedulingAvailable(slotId);
         LocalDateTime bufferWindowEnd =
                 SlotBufferPolicy.bufferWindowEnd(slot.endAt(), slot.classBufferMin());
-        if (slotReaderPort.existsBookedInBufferWindow(
-                slot.classId(), slot.id(), slot.endAt(), bufferWindowEnd)) {
+        if (slotReaderPort.countBookedConflicts(
+                slot.classId(), slot.id(), slot.startAt(), bufferWindowEnd) > 0) {
             throw new SlotNotAvailableException();
         }
 

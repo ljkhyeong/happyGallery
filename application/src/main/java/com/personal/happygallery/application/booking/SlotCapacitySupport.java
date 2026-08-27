@@ -77,7 +77,7 @@ class SlotCapacitySupport {
         }
     }
 
-    /** 슬롯을 잠근 뒤 활성 상태를 재확인하고 정원을 확보한다. 첫 예약이면 뒤쪽 버퍼를 차단한다. */
+    /** 슬롯을 잠근 뒤 활성 상태를 재확인하고 정원을 확보한다. 첫 예약이면 충돌 회차를 차단한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot reserveCapacity(Long slotId) {
         return reserveCapacity(slotId, 1);
@@ -93,8 +93,8 @@ class SlotCapacitySupport {
             throw new SlotNotAvailableException();
         }
 
-        List<Slot> bufferSlots = locked.bufferSlots();
-        if (bufferSlots.stream().anyMatch(Slot::hasBookings)) {
+        List<Slot> conflictSlots = locked.conflictSlots();
+        if (conflictSlots.stream().anyMatch(Slot::hasBookings)) {
             throw new SlotNotAvailableException();
         }
 
@@ -103,7 +103,7 @@ class SlotCapacitySupport {
         slotStorePort.save(slot);
 
         if (firstBooking) {
-            blockBufferSlots(bufferSlots);
+            blockConflictSlots(conflictSlots);
         }
         return slot;
     }
@@ -144,23 +144,23 @@ class SlotCapacitySupport {
         slot.decrementBookedCount(participantCount);
         slotStorePort.save(slot);
         if (!slot.hasBookings()) {
-            releaseBufferSlots(locked.bufferSlots());
+            releaseConflictSlots(locked.conflictSlots());
         }
         return slot;
     }
 
-    private void blockBufferSlots(List<Slot> bufferSlots) {
-        for (Slot bufferSlot : bufferSlots) {
-            bufferSlot.incrementBufferBlockCount();
+    private void blockConflictSlots(List<Slot> conflictSlots) {
+        for (Slot conflictSlot : conflictSlots) {
+            conflictSlot.incrementBufferBlockCount();
         }
-        slotStorePort.saveAll(bufferSlots);
+        slotStorePort.saveAll(conflictSlots);
     }
 
-    private void releaseBufferSlots(List<Slot> bufferSlots) {
-        for (Slot bufferSlot : bufferSlots) {
-            bufferSlot.decrementBufferBlockCount();
+    private void releaseConflictSlots(List<Slot> conflictSlots) {
+        for (Slot conflictSlot : conflictSlots) {
+            conflictSlot.decrementBufferBlockCount();
         }
-        slotStorePort.saveAll(bufferSlots);
+        slotStorePort.saveAll(conflictSlots);
     }
 
     /** 클래스와 슬롯 범위를 순서대로 잠그고 후속 정원 변경까지 유지할 범위를 반환한다. */
@@ -174,16 +174,16 @@ class SlotCapacitySupport {
         LocalDateTime windowEnd = SlotBufferPolicy.bufferWindowEnd(
                 sourceSnapshot.endAt(), lockedClass.getBufferMin());
         List<Slot> lockedSlots = slotLockPort.lockScope(
-                classId, slotId, sourceSnapshot.endAt(), windowEnd);
+                classId, slotId, sourceSnapshot.startAt(), windowEnd);
         Slot source = lockedSlots.stream()
                 .filter(slot -> slot.getId().equals(slotId))
                 .findFirst()
                 .orElseThrow(NotFoundException.supplier("슬롯"));
-        List<Slot> bufferSlots = lockedSlots.stream()
+        List<Slot> conflictSlots = lockedSlots.stream()
                 .filter(slot -> !slot.getId().equals(slotId))
                 .toList();
-        return new LockedSlotScope(source, bufferSlots);
+        return new LockedSlotScope(source, conflictSlots);
     }
 
-    record LockedSlotScope(Slot source, List<Slot> bufferSlots) {}
+    record LockedSlotScope(Slot source, List<Slot> conflictSlots) {}
 }

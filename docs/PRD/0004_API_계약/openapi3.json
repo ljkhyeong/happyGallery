@@ -1293,6 +1293,74 @@
         "required" : [ "failureCount", "failureReasons", "successCount" ],
         "type" : "object"
       },
+      "BookingCalendarDayResponse" : {
+        "properties" : {
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "effectiveAvailability" : {
+            "enum" : [ "OPEN", "CLOSED" ],
+            "type" : "string"
+          },
+          "overrideMode" : {
+            "enum" : [ "DEFAULT", "OPEN", "CLOSED" ],
+            "type" : "string"
+          },
+          "publicHoliday" : {
+            "type" : "boolean"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "timeBlocks" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BookingTimeBlockResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "date", "effectiveAvailability", "overrideMode", "publicHoliday", "timeBlocks" ],
+        "type" : "object"
+      },
+      "BookingCalendarResponse" : {
+        "properties" : {
+          "days" : {
+            "items" : {
+              "$ref" : "#/components/schemas/BookingCalendarDayResponse"
+            },
+            "type" : "array"
+          },
+          "settings" : {
+            "$ref" : "#/components/schemas/BookingCalendarSettingsResponse"
+          }
+        },
+        "required" : [ "days", "settings" ],
+        "type" : "object"
+      },
+      "BookingCalendarSettingsResponse" : {
+        "properties" : {
+          "blockPublicHolidays" : {
+            "type" : "boolean"
+          },
+          "closeTime" : {
+            "type" : "string"
+          },
+          "openTime" : {
+            "type" : "string"
+          },
+          "slotIntervalMin" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "blockPublicHolidays", "closeTime", "openTime", "slotIntervalMin", "version" ],
+        "type" : "object"
+      },
       "BookingCancelPolicyResponse" : {
         "properties" : {
           "cancellable" : {
@@ -1577,6 +1645,29 @@
           }
         },
         "required" : [ "bookingId", "className", "endAt", "startAt", "status" ],
+        "type" : "object"
+      },
+      "BookingTimeBlockResponse" : {
+        "properties" : {
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "endTime" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "startTime" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "date", "endTime", "id", "startTime" ],
         "type" : "object"
       },
       "BulkSlotItemResponse" : {
@@ -2079,6 +2170,27 @@
           }
         },
         "required" : [ "depositPaid", "name", "participantCount", "phone", "slotId", "source" ],
+        "type" : "object"
+      },
+      "CreateBookingTimeBlockRequest" : {
+        "properties" : {
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "endTime" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "startTime" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "date", "endTime", "startTime" ],
         "type" : "object"
       },
       "CreateClassRequest" : {
@@ -5968,6 +6080,9 @@
           "bufferBlocked" : {
             "type" : "boolean"
           },
+          "calendarActive" : {
+            "type" : "boolean"
+          },
           "capacity" : {
             "format" : "int32",
             "type" : "integer"
@@ -5992,7 +6107,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "adminActive", "bookedCount", "bufferBlocked", "capacity", "classId", "endAt", "id", "isActive", "startAt" ],
+        "required" : [ "adminActive", "bookedCount", "bufferBlocked", "calendarActive", "capacity", "classId", "endAt", "id", "isActive", "startAt" ],
         "type" : "object"
       },
       "SlotUtilizationResponse" : {
@@ -6107,6 +6222,46 @@
           }
         },
         "required" : [ "arrears" ],
+        "type" : "object"
+      },
+      "UpdateBookingCalendarDayRequest" : {
+        "properties" : {
+          "mode" : {
+            "enum" : [ "DEFAULT", "OPEN", "CLOSED" ],
+            "type" : "string"
+          },
+          "reason" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "mode" ],
+        "type" : "object"
+      },
+      "UpdateBookingCalendarSettingsRequest" : {
+        "properties" : {
+          "blockPublicHolidays" : {
+            "type" : "boolean"
+          },
+          "closeTime" : {
+            "type" : "string"
+          },
+          "expectedVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "openTime" : {
+            "type" : "string"
+          },
+          "slotIntervalMin" : {
+            "format" : "int32",
+            "maximum" : 120,
+            "minimum" : 10,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "blockPublicHolidays", "closeTime", "expectedVersion", "openTime", "slotIntervalMin" ],
         "type" : "object"
       },
       "UpdateCartItemRequest" : {
@@ -10150,6 +10305,147 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-slot-controller" ]
+      }
+    },
+    "/api/v1/admin/slots/calendar" : {
+      "get" : {
+        "operationId" : "getAdminBookingCalendar",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "dateFrom",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "dateTo",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingCalendarResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-slot-controller" ]
+      }
+    },
+    "/api/v1/admin/slots/calendar/days/{date}" : {
+      "put" : {
+        "operationId" : "updateAdminBookingCalendarDay",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "date",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBookingCalendarDayRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-slot-controller" ]
+      }
+    },
+    "/api/v1/admin/slots/calendar/settings" : {
+      "patch" : {
+        "operationId" : "updateAdminBookingCalendarSettings",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateBookingCalendarSettingsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingCalendarSettingsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-slot-controller" ]
+      }
+    },
+    "/api/v1/admin/slots/calendar/time-blocks" : {
+      "post" : {
+        "operationId" : "createAdminBookingTimeBlock",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateBookingTimeBlockRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BookingTimeBlockResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "admin-slot-controller" ]
+      }
+    },
+    "/api/v1/admin/slots/calendar/time-blocks/{id}" : {
+      "delete" : {
+        "operationId" : "deleteAdminBookingTimeBlock",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "admin-slot-controller" ]

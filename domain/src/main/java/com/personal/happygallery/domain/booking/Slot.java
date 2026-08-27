@@ -39,6 +39,9 @@ public class Slot {
     @Column(name = "admin_active", nullable = false)
     private boolean adminActive = true;
 
+    @Column(name = "calendar_active", nullable = false)
+    private boolean calendarActive = true;
+
     @Column(name = "buffer_block_count", nullable = false)
     private int bufferBlockCount = 0;
 
@@ -55,6 +58,7 @@ public class Slot {
         this.capacity = SlotCapacity.MAX;
         this.bookedCount = 0;
         this.adminActive = true;
+        this.calendarActive = true;
         this.bufferBlockCount = 0;
     }
 
@@ -66,6 +70,11 @@ public class Slot {
     /** 운영자가 슬롯을 다시 활성화한다. 예약 버퍼 차단 상태는 유지된다. */
     public void activate() {
         this.adminActive = true;
+    }
+
+    /** 기본 운영시간과 날짜·시간 차단 정책을 현재 슬롯에 반영한다. */
+    public void applyCalendarAvailability(boolean active) {
+        this.calendarActive = active;
     }
 
     /** 다른 슬롯의 예약으로 인해 이 슬롯을 막는 버퍼가 하나 추가된다. */
@@ -120,8 +129,9 @@ public class Slot {
     public int getCapacity() { return capacity; }
     public int getBookedCount() { return bookedCount; }
     public boolean isAdminActive() { return adminActive; }
+    public boolean isCalendarActive() { return calendarActive; }
     public boolean isBufferBlocked() { return bufferBlockCount > 0; }
-    public boolean isActive() { return adminActive && bufferBlockCount == 0; }
+    public boolean isActive() { return adminActive && calendarActive && bufferBlockCount == 0; }
     public boolean hasBookings() { return bookedCount > 0; }
     public boolean isReservableAt(LocalDateTime now) {
         return bookingClass.isActive() && isActive() && startAt.isAfter(now);

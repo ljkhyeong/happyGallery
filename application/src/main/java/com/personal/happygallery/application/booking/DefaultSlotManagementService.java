@@ -106,8 +106,10 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
         LocalDateTime endAt = startAt.plusMinutes(bookingClass.getDurationMin());
         boolean bufferBlocked = existingSlots.stream()
                 .filter(Slot::hasBookings)
-                .anyMatch(existing -> SlotBufferPolicy.contains(
-                        existing.getEndAt(), bookingClass.getBufferMin(), startAt));
+                .anyMatch(existing -> SlotBufferPolicy.conflicts(
+                        startAt, endAt,
+                        existing.getStartAt(), existing.getEndAt(),
+                        bookingClass.getBufferMin()));
 
         if (!startAt.isAfter(now)) {
             return new BulkSlotItem(
@@ -163,8 +165,10 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
         Slot slot = new Slot(bookingClass, startAt);
         for (Slot existing : existingSlots) {
             if (existing.hasBookings()
-                    && SlotBufferPolicy.contains(
-                            existing.getEndAt(), bookingClass.getBufferMin(), startAt)) {
+                    && SlotBufferPolicy.conflicts(
+                            slot.getStartAt(), slot.getEndAt(),
+                            existing.getStartAt(), existing.getEndAt(),
+                            bookingClass.getBufferMin())) {
                 slot.incrementBufferBlockCount();
             }
         }

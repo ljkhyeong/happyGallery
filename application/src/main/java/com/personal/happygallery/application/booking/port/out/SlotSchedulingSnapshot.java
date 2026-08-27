@@ -10,6 +10,7 @@ public record SlotSchedulingSnapshot(
         LocalDateTime endAt,
         BookingClassStatus classStatus,
         boolean adminActive,
+        boolean calendarActive,
         int bufferBlockCount,
         int bookedCount,
         int classBufferMin,
@@ -21,6 +22,7 @@ public record SlotSchedulingSnapshot(
     public boolean isReservableAt(LocalDateTime now) {
         return classStatus == BookingClassStatus.ACTIVE
                 && adminActive
+                && calendarActive
                 && bufferBlockCount == 0
                 && startAt.isAfter(now);
     }

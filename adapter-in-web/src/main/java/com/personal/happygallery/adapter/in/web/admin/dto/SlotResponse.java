@@ -12,6 +12,7 @@ public record SlotResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int capacity,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int bookedCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean adminActive,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean calendarActive,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean bufferBlocked,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean isActive
 ) {
@@ -24,6 +25,7 @@ public record SlotResponse(
                 slot.getCapacity(),
                 slot.getBookedCount(),
                 slot.isAdminActive(),
+                slot.isCalendarActive(),
                 slot.isBufferBlocked(),
                 slot.isActive()
         );

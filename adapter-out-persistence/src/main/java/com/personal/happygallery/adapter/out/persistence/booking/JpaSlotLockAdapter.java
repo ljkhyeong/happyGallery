@@ -31,24 +31,28 @@ class JpaSlotLockAdapter implements SlotLockPort {
     @Override
     public List<Slot> lockScope(Long classId,
                                Long sourceSlotId,
-                               LocalDateTime windowStart,
-                               LocalDateTime windowEnd) {
+                               LocalDateTime sourceStartAt,
+                               LocalDateTime sourceEndWithBuffer) {
         entityManager.flush();
         @SuppressWarnings("unchecked")
         List<Number> lockedRows = entityManager.createNativeQuery(
                         """
-                        SELECT id
-                        FROM slots
-                        WHERE class_id = :classId
-                          AND (id = :sourceSlotId
-                               OR (start_at >= :windowStart AND start_at < :windowEnd))
-                        ORDER BY id
+                        SELECT candidate.id
+                        FROM slots candidate
+                        JOIN classes booking_class ON booking_class.id = candidate.class_id
+                        WHERE candidate.class_id = :classId
+                          AND (candidate.id = :sourceSlotId
+                               OR (candidate.start_at < :sourceEndWithBuffer
+                                   AND TIMESTAMPADD(
+                                       MINUTE, booking_class.buffer_min, candidate.end_at
+                                   ) > :sourceStartAt))
+                        ORDER BY candidate.id
                         FOR UPDATE
                         """)
                 .setParameter("classId", classId)
                 .setParameter("sourceSlotId", sourceSlotId)
-                .setParameter("windowStart", windowStart)
-                .setParameter("windowEnd", windowEnd)
+                .setParameter("sourceStartAt", sourceStartAt)
+                .setParameter("sourceEndWithBuffer", sourceEndWithBuffer)
                 .getResultList();
         List<Long> ids = lockedRows.stream().map(Number::longValue).toList();
         detachReferences(ids);

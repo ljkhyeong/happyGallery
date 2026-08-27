@@ -132,6 +132,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingWithPassAndRefundData() {
+        clearBookingCalendarData();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -150,6 +151,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingReminderData() {
+        clearBookingCalendarData();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -221,6 +223,7 @@ public class TestCleanupSupport {
     }
 
     public void clearBookingData() {
+        clearBookingCalendarData();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -232,6 +235,20 @@ public class TestCleanupSupport {
         bookingRepository.deleteAllInBatch();
         slotRepository.deleteAllInBatch();
         classRepository.deleteAllInBatch();
+    }
+
+    private void clearBookingCalendarData() {
+        JdbcTestUtils.deleteFromTables(
+                jdbcTemplate, "booking_time_blocks", "booking_day_overrides");
+        jdbcTemplate.update("""
+                UPDATE booking_calendar_settings
+                SET open_time = '10:00:00',
+                    close_time = '19:00:00',
+                    slot_interval_min = 30,
+                    block_public_holidays = TRUE,
+                    version = 0
+                WHERE id = 1
+                """);
     }
 
     public void clearUsers() {

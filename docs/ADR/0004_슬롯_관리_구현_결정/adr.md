@@ -104,28 +104,19 @@ DB UNIQUE      →  DataIntegrityViolationException → 현재 미처리(500)
 
 ---
 
-## Decision 4: 버퍼 차단 수 갱신 — 개별 `save()` (N+1 트레이드오프 수용)
+## Decision 4: 충돌 슬롯 차단 수 갱신 — 도메인 변경 후 `saveAll()`
 
 ### 배경
-`SlotCapacitySupport`는 원인 슬롯의 첫 예약에서 버퍼 범위 슬롯의 `bufferBlockCount`를 증가시키고,
-마지막 예약 반납에서 감소시킨 뒤 각각 `save()`한다.
+`SlotCapacitySupport`는 원인 슬롯의 첫 예약에서 수업·정리 구간이 겹치는 슬롯의 `bufferBlockCount`를 증가시키고,
+마지막 예약 반납에서 감소시킨 뒤 저장한다.
 
 ### 결정
-개별 `save()` 루프를 사용한다. 현재 `buffer_min=30`이고 슬롯 간격이 보통 30분 이상이므로 실제 차단 수 갱신 대상은 0~1개다.
-
-### 대안
-```java
-// 일괄 UPDATE (증가 예시)
-@Modifying
-@Query("UPDATE Slot s SET s.bufferBlockCount = s.bufferBlockCount + 1 " +
-       "WHERE s.bookingClass.id = :classId " +
-       "AND s.startAt >= :start AND s.startAt < :end")
-void incrementBufferBlocks(...);
-```
+잠긴 충돌 슬롯은 도메인 메서드로 차단 수를 변경한 뒤 `saveAll()` 한 번으로 저장한다. 자동 캘린더의 시작 간격이
+클래스 소요 시간보다 짧아 한 예약이 여러 후보 회차를 막을 수 있으므로 개별 저장 호출을 반복하지 않는다.
 
 ### 트레이드오프 / 위험
-- 슬롯을 빽빽하게 배치(예: 10분 간격)하면 buffer_min=30 범위에 최대 2개 슬롯 → N+1 발생.
-- **성능 기준 초과 시**: 원자적 증가·감소 `@Modifying` 쿼리로 교체. 단, 도메인 메서드를 우회하므로 0 미만 방지 조건을 DB 쿼리에도 유지한다.
+- 각 엔티티 변경은 Hibernate dirty checking과 배치 설정을 사용한다. 실제 SQL 배치가 성능 기준을 넘으면 원자적
+  `@Modifying` 쿼리를 검토하되, 0 미만 방지 조건을 DB 쿼리에도 유지한다.
 
 ---
 
@@ -184,6 +175,33 @@ DB에서 직접 수정해야 한다.
 
 ---
 
+## Decision 8: 운영 캘린더는 기본 개방하고 슬롯은 조회 시 자동 구체화한다
+
+### 배경
+
+관리자가 클래스마다 가능한 슬롯을 단건 또는 기간·요일 조합으로 계속 생성하는 방식은 휴무보다 정상 영업일이
+많은 공방에서 입력량이 크다. 반면 결제·변경·취소는 안정적인 슬롯 ID와 행 잠금이 필요해 슬롯 엔티티 자체를
+없앨 수 없다.
+
+### 결정
+
+- 단일 `booking_calendar_settings`에서 기본 운영시간, 시작 간격, 법정 공휴일 차단 여부를 관리한다.
+- `booking_day_overrides`는 날짜별 `OPEN|CLOSED`, `booking_time_blocks`는 날짜 안의 차단 시간을 저장한다.
+- 공개 조회는 클래스 행을 먼저 잠그고 캘린더 규칙에 필요한 `slots`를 생성한다. 기존 슬롯은
+  `calendar_active`만 갱신하며 예약·관리자 비활성 상태를 지우지 않는다.
+- 공휴일 음력 날짜는 한국천문연구원 기준 `KoreanLunarCalendar`로 변환하고, 대체공휴일은 2026년 시행 중인
+  `관공서의 공휴일에 관한 규정`을 적용한다. 임시공휴일과 선거일은 날짜 차단으로 보완한다.
+- 자동 시작 간격은 클래스 길이보다 짧을 수 있으므로 각 슬롯의 `[startAt, endAt + bufferMin)`이 겹치는지를
+  양방향으로 판정한다.
+- 기존 단건·일괄 슬롯 API는 호환용으로 남기고 관리자 화면에서는 제거한다.
+
+### 결과
+
+관리자는 정상 영업일을 반복 입력하지 않고 예외만 닫는다. 기존 슬롯 ID 기반 결제·취소 계약과
+`classes → slots` 잠금 순서를 유지하면서 캘린더 변경과 예약 확정을 직렬화한다.
+
+---
+
 ## 결과
 
 **공통 위험 요약**
@@ -192,7 +210,7 @@ DB에서 직접 수정해야 한다.
 |------|------------|------|
 | LazyInitializationException | DTO가 LAZY 연관 필드를 추가로 참조 | 서비스 DTO 조립 또는 fetch join/@EntityGraph 적용 |
 | 클래스 단위 잠금 경합 | 같은 클래스에 슬롯 생성·예약이 집중 | 트랜잭션을 짧게 유지하고 잠금 대기 지표 확인 |
-| 버퍼 N+1 | 고밀도 슬롯 배치 | @Modifying 일괄 UPDATE로 교체 |
+| 고밀도 회차 차단 갱신 | 짧은 시작 간격과 긴 클래스 | 저장 배치 지표를 보고 원자적 일괄 UPDATE 검토 |
 
 ---
 

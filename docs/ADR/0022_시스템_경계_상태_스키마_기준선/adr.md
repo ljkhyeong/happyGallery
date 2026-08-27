@@ -224,8 +224,15 @@
   - 공개 목록·상세와 슬롯 생성·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 슬롯·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
   - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
-  - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `buffer_block_count`
-  - 실제 활성 상태는 `admin_active=true AND buffer_block_count=0`으로 판정한다.
+  - `id`, `class_id`, `start_at`, `end_at`, `capacity=8`, `booked_count`, `admin_active`, `calendar_active`, `buffer_block_count`
+  - 실제 활성 상태는 `admin_active=true AND calendar_active=true AND buffer_block_count=0`으로 판정한다.
+- `booking_calendar_settings`
+  - 단일 행 `id=1`, `open_time`, `close_time`, `slot_interval_min`, `block_public_holidays`, `version`
+- `booking_day_overrides`
+  - `calendar_date` PK, `availability(OPEN|CLOSED)`, `reason nullable`
+- `booking_time_blocks`
+  - `id`, `calendar_date`, `start_time`, `end_time`, `reason nullable`
+  - 같은 날짜·시작·종료 조합은 UNIQUE이며 시작 시각이 종료 시각보다 빨라야 한다.
 - `bookings`
   - `id`, `user_id nullable`, `guest_id nullable`
   - `user_id`, `guest_id` 중 정확히 하나만 존재하도록 `chk_bookings_exactly_one_owner` `CHECK` 제약으로 강제한다.

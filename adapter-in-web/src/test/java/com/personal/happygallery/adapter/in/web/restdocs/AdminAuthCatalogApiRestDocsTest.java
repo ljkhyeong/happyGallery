@@ -22,6 +22,10 @@ import com.personal.happygallery.application.admin.port.in.AdminMfaUseCase.Recov
 import com.personal.happygallery.application.admin.port.in.AdminSetupUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.CalendarDay;
+import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.CalendarView;
+import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.DayOverrideMode;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotItem;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotResult;
@@ -32,12 +36,17 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingCalendarSettings;
+import com.personal.happygallery.domain.booking.BookingDayAvailability;
+import com.personal.happygallery.domain.booking.BookingTimeBlock;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -77,6 +86,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private ClassQueryUseCase classQueryUseCase;
     private SlotManagementUseCase slotManagementUseCase;
     private SlotQueryUseCase slotQueryUseCase;
+    private BookingCalendarUseCase bookingCalendarUseCase;
     private ImageMediaUseCase imageMediaUseCase;
 
     @BeforeEach
@@ -92,6 +102,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         classQueryUseCase = mock(ClassQueryUseCase.class);
         slotManagementUseCase = mock(SlotManagementUseCase.class);
         slotQueryUseCase = mock(SlotQueryUseCase.class);
+        bookingCalendarUseCase = mock(BookingCalendarUseCase.class);
         imageMediaUseCase = mock(ImageMediaUseCase.class);
 
         ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
@@ -154,6 +165,25 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         false))));
         when(slotManagementUseCase.deactivateSlot(42L)).thenReturn(slot);
         when(slotManagementUseCase.activateSlot(42L)).thenReturn(slot);
+        BookingCalendarSettings calendarSettings = new BookingCalendarSettings(
+                LocalTime.of(10, 0), LocalTime.of(19, 0), 30, true);
+        BookingTimeBlock timeBlock = mock(BookingTimeBlock.class);
+        when(timeBlock.getId()).thenReturn(7L);
+        when(timeBlock.getDate()).thenReturn(LocalDate.of(2026, 5, 7));
+        when(timeBlock.getStartTime()).thenReturn(LocalTime.of(12, 0));
+        when(timeBlock.getEndTime()).thenReturn(LocalTime.of(13, 0));
+        when(timeBlock.getReason()).thenReturn("점심시간");
+        when(bookingCalendarUseCase.getCalendar(any(), any())).thenReturn(new CalendarView(
+                calendarSettings,
+                List.of(new CalendarDay(
+                        LocalDate.of(2026, 5, 7),
+                        false,
+                        BookingDayAvailability.OPEN,
+                        DayOverrideMode.DEFAULT,
+                        null,
+                        List.of(timeBlock)))));
+        when(bookingCalendarUseCase.updateSettings(any())).thenReturn(calendarSettings);
+        when(bookingCalendarUseCase.createTimeBlock(any())).thenReturn(timeBlock);
 
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
                 new AdminLoginController(adminAuthUseCase, new AdminBearerTokenResolver()),
@@ -164,7 +194,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminMediaController(imageMediaUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
-                new AdminSlotController(slotManagementUseCase, slotQueryUseCase));
+                new AdminSlotController(
+                        slotManagementUseCase, slotQueryUseCase, bookingCalendarUseCase));
     }
 
     @Test
@@ -528,6 +559,76 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 캘린더 조회 API를 문서화한다")
+    void admin_get_booking_calendar() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/slots/calendar")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .param("dateFrom", "2026-05-01")
+                        .param("dateTo", "2026-05-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.settings.slotIntervalMin").value(30));
+    }
+
+    @Test
+    @DisplayName("관리자 기본 예약 운영시간 수정 API를 문서화한다")
+    void admin_update_booking_calendar_settings() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/slots/calendar/settings")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedVersion": 0,
+                                  "openTime": "10:00",
+                                  "closeTime": "19:00",
+                                  "slotIntervalMin": 30,
+                                  "blockPublicHolidays": true
+                                }
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 날짜별 예약 상태 수정 API를 문서화한다")
+    void admin_update_booking_calendar_day() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/slots/calendar/days/{date}", "2026-05-07")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"mode\":\"CLOSED\",\"reason\":\"외부 일정\"}"))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 예약 시간 차단 등록 API를 문서화한다")
+    void admin_create_booking_time_block() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/calendar/time-blocks")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-05-07",
+                                  "startTime": "12:00",
+                                  "endTime": "13:00",
+                                  "reason": "점심시간"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(7));
+    }
+
+    @Test
+    @DisplayName("관리자 예약 시간 차단 해제 API를 문서화한다")
+    void admin_delete_booking_time_block() throws Exception {
+        mockMvc.perform(delete("/api/v1/admin/slots/calendar/time-blocks/{id}", 7L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isNoContent());
     }
 
     private static InventoryAdjustment inventoryAdjustment() {

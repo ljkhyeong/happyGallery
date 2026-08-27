@@ -3,8 +3,11 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.domain.error.CapacityExceededException;
 import com.personal.happygallery.domain.error.SlotNotAvailableException;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingDayAvailability;
+import com.personal.happygallery.domain.booking.BookingDayOverride;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.SlotCapacity;
+import com.personal.happygallery.adapter.out.persistence.booking.BookingDayOverrideRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
@@ -40,6 +43,7 @@ class SlotBookingCapacityUseCaseIT {
     @Autowired SlotQueryUseCase slotQueryUseCase;
     @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired ClassRepository classRepository;
+    @Autowired BookingDayOverrideRepository dayOverrideRepository;
     @Autowired SlotRepository slotRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
@@ -155,12 +159,14 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void listAvailable_excludesStartedSlots() {
         LocalDateTime now = LocalDateTime.now(clock);
+        dayOverrideRepository.save(new BookingDayOverride(
+                now.toLocalDate(), BookingDayAvailability.OPEN, "테스트 당일 운영"));
         Slot pastSlot = slotRepository.save(
                 slot(bookingClass, now.minusHours(2), now.minusHours(1)));
         Slot startingSlot = slotRepository.save(
                 slot(bookingClass, now, now.plusHours(2)));
         Slot futureSlot = slotRepository.save(
-                slot(bookingClass, now.plusMinutes(1), now.plusHours(2).plusMinutes(1)));
+                slot(bookingClass, now.plusMinutes(30), now.plusHours(2).plusMinutes(30)));
 
         List<Long> availableSlotIds = slotQueryUseCase.listAvailable(
                         bookingClass.getId(), now.toLocalDate()).stream()
@@ -178,7 +184,7 @@ class SlotBookingCapacityUseCaseIT {
     void listUpcoming_returnsOnlyAvailableSlotsInsideRange() {
         LocalDateTime now = LocalDateTime.now(clock);
         Slot withinRange = slotRepository.save(
-                slot(bookingClass, now.plusDays(1), now.plusDays(1).plusHours(2)));
+                slot(bookingClass, now.plusDays(2), now.plusDays(2).plusHours(2)));
         Slot atRangeEnd = slotRepository.save(
                 slot(bookingClass, now.toLocalDate().plusDays(14).atStartOfDay(),
                         now.toLocalDate().plusDays(14).atTime(2, 0)));
@@ -256,7 +262,7 @@ class SlotBookingCapacityUseCaseIT {
     @Test
     void overlappingBufferBlocks_reactivateAfterAllSourceBookingsReleased() {
         Slot secondSourceSlot = slotRepository.save(
-                slot(bookingClass, MAIN_START.plusMinutes(15), MAIN_END.plusMinutes(15)));
+                slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
         reserveCapacityInTx(mainSlot.getId());
         Slot targetSlot = slotManagementUseCase.createSlot(

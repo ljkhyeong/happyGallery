@@ -15,18 +15,18 @@ public interface SlotReaderPort {
 
     List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(Iterable<Long> ids);
 
-    /** 뒤쪽 버퍼 범위 [windowStart, windowEnd)에 예약된 다른 슬롯이 있는지 확인한다. */
-    boolean existsBookedInBufferWindow(
+    /** 수업 시간과 뒤쪽 정리 버퍼가 겹치는 예약된 다른 슬롯이 있는지 확인한다. */
+    long countBookedConflicts(
             Long classId,
             Long sourceSlotId,
-            LocalDateTime windowStart,
-            LocalDateTime windowEnd);
+            LocalDateTime sourceStartAt,
+            LocalDateTime sourceEndWithBuffer);
 
     boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    List<Slot> findAvailableByClassAndRange(Long classId, LocalDateTime rangeStart,
-                                            LocalDateTime rangeEnd, LocalDateTime now);
+    List<Slot> findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(
+            Long classId, LocalDateTime rangeStart, LocalDateTime rangeEnd);
 
 }

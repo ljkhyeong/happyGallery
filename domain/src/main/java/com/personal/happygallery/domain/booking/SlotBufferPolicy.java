@@ -3,10 +3,9 @@ package com.personal.happygallery.domain.booking;
 import java.time.LocalDateTime;
 
 /**
- * 뒤쪽 버퍼 정책.
+ * 수업 시간과 뒤쪽 정리 버퍼 충돌 정책.
  *
- * <p>예약이 확정되면 슬롯 종료 시각 이후 buffer_min 분 동안 시작하는 슬롯을 차단한다.
- * 차단 대상 범위: {@code [endAt, endAt + bufferMin)} — 시작 포함, 끝 미포함.
+ * <p>예약이 확정되면 수업 시작부터 종료 후 buffer_min 분까지 겹치는 다른 시작 시각을 차단한다.
  */
 public final class SlotBufferPolicy {
 
@@ -17,9 +16,13 @@ public final class SlotBufferPolicy {
         return endAt.plusMinutes(bufferMin);
     }
 
-    /** 후보 슬롯 시작 시각이 원인 슬롯의 뒤쪽 버퍼 범위에 포함되는지 확인한다. */
-    public static boolean contains(LocalDateTime endAt, int bufferMin, LocalDateTime candidateStartAt) {
-        return !candidateStartAt.isBefore(endAt)
-                && candidateStartAt.isBefore(bufferWindowEnd(endAt, bufferMin));
+    /** 두 슬롯의 수업 시간과 뒤쪽 정리 버퍼가 서로 겹치는지 확인한다. */
+    public static boolean conflicts(LocalDateTime firstStartAt,
+                                    LocalDateTime firstEndAt,
+                                    LocalDateTime secondStartAt,
+                                    LocalDateTime secondEndAt,
+                                    int bufferMin) {
+        return firstStartAt.isBefore(bufferWindowEnd(secondEndAt, bufferMin))
+                && secondStartAt.isBefore(bufferWindowEnd(firstEndAt, bufferMin));
     }
 }

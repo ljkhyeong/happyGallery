@@ -1,10 +1,13 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
+import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -13,16 +16,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
+@Transactional
 public class DefaultSlotQueryService implements SlotQueryUseCase {
 
     private static final int MAX_UPCOMING_DAYS = 30;
 
     private final SlotReaderPort slotReaderPort;
+    private final ClassReaderPort classReaderPort;
+    private final BookingCalendarSlotMaterializer slotMaterializer;
     private final Clock clock;
 
-    public DefaultSlotQueryService(SlotReaderPort slotReaderPort, Clock clock) {
+    public DefaultSlotQueryService(SlotReaderPort slotReaderPort,
+                                   ClassReaderPort classReaderPort,
+                                   BookingCalendarSlotMaterializer slotMaterializer,
+                                   Clock clock) {
         this.slotReaderPort = slotReaderPort;
+        this.classReaderPort = classReaderPort;
+        this.slotMaterializer = slotMaterializer;
         this.clock = clock;
     }
 
@@ -31,8 +41,8 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
     public List<Slot> listAvailable(Long classId, LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = dayStart.plusDays(1);
-        return slotReaderPort.findAvailableByClassAndRange(
-                classId, dayStart, dayEnd, LocalDateTime.now(clock));
+        BookingClass bookingClass = lockActiveClass(classId);
+        return slotMaterializer.materialize(bookingClass, dayStart, dayEnd);
     }
 
     /** 오늘부터 지정한 일수 동안 예약 가능한 슬롯을 한 번에 조회한다. */
@@ -44,12 +54,21 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime rangeStart = now.toLocalDate().atStartOfDay();
         LocalDateTime rangeEnd = rangeStart.plusDays(days);
-        return slotReaderPort.findAvailableByClassAndRange(classId, rangeStart, rangeEnd, now);
+        BookingClass bookingClass = lockActiveClass(classId);
+        return slotMaterializer.materialize(bookingClass, rangeStart, rangeEnd);
     }
 
     /** 관리자용 — 클래스 기준 슬롯 전체 조회 (활성/비활성 포함) */
     @Override
+    @Transactional(readOnly = true)
     public List<Slot> listByClass(Long classId) {
         return slotReaderPort.findByBookingClassIdOrderByStartAtDesc(classId);
+    }
+
+    private BookingClass lockActiveClass(Long classId) {
+        BookingClass bookingClass = classReaderPort.findByIdForUpdate(classId)
+                .orElseThrow(NotFoundException.supplier("클래스"));
+        bookingClass.requireActive();
+        return bookingClass;
     }
 }

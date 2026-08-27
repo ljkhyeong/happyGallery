@@ -32,6 +32,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -79,6 +80,66 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.adminActive").value(true))
                 .andExpect(jsonPath("$.bufferBlocked").value(false))
                 .andExpect(jsonPath("$.isActive").value(true));
+    }
+
+    @DisplayName("공개 슬롯 조회는 기본 운영시간의 예약 회차를 자동으로 준비한다")
+    @Test
+    void listAvailableSlots_materializesDefaultOpenCalendar() throws Exception {
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-03"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(15))
+                .andExpect(jsonPath("$[0].startAt").value("2026-03-03T10:00:00"))
+                .andExpect(jsonPath("$[14].startAt").value("2026-03-03T17:00:00"));
+    }
+
+    @DisplayName("기본 차단된 공휴일도 관리자가 날짜를 열면 예약할 수 있다")
+    @Test
+    void openPublicHoliday_enablesAutomaticSlots() throws Exception {
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(put("/api/v1/admin/slots/calendar/days/{date}", "2026-03-02")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"OPEN\",\"reason\":\"공휴일 특별 운영\"}"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(15));
+    }
+
+    @DisplayName("관리자가 닫은 시간과 수업 시간이 겹치는 회차는 공개하지 않는다")
+    @Test
+    void createTimeBlock_hidesOverlappingSessions() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/calendar/time-blocks")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "date": "2026-03-03",
+                                  "startTime": "12:00",
+                                  "endTime": "13:00",
+                                  "reason": "점심시간"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reason").value("점심시간"));
+
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-03"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$[0].startAt").value("2026-03-03T10:00:00"))
+                .andExpect(jsonPath("$[1].startAt").value("2026-03-03T13:00:00"));
     }
 
     @DisplayName("관리자 슬롯 목록 조회는 비활성 슬롯을 포함해 시작 시각 내림차순으로 반환한다")
