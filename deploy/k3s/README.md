@@ -89,7 +89,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - `FIELD_ENCRYPTION_KEY_ID`: `v1`처럼 배포 세대가 식별되는 1~32자 ID
 - `ENCRYPT_KEY`, `HMAC_KEY`: 각각 별도로 `openssl rand -hex 32`
 - DB/Redis/guest token 비밀값: 서로 재사용하지 않은 충분히 긴 암호학적 난수
-- Toss, Google, Naver, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
+- Toss, Google, Naver, Kakao, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
@@ -186,11 +186,12 @@ export VITE_SENTRY_DSN='선택값'
 
 ## 4. DNS, TLS와 release env
 
-`release.env.example`을 저장소 밖에 복사한다. OAuth callback은 아래 exact URL이어야 하며 Google/Naver 콘솔에도 똑같이 등록한다.
+`release.env.example`을 저장소 밖에 복사한다. OAuth callback은 아래 exact URL이어야 하며 Google/Naver/Kakao 콘솔에도 똑같이 등록한다.
 
 ```text
 https://<PUBLIC_HOST>/api/v1/auth/social/callback/google
 https://<PUBLIC_HOST>/api/v1/auth/social/callback/naver
+https://<PUBLIC_HOST>/api/v1/auth/social/callback/kakao
 ```
 
 cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시 외부 TCP 80 접근이 필요하다. 공개 서비스는 Traefik 80/443뿐이며 app, MySQL, Redis, Prometheus, Alertmanager와 Actuator는 ClusterIP/Pod 네트워크 밖으로 노출하지 않는다.
@@ -237,7 +238,7 @@ kubectl -n happygallery port-forward service/grafana 3000:3000
 호스트/공유기에서는 다음도 별도로 확인한다.
 
 - 외부에서 80/443 이외 app 8080/8081, MySQL 3306, Redis 6379, Prometheus 9090 접근 불가
-- 실제 브라우저에서 Secure 세션 cookie, CSRF, Google/Naver callback, 결제 confirm
+- 실제 브라우저에서 Secure 세션 cookie, CSRF, Google/Naver/Kakao callback, 결제 confirm
 - 실제 클라이언트 IP별 rate-limit 분리
 - 노트북 재부팅 후 k3s, PVC와 workload 자동 복구
 - `df -h`, `kubectl top` 또는 호스트 모니터링을 통한 디스크/메모리 여유

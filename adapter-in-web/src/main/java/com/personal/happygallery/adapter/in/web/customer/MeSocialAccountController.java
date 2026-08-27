@@ -57,7 +57,7 @@ public class MeSocialAccountController {
     @PostMapping("/{provider}/authorization")
     public SocialAccountAuthorizationResponse startLink(
             @PathVariable
-            @Parameter(schema = @Schema(allowableValues = {"google", "naver"}))
+            @Parameter(schema = @Schema(allowableValues = {"google", "naver", "kakao"}))
             String provider,
             @AuthenticationPrincipal CustomerPrincipal customer,
             HttpServletRequest request) {
@@ -79,7 +79,7 @@ public class MeSocialAccountController {
     @PostMapping("/{provider}/reauthentication")
     public SocialAccountAuthorizationResponse startReauthentication(
             @PathVariable
-            @Parameter(schema = @Schema(allowableValues = {"google", "naver"}))
+            @Parameter(schema = @Schema(allowableValues = {"google", "naver", "kakao"}))
             String provider,
             @AuthenticationPrincipal CustomerPrincipal customer,
             HttpServletRequest request) {
@@ -103,7 +103,7 @@ public class MeSocialAccountController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void unlink(
             @PathVariable
-            @Parameter(schema = @Schema(allowableValues = {"google", "naver"}))
+            @Parameter(schema = @Schema(allowableValues = {"google", "naver", "kakao"}))
             String provider,
             @AuthenticationPrincipal CustomerPrincipal customer,
             HttpServletRequest request,

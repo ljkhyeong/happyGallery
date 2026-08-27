@@ -36,6 +36,7 @@ class SocialOAuth2ClientConfig {
 
     private static final String GOOGLE = "google";
     private static final String NAVER = "naver";
+    private static final String KAKAO = "kakao";
 
     private final PooledHttpClientFactory pooledHttpClientFactory;
 
@@ -54,30 +55,49 @@ class SocialOAuth2ClientConfig {
     }
 
     @Bean
+    CloseableHttpClient kakaoOAuthHttpClient(KakaoOAuthProperties properties) {
+        return pooledHttpClientFactory.create(properties);
+    }
+
+    @Bean
     OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> socialOAuth2AccessTokenResponseClient(
             RestClient.Builder builder,
             @Qualifier("googleOAuthHttpClient") CloseableHttpClient googleHttpClient,
-            @Qualifier("naverOAuthHttpClient") CloseableHttpClient naverHttpClient) {
+            @Qualifier("naverOAuthHttpClient") CloseableHttpClient naverHttpClient,
+            @Qualifier("kakaoOAuthHttpClient") CloseableHttpClient kakaoHttpClient) {
         OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> google =
                 tokenResponseClient(builder.clone(), googleHttpClient, false);
         OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> naver =
                 tokenResponseClient(builder.clone(), naverHttpClient, true);
+        OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> kakao =
+                tokenResponseClient(builder.clone(), kakaoHttpClient, false);
 
         return request -> switch (request.getClientRegistration().getRegistrationId()) {
             case GOOGLE -> google.getTokenResponse(request);
             case NAVER -> naver.getTokenResponse(request);
+            case KAKAO -> kakao.getTokenResponse(request);
             default -> throw new OAuth2AuthorizationException(new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST));
         };
     }
 
     @Bean
-    OAuth2UserService<OAuth2UserRequest, OAuth2User> naverOAuth2UserService(
+    OAuth2UserService<OAuth2UserRequest, OAuth2User> socialOAuth2UserService(
             RestTemplateBuilder builder,
-            @Qualifier("naverOAuthHttpClient") CloseableHttpClient httpClient) {
-        DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
-        userService.setRestOperations(userInfoRestOperations(builder, httpClient));
-        userService.setAttributesConverter(request -> attributes -> flattenNaverResponse(attributes));
-        return userService;
+            @Qualifier("naverOAuthHttpClient") CloseableHttpClient naverHttpClient,
+            @Qualifier("kakaoOAuthHttpClient") CloseableHttpClient kakaoHttpClient) {
+        DefaultOAuth2UserService naver = new DefaultOAuth2UserService();
+        naver.setRestOperations(userInfoRestOperations(builder, naverHttpClient));
+        naver.setAttributesConverter(request -> this::flattenNaverResponse);
+
+        DefaultOAuth2UserService kakao = new DefaultOAuth2UserService();
+        kakao.setRestOperations(userInfoRestOperations(builder, kakaoHttpClient));
+        kakao.setAttributesConverter(request -> this::flattenKakaoResponse);
+
+        return request -> switch (request.getClientRegistration().getRegistrationId()) {
+            case NAVER -> naver.loadUser(request);
+            case KAKAO -> kakao.loadUser(request);
+            default -> throw new OAuth2AuthenticationException(new OAuth2Error(OAuth2ErrorCodes.INVALID_REQUEST));
+        };
     }
 
     @Bean
@@ -137,11 +157,30 @@ class SocialOAuth2ClientConfig {
         }
 
         Map<String, Object> flattened = new LinkedHashMap<>(attributes);
-        profile.forEach((key, value) -> {
+        copyStringAttributes(profile, flattened);
+        return flattened;
+    }
+
+    Map<String, Object> flattenKakaoResponse(Map<String, Object> attributes) {
+        Object account = attributes.get("kakao_account");
+        if (!(account instanceof Map<?, ?> accountAttributes)) {
+            throw new OAuth2AuthenticationException(new OAuth2Error("invalid_user_info_response"));
+        }
+
+        Map<String, Object> flattened = new LinkedHashMap<>(attributes);
+        copyStringAttributes(accountAttributes, flattened);
+        Object profile = accountAttributes.get("profile");
+        if (profile instanceof Map<?, ?> profileAttributes) {
+            copyStringAttributes(profileAttributes, flattened);
+        }
+        return flattened;
+    }
+
+    private void copyStringAttributes(Map<?, ?> source, Map<String, Object> target) {
+        source.forEach((key, value) -> {
             if (key instanceof String attributeName) {
-                flattened.put(attributeName, value);
+                target.put(attributeName, value);
             }
         });
-        return flattened;
     }
 }

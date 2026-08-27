@@ -22,8 +22,8 @@ public class SocialOAuth2ProfileResolver {
         SocialProvider provider = provider(token);
         return switch (provider) {
             case GOOGLE -> new SocialIdentity(provider, required(googleUser(token).getSubject()));
-            case NAVER -> new SocialIdentity(
-                    provider, required(token.getPrincipal().getAttributes().get("id")));
+            case NAVER, KAKAO -> new SocialIdentity(
+                    provider, requiredIdentifier(token.getPrincipal().getAttributes().get("id")));
         };
     }
 
@@ -32,6 +32,7 @@ public class SocialOAuth2ProfileResolver {
         return switch (provider(token)) {
             case GOOGLE -> googleProfile(token);
             case NAVER -> naverProfile(token.getPrincipal().getAttributes());
+            case KAKAO -> kakaoProfile(token.getPrincipal().getAttributes());
         };
     }
 
@@ -50,9 +51,21 @@ public class SocialOAuth2ProfileResolver {
     private SocialLoginCommand naverProfile(Map<String, Object> attributes) {
         return new SocialLoginCommand(
                 SocialProvider.NAVER,
-                required(attributes.get("id")),
+                requiredIdentifier(attributes.get("id")),
                 null,
                 required(attributes.get("name")));
+    }
+
+    private SocialLoginCommand kakaoProfile(Map<String, Object> attributes) {
+        if (!Boolean.TRUE.equals(attributes.get("is_email_valid"))
+                || !Boolean.TRUE.equals(attributes.get("is_email_verified"))) {
+            throw socialLoginFailed();
+        }
+        return new SocialLoginCommand(
+                SocialProvider.KAKAO,
+                requiredIdentifier(attributes.get("id")),
+                required(attributes.get("email")),
+                required(attributes.get("nickname")));
     }
 
     private SocialProvider provider(OAuth2AuthenticationToken token) {
@@ -78,6 +91,13 @@ public class SocialOAuth2ProfileResolver {
             throw socialLoginFailed();
         }
         return text;
+    }
+
+    private String requiredIdentifier(Object value) {
+        if (value instanceof Number number) {
+            return number.toString();
+        }
+        return required(value);
     }
 
     private HappyGalleryException socialLoginFailed() {

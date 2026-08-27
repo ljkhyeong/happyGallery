@@ -1,7 +1,7 @@
 # ADR-0023: 관리자·회원 인증과 세션 운영 기준
 
 **날짜**: 2026-03-17  
-**최종 갱신**: 2026-08-08
+**최종 갱신**: 2026-08-27
 **상태**: Accepted
 
 ---
@@ -147,13 +147,13 @@
 
 ### 8. OAuth2 Client는 로그인 프로토콜만 담당한다
 
-- `spring-boot-starter-oauth2-client`가 Google/Naver authorization request, `state`, code 교환과 UserInfo/OIDC 검증을 담당한다.
+- `spring-boot-starter-oauth2-client`가 Google/Naver/Kakao authorization request, `state`, code 교환과 UserInfo/OIDC 검증을 담당한다.
 - 시작 경로는 `/api/v1/auth/social/authorization/{provider}`, backend callback은 `/api/v1/auth/social/callback/{provider}`로 고정한다.
 - authorization request와 `state`는 callback 전까지만 Spring Session Redis에 저장하고 검증 후 제거한다.
 - 제공자 인증이 끝난 뒤 application에는 `provider`, `providerId`, `email`, `name`만 전달한다. 소셜 계정 조회·이메일 충돌·회원 생성 정책은 application이 계속 소유한다.
 - OAuth 인증 `SecurityContext`와 authorized client의 access/refresh token은 저장하지 않는다. 로그인 성공 후 장기 인증 상태는 `customerUserId`와 `customerCredentialVersion`만 사용한다.
 - Spring Security의 기본 세션 고정 보호는 customer 체인에서 중복 적용하지 않고, 모든 회원 인증 성공 경로가 `CustomerSessionBinder`에서 세션 ID를 한 번 회전한다.
-- 기존 Google/Naver별 Apache HttpClient 연결 풀과 acquire/connect/read timeout은 token·UserInfo 호출에도 유지한다.
+- Google/Naver/Kakao별 Apache HttpClient 연결 풀과 acquire/connect/read timeout은 token·UserInfo 호출에도 유지한다.
 
 ### 9. 현재 필요하지 않은 나머지 Security 기능은 도입하지 않는다
 
@@ -166,7 +166,7 @@
 
 ### 10. OAuth state와 redirect URI는 서버가 소유한다
 
-- Google/Naver callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정값과 정확히 일치해야 한다.
+- Google/Naver/Kakao callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_REDIRECT_URI` 설정값과 정확히 일치해야 한다.
 - 브라우저가 `redirectUri`를 보내지 않는다. Spring의 `ClientRegistration`이 고정 callback URI를 authorization·token 요청에 동일하게 사용한다.
 - Spring Security가 만든 authorization request와 `state`를 같은 HTTP 세션에 저장하고 callback에서 일치 여부를 확인한 뒤 한 번에 제거한다.
 - 소셜 신규 가입은 CSRF 보호 POST로 만든 5분짜리 가입 시도 ID만 authorization GET에 전달한다.

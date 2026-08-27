@@ -16,12 +16,15 @@ FRONTEND_IMAGE_DIGEST=$(require_env_value FRONTEND_IMAGE_DIGEST "$release_env")
 IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_env")
 GOOGLE_OAUTH_REDIRECT_URI=$(require_env_value GOOGLE_OAUTH_REDIRECT_URI "$release_env")
 NAVER_OAUTH_REDIRECT_URI=$(require_env_value NAVER_OAUTH_REDIRECT_URI "$release_env")
+KAKAO_OAUTH_REDIRECT_URI=$(require_env_value KAKAO_OAUTH_REDIRECT_URI "$release_env")
 export PUBLIC_HOST ACME_EMAIL APP_IMAGE FRONTEND_IMAGE APP_IMAGE_DIGEST FRONTEND_IMAGE_DIGEST IMAGE_TAG
 
 [ "$GOOGLE_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/google" ] \
     || die "GOOGLE_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
 [ "$NAVER_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/naver" ] \
     || die "NAVER_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
+[ "$KAKAO_OAUTH_REDIRECT_URI" = "https://$PUBLIC_HOST/api/v1/auth/social/callback/kakao" ] \
+    || die "KAKAO_OAUTH_REDIRECT_URI가 공개 host의 exact callback과 다릅니다."
 
 case "$APP_IMAGE" in
     *:"$IMAGE_TAG") ;;
@@ -87,6 +90,7 @@ FRONTEND_IMAGE_DIGEST=$FRONTEND_IMAGE_DIGEST
 IMAGE_TAG=$IMAGE_TAG
 GOOGLE_OAUTH_REDIRECT_URI=$GOOGLE_OAUTH_REDIRECT_URI
 NAVER_OAUTH_REDIRECT_URI=$NAVER_OAUTH_REDIRECT_URI
+KAKAO_OAUTH_REDIRECT_URI=$KAKAO_OAUTH_REDIRECT_URI
 APPLIED_AT=$timestamp
 EOF
 chmod 600 "$release_dir/metadata.env" "$manifest"

@@ -393,6 +393,60 @@ class CustomerAuthUseCaseIT {
         });
     }
 
+    @DisplayName("검증된 카카오 로그인은 숫자 제공자 ID와 이메일로 회원을 만든다")
+    @Test
+    void socialLogin_createsCustomerFromVerifiedKakaoProfile() throws Exception {
+        Map<String, Object> attributes = Map.of(
+                "id", 123456789L,
+                "email", "kakao@example.com",
+                "is_email_valid", true,
+                "is_email_verified", true,
+                "nickname", "카카오 사용자");
+        DefaultOAuth2User principal = new DefaultOAuth2User(
+                List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                principal, principal.getAuthorities(), "kakao");
+        MockHttpServletRequest request = socialCallbackRequest(SocialProvider.KAKAO);
+        MockHttpSession session = (MockHttpSession) request.getSession(false);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
+
+        Long userId = (Long) session.getAttribute(
+                CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE);
+        var user = userReader.findById(userId).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(user.getEmail()).isEqualTo("kakao@example.com");
+            softly.assertThat(user.getName()).isEqualTo("카카오 사용자");
+            softly.assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
+        });
+    }
+
+    @DisplayName("유효하거나 검증된 이메일이 아닌 카카오 프로필은 로그인을 거절한다")
+    @Test
+    void socialLogin_rejectsUnverifiedKakaoEmail() throws Exception {
+        Map<String, Object> attributes = Map.of(
+                "id", 987654321L,
+                "email", "unverified-kakao@example.com",
+                "is_email_valid", true,
+                "is_email_verified", false,
+                "nickname", "미검증 카카오 사용자");
+        DefaultOAuth2User principal = new DefaultOAuth2User(
+                List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
+        OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
+                principal, principal.getAuthorities(), "kakao");
+        MockHttpServletRequest request = socialCallbackRequest(SocialProvider.KAKAO);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(request, response, authentication);
+
+        assertSoftly(softly -> {
+            softly.assertThat(response.getRedirectedUrl())
+                    .isEqualTo("/auth/callback?error=SOCIAL_LOGIN_FAILED");
+            softly.assertThat(userReader.findByEmail("unverified-kakao@example.com")).isEmpty();
+        });
+    }
+
     @DisplayName("OAuth 시작 GET의 약관 query만으로는 신규 소셜 회원을 만들지 않는다")
     @Test
     void socialLogin_doesNotTrustLegacyPolicyQueryParameters() throws Exception {

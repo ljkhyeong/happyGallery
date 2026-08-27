@@ -750,6 +750,21 @@
   font-size: 0.875rem;
 }
 
+.social-login-button-kakao {
+  --bs-btn-color: rgba(0, 0, 0, 0.85);
+  --bs-btn-bg: #FEE500;
+  --bs-btn-border-color: #FEE500;
+  --bs-btn-hover-color: rgba(0, 0, 0, 0.85);
+  --bs-btn-hover-bg: #FEE500;
+  --bs-btn-hover-border-color: #FEE500;
+  --bs-btn-active-color: rgba(0, 0, 0, 0.85);
+  --bs-btn-active-bg: #FEE500;
+  --bs-btn-active-border-color: #FEE500;
+  --bs-btn-disabled-color: rgba(0, 0, 0, 0.85);
+  --bs-btn-disabled-bg: #FEE500;
+  --bs-btn-disabled-border-color: #FEE500;
+}
+
 .social-login-button-content {
   display: inline-flex;
   align-items: center;

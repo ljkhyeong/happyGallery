@@ -216,9 +216,9 @@ public class SecurityConfig {
                                                             socialAuthorizationRequestResolver,
                                                     OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest>
                                                             socialOAuth2AccessTokenResponseClient,
-                                                    @Qualifier("naverOAuth2UserService")
+                                                    @Qualifier("socialOAuth2UserService")
                                                     OAuth2UserService<OAuth2UserRequest, OAuth2User>
-                                                            naverOAuth2UserService,
+                                                            socialOAuth2UserService,
                                                     @Qualifier("googleOidcUserService")
                                                     OAuth2UserService<OidcUserRequest, OidcUser> googleOidcUserService,
                                                     @Qualifier("customerAuthenticationEndpoints")
@@ -288,7 +288,7 @@ public class SecurityConfig {
                         .tokenEndpoint(endpoint -> endpoint
                                 .accessTokenResponseClient(socialOAuth2AccessTokenResponseClient))
                         .userInfoEndpoint(endpoint -> endpoint
-                                .userService(naverOAuth2UserService)
+                                .userService(socialOAuth2UserService)
                                 .oidcUserService(googleOidcUserService))
                         .authorizedClientRepository(new DiscardingOAuth2AuthorizedClientRepository())
                         .successHandler(socialLoginHandler)

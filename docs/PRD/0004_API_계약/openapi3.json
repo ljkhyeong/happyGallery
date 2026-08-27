@@ -6215,7 +6215,7 @@
         "properties" : {
           "linkedProviders" : {
             "items" : {
-              "enum" : [ "GOOGLE", "NAVER" ],
+              "enum" : [ "GOOGLE", "NAVER", "KAKAO" ],
               "type" : "string"
             },
             "type" : "array"
@@ -10805,7 +10805,7 @@
           "name" : "provider",
           "required" : true,
           "schema" : {
-            "enum" : [ "google", "naver" ],
+            "enum" : [ "google", "naver", "kakao" ],
             "type" : "string"
           }
         } ],
@@ -13138,7 +13138,7 @@
           "name" : "provider",
           "required" : true,
           "schema" : {
-            "enum" : [ "google", "naver" ],
+            "enum" : [ "google", "naver", "kakao" ],
             "type" : "string"
           }
         } ],
@@ -13158,7 +13158,7 @@
           "name" : "provider",
           "required" : true,
           "schema" : {
-            "enum" : [ "google", "naver" ],
+            "enum" : [ "google", "naver", "kakao" ],
             "type" : "string"
           }
         } ],
@@ -13185,7 +13185,7 @@
           "name" : "provider",
           "required" : true,
           "schema" : {
-            "enum" : [ "google", "naver" ],
+            "enum" : [ "google", "naver", "kakao" ],
             "type" : "string"
           }
         } ],

@@ -2299,10 +2299,11 @@ GET /api/v1/policies/current
 - 로그인·회원가입·소셜 로그인 성공 시 기존 세션 ID를 회전하고 새 ID로 회원 세션을 유지한다.
 - 로그인·회원가입·소셜 로그인 성공과 명시적 재인증 성공은 현재 회원 ID·자격 버전에 결합된 최근 본인 확인을 해당 세션에 10분간 기록한다. 다른 세션이나 다른 자격 버전에는 재사용할 수 없다.
 - 상태를 변경하는 요청은 1.3의 SPA CSRF 계약에 따라 `X-XSRF-TOKEN` 헤더를 함께 보낸다.
-- 회원 로그인은 이메일/비밀번호(local)와 Google, Naver OAuth2를 함께 지원한다.
-- 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google과 Naver 계정을 각각 하나씩 연결할 수 있다.
+- 회원 로그인은 이메일/비밀번호(local)와 Google, Naver, Kakao OAuth2를 함께 지원한다.
+- 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google, Naver, Kakao 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 - Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 메일함 소유 확인을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
+- Kakao는 `is_email_valid=true`, `is_email_verified=true`인 카카오계정 이메일과 닉네임을 모두 요구한다. 처음 보는 Kakao provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
 - 회원·관리자 비밀번호 필드는 UTF-8 72바이트 이하로 제한한다. 문자 수가 72 이하여도 UTF-8 바이트 수가 이를 넘으면 `400 INVALID_INPUT`이다.
@@ -2363,7 +2364,7 @@ POST /api/v1/auth/signup
 GET /api/v1/auth/social/authorization/{provider}
 ```
 
-- `{provider}`: `google` 또는 `naver`
+- `{provider}`: `google`, `naver`, `kakao`
 - 성공: `302 Found`, `Location`은 해당 제공자의 authorization endpoint
 - 에러:
   - `429 TOO_MANY_REQUESTS` — 로그인 시작 IP 버킷 분당 10회 초과
@@ -2372,8 +2373,9 @@ GET /api/v1/auth/social/authorization/{provider}
   - Spring Security OAuth2 Client가 `state`를 포함한 authorization request를 만들고 callback 전까지만 현재 Redis HTTP 세션에 저장한다.
   - 일반 로그인 GET은 정책 동의를 받지 않는다. 이미 연결된 회원 로그인은 가입 의도 없이 처리하고,
     처음 보는 계정이면 callback에서 `POLICY_CONSENT_REQUIRED`로 종료한다.
-  - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
+  - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
   - Google은 `openid`, `profile`, `email` 범위의 OIDC 로그인을 사용한다. 로그인만을 위해 refresh token을 요청하거나 저장하지 않는다.
+  - Kakao는 `profile_nickname`, `account_email` 동의 항목의 REST OAuth2 로그인을 사용한다. access token은 UserInfo 조회 뒤 저장하지 않는다.
 
 신규 가입 시작:
 
@@ -2415,19 +2417,19 @@ X-XSRF-TOKEN: {csrfToken}
 GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 ```
 
-- 이 경로는 Google/Naver가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
+- 이 경로는 Google/Naver/Kakao가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
 - 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?error=POLICY_CONSENT_REQUIRED`
-- Google 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
-- 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER`
-- 소셜 재인증 성공: `302 Found` → `/auth/callback?reauthenticated=GOOGLE|NAVER`
+- Google/Kakao 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
+- 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER|KAKAO`
+- 소셜 재인증 성공: `302 Found` → `/auth/callback?reauthenticated=GOOGLE|NAVER|KAKAO`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`
 - 정책:
   - Spring Security가 callback의 `state`와 세션의 authorization request를 비교하고 한 번 사용한 authorization request를 제거한 뒤 code를 토큰으로 교환한다.
   - 신규 가입 callback은 OAuth `state`에 결합된 미사용 가입 의도의 provider·만료를 추가로 검증하고,
     검증한 정책 동의만 회원 생성 트랜잭션에 전달한다.
-  - 연결 callback은 Google ID Token 또는 Naver UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 재인증 callback은 같은 provider ID가 현재 회원에게 이미 연결되어 있는지도 확인한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름을 요구하며 Naver 프로필 이메일은 버린다.
+  - 연결 callback은 Google ID Token 또는 Naver/Kakao UserInfo에서 provider와 provider ID를 먼저 확인한 뒤 application의 계정 연결 트랜잭션을 시작한다. 재인증 callback은 같은 provider ID가 현재 회원에게 이미 연결되어 있는지도 확인한다. 일반 로그인·신규 가입은 Google의 검증 이메일과 이름, Naver의 이름, Kakao의 유효·검증 이메일과 닉네임을 요구하며 Naver 프로필 이메일은 버린다.
   - 성공 시 세션 ID를 한 번 회전하고 `customerUserId`, `customerCredentialVersion`, `userId:credentialVersion` 형식의 principal 인덱스를 장기 인증 상태로 저장한다.
   - OAuth `SecurityContext`, access token, refresh token은 세션에 저장하지 않는다. 다음 요청은 기존 `CustomerAuthenticationFilter`가 `customerUserId`로 회원 principal을 다시 구성한다.
   - 성공 후 기존 CSRF 토큰이 폐기되므로 클라이언트는 새 CSRF 토큰을 발급받는다.
@@ -2443,7 +2445,7 @@ Cookie: HG_SESSION={sessionToken}
 
 ```json
 {
-  "linkedProviders": ["GOOGLE", "NAVER"]
+  "linkedProviders": ["GOOGLE", "NAVER", "KAKAO"]
 }
 ```
 

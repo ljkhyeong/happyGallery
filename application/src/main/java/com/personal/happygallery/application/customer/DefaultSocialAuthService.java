@@ -70,7 +70,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         }
 
         String canonicalEmail = switch (command.provider()) {
-            case GOOGLE -> EmailAddress.required(command.verifiedEmail());
+            case GOOGLE, KAKAO -> EmailAddress.required(command.verifiedEmail());
             case NAVER -> null;
         };
         if (canonicalEmail != null && userReader.findByEmail(canonicalEmail).isPresent()) {

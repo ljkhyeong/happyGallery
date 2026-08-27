@@ -114,6 +114,26 @@ class SocialAuthUseCaseIT {
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
     }
 
+    @DisplayName("검증된 카카오 이메일이 기존 회원과 같으면 자동 연결하지 않는다")
+    @Test
+    void rejectsKakaoAccountAutoLinkByEmail() {
+        socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.KAKAO,
+                "kakao-account-id",
+                "kakao-social@example.com",
+                "카카오 사용자",
+                acceptedPolicies()));
+
+        assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
+                SocialProvider.KAKAO,
+                "another-kakao-account-id",
+                "kakao-social@example.com",
+                "다른 카카오 사용자")))
+                .isInstanceOf(HappyGalleryException.class)
+                .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
+                .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+    }
+
     @DisplayName("유효한 정책 동의가 없는 최초 소셜 로그인은 회원을 만들지 않는다")
     @Test
     void rejectsFirstSocialLoginWithoutPolicyConsent() {

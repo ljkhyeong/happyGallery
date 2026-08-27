@@ -18,6 +18,7 @@ export type SocialAccountsResponseLinkedProvidersItem = typeof SocialAccountsRes
 export const SocialAccountsResponseLinkedProvidersItem = {
   GOOGLE: 'GOOGLE',
   NAVER: 'NAVER',
+  KAKAO: 'KAKAO',
 } as const;
 
 export interface SocialAccountsResponse {
@@ -28,7 +29,7 @@ export interface SocialAccountAuthorizationResponse {
   authorizationUrl: string;
 }
 
-export const getStartSocialSignupUrl = (provider: 'google' | 'naver',) => {
+export const getStartSocialSignupUrl = (provider: 'google' | 'naver' | 'kakao',) => {
 
 
 
@@ -36,7 +37,7 @@ export const getStartSocialSignupUrl = (provider: 'google' | 'naver',) => {
   return `/api/v1/auth/social/signup-intents/${provider}`
 }
 
-export const startSocialSignup = async (provider: 'google' | 'naver',
+export const startSocialSignup = async (provider: 'google' | 'naver' | 'kakao',
     policyAcceptanceRequest: PolicyAcceptanceRequest, options?: RequestInit): Promise<SocialSignupAuthorizationResponse> => {
 
   return generatedApiClient<SocialSignupAuthorizationResponse>(getStartSocialSignupUrl(provider),
@@ -71,7 +72,7 @@ export const getMySocialAccounts = async ( options?: RequestInit): Promise<Socia
 
 
 
-export const getUnlinkMySocialAccountUrl = (provider: 'google' | 'naver',) => {
+export const getUnlinkMySocialAccountUrl = (provider: 'google' | 'naver' | 'kakao',) => {
 
 
 
@@ -79,7 +80,7 @@ export const getUnlinkMySocialAccountUrl = (provider: 'google' | 'naver',) => {
   return `/api/v1/me/social-accounts/${provider}`
 }
 
-export const unlinkMySocialAccount = async (provider: 'google' | 'naver', options?: RequestInit): Promise<void> => {
+export const unlinkMySocialAccount = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<void> => {
 
   return generatedApiClient<void>(getUnlinkMySocialAccountUrl(provider),
   {
@@ -92,7 +93,7 @@ export const unlinkMySocialAccount = async (provider: 'google' | 'naver', option
 
 
 
-export const getStartMySocialAccountLinkUrl = (provider: 'google' | 'naver',) => {
+export const getStartMySocialAccountLinkUrl = (provider: 'google' | 'naver' | 'kakao',) => {
 
 
 
@@ -100,7 +101,7 @@ export const getStartMySocialAccountLinkUrl = (provider: 'google' | 'naver',) =>
   return `/api/v1/me/social-accounts/${provider}/authorization`
 }
 
-export const startMySocialAccountLink = async (provider: 'google' | 'naver', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
+export const startMySocialAccountLink = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
 
   return generatedApiClient<SocialAccountAuthorizationResponse>(getStartMySocialAccountLinkUrl(provider),
   {
@@ -113,7 +114,7 @@ export const startMySocialAccountLink = async (provider: 'google' | 'naver', opt
 
 
 
-export const getStartMySocialReauthenticationUrl = (provider: 'google' | 'naver',) => {
+export const getStartMySocialReauthenticationUrl = (provider: 'google' | 'naver' | 'kakao',) => {
 
 
 
@@ -121,7 +122,7 @@ export const getStartMySocialReauthenticationUrl = (provider: 'google' | 'naver'
   return `/api/v1/me/social-accounts/${provider}/reauthentication`
 }
 
-export const startMySocialReauthentication = async (provider: 'google' | 'naver', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
+export const startMySocialReauthentication = async (provider: 'google' | 'naver' | 'kakao', options?: RequestInit): Promise<SocialAccountAuthorizationResponse> => {
 
   return generatedApiClient<SocialAccountAuthorizationResponse>(getStartMySocialReauthenticationUrl(provider),
   {

@@ -36,7 +36,7 @@ public class SocialSignupController {
     @PostMapping("/{provider}")
     public SocialSignupAuthorizationResponse start(
             @PathVariable
-            @Parameter(schema = @Schema(allowableValues = {"google", "naver"}))
+            @Parameter(schema = @Schema(allowableValues = {"google", "naver", "kakao"}))
             String provider,
             @RequestBody @Valid PolicyAcceptanceRequest policyAcceptance,
             HttpServletRequest request) {

@@ -31,7 +31,7 @@
 - 상품·클래스 설명과 대표 이미지, 공방 주소·영업·주차·소개·사업자·문의 정보를 관리자 화면에서 관리한다. 공개 footer와 사업자 정보는 현재 공방 프로필을 사용하고, 이용약관·개인정보처리방침은 과거 동의 본문이 바뀌지 않도록 버전별 문서로 보존한다. 예약 일정은 기본 운영시간을 모두 열고 공휴일·휴무일·예약 불가 시간만 닫으며, 고객 조회 시 필요한 회차를 자동으로 준비한다.
 - 기준 공방 프로필은 `해피갤러리`, `충북 충주시 계명대로 161 1층`, 네이버 플레이스 `https://m.place.naver.com/place/21668321`, `010-9635-5608`, 대표 `홍지현`, 사업자등록번호 `303-11-87052`, 통신판매업 신고번호 `2011-충북 충주-127`, 전자우편 `ssi1972@naver.com`, 카카오톡 `ssim1972`를 사용한다. 네이버톡톡·네이버 블로그·인스타그램·스마트스토어 링크도 공방 프로필에서 함께 관리한다.
 - 회원은 `HG_SESSION`, 관리자는 Bearer 세션, 비회원은 `X-Access-Token`을 사용한다.
-- Google·Naver 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다. Google의 검증 이메일만 가입 시 기준 이메일로 저장한다. 신규 Naver 회원의 이메일은 `null`로 시작하고, 최근 본인 확인 뒤 메일함으로 받은 6자리 코드를 검증해 본인이 소유한 이메일을 한 번 등록할 수 있다.
+- Google·Naver·Kakao 계정은 마이페이지에서 일회성 연결 시도와 OAuth `state`를 검증해 명시적으로 연결·해제하며, 이메일 일치만으로 기존 회원과 자동 병합하지 않는다. Google 검증 이메일과 Kakao의 유효·검증 이메일은 가입 시 기준 이메일로 사용한다. 신규 Naver 회원의 이메일은 `null`로 시작하고, 최근 본인 확인 뒤 메일함으로 받은 6자리 코드를 검증해 본인이 소유한 이메일을 한 번 등록할 수 있다.
 - 브라우저의 비관리자 상태 변경 요청은 `XSRF-TOKEN` 쿠키와 `X-XSRF-TOKEN` 헤더로 CSRF를 방어한다.
 - 상세 요구사항은 [기준 스펙](docs/PRD/0001_기준_스펙/spec.md), HTTP 계약은 [API 계약](docs/PRD/0004_API_계약/spec.md)을 기준으로 본다.
 
@@ -79,7 +79,7 @@ npm run dev
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
 - 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업의 DB backlog, 결제·알림 CircuitBreaker 상태와 호출 결과, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다. 업무 알림은 휘발성 사건 수가 아니라 아직 처리되지 않은 DB 상태를 기준으로 유지한다.
 - SMTP 장애가 주문·예약 API 전체를 비정상으로 만들지 않도록 Spring Mail health indicator는 기본 비활성화한다. 이메일 발송 장애는 알림 CircuitBreaker와 실패 로그로 관측하며, 독립 SMTP health가 필요한 환경에서만 `MAIL_HEALTH_ENABLED=true`로 켠다.
-- `prod`가 아닌 환경의 Google/Naver 로그인은 외부 인증 화면 없이 테스트용 콜백으로 즉시 돌아온다.
+- `prod`가 아닌 환경은 Google/Naver/Kakao OAuth 자리표시자 자격 증명으로 기동한다. 실제 제공자 로그인은 각 개발자 콘솔의 자격 증명과 localhost exact callback을 환경 변수로 설정해 검증한다.
 - `local`이 아닌 환경에서 최초 관리자 계정이 필요하면 `ADMIN_SETUP_TOKEN`을 주입하고 `/api/v1/admin/setup`을 호출한다.
 - 반복 E2E처럼 짧은 시간에 인증/관리 요청이 몰리는 로컬 검증에서는 `RATE_LIMIT_ENABLED=false`를 사용할 수 있다.
 
@@ -253,6 +253,9 @@ Delivery API를 처음 연결할 때는 `DELIVERY_TRACKING_ENABLED=false`와 직
 | `NAVER_OAUTH_CLIENT_ID` | 백엔드 `prod` | Naver 로그인 client ID |
 | `NAVER_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Naver 로그인 client secret |
 | `NAVER_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Naver에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/naver`) |
+| `KAKAO_OAUTH_CLIENT_ID` | 백엔드 `prod` | Kakao 로그인 REST API key |
+| `KAKAO_OAUTH_CLIENT_SECRET` | 백엔드 `prod` | Kakao 로그인 client secret |
+| `KAKAO_OAUTH_REDIRECT_URI` | 백엔드 `prod` | Kakao Developers에 등록한 exact backend callback URI (`https://<host>/api/v1/auth/social/callback/kakao`) |
 | `ALIMTALK_APP_KEY` | 백엔드 `prod` | NHN Cloud Alimtalk 서비스 app key |
 | `ALIMTALK_SECRET_KEY` | 백엔드 `prod` | NHN Cloud Alimtalk `X-Secret-Key` 값 |
 | `ALIMTALK_SENDER_KEY` | 백엔드 `prod` | NHN Cloud에 등록한 카카오 발신 프로필 키 |
@@ -282,6 +285,12 @@ Naver 로그인 운영 등록 조건:
 - Naver Developers 애플리케이션에 서비스 origin과 정확한 백엔드 콜백 URI `${서비스 origin}/api/v1/auth/social/callback/naver`를 등록한다.
 - 회원 프로필의 이름 제공 항목을 사용하도록 설정한다. 서비스는 provider ID와 이름을 요구하고, Naver 프로필 이메일은 검증된 기준 이메일로 저장하지 않는다. 기준 이메일이 없는 회원은 마이페이지에서 별도 SMTP 소유 확인을 마친 뒤 직접 등록한다.
 - 로그인 버튼은 [Naver 로그인 버튼 사용 가이드](https://developers.naver.com/docs/login/bi/bi.md)의 공식 심벌과 지정 색상을 사용한다.
+
+Kakao 로그인 운영 등록 조건:
+
+- Kakao Developers에서 카카오 로그인을 활성화하고 정확한 백엔드 콜백 URI `${서비스 origin}/api/v1/auth/social/callback/kakao`를 등록한다.
+- 동의 항목에서 닉네임과 카카오계정 이메일을 제공하도록 설정한다. 서비스는 이메일이 유효하고 검증된 경우에만 기준 이메일로 사용하며, 두 상태를 확인할 수 없으면 로그인을 거절한다.
+- 보안을 위해 client secret을 활성화하고 `KAKAO_OAUTH_CLIENT_SECRET`에 별도로 보관한다.
 
 ## 문서 진입점
 

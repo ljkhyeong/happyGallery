@@ -331,6 +331,8 @@ grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
 grep -q 'NAVER_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/naver' "$rendered" \
     || die "Naver OAuth callback이 공개 host와 일치하지 않습니다."
+grep -q 'KAKAO_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/kakao' "$rendered" \
+    || die "Kakao OAuth callback이 공개 host와 일치하지 않습니다."
 
 if grep -Eq 'type: (NodePort|LoadBalancer)|hostPort:' "$rendered"; then
     die "Ingress 외 직접 공개 포트가 manifest에 있습니다."

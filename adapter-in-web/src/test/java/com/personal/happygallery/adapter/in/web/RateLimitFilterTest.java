@@ -208,21 +208,24 @@ class RateLimitFilterTest {
         });
     }
 
-    @DisplayName("구글과 네이버 로그인은 동일한 소셜 로그인 처리율 제한을 사용한다")
+    @DisplayName("구글과 네이버와 카카오 로그인은 동일한 소셜 로그인 처리율 제한을 사용한다")
     @Test
-    void appliesSameLimit_forGoogleAndNaverLogin() throws Exception {
+    void appliesSameLimit_forAllSocialLogins() throws Exception {
         RateLimitFilter filter = filter(new TestRateLimits()
-                .socialLogin(1)
+                .socialLogin(2)
                 .build(), mockRedis());
 
         MockHttpServletResponse googleResponse = perform(
                 filter, "GET", "/api/v1/auth/social/callback/google");
         MockHttpServletResponse naverResponse = perform(
                 filter, "GET", "/api/v1/auth/social/callback/naver");
+        MockHttpServletResponse kakaoResponse = perform(
+                filter, "GET", "/api/v1/auth/social/callback/kakao");
 
         assertSoftly(softly -> {
             softly.assertThat(googleResponse.getStatus()).isEqualTo(200);
-            softly.assertThat(naverResponse.getStatus()).isEqualTo(429);
+            softly.assertThat(naverResponse.getStatus()).isEqualTo(200);
+            softly.assertThat(kakaoResponse.getStatus()).isEqualTo(429);
         });
     }
 
