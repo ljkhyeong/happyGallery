@@ -33,6 +33,8 @@ export const queryKeys = {
     slots: {
       all: ["admin", "slots"] as const,
       byClass: (classId: number) => ["admin", "slots", classId] as const,
+      calendar: (dateFrom: string, dateTo: string) =>
+        ["admin", "slots", "calendar", dateFrom, dateTo] as const,
     },
     bookings: ["admin", "bookings"] as const,
     bookingCancellationTasks: ["admin", "bookings", "cancellation-tasks"] as const,

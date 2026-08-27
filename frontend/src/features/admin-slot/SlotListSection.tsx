@@ -81,6 +81,10 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
     },
   });
 
+  const managedSlots = slotsQuery.data?.filter((slot) =>
+    slot.bookedCount > 0 || !slot.adminActive,
+  );
+
   return (
     <div>
       {classesQuery.isLoading && <LoadingSpinner text="클래스 목록을 불러오는 중..." />}
@@ -110,7 +114,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
           </Row>
 
           {!classesQuery.error && !classIdNum && (
-            <EmptyState message="클래스를 선택하면 수업 일정이 표시됩니다." />
+            <EmptyState message="클래스를 선택하면 예약이 있거나 직접 중지한 회차만 표시됩니다." />
           )}
         </>
       )}
@@ -122,11 +126,11 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
           retrying={slotsQuery.isFetching}
         />
       )}
-      {!slotsQuery.error && slotsQuery.data && slotsQuery.data.length === 0 && (
-        <EmptyState message="해당 클래스에 등록된 수업 일정이 없습니다." />
+      {!slotsQuery.error && managedSlots && managedSlots.length === 0 && (
+        <EmptyState message="관리할 예약 회차가 없습니다. 빈 회차는 예약 캘린더에서 자동으로 관리됩니다." />
       )}
 
-      {slotsQuery.data && slotsQuery.data.length > 0 && (
+      {managedSlots && managedSlots.length > 0 && (
         <Table responsive hover size="sm">
           <thead>
             <tr>
@@ -139,13 +143,15 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
             </tr>
           </thead>
           <tbody>
-            {slotsQuery.data.map((s) => {
+            {managedSlots.map((s) => {
               const pct = s.capacity > 0 ? Math.round((s.bookedCount / s.capacity) * 100) : 0;
               const variant = pct >= 80 ? "danger" : pct >= 50 ? "warning" : "success";
               const status = !s.adminActive
                 ? { label: "예약 중지", variant: "secondary" }
+                : !s.calendarActive
+                  ? { label: "달력에서 닫힘", variant: "secondary" }
                 : s.bufferBlocked
-                  ? { label: "앞 수업 정리 시간과 겹침", variant: "warning" }
+                  ? { label: "다른 수업·정리 시간과 겹침", variant: "warning" }
                   : { label: "예약 가능", variant: "success" };
               return (
                 <tr key={s.id}>

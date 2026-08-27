@@ -1,27 +1,26 @@
 import {
   activateSlot as activateAdminSlot,
   cancelAdminSlotSession,
-  createBulkSlots as createAdminBulkSlots,
-  createSlot as createAdminSlot,
+  createAdminBookingTimeBlock,
+  deleteAdminBookingTimeBlock,
   deactivateSlot as deactivateAdminSlot,
+  getAdminBookingCalendar,
   listClasses,
   listSlots,
-  previewBulkSlots as previewAdminBulkSlots,
-  BulkSlotRequestWeekdaysItem,
+  updateAdminBookingCalendarDay,
+  updateAdminBookingCalendarSettings,
   type AdminClassResponse,
   type AdminSlotSessionCancelRequest,
   type AdminSlotSessionCancelResponse,
-  type BulkSlotRequest,
-  type BulkSlotRequestWeekdaysItem as BulkSlotWeekday,
-  type BulkSlotResponse,
-  type CreateSlotRequest,
+  type BookingCalendarResponse,
+  type BookingCalendarSettingsResponse,
+  type BookingTimeBlockResponse,
+  type CreateBookingTimeBlockRequest,
   type SlotResponse,
+  type UpdateBookingCalendarDayRequest,
+  type UpdateBookingCalendarSettingsRequest,
 } from "@/generated/api/adminCatalog";
 import { adminHeaders } from "@/shared/api";
-
-type BulkSlotFormRequest = Omit<BulkSlotRequest, "weekdays"> & {
-  weekdays: string[];
-};
 
 export function fetchClasses(adminKey: string): Promise<AdminClassResponse[]> {
   return listClasses({ headers: adminHeaders(adminKey) });
@@ -39,31 +38,41 @@ export function fetchSlotsByClass(adminKey: string, classId: number): Promise<Sl
   return listSlots({ classId }, { headers: adminHeaders(adminKey) });
 }
 
-export function createSlot(
+export function fetchBookingCalendar(
   adminKey: string,
-  body: CreateSlotRequest,
-): Promise<SlotResponse> {
-  return createAdminSlot(body, { headers: adminHeaders(adminKey) });
-}
-
-export function previewBulkSlots(
-  adminKey: string,
-  body: BulkSlotFormRequest,
-): Promise<BulkSlotResponse> {
-  return previewAdminBulkSlots(
-    { ...body, weekdays: bulkSlotWeekdays(body.weekdays) },
+  dateFrom: string,
+  dateTo: string,
+): Promise<BookingCalendarResponse> {
+  return getAdminBookingCalendar(
+    { dateFrom, dateTo },
     { headers: adminHeaders(adminKey) },
   );
 }
 
-export function createBulkSlots(
+export function saveBookingCalendarSettings(
   adminKey: string,
-  body: BulkSlotFormRequest,
-): Promise<BulkSlotResponse> {
-  return createAdminBulkSlots(
-    { ...body, weekdays: bulkSlotWeekdays(body.weekdays) },
-    { headers: adminHeaders(adminKey) },
-  );
+  body: UpdateBookingCalendarSettingsRequest,
+): Promise<BookingCalendarSettingsResponse> {
+  return updateAdminBookingCalendarSettings(body, { headers: adminHeaders(adminKey) });
+}
+
+export function saveBookingCalendarDay(
+  adminKey: string,
+  date: string,
+  body: UpdateBookingCalendarDayRequest,
+): Promise<void> {
+  return updateAdminBookingCalendarDay(date, body, { headers: adminHeaders(adminKey) });
+}
+
+export function createBookingTimeBlock(
+  adminKey: string,
+  body: CreateBookingTimeBlockRequest,
+): Promise<BookingTimeBlockResponse> {
+  return createAdminBookingTimeBlock(body, { headers: adminHeaders(adminKey) });
+}
+
+export function deleteBookingTimeBlock(adminKey: string, id: number): Promise<void> {
+  return deleteAdminBookingTimeBlock(id, { headers: adminHeaders(adminKey) });
 }
 
 export function deactivateSlot(adminKey: string, slotId: number): Promise<SlotResponse> {
@@ -72,15 +81,4 @@ export function deactivateSlot(adminKey: string, slotId: number): Promise<SlotRe
 
 export function activateSlot(adminKey: string, slotId: number): Promise<SlotResponse> {
   return activateAdminSlot(slotId, { headers: adminHeaders(adminKey) });
-}
-
-function bulkSlotWeekdays(values: string[]): BulkSlotWeekday[] {
-  return values.map((value) => {
-    const matched = Object.values(BulkSlotRequestWeekdaysItem)
-      .find((candidate) => candidate === value);
-    if (matched === undefined) {
-      throw new Error("지원하지 않는 운영 요일입니다.");
-    }
-    return matched;
-  });
 }

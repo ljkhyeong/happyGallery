@@ -8,8 +8,7 @@ import { ProductListSection } from "@/features/admin-product/ProductListSection"
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
 import { ClassListSection } from "@/features/admin-class/ClassListSection";
-import { CreateSlotForm } from "@/features/admin-slot/CreateSlotForm";
-import { BulkSlotForm } from "@/features/admin-slot/BulkSlotForm";
+import { BookingCalendarSection } from "@/features/admin-slot/BookingCalendarSection";
 import { SlotListSection } from "@/features/admin-slot/SlotListSection";
 import { BookingListSection } from "@/features/admin-booking/BookingListSection";
 import { BookingCancellationTaskSection } from "@/features/admin-booking/BookingCancellationTaskSection";
@@ -417,13 +416,10 @@ export function AdminPage() {
           <AdminPanel title="클래스 목록">
             <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="수업 일정 생성">
-            <CreateSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
+          <AdminPanel title="예약 캘린더">
+            <BookingCalendarSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="수업 일정 여러 개 생성">
-            <BulkSlotForm adminKey={adminKey} onAuthError={handleAuthError} />
-          </AdminPanel>
-          <AdminPanel title="수업 일정 목록">
+          <AdminPanel title="예약이 있는 회차 관리">
             <SlotListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>

@@ -456,6 +456,7 @@ export interface SlotResponse {
   adminActive: boolean;
   bookedCount: number;
   bufferBlocked: boolean;
+  calendarActive: boolean;
   capacity: number;
   classId: number;
   endAt: string;
@@ -525,6 +526,98 @@ export interface BulkSlotResponse {
   totalCount: number;
 }
 
+export type BookingCalendarDayResponseEffectiveAvailability = typeof BookingCalendarDayResponseEffectiveAvailability[keyof typeof BookingCalendarDayResponseEffectiveAvailability];
+
+
+export const BookingCalendarDayResponseEffectiveAvailability = {
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+
+export type BookingCalendarDayResponseOverrideMode = typeof BookingCalendarDayResponseOverrideMode[keyof typeof BookingCalendarDayResponseOverrideMode];
+
+
+export const BookingCalendarDayResponseOverrideMode = {
+  DEFAULT: 'DEFAULT',
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface BookingTimeBlockResponse {
+  date: string;
+  endTime: string;
+  id: number;
+  /** @nullable */
+  reason?: string | null;
+  startTime: string;
+}
+
+export interface BookingCalendarDayResponse {
+  date: string;
+  effectiveAvailability: BookingCalendarDayResponseEffectiveAvailability;
+  overrideMode: BookingCalendarDayResponseOverrideMode;
+  publicHoliday: boolean;
+  /** @nullable */
+  reason?: string | null;
+  timeBlocks: BookingTimeBlockResponse[];
+}
+
+export interface BookingCalendarSettingsResponse {
+  blockPublicHolidays: boolean;
+  closeTime: string;
+  openTime: string;
+  slotIntervalMin: number;
+  version: number;
+}
+
+export interface BookingCalendarResponse {
+  days: BookingCalendarDayResponse[];
+  settings: BookingCalendarSettingsResponse;
+}
+
+export type UpdateBookingCalendarDayRequestMode = typeof UpdateBookingCalendarDayRequestMode[keyof typeof UpdateBookingCalendarDayRequestMode];
+
+
+export const UpdateBookingCalendarDayRequestMode = {
+  DEFAULT: 'DEFAULT',
+  OPEN: 'OPEN',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface UpdateBookingCalendarDayRequest {
+  mode: UpdateBookingCalendarDayRequestMode;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  reason?: string | null;
+}
+
+export interface UpdateBookingCalendarSettingsRequest {
+  blockPublicHolidays: boolean;
+  closeTime: string;
+  expectedVersion: number;
+  openTime: string;
+  /**
+     * @minimum 10
+     * @maximum 120
+     */
+  slotIntervalMin: number;
+}
+
+export interface CreateBookingTimeBlockRequest {
+  date: string;
+  endTime: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     * @nullable
+     */
+  reason?: string | null;
+  startTime: string;
+}
+
 export interface AdminSlotSessionCancelRequest {
   /**
      * @minLength 0
@@ -547,6 +640,11 @@ export type UploadImageBody = {
 
 export type ListSlotsParams = {
 classId: number;
+};
+
+export type GetAdminBookingCalendarParams = {
+dateFrom: string;
+dateTo: string;
 };
 
 export const getListClassesUrl = () => {
@@ -894,6 +992,119 @@ export const previewBulkSlots = async (bulkSlotRequest: BulkSlotRequest, options
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(bulkSlotRequest)
+  }
+);}
+
+
+
+export const getGetAdminBookingCalendarUrl = (params: GetAdminBookingCalendarParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/slots/calendar?${stringifiedParams}` : `/api/v1/admin/slots/calendar`
+}
+
+export const getAdminBookingCalendar = async (params: GetAdminBookingCalendarParams, options?: RequestInit): Promise<BookingCalendarResponse> => {
+
+  return generatedApiClient<BookingCalendarResponse>(getGetAdminBookingCalendarUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateAdminBookingCalendarDayUrl = (date: string,) => {
+
+
+
+
+  return `/api/v1/admin/slots/calendar/days/${date}`
+}
+
+export const updateAdminBookingCalendarDay = async (date: string,
+    updateBookingCalendarDayRequest: UpdateBookingCalendarDayRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateAdminBookingCalendarDayUrl(date),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateBookingCalendarDayRequest)
+  }
+);}
+
+
+
+export const getUpdateAdminBookingCalendarSettingsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/slots/calendar/settings`
+}
+
+export const updateAdminBookingCalendarSettings = async (updateBookingCalendarSettingsRequest: UpdateBookingCalendarSettingsRequest, options?: RequestInit): Promise<BookingCalendarSettingsResponse> => {
+
+  return generatedApiClient<BookingCalendarSettingsResponse>(getUpdateAdminBookingCalendarSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateBookingCalendarSettingsRequest)
+  }
+);}
+
+
+
+export const getCreateAdminBookingTimeBlockUrl = () => {
+
+
+
+
+  return `/api/v1/admin/slots/calendar/time-blocks`
+}
+
+export const createAdminBookingTimeBlock = async (createBookingTimeBlockRequest: CreateBookingTimeBlockRequest, options?: RequestInit): Promise<BookingTimeBlockResponse> => {
+
+  return generatedApiClient<BookingTimeBlockResponse>(getCreateAdminBookingTimeBlockUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createBookingTimeBlockRequest)
+  }
+);}
+
+
+
+export const getDeleteAdminBookingTimeBlockUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/slots/calendar/time-blocks/${id}`
+}
+
+export const deleteAdminBookingTimeBlock = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDeleteAdminBookingTimeBlockUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
   }
 );}
 
