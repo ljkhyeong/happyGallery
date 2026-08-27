@@ -167,6 +167,31 @@ export function OrderDetailCard({ order }: Props) {
                   )}
                 </Col>
               )}
+              {order.fulfillment.trackingStatusText && (
+                <Col xs={12}>
+                  <small className="text-muted-soft d-block">택배사 배송 상태</small>
+                  <strong>{order.fulfillment.trackingStatusText}</strong>
+                  {order.fulfillment.trackingUpdatedAt && (
+                    <small className="text-muted-soft ms-2">
+                      {formatDateTime(order.fulfillment.trackingUpdatedAt)} 기준
+                    </small>
+                  )}
+                </Col>
+              )}
+              {order.fulfillment.trackingEvents.length > 0 && (
+                <Col xs={12}>
+                  <small className="text-muted-soft d-block mb-1">배송 진행 내역</small>
+                  <ol className="mb-0 ps-3">
+                    {[...order.fulfillment.trackingEvents].reverse().map((event) => (
+                      <li key={`${event.occurredAt}-${event.status}-${event.location ?? ""}`} className="mb-1">
+                        <span>{event.statusText}</span>
+                        {event.location && <span> · {event.location}</span>}
+                        <small className="text-muted-soft ms-2">{formatDateTime(event.occurredAt)}</small>
+                      </li>
+                    ))}
+                  </ol>
+                </Col>
+              )}
             </Row>
           </>
         )}

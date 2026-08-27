@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -34,17 +35,20 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final ShippingAddressProtector shippingAddressProtector;
+    private final ShipmentTrackingEventPort trackingEventPort;
 
     public DefaultAdminOrderQueryService(OrderReaderPort orderReaderPort,
                                          OrderHistoryPort orderHistoryPort,
                                          OrderItemPort orderItemPort,
                                          FulfillmentPort fulfillmentPort,
-                                         ShippingAddressProtector shippingAddressProtector) {
+                                         ShippingAddressProtector shippingAddressProtector,
+                                         ShipmentTrackingEventPort trackingEventPort) {
         this.orderReaderPort = orderReaderPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.shippingAddressProtector = shippingAddressProtector;
+        this.trackingEventPort = trackingEventPort;
     }
 
     /** 관리자 주문 목록 조회 — 커서 기반 페이지네이션 */
@@ -81,7 +85,10 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
                 && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
-        return AdminOrderFulfillmentResponse.from(fulfillment, shippingAddress);
+        return AdminOrderFulfillmentResponse.from(
+                fulfillment,
+                shippingAddress,
+                trackingEventPort.findByOrderIdOrderByOccurredAtAsc(orderId));
     }
 
     /** 관리자 주문 처리 이력 조회 — 처리 시간순 */

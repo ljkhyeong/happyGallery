@@ -8,7 +8,12 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.FulfillmentPolicy;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import com.personal.happygallery.domain.order.TrackingRegistrationStatus;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -41,6 +46,39 @@ class FulfillmentPolicyTest {
                 .doesNotThrowAnyException();
         assertThatCode(() -> FulfillmentPolicy.requireValid(FulfillmentType.PICKUP, null))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("지원 택배사 운송장을 기록하면 배송조회 등록 대기 상태가 된다")
+    void recordShipment_startsTrackingRegistration() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 27, 15, 0);
+        Fulfillment fulfillment = Fulfillment.shipping(1L, "encrypted-address");
+
+        fulfillment.recordShipment(ShippingCarrier.CJ_LOGISTICS, " 123-456 ", now);
+
+        assertThat(fulfillment.getCarrier()).isEqualTo("CJ대한통운");
+        assertThat(fulfillment.getTrackingNumber()).isEqualTo("123-456");
+        assertThat(fulfillment.getCarrierCode()).isEqualTo(ShippingCarrier.CJ_LOGISTICS);
+        assertThat(fulfillment.getTrackingRegistrationStatus())
+                .isEqualTo(TrackingRegistrationStatus.PENDING);
+        assertThat(fulfillment.getTrackingStatus()).isEqualTo(ShipmentTrackingStatus.PENDING);
+        assertThat(fulfillment.getTrackingNextAttemptAt()).isEqualTo(now);
+    }
+
+    @Test
+    @DisplayName("택배사 배송 완료는 배송조회 상태만 완료하고 주문 상태는 다루지 않는다")
+    void applyTrackingUpdate_completesTrackingOnly() {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 27, 15, 0);
+        Fulfillment fulfillment = Fulfillment.shipping(1L, "encrypted-address");
+        fulfillment.recordShipment(ShippingCarrier.HANJIN, "1234567890", now);
+        fulfillment.claimTrackingRegistration(now, now.minusMinutes(5));
+
+        fulfillment.applyTrackingUpdate(ShipmentTrackingStatus.DELIVERED, "배송완료", now.plusHours(2));
+        fulfillment.completeTrackingRegistration("request-1", now.plusHours(2));
+
+        assertThat(fulfillment.getTrackingStatus()).isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(fulfillment.getTrackingRegistrationStatus())
+                .isEqualTo(TrackingRegistrationStatus.COMPLETED);
     }
 
     private static void assertInvalid(Runnable validation, String message) {

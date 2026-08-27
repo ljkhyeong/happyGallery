@@ -45,6 +45,9 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import com.personal.happygallery.domain.order.TrackingRegistrationStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -158,7 +161,12 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(pickup(OrderStatus.PICKED_UP));
         when(orderShippingUseCase.prepareShipping(200L, ADMIN_USER_ID))
                 .thenReturn(shipping(OrderStatus.SHIPPING_PREPARING));
-        when(orderShippingUseCase.markShipped(200L, "CJ대한통운", "1234567890", ADMIN_USER_ID))
+        when(orderShippingUseCase.markShipped(
+                200L,
+                ShippingCarrier.CJ_LOGISTICS,
+                "CJ대한통운",
+                "1234567890",
+                ADMIN_USER_ID))
                 .thenReturn(shipping(OrderStatus.SHIPPED));
         when(orderShippingUseCase.markDelivered(200L, ADMIN_USER_ID))
                 .thenReturn(shipping(OrderStatus.DELIVERED));
@@ -466,7 +474,10 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"carrier\":\"CJ대한통운\",\"trackingNumber\":\"1234567890\"}"))
+                        .content("""
+                                {"carrier":"CJ대한통운","carrierCode":"CJ_LOGISTICS",
+                                 "trackingNumber":"1234567890"}
+                                """))
                 .andExpect(status().isOk());
     }
 
@@ -563,7 +574,13 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 LocalDate.of(2026, 5, 8),
                 null,
                 "CJ대한통운",
-                "1234567890");
+                "1234567890",
+                ShippingCarrier.CJ_LOGISTICS,
+                TrackingRegistrationStatus.ACTIVE,
+                ShipmentTrackingStatus.IN_TRANSIT,
+                "배송중",
+                LocalDateTime.of(2026, 5, 2, 9, 0),
+                List.of());
     }
 
     private static AdminOrderSearchRow adminOrderSearchRow() {
@@ -584,7 +601,16 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
 
     private static OrderShippingUseCase.ShippingResult shipping(OrderStatus status) {
         return new OrderShippingUseCase.ShippingResult(
-                200L, status, LocalDate.of(2026, 5, 8), "CJ대한통운", "1234567890");
+                200L,
+                status,
+                LocalDate.of(2026, 5, 8),
+                "CJ대한통운",
+                "1234567890",
+                ShippingCarrier.CJ_LOGISTICS,
+                TrackingRegistrationStatus.ACTIVE,
+                ShipmentTrackingStatus.IN_TRANSIT,
+                "배송중",
+                LocalDateTime.of(2026, 5, 2, 9, 0));
     }
 
     private static OrderHistoryResponse orderHistory() {

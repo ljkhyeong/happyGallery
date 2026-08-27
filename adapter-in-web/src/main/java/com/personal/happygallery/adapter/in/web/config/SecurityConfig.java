@@ -247,6 +247,7 @@ public class SecurityConfig {
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm",
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
+                                "/api/v1/webhooks/delivery-tracking",
                                 "/api/v1/guest-records/recovery",
                                 "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/phone-verifications",
@@ -276,7 +277,8 @@ public class SecurityConfig {
                         .sessionFixation(fixation -> fixation.none()))
                 .csrf(csrf -> csrf
                         .spa()
-                        .csrfTokenRepository(csrfTokenRepository))
+                        .csrfTokenRepository(csrfTokenRepository)
+                        .ignoringRequestMatchers(endpoint("/api/v1/webhooks/delivery-tracking")))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
                                 .baseUri(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)

@@ -10,8 +10,10 @@ import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
 
 public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>, FulfillmentPort {
 
@@ -22,7 +24,37 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
     Optional<Fulfillment> findByOrderId(Long orderId);
 
     @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM Fulfillment f WHERE f.id = :id")
+    Optional<Fulfillment> findByIdForUpdate(@Param("id") Long id);
+
+    @Override
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
+
+    @Query("""
+            SELECT f.id
+            FROM Fulfillment f
+            WHERE f.carrierCode IS NOT NULL
+              AND (
+                  (f.trackingRegistrationStatus = 'PENDING'
+                   AND (f.trackingNextAttemptAt IS NULL OR f.trackingNextAttemptAt <= :now))
+                  OR
+                  (f.trackingRegistrationStatus = 'PROCESSING'
+                   AND f.trackingRegistrationStartedAt <= :processingStaleBefore)
+              )
+            ORDER BY f.id ASC
+            """)
+    List<Long> findTrackingRegistrationCandidateIdPage(
+            @Param("now") LocalDateTime now,
+            @Param("processingStaleBefore") LocalDateTime processingStaleBefore,
+            Pageable pageable);
+
+    @Override
+    default List<Long> findTrackingRegistrationCandidateIds(
+            LocalDateTime now, LocalDateTime processingStaleBefore, int limit) {
+        return findTrackingRegistrationCandidateIdPage(
+                now, processingStaleBefore, PageRequest.ofSize(limit));
+    }
 
     /** 픽업 만료 배치 페이지네이션 조회 */
     @Query("SELECT f FROM Fulfillment f JOIN Order o ON f.orderId = o.id "

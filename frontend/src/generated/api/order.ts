@@ -78,6 +78,27 @@ export const OrderDetailResponseStatus = {
   COMPLETED: 'COMPLETED',
 } as const;
 
+/**
+ * @nullable
+ */
+export type FulfillmentDtoCarrierCode = typeof FulfillmentDtoCarrierCode[keyof typeof FulfillmentDtoCarrierCode] | null;
+
+
+export const FulfillmentDtoCarrierCode = {
+  CJ_LOGISTICS: 'CJ_LOGISTICS',
+  LOTTE: 'LOTTE',
+  HANJIN: 'HANJIN',
+  KOREA_POST: 'KOREA_POST',
+  KYUNGDONG: 'KYUNGDONG',
+  DAESIN: 'DAESIN',
+  LOGEN: 'LOGEN',
+  HAPDONG: 'HAPDONG',
+  COUPANG: 'COUPANG',
+  WOORI: 'WOORI',
+  CU_POST: 'CU_POST',
+  GS_POSTBOX: 'GS_POSTBOX',
+} as const;
+
 export interface ShippingAddressDto {
   addressLine1: string;
   /** @nullable */
@@ -86,6 +107,69 @@ export interface ShippingAddressDto {
   postalCode: string;
   recipientName: string;
 }
+
+export type TrackingEventDtoStatus = typeof TrackingEventDtoStatus[keyof typeof TrackingEventDtoStatus];
+
+
+export const TrackingEventDtoStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  IN_TRANSIT: 'IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  RETURNED: 'RETURNED',
+  CANCELLED: 'CANCELLED',
+  HOLD: 'HOLD',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export interface TrackingEventDto {
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  location: string | null;
+  occurredAt: string;
+  status: TrackingEventDtoStatus;
+  statusText: string;
+}
+
+/**
+ * @nullable
+ */
+export type FulfillmentDtoTrackingRegistrationStatus = typeof FulfillmentDtoTrackingRegistrationStatus[keyof typeof FulfillmentDtoTrackingRegistrationStatus] | null;
+
+
+export const FulfillmentDtoTrackingRegistrationStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type FulfillmentDtoTrackingStatus = typeof FulfillmentDtoTrackingStatus[keyof typeof FulfillmentDtoTrackingStatus] | null;
+
+
+export const FulfillmentDtoTrackingStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  IN_TRANSIT: 'IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  RETURNED: 'RETURNED',
+  CANCELLED: 'CANCELLED',
+  HOLD: 'HOLD',
+  UNKNOWN: 'UNKNOWN',
+} as const;
 
 export type FulfillmentDtoType = typeof FulfillmentDtoType[keyof typeof FulfillmentDtoType];
 
@@ -99,12 +183,23 @@ export interface FulfillmentDto {
   /** @nullable */
   carrier: string | null;
   /** @nullable */
+  carrierCode: FulfillmentDtoCarrierCode;
+  /** @nullable */
   expectedShipDate: string | null;
   /** @nullable */
   pickupDeadlineAt: string | null;
   shippingAddress: ShippingAddressDto | null;
+  trackingEvents: TrackingEventDto[];
   /** @nullable */
   trackingNumber: string | null;
+  /** @nullable */
+  trackingRegistrationStatus: FulfillmentDtoTrackingRegistrationStatus;
+  /** @nullable */
+  trackingStatus: FulfillmentDtoTrackingStatus;
+  /** @nullable */
+  trackingStatusText: string | null;
+  /** @nullable */
+  trackingUpdatedAt: string | null;
   type: FulfillmentDtoType;
 }
 

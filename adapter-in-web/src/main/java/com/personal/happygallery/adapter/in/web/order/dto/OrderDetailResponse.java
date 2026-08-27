@@ -8,6 +8,10 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.order.ShipmentTrackingEvent;
+import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import com.personal.happygallery.domain.order.TrackingRegistrationStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
@@ -123,16 +127,54 @@ public record OrderDetailResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             String trackingNumber,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            ShippingCarrier carrierCode,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            TrackingRegistrationStatus trackingRegistrationStatus,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            ShipmentTrackingStatus trackingStatus,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            String trackingStatusText,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            LocalDateTime trackingUpdatedAt,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            List<TrackingEventDto> trackingEvents,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             ShippingAddressDto shippingAddress) {
-        public static FulfillmentDto from(Fulfillment f, ShippingAddress shippingAddress) {
+        public static FulfillmentDto from(
+                Fulfillment f,
+                ShippingAddress shippingAddress,
+                List<ShipmentTrackingEvent> trackingEvents) {
             return new FulfillmentDto(
                     f.getType(),
                     f.getExpectedShipDate(),
                     f.getPickupDeadlineAt(),
                     f.getCarrier(),
                     f.getTrackingNumber(),
+                    f.getCarrierCode(),
+                    f.getTrackingRegistrationStatus(),
+                    f.getTrackingStatus(),
+                    f.getTrackingStatusText(),
+                    f.getTrackingUpdatedAt(),
+                    trackingEvents.stream().map(TrackingEventDto::from).toList(),
                     shippingAddress != null ? ShippingAddressDto.from(shippingAddress) : null
             );
+        }
+    }
+
+    public record TrackingEventDto(
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime occurredAt,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ShipmentTrackingStatus status,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String statusText,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String location,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String description
+    ) {
+        private static TrackingEventDto from(ShipmentTrackingEvent event) {
+            return new TrackingEventDto(
+                    event.getOccurredAt(),
+                    event.getStatus(),
+                    event.getStatusText(),
+                    event.getLocation(),
+                    event.getDescription());
         }
     }
 
@@ -176,7 +218,8 @@ public record OrderDetailResponse(
                 order.getApprovalDeadlineAt(),
                 detail.items().stream().map(ItemDto::from).toList(),
                 detail.fulfillment() != null
-                        ? FulfillmentDto.from(detail.fulfillment(), detail.shippingAddress())
+                        ? FulfillmentDto.from(
+                                detail.fulfillment(), detail.shippingAddress(), detail.trackingEvents())
                         : null,
                 detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null
         );

@@ -37,7 +37,11 @@ public class AdminOrderShippingController {
                                         @Valid @RequestBody MarkShippedRequest request,
                                         @AuthenticationPrincipal AdminPrincipal admin) {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(
-                id, request.carrier(), request.trackingNumber(), admin.auditActorId());
+                id,
+                request.carrierCode(),
+                request.carrier(),
+                request.trackingNumber(),
+                admin.auditActorId());
         return ShippingResponse.from(result);
     }
 

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
@@ -30,19 +31,22 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final GuestTokenService guestTokenService;
     private final RefundPort refundPort;
     private final ShippingAddressProtector shippingAddressProtector;
+    private final ShipmentTrackingEventPort trackingEventPort;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
                                     FulfillmentPort fulfillmentPort,
                                     GuestTokenService guestTokenService,
                                     RefundPort refundPort,
-                                    ShippingAddressProtector shippingAddressProtector) {
+                                    ShippingAddressProtector shippingAddressProtector,
+                                    ShipmentTrackingEventPort trackingEventPort) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.guestTokenService = guestTokenService;
         this.refundPort = refundPort;
         this.shippingAddressProtector = shippingAddressProtector;
+        this.trackingEventPort = trackingEventPort;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
@@ -104,6 +108,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                 items,
                 fulfillment,
                 shippingAddress,
+                trackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()),
                 refundPort.findDirectByOrderId(order.getId()).orElse(null));
     }
 }

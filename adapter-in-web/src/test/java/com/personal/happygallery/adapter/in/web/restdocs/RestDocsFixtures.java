@@ -161,7 +161,7 @@ final class RestDocsFixtures {
 
     static OrderQueryUseCase.OrderDetail orderDetail() {
         return new OrderQueryUseCase.OrderDetail(
-                order(), List.of(orderItem()), fulfillment(), null, null);
+                order(), List.of(orderItem()), fulfillment(), null, List.of(), null);
     }
 
     static Refund bookingRefund() {

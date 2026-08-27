@@ -39,7 +39,11 @@ printf '%s\n' \
     'PAYMENT_TIMEOUT_MILLIS=5000' \
     'TOSS_TIMEOUT_MILLIS=3000' \
     'TOSS_CONNECT_TIMEOUT_MILLIS=1000' \
-    'TOSS_ACQUIRE_TIMEOUT_MILLIS=500' > "$app_file"
+    'TOSS_ACQUIRE_TIMEOUT_MILLIS=500' \
+    'DELIVERY_TRACKING_ENABLED=false' \
+    'DELIVERY_API_TIMEOUT_MILLIS=3000' \
+    'DELIVERY_API_CONNECT_TIMEOUT_MILLIS=1000' \
+    'DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS=500' > "$app_file"
 set +e
 output=$(KUBECTL_BIN=/bin/false \
     bash "$script_dir/create-secrets.sh" \
@@ -52,9 +56,9 @@ set -e
     exit 1
 }
 if printf '%s' "$output" \
-        | grep -Eq '허용되지 않은 키.*(PAYMENT_TIMEOUT_MILLIS|TOSS_TIMEOUT_MILLIS|TOSS_CONNECT_TIMEOUT_MILLIS|TOSS_ACQUIRE_TIMEOUT_MILLIS)'; then
+        | grep -Eq '허용되지 않은 키.*(PAYMENT_TIMEOUT_MILLIS|TOSS_TIMEOUT_MILLIS|TOSS_CONNECT_TIMEOUT_MILLIS|TOSS_ACQUIRE_TIMEOUT_MILLIS|DELIVERY_TRACKING_ENABLED|DELIVERY_API_TIMEOUT_MILLIS|DELIVERY_API_CONNECT_TIMEOUT_MILLIS|DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS)'; then
     printf '%s\n' "$output" >&2
-    printf '결제 timeout 운영 설정이 허용 목록에서 거부되었습니다.\n' >&2
+    printf '결제·배송조회 운영 설정이 허용 목록에서 거부되었습니다.\n' >&2
     exit 1
 fi
 printf '%s' "$output" | grep -q 'MYSQL_ROOT_PASSWORD' || {

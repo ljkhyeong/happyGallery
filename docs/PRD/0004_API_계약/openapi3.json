@@ -563,6 +563,10 @@
           "carrier" : {
             "type" : [ "string", "null" ]
           },
+          "carrierCode" : {
+            "enum" : [ "CJ_LOGISTICS", "LOTTE", "HANJIN", "KOREA_POST", "KYUNGDONG", "DAESIN", "LOGEN", "HAPDONG", "COUPANG", "WOORI", "CU_POST", "GS_POSTBOX" ],
+            "type" : [ "string", "null" ]
+          },
           "expectedShipDate" : {
             "format" : "date",
             "type" : [ "string", "null" ]
@@ -582,7 +586,28 @@
               "type" : "null"
             } ]
           },
+          "trackingEvents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TrackingEvent"
+            },
+            "type" : "array"
+          },
           "trackingNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "trackingRegistrationStatus" : {
+            "enum" : [ "PENDING", "PROCESSING", "ACTIVE", "COMPLETED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatus" : {
+            "enum" : [ "PENDING", "REGISTERED", "PICKUP_READY", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED", "HOLD", "UNKNOWN" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatusText" : {
+            "type" : [ "string", "null" ]
+          },
+          "trackingUpdatedAt" : {
+            "format" : "date-time",
             "type" : [ "string", "null" ]
           },
           "type" : {
@@ -590,7 +615,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "carrier", "expectedShipDate", "orderId", "pickupDeadlineAt", "shippingAddress", "trackingNumber", "type" ],
+        "required" : [ "carrier", "carrierCode", "expectedShipDate", "orderId", "pickupDeadlineAt", "shippingAddress", "trackingEvents", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt", "type" ],
         "type" : "object"
       },
       "AdminOrderHistoryResponse" : {
@@ -2584,6 +2609,26 @@
         "required" : [ "decision" ],
         "type" : "object"
       },
+      "DeliveryTrackingWebhookRequest" : {
+        "properties" : {
+          "event" : {
+            "type" : "string"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Item"
+            },
+            "type" : "array"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
+          "timestamp" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ErrorResponse" : {
         "properties" : {
           "code" : {
@@ -2777,6 +2822,10 @@
           "carrier" : {
             "type" : [ "string", "null" ]
           },
+          "carrierCode" : {
+            "enum" : [ "CJ_LOGISTICS", "LOTTE", "HANJIN", "KOREA_POST", "KYUNGDONG", "DAESIN", "LOGEN", "HAPDONG", "COUPANG", "WOORI", "CU_POST", "GS_POSTBOX" ],
+            "type" : [ "string", "null" ]
+          },
           "expectedShipDate" : {
             "format" : "date",
             "type" : [ "string", "null" ]
@@ -2792,7 +2841,28 @@
               "type" : "null"
             } ]
           },
+          "trackingEvents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/TrackingEventDto"
+            },
+            "type" : "array"
+          },
           "trackingNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "trackingRegistrationStatus" : {
+            "enum" : [ "PENDING", "PROCESSING", "ACTIVE", "COMPLETED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatus" : {
+            "enum" : [ "PENDING", "REGISTERED", "PICKUP_READY", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED", "HOLD", "UNKNOWN" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatusText" : {
+            "type" : [ "string", "null" ]
+          },
+          "trackingUpdatedAt" : {
+            "format" : "date-time",
             "type" : [ "string", "null" ]
           },
           "type" : {
@@ -2800,7 +2870,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "carrier", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingNumber", "type" ],
+        "required" : [ "carrier", "carrierCode", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingEvents", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt", "type" ],
         "type" : "object"
       },
       "GuestClaimPreviewResponse" : {
@@ -3044,6 +3114,35 @@
         "required" : [ "adjustedAt", "adjustedBy", "adjustedByAdminId", "id", "productId", "productVariantId", "quantity", "quantityAfter", "quantityBefore", "reason", "type" ],
         "type" : "object"
       },
+      "Item" : {
+        "properties" : {
+          "clientId" : {
+            "type" : "string"
+          },
+          "courierCode" : {
+            "type" : "string"
+          },
+          "currentStatus" : {
+            "type" : "string"
+          },
+          "hasChanged" : {
+            "type" : "boolean"
+          },
+          "isDelivered" : {
+            "type" : "boolean"
+          },
+          "previousStatus" : {
+            "type" : "string"
+          },
+          "trackingData" : {
+            "$ref" : "#/components/schemas/TrackingData"
+          },
+          "trackingNumber" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ItemDto" : {
         "properties" : {
           "basePrice" : {
@@ -3169,6 +3268,10 @@
             "maxLength" : 50,
             "minLength" : 0,
             "type" : "string"
+          },
+          "carrierCode" : {
+            "enum" : [ "CJ_LOGISTICS", "LOTTE", "HANJIN", "KOREA_POST", "KYUNGDONG", "DAESIN", "LOGEN", "HAPDONG", "COUPANG", "WOORI", "CU_POST", "GS_POSTBOX" ],
+            "type" : [ "string", "null" ]
           },
           "trackingNumber" : {
             "maxLength" : 100,
@@ -5055,6 +5158,26 @@
         "required" : [ "groupKey", "valueKey" ],
         "type" : "object"
       },
+      "Progress" : {
+        "properties" : {
+          "dateTime" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "statusCode" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "PublicReviewPageResponse" : {
         "properties" : {
           "content" : {
@@ -5913,6 +6036,10 @@
           "carrier" : {
             "type" : [ "string", "null" ]
           },
+          "carrierCode" : {
+            "enum" : [ "CJ_LOGISTICS", "LOTTE", "HANJIN", "KOREA_POST", "KYUNGDONG", "DAESIN", "LOGEN", "HAPDONG", "COUPANG", "WOORI", "CU_POST", "GS_POSTBOX" ],
+            "type" : [ "string", "null" ]
+          },
           "expectedShipDate" : {
             "format" : "date",
             "type" : [ "string", "null" ]
@@ -5927,9 +6054,24 @@
           },
           "trackingNumber" : {
             "type" : [ "string", "null" ]
+          },
+          "trackingRegistrationStatus" : {
+            "enum" : [ "PENDING", "PROCESSING", "ACTIVE", "COMPLETED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatus" : {
+            "enum" : [ "PENDING", "REGISTERED", "PICKUP_READY", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED", "HOLD", "UNKNOWN" ],
+            "type" : [ "string", "null" ]
+          },
+          "trackingStatusText" : {
+            "type" : [ "string", "null" ]
+          },
+          "trackingUpdatedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "carrier", "expectedShipDate", "orderId", "status", "trackingNumber" ],
+        "required" : [ "carrier", "carrierCode", "expectedShipDate", "orderId", "status", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt" ],
         "type" : "object"
       },
       "SignupRequest" : {
@@ -6099,6 +6241,87 @@
           }
         },
         "required" : [ "productId", "productName", "productType", "totalQuantity", "totalRevenue" ],
+        "type" : "object"
+      },
+      "TrackingData" : {
+        "properties" : {
+          "courierCode" : {
+            "type" : "string"
+          },
+          "courierName" : {
+            "type" : "string"
+          },
+          "dateLastProgress" : {
+            "type" : "string"
+          },
+          "deliveryStatus" : {
+            "type" : "string"
+          },
+          "deliveryStatusText" : {
+            "type" : "string"
+          },
+          "isDelivered" : {
+            "type" : "boolean"
+          },
+          "progresses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Progress"
+            },
+            "type" : "array"
+          },
+          "queriedAt" : {
+            "type" : "string"
+          },
+          "trackingNumber" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TrackingEvent" : {
+        "properties" : {
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "location" : {
+            "type" : [ "string", "null" ]
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "REGISTERED", "PICKUP_READY", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED", "HOLD", "UNKNOWN" ],
+            "type" : "string"
+          },
+          "statusText" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "description", "location", "occurredAt", "status", "statusText" ],
+        "type" : "object"
+      },
+      "TrackingEventDto" : {
+        "properties" : {
+          "description" : {
+            "type" : [ "string", "null" ]
+          },
+          "location" : {
+            "type" : [ "string", "null" ]
+          },
+          "occurredAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "PENDING", "REGISTERED", "PICKUP_READY", "PICKED_UP", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED", "FAILED", "RETURNED", "CANCELLED", "HOLD", "UNKNOWN" ],
+            "type" : "string"
+          },
+          "statusText" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "description", "location", "occurredAt", "status", "statusText" ],
         "type" : "object"
       },
       "UnreadCountResponse" : {
@@ -13709,6 +13932,43 @@
           }
         },
         "tags" : [ "slot-controller" ]
+      }
+    },
+    "/api/v1/webhooks/delivery-tracking" : {
+      "post" : {
+        "operationId" : "receiveDeliveryTrackingWebhook",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Webhook-Timestamp",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Webhook-Signature",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DeliveryTrackingWebhookRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "summary" : "택배 배송현황 웹훅 수신",
+        "tags" : [ "delivery-tracking-webhook-controller" ]
       }
     },
     "/api/v1/workshop" : {

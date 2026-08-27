@@ -1218,11 +1218,11 @@ X-Access-Token: {accessToken}
 - 정책:
   - 비회원 접근 토큰은 HMAC 서명과 만료 시각을 검증한 뒤 서명 토큰 전체의 SHA-256 해시를 DB 저장값과 비교한다. 서명 없는 32자 16진수 토큰은 허용하지 않으며, 신규 토큰에서 추출한 nonce만으로 서명·만료 검사를 우회할 수 없다.
   - 비회원·회원 주문 상세는 수령인 이름·전화·주소를 포함하므로 `Cache-Control: no-store`로 반환한다.
-  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감, 배송 추적 정보와 배송지를 반환한다. 배송지는 소유권이 확인된 상세에서만 복호화하며 `PICKUP`은 `shippingAddress=null`이다.
+  - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감, 배송 추적 정보와 배송지를 반환한다. 배송 출발 뒤에는 `carrierCode`, `carrier`, `trackingNumber`, 외부 배송조회 등록 상태, 현재 택배 상태·표시 문구·갱신 시각과 시간순 `trackingEvents`를 반환한다. 배송지는 소유권이 확인된 상세에서만 복호화하며 `PICKUP`은 `shippingAddress=null`이다.
   - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `productAmount`는 할인 전 상품 합계, `totalAmount`는 상품 합계와 배송비에서 쿠폰만 차감한 금액, `pgPaidAmount`는 여기서 적립금까지 차감해 PG로 승인한 금액이다. 픽업 주문의 배송비는 0원이다.
   - 쿠폰은 배송비를 제외한 상품 금액에 회원당 1장만 적용한다. `rewardEarnBase`는 상품 금액에서 쿠폰 할인과 적립금 사용을 뺀 신규 적립 기준이며, `issuedCouponId`는 쿠폰을 쓰지 않은 주문에서 `null`이다.
   - 각 항목의 `grossAmount`, `couponDiscountAmount`, `rewardUsedAmount`, `netPaidAmount`는 주문 전체 혜택을 원 단위로 비례 배분한 불변 스냅샷이다. 항목 합계는 주문의 상품·쿠폰·적립금·적립 기준 금액과 각각 일치한다.
-  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다. 배송 출발 뒤에는 `carrier`, `trackingNumber`를 함께 반환한다.
+  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - 주문 전액 취소는 PG 결제액과 사용 적립금을 각각 취소·복원하고, 취소 시점에도 유효한 쿠폰만 다시 사용할 수 있게 한다. 사용 쿠폰이 이미 만료됐다면 상태를 `EXPIRED`로 바꾸되 원 결제 시도·주문 연결과 사용 시각은 감사 이력으로 유지한다.
   - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
@@ -1548,7 +1548,7 @@ POST /api/v1/admin/orders/{id}/mark-shipped
 Authorization: Bearer {token}
 Content-Type: application/json
 
-{ "carrier": "CJ대한통운", "trackingNumber": "123456789012" }
+{ "carrier": "CJ대한통운", "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012" }
 ```
 
 ```json
@@ -1556,7 +1556,7 @@ Content-Type: application/json
 ```
 
 ```json
-{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15", "carrier": "CJ대한통운", "trackingNumber": "123456789012" }
+{ "orderId": 5, "status": "SHIPPED", "expectedShipDate": "2026-04-15", "carrier": "CJ대한통운", "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012", "trackingRegistrationStatus": "PENDING", "trackingStatus": "PENDING", "trackingStatusText": "배송조회 등록 대기", "trackingUpdatedAt": null }
 ```
 
 ```json
@@ -1566,9 +1566,29 @@ Content-Type: application/json
 - 정책:
   - `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서만 허용한다.
   - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
-  - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. 두 값은 fulfillment에 한 쌍으로 저장하고 고객·관리자 상세에 노출한다.
+  - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. `carrierCode`는 선택값으로 기존 클라이언트와 호환하며 새 관리자 화면은 지원 택배사 enum을 반드시 선택한다.
+  - `carrierCode`가 있는 신규 출고는 배송조회 등록 대기 상태가 된다. 매분 25초 배치가 외부 서비스에 등록하고 일시 실패는 최대 10회 재시도한다. 연동 설정이 꺼져 있으면 출고 자체는 정상 처리하고 등록 대기를 유지한다.
+  - 택배사 배송 완료 웹훅은 배송조회 상태와 이력만 갱신한다. 주문 `DELIVERED` 전이는 적립금과 후기 요청을 발생시키므로 관리자가 별도 API로 확정한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
+
+#### 2.7.6.1 택배 배송현황 웹훅
+
+```http
+POST /api/v1/webhooks/delivery-tracking
+Content-Type: application/json
+X-Webhook-Timestamp: {unix-seconds 또는 ISO-8601}
+X-Webhook-Signature: {HMAC-SHA256 hex}
+```
+
+- 성공: `200 OK`
+- 인증 실패: `401 UNAUTHORIZED`
+- 정책:
+  - 서명 입력은 `{timestamp}.{원문 JSON 바이트}`이며 `DELIVERY_WEBHOOK_SECRET`으로 HMAC-SHA256을 계산한다.
+  - 서버 현재 시각과 5분 넘게 차이 나는 요청은 재전송 공격으로 보고 거절한다.
+  - `clientId=order-{orderId}`이고 현재 fulfillment의 택배사 코드·운송장 번호와 일치하는 항목만 반영한다.
+  - 웹훅 경로는 세션·CSRF 인증 대신 위 HMAC 서명을 신뢰 경계로 사용한다.
+  - 최초 설정은 연동을 끈 상태에서 운영 서버에 `DELIVERY_WEBHOOK_SECRET`을 먼저 배포하고 같은 secret으로 웹훅 URL을 등록한다. 발급된 `endpointId`와 API 키를 설정한 뒤 `DELIVERY_TRACKING_ENABLED=true`로 전환한다.
 
 #### 2.7.7 주문 처리 이력 조회
 

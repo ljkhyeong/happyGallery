@@ -112,7 +112,9 @@ dispatch 준비 트랜잭션에서는 주문이 `PICKUP_READY`이고 픽업 마�
 - `order_items.product_name`과 `unit_price`는 prepare에서 확정한 상품 표시와 단가를 저장한다. 상품명이 바뀌어도 과거 주문에는 결제 당시 이름을 보여준다.
 - 배송 주문은 서버 설정 `app.order.shipping-fee`를 결제 금액에 한 번 더하고 `orders.shipping_fee`에 저장한다. 픽업 주문의 배송비는 항상 0원이다.
 - 주문 거절·고객 취소·자동 환불·지연 거절의 전액 환불은 배송비가 포함된 `order.totalAmount`를 사용한다.
-- 배송 출발 시 `carrier`, `tracking_number`를 함께 받아 fulfillment에 저장하고 고객·관리자 상세에 같은 운송 정보를 반환한다.
+- 배송 출발 시 `carrier_code`, `carrier`, `tracking_number`를 함께 받아 fulfillment에 저장하고 고객·관리자 상세에 같은 운송 정보를 반환한다. 신규 관리자 화면은 지원 택배사를 선택하게 하되 기존 자유 문자열 `carrier` 계약은 호환을 위해 유지한다.
+- 외부 배송조회 등록은 출고 트랜잭션 밖의 매분 배치가 처리한다. 처리 중 중단된 작업은 5분 뒤 회수하며 지수 지연으로 최대 10회 재시도한다.
+- 외부 배송 상태와 진행 이력은 서명 검증을 통과한 웹훅으로 갱신한다. 택배사 `DELIVERED`는 배송조회 상태만 완료하며, 적립과 후기 요청을 수반하는 주문 `DELIVERED`는 관리자가 별도로 확정한다.
 - 현재 배송비 정책은 주문 금액과 무관한 고정액이며 `GET /api/v1/orders/policy`로 공개한다. 무료 배송 임계값은 두지 않는다.
 
 ---

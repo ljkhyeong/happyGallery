@@ -176,9 +176,12 @@
 - `order_approvals`
   - `id`, `order_id`, `decided_by_admin_id`, `decision`, `reason`, `decided_at`
 - `fulfillments`
-  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `carrier nullable`, `tracking_number nullable`, `version`
+  - `id`, `order_id(unique)`, `type(SHIPPING|PICKUP)`, `expected_ship_date`, `pickup_deadline_at`, `shipping_address_enc nullable`, `carrier nullable`, `tracking_number nullable`, `carrier_code nullable`, 배송조회 등록 상태·요청 ID·시도 횟수·다음 시도/처리 시작 시각·마지막 오류, 현재 배송 상태·표시 문구·갱신 시각, `version`
   - 주문 confirm 시 고객이 선택한 타입으로 함께 생성한다. `SHIPPING`의 구조화 배송지는 AES-GCM 암호문으로 저장하고 소유권이 확인된 고객 주문 상세와 관리자 단건 이행 조회에서만 복호화한다.
   - `carrier`, `tracking_number`는 배송 출발 시 한 쌍으로 저장한다. 픽업에는 둘 다 저장하지 않으며 DB `CHECK`로 강제한다.
+- `shipment_tracking_events`
+  - `id`, `order_id(FK)`, `occurred_at`, `status`, `status_text`, `location nullable`, `description nullable`
+  - 서명된 외부 웹훅이 전달한 최신 진행 목록으로 주문별 이력을 교체한다. 주문 삭제 시 함께 삭제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
   - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`

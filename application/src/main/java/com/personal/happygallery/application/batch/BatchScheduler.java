@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.in.BookingReminderBatc
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
  *   <li>매시간: 예약 D-1·당일 및 8회권 만료 7일 전 알림 catch-up</li>
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
+ *   <li>매분 25초: 외부 배송조회 서비스 운송장 등록</li>
  *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
  *   <li>매일 03:30: 보존 기간이 지난 결제·휴대폰 인증 개인정보 정리</li>
  * </ul>
@@ -40,6 +42,7 @@ public class BatchScheduler {
     private final PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase;
     private final PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase;
     private final PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase;
+    private final ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
@@ -49,7 +52,8 @@ public class BatchScheduler {
                           RefundRecoveryUseCase refundRecoveryUseCase,
                           PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase,
                           PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase,
-                          PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase) {
+                          PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase,
+                          ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
         this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
@@ -59,6 +63,7 @@ public class BatchScheduler {
         this.paymentConfirmRecoveryUseCase = paymentConfirmRecoveryUseCase;
         this.paymentAttemptExpiryBatchUseCase = paymentAttemptExpiryBatchUseCase;
         this.personalDataRetentionBatchUseCase = personalDataRetentionBatchUseCase;
+        this.shipmentTrackingRegistrationUseCase = shipmentTrackingRegistrationUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
@@ -129,6 +134,13 @@ public class BatchScheduler {
     @Scheduled(cron = "5 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPaymentAttemptExpiry() {
         return paymentAttemptExpiryBatchUseCase.expirePendingAttempts();
+    }
+
+    /** 외부 배송조회 서비스에 미등록 운송장을 등록한다. 매분 25초에 실행. */
+    @BatchJob(id = "shipment_tracking_registration", value = "배송조회 등록")
+    @Scheduled(cron = "25 * * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runShipmentTrackingRegistration() {
+        return shipmentTrackingRegistrationUseCase.registerPendingShipments();
     }
 
     /** 보존 기간이 지난 결제·휴대폰 인증·장바구니 병합 기록을 정리한다. 매일 03:30 실행. */

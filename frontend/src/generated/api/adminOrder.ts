@@ -278,6 +278,62 @@ export interface SetExpectedShipDateRequest {
   expectedShipDate?: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type AdminOrderFulfillmentResponseCarrierCode = typeof AdminOrderFulfillmentResponseCarrierCode[keyof typeof AdminOrderFulfillmentResponseCarrierCode] | null;
+
+
+export const AdminOrderFulfillmentResponseCarrierCode = {
+  CJ_LOGISTICS: 'CJ_LOGISTICS',
+  LOTTE: 'LOTTE',
+  HANJIN: 'HANJIN',
+  KOREA_POST: 'KOREA_POST',
+  KYUNGDONG: 'KYUNGDONG',
+  DAESIN: 'DAESIN',
+  LOGEN: 'LOGEN',
+  HAPDONG: 'HAPDONG',
+  COUPANG: 'COUPANG',
+  WOORI: 'WOORI',
+  CU_POST: 'CU_POST',
+  GS_POSTBOX: 'GS_POSTBOX',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AdminOrderFulfillmentResponseTrackingRegistrationStatus = typeof AdminOrderFulfillmentResponseTrackingRegistrationStatus[keyof typeof AdminOrderFulfillmentResponseTrackingRegistrationStatus] | null;
+
+
+export const AdminOrderFulfillmentResponseTrackingRegistrationStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AdminOrderFulfillmentResponseTrackingStatus = typeof AdminOrderFulfillmentResponseTrackingStatus[keyof typeof AdminOrderFulfillmentResponseTrackingStatus] | null;
+
+
+export const AdminOrderFulfillmentResponseTrackingStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  IN_TRANSIT: 'IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  RETURNED: 'RETURNED',
+  CANCELLED: 'CANCELLED',
+  HOLD: 'HOLD',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
 export type AdminOrderFulfillmentResponseType = typeof AdminOrderFulfillmentResponseType[keyof typeof AdminOrderFulfillmentResponseType];
 
 
@@ -295,17 +351,56 @@ export interface AdminOrderShippingAddress {
   recipientName: string;
 }
 
+export type TrackingEventStatus = typeof TrackingEventStatus[keyof typeof TrackingEventStatus];
+
+
+export const TrackingEventStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  IN_TRANSIT: 'IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  RETURNED: 'RETURNED',
+  CANCELLED: 'CANCELLED',
+  HOLD: 'HOLD',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+export interface TrackingEvent {
+  /** @nullable */
+  description: string | null;
+  /** @nullable */
+  location: string | null;
+  occurredAt: string;
+  status: TrackingEventStatus;
+  statusText: string;
+}
+
 export interface AdminOrderFulfillmentResponse {
   /** @nullable */
   carrier: string | null;
+  /** @nullable */
+  carrierCode: AdminOrderFulfillmentResponseCarrierCode;
   /** @nullable */
   expectedShipDate: string | null;
   orderId: number;
   /** @nullable */
   pickupDeadlineAt: string | null;
   shippingAddress: AdminOrderShippingAddress | null;
+  trackingEvents: TrackingEvent[];
   /** @nullable */
   trackingNumber: string | null;
+  /** @nullable */
+  trackingRegistrationStatus: AdminOrderFulfillmentResponseTrackingRegistrationStatus;
+  /** @nullable */
+  trackingStatus: AdminOrderFulfillmentResponseTrackingStatus;
+  /** @nullable */
+  trackingStatusText: string | null;
+  /** @nullable */
+  trackingUpdatedAt: string | null;
   type: AdminOrderFulfillmentResponseType;
 }
 
@@ -343,6 +438,27 @@ export interface AdminOrderHistoryResponse {
   reason: string | null;
 }
 
+/**
+ * @nullable
+ */
+export type ShippingResponseCarrierCode = typeof ShippingResponseCarrierCode[keyof typeof ShippingResponseCarrierCode] | null;
+
+
+export const ShippingResponseCarrierCode = {
+  CJ_LOGISTICS: 'CJ_LOGISTICS',
+  LOTTE: 'LOTTE',
+  HANJIN: 'HANJIN',
+  KOREA_POST: 'KOREA_POST',
+  KYUNGDONG: 'KYUNGDONG',
+  DAESIN: 'DAESIN',
+  LOGEN: 'LOGEN',
+  HAPDONG: 'HAPDONG',
+  COUPANG: 'COUPANG',
+  WOORI: 'WOORI',
+  CU_POST: 'CU_POST',
+  GS_POSTBOX: 'GS_POSTBOX',
+} as const;
+
 export type ShippingResponseStatus = typeof ShippingResponseStatus[keyof typeof ShippingResponseStatus];
 
 
@@ -366,16 +482,82 @@ export const ShippingResponseStatus = {
   COMPLETED: 'COMPLETED',
 } as const;
 
+/**
+ * @nullable
+ */
+export type ShippingResponseTrackingRegistrationStatus = typeof ShippingResponseTrackingRegistrationStatus[keyof typeof ShippingResponseTrackingRegistrationStatus] | null;
+
+
+export const ShippingResponseTrackingRegistrationStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  ACTIVE: 'ACTIVE',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type ShippingResponseTrackingStatus = typeof ShippingResponseTrackingStatus[keyof typeof ShippingResponseTrackingStatus] | null;
+
+
+export const ShippingResponseTrackingStatus = {
+  PENDING: 'PENDING',
+  REGISTERED: 'REGISTERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  IN_TRANSIT: 'IN_TRANSIT',
+  OUT_FOR_DELIVERY: 'OUT_FOR_DELIVERY',
+  DELIVERED: 'DELIVERED',
+  FAILED: 'FAILED',
+  RETURNED: 'RETURNED',
+  CANCELLED: 'CANCELLED',
+  HOLD: 'HOLD',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
 export interface ShippingResponse {
   /** @nullable */
   carrier: string | null;
+  /** @nullable */
+  carrierCode: ShippingResponseCarrierCode;
   /** @nullable */
   expectedShipDate: string | null;
   orderId: number;
   status: ShippingResponseStatus;
   /** @nullable */
   trackingNumber: string | null;
+  /** @nullable */
+  trackingRegistrationStatus: ShippingResponseTrackingRegistrationStatus;
+  /** @nullable */
+  trackingStatus: ShippingResponseTrackingStatus;
+  /** @nullable */
+  trackingStatusText: string | null;
+  /** @nullable */
+  trackingUpdatedAt: string | null;
 }
+
+/**
+ * @nullable
+ */
+export type MarkShippedRequestCarrierCode = typeof MarkShippedRequestCarrierCode[keyof typeof MarkShippedRequestCarrierCode] | null;
+
+
+export const MarkShippedRequestCarrierCode = {
+  CJ_LOGISTICS: 'CJ_LOGISTICS',
+  LOTTE: 'LOTTE',
+  HANJIN: 'HANJIN',
+  KOREA_POST: 'KOREA_POST',
+  KYUNGDONG: 'KYUNGDONG',
+  DAESIN: 'DAESIN',
+  LOGEN: 'LOGEN',
+  HAPDONG: 'HAPDONG',
+  COUPANG: 'COUPANG',
+  WOORI: 'WOORI',
+  CU_POST: 'CU_POST',
+  GS_POSTBOX: 'GS_POSTBOX',
+} as const;
 
 export interface MarkShippedRequest {
   /**
@@ -383,6 +565,8 @@ export interface MarkShippedRequest {
      * @maxLength 50
      */
   carrier: string;
+  /** @nullable */
+  carrierCode?: MarkShippedRequestCarrierCode;
   /**
      * @minLength 0
      * @maxLength 100

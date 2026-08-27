@@ -10,8 +10,14 @@ import com.personal.happygallery.application.order.port.in.OrderProductionUseCas
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.ProposeDelayCommand;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingEvent;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingUpdate;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
+import com.personal.happygallery.application.order.port.out.ShipmentTrackingProvider;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -23,6 +29,9 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderDelayDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import com.personal.happygallery.domain.order.TrackingRegistrationStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.Refund;
@@ -47,11 +56,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -79,9 +91,13 @@ class OrderProductionUseCaseIT {
     @Autowired OrderCustomerActionUseCase orderCustomerActionUseCase;
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderShippingUseCase orderShippingService;
+    @Autowired ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
+    @Autowired ShipmentTrackingWebhookUseCase shipmentTrackingWebhookUseCase;
+    @Autowired ShipmentTrackingEventPort shipmentTrackingEventPort;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     @Autowired JdbcTemplate jdbcTemplate;
+    @MockitoBean ShipmentTrackingProvider shipmentTrackingProvider;
     OrderTestHelper orderHelper;
 
     @BeforeEach
@@ -523,6 +539,28 @@ class OrderProductionUseCaseIT {
         assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.SHIPPED);
 
+        when(shipmentTrackingProvider.isEnabled()).thenReturn(true);
+        when(shipmentTrackingProvider.register(any()))
+                .thenReturn(ShipmentTrackingProvider.RegistrationResult.success("tracking-request-1"));
+        assertThat(shipmentTrackingRegistrationUseCase.registerPendingShipments().successCount())
+                .isEqualTo(1);
+
+        shipmentTrackingWebhookUseCase.apply(List.of(new TrackingUpdate(
+                order.getId(),
+                ShippingCarrier.CJ_LOGISTICS,
+                "1234567890",
+                ShipmentTrackingStatus.DELIVERED,
+                "배송완료",
+                List.of(new TrackingEvent(
+                        LocalDateTime.of(2026, 8, 27, 14, 30),
+                        ShipmentTrackingStatus.DELIVERED,
+                        "배송완료",
+                        "서울 강남",
+                        null)))));
+        assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
+                .as("택배사 완료 웹훅은 주문 완료를 자동 처리하지 않는다")
+                .isEqualTo(OrderStatus.SHIPPED);
+
         // SHIPPED → DELIVERED
         orderShippingService.markDelivered(order.getId(), 1L);
         assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
@@ -542,6 +580,16 @@ class OrderProductionUseCaseIT {
                     OrderApprovalDecision.DELIVER);
             softly.assertThat(fulfillment.getCarrier()).isEqualTo("CJ대한통운");
             softly.assertThat(fulfillment.getTrackingNumber()).isEqualTo("1234567890");
+            softly.assertThat(fulfillment.getCarrierCode()).isEqualTo(ShippingCarrier.CJ_LOGISTICS);
+            softly.assertThat(fulfillment.getTrackingRegistrationStatus())
+                    .isEqualTo(TrackingRegistrationStatus.COMPLETED);
+            softly.assertThat(fulfillment.getTrackingStatus())
+                    .isEqualTo(ShipmentTrackingStatus.DELIVERED);
+            softly.assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()))
+                    .hasSize(1)
+                    .first()
+                    .extracting("statusText", "location")
+                    .containsExactly("배송완료", "서울 강남");
             softly.assertThat(notificationOutboxRepository.findAll())
                     .extracting("eventType")
                     .contains(

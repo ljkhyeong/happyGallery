@@ -12,6 +12,9 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final OrderNotificationSupport orderNotificationSupport;
     private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final OrderRewardAccrualService rewardAccrualService;
+    private final Clock clock;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
                                        OrderStorePort orderStore,
@@ -41,7 +45,8 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
                                        OrderHistoryPort orderHistoryPort,
                                        OrderNotificationSupport orderNotificationSupport,
                                        ReviewNotificationPublisher reviewNotificationPublisher,
-                                       OrderRewardAccrualService rewardAccrualService) {
+                                       OrderRewardAccrualService rewardAccrualService,
+                                       Clock clock) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
@@ -49,6 +54,7 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
         this.orderNotificationSupport = orderNotificationSupport;
         this.reviewNotificationPublisher = reviewNotificationPublisher;
         this.rewardAccrualService = rewardAccrualService;
+        this.clock = clock;
     }
 
     /**
@@ -77,11 +83,31 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @OptimisticLockRetryable
     public ShippingResult markShipped(
             Long orderId, String carrier, String trackingNumber, Long adminId) {
+        return markShipped(
+                orderId,
+                ShippingCarrier.fromDisplayName(carrier).orElse(null),
+                carrier,
+                trackingNumber,
+                adminId);
+    }
+
+    @Override
+    @OptimisticLockRetryable
+    public ShippingResult markShipped(
+            Long orderId,
+            ShippingCarrier carrierCode,
+            String carrier,
+            String trackingNumber,
+            Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
         order.markShipped();
-        fulfillment.recordShipment(carrier, trackingNumber);
+        if (carrierCode != null) {
+            fulfillment.recordShipment(carrierCode, trackingNumber, LocalDateTime.now(clock));
+        } else {
+            fulfillment.recordShipment(carrier, trackingNumber);
+        }
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));

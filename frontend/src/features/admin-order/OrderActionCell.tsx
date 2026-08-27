@@ -3,6 +3,27 @@ import { Alert, Button, Form, InputGroup, Modal } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
 import { parseApiDateTime } from "@/shared/lib";
 import type { OrderMutations } from "./useOrderMutations";
+import {
+  MarkShippedRequestCarrierCode,
+  type MarkShippedRequestCarrierCode as GeneratedShippingCarrierCode,
+} from "@/generated/api/adminOrder";
+
+type ShippingCarrierCode = NonNullable<GeneratedShippingCarrierCode>;
+
+const SHIPPING_CARRIERS: ReadonlyArray<{ code: ShippingCarrierCode; name: string }> = [
+  { code: MarkShippedRequestCarrierCode.CJ_LOGISTICS, name: "CJ대한통운" },
+  { code: MarkShippedRequestCarrierCode.LOTTE, name: "롯데택배" },
+  { code: MarkShippedRequestCarrierCode.HANJIN, name: "한진택배" },
+  { code: MarkShippedRequestCarrierCode.KOREA_POST, name: "우체국택배" },
+  { code: MarkShippedRequestCarrierCode.KYUNGDONG, name: "경동택배" },
+  { code: MarkShippedRequestCarrierCode.DAESIN, name: "대신택배" },
+  { code: MarkShippedRequestCarrierCode.LOGEN, name: "로젠택배" },
+  { code: MarkShippedRequestCarrierCode.HAPDONG, name: "합동택배" },
+  { code: MarkShippedRequestCarrierCode.COUPANG, name: "쿠팡로지스틱스" },
+  { code: MarkShippedRequestCarrierCode.WOORI, name: "우리택배" },
+  { code: MarkShippedRequestCarrierCode.CU_POST, name: "CU 편의점택배" },
+  { code: MarkShippedRequestCarrierCode.GS_POSTBOX, name: "GS Postbox" },
+];
 
 interface Props {
   orderId: number;
@@ -80,7 +101,7 @@ function RiskActionButton({
 export function OrderActionCell({ orderId, status, fulfillmentType, mutations }: Props) {
   const [pickupDeadline, setPickupDeadline] = useState("");
   const [shipDateValue, setShipDateValue] = useState("");
-  const [carrier, setCarrier] = useState("");
+  const [carrierCode, setCarrierCode] = useState<ShippingCarrierCode | "">("");
   const [trackingNumber, setTrackingNumber] = useState("");
 
   const disabled = mutations.pendingId === orderId;
@@ -207,18 +228,32 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
               출고일 저장
             </Button>
           </InputGroup>
-          <Form.Control size="sm" aria-label="택배사" placeholder="택배사"
-            value={carrier} onChange={(e) => setCarrier(e.target.value)}
-            style={{ width: 120 }} />
+          <Form.Select size="sm" aria-label="택배사"
+            value={carrierCode ?? ""}
+            onChange={(e) => setCarrierCode(e.target.value as ShippingCarrierCode | "")}
+            style={{ width: 160 }}>
+            <option value="">택배사 선택</option>
+            {SHIPPING_CARRIERS.map((candidate) => (
+              <option key={candidate.code} value={candidate.code}>{candidate.name}</option>
+            ))}
+          </Form.Select>
           <Form.Control size="sm" aria-label="운송장 번호" placeholder="운송장 번호"
             value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)}
             style={{ width: 170 }} />
           <Button size="sm" variant="primary"
-            disabled={disabled || !carrier.trim() || !trackingNumber.trim()}
-            onClick={() => mutations.shipped.mutate({
-              id: orderId,
-              body: { carrier: carrier.trim(), trackingNumber: trackingNumber.trim() },
-            })}>
+            disabled={disabled || !carrierCode || !trackingNumber.trim()}
+            onClick={() => {
+              const selectedCarrier = SHIPPING_CARRIERS.find((item) => item.code === carrierCode);
+              if (!selectedCarrier || !carrierCode) return;
+              mutations.shipped.mutate({
+                id: orderId,
+                body: {
+                  carrier: selectedCarrier.name,
+                  carrierCode,
+                  trackingNumber: trackingNumber.trim(),
+                },
+              });
+            }}>
             {pending ? "처리 중..." : "배송 출발"}
           </Button>
         </div>

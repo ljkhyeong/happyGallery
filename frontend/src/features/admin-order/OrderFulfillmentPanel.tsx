@@ -2,7 +2,7 @@ import { Alert } from "react-bootstrap";
 import { fetchOrderFulfillment } from "./api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDate } from "@/shared/lib";
+import { formatDate, formatDateTime } from "@/shared/lib";
 import type { AdminOrderFulfillmentResponse } from "@/shared/types";
 import { ShipmentTrackingActions } from "@/features/order/ShipmentTrackingActions";
 
@@ -51,6 +51,29 @@ export function OrderFulfillmentDetails({
             />
           )}
         </>
+      )}
+      {fulfillment.trackingStatusText && (
+        <div className="mt-2">
+          택배사 배송 상태: <strong>{fulfillment.trackingStatusText}</strong>
+          {fulfillment.trackingUpdatedAt && (
+            <span className="text-muted ms-2">
+              ({formatDateTime(fulfillment.trackingUpdatedAt)} 기준)
+            </span>
+          )}
+        </div>
+      )}
+      {fulfillment.trackingRegistrationStatus === "FAILED" && (
+        <div className="text-danger mt-1">배송조회 등록에 실패했습니다. 서버 로그와 연동 설정을 확인하세요.</div>
+      )}
+      {fulfillment.trackingEvents.length > 0 && (
+        <ol className="mt-2 mb-0 ps-3">
+          {[...fulfillment.trackingEvents].reverse().map((event) => (
+            <li key={`${event.occurredAt}-${event.status}-${event.location ?? ""}`}>
+              {event.statusText}{event.location ? ` · ${event.location}` : ""}
+              <span className="text-muted ms-2">{formatDateTime(event.occurredAt)}</span>
+            </li>
+          ))}
+        </ol>
       )}
     </Alert>
   );
