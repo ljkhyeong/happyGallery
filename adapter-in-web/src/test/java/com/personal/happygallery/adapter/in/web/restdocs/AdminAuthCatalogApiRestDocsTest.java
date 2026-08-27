@@ -27,9 +27,6 @@ import com.personal.happygallery.application.booking.port.in.BookingCalendarUseC
 import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.CalendarView;
 import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.DayOverrideMode;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotItem;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotResult;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotStatus;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -148,21 +145,6 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(classManagementUseCase.createClass(any())).thenReturn(bookingClass);
         when(classQueryUseCase.listAll()).thenReturn(List.of(bookingClass));
         when(slotQueryUseCase.listByClass(1L)).thenReturn(List.of(slot));
-        when(slotManagementUseCase.createSlot(any(), any())).thenReturn(slot);
-        when(slotManagementUseCase.previewBulkSlots(any())).thenReturn(new BulkSlotResult(List.of(
-                new BulkSlotItem(
-                        null,
-                        LocalDateTime.of(2026, 5, 7, 19, 0),
-                        LocalDateTime.of(2026, 5, 7, 21, 0),
-                        BulkSlotStatus.CREATABLE,
-                        false))));
-        when(slotManagementUseCase.createBulkSlots(any())).thenReturn(new BulkSlotResult(List.of(
-                new BulkSlotItem(
-                        42L,
-                        LocalDateTime.of(2026, 5, 7, 19, 0),
-                        LocalDateTime.of(2026, 5, 7, 21, 0),
-                        BulkSlotStatus.CREATED,
-                        false))));
         when(slotManagementUseCase.deactivateSlot(42L)).thenReturn(slot);
         when(slotManagementUseCase.activateSlot(42L)).thenReturn(slot);
         BookingCalendarSettings calendarSettings = new BookingCalendarSettings(
@@ -504,46 +486,6 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 슬롯 생성 API를 문서화한다")
-    void admin_create_slot() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/slots")
-                        .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token")
-                        .contentType(APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": 1,
-                                  "startAt": "2026-05-07T19:00:00"
-                                }
-                                """))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("관리자 슬롯 일괄 미리보기 API를 문서화한다")
-    void admin_preview_bulk_slots() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/slots/bulk/preview")
-                        .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token")
-                        .contentType(APPLICATION_JSON)
-                        .content(bulkSlotRequest()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.creatableCount").value(1));
-    }
-
-    @Test
-    @DisplayName("관리자 슬롯 일괄 생성 API를 문서화한다")
-    void admin_create_bulk_slots() throws Exception {
-        mockMvc.perform(post("/api/v1/admin/slots/bulk")
-                        .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token")
-                        .contentType(APPLICATION_JSON)
-                        .content(bulkSlotRequest()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.createdCount").value(1));
-    }
-
-    @Test
     @DisplayName("관리자 슬롯 비활성화 API를 문서화한다")
     void admin_deactivate_slot() throws Exception {
         mockMvc.perform(patch("/api/v1/admin/slots/{id}/deactivate", 42L)
@@ -662,17 +604,5 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 "https://smartstore.naver.com/happygallery",
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         return profile;
-    }
-
-    private static String bulkSlotRequest() {
-        return """
-                {
-                  "classId": 1,
-                  "dateFrom": "2026-05-07",
-                  "dateTo": "2026-05-31",
-                  "weekdays": ["THURSDAY", "SATURDAY"],
-                  "startTimes": ["10:00:00", "14:00:00"]
-                }
-                """;
     }
 }

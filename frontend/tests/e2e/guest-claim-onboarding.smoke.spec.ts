@@ -4,15 +4,13 @@ import {
   completeGuestAuthGate,
   completePhoneVerification,
   createAdminProduct,
-  createAdminSlot,
   fetchClasses,
-  findUniqueSlotStart,
+  findAvailableBookingSlot,
   installTossPaymentStub,
   makePhoneNumber,
   makeUniqueLabel,
   readRouterState,
   signupCustomer,
-  toDateInput,
 } from "./support";
 
 test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예약을 claim 할 수 있다", async ({ page, request }) => {
@@ -24,8 +22,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
     .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
-  const slotStart = await findUniqueSlotStart(request, bookingClass.id, 7, 13, 5);
-  const slotDate = toDateInput(slotStart);
+  const slot = await findAvailableBookingSlot(request, bookingClass.id, 7);
+  const slotDate = slot.startAt.slice(0, 10);
   const guestPhone = makePhoneNumber(makeUniqueLabel("p8-claim"));
   const guestName = makeUniqueLabel("P8 클레임");
   const memberPhone = `${guestPhone.slice(0, 3)}-${guestPhone.slice(3, 7)}-${guestPhone.slice(7)}`;
@@ -35,11 +33,6 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
     price: 31000,
     quantity: 5,
   });
-  const slot = await createAdminSlot(request, {
-    classId: bookingClass.id,
-    startAt: slotStart,
-  });
-
   await page.goto("/orders/new");
   await page.getByRole("button", { name: "비회원 다중 상품 주문 계속" }).click();
   await completePhoneVerification(page, guestPhone);

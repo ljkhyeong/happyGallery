@@ -7,13 +7,12 @@ import type {
   BookingDetailResponse,
   ClassResponse,
   MyBookingDetail,
+  PublicSlotResponse,
   SendVerificationRequestPurpose,
 } from "../../src/generated/api/booking";
 import type {
   CreateProductRequest,
-  CreateSlotRequest,
   ProductResponse,
-  SlotResponse,
 } from "../../src/generated/api/adminCatalog";
 import type { LoginRequest, LoginResponse } from "../../src/generated/api/adminAuth";
 import type {
@@ -51,10 +50,6 @@ type AdminProductFixtureInput = Pick<
   CreateProductRequest,
   "name" | "price" | "quantity"
 > & Partial<Pick<CreateProductRequest, "type">>;
-
-type AdminSlotFixtureInput = Pick<CreateSlotRequest, "classId"> & {
-  startAt: Date;
-};
 
 interface DevVerificationCodeFixtureResponse {
   code: string;
@@ -112,30 +107,24 @@ export function plusDays(days: number, hour: number, minute: number, durationMin
   return { start, end };
 }
 
-export async function findUniqueSlotStart(
+export async function findAvailableBookingSlot(
   request: APIRequestContext,
   classId: number,
-  days: number,
-  hour: number,
-  minute: number,
-) {
-  const existingSlots = await fetchAdminSlots(request, classId);
-  const occupiedStarts = new Set(existingSlots.map((slot) => slot.startAt.slice(0, 16)));
-
-  const start = new Date();
-  start.setDate(start.getDate() + days);
-  start.setHours(hour, minute, 0, 0);
-
-  let attempts = 0;
-  while (occupiedStarts.has(toDateTimeLocalInput(start))) {
-    start.setMinutes(start.getMinutes() + 1);
-    attempts += 1;
-    if (attempts > 180) {
-      throw new Error(`Could not find a unique slot start for class=${classId}`);
+  startDayOffset: number,
+  excludedSlotIds: ReadonlySet<number> = new Set(),
+): Promise<PublicSlotResponse> {
+  for (let dayOffset = startDayOffset; dayOffset < 14; dayOffset += 1) {
+    const date = new Date();
+    date.setDate(date.getDate() + dayOffset);
+    const slots = await apiGet<PublicSlotResponse[]>(request, "/slots", {
+      query: { classId, date: toDateInput(date) },
+    });
+    const available = slots.find((slot) => !excludedSlotIds.has(slot.id));
+    if (available) {
+      return available;
     }
   }
-
-  return start;
+  throw new Error(`Could not find an available calendar slot for class=${classId}`);
 }
 
 export function toDateInput(date: Date): string {
@@ -481,29 +470,6 @@ export async function createAdminProduct(
   return product;
 }
 
-export async function fetchAdminSlots(request: APIRequestContext, classId: number): Promise<SlotResponse[]> {
-  return apiGet<SlotResponse[]>(request, "/admin/slots", { admin: true, query: { classId } });
-}
-
-export async function createAdminSlot(
-  request: APIRequestContext,
-  body: AdminSlotFixtureInput,
-): Promise<SlotResponse> {
-  const slot = await apiPost<SlotResponse>(
-    request,
-    "/admin/slots",
-    {
-      classId: body.classId,
-      startAt: toDateTimeLocalInput(body.startAt),
-    },
-    { admin: true },
-  );
-  if (!slot) {
-    throw new Error("Admin slot create response was empty");
-  }
-  return slot;
-}
-
 export async function fetchAdminBookings(
   request: APIRequestContext,
   date: string,
@@ -561,24 +527,6 @@ export async function waitForProduct(
     throw new Error(`Could not find product: ${name}`);
   }
   return product;
-}
-
-export async function waitForSlot(
-  request: APIRequestContext,
-  classId: number,
-  startAtPrefix: string,
-): Promise<SlotResponse> {
-  await expect.poll(async () => {
-    const slots = await fetchAdminSlots(request, classId);
-    return slots.some((slot) => slot.startAt.startsWith(startAtPrefix));
-  }).toBeTruthy();
-
-  const slots = await fetchAdminSlots(request, classId);
-  const slot = slots.find((item) => item.startAt.startsWith(startAtPrefix));
-  if (!slot) {
-    throw new Error(`Could not find slot for class=${classId}, start=${startAtPrefix}`);
-  }
-  return slot;
 }
 
 export async function waitForBookingByPhone(

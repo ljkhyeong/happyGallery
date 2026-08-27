@@ -1670,96 +1670,6 @@
         "required" : [ "date", "endTime", "id", "startTime" ],
         "type" : "object"
       },
-      "BulkSlotItemResponse" : {
-        "properties" : {
-          "bufferBlocked" : {
-            "type" : "boolean"
-          },
-          "endAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "slotId" : {
-            "format" : "int64",
-            "type" : [ "integer", "null" ]
-          },
-          "startAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          },
-          "status" : {
-            "enum" : [ "CREATABLE", "CREATED", "SKIPPED_DUPLICATE", "SKIPPED_PAST" ],
-            "type" : "string"
-          }
-        },
-        "required" : [ "bufferBlocked", "endAt", "slotId", "startAt", "status" ],
-        "type" : "object"
-      },
-      "BulkSlotRequest" : {
-        "properties" : {
-          "classId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "dateFrom" : {
-            "format" : "date",
-            "type" : "string"
-          },
-          "dateTo" : {
-            "format" : "date",
-            "type" : "string"
-          },
-          "startTimes" : {
-            "items" : {
-              "type" : "string"
-            },
-            "maxItems" : 24,
-            "minItems" : 0,
-            "type" : "array",
-            "uniqueItems" : true
-          },
-          "weekdays" : {
-            "items" : {
-              "enum" : [ "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY" ],
-              "type" : "string"
-            },
-            "maxItems" : 7,
-            "minItems" : 0,
-            "type" : "array",
-            "uniqueItems" : true
-          }
-        },
-        "required" : [ "classId", "dateFrom", "dateTo", "startTimes", "weekdays" ],
-        "type" : "object"
-      },
-      "BulkSlotResponse" : {
-        "properties" : {
-          "creatableCount" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "createdCount" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "items" : {
-            "items" : {
-              "$ref" : "#/components/schemas/BulkSlotItemResponse"
-            },
-            "type" : "array"
-          },
-          "skippedCount" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "totalCount" : {
-            "format" : "int32",
-            "type" : "integer"
-          }
-        },
-        "required" : [ "creatableCount", "createdCount", "items", "skippedCount", "totalCount" ],
-        "type" : "object"
-      },
       "CancelResponse" : {
         "properties" : {
           "bookingId" : {
@@ -2520,20 +2430,6 @@
           }
         },
         "required" : [ "reason" ],
-        "type" : "object"
-      },
-      "CreateSlotRequest" : {
-        "properties" : {
-          "classId" : {
-            "format" : "int64",
-            "type" : "integer"
-          },
-          "startAt" : {
-            "format" : "date-time",
-            "type" : "string"
-          }
-        },
-        "required" : [ "classId", "startAt" ],
         "type" : "object"
       },
       "CsrfToken" : {
@@ -10219,88 +10115,6 @@
                     "$ref" : "#/components/schemas/SlotResponse"
                   },
                   "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-slot-controller" ]
-      },
-      "post" : {
-        "operationId" : "createSlot",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/CreateSlotRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "201" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/SlotResponse"
-                }
-              }
-            },
-            "description" : "Created"
-          }
-        },
-        "tags" : [ "admin-slot-controller" ]
-      }
-    },
-    "/api/v1/admin/slots/bulk" : {
-      "post" : {
-        "operationId" : "createBulkSlots",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/BulkSlotRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/BulkSlotResponse"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "admin-slot-controller" ]
-      }
-    },
-    "/api/v1/admin/slots/bulk/preview" : {
-      "post" : {
-        "operationId" : "previewBulkSlots",
-        "requestBody" : {
-          "content" : {
-            "application/json" : {
-              "schema" : {
-                "$ref" : "#/components/schemas/BulkSlotRequest"
-              }
-            }
-          },
-          "required" : true
-        },
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "$ref" : "#/components/schemas/BulkSlotResponse"
                 }
               }
             },

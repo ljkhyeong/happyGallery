@@ -22,8 +22,6 @@ public interface SlotReaderPort {
             LocalDateTime sourceStartAt,
             LocalDateTime sourceEndWithBuffer);
 
-    boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
-
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
     List<Slot> findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(

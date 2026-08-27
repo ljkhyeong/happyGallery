@@ -1,17 +1,15 @@
 import { expect, test } from "@playwright/test";
 import {
   createAdminProduct,
-  createAdminSlot,
   extractFirstNumber,
   fetchClasses,
   fetchMyBookingSlot,
-  findUniqueSlotStart,
+  findAvailableBookingSlot,
   installTossPaymentStub,
   loginCustomer,
   logoutCustomer,
   makeUniqueLabel,
   signupCustomer,
-  toDateInput,
 } from "./support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
@@ -83,18 +81,14 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
     .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
-  const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 6, 15, 5);
-  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 7, 18, 20);
-  const slotDate = toDateInput(firstSlotStart);
-
-  const slot = await createAdminSlot(request, {
-    classId: bookingClass.id,
-    startAt: firstSlotStart,
-  });
-  const secondSlot = await createAdminSlot(request, {
-    classId: bookingClass.id,
-    startAt: secondSlotStart,
-  });
+  const slot = await findAvailableBookingSlot(request, bookingClass.id, 6);
+  const secondSlot = await findAvailableBookingSlot(
+    request,
+    bookingClass.id,
+    7,
+    new Set([slot.id]),
+  );
+  const slotDate = slot.startAt.slice(0, 10);
 
   await signupCustomer(page, "p8-member-booking");
 
@@ -128,8 +122,8 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   const booked = await fetchMyBookingSlot(page, bookingId);
   const targetSlot = booked.slotId === slot.id ? secondSlot : slot;
   const targetDate = targetSlot.id === slot.id
-    ? toDateInput(firstSlotStart)
-    : toDateInput(secondSlotStart);
+    ? slot.startAt.slice(0, 10)
+    : secondSlot.startAt.slice(0, 10);
   expect([slot.id, secondSlot.id]).toContain(booked.slotId);
 
   await expect(page.getByText(bookingClass.name)).toBeVisible();

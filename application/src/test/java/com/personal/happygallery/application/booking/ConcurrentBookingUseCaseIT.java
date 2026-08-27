@@ -4,7 +4,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.BookingReposito
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -48,7 +48,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 class ConcurrentBookingUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
-    @Autowired SlotManagementUseCase slotManagementUseCase;
+    @Autowired SlotQueryUseCase slotQueryUseCase;
     @Autowired ClassRepository classRepository;
     @Autowired BookingRepository bookingRepository;
     @Autowired GuestRepository guestRepository;
@@ -155,9 +155,9 @@ class ConcurrentBookingUseCaseIT {
         }
     }
 
-    @DisplayName("예약 확정과 버퍼 슬롯 생성을 동시에 실행해도 새 슬롯은 차단된다")
+    @DisplayName("예약 확정과 캘린더 회차 자동 준비를 동시에 실행해도 새 회차는 차단된다")
     @Test
-    void concurrentBookingAndBufferSlotCreation_createdSlotReflectsBooking() throws Exception {
+    void concurrentBookingAndCalendarMaterialization_createdSlotReflectsBooking() throws Exception {
         BookingClass cls = classRepository.save(
                 bookingClass("슬롯 생성 동시성 테스트 클래스", "CONCURRENCY", 120, 50_000L, 30));
         Slot sourceSlot = slotRepository.save(slot(cls, SLOT_START, SLOT_END));
@@ -170,15 +170,20 @@ class ConcurrentBookingUseCaseIT {
                 reserveCapacityInTx(sourceSlot.getId());
                 return null;
             });
-            Future<Slot> creationResult = executor.submit(() -> {
+            Future<?> materializationResult = executor.submit(() -> {
                 startLatch.await();
-                return slotManagementUseCase.createSlot(
-                        cls.getId(), SLOT_END.plusMinutes(15));
+                slotQueryUseCase.listAvailable(cls.getId(), SLOT_START.toLocalDate());
+                return null;
             });
 
             startLatch.countDown();
             bookingResult.get(15, TimeUnit.SECONDS);
-            Slot createdSlot = creationResult.get(15, TimeUnit.SECONDS);
+            materializationResult.get(15, TimeUnit.SECONDS);
+
+            Slot createdSlot = slotRepository.findByBookingClassIdOrderByStartAtDesc(cls.getId()).stream()
+                    .filter(candidate -> candidate.getStartAt().equals(SLOT_END))
+                    .findFirst()
+                    .orElseThrow();
 
             Slot persistedSource = slotRepository.findById(sourceSlot.getId()).orElseThrow();
             Slot persistedCreated = slotRepository.findById(createdSlot.getId()).orElseThrow();

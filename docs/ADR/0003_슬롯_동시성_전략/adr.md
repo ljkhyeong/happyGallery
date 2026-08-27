@@ -32,7 +32,7 @@ ADR-0001에서 낙관적 락용 `bookings.version` 컬럼을 스키마에 확보
 1. 원인 슬롯의 scheduling projection에서 classId와 `[startAt, endAt + bufferMin)` 충돌 범위를 계산
 
 2. classes 행을 SELECT FOR UPDATE로 잠금
-   → 같은 클래스의 슬롯 생성·예약·반납을 직렬화
+   → 같은 클래스의 자동 회차 구체화·예약·반납을 직렬화
 
 3. JpaSlotLockAdapter.lockScope(classId, sourceSlotId, windowStart, windowEnd)
    → native scalar ID 조회로 원인 슬롯과 양방향 충돌 범위를 PK 오름차순 SELECT FOR UPDATE
@@ -85,7 +85,7 @@ native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중
 
 | 락 전략 | 대상 | 이유 |
 |---------|------|------|
-| **비관적 락 (SELECT FOR UPDATE)** | 클래스 행 | 같은 클래스의 슬롯 생성·예약·반납 순서를 직렬화해 phantom 방지 |
+| **비관적 락 (SELECT FOR UPDATE)** | 클래스 행 | 같은 클래스의 자동 회차 구체화·예약·반납 순서를 직렬화해 phantom 방지 |
 | **비관적 락 (SELECT FOR UPDATE)** | 원인 슬롯과 양방향 충돌 슬롯 | 정원과 수업·정리 시간 충돌을 같은 경계에서 직렬화 |
 | **비관적 락 (SELECT FOR UPDATE)** | 크레딧을 변경하는 8회권 행 | 서로 다른 클래스의 동시 예약과 예약·환불·만료 경합을 직렬화 |
 | **낙관적 락 (`@Version`)** | `bookings` 예약 행 | 동시 변경 드물고 재시도 허용 가능 (§5.3 구현 시) |

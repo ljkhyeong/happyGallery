@@ -2,11 +2,10 @@ import { expect, test } from "@playwright/test";
 import {
   adminCard,
   completeGuestAuthGate,
-  createAdminSlot,
   extractFirstNumber,
   fetchClasses,
   fetchGuestBookingSlot,
-  findUniqueSlotStart,
+  findAvailableBookingSlot,
   installTossPaymentStub,
   loginAdmin,
   makePhoneNumber,
@@ -14,10 +13,9 @@ import {
   openAdminView,
   readRouterState,
   signupCustomer,
-  toDateInput,
 } from "./support";
 
-test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 완주할 수 있다", async ({ page, request }) => {
+test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취소를 완주할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
@@ -25,20 +23,16 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
     .toBeGreaterThan(0);
   const bookingClass = classes[0]!;
 
-  const firstSlotStart = await findUniqueSlotStart(request, bookingClass.id, 4, 10, 7);
-  const secondSlotStart = await findUniqueSlotStart(request, bookingClass.id, 5, 14, 37);
-  const bookingDate = toDateInput(firstSlotStart);
+  const firstSlot = await findAvailableBookingSlot(request, bookingClass.id, 4);
+  const secondSlot = await findAvailableBookingSlot(
+    request,
+    bookingClass.id,
+    5,
+    new Set([firstSlot.id]),
+  );
+  const bookingDate = firstSlot.startAt.slice(0, 10);
   const phone = makePhoneNumber(makeUniqueLabel("p8-booking"));
   const guestName = makeUniqueLabel("P8 예약자");
-
-  const firstSlot = await createAdminSlot(request, {
-    classId: bookingClass.id,
-    startAt: firstSlotStart,
-  });
-  const secondSlot = await createAdminSlot(request, {
-    classId: bookingClass.id,
-    startAt: secondSlotStart,
-  });
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
@@ -62,8 +56,8 @@ test("P8-2 @smoke @payment 슬롯 생성 후 예약 생성, 변경, 취소를 �
   );
   const targetSlot = booked.slotId === firstSlot.id ? secondSlot : firstSlot;
   const targetDate = targetSlot.id === firstSlot.id
-    ? toDateInput(firstSlotStart)
-    : toDateInput(secondSlotStart);
+    ? firstSlot.startAt.slice(0, 10)
+    : secondSlot.startAt.slice(0, 10);
   expect([firstSlot.id, secondSlot.id]).toContain(booked.slotId);
 
   await expect(page.getByText(bookingClass.name)).toBeVisible();
@@ -115,12 +109,8 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   expect(bookingClass, "P8 pass flow requires a pass-eligible class in the local DB")
     .toBeDefined();
 
-  const slotStart = await findUniqueSlotStart(request, bookingClass!.id, 5, 11, 11);
-  const slot = await createAdminSlot(request, {
-    classId: bookingClass!.id,
-    startAt: slotStart,
-  });
-  const slotDate = toDateInput(new Date(slot.startAt));
+  const slot = await findAvailableBookingSlot(request, bookingClass!.id, 5);
+  const slotDate = slot.startAt.slice(0, 10);
 
   await signupCustomer(page, "p8-pass-member");
 

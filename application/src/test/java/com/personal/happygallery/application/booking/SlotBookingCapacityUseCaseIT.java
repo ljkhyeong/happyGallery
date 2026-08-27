@@ -10,7 +10,6 @@ import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingDayOverrideRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -41,7 +40,6 @@ class SlotBookingCapacityUseCaseIT {
 
     @Autowired SlotCapacitySupport slotCapacitySupport;
     @Autowired SlotQueryUseCase slotQueryUseCase;
-    @Autowired SlotManagementUseCase slotManagementUseCase;
     @Autowired ClassRepository classRepository;
     @Autowired BookingDayOverrideRepository dayOverrideRepository;
     @Autowired SlotRepository slotRepository;
@@ -265,8 +263,11 @@ class SlotBookingCapacityUseCaseIT {
                 slot(bookingClass, BUFFER_OUT, BUFFER_OUT.plusHours(2)));
 
         reserveCapacityInTx(mainSlot.getId());
-        Slot targetSlot = slotManagementUseCase.createSlot(
-                bookingClass.getId(), BUFFER_IN2);
+        slotQueryUseCase.listAvailable(bookingClass.getId(), MAIN_START.toLocalDate());
+        Slot targetSlot = slotRepository.findByBookingClassIdOrderByStartAtDesc(bookingClass.getId()).stream()
+                .filter(candidate -> candidate.getStartAt().equals(BUFFER_IN))
+                .findFirst()
+                .orElseThrow();
         assertThat(targetSlot.isActive()).isFalse();
 
         reserveCapacityInTx(secondSourceSlot.getId());

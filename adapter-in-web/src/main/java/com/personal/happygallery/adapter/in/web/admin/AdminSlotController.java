@@ -1,12 +1,9 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.admin.dto.BulkSlotRequest;
-import com.personal.happygallery.adapter.in.web.admin.dto.BulkSlotResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingCalendarResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingCalendarSettingsResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.BookingTimeBlockResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateBookingTimeBlockRequest;
-import com.personal.happygallery.adapter.in.web.admin.dto.CreateSlotRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SlotResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingCalendarDayRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateBookingCalendarSettingsRequest;
@@ -15,7 +12,6 @@ import com.personal.happygallery.application.booking.port.in.BookingCalendarUseC
 import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.UpdateDayCommand;
 import com.personal.happygallery.application.booking.port.in.BookingCalendarUseCase.UpdateSettingsCommand;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
-import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase.BulkSlotCommand;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.domain.booking.Slot;
 import io.swagger.v3.oas.annotations.Operation;
@@ -58,24 +54,6 @@ public class AdminSlotController {
         return slotQueryUseCase.listByClass(classId).stream()
                 .map(SlotResponse::from)
                 .toList();
-    }
-
-    /** POST /api/v1/admin/slots — 슬롯 생성 */
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public SlotResponse createSlot(@RequestBody @Valid CreateSlotRequest request) {
-        Slot slot = slotManagementUseCase.createSlot(request.classId(), request.startAt());
-        return SlotResponse.from(slot);
-    }
-
-    @PostMapping("/bulk/preview")
-    public BulkSlotResponse previewBulkSlots(@RequestBody @Valid BulkSlotRequest request) {
-        return BulkSlotResponse.from(slotManagementUseCase.previewBulkSlots(toCommand(request)));
-    }
-
-    @PostMapping("/bulk")
-    public BulkSlotResponse createBulkSlots(@RequestBody @Valid BulkSlotRequest request) {
-        return BulkSlotResponse.from(slotManagementUseCase.createBulkSlots(toCommand(request)));
     }
 
     /** PATCH /api/v1/admin/slots/{id}/deactivate — 슬롯 비활성화 */
@@ -138,14 +116,5 @@ public class AdminSlotController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTimeBlock(@PathVariable Long id) {
         bookingCalendarUseCase.deleteTimeBlock(id);
-    }
-
-    private BulkSlotCommand toCommand(BulkSlotRequest request) {
-        return new BulkSlotCommand(
-                request.classId(),
-                request.dateFrom(),
-                request.dateTo(),
-                request.weekdays(),
-                request.startTimes());
     }
 }

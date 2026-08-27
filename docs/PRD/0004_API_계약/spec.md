@@ -449,47 +449,7 @@ Content-Type: application/json
 - 시간 차단과 수업 시간이 한 번이라도 겹치는 자동 회차는 공개하지 않는다.
 - 캘린더 변경은 클래스 행을 ID 순서로 먼저 잠근 뒤 기존 슬롯의 `calendarActive`를 갱신한다.
 
-#### 2.1.3 호환용 슬롯 생성
-
-```http
-POST /api/v1/admin/slots
-Content-Type: application/json
-Authorization: Bearer {token}
-
-{
-  "classId": 1,
-  "startAt": "2026-03-01T10:00:00"
-}
-```
-
-```json
-{
-  "id": 42,
-  "classId": 1,
-  "startAt": "2026-03-01T10:00:00",
-  "endAt": "2026-03-01T12:00:00",
-  "capacity": 8,
-  "bookedCount": 0,
-  "adminActive": true,
-  "calendarActive": true,
-  "bufferBlocked": false,
-  "isActive": true
-}
-```
-
-- 성공: `201 Created`
-- 에러:
-  - `404 NOT_FOUND` — classId에 해당하는 클래스 없음
-  - `400 INVALID_INPUT` — 동일 classId + startAt 슬롯 이미 존재
-- 정책:
-  - `endAt`은 요청받지 않고 `startAt + class.durationMin`으로 서버가 계산한다.
-  - 같은 클래스의 같은 `startAt`에는 종료 시각과 무관하게 슬롯을 하나만 생성할 수 있다.
-  - 이미 예약된 같은 클래스 슬롯과 수업·정리 구간이 겹치면 생성 응답의 `isActive`는 `false`다.
-  - 같은 클래스의 슬롯 생성과 예약·반납은 클래스 행 잠금으로 직렬화해, 동시 생성된 버퍼 슬롯도 예약 상태를 빠뜨리지 않는다.
-  - `adminActive`는 관리자 비활성화 여부, `calendarActive`는 기본 운영시간·날짜·시간 차단 적용 여부, `bufferBlocked`는 다른 예약의 수업·정리 구간 차단 여부다.
-  - `isActive`는 `adminActive=true`, `calendarActive=true`, `bufferBlocked=false`일 때만 `true`다.
-
-#### 2.1.4 슬롯 비활성화
+#### 2.1.3 슬롯 비활성화
 
 ```http
 PATCH /api/v1/admin/slots/{id}/deactivate
@@ -517,7 +477,7 @@ Authorization: Bearer {token}
 - 정책:
   - 관리자 비활성 상태는 예약 취소·변경으로 버퍼 차단이 자동 해제되어도 유지된다.
 
-#### 2.1.5 슬롯 활성화
+#### 2.1.4 슬롯 활성화
 
 ```http
 PATCH /api/v1/admin/slots/{id}/activate
@@ -531,36 +491,13 @@ Authorization: Bearer {token}
   - `adminActive`만 `true`로 복구한다.
   - `bufferBlocked=true`이면 활성화 후에도 `isActive=false`다.
 
-#### 2.1.6 클래스 전체 조회·수정·상태 변경
+#### 2.1.5 클래스 전체 조회·수정·상태 변경
 
 - `GET /api/v1/admin/classes` — `ACTIVE`, `INACTIVE` 클래스를 모두 반환한다.
 - `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간과 버퍼는 기존 예약 시간축에 영향을 주므로 이 API에서 바꾸지 않는다.
 - `PATCH /api/v1/admin/classes/{id}/status` — `{ "status": "ACTIVE|INACTIVE" }`로 공개·예약 가능 상태를 변경한다.
 - 성공: `200 OK`, 응답은 2.1.1의 클래스 응답과 같다.
-- `INACTIVE` 클래스는 공개 목록, 새 슬롯 생성과 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
-
-#### 2.1.7 호환용 슬롯 일괄 미리보기·생성
-
-```http
-POST /api/v1/admin/slots/bulk/preview
-POST /api/v1/admin/slots/bulk
-Authorization: Bearer {token}
-Content-Type: application/json
-
-{
-  "classId": 1,
-  "dateFrom": "2026-08-01",
-  "dateTo": "2026-08-31",
-  "weekdays": ["TUESDAY", "THURSDAY"],
-  "startTimes": ["10:00:00", "14:00:00"]
-}
-```
-
-- 기간은 시작일·종료일을 포함해 최대 93일, 요일은 최대 7개, 시작 시각은 최대 24개이며 생성 후보는 최대 500개다.
-- 미리보기는 DB를 바꾸지 않고 `CREATABLE`, `SKIPPED_DUPLICATE`, `SKIPPED_PAST`와 `bufferBlocked`를 반환한다.
-- 실제 생성은 만들 수 있는 후보를 `CREATED`로 반환하고 과거·중복 후보는 항목별로 건너뛴다. 응답에는 `totalCount`, `creatableCount`, `createdCount`, `skippedCount`, `items`가 포함된다.
-- 비활성 또는 없는 클래스, 역전된 날짜, 빈 요일/시각, 상한 초과는 거절한다.
-- 관리자 화면은 이 API를 사용하지 않는다. 기존 연동과 테스트 fixture 호환을 위해 유지한다.
+- `INACTIVE` 클래스는 공개 목록, 자동 회차 조회와 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
 
 ### 2.2 공개 조회 API
 
@@ -3781,7 +3718,7 @@ file={JPEG|PNG|WebP binary}
 | 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 크레딧 0인 8회권으로 예약 시도 |
 | 422 | `PASS_NOT_APPLICABLE` | 이용권 계획이 선택 클래스 카테고리 또는 `passEligible` 조건을 충족하지 않음 |
 | 422 | `REWARD_BALANCE_INSUFFICIENT` | 주문에 요청한 적립금이 현재 사용 가능 잔액보다 큼 |
-| 422 | `CLASS_INACTIVE` | 비활성 클래스로 슬롯 생성 또는 예약·결제 시도 |
+| 422 | `CLASS_INACTIVE` | 비활성 클래스로 회차 조회 또는 예약·결제 시도 |
 | 422 | `PAYMENT_METHOD_NOT_ALLOWED` | 계좌이체(`BANK_TRANSFER`)로 예약금 결제 시도 |
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |

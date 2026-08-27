@@ -65,9 +65,6 @@ public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPor
             @Param("sourceStartAt") LocalDateTime sourceStartAt,
             @Param("sourceEndWithBuffer") LocalDateTime sourceEndWithBuffer);
 
-    /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
-    @Override boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
-
     /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
     @Override List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 

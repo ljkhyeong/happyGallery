@@ -1,10 +1,6 @@
 export type {
   AdminSlotSessionCancelRequest,
   AdminSlotSessionCancelResponse,
-  BulkSlotItemResponseStatus as BulkSlotStatus,
-  BulkSlotRequest,
-  BulkSlotResponse,
-  CreateSlotRequest,
   SlotResponse,
 } from "@/generated/api/adminCatalog";
 export type {

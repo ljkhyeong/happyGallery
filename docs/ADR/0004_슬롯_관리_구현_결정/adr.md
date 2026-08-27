@@ -5,6 +5,7 @@
 - **관련 파일**:
   - `application/build.gradle`
   - `application/src/main/java/com/personal/happygallery/application/booking/DefaultSlotManagementService.java`
+  - `application/src/main/java/com/personal/happygallery/application/booking/BookingCalendarSlotMaterializer.java`
   - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/dto/SlotResponse.java`
   - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/SlotRepository.java`
 
@@ -79,26 +80,22 @@ OSIV에 의존하지 않는 것을 전제로 한다.
 
 ---
 
-## Decision 3: `createSlot()` — 종료 시각 서버 계산 + 중복 체크 이중 방어선
+## Decision 3: 자동 회차 구체화 — 클래스 잠금 + DB 유일 제약
 
 ### 배경
-같은 클래스가 같은 시각에 시작하면 종료 시각이 달라도 동일한 세션이다.
-클라이언트가 `endAt`을 정하면 클래스의 `durationMin`과 다른 슬롯을 만들 수 있고 버퍼 계산도 왜곡된다.
-또한 DB에 `UNIQUE(class_id, start_at)` 제약이 있지만, 충돌 시 `DataIntegrityViolationException`이 발생해 클라이언트에 `500`이 반환된다.
+공개 캘린더 조회가 필요한 날짜 범위의 회차를 자동으로 구체화하므로 관리자 요청으로 회차를 따로 만들지 않는다.
+동시에 같은 클래스와 날짜를 조회해도 동일 시작 시각의 슬롯 행은 하나만 존재해야 하며, 종료 시각과 버퍼 상태는
+항상 현재 클래스 정책으로 계산해야 한다.
 
 ### 결정
-- 슬롯 생성 요청은 `classId`, `startAt`만 받고 `Slot`이 `endAt = startAt + bookingClass.durationMin`으로 계산한다.
-- 같은 클래스의 예약·반납과 슬롯 생성을 직렬화하는 `classes` 행 잠금을 먼저 획득한다.
-- 잠금 안에서 `existsByBookingClassIdAndStartAt()`로 선행 검사 후, DB 제약을 최후 방어선으로 유지한다.
-
-```
-앱 레벨 체크  →  400 INVALID_INPUT  (명확한 에러 메시지)
-      ↓ (애플리케이션 외부 쓰기 등 최후 경쟁 시)
-DB UNIQUE      →  DataIntegrityViolationException → 현재 미처리(500)
-```
+- 공개 회차 조회는 `classes` 행을 먼저 잠그고 조회 범위의 기존 시작 시각을 한 번 읽는다.
+- 캘린더 규칙에 필요하지만 없는 시작 시각만 `Slot`으로 만들며, `endAt`은 클래스의 `durationMin`으로 계산한다.
+- 기존 예약과 수업·정리 구간이 겹치는 새 회차는 생성 시점부터 버퍼 차단 수를 반영한다.
+- `(class_id, start_at)` DB 유일 제약은 애플리케이션 밖의 쓰기와 잠금 경계 누락에 대한 최후 방어선으로 유지한다.
+- 관리자 단건·일괄 생성 API와 애플리케이션 선행 중복 조회는 제거한다.
 
 ### 트레이드오프 / 위험
-- 같은 클래스의 슬롯 생성과 예약·반납은 짧은 클래스 행 잠금 경계에서 직렬화된다.
+- 같은 클래스의 자동 회차 구체화와 예약·반납은 짧은 클래스 행 잠금 경계에서 직렬화된다.
 - 클래스별로만 직렬화하므로 서로 다른 클래스 작업은 병렬 처리된다.
 - DB를 애플리케이션 밖에서 직접 변경하는 경우에는 UNIQUE 제약이 최후 방어선으로 남는다.
 
@@ -193,7 +190,7 @@ DB에서 직접 수정해야 한다.
   `관공서의 공휴일에 관한 규정`을 적용한다. 임시공휴일과 선거일은 날짜 차단으로 보완한다.
 - 자동 시작 간격은 클래스 길이보다 짧을 수 있으므로 각 슬롯의 `[startAt, endAt + bufferMin)`이 겹치는지를
   양방향으로 판정한다.
-- 기존 단건·일괄 슬롯 API는 호환용으로 남기고 관리자 화면에서는 제거한다.
+- 단건·일괄 슬롯 생성 API는 제거하고 공개 캘린더 조회를 유일한 회차 생성 경로로 사용한다.
 
 ### 결과
 
@@ -209,7 +206,7 @@ DB에서 직접 수정해야 한다.
 | 위험 | 트리거 조건 | 조치 |
 |------|------------|------|
 | LazyInitializationException | DTO가 LAZY 연관 필드를 추가로 참조 | 서비스 DTO 조립 또는 fetch join/@EntityGraph 적용 |
-| 클래스 단위 잠금 경합 | 같은 클래스에 슬롯 생성·예약이 집중 | 트랜잭션을 짧게 유지하고 잠금 대기 지표 확인 |
+| 클래스 단위 잠금 경합 | 같은 클래스에 회차 조회·예약이 집중 | 트랜잭션을 짧게 유지하고 잠금 대기 지표 확인 |
 | 고밀도 회차 차단 갱신 | 짧은 시작 간격과 긴 클래스 | 저장 배치 지표를 보고 원자적 일괄 UPDATE 검토 |
 
 ---

@@ -465,67 +465,6 @@ export interface SlotResponse {
   startAt: string;
 }
 
-export interface CreateSlotRequest {
-  classId: number;
-  startAt: string;
-}
-
-export type BulkSlotRequestWeekdaysItem = typeof BulkSlotRequestWeekdaysItem[keyof typeof BulkSlotRequestWeekdaysItem];
-
-
-export const BulkSlotRequestWeekdaysItem = {
-  MONDAY: 'MONDAY',
-  TUESDAY: 'TUESDAY',
-  WEDNESDAY: 'WEDNESDAY',
-  THURSDAY: 'THURSDAY',
-  FRIDAY: 'FRIDAY',
-  SATURDAY: 'SATURDAY',
-  SUNDAY: 'SUNDAY',
-} as const;
-
-export interface BulkSlotRequest {
-  classId: number;
-  dateFrom: string;
-  dateTo: string;
-  /**
-     * @minItems 0
-     * @maxItems 24
-     */
-  startTimes: string[];
-  /**
-     * @minItems 0
-     * @maxItems 7
-     */
-  weekdays: BulkSlotRequestWeekdaysItem[];
-}
-
-export type BulkSlotItemResponseStatus = typeof BulkSlotItemResponseStatus[keyof typeof BulkSlotItemResponseStatus];
-
-
-export const BulkSlotItemResponseStatus = {
-  CREATABLE: 'CREATABLE',
-  CREATED: 'CREATED',
-  SKIPPED_DUPLICATE: 'SKIPPED_DUPLICATE',
-  SKIPPED_PAST: 'SKIPPED_PAST',
-} as const;
-
-export interface BulkSlotItemResponse {
-  bufferBlocked: boolean;
-  endAt: string;
-  /** @nullable */
-  slotId: number | null;
-  startAt: string;
-  status: BulkSlotItemResponseStatus;
-}
-
-export interface BulkSlotResponse {
-  creatableCount: number;
-  createdCount: number;
-  items: BulkSlotItemResponse[];
-  skippedCount: number;
-  totalCount: number;
-}
-
 export type BookingCalendarDayResponseEffectiveAvailability = typeof BookingCalendarDayResponseEffectiveAvailability[keyof typeof BookingCalendarDayResponseEffectiveAvailability];
 
 
@@ -929,69 +868,6 @@ export const listSlots = async (params: ListSlotsParams, options?: RequestInit):
     method: 'GET'
 
 
-  }
-);}
-
-
-
-export const getCreateSlotUrl = () => {
-
-
-
-
-  return `/api/v1/admin/slots`
-}
-
-export const createSlot = async (createSlotRequest: CreateSlotRequest, options?: RequestInit): Promise<SlotResponse> => {
-
-  return generatedApiClient<SlotResponse>(getCreateSlotUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createSlotRequest)
-  }
-);}
-
-
-
-export const getCreateBulkSlotsUrl = () => {
-
-
-
-
-  return `/api/v1/admin/slots/bulk`
-}
-
-export const createBulkSlots = async (bulkSlotRequest: BulkSlotRequest, options?: RequestInit): Promise<BulkSlotResponse> => {
-
-  return generatedApiClient<BulkSlotResponse>(getCreateBulkSlotsUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(bulkSlotRequest)
-  }
-);}
-
-
-
-export const getPreviewBulkSlotsUrl = () => {
-
-
-
-
-  return `/api/v1/admin/slots/bulk/preview`
-}
-
-export const previewBulkSlots = async (bulkSlotRequest: BulkSlotRequest, options?: RequestInit): Promise<BulkSlotResponse> => {
-
-  return generatedApiClient<BulkSlotResponse>(getPreviewBulkSlotsUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(bulkSlotRequest)
   }
 );}
 
