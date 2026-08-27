@@ -142,6 +142,18 @@ class ConfigurationDurationValidationTest {
                 });
     }
 
+    @DisplayName("이전 게스트 토큰 키가 짧으면 실제 프로퍼티 바인딩에서 거절한다")
+    @Test
+    void guestTokenPreviousSecret_shortProperty_failsBinding() {
+        contextRunner
+                .withPropertyValues("app.guest-token.previous-hmac-secret=short-secret")
+                .run(context -> {
+                    assertThat(context).hasFailed();
+                    assertThat(context.getStartupFailure())
+                            .hasStackTraceContaining("app.guest-token.previous-hmac-secret");
+                });
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableConfigurationProperties({
             EmailVerificationProperties.class,

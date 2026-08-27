@@ -1,10 +1,12 @@
 package com.personal.happygallery.adapter.in.web;
 
 import com.personal.happygallery.adapter.in.web.booking.SlotController;
-import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
+import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.product.Product;
 import java.sql.SQLException;
 import java.util.Map;
@@ -152,6 +154,23 @@ class GlobalExceptionHandlerTest {
     })
     void invalidQueryParameter_mapsToInvalidInput(String path) throws Exception {
         var mockMvc = standaloneSetup(new SlotController(mock(SlotQueryUseCase.class)))
+                .setControllerAdvice(handler)
+                .build();
+
+        mockMvc.perform(get(path))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @DisplayName("후기 목록의 범위 밖 경로와 쿼리 파라미터는 INVALID_INPUT으로 매핑된다")
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "/api/v1/products/0/reviews",
+            "/api/v1/products/1/reviews?rating=0"
+    })
+    void invalidReviewParameter_mapsToInvalidInput(String path) throws Exception {
+        var mockMvc = standaloneSetup(
+                        new ProductReviewController(mock(ReviewUseCase.class)))
                 .setControllerAdvice(handler)
                 .build();
 
