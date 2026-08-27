@@ -96,6 +96,7 @@ export function Layout() {
                 </>
               )
             )}
+            <Link to="/my/inquiries" className="app-utility-link">1:1 문의</Link>
             <Link
               to="/guest"
               state={{ monitoringSource: "layout_utility" }}
