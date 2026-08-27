@@ -49,18 +49,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
             select item
               from CartItem item
              where item.userId = :userId
-               and item.lineKey = :lineKey
-            """)
-    Optional<CartItem> findByUserIdAndLineKeyForUpdate(
-            @Param("userId") Long userId,
-            @Param("lineKey") String lineKey);
-
-    @Override
-    @Lock(PESSIMISTIC_WRITE)
-    @Query("""
-            select item
-              from CartItem item
-             where item.userId = :userId
                and item.id = :cartItemId
             """)
     Optional<CartItem> findByUserIdAndIdForUpdate(
@@ -76,19 +64,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
              order by item.createdAt, item.id
             """)
     List<CartItem> findAllWithTextInputsByUserId(@Param("userId") Long userId);
-
-    @Override
-    @Lock(PESSIMISTIC_WRITE)
-    @Query("""
-            select item
-              from CartItem item
-             where item.userId = :userId
-               and item.lineKey in :lineKeys
-             order by item.lineKey
-            """)
-    List<CartItem> findAllByUserIdAndLineKeyInForUpdate(
-            @Param("userId") Long userId,
-            @Param("lineKeys") Collection<String> lineKeys);
 
     @Override
     @Lock(PESSIMISTIC_WRITE)

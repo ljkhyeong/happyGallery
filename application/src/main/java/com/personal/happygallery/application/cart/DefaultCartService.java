@@ -22,6 +22,7 @@ import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.cart.CartItemTextInput;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.product.Inventory;
@@ -124,6 +125,7 @@ public class DefaultCartService implements CartUseCase {
         Map<Integer, ResolvedLine> resolvedByIndex = optionConfigurationService
                 .resolvePurchasesForCart(toCartPurchaseRequests(items)).stream()
                 .collect(Collectors.toMap(ResolvedLine::index, Function.identity()));
+        Map<StockKey, Long> quantitiesByStockKey = quantitiesByStockKey(items);
 
         List<CartItemView> views = new ArrayList<>(items.size());
         for (int index = 0; index < items.size(); index++) {
@@ -138,9 +140,10 @@ public class DefaultCartService implements CartUseCase {
                 continue;
             }
             ResolvedPurchase purchase = resolved.purchase();
+            long stockQuantity = quantitiesByStockKey.get(stockKey(item));
             boolean stockAvailable = product.getType() == ProductType.READY_STOCK
-                    ? readyStockAvailable(inventoriesByProductId.get(product.getId()), item.getQty())
-                    : purchase.variantActive() && purchase.availableQuantity() >= item.getQty();
+                    ? readyStockAvailable(inventoriesByProductId.get(product.getId()), stockQuantity)
+                    : purchase.variantActive() && purchase.availableQuantity() >= stockQuantity;
             views.add(new CartItemView(
                     item.getId(),
                     product.getId(),
@@ -171,6 +174,7 @@ public class DefaultCartService implements CartUseCase {
     public void addItem(Long userId, Long productId, Long productVariantId,
                         List<TextInput> textInputs, int qty) {
         OrderAmountCalculator.requireQuantity(qty);
+        cartOwnerLock.lock(userId);
         ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
                 new PurchaseRequest(0, productId, productVariantId, textInputs))).getFirst();
         LocalDateTime changedAt = LocalDateTime.now(clock);
@@ -178,8 +182,17 @@ public class DefaultCartService implements CartUseCase {
         CartItem candidate = new CartItem(
                 userId, productId, resolved.purchase().variantId(), cartInputs, qty, changedAt);
 
-        cartOwnerLock.lock(userId);
-        cartItemReader.findByUserIdAndLineKeyForUpdate(userId, candidate.getLineKey())
+        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
+                userId, List.of(productId));
+        StockKey stockKey = stockKey(resolved);
+        long desiredQuantity = quantitiesByStockKey(existingItems)
+                .getOrDefault(stockKey, 0L) + qty;
+        requireAvailableStock(
+                Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
+
+        existingItems.stream()
+                .filter(existing -> existing.getLineKey().equals(candidate.getLineKey()))
+                .findFirst()
                 .ifPresentOrElse(
                         existing -> existing.addQty(qty, changedAt),
                         () -> cartItemStore.save(candidate));
@@ -229,9 +242,24 @@ public class DefaultCartService implements CartUseCase {
             }
         }
 
+        List<Long> productIds = pendingByLineKey.values().stream()
+                .map(PendingCartLine::productId)
+                .distinct()
+                .toList();
+        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
+                userId, productIds);
+        Map<StockKey, Long> desiredQuantities = quantitiesByStockKey(existingItems);
+        Map<StockKey, ResolvedLine> resolvedByStockKey = new HashMap<>();
+        for (ResolvedLine resolved : resolvedLines) {
+            StockKey stockKey = stockKey(resolved);
+            desiredQuantities.merge(
+                    stockKey, (long) items.get(resolved.index()).qty(), Long::sum);
+            resolvedByStockKey.putIfAbsent(stockKey, resolved);
+        }
+        requireAvailableStock(desiredQuantities, resolvedByStockKey);
+
         Map<String, CartItem> existingByLineKey = new HashMap<>();
-        for (CartItem existing : cartItemReader.findAllByUserIdAndLineKeyInForUpdate(
-                userId, pendingByLineKey.keySet())) {
+        for (CartItem existing : existingItems) {
             existingByLineKey.put(existing.getLineKey(), existing);
         }
         List<CartItem> newItems = new ArrayList<>();
@@ -254,6 +282,16 @@ public class DefaultCartService implements CartUseCase {
         cartOwnerLock.lock(userId);
         CartItem item = cartItemReader.findByUserIdAndIdForUpdate(userId, cartItemId)
                 .orElseThrow(NotFoundException.supplier("장바구니 항목"));
+        OrderAmountCalculator.requireQuantity(qty);
+        ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
+                toPurchaseRequest(0, item))).getFirst();
+        StockKey stockKey = stockKey(resolved);
+        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
+                userId, List.of(item.getProductId()));
+        long desiredQuantity = quantitiesByStockKey(existingItems).get(stockKey)
+                - item.getQty() + qty;
+        requireAvailableStock(
+                Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
         item.updateQty(qty, LocalDateTime.now(clock));
     }
 
@@ -290,16 +328,19 @@ public class DefaultCartService implements CartUseCase {
     private static List<PurchaseRequest> toCartPurchaseRequests(List<CartItem> items) {
         List<PurchaseRequest> requests = new ArrayList<>(items.size());
         for (int index = 0; index < items.size(); index++) {
-            CartItem item = items.get(index);
-            requests.add(new PurchaseRequest(
-                    index,
-                    item.getProductId(),
-                    item.getProductVariantId(),
-                    item.getTextInputs().stream()
-                            .map(input -> new TextInput(input.getOptionKey(), input.getValue()))
-                            .toList()));
+            requests.add(toPurchaseRequest(index, items.get(index)));
         }
         return List.copyOf(requests);
+    }
+
+    private static PurchaseRequest toPurchaseRequest(int index, CartItem item) {
+        return new PurchaseRequest(
+                index,
+                item.getProductId(),
+                item.getProductVariantId(),
+                item.getTextInputs().stream()
+                        .map(input -> new TextInput(input.getOptionKey(), input.getValue()))
+                        .toList());
     }
 
     private static List<PurchaseRequest> toMergePurchaseRequests(List<MergeItem> items) {
@@ -319,7 +360,63 @@ public class DefaultCartService implements CartUseCase {
                 .toList();
     }
 
-    private static boolean readyStockAvailable(Inventory inventory, int quantity) {
+    private void requireAvailableStock(
+            Map<StockKey, Long> desiredQuantities,
+            Map<StockKey, ResolvedLine> resolvedByStockKey
+    ) {
+        for (StockKey stockKey : resolvedByStockKey.keySet()) {
+            requireSkuQuantity(desiredQuantities.get(stockKey));
+        }
+
+        List<Long> readyStockProductIds = resolvedByStockKey.entrySet().stream()
+                .filter(entry -> entry.getValue().product().getType() == ProductType.READY_STOCK)
+                .map(entry -> entry.getKey().productId())
+                .toList();
+        Map<Long, Inventory> inventoriesByProductId = readyStockProductIds.isEmpty()
+                ? Map.of()
+                : inventoryReader.findByProductIdIn(readyStockProductIds).stream()
+                        .collect(Collectors.toMap(Inventory::getProductId, Function.identity()));
+
+        for (Map.Entry<StockKey, ResolvedLine> entry : resolvedByStockKey.entrySet()) {
+            StockKey stockKey = entry.getKey();
+            ResolvedLine resolved = entry.getValue();
+            long availableQuantity = resolved.product().getType() == ProductType.READY_STOCK
+                    ? inventoryQuantity(inventoriesByProductId.get(stockKey.productId()))
+                    : resolved.purchase().availableQuantity();
+            if (desiredQuantities.get(stockKey) > availableQuantity) {
+                throw new InventoryNotEnoughException();
+            }
+        }
+    }
+
+    private static void requireSkuQuantity(long quantity) {
+        if (quantity > Integer.MAX_VALUE) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 수량이 너무 큽니다.");
+        }
+        OrderAmountCalculator.requireQuantity((int) quantity);
+    }
+
+    private static Map<StockKey, Long> quantitiesByStockKey(List<CartItem> items) {
+        Map<StockKey, Long> quantities = new HashMap<>();
+        for (CartItem item : items) {
+            quantities.merge(stockKey(item), (long) item.getQty(), Long::sum);
+        }
+        return quantities;
+    }
+
+    private static StockKey stockKey(CartItem item) {
+        return new StockKey(item.getProductId(), item.getProductVariantId());
+    }
+
+    private static StockKey stockKey(ResolvedLine resolved) {
+        return new StockKey(resolved.product().getId(), resolved.purchase().variantId());
+    }
+
+    private static int inventoryQuantity(Inventory inventory) {
+        return inventory == null ? 0 : inventory.getQuantity();
+    }
+
+    private static boolean readyStockAvailable(Inventory inventory, long quantity) {
         return inventory != null && inventory.getQuantity() >= quantity;
     }
 
@@ -372,4 +469,6 @@ public class DefaultCartService implements CartUseCase {
             return new PendingCartLine(productId, productVariantId, textInputs, newQuantity);
         }
     }
+
+    private record StockKey(Long productId, Long productVariantId) {}
 }

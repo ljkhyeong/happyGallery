@@ -3,15 +3,16 @@ package com.personal.happygallery.application.cart;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.Inventory;
+import com.personal.happygallery.domain.product.InventoryAdjustmentType;
+import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
@@ -123,6 +124,8 @@ class CartQueryUseCaseIT {
                 "cart-merge@example.com", "hashed", "병합 회원", "01098765432"));
         Product existingProduct = productStore.save(readyStockProduct("기존 병합 상품", 10_000L));
         Product newProduct = productStore.save(readyStockProduct("새 병합 상품", 20_000L));
+        inventoryStore.save(inventory(existingProduct, 5));
+        inventoryStore.save(inventory(newProduct, 5));
         cartItemStore.save(new CartItem(
                 user.getId(), existingProduct.getId(), 1, LocalDateTime.now(clock)));
         UUID idempotencyKey = UUID.randomUUID();
@@ -147,7 +150,37 @@ class CartQueryUseCaseIT {
                                 .isEqualTo(ErrorCode.CONFLICT));
     }
 
-    @DisplayName("같은 주문제작 조합도 직접입력 값이 다르면 별도 장바구니 라인으로 계산한다")
+    @DisplayName("장바구니 추가·병합·수량 변경은 SKU 재고를 초과할 수 없다")
+    @Test
+    void cartMutations_rejectQuantityOverStock() {
+        User user = userStore.save(new User(
+                "cart-stock@example.com", "hashed", "재고 장바구니", "01022223333"));
+        Product product = productStore.save(readyStockProduct("재고 제한 상품", 12_000L));
+        inventoryStore.save(inventory(product, 2));
+        cartUseCase.addItem(user.getId(), product.getId(), 1);
+        Long cartItemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
+
+        assertThatThrownBy(() -> cartUseCase.addItem(user.getId(), product.getId(), 2))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
+        assertThatThrownBy(() -> cartUseCase.mergeItems(
+                user.getId(), UUID.randomUUID(),
+                List.of(new CartUseCase.MergeItem(product.getId(), 2))))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
+        assertThatThrownBy(() -> cartUseCase.updateItemQty(user.getId(), cartItemId, 3))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
+
+        assertThat(cartUseCase.getCart(user.getId()).items()).singleElement()
+                .extracting(CartUseCase.CartItemView::qty)
+                .isEqualTo(1);
+    }
+
+    @DisplayName("직접입력 값이 다른 주문제작 품목도 같은 SKU 재고를 함께 사용한다")
     @Test
     void getCart_separatesTextOptionLinesAndCalculatesPrice() {
         User user = userStore.save(new User(
@@ -155,7 +188,7 @@ class CartQueryUseCaseIT {
         ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 키링", ProductType.MADE_TO_ORDER, null,
-                        20_000L, 3, null, null, "소가죽 키링", null, 5,
+                        20_000L, 2, null, null, "소가죽 키링", null, 5,
                         List.of(new ProductAdminUseCase.OptionGroupDefinition(
                                 "engraving", ProductOptionType.TEXT, "각인 문구", true, 0,
                                 null, 20, 2_000L, List.of())),
@@ -168,6 +201,12 @@ class CartQueryUseCaseIT {
         cartUseCase.addItem(
                 user.getId(), registered.product().getId(), variantId,
                 List.of(new TextInput("engraving", "GALLERY")), 1);
+        assertThatThrownBy(() -> cartUseCase.addItem(
+                user.getId(), registered.product().getId(), variantId,
+                List.of(new TextInput("engraving", "HAPPY")), 1))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
 
         CartUseCase.CartView cart = cartUseCase.getCart(user.getId());
 
@@ -184,6 +223,17 @@ class CartQueryUseCaseIT {
                             .toList())
                     .containsExactlyInAnyOrder("HAPPY", "GALLERY");
             softly.assertThat(cart.totalAmount()).isEqualTo(44_000L);
+        });
+
+        productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
+                registered.product().getId(), variantId, InventoryAdjustmentType.DECREASE, 1,
+                "오프라인 판매", null, "local-api-key"));
+        CartUseCase.CartView stockChanged = cartUseCase.getCart(user.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(stockChanged.items()).hasSize(2)
+                    .allSatisfy(item -> softly.assertThat(item.available()).isFalse());
+            softly.assertThat(stockChanged.totalAmount()).isZero();
         });
     }
 }

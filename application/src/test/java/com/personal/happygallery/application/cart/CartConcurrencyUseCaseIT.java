@@ -2,6 +2,7 @@ package com.personal.happygallery.application.cart;
 
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -30,6 +32,7 @@ class CartConcurrencyUseCaseIT {
     @Autowired CartUseCase cartUseCase;
     @Autowired UserStorePort userStore;
     @Autowired ProductStorePort productStore;
+    @Autowired InventoryStorePort inventoryStore;
     @Autowired TestCleanupSupport cleanupSupport;
 
     @AfterEach
@@ -45,6 +48,7 @@ class CartConcurrencyUseCaseIT {
         User user = userStore.save(new User(
                 "cart-concurrency@example.com", "hashed", "동시 장바구니 회원", "01055556666"));
         Product product = productStore.save(readyStockProduct("동시 추가 상품", 12_000L));
+        inventoryStore.save(inventory(product, CONCURRENT_REQUEST_COUNT));
         CountDownLatch ready = new CountDownLatch(CONCURRENT_REQUEST_COUNT);
         CountDownLatch start = new CountDownLatch(1);
         List<Future<?>> requests = new ArrayList<>();

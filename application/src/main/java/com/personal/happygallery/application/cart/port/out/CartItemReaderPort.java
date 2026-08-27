@@ -11,14 +11,9 @@ public interface CartItemReaderPort {
 
     Optional<CartItem> findByUserIdAndProductIdForUpdate(Long userId, Long productId);
 
-    Optional<CartItem> findByUserIdAndLineKeyForUpdate(Long userId, String lineKey);
-
     Optional<CartItem> findByUserIdAndIdForUpdate(Long userId, Long cartItemId);
 
     List<CartItem> findAllWithTextInputsByUserId(Long userId);
-
-    List<CartItem> findAllByUserIdAndLineKeyInForUpdate(
-            Long userId, Collection<String> lineKeys);
 
     List<CartItem> findAllByUserIdAndProductIdInForUpdate(Long userId, Collection<Long> productIds);
 
