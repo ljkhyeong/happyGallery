@@ -5,9 +5,9 @@ import {
   claimCoupon,
   fetchClaimableCoupons,
   fetchMyCoupons,
-  type ClaimableCouponResponse,
   type MyCouponResponse,
 } from "@/features/coupon/api";
+import { couponDiscountLabel } from "@/features/coupon/presentation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import {
@@ -36,11 +36,6 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
   REVOKE: "적립 취소",
   ADJUST: "관리자 조정",
 };
-
-function discountLabel(coupon: MyCouponResponse | ClaimableCouponResponse): string {
-  if (coupon.discountType === "FIXED") return `${formatKRW(coupon.discountValue)} 할인`;
-  return `${coupon.discountValue}% 할인 · 최대 ${formatKRW(coupon.maxDiscountAmount ?? 0)}`;
-}
 
 export function MyBenefitsPage() {
   const { sessionVersion } = useCustomerAuth();
@@ -197,7 +192,7 @@ function MyBenefitsContent() {
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3">
               <div>
                 <strong>{coupon.name}</strong>
-                <div className="small mt-1">{discountLabel(coupon)}</div>
+                <div className="small mt-1">{couponDiscountLabel(coupon)}</div>
                 <small className="text-muted-soft">
                   {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
                   {formatDateTime(coupon.validUntil)}까지
@@ -242,7 +237,7 @@ function MyBenefitsContent() {
                     <strong>{coupon.name}</strong>
                     <Badge bg={status.bg}>{status.label}</Badge>
                   </div>
-                  <div className="small">{discountLabel(coupon)}</div>
+                  <div className="small">{couponDiscountLabel(coupon)}</div>
                   <small className="text-muted-soft">
                     {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
                     {formatDateTime(coupon.validUntil)}까지

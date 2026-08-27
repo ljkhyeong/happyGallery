@@ -1,6 +1,8 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface EventResponse {
   content: string;
+  /** @nullable */
+  couponDefinitionId: number | null;
   endAt: string;
   featured: boolean;
   id: number;
@@ -20,6 +22,8 @@ export interface CreateEventRequest {
      * @maxLength 16000
      */
   content: string;
+  /** @nullable */
+  couponDefinitionId?: number | null;
   endAt: string;
   featured: boolean;
   /**
@@ -50,6 +54,8 @@ export interface UpdateEventRequest {
      * @maxLength 16000
      */
   content: string;
+  /** @nullable */
+  couponDefinitionId?: number | null;
   endAt: string;
   expectedVersion: number;
   featured: boolean;

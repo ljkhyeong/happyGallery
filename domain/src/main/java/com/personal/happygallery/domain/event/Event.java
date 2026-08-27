@@ -57,6 +57,9 @@ public class Event {
     @Column(nullable = false)
     private boolean featured;
 
+    @Column(name = "coupon_definition_id")
+    private Long couponDefinitionId;
+
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "event_products", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "product_id", nullable = false)
@@ -80,6 +83,7 @@ public class Event {
             LocalDateTime endAt,
             boolean published,
             boolean featured,
+            Long couponDefinitionId,
             Set<Long> relatedProductIds
     ) {
         apply(
@@ -91,6 +95,7 @@ public class Event {
                 endAt,
                 published,
                 featured,
+                couponDefinitionId,
                 relatedProductIds);
     }
 
@@ -103,6 +108,7 @@ public class Event {
             LocalDateTime endAt,
             boolean published,
             boolean featured,
+            Long couponDefinitionId,
             Set<Long> relatedProductIds
     ) {
         apply(
@@ -114,6 +120,7 @@ public class Event {
                 endAt,
                 published,
                 featured,
+                couponDefinitionId,
                 relatedProductIds);
     }
 
@@ -126,6 +133,7 @@ public class Event {
             LocalDateTime endAt,
             boolean published,
             boolean featured,
+            Long couponDefinitionId,
             Set<Long> relatedProductIds
     ) {
         this.title = ContentTextPolicy.requireTitle(title, "이벤트 제목");
@@ -137,6 +145,7 @@ public class Event {
         this.endAt = endAt;
         this.published = published;
         this.featured = featured;
+        this.couponDefinitionId = optionalCouponDefinitionId(couponDefinitionId);
         replaceRelatedProductIds(relatedProductIds);
     }
 
@@ -182,6 +191,14 @@ public class Event {
         }
     }
 
+    private static Long optionalCouponDefinitionId(Long couponDefinitionId) {
+        if (couponDefinitionId != null && couponDefinitionId < 1L) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "연결 쿠폰 ID는 1 이상이어야 합니다.");
+        }
+        return couponDefinitionId;
+    }
+
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getSummary() { return summary; }
@@ -191,6 +208,7 @@ public class Event {
     public LocalDateTime getEndAt() { return endAt; }
     public boolean isPublished() { return published; }
     public boolean isFeatured() { return featured; }
+    public Long getCouponDefinitionId() { return couponDefinitionId; }
     public Set<Long> getRelatedProductIds() {
         return Collections.unmodifiableSet(relatedProductIds);
     }

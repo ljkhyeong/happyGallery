@@ -179,6 +179,7 @@ class OpenApiSpecGenerator {
                 "endAt",
                 "published",
                 "featured",
+                "couponDefinitionId",
                 "relatedProductIds",
                 "version");
         assertRequiredProperties(

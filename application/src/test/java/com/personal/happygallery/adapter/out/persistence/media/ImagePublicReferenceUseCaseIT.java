@@ -127,6 +127,7 @@ class ImagePublicReferenceUseCaseIT {
                 endAt,
                 published,
                 false,
+                null,
                 Set.of());
     }
 

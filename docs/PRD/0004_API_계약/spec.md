@@ -3615,6 +3615,7 @@ file={JPEG|PNG|WebP binary}
   "endAt": "2026-08-31T23:59:00",
   "published": true,
   "featured": true,
+  "couponDefinitionId": 10,
   "relatedProductIds": [1, 2],
   "version": 2
 }
@@ -3623,6 +3624,7 @@ file={JPEG|PNG|WebP binary}
 - 공개 목록은 `published=true`이고 `[startAt, endAt)` 경계에서 아직 끝나지 않은 현재·예정 이벤트를 반환한다. 진행 중 이벤트를 먼저, 예정 이벤트를 다음에 두고 각 그룹은 시작 시각과 ID 오름차순으로 안정 정렬한다. 홈은 이 중 `featured=true`인 이벤트를 노출한다.
 - 이벤트 노출 경계는 서버 `Clock` 기준이며 공개 응답은 예약 게시 변경을 즉시 반영하도록 `Cache-Control: no-store`다.
 - 상세에서 미게시·종료 이벤트는 존재 여부를 구분하지 않고 `404 NOT_FOUND`다. 게시된 시작 전 이벤트는 사전 안내를 위해 조회할 수 있다.
+- `couponDefinitionId`는 관리자가 연결한 쿠폰 정의 ID이며 연결하지 않으면 `null`이다. 이벤트 상세의 회원은 이 ID로 기존 `POST /api/v1/me/coupons` 발급 계약을 사용하고, 서버가 쿠폰 활성·공개 발급·기간과 회원당 한 번 조건을 다시 검증한다.
 
 #### 2.20.2 관리자 이벤트
 
@@ -3631,7 +3633,7 @@ file={JPEG|PNG|WebP binary}
 - `PUT /api/v1/admin/events/{id}` — `expectedVersion`을 포함한 전체 수정
 - `DELETE /api/v1/admin/events/{id}?expectedVersion={version}` — 낙관적 잠금 버전 확인 뒤 삭제
 
-생성·수정 바디는 `title`, `summary`, `content`, nullable `imageUrl`, `startAt`, `endAt`, `published`, `featured`, nullable `relatedProductIds`를 사용한다. 수정은 `expectedVersion`을 추가한다. 기간은 `startAt < endAt`이어야 하며 관련 상품 ID는 실제 상품만 허용한다. 버전 충돌은 `409 CONFLICT`다.
+생성·수정 바디는 `title`, `summary`, `content`, nullable `imageUrl`, `startAt`, `endAt`, `published`, `featured`, nullable `couponDefinitionId`, nullable `relatedProductIds`를 사용한다. 수정은 `expectedVersion`을 추가한다. 기간은 `startAt < endAt`이어야 하며 관련 상품과 연결 쿠폰 ID는 실제 리소스만 허용한다. 이벤트에는 쿠폰을 최대 한 개 연결하며, 연결 쿠폰이 없으면 `couponDefinitionId=null`이다. 버전 충돌은 `409 CONFLICT`다.
 
 #### 2.20.3 회원 쿠폰
 

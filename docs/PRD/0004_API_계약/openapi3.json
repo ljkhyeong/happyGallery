@@ -2261,6 +2261,10 @@
             "minLength" : 0,
             "type" : "string"
           },
+          "couponDefinitionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
           "endAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -2656,6 +2660,10 @@
           "content" : {
             "type" : "string"
           },
+          "couponDefinitionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
           "endAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -2695,7 +2703,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "content", "endAt", "featured", "id", "imageUrl", "published", "relatedProductIds", "startAt", "summary", "title", "version" ],
+        "required" : [ "content", "couponDefinitionId", "endAt", "featured", "id", "imageUrl", "published", "relatedProductIds", "startAt", "summary", "title", "version" ],
         "type" : "object"
       },
       "FailedNotificationResponse" : {
@@ -6525,6 +6533,10 @@
             "maxLength" : 16000,
             "minLength" : 0,
             "type" : "string"
+          },
+          "couponDefinitionId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
           },
           "endAt" : {
             "format" : "date-time",

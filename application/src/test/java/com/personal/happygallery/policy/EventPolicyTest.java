@@ -32,6 +32,7 @@ class EventPolicyTest {
                 END_AT,
                 true,
                 true,
+                7L,
                 Set.of(3L, 1L));
 
         assertSoftly(softly -> {
@@ -41,6 +42,7 @@ class EventPolicyTest {
             softly.assertThat(event.getImageUrl())
                     .isEqualTo("https://images.example.com/event.jpg");
             softly.assertThat(event.getRelatedProductIds()).containsExactly(1L, 3L);
+            softly.assertThat(event.getCouponDefinitionId()).isEqualTo(7L);
         });
     }
 
@@ -57,16 +59,16 @@ class EventPolicyTest {
     void event_rejectsInvalidText() {
         assertInvalidInput(() -> new Event(
                 " ", "요약", "내용", null,
-                START_AT, END_AT, false, false, Set.of()));
+                START_AT, END_AT, false, false, null, Set.of()));
         assertInvalidInput(() -> new Event(
                 "제목", "가".repeat(Event.MAX_SUMMARY_LENGTH + 1), "내용", null,
-                START_AT, END_AT, false, false, Set.of()));
+                START_AT, END_AT, false, false, null, Set.of()));
         assertInvalidInput(() -> new Event(
                 "제목", "요약", "가".repeat(Event.MAX_CONTENT_LENGTH + 1), null,
-                START_AT, END_AT, false, false, Set.of()));
+                START_AT, END_AT, false, false, null, Set.of()));
     }
 
-    @DisplayName("이벤트의 연관 상품 ID는 양수만 허용한다")
+    @DisplayName("이벤트의 연관 상품과 연결 쿠폰 ID는 양수만 허용한다")
     @Test
     void event_rejectsInvalidRelatedProductIds() {
         Set<Long> nullId = Collections.singleton(null);
@@ -75,6 +77,9 @@ class EventPolicyTest {
         assertInvalidInput(() -> event(START_AT, END_AT, Set.of(-1L)));
         assertInvalidInput(() -> event(START_AT, END_AT, nullId));
         assertThat(event(START_AT, END_AT, null).getRelatedProductIds()).isEmpty();
+        assertInvalidInput(() -> new Event(
+                "이벤트", "이벤트 요약", "이벤트 내용", null,
+                START_AT, END_AT, false, false, 0L, Set.of()));
     }
 
     private static Event event(
@@ -84,7 +89,7 @@ class EventPolicyTest {
     ) {
         return new Event(
                 "이벤트", "이벤트 요약", "이벤트 내용", null,
-                startAt, endAt, false, false, relatedProductIds);
+                startAt, endAt, false, false, null, relatedProductIds);
     }
 
     private static void assertInvalidInput(Runnable command) {

@@ -245,6 +245,7 @@ class PromotionBenefitApiRestDocsTest extends RestDocsTestSupport {
         when(event.getEndAt()).thenReturn(END_AT);
         when(event.isPublished()).thenReturn(true);
         when(event.isFeatured()).thenReturn(true);
+        when(event.getCouponDefinitionId()).thenReturn(10L);
         when(event.getRelatedProductIds()).thenReturn(Set.of(1L, 2L));
         when(event.getVersion()).thenReturn(2L);
         return event;
@@ -285,6 +286,7 @@ class PromotionBenefitApiRestDocsTest extends RestDocsTestSupport {
                   "endAt":"2026-08-31T23:59:00",
                   "published":true,
                   "featured":true,
+                  "couponDefinitionId":10,
                   "relatedProductIds":[1,2]
                 }
                 """;
@@ -302,6 +304,7 @@ class PromotionBenefitApiRestDocsTest extends RestDocsTestSupport {
                   "endAt":"2026-08-31T23:59:00",
                   "published":true,
                   "featured":true,
+                  "couponDefinitionId":10,
                   "relatedProductIds":[1,2]
                 }
                 """;

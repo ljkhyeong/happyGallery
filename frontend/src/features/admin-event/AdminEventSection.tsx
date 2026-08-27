@@ -11,6 +11,10 @@ import {
   type EventResponse,
   type UpdateEventRequest,
 } from "./api";
+import {
+  fetchAdminCoupons,
+  type AdminCouponResponse,
+} from "@/features/admin-coupon/api";
 import { fetchProducts } from "@/features/admin-product/api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { eventTimingLabel } from "@/features/event/time";
@@ -40,6 +44,7 @@ interface EventFormState {
   endAt: string;
   published: boolean;
   featured: boolean;
+  couponDefinitionId: number | null;
   relatedProductIds: number[];
 }
 
@@ -55,6 +60,7 @@ function emptyForm(): EventFormState {
     endAt: "",
     published: false,
     featured: false,
+    couponDefinitionId: null,
     relatedProductIds: [],
   };
 }
@@ -69,6 +75,7 @@ function formFrom(event: EventResponse): EventFormState {
     endAt: event.endAt.slice(0, 16),
     published: event.published,
     featured: event.featured,
+    couponDefinitionId: event.couponDefinitionId,
     relatedProductIds: [...event.relatedProductIds],
   };
 }
@@ -83,10 +90,20 @@ function createRequest(form: EventFormState): CreateEventRequest {
     endAt: form.endAt,
     published: form.published,
     featured: form.featured,
+    couponDefinitionId: form.couponDefinitionId ?? undefined,
     relatedProductIds: form.relatedProductIds.length > 0
       ? [...form.relatedProductIds].sort((left, right) => left - right)
       : undefined,
   };
+}
+
+function couponOptionLabel(coupon: AdminCouponResponse): string {
+  const status = !coupon.active
+    ? "사용 중지"
+    : coupon.publiclyClaimable
+      ? "회원 직접 발급 설정"
+      : "회원 직접 발급 불가";
+  return `${coupon.name} (#${coupon.id}) · ${status}`;
 }
 
 function updateRequest(form: EventFormState, expectedVersion: number): UpdateEventRequest {
@@ -112,6 +129,10 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
   const productsQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products"],
     queryFn: () => fetchProducts(adminKey),
+  });
+  const couponsQuery = useAdminQuery(onAuthError, {
+    queryKey: queryKeys.admin.coupons,
+    queryFn: () => fetchAdminCoupons(adminKey),
   });
 
   const invalidateEvents = () => {
@@ -381,6 +402,33 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                   </Form.Group>
                 </Col>
                 <Col xs={12}>
+                  <Form.Group controlId="admin-event-coupon">
+                    <Form.Label>이벤트 쿠폰</Form.Label>
+                    {couponsQuery.isLoading && <LoadingSpinner text="쿠폰 불러오는 중..." />}
+                    <ErrorAlert error={couponsQuery.error} />
+                    <Form.Select
+                      value={form.couponDefinitionId ?? ""}
+                      onChange={(event) => setForm((current) => ({
+                        ...current,
+                        couponDefinitionId: event.target.value
+                          ? Number(event.target.value)
+                          : null,
+                      }))}
+                      disabled={editLoading || couponsQuery.isLoading}
+                    >
+                      <option value="">연결하지 않음</option>
+                      {couponsQuery.data?.map((coupon) => (
+                        <option key={coupon.id} value={coupon.id}>
+                          {couponOptionLabel(coupon)}
+                        </option>
+                      ))}
+                    </Form.Select>
+                    <Form.Text>
+                      이벤트 상세에서 회원이 받을 쿠폰 한 개를 연결합니다. 사용 중이고 회원 직접 발급이 설정된 쿠폰을 발급 기간에만 받을 수 있습니다.
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                <Col xs={12}>
                   <Form.Label>연관 상품</Form.Label>
                   {productsQuery.isLoading && <LoadingSpinner text="상품 불러오는 중..." />}
                   <ErrorAlert error={productsQuery.error} />
@@ -467,6 +515,12 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                 {formatDateTime(event.startAt)} ~ {formatDateTime(event.endAt)}
                 {event.relatedProductIds.length > 0
                   ? ` · 연관 상품 ${event.relatedProductIds.length}개`
+                  : ""}
+                {event.couponDefinitionId !== null
+                  ? ` · 이벤트 쿠폰 ${
+                    couponsQuery.data?.find((coupon) => coupon.id === event.couponDefinitionId)?.name
+                      ?? `#${event.couponDefinitionId}`
+                  }`
                   : ""}
               </div>
             </div>

@@ -37,6 +37,9 @@ public record UpdateEventRequest(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         boolean featured,
         @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, nullable = true)
+        @Positive
+        Long couponDefinitionId,
+        @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED, nullable = true)
         Set<@Positive Long> relatedProductIds
 ) {
     public UpdateCommand toCommand() {
@@ -50,6 +53,7 @@ public record UpdateEventRequest(
                 endAt,
                 published,
                 featured,
+                couponDefinitionId,
                 relatedProductIds);
     }
 }

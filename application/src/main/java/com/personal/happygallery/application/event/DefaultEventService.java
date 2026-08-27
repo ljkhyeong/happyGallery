@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.event;
 
+import com.personal.happygallery.application.coupon.port.out.CouponDefinitionReaderPort;
 import com.personal.happygallery.application.event.port.in.EventAdminUseCase;
 import com.personal.happygallery.application.event.port.in.EventQueryUseCase;
 import com.personal.happygallery.application.event.port.out.EventReaderPort;
@@ -25,6 +26,7 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
     private final EventReaderPort eventReader;
     private final EventStorePort eventStore;
     private final ProductReaderPort productReader;
+    private final CouponDefinitionReaderPort couponDefinitionReader;
     private final ImageMediaReferenceGuard imageMediaReferenceGuard;
     private final Clock clock;
 
@@ -32,12 +34,14 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
             EventReaderPort eventReader,
             EventStorePort eventStore,
             ProductReaderPort productReader,
+            CouponDefinitionReaderPort couponDefinitionReader,
             ImageMediaReferenceGuard imageMediaReferenceGuard,
             Clock clock
     ) {
         this.eventReader = eventReader;
         this.eventStore = eventStore;
         this.productReader = productReader;
+        this.couponDefinitionReader = couponDefinitionReader;
         this.imageMediaReferenceGuard = imageMediaReferenceGuard;
         this.clock = clock;
     }
@@ -79,9 +83,11 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
                 command.endAt(),
                 command.published(),
                 command.featured(),
+                command.couponDefinitionId(),
                 command.relatedProductIds());
         imageMediaReferenceGuard.validateAssignment(event.getImageUrl());
         requireExistingProducts(event.getRelatedProductIds());
+        requireExistingCoupon(event.getCouponDefinitionId());
         return eventStore.save(event);
     }
 
@@ -99,9 +105,11 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
                 command.endAt(),
                 command.published(),
                 command.featured(),
+                command.couponDefinitionId(),
                 command.relatedProductIds());
         imageMediaReferenceGuard.validateAssignment(event.getImageUrl());
         requireExistingProducts(event.getRelatedProductIds());
+        requireExistingCoupon(event.getCouponDefinitionId());
         return eventStore.save(event);
     }
 
@@ -122,6 +130,13 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
                 .collect(Collectors.toSet());
         if (!foundIds.equals(relatedProductIds)) {
             throw new NotFoundException("연관 상품");
+        }
+    }
+
+    private void requireExistingCoupon(Long couponDefinitionId) {
+        if (couponDefinitionId != null
+                && couponDefinitionReader.findById(couponDefinitionId).isEmpty()) {
+            throw new NotFoundException("연결 쿠폰");
         }
     }
 

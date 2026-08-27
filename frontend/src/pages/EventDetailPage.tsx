@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvent, type EventResponse } from "@/features/event/api";
+import { EventCouponClaim } from "@/features/event/EventCouponClaim";
 import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
 import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
@@ -66,6 +67,13 @@ export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse 
           </p>
           <hr className="my-4" />
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.85 }}>{event.content}</div>
+
+          {event.couponDefinitionId !== null && (
+            <EventCouponClaim
+              eventId={event.id}
+              couponDefinitionId={event.couponDefinitionId}
+            />
+          )}
 
           {event.relatedProductIds.length > 0 && (
             <section className="mt-5 pt-4 border-top">

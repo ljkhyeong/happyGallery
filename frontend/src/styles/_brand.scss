@@ -427,6 +427,27 @@
   color: rgba(255, 255, 255, 0.72);
 }
 
+.event-coupon-panel {
+  overflow: hidden;
+  background:
+    linear-gradient(120deg, rgba(120, 40, 55, 0.1), rgba(255, 255, 255, 0.65)),
+    #F7F1EC;
+  box-shadow: inset 0 0 0 1px rgba(93, 44, 42, 0.12);
+}
+
+.event-coupon-panel .card-body {
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+}
+
+.event-coupon-kicker {
+  margin-bottom: 0.4rem;
+  color: var(--hg-burgundy);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .home-workshop-section {
   padding-block: clamp(4rem, 7vw, 6.5rem);
   background: #EEF3F0;

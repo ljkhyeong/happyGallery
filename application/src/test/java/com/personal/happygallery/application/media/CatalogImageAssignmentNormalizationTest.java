@@ -11,6 +11,7 @@ import com.personal.happygallery.application.booking.DefaultClassManagementServi
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase.CreateClassCommand;
 import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
+import com.personal.happygallery.application.coupon.port.out.CouponDefinitionReaderPort;
 import com.personal.happygallery.application.event.DefaultEventService;
 import com.personal.happygallery.application.event.port.in.EventAdminUseCase.CreateCommand;
 import com.personal.happygallery.application.event.port.out.EventReaderPort;
@@ -107,6 +108,7 @@ class CatalogImageAssignmentNormalizationTest {
                 mock(EventReaderPort.class),
                 eventStore,
                 mock(ProductReaderPort.class),
+                mock(CouponDefinitionReaderPort.class),
                 guard,
                 Clock.systemUTC());
         LocalDateTime now = LocalDateTime.of(2026, 8, 14, 21, 0);
@@ -120,6 +122,7 @@ class CatalogImageAssignmentNormalizationTest {
                 now.plusDays(1),
                 true,
                 true,
+                null,
                 Set.of()));
 
         verify(guard).validateAssignment(NORMALIZED_IMAGE_URL);

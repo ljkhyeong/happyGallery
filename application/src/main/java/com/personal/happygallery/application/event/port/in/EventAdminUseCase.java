@@ -26,6 +26,7 @@ public interface EventAdminUseCase {
             LocalDateTime endAt,
             boolean published,
             boolean featured,
+            Long couponDefinitionId,
             Set<Long> relatedProductIds
     ) {}
 
@@ -39,6 +40,7 @@ public interface EventAdminUseCase {
             LocalDateTime endAt,
             boolean published,
             boolean featured,
+            Long couponDefinitionId,
             Set<Long> relatedProductIds
     ) {}
 }

@@ -1,6 +1,8 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
 export interface EventResponse {
   content: string;
+  /** @nullable */
+  couponDefinitionId: number | null;
   endAt: string;
   featured: boolean;
   id: number;

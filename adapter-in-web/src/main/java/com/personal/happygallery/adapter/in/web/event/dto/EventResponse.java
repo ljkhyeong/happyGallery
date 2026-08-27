@@ -15,6 +15,7 @@ public record EventResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean published,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean featured,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long couponDefinitionId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Long> relatedProductIds,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long version
 ) {
@@ -29,6 +30,7 @@ public record EventResponse(
                 event.getEndAt(),
                 event.isPublished(),
                 event.isFeatured(),
+                event.getCouponDefinitionId(),
                 event.getRelatedProductIds().stream().sorted().toList(),
                 event.getVersion());
     }

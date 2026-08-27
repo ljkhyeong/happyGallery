@@ -8,12 +8,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.personal.happygallery.adapter.out.persistence.coupon.CouponDefinitionRepository;
 import com.personal.happygallery.adapter.out.persistence.event.EventRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.application.event.port.in.EventAdminUseCase;
 import com.personal.happygallery.application.event.port.in.EventAdminUseCase.CreateCommand;
 import com.personal.happygallery.application.event.port.in.EventAdminUseCase.UpdateCommand;
 import com.personal.happygallery.application.event.port.in.EventQueryUseCase;
+import com.personal.happygallery.domain.coupon.CouponDefinition;
+import com.personal.happygallery.domain.coupon.CouponDiscountType;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -37,6 +40,7 @@ class EventUseCaseIT {
     @Autowired EventAdminUseCase eventAdminUseCase;
     @Autowired EventQueryUseCase eventQueryUseCase;
     @Autowired EventRepository eventRepository;
+    @Autowired CouponDefinitionRepository couponDefinitionRepository;
     @Autowired ProductRepository productRepository;
     @Autowired MockMvc mockMvc;
     @Autowired Clock clock;
@@ -44,6 +48,7 @@ class EventUseCaseIT {
     @AfterEach
     void tearDown() {
         eventRepository.deleteAllInBatch();
+        couponDefinitionRepository.deleteAllInBatch();
         productRepository.deleteAllInBatch();
     }
 
@@ -114,6 +119,16 @@ class EventUseCaseIT {
                 new Product("연관 상품 1", ProductType.READY_STOCK, 10_000L));
         Product secondProduct = productRepository.save(
                 new Product("연관 상품 2", ProductType.READY_STOCK, 20_000L));
+        CouponDefinition coupon = couponDefinitionRepository.saveAndFlush(new CouponDefinition(
+                "이벤트 쿠폰",
+                CouponDiscountType.FIXED,
+                5_000L,
+                10_000L,
+                null,
+                now,
+                now.plusDays(30),
+                true,
+                true));
 
         Event created = createEvent(
                 "여름 이벤트",
@@ -121,7 +136,8 @@ class EventUseCaseIT {
                 now.plusDays(10),
                 false,
                 true,
-                Set.of(secondProduct.getId(), firstProduct.getId()));
+                Set.of(secondProduct.getId(), firstProduct.getId()),
+                coupon.getId());
         long firstVersion = created.getVersion();
 
         assertThat(eventAdminUseCase.listAll())
@@ -139,6 +155,7 @@ class EventUseCaseIT {
                 now.plusDays(11),
                 true,
                 false,
+                coupon.getId(),
                 Set.of(secondProduct.getId())));
 
         assertSoftly(softly -> {
@@ -147,6 +164,7 @@ class EventUseCaseIT {
             softly.assertThat(updated.isFeatured()).isFalse();
             softly.assertThat(updated.getRelatedProductIds())
                     .containsExactly(secondProduct.getId());
+            softly.assertThat(updated.getCouponDefinitionId()).isEqualTo(coupon.getId());
             softly.assertThat(updated.getVersion()).isEqualTo(firstVersion + 1);
             softly.assertThat(eventAdminUseCase.listAll())
                     .singleElement()
@@ -167,6 +185,7 @@ class EventUseCaseIT {
                 now.plusDays(11),
                 true,
                 false,
+                coupon.getId(),
                 Set.of())))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
@@ -191,6 +210,23 @@ class EventUseCaseIT {
         assertThat(eventRepository.count()).isZero();
     }
 
+    @DisplayName("관리자는 존재하지 않는 쿠폰을 이벤트에 연결할 수 없다")
+    @Test
+    void createEvent_rejectsMissingCoupon() {
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        assertThatThrownBy(() -> createEvent(
+                "잘못된 쿠폰 이벤트",
+                now.plusDays(1),
+                now.plusDays(2),
+                false,
+                false,
+                Set.of(),
+                Long.MAX_VALUE))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(eventRepository.count()).isZero();
+    }
+
     private Event createEvent(
             String title,
             LocalDateTime startAt,
@@ -198,6 +234,19 @@ class EventUseCaseIT {
             boolean published,
             boolean featured,
             Set<Long> relatedProductIds
+    ) {
+        return createEvent(
+                title, startAt, endAt, published, featured, relatedProductIds, null);
+    }
+
+    private Event createEvent(
+            String title,
+            LocalDateTime startAt,
+            LocalDateTime endAt,
+            boolean published,
+            boolean featured,
+            Set<Long> relatedProductIds,
+            Long couponDefinitionId
     ) {
         return eventAdminUseCase.create(new CreateCommand(
                 title,
@@ -208,6 +257,7 @@ class EventUseCaseIT {
                 endAt,
                 published,
                 featured,
+                couponDefinitionId,
                 relatedProductIds));
     }
 }

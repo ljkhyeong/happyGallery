@@ -39,6 +39,7 @@ test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 
     endAt: "2099-12-31T18:00:00",
     published: true,
     featured: true,
+    couponDefinitionId: null,
     relatedProductIds: [501],
     version: 1,
   };
@@ -93,6 +94,145 @@ test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 
   );
 });
 
+test("이벤트 쿠폰은 비회원에게 로그인 후 돌아올 경로를 제공한다", async ({ page }) => {
+  const event = {
+    id: 25,
+    title: "회원 쿠폰 이벤트",
+    summary: "로그인 후 쿠폰을 받을 수 있습니다.",
+    content: "이벤트 상세에서 쿠폰을 확인하세요.",
+    imageUrl: null,
+    startAt: "2099-11-01T10:00:00",
+    endAt: "2099-11-30T18:00:00",
+    published: true,
+    featured: false,
+    couponDefinitionId: 77,
+    relatedProductIds: [],
+    version: 1,
+  };
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/events/25", event));
+
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === "/api/v1/events/25") {
+      await fulfillJson(route, event);
+      return;
+    }
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/events/25");
+  await expect(page.getByRole("heading", { name: "이벤트 쿠폰" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "로그인하고 쿠폰 받기" })).toHaveAttribute(
+    "href",
+    "/login?redirect=%2Fevents%2F25",
+  );
+});
+
+test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", async ({ baseURL, context, page }) => {
+  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
+  await context.addCookies([{
+    name: "XSRF-TOKEN",
+    value: "event-coupon-token",
+    url: baseURL,
+  }]);
+  let claimed = false;
+  const event = {
+    id: 26,
+    title: "오픈데이 쿠폰 이벤트",
+    summary: "이벤트 전용 쿠폰을 받아보세요.",
+    content: "회원에게 공개된 쿠폰입니다.",
+    imageUrl: null,
+    startAt: "2099-11-01T10:00:00",
+    endAt: "2099-11-30T18:00:00",
+    published: true,
+    featured: true,
+    couponDefinitionId: 77,
+    relatedProductIds: [],
+    version: 1,
+  };
+  const coupon = {
+    id: 701,
+    definitionId: 77,
+    name: "오픈데이 쿠폰",
+    discountType: "FIXED",
+    discountValue: 3000,
+    minOrderAmount: 10000,
+    maxDiscountAmount: null,
+    validFrom: "2099-10-01T00:00:00",
+    validUntil: "2099-12-31T23:59:59",
+    status: "AVAILABLE",
+    claimedAt: "2099-11-02T10:00:00",
+    reservedAt: null,
+    usedAt: null,
+  };
+  await replaceSsrUpstreamFixtures(ssrApiFixture("/events/26", event));
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+    if (pathname === "/api/v1/events/26") {
+      await fulfillJson(route, event);
+      return;
+    }
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 401,
+        email: "event-coupon@example.com",
+        name: "이벤트 회원",
+        phone: "01055555555",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/coupons/claimable") {
+      await fulfillJson(route, claimed ? [] : [{
+        definitionId: coupon.definitionId,
+        name: coupon.name,
+        discountType: coupon.discountType,
+        discountValue: coupon.discountValue,
+        minOrderAmount: coupon.minOrderAmount,
+        maxDiscountAmount: coupon.maxDiscountAmount,
+        validFrom: coupon.validFrom,
+        validUntil: coupon.validUntil,
+      }]);
+      return;
+    }
+    if (pathname === "/api/v1/me/coupons") {
+      if (request.method() === "POST") {
+        expect(request.postDataJSON()).toEqual({ definitionId: 77 });
+        claimed = true;
+        await fulfillJson(route, coupon, 201);
+        return;
+      }
+      await fulfillJson(route, claimed ? [coupon] : []);
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/events/26");
+  await expect(page.getByText("오픈데이 쿠폰", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "쿠폰 받기", exact: true }).click();
+  await expect(page.getByText("오픈데이 쿠폰 쿠폰을 받았습니다.")).toBeVisible();
+  await expect(page.getByRole("link", { name: "받은 쿠폰 확인" })).toHaveAttribute(
+    "href",
+    "/my/benefits",
+  );
+});
+
 test("열어 둔 이벤트가 종료되면 상세를 404로 전환하고 반복 조회를 멈춘다", async ({ page }) => {
   const now = new Date("2026-08-08T01:00:00Z");
   await page.clock.install({ time: now });
@@ -108,6 +248,7 @@ test("열어 둔 이벤트가 종료되면 상세를 404로 전환하고 반복 
     endAt: new Date(now.getTime() + 4_000).toISOString(),
     published: true,
     featured: false,
+    couponDefinitionId: null,
     relatedProductIds: [],
     version: 1,
   };
@@ -158,6 +299,7 @@ test("이벤트 상세에서 이탈하면 진행 중인 상세 요청을 브라�
     endAt: new Date(now.getTime() + 4_000).toISOString(),
     published: true,
     featured: false,
+    couponDefinitionId: null,
     relatedProductIds: [],
     version: 1,
   };
@@ -221,6 +363,7 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
         ...createdPayload,
         id: 31,
         imageUrl: createdPayload.imageUrl ?? null,
+        couponDefinitionId: createdPayload.couponDefinitionId ?? null,
         relatedProductIds: createdPayload.relatedProductIds ?? [],
         version: 1,
       };
@@ -247,6 +390,22 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
       await fulfillJson(route, [{ id: 501, name: "연관 작품" }]);
       return;
     }
+    if (pathname === "/api/v1/admin/coupons") {
+      await fulfillJson(route, [{
+        id: 77,
+        name: "오픈데이 쿠폰",
+        discountType: "FIXED",
+        discountValue: 3000,
+        minOrderAmount: 10000,
+        maxDiscountAmount: null,
+        validFrom: "2099-10-01T00:00:00",
+        validUntil: "2099-12-31T23:59:59",
+        active: true,
+        publiclyClaimable: true,
+        version: 1,
+      }]);
+      return;
+    }
     await fulfillJson(route, []);
   });
 
@@ -257,6 +416,7 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
   await page.getByLabel("내용").fill("공방에서 직접 만나보세요.");
   await page.getByLabel("시작 시각").fill("2099-11-01T10:00");
   await page.getByLabel("종료 시각").fill("2099-11-30T18:00");
+  await page.getByLabel("이벤트 쿠폰").selectOption("77");
   await page.getByLabel("연관 작품 (#501)").check();
   await page.getByLabel("공개", { exact: true }).check();
   await page.getByLabel("홈 추천").check();
@@ -267,6 +427,7 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
     title: "공방 오픈데이",
     published: true,
     featured: true,
+    couponDefinitionId: 77,
     relatedProductIds: [501],
   });
 
