@@ -1,12 +1,14 @@
 import {
   createContext,
+  useMemo,
   type ReactNode,
 } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import type { CartItemResponse } from "@/shared/types/cart";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import type { ProductTextInputRequest } from "@/generated/api/customerStore";
+import { fetchProduct } from "@/features/product/api";
 import {
   addToCart,
   fetchCart,
@@ -18,10 +20,11 @@ import {
   useGuestCartMerge,
   type GuestCartMergeIssue,
 } from "./useGuestCartMerge";
-
-type CartItemView = Omit<CartItemResponse, "productType"> & {
-  productType: CartItemResponse["productType"] | null;
-};
+import {
+  projectGuestCartItems,
+  type CartItemIdentifier,
+  type CartItemView,
+} from "./guestCartView";
 
 interface CartContextValue {
   items: CartItemView[];
@@ -43,8 +46,8 @@ interface CartContextValue {
     textInputs: ProductTextInputRequest[],
     qty: number,
   ) => Promise<void>;
-  updateQty: (cartItemId: number, qty: number) => Promise<void>;
-  removeItem: (cartItemId: number) => Promise<void>;
+  updateQty: (cartItemId: CartItemIdentifier, qty: number) => Promise<void>;
+  removeItem: (cartItemId: CartItemIdentifier) => Promise<void>;
 }
 
 export const CartContext = createContext<CartContextValue | null>(null);
@@ -61,6 +64,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     consumeMergedItemsWhileLocked,
   } = useGuestCart();
   const userId = user?.id ?? null;
+  const guestProductIds = useMemo(
+    () => [...new Set(guestItems.map((item) => item.productId))],
+    [guestItems],
+  );
+  const guestProductQueries = useQueries({
+    queries: guestProductIds.map((productId) => ({
+      queryKey: queryKeys.catalog.productDetail(productId),
+      queryFn: () => fetchProduct(productId),
+      enabled: userId === null,
+      staleTime: PUBLIC_DATA_STALE_TIME,
+    })),
+  });
   const {
     isMerging,
     issue: guestCartMergeIssue,
@@ -136,41 +151,40 @@ export function CartProvider({ children }: { children: ReactNode }) {
         qty,
       }),
       updateQty: (cartItemId, qty) => {
+        if (typeof cartItemId !== "number") {
+          throw new Error("회원 장바구니 항목 번호가 올바르지 않습니다.");
+        }
         removeMutation.reset();
         return updateMutation.mutateAsync({ cartItemId, qty });
       },
       removeItem: (cartItemId) => {
+        if (typeof cartItemId !== "number") {
+          throw new Error("회원 장바구니 항목 번호가 올바르지 않습니다.");
+        }
         updateMutation.reset();
         return removeMutation.mutateAsync(cartItemId);
       },
     };
   } else {
+    const guestItemsView = projectGuestCartItems(
+      guestItems,
+      guestProductQueries.flatMap((query) => query.data ? [query.data] : []),
+    );
+    const guestCatalogError = guestProductQueries.find((query) => query.error)?.error ?? null;
     value = {
-      items: guestItems.map((item) => ({
-        cartItemId: item.productId,
-        productId: item.productId,
-        productVariantId: item.productVariantId,
-        productName: "",
-        basePrice: 0,
-        variantPriceAdjustment: 0,
-        textOptionPriceAdjustment: 0,
-        options: [],
-        price: 0,
-        qty: item.qty,
-        subtotal: 0,
-        available: true,
-        productType: null,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      })),
-      totalAmount: 0,
+      items: guestItemsView,
+      totalAmount: guestItemsView
+        .filter((item) => item.available)
+        .reduce((sum, item) => sum + item.subtotal, 0),
       cartVersion: null,
       itemCount: guestItemCount,
-      isLoading: false,
-      error: null,
-      isRefetching: false,
-      refetch: () => undefined,
+      isLoading: guestItems.length > 0
+        && guestProductQueries.some((query) => query.isPending),
+      error: guestCatalogError,
+      isRefetching: guestProductQueries.some((query) => query.isFetching),
+      refetch: () => {
+        for (const query of guestProductQueries) void query.refetch();
+      },
       itemMutationError: null,
       isItemMutationPending: false,
       guestCartMergeIssue: null,
@@ -178,8 +192,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       discardGuestCartMerge,
       addItem: async (productId, productVariantId, textInputs, qty) =>
         addGuestItem(productId, productVariantId, textInputs, qty),
-      updateQty: async (cartItemId, qty) => updateGuestQty(cartItemId, qty),
-      removeItem: async (cartItemId) => removeGuestItem(cartItemId),
+      updateQty: async (cartItemId, qty) => updateGuestQty(String(cartItemId), qty),
+      removeItem: async (cartItemId) => removeGuestItem(String(cartItemId)),
     };
   }
 

@@ -76,7 +76,7 @@ function CartContent() {
     user?.phone ?? undefined,
   );
   const availableItems = items.filter((item) => item.available);
-  const requiresMadeToOrderConsent = availableItems.some(
+  const requiresMadeToOrderConsent = isAuthenticated && availableItems.some(
     (item) => item.productType === "MADE_TO_ORDER",
   );
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
@@ -198,21 +198,7 @@ function CartContent() {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container">
-        <h2 className="mb-4">장바구니</h2>
-        <Card className="text-center py-5">
-          <Card.Body>
-            <p className="mb-3">로그인하면 장바구니를 이용할 수 있습니다.</p>
-            <LinkButton to={loginHref} variant="primary">로그인</LinkButton>
-          </Card.Body>
-        </Card>
-      </Container>
-    );
-  }
-
-  if (cartError) {
+  if (cartError && isAuthenticated) {
     return (
       <Container className="page-container">
         <h2 className="mb-4">장바구니</h2>
@@ -257,6 +243,13 @@ function CartContent() {
       <h2 className="mb-4">장바구니</h2>
       {mergeRecovery}
       {discardConfirmModal}
+      {!isAuthenticated && cartError != null && (
+        <ErrorAlert
+          error={cartError}
+          onRetry={refetch}
+          retrying={isRefetching}
+        />
+      )}
       <ErrorAlert error={itemMutationError} />
       {isItemMutationPending && (
         <Alert variant="info" role="status" className="mb-3">
@@ -374,69 +367,87 @@ function CartContent() {
                 className="mb-3"
               />
 
-              <div className="border-top pt-3 mb-3">
-                <MemberOrderBenefits
-                  productAmount={totalAmount}
-                  selectedCouponId={issuedCouponId}
-                  rewardPointsToUse={rewardAmount}
-                  disabled={checkout.isPending || isItemMutationPending || isRefetching}
-                  onCouponChange={setIssuedCouponId}
-                  onRewardPointsChange={setRewardAmount}
-                />
-              </div>
-
-              <div className="mb-3">
-                <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
-              </div>
-
-              <ErrorAlert
-                error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
-              />
-              {cartSnapshotConflict && (
-                <Alert variant="warning" role="alert" className="mb-3">
-                  {isRefetching
-                    ? "장바구니 내용이 변경되어 최신 정보를 다시 불러오고 있습니다."
-                    : "장바구니 내용이 변경되어 최신 정보로 갱신했습니다. 수량과 금액을 다시 확인한 뒤 결제를 진행해 주세요."}
-                </Alert>
-              )}
-              {!cartVersion && (
-                <Alert variant="warning" role="alert" className="mb-3">
-                  <div>장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.</div>
-                  <Button
-                    type="button"
-                    variant="outline-dark"
-                    size="sm"
-                    className="mt-2"
-                    disabled={isRefetching}
-                    onClick={refetch}
+              {!isAuthenticated ? (
+                <>
+                  <Alert variant="light" className="border mb-3">
+                    담은 상품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다.
+                  </Alert>
+                  <LinkButton
+                    to={loginHref}
+                    variant="primary"
+                    size="lg"
+                    className="w-100"
                   >
-                    {isRefetching ? "다시 확인 중..." : "장바구니 다시 확인"}
+                    로그인하고 주문하기
+                  </LinkButton>
+                </>
+              ) : (
+                <>
+                  <div className="border-top pt-3 mb-3">
+                    <MemberOrderBenefits
+                      productAmount={totalAmount}
+                      selectedCouponId={issuedCouponId}
+                      rewardPointsToUse={rewardAmount}
+                      disabled={checkout.isPending || isItemMutationPending || isRefetching}
+                      onCouponChange={setIssuedCouponId}
+                      onRewardPointsChange={setRewardAmount}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+                  </div>
+
+                  <ErrorAlert
+                    error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
+                  />
+                  {cartSnapshotConflict && (
+                    <Alert variant="warning" role="alert" className="mb-3">
+                      {isRefetching
+                        ? "장바구니 내용이 변경되어 최신 정보를 다시 불러오고 있습니다."
+                        : "장바구니 내용이 변경되어 최신 정보로 갱신했습니다. 수량과 금액을 다시 확인한 뒤 결제를 진행해 주세요."}
+                    </Alert>
+                  )}
+                  {!cartVersion && (
+                    <Alert variant="warning" role="alert" className="mb-3">
+                      <div>장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.</div>
+                      <Button
+                        type="button"
+                        variant="outline-dark"
+                        size="sm"
+                        className="mt-2"
+                        disabled={isRefetching}
+                        onClick={refetch}
+                      >
+                        {isRefetching ? "다시 확인 중..." : "장바구니 다시 확인"}
+                      </Button>
+                    </Alert>
+                  )}
+                  <MadeToOrderConsent
+                    required={requiresMadeToOrderConsent}
+                    policy={consent.policyQuery.data}
+                    isLoading={consent.policyQuery.isLoading}
+                    isFetching={consent.policyQuery.isFetching}
+                    error={consent.policyQuery.error}
+                    checked={consent.checked}
+                    onChange={consent.setChecked}
+                    versionMismatch={consent.versionMismatch}
+                    refreshRequired={consent.refreshRequired}
+                  />
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="w-100"
+                    disabled={checkout.isPending || availableItems.length === 0
+                      || !cartVersion
+                      || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
+                      || !isFulfillmentComplete(fulfillment) || !consent.ready}
+                    onClick={handleCheckout}
+                  >
+                    {checkout.isPending ? "결제 준비 중..." : "결제하기"}
                   </Button>
-                </Alert>
+                </>
               )}
-              <MadeToOrderConsent
-                required={requiresMadeToOrderConsent}
-                policy={consent.policyQuery.data}
-                isLoading={consent.policyQuery.isLoading}
-                isFetching={consent.policyQuery.isFetching}
-                error={consent.policyQuery.error}
-                checked={consent.checked}
-                onChange={consent.setChecked}
-                versionMismatch={consent.versionMismatch}
-                refreshRequired={consent.refreshRequired}
-              />
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-100"
-                disabled={checkout.isPending || availableItems.length === 0
-                  || !cartVersion
-                  || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
-                  || !isFulfillmentComplete(fulfillment) || !consent.ready}
-                onClick={handleCheckout}
-              >
-                {checkout.isPending ? "결제 준비 중..." : "결제하기"}
-              </Button>
             </Card.Body>
           </Card>
         </Col>

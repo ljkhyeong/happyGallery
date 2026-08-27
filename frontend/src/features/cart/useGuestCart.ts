@@ -259,15 +259,15 @@ export function useGuestCart() {
     });
   }, [updateItems]);
 
-  const updateQty = useCallback(async (productId: number, qty: number) => {
+  const updateQty = useCallback(async (lineKey: string, qty: number) => {
     requireCartQuantity(qty);
     await updateItems((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, qty } : i)),
+      prev.map((item) => (item.lineKey === lineKey ? { ...item, qty } : item)),
     );
   }, [updateItems]);
 
-  const removeItem = useCallback(async (productId: number) => {
-    await updateItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = useCallback(async (lineKey: string) => {
+    await updateItems((prev) => prev.filter((item) => item.lineKey !== lineKey));
   }, [updateItems]);
 
   const consumeMergedItemsWhileLocked = useCallback((mergedItems: GuestCartItem[]) => {
