@@ -159,6 +159,8 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(pickup(OrderStatus.PICKUP_READY));
         when(orderPickupUseCase.confirmPickup(200L, ADMIN_USER_ID))
                 .thenReturn(pickup(OrderStatus.PICKED_UP));
+        when(orderPickupUseCase.refundMissedPickup(200L, ADMIN_USER_ID))
+                .thenReturn(new OrderPickupUseCase.MissedPickupRefundResult(order, orderRefund));
         when(orderShippingUseCase.prepareShipping(200L, ADMIN_USER_ID))
                 .thenReturn(shipping(OrderStatus.SHIPPING_PREPARING));
         when(orderShippingUseCase.markShipped(
@@ -503,6 +505,15 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 픽업 만료 배치 API를 문서화한다")
     void admin_expire_pickups() throws Exception {
         mockMvc.perform(post("/api/v1/admin/orders/expire-pickups")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 미수령 주문 예외 환불 API를 문서화한다")
+    void admin_refund_missed_pickup() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/refund-missed-pickup", 200L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());

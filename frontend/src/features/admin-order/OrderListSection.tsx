@@ -38,8 +38,8 @@ const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "REJECTED", label: "거절" },
   { value: "CUSTOMER_CANCELED", label: "고객 취소" },
   { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
-  { value: "PICKUP_EXPIRED", label: "수령 기한 만료 환불" },
-  { value: "PICKUP_FORFEITED", label: "미수령으로 종료" },
+  { value: "PICKUP_EXPIRED", label: "미수령 환불 처리" },
+  { value: "PICKUP_FORFEITED", label: "미수령 종료(환불 없음)" },
 ];
 
 export function OrderListSection({
@@ -152,7 +152,7 @@ export function OrderListSection({
           <Button size="sm" variant="outline-secondary"
             disabled={mutations.expire.isPending}
             onClick={() => setShowExpireConfirmation(true)}>
-            {mutations.expire.isPending ? "처리 중..." : "수령 기한 지난 주문 환불·종결"}
+            {mutations.expire.isPending ? "처리 중..." : "수령 기한 지난 주문 미수령 처리"}
           </Button>
         </Col>
       </Row>
@@ -273,8 +273,9 @@ export function OrderListSection({
         </Modal.Header>
         <Modal.Body>
           <Alert variant="warning" className="mb-0 small">
-            재고 상품 주문은 재고를 되돌리고 환불을 요청합니다. 주문 제작 상품은 환불 없이
-            미수령 상태로 종료합니다. 처리할 주문과 상품 종류를 확인한 뒤 실행해 주세요.
+            모든 주문을 환불 없이 미수령 상태로 종료합니다. 기성품은 다시 판매할 수 있도록
+            재고만 복구하고 주문제작 재고는 변경하지 않습니다. 고객 응대 후 환불이 필요한
+            주문은 미수령 처리 뒤 개별 주문의 관리자 예외 환불을 사용해 주세요.
           </Alert>
         </Modal.Body>
         <Modal.Footer>
@@ -293,7 +294,7 @@ export function OrderListSection({
               mutations.expire.mutate();
             }}
           >
-            환불·종결 실행
+            미수령 처리 실행
           </Button>
         </Modal.Footer>
       </Modal>

@@ -14,6 +14,7 @@ import {
   prepareShipping as prepareAdminOrderShipping,
   proposeDelay as proposeOrderDelay,
   reject,
+  refundMissedPickup as requestMissedPickupRefund,
   resumeOrderAfterDelay,
   setExpectedShipDate as updateExpectedShipDate,
   type AdminOrderFulfillmentResponse,
@@ -22,6 +23,7 @@ import {
   type BatchResponse,
   type MarkPickupReadyRequest,
   type MarkShippedRequest,
+  type MissedPickupRefundResponse,
   type OrderDelayCancellationResponse,
   type OrderProductionResponse,
   type OrderRejectResponse,
@@ -112,6 +114,13 @@ export function preparePickup(
 
 export function completePickup(adminKey: string, id: number): Promise<PickupResponse> {
   return confirmPickup(id, { headers: adminHeaders(adminKey) });
+}
+
+export function refundMissedPickup(
+  adminKey: string,
+  id: number,
+): Promise<MissedPickupRefundResponse> {
+  return requestMissedPickupRefund(id, { headers: adminHeaders(adminKey) });
 }
 
 export function prepareShipping(adminKey: string, id: number): Promise<ShippingResponse> {

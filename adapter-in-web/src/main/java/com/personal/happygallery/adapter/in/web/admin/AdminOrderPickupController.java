@@ -2,11 +2,13 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.MarkPickupReadyRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.MissedPickupRefundResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.PickupResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,6 +46,17 @@ public class AdminOrderPickupController {
         OrderPickupUseCase.PickupResult result = orderPickupUseCase.confirmPickup(
                 id, admin.auditActorId());
         return PickupResponse.from(result);
+    }
+
+    /** 미수령 종료 주문을 관리자가 예외적으로 전액 환불한다. */
+    @Operation(operationId = "refundMissedPickup")
+    @PostMapping("/{id}/refund-missed-pickup")
+    public MissedPickupRefundResponse refundMissedPickup(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AdminPrincipal admin
+    ) {
+        return MissedPickupRefundResponse.from(
+                orderPickupUseCase.refundMissedPickup(id, admin.auditActorId()));
     }
 
     /** POST /api/v1/admin/orders/expire-pickups — 픽업 마감 초과 처리 배치 */

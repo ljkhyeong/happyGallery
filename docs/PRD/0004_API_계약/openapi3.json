@@ -3505,6 +3505,23 @@
         "required" : [ "expectedCustomerId", "idempotencyKey", "items" ],
         "type" : "object"
       },
+      "MissedPickupRefundResponse" : {
+        "properties" : {
+          "orderId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "orderStatus" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
+            "type" : "string"
+          },
+          "refund" : {
+            "$ref" : "#/components/schemas/RefundStatusResponse"
+          }
+        },
+        "required" : [ "orderId", "orderStatus", "refund" ],
+        "type" : "object"
+      },
       "MyBookingDetail" : {
         "properties" : {
           "balanceAmount" : {
@@ -9145,6 +9162,33 @@
           }
         },
         "tags" : [ "admin-order-shipping-controller" ]
+      }
+    },
+    "/api/v1/admin/orders/{id}/refund-missed-pickup" : {
+      "post" : {
+        "operationId" : "refundMissedPickup",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MissedPickupRefundResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-order-pickup-controller" ]
       }
     },
     "/api/v1/admin/orders/{id}/reject" : {

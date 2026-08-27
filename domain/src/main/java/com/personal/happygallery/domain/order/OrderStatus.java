@@ -154,6 +154,15 @@ public enum OrderStatus {
 		}
 	}
 
+	/** 관리자가 미수령 종료 주문을 예외 환불할 수 있는지 확인한다. */
+	public void requireMissedPickupRefundable() {
+		requireNotAlreadyRefunded();
+		if (this != PICKUP_FORFEITED) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "미수령으로 종료된 주문만 관리자 환불할 수 있습니다.");
+		}
+	}
+
 	/** expectedShipDate 갱신이 허용되는 상태인지 확인한다 (제작 중/지연/배송 준비). */
 	public void requireExpectedShipDateWritable() {
 		if (this != IN_PRODUCTION

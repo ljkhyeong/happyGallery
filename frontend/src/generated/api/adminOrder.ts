@@ -579,6 +579,35 @@ export interface MarkPickupReadyRequest {
   pickupDeadlineAt?: string | null;
 }
 
+export type MissedPickupRefundResponseOrderStatus = typeof MissedPickupRefundResponseOrderStatus[keyof typeof MissedPickupRefundResponseOrderStatus];
+
+
+export const MissedPickupRefundResponseOrderStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export interface MissedPickupRefundResponse {
+  orderId: number;
+  orderStatus: MissedPickupRefundResponseOrderStatus;
+  refund: RefundStatusResponse;
+}
+
 export type OrderRejectResponseOrderStatus = typeof OrderRejectResponseOrderStatus[keyof typeof OrderRejectResponseOrderStatus];
 
 
@@ -991,6 +1020,27 @@ export const getPrepareShippingUrl = (id: number,) => {
 export const prepareShipping = async (id: number, options?: RequestInit): Promise<ShippingResponse> => {
 
   return generatedApiClient<ShippingResponse>(getPrepareShippingUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getRefundMissedPickupUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/orders/${id}/refund-missed-pickup`
+}
+
+export const refundMissedPickup = async (id: number, options?: RequestInit): Promise<MissedPickupRefundResponse> => {
+
+  return generatedApiClient<MissedPickupRefundResponse>(getRefundMissedPickupUrl(id),
   {
     ...options,
     method: 'POST'

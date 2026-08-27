@@ -272,6 +272,18 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           {pending ? "처리 중..." : "매장 수령 완료로 표시"}
         </Button>
       );
+    case "PICKUP_FORFEITED":
+      return (
+        <RiskActionButton
+          buttonLabel="관리자 예외 환불"
+          confirmLabel="전액 환불 요청"
+          title="미수령 주문 예외 환불 확인"
+          impact="미수령으로 종료된 주문의 전액 환불을 요청합니다. 기성품 재고는 만료 처리 때 이미 복구됐고 주문제작 재고는 판매 재고가 아니므로 재고 수량은 변경하지 않습니다. 주문 상태는 즉시 바뀌지만 결제사 환불 완료 여부는 별도로 확인해야 합니다."
+          disabled={disabled}
+          pending={pending}
+          onConfirm={() => mutations.missedPickupRefund.mutate(orderId)}
+        />
+      );
     default:
       return null;
   }

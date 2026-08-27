@@ -13,8 +13,8 @@ import org.springframework.stereotype.Service;
  * 픽업 마감 초과 처리 배치 서비스 (§8.4).
  *
  * <p>{@code pickup_deadline_at < now} 인 {@code PICKUP_READY} 주문을 일괄 처리한다.
- * 기성품 주문은 재고 복구와 환불을 요청하고, 주문제작 주문은 환불 없이
- * {@code PICKUP_FORFEITED}로 전이한다.
+ * 모든 주문을 환불 없이 {@code PICKUP_FORFEITED}로 전이한다.
+ * 기성품은 다시 판매할 수 있도록 재고만 복구하고 주문제작 재고는 유지한다.
  */
 @Service
 public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase {
@@ -36,8 +36,8 @@ public class DefaultPickupExpireBatchService implements PickupExpireBatchUseCase
      *
      * <ol>
      *   <li>Order.status=PICKUP_READY AND pickupDeadlineAt &lt; now 조회</li>
-     *   <li>기성품 주문: 재고 복구 → 환불 요청 → PICKUP_EXPIRED 전이</li>
-     *   <li>주문제작 주문: 환불 없이 PICKUP_FORFEITED 전이</li>
+     *   <li>기성품 주문: 재고 복구 → PICKUP_FORFEITED 전이</li>
+     *   <li>주문제작 주문: 재고·환불 변경 없이 PICKUP_FORFEITED 전이</li>
      * </ol>
      *
      * @return 처리된 건수

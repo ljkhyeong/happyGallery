@@ -91,7 +91,7 @@ const STATUS_LABEL: Record<string, string> = {
   DELAY_REJECTED_CANCELED: "지연 거절로 주문 취소",
   PICKED_UP: "수령 완료",
   PICKUP_EXPIRED: "미수령 환불 처리",
-  PICKUP_FORFEITED: "미수령으로 주문 종료",
+  PICKUP_FORFEITED: "미수령 종료(환불 없음)",
   SHIPPING_PREPARING: "배송 준비 중",
   SHIPPED: "배송 중",
   DELIVERED: "배송 완료",

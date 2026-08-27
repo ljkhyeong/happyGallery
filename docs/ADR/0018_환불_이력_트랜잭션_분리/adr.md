@@ -44,7 +44,7 @@
   - 해당 멱등키의 취소가 없고 결제 상태가 미취소로 명확하면 `NOT_REFUNDED`로 판단해 `RETRYABLE`로 돌린다. 다음 실행부터 최초 멱등키로 취소 API를 호출한다.
   - 식별자·금액·상태가 모순되거나 취소 거래 식별자가 없으면 `REVIEW_REQUIRED`, 조회 통신 실패는 `UNAVAILABLE`로 보고 `RECONCILIATION_REQUIRED`를 유지한다.
   - 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`를 다시 검증한 뒤에만 성공 결과를 저장한다.
-- 취소·거절·8회권 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
+- 취소·거절·8회권 환불과 관리자 미수령 예외 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
 - 고객은 기존 소유권 검증을 통과한 예약·주문 목록·상세에서 환불 `amount`, `status`만 확인하며 실패 사유·시도 횟수를 노출하지 않는다. 회원 8회권 환불 접수 응답은 후속 상태 조회를 위해 `refundId`를 반환한다.
 - 운영자는 시작 응답의 `refundId`와 `GET /api/v1/admin/refunds/{refundId}`로 전체 상태를 조회한다. 수동 재시도 응답도 PG 호출 후 실제 저장 상태를 반환한다.
 - 프론트 고객 상세는 `REQUESTED`, `PROCESSING`을 짧게 폴링하고 자동 복구 대상인 `RETRYABLE`, `RECONCILIATION_REQUIRED`는 간격을 늘려 추적한다. 관리자 시작 화면은 `REQUESTED`, `PROCESSING`만 추적하고 조치 필요 상태는 결과 기반 알림과 실패 목록으로 전환한다.

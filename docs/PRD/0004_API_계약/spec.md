@@ -1229,7 +1229,7 @@ X-Access-Token: {accessToken}
   - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - 주문 전액 취소는 PG 결제액과 사용 적립금을 각각 취소·복원하고, 취소 시점에도 유효한 쿠폰만 다시 사용할 수 있게 한다. 사용 쿠폰이 이미 만료됐다면 상태를 `EXPIRED`로 바꾸되 원 결제 시도·주문 연결과 사용 시각은 감사 이력으로 유지한다.
-  - `status=PICKUP_EXPIRED`는 기성품 미수령 환불이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 주문제작 상품의 미수령 종료이며 `refund=null`이다.
+  - `status=PICKUP_EXPIRED`는 관리자 예외 환불 또는 정책 변경 전 자동 환불된 미수령 주문이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 상품 유형과 관계없는 미환불 미수령 종료이며 `refund=null`이다.
   - `DELETE /api/v1/orders/{id}`는 비회원 접근 토큰으로, `DELETE /api/v1/me/orders/{id}`는 회원 세션으로 본인 주문을 확인한다. `PAID_APPROVAL_PENDING`만 `CUSTOMER_CANCELED`로 전이하고 재고 복구·이력·환불 요청을 함께 처리한다.
   - `POST /api/v1/orders/{id}/delay-response`와 `POST /api/v1/me/orders/{id}/delay-response`는 `{ "decision": "ACCEPT|REJECT" }`를 받는다. `DELAY_CONSENT_PENDING`에서 수락하면 `DELAY_ACCEPTED`, 거절하면 `DELAY_REJECTED_CANCELED`와 전액 환불 요청으로 전이한다.
   - 고객 액션 응답은 `{orderId,status,refund}`다. `refund`가 `REQUESTED`여도 PG 완료를 뜻하지 않으며 주문 상세에서 진행 상태를 다시 확인한다.
@@ -1481,6 +1481,26 @@ Authorization: Bearer {token}
   - 응답: `{ "orderId": 5, "status": "PICKED_UP", "pickupDeadlineAt": "2026-04-16T18:00:00" }`
   - 정책:
     - 이력은 `PICKUP_COMPLETE`로 기록하고 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
+- `POST /api/v1/admin/orders/{id}/refund-missed-pickup`
+  - 응답: `200 OK`
+    ```json
+    {
+      "orderId": 5,
+      "orderStatus": "PICKUP_EXPIRED",
+      "refund": {
+        "refundId": 44,
+        "amount": 118000,
+        "status": "REQUESTED",
+        "attemptCount": 0,
+        "failReason": null
+      }
+    }
+    ```
+  - 정책:
+    - `PICKUP_FORFEITED` 주문만 관리자가 예외적으로 전액 환불할 수 있다.
+    - 기성품 재고는 만료 처리 때 이미 복구됐고 주문제작 재고는 판매 재고가 아니므로, 예외 환불은 재고를 다시 조정하지 않는다.
+    - 환불 요청과 `PICKUP_EXPIRED` 전이, `PICKUP_EXPIRED` 이력을 한 트랜잭션에 기록한다. 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
+    - 응답의 `REQUESTED`는 환불 요청 접수 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
 
 공통 에러:
 - `401 UNAUTHORIZED` — 관리자 인증 실패
@@ -1508,10 +1528,10 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `pickup_deadline_at < now` 인 `PICKUP_READY` 주문만 처리한다.
-  - 기성품 주문은 재고를 복구하고 환불 요청 이력을 만든 뒤 `PICKUP_EXPIRED`로 전이한다. PG 환불은 부모 트랜잭션 커밋 후 비동기로 실행한다.
+  - 기성품 주문은 재고만 복구하고 환불 요청 없이 `PICKUP_FORFEITED`로 전이한다.
   - 주문제작 상품이 하나라도 포함된 주문은 제작 완료 상품으로 보아 환불 요청과 재고 복구 없이 `PICKUP_FORFEITED`로 전이한다.
-  - 이력은 각각 `PICKUP_EXPIRED`, `PICKUP_FORFEITED`로 기록하며 자동 처리이므로 adminId는 `null`이다.
-  - `successCount`는 만료 상태 전이에 성공한 건수이며 PG 환불 완료 건수가 아니다.
+  - 이력은 `PICKUP_FORFEITED`로 기록하며 자동 처리이므로 adminId는 `null`이다.
+  - `successCount`는 미수령 종료 상태 전이에 성공한 건수다.
   - `failureReasons`는 내부 예외명을 그대로 노출하지 않고 `CONFLICT`, `NOT_FOUND`, `ALREADY_PROCESSED`, `BUSINESS_ERROR`, `INTERNAL_ERROR`로 정규화한다.
 
 #### 2.7.5 제작 완료

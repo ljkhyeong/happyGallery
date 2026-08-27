@@ -340,16 +340,16 @@ public class Order {
         this.status = OrderStatus.PICKED_UP;
     }
 
-    /** 픽업 마감 초과 처리. {@link OrderStatus#PICKUP_READY} 상태가 아니면 400을 던진다. */
-    public void markPickupExpired() {
-        this.status.requirePickupReady();
-        this.status = OrderStatus.PICKUP_EXPIRED;
-    }
-
-    /** 주문제작 상품의 픽업 마감 초과 처리. 환불 없이 미수령 종료 상태로 전이한다. */
+    /** 픽업 마감 초과를 환불 없이 미수령 종료 상태로 전이한다. */
     public void markPickupForfeited() {
         this.status.requirePickupReady();
         this.status = OrderStatus.PICKUP_FORFEITED;
+    }
+
+    /** 관리자가 미수령 종료 주문을 예외 환불 상태로 전이한다. */
+    public void markMissedPickupRefunded() {
+        this.status.requireMissedPickupRefundable();
+        this.status = OrderStatus.PICKUP_EXPIRED;
     }
 
     public void claimToUser(Long userId) {

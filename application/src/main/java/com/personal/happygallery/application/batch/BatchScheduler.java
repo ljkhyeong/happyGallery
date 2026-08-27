@@ -73,7 +73,7 @@ public class BatchScheduler {
         return orderAutoRefundBatchUseCase.autoRefundExpired();
     }
 
-    /** 픽업 마감 초과 → 기성품 환불, 주문제작 미환불 만료. 매시간 정각 실행. */
+    /** 픽업 마감 초과 → 기성품 재고 복구 후 미환불 종료, 주문제작 미환불 종료. 매시간 정각 실행. */
     @BatchJob(id = "pickup_expire", value = "픽업 만료")
     @Scheduled(cron = "0 0 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPickupExpire() {

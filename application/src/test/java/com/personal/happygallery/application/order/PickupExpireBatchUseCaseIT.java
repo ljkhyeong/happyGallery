@@ -6,17 +6,16 @@ import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -41,8 +40,8 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 /**
  * [UseCaseIT] §8.4 픽업 만료 배치 검증.
  *
- * <p>Proof (§8.4 DoD): 기성품 픽업 만료는 환불·재고 복구하고,
- * 주문제작 미수령은 환불 없이 종료한다.
+ * <p>Proof (§8.4 DoD): 기성품 픽업 만료는 재고만 복구하고,
+ * 모든 미수령 주문은 환불 없이 종료한 뒤 관리자만 예외 환불할 수 있다.
  */
 @UseCaseIT
 class PickupExpireBatchUseCaseIT {
@@ -85,12 +84,12 @@ class PickupExpireBatchUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof (DoD §8.4): 픽업 마감 초과 → 상품 유형별 환불 정책 적용
+    // Proof (DoD §8.4): 픽업 마감 초과 → 환불 없이 종료
     // -----------------------------------------------------------------------
 
-    @DisplayName("픽업 기한이 지난 기성품 주문은 환불되고 재고가 복구된다")
+    @DisplayName("픽업 기한이 지난 기성품 주문은 재고만 복구되고 환불 없이 종료된다")
     @Test
-    void expirePickups_readyStockExpired_refundsAndRestoresInventory() {
+    void expirePickups_readyStockExpired_restoresInventoryWithoutRefund() {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("픽업 테스트 상품", 50000L);
         Order order = fixture.order();
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
@@ -112,8 +111,6 @@ class PickupExpireBatchUseCaseIT {
         // 재고 복구 확인
         int restoredQuantity = orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity();
 
-        // 환불 기록 확인
-        var refunds = orderStateProbe.refunds();
         var decisions = orderStateProbe.orderApprovalHistoryOrdered(order.getId()).stream()
                 .map(history -> history.getDecision())
                 .toList();
@@ -122,15 +119,50 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(afterReady.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+            softly.assertThat(expired.getStatus()).isEqualTo(OrderStatus.PICKUP_FORFEITED);
             softly.assertThat(restoredQuantity).isEqualTo(1);
-            softly.assertThat(refunds).singleElement()
-                    .extracting(Refund::getOrderId)
-                    .isEqualTo(order.getId());
+            softly.assertThat(orderStateProbe.refundCount()).isZero();
             softly.assertThat(decisions).containsExactly(
                     OrderApprovalDecision.APPROVE,
                     OrderApprovalDecision.PICKUP_READY,
-                    OrderApprovalDecision.PICKUP_EXPIRED);
+                    OrderApprovalDecision.PICKUP_FORFEITED);
+        });
+    }
+
+    @DisplayName("관리자는 미수령 종료 주문을 재고 중복 복구 없이 예외 환불할 수 있다")
+    @Test
+    void refundMissedPickup_forfeitedOrder_refundsWithoutRestoringInventoryAgain() {
+        OrderTestHelper.OrderFixture fixture =
+                orderHelper.createReadyStockPaidOrder("관리자 미수령 환불 상품", 55000L);
+        Order order = fixture.order();
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
+        markPickupReadyWithExpiredDeadline(order.getId());
+        pickupExpireBatchService.expirePickups();
+
+        OrderPickupUseCase.MissedPickupRefundResult result =
+                orderPickupService.refundMissedPickup(order.getId(), ADMIN_ID);
+
+        Order refunded = orderStateProbe.getOrder(order.getId());
+        int inventoryQuantity = orderStateProbe
+                .getInventoryByProductId(fixture.product().getId())
+                .getQuantity();
+        var history = orderStateProbe.orderApprovalHistoryOrdered(order.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.order().getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+            softly.assertThat(result.refund().getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(result.refund().getCustomerRefundAmount()).isEqualTo(55000L);
+            softly.assertThat(refunded.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+            softly.assertThat(inventoryQuantity).isEqualTo(1);
+            softly.assertThat(orderStateProbe.refundCount()).isEqualTo(1L);
+            softly.assertThat(history).extracting(item -> item.getDecision())
+                    .containsExactly(
+                            OrderApprovalDecision.APPROVE,
+                            OrderApprovalDecision.PICKUP_READY,
+                            OrderApprovalDecision.PICKUP_FORFEITED,
+                            OrderApprovalDecision.PICKUP_EXPIRED);
+            softly.assertThat(history.getLast().getDecidedByAdminId()).isEqualTo(ADMIN_ID);
+            softly.assertThat(history.getLast().getReason()).isEqualTo("관리자 미수령 예외 환불");
         });
     }
 
@@ -222,7 +254,7 @@ class PickupExpireBatchUseCaseIT {
             softly.assertThat(result.failureCount()).isEqualTo(1);
             softly.assertThat(result.failureReasons()).containsEntry("NotFoundException", 1);
             softly.assertThat(failedUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_READY);
-            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
+            softly.assertThat(successUpdated.getStatus()).isEqualTo(OrderStatus.PICKUP_FORFEITED);
         });
     }
 
@@ -267,9 +299,9 @@ class PickupExpireBatchUseCaseIT {
         Order updated = orderStateProbe.getOrder(order.getId());
 
         assertSoftly(softly -> {
-            if (updated.getStatus() == OrderStatus.PICKUP_EXPIRED) {
-                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_EXPIRED);
-                softly.assertThat(orderStateProbe.refundCount()).isEqualTo(1L);
+            if (updated.getStatus() == OrderStatus.PICKUP_FORFEITED) {
+                softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKUP_FORFEITED);
+                softly.assertThat(orderStateProbe.refundCount()).isZero();
             } else {
                 softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.PICKED_UP);
             }

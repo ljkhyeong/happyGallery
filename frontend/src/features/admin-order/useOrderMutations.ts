@@ -5,6 +5,7 @@ import { useToast } from "@/shared/ui";
 import {
   approveOrder, rejectOrder, completeProduction,
   proposeDelay, cancelForDelayRejection, resumeAfterDelay, preparePickup, completePickup,
+  refundMissedPickup,
   setExpectedShipDate, expirePickups,
   prepareShipping, markShipped, markDelivered,
 } from "./api";
@@ -79,6 +80,17 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
   const prepareShipping_ = useOrderActionMutation((id) => prepareShipping(adminKey, id), "배송 준비");
   const delivered = useOrderActionMutation((id) => markDelivered(adminKey, id), "배송 완료");
   const pickupDone = useOrderActionMutation((id) => completePickup(adminKey, id), "매장 수령 완료");
+  const missedPickupRefund = useAdminMutation(onAuthError, {
+    mutationFn: (id: number) => refundMissedPickup(adminKey, id),
+    onMutate: startOrderAction,
+    onSuccess: (result, id) => {
+      toast.show(`주문 #${id} 미수령 예외 환불 요청이 접수되었습니다.`, "info");
+      trackRefund(result.refund.refundId, `주문 #${id}`);
+      invalidate();
+    },
+    onError: setLastError,
+    onSettled: () => setPendingId(null),
+  });
 
   const pickup = useAdminMutation(onAuthError, {
     mutationFn: ({ id, body }: { id: number; body: MarkPickupReadyRequest }) => preparePickup(adminKey, id, body),
@@ -108,7 +120,7 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     mutationFn: () => expirePickups(adminKey),
     onMutate: () => setLastError(null),
     onSuccess: (r) => {
-      toast.show(`수령 기한 지난 주문 환불·종결: 완료 ${r.successCount}건 · 확인 필요 ${r.failureCount}건`);
+      toast.show(`수령 기한 지난 주문 미수령 처리: 완료 ${r.successCount}건 · 확인 필요 ${r.failureCount}건`);
       invalidate();
     },
     onError: setLastError,
@@ -118,7 +130,8 @@ export function useOrderMutations({ adminKey, onAuthError, onInvalidate }: UseOr
     pendingId,
     approve, reject, completeProduction: completeProduction_, delay, delayCancel,
     resumeAfterDelay: resumeAfterDelay_,
-    prepareShipping: prepareShipping_, shipped, delivered, pickup, pickupDone, shipDate, expire,
+    prepareShipping: prepareShipping_, shipped, delivered, pickup, pickupDone,
+    missedPickupRefund, shipDate, expire,
     lastError,
   } as const;
 }

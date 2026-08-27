@@ -40,7 +40,7 @@ class OrderStatusTransitionPolicyTest {
                     .as("DELAY_REJECTED_CANCELED는 이미 환불된 주문")
                     .isInstanceOf(AlreadyRefundedException.class);
             softly.assertThatThrownBy(() -> OrderStatus.PICKUP_EXPIRED.requireApprovalPending())
-                    .as("PICKUP_EXPIRED는 환불된 기성품 주문")
+                    .as("PICKUP_EXPIRED는 환불된 미수령 주문")
                     .isInstanceOf(AlreadyRefundedException.class);
             softly.assertThatThrownBy(() -> OrderStatus.PICKUP_FORFEITED.requireApprovalPending())
                     .as("PICKUP_FORFEITED는 환불되지 않은 미수령 종결 상태")
@@ -145,6 +145,23 @@ class OrderStatusTransitionPolicyTest {
                     .isNotInstanceOf(AlreadyRefundedException.class);
             softly.assertThatThrownBy(() ->
                             OrderStatus.CUSTOMER_CANCELED.requireCustomerCancellationAllowed())
+                    .isInstanceOf(AlreadyRefundedException.class);
+        });
+    }
+
+    @DisplayName("미수령 관리자 환불은 미수령 종료 상태에서만 허용한다")
+    @Test
+    void requireMissedPickupRefundable_onlyAllowsForfeitedPickup() {
+        assertSoftly(softly -> {
+            softly.assertThatCode(() ->
+                            OrderStatus.PICKUP_FORFEITED.requireMissedPickupRefundable())
+                    .doesNotThrowAnyException();
+            softly.assertThatThrownBy(() ->
+                            OrderStatus.PICKUP_READY.requireMissedPickupRefundable())
+                    .isInstanceOf(HappyGalleryException.class)
+                    .isNotInstanceOf(AlreadyRefundedException.class);
+            softly.assertThatThrownBy(() ->
+                            OrderStatus.PICKUP_EXPIRED.requireMissedPickupRefundable())
                     .isInstanceOf(AlreadyRefundedException.class);
         });
     }

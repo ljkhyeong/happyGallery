@@ -52,16 +52,12 @@ public class PickupExpireProcessor {
             return false;
         }
 
-        OrderApprovalDecision decision;
-        if (orderItemPort.existsMadeToOrderItem(order)) {
-            order.markPickupForfeited();
-            decision = OrderApprovalDecision.PICKUP_FORFEITED;
-        } else {
-            orderRefundSupport.refundOrder(order);
-            order.markPickupExpired();
-            decision = OrderApprovalDecision.PICKUP_EXPIRED;
+        if (!orderItemPort.existsMadeToOrderItem(order)) {
+            orderRefundSupport.restoreInventory(order);
         }
-        orderHistoryPort.save(new OrderApprovalHistory(order.getId(), decision));
+        order.markPickupForfeited();
+        orderHistoryPort.save(new OrderApprovalHistory(
+                order.getId(), OrderApprovalDecision.PICKUP_FORFEITED));
         orderStore.save(order);
         return true;
     }

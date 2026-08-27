@@ -1,20 +1,21 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.config.OptimisticLockRetryable;
-import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
-import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
     private final OrderNotificationSupport orderNotificationSupport;
     private final ReviewNotificationPublisher reviewNotificationPublisher;
     private final OrderRewardAccrualService rewardAccrualService;
+    private final OrderRefundSupport orderRefundSupport;
     private final Clock clock;
 
     public DefaultOrderPickupService(OrderReaderPort orderReader,
@@ -48,6 +50,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
                                      OrderNotificationSupport orderNotificationSupport,
                                      ReviewNotificationPublisher reviewNotificationPublisher,
                                      OrderRewardAccrualService rewardAccrualService,
+                                     OrderRefundSupport orderRefundSupport,
                                      Clock clock) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
@@ -56,6 +59,7 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
         this.orderNotificationSupport = orderNotificationSupport;
         this.reviewNotificationPublisher = reviewNotificationPublisher;
         this.rewardAccrualService = rewardAccrualService;
+        this.orderRefundSupport = orderRefundSupport;
         this.clock = clock;
     }
 
@@ -109,5 +113,20 @@ public class DefaultOrderPickupService implements OrderPickupUseCase {
         reviewNotificationPublisher.requestForOrder(order.getUserId(), order.getId());
 
         return PickupResult.of(order, fulfillment);
+    }
+
+    @Override
+    @OptimisticLockRetryable
+    public MissedPickupRefundResult refundMissedPickup(Long orderId, Long adminId) {
+        Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requirePickupType();
+        order.markMissedPickupRefunded();
+        Refund refund = orderRefundSupport.refundWithoutInventoryRestore(order);
+        orderHistoryPort.save(new OrderApprovalHistory(
+                order.getId(), OrderApprovalDecision.PICKUP_EXPIRED,
+                adminId, "관리자 미수령 예외 환불"));
+        orderStore.save(order);
+        return new MissedPickupRefundResult(order, refund);
     }
 }

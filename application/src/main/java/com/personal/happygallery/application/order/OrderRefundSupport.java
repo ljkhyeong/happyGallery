@@ -15,8 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 주문 환불 공통 보조 로직.
  *
- * <p>재고 복구 → 환불 요청 순서를 단일 지점에서 강제하여 주문 거절·자동환불·기성품 픽업 만료에서
- * 동일한 보상 흐름을 보장한다. 실제 PG 호출과 환불 성공 알림은 부모 트랜잭션 커밋 이후
+ * <p>주문 거절·자동환불의 재고 복구와 환불 요청을 한곳에서 처리한다. 픽업 미수령은
+ * 만료 시 재고만 복구하고 관리자 예외 환불 시에는 재고를 다시 복구하지 않는다.
+ * 실제 PG 호출과 환불 성공 알림은 부모 트랜잭션 커밋 이후
  * {@link RefundExecutionService}가 처리한다.
  */
 @Service
@@ -42,12 +43,25 @@ class OrderRefundSupport {
      */
     @Transactional(propagation = Propagation.MANDATORY)
     Refund refundOrder(Order order) {
+        restoreInventory(order);
+        return requestRefund(order);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    void restoreInventory(Order order) {
         List<OrderItem> items = orderItemPort.findByOrder(order);
         orderStockService.restoreAll(items.stream()
                 .map(item -> new StockAdjustment(
                         item.getProductId(), item.getProductVariantId(), item.getQty()))
                 .toList());
+    }
 
+    @Transactional(propagation = Propagation.MANDATORY)
+    Refund refundWithoutInventoryRestore(Order order) {
+        return requestRefund(order);
+    }
+
+    private Refund requestRefund(Order order) {
         long rewardRevokeAmount = order.getUserId() == null
                 ? 0L
                 : rewardBenefitService.getEarnedSnapshot(order.getId()).remainingAmount();
