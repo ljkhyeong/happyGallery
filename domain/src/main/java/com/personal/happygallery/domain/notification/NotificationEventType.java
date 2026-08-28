@@ -8,6 +8,8 @@ public enum NotificationEventType {
     BOOKING_RESCHEDULED,
     /** 예약 취소 */
     BOOKING_CANCELED,
+    /** 만석 회차 빈자리 발생 */
+    BOOKING_VACANCY_AVAILABLE,
     /** 예약금 환불 */
     DEPOSIT_REFUNDED,
     /** 주문 결제 완료 */
@@ -57,6 +59,7 @@ public enum NotificationEventType {
             case BOOKING_CONFIRMED,
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
+                    BOOKING_VACANCY_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,
@@ -84,6 +87,7 @@ public enum NotificationEventType {
             case BOOKING_CONFIRMED,
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
+                    BOOKING_VACANCY_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,

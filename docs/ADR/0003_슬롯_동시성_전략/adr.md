@@ -5,6 +5,7 @@
 - **관련 파일**:
   - `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/JpaSlotLockAdapter.java` — `lockAllById()`
   - `application/src/main/java/com/personal/happygallery/application/booking/SlotCapacitySupport.java` — `reserveCapacity()`
+  - `application/src/main/java/com/personal/happygallery/application/booking/BookingVacancyAlertPublisher.java` — 빈자리 전환 알림 발행
   - `domain/booking/Slot.java` — `incrementBookedCount()`
   - `domain/booking/SlotCapacity.java` — `checkAvailable(int)`
 
@@ -81,12 +82,29 @@ native `FOR UPDATE`는 현재 읽기로 실행되므로 클래스 락 대기 중
 양방향 충돌 범위의 기존 예약을 확인하므로, 어느 쪽 슬롯이 먼저 예약됐는지와 관계없이 충돌을 새로 만들거나
 확대하는 예약은 거절한다.
 
+### 만석 회차 빈자리 알림
+
+빈자리 알림은 좌석을 선점하거나 예약 순서를 보장하는 대기열이 아니다. 고객이 만석인 미래 활성 회차에
+알림을 신청하면 `booking_vacancy_alerts`에 대기 상태를 기록하고, 다음 조건을 모두 만족할 때 한 번만 알린다.
+
+- 예약 취소·부분 취소로 잠긴 슬롯의 점유가 `만석 → 예약 가능`으로 바뀐 경우
+- 관리자 재활성화로 슬롯이 실제 예약 가능한 상태가 된 경우
+
+좌석 반납은 기존 `classes → slots(PK 오름차순)` 잠금 순서 안에서 처리한다. 전환을 확인한 뒤 해당 슬롯의
+대기 알림을 잠그고 `NOTIFIED`로 바꾸며, 같은 트랜잭션에 `BOOKING_VACANCY_AVAILABLE` outbox를 기록한다.
+따라서 점유 수가 커밋되지 않았는데 알림만 나가거나, 같은 전환을 여러 번 알리는 상태를 만들지 않는다.
+알림을 받은 뒤 다른 고객이 먼저 예약할 수 있으므로 메시지에는 좌석 보장 문구를 넣지 않는다.
+
+예약 시작까지 처리되지 않은 `WAITING` 신청은 더 이상 의미가 없으므로 개인정보 보존 배치에서 삭제한다.
+알림 완료·고객 취소 상태는 운영 확인 기간 30일이 지난 뒤 삭제한다.
+
 ### 역할 분리
 
 | 락 전략 | 대상 | 이유 |
 |---------|------|------|
 | **비관적 락 (SELECT FOR UPDATE)** | 클래스 행 | 같은 클래스의 자동 회차 구체화·예약·반납 순서를 직렬화해 phantom 방지 |
 | **비관적 락 (SELECT FOR UPDATE)** | 원인 슬롯과 양방향 충돌 슬롯 | 정원과 수업·정리 시간 충돌을 같은 경계에서 직렬화 |
+| **비관적 락 (SELECT FOR UPDATE)** | 빈자리 알림 대기 행 | 같은 빈자리 전환의 중복 알림 방지 |
 | **비관적 락 (SELECT FOR UPDATE)** | 크레딧을 변경하는 8회권 행 | 서로 다른 클래스의 동시 예약과 예약·환불·만료 경합을 직렬화 |
 | **낙관적 락 (`@Version`)** | `bookings` 예약 행 | 동시 변경 드물고 재시도 허용 가능 (§5.3 구현 시) |
 

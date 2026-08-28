@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.batch;
 
 import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
+import com.personal.happygallery.application.booking.BookingVacancyAlertRetentionService;
 import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
 import com.personal.happygallery.application.customer.EmailVerificationRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
@@ -53,6 +54,8 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                 mock(ReviewEvidenceRetentionService.class);
         ReviewTombstoneRetentionService reviewTombstoneRetention =
                 mock(ReviewTombstoneRetentionService.class);
+        BookingVacancyAlertRetentionService vacancyAlertRetention =
+                mock(BookingVacancyAlertRetentionService.class);
         Clock clock = Clock.fixed(Instant.parse("2026-03-01T00:00:00Z"), ZoneOffset.UTC);
         LocalDateTime expectedReviewTombstoneCutoff =
                 LocalDateTime.of(2026, 1, 30, 0, 0);
@@ -76,6 +79,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
         when(notificationRetention.deleteTerminalOutboxesBefore(any(), eq(100)))
                 .thenReturn(3);
         when(adminAuthRetention.deleteBatchBefore(any(), eq(100))).thenReturn(4);
+        when(vacancyAlertRetention.deleteExpiredBatch(any(), any(), eq(100))).thenReturn(2);
         when(reviewTombstoneRetention.deleteBatchBefore(any(), eq(100)))
                 .thenThrow(new IllegalStateException("review tombstone detail"));
         DefaultPersonalDataRetentionBatchService service =
@@ -90,12 +94,13 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         adminAuthRetention,
                         reviewEvidenceRetention,
                         reviewTombstoneRetention,
+                        vacancyAlertRetention,
                         tokenProperties,
                         clock);
 
         BatchResult result = service.cleanUpExpiredSensitiveData();
 
-        assertThat(result.successCount()).isEqualTo(12);
+        assertThat(result.successCount()).isEqualTo(14);
         assertThat(result.failureReasons()).containsExactlyInAnyOrderEntriesOf(
                 Map.of(
                         "payment_attempt", 2,
@@ -104,6 +109,7 @@ class DefaultPersonalDataRetentionBatchServiceTest {
                         "review_tombstone", 1));
         verify(notificationRetention).deleteTerminalOutboxesBefore(any(), eq(100));
         verify(adminAuthRetention).deleteBatchBefore(any(), eq(100));
+        verify(vacancyAlertRetention).deleteExpiredBatch(any(), any(), eq(100));
         verify(reviewEvidenceRetention).deleteExpiredBatch(any(), eq(100));
         verify(reviewTombstoneRetention).deleteBatchBefore(
                 eq(expectedReviewTombstoneCutoff), eq(100));

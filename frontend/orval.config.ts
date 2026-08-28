@@ -51,6 +51,8 @@ export default defineConfig({
   bookingApi: generatedApi("./src/generated/api/booking.ts", [
     "booking-controller",
     "me-booking-controller",
+    "booking-vacancy-alert-controller",
+    "me-booking-vacancy-alert-controller",
     "class-controller",
     "slot-controller",
   ]),

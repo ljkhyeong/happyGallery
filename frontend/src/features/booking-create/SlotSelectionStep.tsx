@@ -9,6 +9,7 @@ import { CLASS_CATEGORY_OPTIONS, formatDate, formatDateTime } from "@/shared/lib
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
+import { VacancyAlertButton } from "./VacancyAlertButton";
 
 interface Props {
   initialClassId?: number | null;
@@ -176,7 +177,7 @@ export function SlotSelectionStep({
                 ))}
               </Form.Select>
               <Form.Text className="text-muted">
-                앞으로 {UPCOMING_DAYS}일 안에 예약 가능한 날짜만 표시됩니다.
+                앞으로 {UPCOMING_DAYS}일 안에 예약 가능하거나 빈자리 알림을 신청할 수 있는 날짜를 표시합니다.
               </Form.Text>
             </Form.Group>
           </Col>
@@ -237,7 +238,21 @@ export function SlotSelectionStep({
 
       {slots && slots.length > 0 && (
         <ListGroup>
-          {slots.map((slot) => (
+          {slots.map((slot) => slot.remainingCapacity === 0 ? (
+            <ListGroup.Item
+              key={slot.id}
+              data-slot-id={slot.id}
+              className="d-flex flex-wrap justify-content-between align-items-center gap-2"
+            >
+              <span>
+                {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
+              </span>
+              <span className="d-flex align-items-center gap-2">
+                <Badge bg="secondary" className="badge-status">만석</Badge>
+                <VacancyAlertButton slotId={slot.id} />
+              </span>
+            </ListGroup.Item>
+          ) : (
             <ListGroup.Item
               key={slot.id}
               data-slot-id={slot.id}

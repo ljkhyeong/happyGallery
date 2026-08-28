@@ -254,6 +254,23 @@ export interface MemberRescheduleRequest {
   newSlotId: number;
 }
 
+export type VacancyAlertResponseStatus = typeof VacancyAlertResponseStatus[keyof typeof VacancyAlertResponseStatus];
+
+
+export const VacancyAlertResponseStatus = {
+  WAITING: 'WAITING',
+  NOTIFIED: 'NOTIFIED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface VacancyAlertResponse {
+  /** @nullable */
+  accessToken: string | null;
+  alertId: number;
+  slotId: number;
+  status: VacancyAlertResponseStatus;
+}
+
 export interface PublicSlotResponse {
   bookedCount: number;
   capacity: number;
@@ -262,6 +279,21 @@ export interface PublicSlotResponse {
   id: number;
   remainingCapacity: number;
   startAt: string;
+}
+
+export interface GuestVacancyAlertRequest {
+  /** @minLength 1 */
+  name: string;
+  /**
+     * @minLength 1
+     * @pattern ^01[0-9]{8,9}$
+     */
+  phone: string;
+  /**
+     * @minLength 1
+     * @pattern ^[0-9]{6}$
+     */
+  verificationCode: string;
 }
 
 export type ListMyBookingsPageParams = {
@@ -285,6 +317,7 @@ classId: number;
  * @maximum 30
  */
 days?: number;
+includeFull?: boolean;
 };
 
 export const getSendGuestBookingVerificationUrl = () => {
@@ -571,6 +604,48 @@ export const rescheduleMyBooking = async (id: number,
 
 
 
+export const getCancelMyVacancyAlertUrl = (slotId: number,) => {
+
+
+
+
+  return `/api/v1/me/slots/${slotId}/vacancy-alerts`
+}
+
+export const cancelMyVacancyAlert = async (slotId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getCancelMyVacancyAlertUrl(slotId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getRegisterMyVacancyAlertUrl = (slotId: number,) => {
+
+
+
+
+  return `/api/v1/me/slots/${slotId}/vacancy-alerts`
+}
+
+export const registerMyVacancyAlert = async (slotId: number, options?: RequestInit): Promise<VacancyAlertResponse> => {
+
+  return generatedApiClient<VacancyAlertResponse>(getRegisterMyVacancyAlertUrl(slotId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export const getListAvailableSlotsUrl = (params: ListAvailableSlotsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -622,5 +697,48 @@ export const listUpcomingSlots = async (params: ListUpcomingSlotsParams, options
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getCancelGuestVacancyAlertUrl = (slotId: number,) => {
+
+
+
+
+  return `/api/v1/slots/${slotId}/vacancy-alerts`
+}
+
+export const cancelGuestVacancyAlert = async (slotId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getCancelGuestVacancyAlertUrl(slotId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getRegisterGuestVacancyAlertUrl = (slotId: number,) => {
+
+
+
+
+  return `/api/v1/slots/${slotId}/vacancy-alerts`
+}
+
+export const registerGuestVacancyAlert = async (slotId: number,
+    guestVacancyAlertRequest: GuestVacancyAlertRequest, options?: RequestInit): Promise<VacancyAlertResponse> => {
+
+  return generatedApiClient<VacancyAlertResponse>(getRegisterGuestVacancyAlertUrl(slotId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(guestVacancyAlertRequest)
   }
 );}

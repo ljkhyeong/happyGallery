@@ -31,6 +31,7 @@ class SlotCapacitySupport {
     private final BookingClassLockPort bookingClassLockPort;
     private final SlotLockPort slotLockPort;
     private final SlotStorePort slotStorePort;
+    private final BookingVacancyAlertPublisher vacancyAlertPublisher;
     private final Clock clock;
 
     SlotCapacitySupport(SlotReaderPort slotReaderPort,
@@ -39,6 +40,7 @@ class SlotCapacitySupport {
                         BookingClassLockPort bookingClassLockPort,
                         SlotLockPort slotLockPort,
                         SlotStorePort slotStorePort,
+                        BookingVacancyAlertPublisher vacancyAlertPublisher,
                         Clock clock) {
         this.slotReaderPort = slotReaderPort;
         this.slotAvailabilityChecker = slotAvailabilityChecker;
@@ -46,6 +48,7 @@ class SlotCapacitySupport {
         this.bookingClassLockPort = bookingClassLockPort;
         this.slotLockPort = slotLockPort;
         this.slotStorePort = slotStorePort;
+        this.vacancyAlertPublisher = vacancyAlertPublisher;
         this.clock = clock;
     }
 
@@ -141,11 +144,13 @@ class SlotCapacitySupport {
     @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(LockedSlotScope locked, int participantCount) {
         Slot slot = locked.source();
+        boolean wasFull = slot.getBookedCount() == slot.getCapacity();
         slot.decrementBookedCount(participantCount);
         slotStorePort.save(slot);
         if (!slot.hasBookings()) {
             releaseConflictSlots(locked.conflictSlots());
         }
+        vacancyAlertPublisher.notifyWaitingIfCapacityOpened(slot, wasFull);
         return slot;
     }
 

@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
 import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialController;
 import com.personal.happygallery.adapter.in.web.customer.MeBookingController;
+import com.personal.happygallery.adapter.in.web.customer.MeBookingVacancyAlertController;
 import com.personal.happygallery.adapter.in.web.customer.MeAccountController;
 import com.personal.happygallery.adapter.in.web.customer.MeCartController;
 import com.personal.happygallery.adapter.in.web.customer.MeEmailController;
@@ -22,6 +23,7 @@ import com.personal.happygallery.adapter.in.web.security.customer.SessionStateCo
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingVacancyAlertUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
@@ -44,7 +46,10 @@ import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -102,6 +107,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
     private BookingCancelUseCase bookingCancelUseCase;
+    private BookingVacancyAlertUseCase vacancyAlertUseCase;
     private OrderQueryUseCase orderQueryUseCase;
     private PassQueryUseCase passQueryUseCase;
     private MemberPassRefundUseCase memberPassRefundUseCase;
@@ -126,6 +132,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
         bookingCancelUseCase = mock(BookingCancelUseCase.class);
+        vacancyAlertUseCase = mock(BookingVacancyAlertUseCase.class);
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         passQueryUseCase = mock(PassQueryUseCase.class);
         memberPassRefundUseCase = mock(MemberPassRefundUseCase.class);
@@ -146,6 +153,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         Booking reducedBooking = RestDocsFixtures.reducedBooking();
         Refund bookingRefund = RestDocsFixtures.bookingRefund();
         Refund partialBookingRefund = RestDocsFixtures.partialBookingRefund();
+        BookingVacancyAlert vacancyAlert = mock(BookingVacancyAlert.class);
+        Slot vacancySlot = RestDocsFixtures.slot();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         PassPurchase pass = RestDocsFixtures.passPurchase();
         Inquiry inquiry = RestDocsFixtures.inquiry();
@@ -177,6 +186,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(bookingCancelUseCase.reduceMemberBookingParticipants(100L, CUSTOMER_USER_ID, 2))
                 .thenReturn(new BookingCancelUseCase.ParticipantReductionResult(
                         reducedBooking, 1, partialBookingRefund));
+        when(vacancyAlert.getId()).thenReturn(700L);
+        when(vacancyAlert.getSlot()).thenReturn(vacancySlot);
+        when(vacancyAlert.getStatus()).thenReturn(VacancyAlertStatus.WAITING);
+        when(vacancyAlertUseCase.registerMember(42L, CUSTOMER_USER_ID)).thenReturn(vacancyAlert);
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
@@ -309,6 +322,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 new MeCartController(cartUseCase),
                 new MeBookingController(bookingQueryUseCase, bookingRescheduleUseCase,
                         bookingCancelUseCase, RestDocsFixtures.clock()),
+                new MeBookingVacancyAlertController(vacancyAlertUseCase),
                 new MeOrderController(orderQueryUseCase),
                 new MePassController(passQueryUseCase, memberPassRefundUseCase, rateLimitGuard),
                 new MeNotificationController(notificationQueryUseCase),
@@ -667,6 +681,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$.participantCount").value(2))
                 .andExpect(jsonPath("$.canceledParticipantCount").value(1))
                 .andExpect(jsonPath("$.refundAmount").value(5_000));
+    }
+
+    @Test
+    @DisplayName("회원 빈자리 알림 신청 API를 문서화한다")
+    void register_my_vacancy_alert() throws Exception {
+        mockMvc.perform(post("/api/v1/me/slots/{slotId}/vacancy-alerts", 42L)
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alertId").value(700))
+                .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.status").value("WAITING"))
+                .andExpect(jsonPath("$.accessToken").isEmpty());
     }
 
     @Test

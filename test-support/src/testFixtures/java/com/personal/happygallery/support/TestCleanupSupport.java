@@ -133,6 +133,7 @@ public class TestCleanupSupport {
 
     public void clearBookingWithPassAndRefundData() {
         clearBookingCalendarData();
+        clearBookingVacancyAlerts();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -152,6 +153,7 @@ public class TestCleanupSupport {
 
     public void clearBookingReminderData() {
         clearBookingCalendarData();
+        clearBookingVacancyAlerts();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -224,6 +226,7 @@ public class TestCleanupSupport {
 
     public void clearBookingData() {
         clearBookingCalendarData();
+        clearBookingVacancyAlerts();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -252,6 +255,7 @@ public class TestCleanupSupport {
     }
 
     public void clearUsers() {
+        clearBookingVacancyAlerts();
         clearReviewData();
         clearOrderBenefitData();
         policyConsentRepository.deleteAllInBatch();
@@ -265,6 +269,10 @@ public class TestCleanupSupport {
     public void clearNotificationLogs() {
         notificationOutboxRepository.deleteAllInBatch();
         notificationLogRepository.deleteAllInBatch();
+    }
+
+    private void clearBookingVacancyAlerts() {
+        JdbcTestUtils.deleteFromTables(jdbcTemplate, "booking_vacancy_alerts");
     }
 
     /** 후기 자식 테이블과 tombstone을 외래 키 역순으로 정리한다. */

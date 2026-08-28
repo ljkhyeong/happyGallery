@@ -2724,7 +2724,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "lastError" : {
@@ -3029,6 +3029,26 @@
           }
         },
         "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "GuestVacancyAlertRequest" : {
+        "properties" : {
+          "name" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "phone" : {
+            "minLength" : 1,
+            "pattern" : "^01[0-9]{8,9}$",
+            "type" : "string"
+          },
+          "verificationCode" : {
+            "minLength" : 1,
+            "pattern" : "^[0-9]{6}$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "phone", "verificationCode" ],
         "type" : "object"
       },
       "ImageUploadResponse" : {
@@ -3940,7 +3960,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "id" : {
@@ -6929,6 +6949,27 @@
           }
         },
         "required" : [ "content", "expectedVersion" ],
+        "type" : "object"
+      },
+      "VacancyAlertResponse" : {
+        "properties" : {
+          "accessToken" : {
+            "type" : [ "string", "null" ]
+          },
+          "alertId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "slotId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "WAITING", "NOTIFIED", "CANCELED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "accessToken", "alertId", "slotId", "status" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {
@@ -13250,6 +13291,51 @@
         "tags" : [ "me-reward-controller" ]
       }
     },
+    "/api/v1/me/slots/{slotId}/vacancy-alerts" : {
+      "delete" : {
+        "operationId" : "cancelMyVacancyAlert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slotId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-booking-vacancy-alert-controller" ]
+      },
+      "post" : {
+        "operationId" : "registerMyVacancyAlert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slotId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VacancyAlertResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-booking-vacancy-alert-controller" ]
+      }
+    },
     "/api/v1/me/social-accounts" : {
       "get" : {
         "operationId" : "getMySocialAccounts",
@@ -14113,6 +14199,14 @@
             "minimum" : 1,
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "includeFull",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -14130,6 +14224,68 @@
           }
         },
         "tags" : [ "slot-controller" ]
+      }
+    },
+    "/api/v1/slots/{slotId}/vacancy-alerts" : {
+      "delete" : {
+        "operationId" : "cancelGuestVacancyAlert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slotId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-vacancy-alert-controller" ]
+      },
+      "post" : {
+        "operationId" : "registerGuestVacancyAlert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "slotId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GuestVacancyAlertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/VacancyAlertResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-vacancy-alert-controller" ]
       }
     },
     "/api/v1/webhooks/delivery-tracking" : {

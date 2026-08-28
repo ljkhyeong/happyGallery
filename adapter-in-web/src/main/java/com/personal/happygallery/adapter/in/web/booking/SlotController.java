@@ -39,8 +39,9 @@ public class SlotController {
     @Operation(operationId = "listUpcomingSlots")
     public List<PublicSlotResponse> listUpcomingSlots(
             @RequestParam Long classId,
-            @RequestParam(defaultValue = "14") @Min(1) @Max(30) int days) {
-        return slotQueryUseCase.listUpcoming(classId, days).stream()
+            @RequestParam(defaultValue = "14") @Min(1) @Max(30) int days,
+            @RequestParam(defaultValue = "false") boolean includeFull) {
+        return slotQueryUseCase.listUpcoming(classId, days, includeFull).stream()
                 .map(PublicSlotResponse::from)
                 .toList();
     }

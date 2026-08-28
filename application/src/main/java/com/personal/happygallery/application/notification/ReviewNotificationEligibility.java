@@ -35,6 +35,7 @@ class ReviewNotificationEligibility {
             case BOOKING_CONFIRMED,
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
+                    BOOKING_VACANCY_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,

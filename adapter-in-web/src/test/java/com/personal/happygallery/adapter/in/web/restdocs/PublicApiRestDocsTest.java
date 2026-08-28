@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
+import com.personal.happygallery.adapter.in.web.booking.BookingVacancyAlertController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
 import com.personal.happygallery.adapter.in.web.booking.ClassReviewController;
 import com.personal.happygallery.adapter.in.web.booking.SlotController;
@@ -16,6 +17,7 @@ import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.workshop.WorkshopProfileController;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
+import com.personal.happygallery.application.booking.port.in.BookingVacancyAlertUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
@@ -41,10 +43,12 @@ import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -64,6 +68,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -90,6 +95,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private BookingQueryUseCase bookingQueryUseCase;
     private BookingRescheduleUseCase bookingRescheduleUseCase;
     private BookingCancelUseCase bookingCancelUseCase;
+    private BookingVacancyAlertUseCase vacancyAlertUseCase;
     private GuestPersonalDataProtector guestPersonalDataProtector;
     private OrderQueryUseCase orderQueryUseCase;
     private PaymentPrepareUseCase paymentPrepareUseCase;
@@ -113,6 +119,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         bookingQueryUseCase = mock(BookingQueryUseCase.class);
         bookingRescheduleUseCase = mock(BookingRescheduleUseCase.class);
         bookingCancelUseCase = mock(BookingCancelUseCase.class);
+        vacancyAlertUseCase = mock(BookingVacancyAlertUseCase.class);
         guestPersonalDataProtector = mock(GuestPersonalDataProtector.class);
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         paymentPrepareUseCase = mock(PaymentPrepareUseCase.class);
@@ -138,6 +145,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         Booking reducedBooking = RestDocsFixtures.reducedBooking();
         Refund bookingRefund = RestDocsFixtures.bookingRefund();
         Refund partialBookingRefund = RestDocsFixtures.partialBookingRefund();
+        BookingVacancyAlert vacancyAlert = mock(BookingVacancyAlert.class);
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         Notice notice = RestDocsFixtures.notice();
         ReviewUseCase.ReviewItem productReview = RestDocsFixtures.productReviewItem();
@@ -172,7 +180,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(classQueryUseCase.listActive()).thenReturn(List.of(bookingClass));
         when(classQueryUseCase.getActive(1L)).thenReturn(bookingClass);
         when(slotQueryUseCase.listAvailable(any(), any())).thenReturn(List.of(slot));
-        when(slotQueryUseCase.listUpcoming(any(), anyInt())).thenReturn(List.of(slot));
+        when(slotQueryUseCase.listUpcoming(any(), anyInt(), anyBoolean())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any(), any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
@@ -185,6 +193,12 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(bookingCancelUseCase.reduceGuestBookingParticipants(eq(100L), any(), eq(2)))
                 .thenReturn(new BookingCancelUseCase.ParticipantReductionResult(
                         reducedBooking, 1, partialBookingRefund));
+        when(vacancyAlert.getId()).thenReturn(700L);
+        when(vacancyAlert.getSlot()).thenReturn(slot);
+        when(vacancyAlert.getStatus()).thenReturn(VacancyAlertStatus.WAITING);
+        when(vacancyAlertUseCase.registerGuest(any()))
+                .thenReturn(new BookingVacancyAlertUseCase.GuestAlertResult(
+                        vacancyAlert, "vacancy-access-token"));
         when(orderQueryUseCase.getOrderByToken(eq(200L), any())).thenReturn(orderDetail);
         when(paymentPrepareUseCase.prepare(any()))
                 .thenReturn(new PaymentPrepareUseCase.PrepareResult(
@@ -258,6 +272,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
                         rateLimitGuard, RestDocsFixtures.clock()),
+                new BookingVacancyAlertController(vacancyAlertUseCase),
                 new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, rateLimitGuard),
                 new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
@@ -412,8 +427,28 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void list_upcoming_slots() throws Exception {
         mockMvc.perform(get("/api/v1/slots/upcoming")
                         .param("classId", "1")
-                        .param("days", "14"))
+                        .param("days", "14")
+                        .param("includeFull", "true"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("비회원 빈자리 알림 신청 API를 문서화한다")
+    void register_guest_vacancy_alert() throws Exception {
+        mockMvc.perform(post("/api/v1/slots/{slotId}/vacancy-alerts", 42L)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "홍길동",
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alertId").value(700))
+                .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.status").value("WAITING"))
+                .andExpect(jsonPath("$.accessToken").value("vacancy-access-token"));
     }
 
     @Test

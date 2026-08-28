@@ -39,6 +39,19 @@ class BookingCalendarSlotMaterializer {
     List<Slot> materialize(BookingClass bookingClass,
                            LocalDateTime rangeStart,
                            LocalDateTime rangeEnd) {
+        return materialize(bookingClass, rangeStart, rangeEnd, false);
+    }
+
+    List<Slot> materializeIncludingFull(BookingClass bookingClass,
+                                        LocalDateTime rangeStart,
+                                        LocalDateTime rangeEnd) {
+        return materialize(bookingClass, rangeStart, rangeEnd, true);
+    }
+
+    private List<Slot> materialize(BookingClass bookingClass,
+                                   LocalDateTime rangeStart,
+                                   LocalDateTime rangeEnd,
+                                   boolean includeFull) {
         LocalDate dateFrom = rangeStart.toLocalDate();
         LocalDate dateTo = rangeEnd.minusNanos(1).toLocalDate();
         BookingCalendarPolicy.CalendarRules rules = calendarPolicy.rules(dateFrom, dateTo);
@@ -75,7 +88,7 @@ class BookingCalendarSlotMaterializer {
         LocalDateTime now = LocalDateTime.now(clock);
         return slotsByStart.values().stream()
                 .filter(slot -> slot.isReservableAt(now))
-                .filter(slot -> slot.getBookedCount() < slot.getCapacity())
+                .filter(slot -> includeFull || slot.getBookedCount() < slot.getCapacity())
                 .sorted(Comparator.comparing(Slot::getStartAt))
                 .toList();
     }

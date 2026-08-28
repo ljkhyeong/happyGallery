@@ -639,7 +639,7 @@ GET /api/v1/slots?classId=1&date=2026-03-01
 #### 2.2.4.1 향후 예약 가능 슬롯 조회
 
 ```http
-GET /api/v1/slots/upcoming?classId=1&days=14
+GET /api/v1/slots/upcoming?classId=1&days=14&includeFull=true
 ```
 
 응답 항목은 2.2.4의 공개 슬롯 응답과 같다.
@@ -649,8 +649,55 @@ GET /api/v1/slots/upcoming?classId=1&days=14
   - `400 INVALID_INPUT` — `classId` 누락 또는 `days`가 1~30 범위를 벗어남
 - 정책:
   - `days`는 선택값이며 기본 14일, 최대 30일이다.
+  - `includeFull`은 선택값이며 기본 `false`다. `true`이면 다른 활성 조건은 충족하지만 `bookedCount=capacity`인 만석 회차도 `remainingCapacity=0`으로 포함한다.
   - 현재 시각 이후부터 KST 기준 오늘을 포함한 조회 마지막 날의 다음 날 00:00 전까지 예약 가능한 슬롯을 `startAt` 오름차순으로 반환한다.
-  - 프론트는 결과를 날짜별로 묶어, 빈 날짜를 하나씩 조회하지 않고 예약 가능한 날부터 표시한다.
+  - 예약 화면은 `includeFull=true` 결과를 날짜별로 묶고, 남은 자리가 있는 회차는 예약 선택, 만석 회차는 빈자리 알림 신청으로 연결한다.
+
+#### 2.2.4.2 만석 회차 빈자리 알림
+
+비회원 신청:
+
+```http
+POST /api/v1/slots/{slotId}/vacancy-alerts
+
+{
+  "name": "홍길동",
+  "phone": "01012345678",
+  "verificationCode": "123456"
+}
+```
+
+회원 신청:
+
+```http
+POST /api/v1/me/slots/{slotId}/vacancy-alerts
+Cookie: HG_SESSION=...
+```
+
+```json
+{
+  "alertId": 700,
+  "slotId": 42,
+  "status": "WAITING",
+  "accessToken": "비회원-취소용-토큰"
+}
+```
+
+- 비회원 취소: `DELETE /api/v1/slots/{slotId}/vacancy-alerts`, 발급받은 `X-Access-Token` 필수
+- 회원 취소: `DELETE /api/v1/me/slots/{slotId}/vacancy-alerts`, 회원 세션 필수
+- 성공: 신청 `200 OK`, 취소 `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 활성·미래 만석 회차가 아니거나 비회원 입력 형식 오류
+  - `404 NOT_FOUND` — 회차, 회원 또는 비회원 알림 토큰 불일치
+  - `422 PHONE_VERIFICATION_REQUIRED` — 휴대폰 인증을 완료하지 않은 회원
+- 정책:
+  - 빈자리 알림은 좌석을 예약하거나 결제하지 않는다. 알림을 받은 고객이 예약 화면에서 선착순으로 직접 예약한다.
+  - 회원은 등록된 인증 휴대폰, 비회원은 `GUEST_BOOKING` 목적의 6자리 SMS 인증으로 수신 번호 소유권을 확인한다.
+  - 같은 회차·수신자에는 `WAITING` 알림 한 건만 유지한다. 비회원이 다시 인증해 신청하면 취소용 접근 토큰만 새로 발급한다.
+  - 만석이었던 활성 회차가 전체취소·부분취소·예약 변경으로 1석 이상 열리는 순간 모든 `WAITING` 신청을 `NOTIFIED`로 전환하고 알림 outbox를 같은 트랜잭션에 한 번씩 저장한다.
+  - 회차가 운영·캘린더·버퍼 사유로 닫혀 있으면 자리가 반환돼도 알리지 않는다. 관리자가 다시 열어 실제 예약 가능해진 시점에 대기 알림을 발송한다.
+  - 알림 발송은 한 번으로 끝나며 자동 재신청하지 않는다.
+  - 시작 시각이 지난 미발송 신청은 개인정보 보존 배치에서 삭제하고, 발송·취소된 신청은 30일 뒤 삭제한다. 실제 발송 감사 이력은 알림 로그·outbox 보존 정책을 따른다.
 
 ### 2.3 관리자 상품 API
 

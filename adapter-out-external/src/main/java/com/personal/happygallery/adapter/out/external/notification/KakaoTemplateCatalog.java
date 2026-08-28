@@ -18,6 +18,7 @@ public final class KakaoTemplateCatalog {
             case BOOKING_CONFIRMED -> "HG_BOOKING_CONFIRMED";
             case BOOKING_RESCHEDULED -> "HG_BOOKING_CHANGED";
             case BOOKING_CANCELED -> "HG_BOOKING_CANCELED";
+            case BOOKING_VACANCY_AVAILABLE -> "HG_BOOKING_VACANCY";
             case DEPOSIT_REFUNDED -> "HG_DEPOSIT_REFUNDED";
             case ORDER_PAID -> "HG_ORDER_PAID";
             case ORDER_APPROVED -> "HG_ORDER_APPROVED";

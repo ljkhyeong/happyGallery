@@ -50,9 +50,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 @UseCaseIT
 class BookingCancelUseCaseIT {
@@ -240,6 +242,67 @@ class BookingCancelUseCaseIT {
             softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(3);
             softly.assertThat(bookingStateProbe.refundCount()).isZero();
         });
+    }
+
+    @DisplayName("만석 회차에서 부분취소로 자리가 생기면 신청자에게 한 번 알린다")
+    @Test
+    void reduceParticipants_fullSlot_notifiesVacancyAlertApplicant() throws Exception {
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01014141414", slot.getId(), slot.getCapacity());
+        awaitLogCount(notificationLogProbe, 1);
+        cleanupSupport.clearNotificationLogs();
+
+        String alertPhone = "01015151515";
+        String verificationCode = helper.sendVerificationAndGetCode(alertPhone);
+        mockMvc.perform(post("/api/v1/slots/{slotId}/vacancy-alerts", slot.getId())
+                        .with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "빈자리 신청자",
+                                  "phone": "%s",
+                                  "verificationCode": "%s"
+                                }
+                                """.formatted(alertPhone, verificationCode)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slotId").value(slot.getId()))
+                .andExpect(jsonPath("$.status").value("WAITING"))
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/participants", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":%d}".formatted(slot.getCapacity() - 1)))
+                .andExpect(status().isOk());
+
+        List<NotificationLog> logs = awaitLogCount(notificationLogProbe, 3);
+        assertThat(logs).extracting(NotificationLog::getEventType)
+                .containsExactlyInAnyOrder(
+                        NotificationEventType.BOOKING_RESCHEDULED,
+                        NotificationEventType.BOOKING_VACANCY_AVAILABLE,
+                        NotificationEventType.DEPOSIT_REFUNDED);
+    }
+
+    @DisplayName("자리가 남은 회차에는 빈자리 알림을 신청할 수 없다")
+    @Test
+    void registerVacancyAlert_availableSlot_rejected() throws Exception {
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        String phone = "01016161616";
+        String verificationCode = helper.sendVerificationAndGetCode(phone);
+
+        mockMvc.perform(post("/api/v1/slots/{slotId}/vacancy-alerts", slot.getId())
+                        .with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "빈자리 신청자",
+                                  "phone": "%s",
+                                  "verificationCode": "%s"
+                                }
+                                """.formatted(phone, verificationCode)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     // -----------------------------------------------------------------------

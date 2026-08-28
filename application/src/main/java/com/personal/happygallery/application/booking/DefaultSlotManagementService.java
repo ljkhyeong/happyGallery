@@ -15,11 +15,14 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
 
     private final SlotLockPort slotLockPort;
     private final SlotStorePort slotStorePort;
+    private final BookingVacancyAlertPublisher vacancyAlertPublisher;
 
     public DefaultSlotManagementService(SlotLockPort slotLockPort,
-                                        SlotStorePort slotStorePort) {
+                                        SlotStorePort slotStorePort,
+                                        BookingVacancyAlertPublisher vacancyAlertPublisher) {
         this.slotLockPort = slotLockPort;
         this.slotStorePort = slotStorePort;
+        this.vacancyAlertPublisher = vacancyAlertPublisher;
     }
 
     /** 슬롯을 비활성화한다. */
@@ -39,6 +42,8 @@ public class DefaultSlotManagementService implements SlotManagementUseCase {
                 .findFirst()
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         slot.activate();
-        return slotStorePort.save(slot);
+        Slot saved = slotStorePort.save(slot);
+        vacancyAlertPublisher.notifyWaitingIfAvailable(saved);
+        return saved;
     }
 }

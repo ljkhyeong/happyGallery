@@ -48,6 +48,11 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
     /** 오늘부터 지정한 일수 동안 예약 가능한 슬롯을 한 번에 조회한다. */
     @Override
     public List<Slot> listUpcoming(Long classId, int days) {
+        return listUpcoming(classId, days, false);
+    }
+
+    @Override
+    public List<Slot> listUpcoming(Long classId, int days, boolean includeFull) {
         if (days < 1 || days > MAX_UPCOMING_DAYS) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "조회 기간은 1일에서 30일 사이여야 합니다.");
         }
@@ -55,7 +60,9 @@ public class DefaultSlotQueryService implements SlotQueryUseCase {
         LocalDateTime rangeStart = now.toLocalDate().atStartOfDay();
         LocalDateTime rangeEnd = rangeStart.plusDays(days);
         BookingClass bookingClass = lockActiveClass(classId);
-        return slotMaterializer.materialize(bookingClass, rangeStart, rangeEnd);
+        return includeFull
+                ? slotMaterializer.materializeIncludingFull(bookingClass, rangeStart, rangeEnd)
+                : slotMaterializer.materialize(bookingClass, rangeStart, rangeEnd);
     }
 
     /** 관리자용 — 클래스 기준 슬롯 전체 조회 (활성/비활성 포함) */

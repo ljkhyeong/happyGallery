@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.batch;
 
 import com.personal.happygallery.application.admin.AdminAuthHistoryRetentionService;
+import com.personal.happygallery.application.booking.BookingVacancyAlertRetentionService;
 import com.personal.happygallery.application.cart.CartMergeRequestRetentionService;
 import com.personal.happygallery.application.customer.EmailVerificationRetentionService;
 import com.personal.happygallery.application.customer.PhoneVerificationRetentionService;
@@ -32,6 +33,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     public static final Duration CART_MERGE_REQUEST_RETENTION = Duration.ofDays(7);
     public static final Duration NOTIFICATION_RETENTION = Duration.ofDays(180);
     public static final Duration ADMIN_AUTH_HISTORY_RETENTION = Duration.ofDays(180);
+    public static final Duration VACANCY_ALERT_TERMINAL_RETENTION = Duration.ofDays(30);
     private static final int PAGE_SIZE = 100;
     private static final String PAYMENT_ATTEMPT = "payment_attempt";
     private static final String PHONE_VERIFICATION = "phone_verification";
@@ -43,6 +45,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private static final String ADMIN_AUTH_HISTORY = "admin_auth_history";
     private static final String REVIEW_EVIDENCE = "review_evidence";
     private static final String REVIEW_TOMBSTONE = "review_tombstone";
+    private static final String BOOKING_VACANCY_ALERT = "booking_vacancy_alert";
 
     private final PaymentAttemptReaderPort attemptReader;
     private final PaymentAttemptSensitiveDataCleanupProcessor attemptCleanupProcessor;
@@ -54,6 +57,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
     private final AdminAuthHistoryRetentionService adminAuthHistoryRetentionService;
     private final ReviewEvidenceRetentionService reviewEvidenceRetentionService;
     private final ReviewTombstoneRetentionService reviewTombstoneRetentionService;
+    private final BookingVacancyAlertRetentionService vacancyAlertRetentionService;
     private final GuestTokenProperties guestTokenProperties;
     private final Clock clock;
 
@@ -68,6 +72,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
             AdminAuthHistoryRetentionService adminAuthHistoryRetentionService,
             ReviewEvidenceRetentionService reviewEvidenceRetentionService,
             ReviewTombstoneRetentionService reviewTombstoneRetentionService,
+            BookingVacancyAlertRetentionService vacancyAlertRetentionService,
             GuestTokenProperties guestTokenProperties,
             Clock clock) {
         this.attemptReader = attemptReader;
@@ -80,6 +85,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         this.adminAuthHistoryRetentionService = adminAuthHistoryRetentionService;
         this.reviewEvidenceRetentionService = reviewEvidenceRetentionService;
         this.reviewTombstoneRetentionService = reviewTombstoneRetentionService;
+        this.vacancyAlertRetentionService = vacancyAlertRetentionService;
         this.guestTokenProperties = guestTokenProperties;
         this.clock = clock;
     }
@@ -95,6 +101,7 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
         LocalDateTime cartMergeCutoff = now.minus(CART_MERGE_REQUEST_RETENTION);
         LocalDateTime notificationCutoff = now.minus(NOTIFICATION_RETENTION);
         LocalDateTime adminAuthHistoryCutoff = now.minus(ADMIN_AUTH_HISTORY_RETENTION);
+        LocalDateTime vacancyAlertTerminalCutoff = now.minus(VACANCY_ALERT_TERMINAL_RETENTION);
 
         BatchResult result = cleanUpPaymentAttempts(paymentCutoff);
         result = result.merge(deleteInBatches(
@@ -124,6 +131,10 @@ public class DefaultPersonalDataRetentionBatchService implements PersonalDataRet
                 ADMIN_AUTH_HISTORY,
                 () -> adminAuthHistoryRetentionService.deleteBatchBefore(
                         adminAuthHistoryCutoff, PAGE_SIZE)));
+        result = result.merge(deleteInBatches(
+                BOOKING_VACANCY_ALERT,
+                () -> vacancyAlertRetentionService.deleteExpiredBatch(
+                        now, vacancyAlertTerminalCutoff, PAGE_SIZE)));
         result = result.merge(deleteInBatches(
                 REVIEW_EVIDENCE,
                 () -> reviewEvidenceRetentionService.deleteExpiredBatch(now, PAGE_SIZE)));
