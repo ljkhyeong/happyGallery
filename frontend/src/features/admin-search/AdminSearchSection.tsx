@@ -3,7 +3,12 @@ import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstr
 import { ArrowRight } from "lucide-react";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import type { AdminBookingSearchRow, AdminOrderSearchRow, OffsetPage } from "@/shared/types";
+import type {
+  AdminBookingSearchRow,
+  AdminOrderSearchRow,
+  AdminPassResponse,
+  OffsetPage,
+} from "@/shared/types";
 import {
   EmptyState,
   ErrorAlert,
@@ -186,14 +191,72 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
   );
 }
 
+function PassSearchResults({ passes }: { passes: AdminPassResponse[] }) {
+  if (passes.length === 0) {
+    return <EmptyState message="보유한 8회권이 없습니다." />;
+  }
+
+  return (
+    <Table responsive hover size="sm" className="mb-0">
+      <thead>
+        <tr><th>8회권 번호</th><th>고객</th><th>상태</th><th>잔여 횟수</th><th>만료일</th></tr>
+      </thead>
+      <tbody>
+        {passes.map((pass) => (
+          <tr key={pass.passId}>
+            <td>{pass.passNumber}</td>
+            <td>
+              <div>{pass.customerName}</div>
+              <small className="text-muted-soft">{pass.customerPhone ?? "-"}</small>
+            </td>
+            <td><StatusBadge status={pass.status} audience="admin" /></td>
+            <td>{pass.remainingCredits}/{pass.totalCredits}회</td>
+            <td><small>{formatDateTime(pass.expiresAt)}</small></td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+function CustomerSearchResults({ result }: { result: Extract<AdminSearchResult, { target: "CUSTOMER" }> }) {
+  const totalCount = result.orders.totalCount + result.bookings.totalCount + result.passes.totalCount;
+  if (totalCount === 0) {
+    return <EmptyState message="일치하는 고객 이용 내역이 없습니다." />;
+  }
+
+  return (
+    <div className="d-grid gap-4">
+      <section aria-labelledby="customer-orders-title">
+        <h6 id="customer-orders-title">주문 {result.orders.totalCount.toLocaleString("ko-KR")}건</h6>
+        <OrderSearchResults page={result.orders} />
+      </section>
+      <section aria-labelledby="customer-bookings-title">
+        <h6 id="customer-bookings-title">예약 {result.bookings.totalCount.toLocaleString("ko-KR")}건</h6>
+        <BookingSearchResults page={result.bookings} />
+      </section>
+      <section aria-labelledby="customer-passes-title">
+        <h6 id="customer-passes-title">8회권 {result.passes.totalCount.toLocaleString("ko-KR")}건</h6>
+        <PassSearchResults passes={result.passes.content} />
+      </section>
+      {(result.orders.totalPages > 1 || result.bookings.totalPages > 1 || result.passes.totalPages > 1) && (
+        <small className="text-muted-soft">각 이용 내역은 최근 20건까지 표시합니다.</small>
+      )}
+    </div>
+  );
+}
+
 function SearchResults({ result }: { result: AdminSearchResult }) {
+  if (result.target === "CUSTOMER") {
+    return <CustomerSearchResults result={result} />;
+  }
   return result.target === "ORDER"
     ? <OrderSearchResults page={result.page} />
     : <BookingSearchResults page={result.page} />;
 }
 
 export function AdminSearchSection({ adminKey, onAuthError }: Props) {
-  const [target, setTarget] = useState<AdminSearchTarget>("ORDER");
+  const [target, setTarget] = useState<AdminSearchTarget>("CUSTOMER");
   const [keyword, setKeyword] = useState("");
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -216,6 +279,10 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (target === "CUSTOMER" && normalizeKeyword(keyword) === undefined) {
+      setValidationError("고객명 또는 정확한 휴대폰 번호를 입력해 주세요.");
+      return;
+    }
     if (dateFrom && dateTo && dateFrom > dateTo) {
       setValidationError("시작일은 종료일보다 늦을 수 없습니다.");
       return;
@@ -237,10 +304,17 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
   }
 
   const statusOptions = target === "ORDER" ? ORDER_STATUS_OPTIONS : BOOKING_STATUS_OPTIONS;
+  const customerSearch = target === "CUSTOMER";
 
   return (
     <div>
       <ButtonGroup size="sm" className="mb-3" aria-label="검색 대상">
+        <Button
+          variant={target === "CUSTOMER" ? "dark" : "outline-secondary"}
+          onClick={() => selectTarget("CUSTOMER")}
+        >
+          고객 통합
+        </Button>
         <Button
           variant={target === "ORDER" ? "dark" : "outline-secondary"}
           onClick={() => selectTarget("ORDER")}
@@ -259,18 +333,20 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
         <Row className="g-2 align-items-end">
           <Col xs={12} md={4}>
             <Form.Group controlId="admin-search-keyword">
-              <Form.Label>주문·예약 번호 또는 고객명</Form.Label>
+              <Form.Label>{customerSearch ? "고객명 또는 휴대폰 번호" : "주문·예약 번호 또는 고객명"}</Form.Label>
               <Form.Control
                 type="search"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder={target === "ORDER"
-                  ? "주문번호·구매자명·정확한 휴대폰 번호"
-                  : "예약번호·예약자명·정확한 휴대폰 번호"}
+                placeholder={customerSearch
+                  ? "고객명·정확한 휴대폰 번호"
+                  : target === "ORDER"
+                    ? "주문번호·구매자명·정확한 휴대폰 번호"
+                    : "예약번호·예약자명·정확한 휴대폰 번호"}
               />
             </Form.Group>
           </Col>
-          <Col xs={12} sm={4} md={2}>
+          {!customerSearch && <Col xs={12} sm={4} md={2}>
             <Form.Group controlId="admin-search-status">
               <Form.Label>상태</Form.Label>
               <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -280,19 +356,19 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
                 ))}
               </Form.Select>
             </Form.Group>
-          </Col>
-          <Col xs={12} sm={4} md={2}>
+          </Col>}
+          {!customerSearch && <Col xs={12} sm={4} md={2}>
             <Form.Group controlId="admin-search-date-from">
               <Form.Label>시작일</Form.Label>
               <Form.Control type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
             </Form.Group>
-          </Col>
-          <Col xs={12} sm={4} md={2}>
+          </Col>}
+          {!customerSearch && <Col xs={12} sm={4} md={2}>
             <Form.Group controlId="admin-search-date-to">
               <Form.Label>종료일</Form.Label>
               <Form.Control type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
             </Form.Group>
-          </Col>
+          </Col>}
           <Col xs="auto">
             <Button type="submit" variant="dark" disabled={query.isFetching}>
               {query.isFetching ? "검색 중..." : "검색"}
@@ -309,7 +385,9 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
       {query.data && (
         <div className="admin-search-results">
           <SearchResults result={query.data} />
-          <Pagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
+          {query.data.target !== "CUSTOMER" && (
+            <Pagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
+          )}
         </div>
       )}
     </div>

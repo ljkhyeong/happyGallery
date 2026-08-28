@@ -42,7 +42,7 @@ const ADMIN_VIEWS = [
   {
     value: "overview",
     label: "현황·검색",
-    description: "매출과 운영 지표를 보고 주문·예약을 검색합니다.",
+    description: "매출과 운영 지표를 보고 고객의 주문·예약·8회권 이용 내역을 함께 검색합니다.",
   },
   { value: "orders", label: "주문", description: "주문 승인부터 배송·매장 수령과 교환·환불 요청까지 처리합니다." },
   {
@@ -354,7 +354,7 @@ export function AdminPage() {
       {activeView === "overview" && (
         <>
           <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
-          <AdminPanel title="주문·예약 검색">
+          <AdminPanel title="고객·주문·예약 검색">
             <AdminSearchSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>

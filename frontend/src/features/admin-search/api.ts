@@ -10,9 +10,13 @@ import {
   type AdminOrderSearchPageResponse,
   type SearchOrdersStatus as OrderSearchStatus,
 } from "@/generated/api/adminOrder";
+import {
+  searchAdminPasses,
+  type AdminPassPageResponse,
+} from "@/generated/api/adminOperations";
 import { adminHeaders } from "@/shared/api";
 
-export type AdminSearchTarget = "ORDER" | "BOOKING";
+export type AdminSearchTarget = "CUSTOMER" | "ORDER" | "BOOKING";
 
 export interface AdminSearchCriteria {
   target: AdminSearchTarget;
@@ -24,6 +28,12 @@ export interface AdminSearchCriteria {
 }
 
 export type AdminSearchResult =
+  | {
+      target: "CUSTOMER";
+      orders: AdminOrderSearchPageResponse;
+      bookings: AdminBookingSearchPageResponse;
+      passes: AdminPassPageResponse;
+    }
   | { target: "ORDER"; page: AdminOrderSearchPageResponse }
   | { target: "BOOKING"; page: AdminBookingSearchPageResponse };
 
@@ -39,6 +49,18 @@ export async function searchAdminRecords(
     page: criteria.page,
     size: 20,
   };
+
+  if (criteria.target === "CUSTOMER") {
+    const [orders, bookings, passes] = await Promise.all([
+      searchOrders({ ...common }, options),
+      searchBookings({ ...common }, options),
+      searchAdminPasses(
+        { keyword: criteria.keyword, page: criteria.page, size: 20 },
+        options,
+      ),
+    ]);
+    return { target: "CUSTOMER", orders, bookings, passes };
+  }
 
   if (criteria.target === "ORDER") {
     const page = await searchOrders(
