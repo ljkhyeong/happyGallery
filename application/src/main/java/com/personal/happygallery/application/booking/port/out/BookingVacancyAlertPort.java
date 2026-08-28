@@ -14,6 +14,8 @@ public interface BookingVacancyAlertPort {
 
     Optional<BookingVacancyAlert> findWaitingBySlotIdAndUserId(Long slotId, Long userId);
 
+    List<BookingVacancyAlert> findWaitingByUserId(Long userId);
+
     Optional<BookingVacancyAlert> findWaitingBySlotIdAndAccessTokenHashForUpdate(
             Long slotId, String accessTokenHash);
 

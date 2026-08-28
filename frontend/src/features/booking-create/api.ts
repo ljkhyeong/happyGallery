@@ -2,6 +2,7 @@ import {
   cancelGuestVacancyAlert as requestGuestVacancyAlertCancellation,
   cancelMyVacancyAlert as requestMyVacancyAlertCancellation,
   listPublicClasses,
+  listMyVacancyAlerts as requestMyVacancyAlerts,
   listUpcomingSlots,
   registerGuestVacancyAlert as requestGuestVacancyAlert,
   registerMyVacancyAlert as requestMyVacancyAlert,
@@ -44,6 +45,10 @@ export function cancelGuestVacancyAlert(slotId: number, accessToken: string): Pr
 
 export function registerMyVacancyAlert(slotId: number): Promise<VacancyAlertResponse> {
   return requestMyVacancyAlert(slotId);
+}
+
+export function fetchMyVacancyAlerts(): Promise<VacancyAlertResponse[]> {
+  return requestMyVacancyAlerts();
 }
 
 export function cancelMyVacancyAlert(slotId: number): Promise<void> {

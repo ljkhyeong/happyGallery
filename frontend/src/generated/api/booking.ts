@@ -646,6 +646,27 @@ export const registerMyVacancyAlert = async (slotId: number, options?: RequestIn
 
 
 
+export const getListMyVacancyAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/me/vacancy-alerts`
+}
+
+export const listMyVacancyAlerts = async ( options?: RequestInit): Promise<VacancyAlertResponse[]> => {
+
+  return generatedApiClient<VacancyAlertResponse[]>(getListMyVacancyAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getListAvailableSlotsUrl = (params: ListAvailableSlotsParams,) => {
   const normalizedParams = new URLSearchParams();
 

@@ -39,6 +39,16 @@ public interface BookingVacancyAlertRepository
             @Param("slotId") Long slotId, @Param("userId") Long userId);
 
     @Override
+    @Query("""
+            SELECT a FROM BookingVacancyAlert a
+            JOIN FETCH a.slot
+            WHERE a.userId = :userId
+              AND a.status = com.personal.happygallery.domain.booking.VacancyAlertStatus.WAITING
+            ORDER BY a.id
+            """)
+    List<BookingVacancyAlert> findWaitingByUserId(@Param("userId") Long userId);
+
+    @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("""
             SELECT a FROM BookingVacancyAlert a

@@ -190,6 +190,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(vacancyAlert.getSlot()).thenReturn(vacancySlot);
         when(vacancyAlert.getStatus()).thenReturn(VacancyAlertStatus.WAITING);
         when(vacancyAlertUseCase.registerMember(42L, CUSTOMER_USER_ID)).thenReturn(vacancyAlert);
+        when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(vacancyAlert));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
@@ -693,6 +694,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$.slotId").value(42))
                 .andExpect(jsonPath("$.status").value("WAITING"))
                 .andExpect(jsonPath("$.accessToken").isEmpty());
+    }
+
+    @Test
+    @DisplayName("회원 빈자리 알림 목록 API를 문서화한다")
+    void list_my_vacancy_alerts() throws Exception {
+        mockMvc.perform(get("/api/v1/me/vacancy-alerts")
+                        .with(customerUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].alertId").value(700))
+                .andExpect(jsonPath("$[0].slotId").value(42))
+                .andExpect(jsonPath("$[0].status").value("WAITING"))
+                .andExpect(jsonPath("$[0].accessToken").isEmpty());
     }
 
     @Test

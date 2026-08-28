@@ -91,6 +91,7 @@ export const queryKeys = {
       history: ["me", "bookings", "history"] as const,
       detail: (bookingId: number) => ["me", "bookings", bookingId] as const,
     },
+    vacancyAlerts: ["me", "vacancy-alerts"] as const,
     passes: ["me", "passes"] as const,
     passHistory: ["me", "passes", "history"] as const,
     passCandidates: ["me", "passes", "candidates"] as const,

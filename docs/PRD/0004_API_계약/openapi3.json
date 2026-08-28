@@ -13428,6 +13428,27 @@
         "tags" : [ "me-social-account-controller" ]
       }
     },
+    "/api/v1/me/vacancy-alerts" : {
+      "get" : {
+        "operationId" : "listMyVacancyAlerts",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/VacancyAlertResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-booking-vacancy-alert-controller" ]
+      }
+    },
     "/api/v1/media/images/{fileName}" : {
       "get" : {
         "operationId" : "getImage",

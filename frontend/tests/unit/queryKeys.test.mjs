@@ -31,6 +31,11 @@ test("회원 쿠폰과 적립금 키는 로그인 세대 캐시 경계 안에 �
   assert.equal(queryKeys.member.rewards[0], queryKeys.member.all[0]);
 });
 
+test("회원 빈자리 알림 키는 로그인 세대 캐시 경계 안에 있다", () => {
+  assert.deepEqual(queryKeys.member.vacancyAlerts, ["me", "vacancy-alerts"]);
+  assert.equal(queryKeys.member.vacancyAlerts[0], queryKeys.member.all[0]);
+});
+
 test("관리자 쿠폰 키는 관리자 캐시 경계 안에 있다", () => {
   assert.deepEqual(queryKeys.admin.coupons, ["admin", "coupons"]);
   assert.equal(queryKeys.admin.coupons[0], queryKeys.admin.all[0]);

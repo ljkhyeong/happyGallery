@@ -674,6 +674,13 @@ POST /api/v1/me/slots/{slotId}/vacancy-alerts
 Cookie: HG_SESSION=...
 ```
 
+회원 신청 목록 조회:
+
+```http
+GET /api/v1/me/vacancy-alerts
+Cookie: HG_SESSION=...
+```
+
 ```json
 {
   "alertId": 700,
@@ -685,7 +692,7 @@ Cookie: HG_SESSION=...
 
 - 비회원 취소: `DELETE /api/v1/slots/{slotId}/vacancy-alerts`, 발급받은 `X-Access-Token` 필수
 - 회원 취소: `DELETE /api/v1/me/slots/{slotId}/vacancy-alerts`, 회원 세션 필수
-- 성공: 신청 `200 OK`, 취소 `200 OK`
+- 성공: 신청·목록 조회·취소 `200 OK`; 목록은 현재 회원의 `WAITING` 신청만 신청 순서로 반환하고 `accessToken`은 `null`이다.
 - 에러:
   - `400 INVALID_INPUT` — 활성·미래 만석 회차가 아니거나 비회원 입력 형식 오류
   - `404 NOT_FOUND` — 회차, 회원 또는 비회원 알림 토큰 불일치
@@ -694,6 +701,7 @@ Cookie: HG_SESSION=...
   - 빈자리 알림은 좌석을 예약하거나 결제하지 않는다. 알림을 받은 고객이 예약 화면에서 선착순으로 직접 예약한다.
   - 회원은 등록된 인증 휴대폰, 비회원은 `GUEST_BOOKING` 목적의 6자리 SMS 인증으로 수신 번호 소유권을 확인한다.
   - 같은 회차·수신자에는 `WAITING` 알림 한 건만 유지한다. 비회원이 다시 인증해 신청하면 취소용 접근 토큰만 새로 발급한다.
+  - 회원 화면은 `GET /api/v1/me/vacancy-alerts`를 서버 원본으로 사용해 새로고침 뒤 신청 상태를 복원한다. 비회원 화면은 취소 토큰을 현재 고객 세션 소유권과 함께 `sessionStorage`에 저장하며, 같은 탭의 새로고침까지만 복원하고 로그인·로그아웃·계정 전환 뒤에는 이전 상태를 적용하지 않는다.
   - 만석이었던 활성 회차가 전체취소·부분취소·예약 변경으로 1석 이상 열리는 순간 모든 `WAITING` 신청을 `NOTIFIED`로 전환하고 알림 outbox를 같은 트랜잭션에 한 번씩 저장한다.
   - 회차가 운영·캘린더·버퍼 사유로 닫혀 있으면 자리가 반환돼도 알리지 않는다. 관리자가 다시 열어 실제 예약 가능해진 시점에 대기 알림을 발송한다.
   - 알림 발송은 한 번으로 끝나며 자동 재신청하지 않는다.
@@ -2783,6 +2791,7 @@ Cookie: HG_SESSION={sessionToken}
 - `GET /api/v1/me/bookings/page?cursor={cursor}&size=20` — 회원 예약 커서 페이지
 - `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
 - `PATCH /api/v1/me/bookings/{id}/participants` — 예약 인원 부분취소
+- `GET /api/v1/me/vacancy-alerts` — 현재 대기 중인 회원 빈자리 알림 신청 목록
 - `GET /api/v1/me/orders` — 회원 주문 목록
 - `GET /api/v1/me/orders/page?cursor={cursor}&size=20` — 회원 주문 커서 페이지
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세

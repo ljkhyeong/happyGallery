@@ -1,17 +1,30 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Modal } from "react-bootstrap";
 import type { VacancyAlertResponse } from "@/generated/api/booking";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { runForCurrentCustomer } from "@/shared/api";
+import {
+  captureCustomerSession,
+  isCurrentCustomerSession,
+  queryKeys,
+  runForCustomerSession,
+  runForCurrentCustomer,
+  type CustomerSessionSnapshot,
+} from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { PhoneVerificationStep } from "./PhoneVerificationStep";
 import {
   cancelGuestVacancyAlert,
   cancelMyVacancyAlert,
+  fetchMyVacancyAlerts,
   registerGuestVacancyAlert,
   registerMyVacancyAlert,
 } from "./api";
+import {
+  clearGuestVacancyAlert,
+  findGuestVacancyAlert,
+  saveGuestVacancyAlert,
+} from "./vacancyAlertSession";
 
 interface Registration {
   owner: "guest" | "member";
@@ -24,46 +37,116 @@ interface GuestRegistrationInput {
   verificationCode: string;
 }
 
+interface RegistrationResult extends Registration {
+  customerSession: CustomerSessionSnapshot;
+}
+
 export function VacancyAlertButton({ slotId }: { slotId: number }) {
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    sessionVersion,
+  } = useCustomerAuth();
+  const queryClient = useQueryClient();
   const toast = useToast();
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [guestName, setGuestName] = useState("");
-  const [registration, setRegistration] = useState<Registration | null>(null);
+  const [guestRegistration, setGuestRegistration] = useState(
+    () => findGuestVacancyAlert(slotId),
+  );
+  const memberAlertsQuery = useQuery({
+    queryKey: queryKeys.member.vacancyAlerts,
+    queryFn: () => runForCurrentCustomer(fetchMyVacancyAlerts),
+    enabled: isAuthenticated,
+  });
+
+  useEffect(() => {
+    setGuestRegistration(
+      isAuthenticated ? null : findGuestVacancyAlert(slotId),
+    );
+  }, [isAuthenticated, sessionVersion, slotId]);
+
+  const memberRegistration = memberAlertsQuery.data
+    ?.find((alert) => alert.slotId === slotId) ?? null;
+  const registration: Registration | null = authLoading
+    ? null
+    : isAuthenticated
+      ? memberRegistration && { owner: "member", response: memberRegistration }
+      : guestRegistration && { owner: "guest", response: guestRegistration };
 
   const registerMutation = useMutation({
-    mutationFn: (guest?: GuestRegistrationInput) => runForCurrentCustomer(async () => {
-      if (isAuthenticated) {
+    mutationFn: (guest?: GuestRegistrationInput) => {
+      const customerSession = captureCustomerSession();
+      return runForCustomerSession(customerSession, async () => {
+        if (isAuthenticated) {
+          return {
+            owner: "member",
+            response: await registerMyVacancyAlert(slotId),
+            customerSession,
+          } satisfies RegistrationResult;
+        }
+        if (!guest) throw new Error("비회원 빈자리 알림 정보가 없습니다.");
+        const response = await registerGuestVacancyAlert(slotId, guest);
+        if (!response.accessToken) {
+          throw new Error("비회원 빈자리 알림 취소 토큰을 받지 못했습니다.");
+        }
         return {
-          owner: "member",
-          response: await registerMyVacancyAlert(slotId),
-        } satisfies Registration;
-      }
-      if (!guest) throw new Error("비회원 빈자리 알림 정보가 없습니다.");
-      return {
-        owner: "guest",
-        response: await registerGuestVacancyAlert(slotId, guest),
-      } satisfies Registration;
-    }),
+          owner: "guest",
+          response,
+          customerSession,
+        } satisfies RegistrationResult;
+      });
+    },
     onSuccess: (registered) => {
-      setRegistration(registered);
+      if (!isCurrentCustomerSession(registered.customerSession)) return;
+      if (registered.owner === "member") {
+        queryClient.setQueryData<VacancyAlertResponse[]>(
+          queryKeys.member.vacancyAlerts,
+          (alerts = []) => [
+            ...alerts.filter((alert) => alert.slotId !== slotId),
+            registered.response,
+          ],
+        );
+      } else if (saveGuestVacancyAlert(
+        registered.response,
+        registered.customerSession,
+      )) {
+        setGuestRegistration(registered.response);
+      } else {
+        return;
+      }
       setShowGuestForm(false);
       toast.show("빈자리가 생기면 한 번 알려드릴게요.");
     },
   });
 
   const cancelMutation = useMutation({
-    mutationFn: () => runForCurrentCustomer(async () => {
-      if (!registration) return;
-      if (registration.owner === "member") {
-        await cancelMyVacancyAlert(slotId);
+    mutationFn: (target: Registration) => {
+      const customerSession = captureCustomerSession();
+      return runForCustomerSession(customerSession, async () => {
+        if (target.owner === "member") {
+          await cancelMyVacancyAlert(slotId);
+        } else if (target.response.accessToken) {
+          await cancelGuestVacancyAlert(slotId, target.response.accessToken);
+        }
+        return { ...target, customerSession } satisfies RegistrationResult;
+      });
+    },
+    onSuccess: (canceled) => {
+      if (!isCurrentCustomerSession(canceled.customerSession)) return;
+      if (canceled.owner === "member") {
+        queryClient.setQueryData<VacancyAlertResponse[]>(
+          queryKeys.member.vacancyAlerts,
+          (alerts = []) => alerts.filter((alert) => alert.slotId !== slotId),
+        );
+      } else if (clearGuestVacancyAlert(
+        canceled.response,
+        canceled.customerSession,
+      )) {
+        setGuestRegistration(null);
+      } else {
         return;
       }
-      const accessToken = registration.response.accessToken;
-      if (accessToken) await cancelGuestVacancyAlert(slotId, accessToken);
-    }),
-    onSuccess: () => {
-      setRegistration(null);
       toast.show("빈자리 알림 신청을 취소했습니다.", "info");
     },
   });
@@ -76,7 +159,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
           size="sm"
           variant="outline-secondary"
           disabled={cancelMutation.isPending}
-          onClick={() => cancelMutation.mutate()}
+          onClick={() => cancelMutation.mutate(registration)}
         >
           {cancelMutation.isPending ? "취소 중..." : "빈자리 알림 취소"}
         </Button>
@@ -92,7 +175,11 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
           type="button"
           size="sm"
           variant="outline-primary"
-          disabled={authLoading || registerMutation.isPending}
+          disabled={
+            authLoading
+            || memberAlertsQuery.isLoading
+            || registerMutation.isPending
+          }
           onClick={() => {
             registerMutation.reset();
             if (isAuthenticated) {
@@ -104,7 +191,9 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         >
           {registerMutation.isPending ? "신청 중..." : "빈자리 알림"}
         </Button>
-        {!showGuestForm && <ErrorAlert error={registerMutation.error} />}
+        {!showGuestForm && (
+          <ErrorAlert error={memberAlertsQuery.error ?? registerMutation.error} />
+        )}
       </div>
 
       <Modal

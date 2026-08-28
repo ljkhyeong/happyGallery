@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.error.PhoneVerificationRequiredException
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +74,12 @@ public class DefaultBookingVacancyAlertService implements BookingVacancyAlertUse
         Slot slot = requireFullSlot(slotId);
         return alertPort.findWaitingBySlotIdAndUserId(slotId, userId)
                 .orElseGet(() -> alertPort.save(BookingVacancyAlert.forUser(slot, userId)));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingVacancyAlert> listMember(Long userId) {
+        return alertPort.findWaitingByUserId(userId);
     }
 
     @Override
