@@ -33,6 +33,7 @@ import tools.jackson.databind.ObjectMapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -183,6 +184,38 @@ class SecurityBoundaryUseCaseIT {
         mockMvc.perform(post("/api/v1/products/1/reviews").with(csrf()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @DisplayName("비회원 빈자리 알림과 예약 인원 부분취소 요청은 보안 필터를 통과한다")
+    @Test
+    void guestVacancyAlertAndParticipantReduction_allowAnonymousRequest() throws Exception {
+        mockMvc.perform(post("/api/v1/slots/{slotId}/vacancy-alerts", 999L)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "비회원",
+                                  "phone": "01012345678",
+                                  "verificationCode": "123456"
+                                }
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(patch("/api/v1/bookings/{bookingId}/participants", 999L)
+                        .with(csrf())
+                        .header("X-Access-Token", "invalid-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "participantCount": 1
+                                }
+                                """))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(delete("/api/v1/slots/{slotId}/vacancy-alerts", 999L)
+                        .with(csrf())
+                        .header("X-Access-Token", "invalid-token"))
+                .andExpect(status().isNotFound());
     }
 
     @DisplayName("처리율 제한 필터는 자동 등록하지 않고 보안 헤더 필터 뒤에 배치한다")

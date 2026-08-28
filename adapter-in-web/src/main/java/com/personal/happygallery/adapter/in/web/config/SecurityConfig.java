@@ -251,14 +251,17 @@ public class SecurityConfig {
                                 "/api/v1/guest-records/recovery",
                                 "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/phone-verifications",
+                                "/api/v1/slots/{slotId}/vacancy-alerts",
                                 "/api/v1/orders/{orderId}/claims",
                                 "/api/v1/orders/{id}/delay-response")
                         .permitAll()
                         .requestMatchers(HttpMethod.PATCH,
-                                "/api/v1/bookings/{bookingId}/reschedule")
+                                "/api/v1/bookings/{bookingId}/reschedule",
+                                "/api/v1/bookings/{bookingId}/participants")
                         .permitAll()
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/v1/bookings/{bookingId}",
+                                "/api/v1/slots/{slotId}/vacancy-alerts",
                                 "/api/v1/orders/{id}")
                         .permitAll()
                         .anyRequest().denyAll())
