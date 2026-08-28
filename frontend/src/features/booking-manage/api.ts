@@ -2,10 +2,12 @@ import {
   cancelGuestBooking,
   getGuestBooking,
   listAvailableSlots,
+  reduceGuestBookingParticipants,
   rescheduleGuestBooking,
   type BookingDetailResponse,
   type CancelResponse,
   type PublicSlotResponse,
+  type ReduceBookingParticipantsResponse,
   type RescheduleResponse,
 } from "@/generated/api/booking";
 
@@ -34,6 +36,16 @@ export function fetchRescheduleSlots(
 
 export function cancelBooking(bookingId: number, token: string): Promise<CancelResponse> {
   return cancelGuestBooking(bookingId, {
+    headers: { "X-Access-Token": token },
+  });
+}
+
+export function reduceBookingParticipants(
+  bookingId: number,
+  participantCount: number,
+  token: string,
+): Promise<ReduceBookingParticipantsResponse> {
+  return reduceGuestBookingParticipants(bookingId, { participantCount }, {
     headers: { "X-Access-Token": token },
   });
 }

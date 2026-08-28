@@ -23,7 +23,13 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     Optional<Refund> findById(Long id);
 
     @Override
-    Optional<Refund> findByBookingId(Long bookingId);
+    @Query(value = """
+            SELECT * FROM refunds
+            WHERE booking_id = :bookingId
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<Refund> findLatestByBookingId(@Param("bookingId") Long bookingId);
     @Override
     @Query("SELECT r FROM Refund r WHERE r.orderId = :orderId AND r.orderClaimId IS NULL")
     Optional<Refund> findDirectByOrderId(@Param("orderId") Long orderId);

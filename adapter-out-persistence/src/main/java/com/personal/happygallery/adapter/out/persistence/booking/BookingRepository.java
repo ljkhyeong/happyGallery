@@ -25,6 +25,25 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     @Override Optional<Booking> findById(Long id);
 
     @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT b FROM Booking b WHERE b.id = :id")
+    Optional<Booking> findByIdForUpdate(@Param("id") Long id);
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT b FROM Booking b
+            JOIN FETCH b.guest
+            JOIN FETCH b.bookingClass
+            JOIN FETCH b.slot
+            WHERE b.id = :id
+              AND b.accessToken = :accessToken
+            """)
+    Optional<Booking> findByIdAndAccessTokenForUpdate(
+            @Param("id") Long id,
+            @Param("accessToken") String accessToken);
+
+    @Override
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Booking b

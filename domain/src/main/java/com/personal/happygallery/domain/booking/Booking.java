@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.math.BigInteger;
 import java.time.LocalDateTime;
 
 /** 체험 예약 — bookings 테이블 */
@@ -265,9 +266,52 @@ public class Booking {
         this.ownerPhoneHmac = null;
     }
 
+    /** 예약을 유지하면서 취소한 인원만큼 예약금·잔금과 슬롯 점유를 줄인다. */
+    public ParticipantReduction reduceParticipants(int newParticipantCount) {
+        status.requireBooked();
+        if (!isCustomerCancellationAllowedAfterBooked()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CHANGE_NOT_ALLOWED,
+                    "잔금 결제가 완료된 예약은 인원을 줄일 수 없습니다. 관리자 정산이 필요합니다.");
+        }
+        if (isPassBooking()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CHANGE_NOT_ALLOWED, "8회권 예약은 인원을 줄일 수 없습니다.");
+        }
+        if (newParticipantCount < 1 || newParticipantCount >= participantCount) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "변경 인원은 1명 이상이고 현재 예약 인원보다 적어야 합니다.");
+        }
+
+        int previousParticipantCount = participantCount;
+        long previousDepositAmount = depositAmount;
+        long previousBalanceAmount = balanceAmount;
+        depositAmount = prorated(previousDepositAmount, newParticipantCount, previousParticipantCount);
+        balanceAmount = prorated(previousBalanceAmount, newParticipantCount, previousParticipantCount);
+        participantCount = newParticipantCount;
+        return new ParticipantReduction(
+                previousParticipantCount - newParticipantCount,
+                previousDepositAmount - depositAmount,
+                previousBalanceAmount - balanceAmount);
+    }
+
+    private static long prorated(long amount, int numerator, int denominator) {
+        return BigInteger.valueOf(amount)
+                .multiply(BigInteger.valueOf(numerator))
+                .divide(BigInteger.valueOf(denominator))
+                .longValueExact();
+    }
+
     public boolean isCustomerCancellationAllowed() {
         return status == BookingStatus.BOOKED && isCustomerCancellationAllowedAfterBooked();
     }
+
+    public record ParticipantReduction(
+            int canceledParticipantCount,
+            long refundAmount,
+            long reducedBalanceAmount
+    ) {}
 
     private boolean isCustomerCancellationAllowedAfterBooked() {
         return balanceAmount == 0 || balanceStatus != BalanceStatus.PAID;

@@ -51,6 +51,18 @@ class BookingSupport {
                 .orElseThrow(NotFoundException.supplier("예약"));
     }
 
+    Booking findByTokenForUpdate(Long bookingId, String rawAccessToken) {
+        String tokenHash = guestTokenService.resolveTokenHash(rawAccessToken);
+        return bookingReaderPort.findByIdAndAccessTokenForUpdate(bookingId, tokenHash)
+                .orElseThrow(NotFoundException.supplier("예약"));
+    }
+
+    Booking findByIdAndUserIdForUpdate(Long bookingId, Long userId) {
+        return bookingReaderPort.findByIdForUpdate(bookingId)
+                .filter(booking -> Objects.equals(booking.getUserId(), userId))
+                .orElseThrow(NotFoundException.supplier("예약"));
+    }
+
     @Transactional(propagation = Propagation.MANDATORY)
     void recordHistory(Booking booking, BookingHistoryAction action,
                        Slot oldSlot, Slot newSlot, String actor, Long adminUserId, String reason) {

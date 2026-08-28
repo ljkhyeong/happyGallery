@@ -121,6 +121,14 @@ final class RestDocsFixtures {
         return booking;
     }
 
+    static Booking reducedBooking() {
+        Booking booking = booking();
+        when(booking.getParticipantCount()).thenReturn(2);
+        when(booking.getDepositAmount()).thenReturn(10_000L);
+        when(booking.getBalanceAmount()).thenReturn(90_000L);
+        return booking;
+    }
+
     static PhoneVerification phoneVerification() {
         PhoneVerification verification = mock(PhoneVerification.class);
         when(verification.getId()).thenReturn(7L);
@@ -172,6 +180,14 @@ final class RestDocsFixtures {
         when(refund.getCustomerRefundAmount()).thenReturn(15000L);
         when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
         when(refund.getUpdatedAt()).thenReturn(NOW);
+        return refund;
+    }
+
+    static Refund partialBookingRefund() {
+        Refund refund = bookingRefund();
+        when(refund.getId()).thenReturn(903L);
+        when(refund.getAmount()).thenReturn(5_000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(5_000L);
         return refund;
     }
 

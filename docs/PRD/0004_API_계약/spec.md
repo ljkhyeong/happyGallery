@@ -952,7 +952,48 @@ X-Access-Token: {accessToken}
   - 변경마다 `booking_history`에 `RESCHEDULED` 이력 누적
   - `bookings` 행은 항상 1건 유지한다.
 
-#### 2.4.5 비회원 예약 취소
+#### 2.4.5 비회원 예약 인원 부분취소
+
+```http
+PATCH /api/v1/bookings/{bookingId}/participants
+X-Access-Token: {accessToken}
+
+{
+  "participantCount": 2
+}
+```
+
+```json
+{
+  "bookingId": 1,
+  "status": "BOOKED",
+  "participantCount": 2,
+  "canceledParticipantCount": 1,
+  "depositAmount": 10000,
+  "balanceAmount": 90000,
+  "refundAmount": 5000,
+  "refund": {
+    "amount": 5000,
+    "status": "REQUESTED"
+  }
+}
+```
+
+- 성공: `200 OK`
+- 에러:
+  - `400 INVALID_INPUT` — 변경 인원이 1명 미만이거나 현재 인원 이상
+  - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
+  - `409 BOOKING_CONFLICT` — 인원 변경 중 예약 슬롯이 바뀌거나 동시 수정 충돌
+  - `422 CHANGE_NOT_ALLOWED` — 취소 보상 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
+- 정책:
+  - 예약은 `BOOKED`를 유지하며 1명 이상만 남길 수 있다. 전원 취소는 전체 예약 취소 API를 사용한다.
+  - 취소 보상 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
+  - 현재 예약금과 잔금을 변경 전 인원 대비 변경 후 인원 비율로 정수 내림해 다시 계산하고, 줄어든 예약금만 PG 부분환불로 요청한다.
+  - 줄인 인원만큼 슬롯 정원을 즉시 반납하고 `PARTICIPANTS_REDUCED` 이력을 누적한다.
+  - 같은 예약을 여러 번 줄일 수 있으며 각 요청은 별도 환불 이력을 가진다. 응답의 `refund`는 이번 요청의 환불 진행 상태다.
+  - 회원은 같은 계약을 `PATCH /api/v1/me/bookings/{id}/participants`로 사용하며 `X-Access-Token` 대신 회원 세션 소유권을 검증한다.
+
+#### 2.4.6 비회원 예약 취소
 
 ```http
 DELETE /api/v1/bookings/{bookingId}
@@ -2694,6 +2735,7 @@ Cookie: HG_SESSION={sessionToken}
 - `GET /api/v1/me/bookings` — 회원 예약 목록
 - `GET /api/v1/me/bookings/page?cursor={cursor}&size=20` — 회원 예약 커서 페이지
 - `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
+- `PATCH /api/v1/me/bookings/{id}/participants` — 예약 인원 부분취소
 - `GET /api/v1/me/orders` — 회원 주문 목록
 - `GET /api/v1/me/orders/page?cursor={cursor}&size=20` — 회원 주문 커서 페이지
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세

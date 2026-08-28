@@ -14,10 +14,22 @@ public interface BookingCancelUseCase {
 
     CancelResult cancelMemberBooking(Long bookingId, Long userId);
 
+    ParticipantReductionResult reduceGuestBookingParticipants(
+            Long bookingId, String accessToken, int participantCount);
+
+    ParticipantReductionResult reduceMemberBookingParticipants(
+            Long bookingId, Long userId, int participantCount);
+
     record CancelResult(
             Booking booking,
             boolean refundable,
             Refund refund,
             boolean manualCompensationRequired
+    ) {}
+
+    record ParticipantReductionResult(
+            Booking booking,
+            int canceledParticipantCount,
+            Refund refund
     ) {}
 }

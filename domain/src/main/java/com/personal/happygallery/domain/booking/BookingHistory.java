@@ -27,7 +27,7 @@ public class BookingHistory {
     private Booking booking;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 15)
+    @Column(nullable = false, length = 30)
     private BookingHistoryAction action;
 
     @ManyToOne(fetch = FetchType.LAZY)

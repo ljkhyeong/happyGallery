@@ -19,6 +19,9 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.BookingConflictException;
+import com.personal.happygallery.domain.error.ChangeNotAllowedException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.time.TimeBoundary;
@@ -26,6 +29,7 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +87,26 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
     public CancelResult cancelMemberBooking(Long bookingId, Long userId) {
         Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
         return cancelInternal(booking);
+    }
+
+    @Override
+    public ParticipantReductionResult reduceGuestBookingParticipants(
+            Long bookingId, String accessToken, int participantCount) {
+        Booking booking = bookingSupport.findByToken(bookingId, accessToken);
+        return reduceParticipants(
+                booking,
+                () -> bookingSupport.findByTokenForUpdate(bookingId, accessToken),
+                participantCount);
+    }
+
+    @Override
+    public ParticipantReductionResult reduceMemberBookingParticipants(
+            Long bookingId, Long userId, int participantCount) {
+        Booking booking = bookingSupport.findByIdAndUserId(bookingId, userId);
+        return reduceParticipants(
+                booking,
+                () -> bookingSupport.findByIdAndUserIdForUpdate(bookingId, userId),
+                participantCount);
     }
 
     @Override
@@ -246,6 +270,52 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 compensation.refundable(),
                 compensation.refund(),
                 compensation.manualCompensationRequired());
+    }
+
+    private ParticipantReductionResult reduceParticipants(
+            Booking initialBooking,
+            Supplier<Booking> lockedBookingSupplier,
+            int participantCount) {
+        if (!TimeBoundary.isRefundable(initialBooking.getSlot().getStartAt(), clock)) {
+            throw new ChangeNotAllowedException();
+        }
+        if (initialBooking.requiresManualDepositCompensation()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CHANGE_NOT_ALLOWED,
+                    "오프라인에서 받은 예약금은 관리자가 인원을 변경해야 합니다.");
+        }
+
+        Long slotId = initialBooking.getSlot().getId();
+        SlotCapacitySupport.LockedSlotScope lockedSlot =
+                slotCapacitySupport.lockCapacityScope(slotId);
+        Booking booking = lockedBookingSupplier.get();
+        if (!booking.getSlot().getId().equals(slotId)) {
+            throw new BookingConflictException();
+        }
+        if (!TimeBoundary.isRefundable(lockedSlot.source().getStartAt(), clock)) {
+            throw new ChangeNotAllowedException();
+        }
+
+        int previousParticipantCount = booking.getParticipantCount();
+        Booking.ParticipantReduction reduction = booking.reduceParticipants(participantCount);
+        Slot slot = slotCapacitySupport.releaseCapacity(
+                lockedSlot, reduction.canceledParticipantCount());
+        bookingSupport.recordHistory(
+                booking,
+                BookingHistoryAction.PARTICIPANTS_REDUCED,
+                null,
+                null,
+                "CUSTOMER",
+                null,
+                "예약 인원 " + previousParticipantCount + "명 → " + participantCount + "명");
+
+        Refund refund = reduction.refundAmount() == 0
+                ? null
+                : refundExecutionService.requestBookingRefund(booking, reduction.refundAmount());
+        Booking saved = bookingStorePort.save(booking);
+        bookingSupport.notifyBooker(saved, NotificationEventType.BOOKING_RESCHEDULED);
+        return new ParticipantReductionResult(
+                saved, reduction.canceledParticipantCount(), refund);
     }
 
     private PassPurchase lockPass(Booking booking) {

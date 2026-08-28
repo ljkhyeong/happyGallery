@@ -9,6 +9,8 @@ import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailRespons
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleResponse;
+import com.personal.happygallery.adapter.in.web.booking.dto.ReduceBookingParticipantsRequest;
+import com.personal.happygallery.adapter.in.web.booking.dto.ReduceBookingParticipantsResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationRequest;
 import com.personal.happygallery.adapter.in.web.booking.dto.SendVerificationResponse;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
@@ -97,6 +99,18 @@ public class BookingController {
         Booking booking = bookingRescheduleUseCase.rescheduleBooking(
                 bookingId, token, request.newSlotId());
         return RescheduleResponse.from(booking);
+    }
+
+    /** 환불 가능 기간의 다인 예약에서 일부 인원만 취소한다. */
+    @PatchMapping("/{bookingId}/participants")
+    @Operation(operationId = "reduceGuestBookingParticipants")
+    public ReduceBookingParticipantsResponse reduceParticipants(
+            @PathVariable Long bookingId,
+            @RequestHeader("X-Access-Token") String token,
+            @RequestBody @Valid ReduceBookingParticipantsRequest request) {
+        return ReduceBookingParticipantsResponse.from(
+                bookingCancelUseCase.reduceGuestBookingParticipants(
+                        bookingId, token, request.participantCount()));
     }
 
     /** 비회원 예약 취소 — CANCELED 전이, D-1 이전이면 환불 요청 기록 */

@@ -4,10 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Container } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
+import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
-import { cancelMyBooking, fetchMyBooking, rescheduleMyBooking } from "@/features/my-booking/api";
+import {
+  cancelMyBooking,
+  fetchMyBooking,
+  reduceMyBookingParticipants,
+  rescheduleMyBooking,
+} from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -108,6 +114,29 @@ export function MyBookingDetailPage() {
                   queryKey: queryKeys.member.bookings.all,
                 })}
               successMessage="회원 예약이 변경되었습니다."
+            />
+          </Card.Body>
+        </Card>
+      )}
+
+      {isBooked && booking.participantCount > 1 && (
+        <Card className="mt-3 border-0 my-action-card">
+          <Card.Header>예약 인원 변경</Card.Header>
+          <Card.Body>
+            <p className="text-muted-soft small">
+              취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
+            </p>
+            <ReduceParticipantsForm
+              participantCount={booking.participantCount}
+              depositAmount={booking.depositAmount}
+              cancelPolicy={booking.cancelPolicy}
+              passBooking={booking.passBooking}
+              onReduce={(participantCount) =>
+                reduceMyBookingParticipants(booking.bookingId, participantCount)}
+              onSuccess={() =>
+                queryClient.invalidateQueries({
+                  queryKey: queryKeys.member.bookings.all,
+                })}
             />
           </Card.Body>
         </Card>

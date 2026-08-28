@@ -143,7 +143,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         User user = RestDocsFixtures.user();
         Order order = RestDocsFixtures.order();
         Booking booking = RestDocsFixtures.booking();
+        Booking reducedBooking = RestDocsFixtures.reducedBooking();
         Refund bookingRefund = RestDocsFixtures.bookingRefund();
+        Refund partialBookingRefund = RestDocsFixtures.partialBookingRefund();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         PassPurchase pass = RestDocsFixtures.passPurchase();
         Inquiry inquiry = RestDocsFixtures.inquiry();
@@ -172,6 +174,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelMemberBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund, false));
+        when(bookingCancelUseCase.reduceMemberBookingParticipants(100L, CUSTOMER_USER_ID, 2))
+                .thenReturn(new BookingCancelUseCase.ParticipantReductionResult(
+                        reducedBooking, 1, partialBookingRefund));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
         when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
@@ -648,6 +653,20 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         .content("{\"newSlotId\":42}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participantCount").value(3));
+    }
+
+    @Test
+    @DisplayName("내 예약 부분취소 API를 문서화한다")
+    void reduce_my_booking_participants() throws Exception {
+        mockMvc.perform(patch("/api/v1/me/bookings/{id}/participants", 100L)
+                        .with(customerUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BOOKED"))
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.canceledParticipantCount").value(1))
+                .andExpect(jsonPath("$.refundAmount").value(5_000));
     }
 
     @Test

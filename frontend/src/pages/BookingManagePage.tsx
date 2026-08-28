@@ -3,11 +3,17 @@ import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Container, Card, Badge } from "react-bootstrap";
 import { useLocation, useSearchParams } from "react-router";
-import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
+import {
+  cancelBooking,
+  fetchBooking,
+  reduceBookingParticipants,
+  rescheduleBooking,
+} from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
+import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
@@ -197,6 +203,28 @@ function BookingManageContent() {
                   currentStartAt={booking.startAt}
                   participantCount={booking.participantCount}
                   onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
+                  onSuccess={refreshBooking}
+                />
+              </Card.Body>
+            </Card>
+          )}
+
+          {isBooked && booking.participantCount > 1 && (
+            <Card className="mt-3 my-action-card border-0">
+              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Body>
+                <p className="text-muted-soft small mb-3">
+                  취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
+                </p>
+                <ReduceParticipantsForm
+                  participantCount={booking.participantCount}
+                  depositAmount={booking.depositAmount}
+                  cancelPolicy={booking.cancelPolicy}
+                  onReduce={(participantCount) => reduceBookingParticipants(
+                    booking.bookingId,
+                    participantCount,
+                    currentToken,
+                  )}
                   onSuccess={refreshBooking}
                 />
               </Card.Body>

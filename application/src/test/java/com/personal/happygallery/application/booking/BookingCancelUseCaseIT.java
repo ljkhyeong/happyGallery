@@ -49,8 +49,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 @UseCaseIT
 class BookingCancelUseCaseIT {
@@ -166,6 +168,77 @@ class BookingCancelUseCaseIT {
             softly.assertThat(bookingStateProbe.getBooking(rebooked.bookingId()).getStatus().name())
                     .isEqualTo("BOOKED");
             softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(1);
+        });
+    }
+
+    @DisplayName("다인 예약은 인원을 단계적으로 줄이고 줄인 인원만큼 각각 환불한다")
+    @Test
+    void reduceParticipants_twice_refundsEachReduction() throws Exception {
+        when(paymentProvider.refund(any(), anyLong(), any()))
+                .thenReturn(
+                        RefundResult.success("FAKE-PARTIAL-REF-1"),
+                        RefundResult.success("FAKE-PARTIAL-REF-2"));
+        Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01012121212", slot.getId(), 3);
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/participants", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BOOKED"))
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.canceledParticipantCount").value(1))
+                .andExpect(jsonPath("$.depositAmount").value(10_000))
+                .andExpect(jsonPath("$.balanceAmount").value(90_000))
+                .andExpect(jsonPath("$.refundAmount").value(5_000));
+        awaitRefundCount(1);
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/participants", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(1))
+                .andExpect(jsonPath("$.depositAmount").value(5_000))
+                .andExpect(jsonPath("$.balanceAmount").value(45_000))
+                .andExpect(jsonPath("$.refundAmount").value(5_000));
+
+        List<Refund> refunds = awaitRefundCount(2);
+        assertSoftly(softly -> {
+            softly.assertThat(refunds).extracting(Refund::getAmount)
+                    .containsExactlyInAnyOrder(5_000L, 5_000L);
+            softly.assertThat(refunds).extracting(Refund::getStatus)
+                    .containsOnly(RefundStatus.SUCCEEDED);
+            softly.assertThat(bookingStateProbe.getBooking(booking.bookingId()).getStatus().name())
+                    .isEqualTo("BOOKED");
+            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId()))
+                    .isEqualTo(3L);
+        });
+    }
+
+    @DisplayName("취소 보상 마감이 지난 예약은 인원 부분취소를 거절한다")
+    @Test
+    void reduceParticipants_afterRefundDeadline_rejectedWithoutStateChange() throws Exception {
+        LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
+        Slot slot = slotStorePort.save(slot(cls, today14, today14.plusHours(2)));
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01013131313", slot.getId(), 3);
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/participants", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":2}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("CHANGE_NOT_ALLOWED"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingStateProbe.getBooking(booking.bookingId()).getParticipantCount())
+                    .isEqualTo(3);
+            softly.assertThat(bookingStateProbe.getSlot(slot.getId()).getBookedCount()).isEqualTo(3);
+            softly.assertThat(bookingStateProbe.refundCount()).isZero();
         });
     }
 
@@ -324,6 +397,16 @@ class BookingCancelUseCaseIT {
                         bookingStateProbe::refunds,
                         found -> found.size() == 1 && found.getFirst().getStatus() == status);
         return refunds.getFirst();
+    }
+
+    private List<Refund> awaitRefundCount(int count) {
+        return await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(25, TimeUnit.MILLISECONDS)
+                .until(
+                        bookingStateProbe::refunds,
+                        found -> found.size() == count
+                                && found.stream().allMatch(
+                                        refund -> refund.getStatus() == RefundStatus.SUCCEEDED));
     }
 
 }

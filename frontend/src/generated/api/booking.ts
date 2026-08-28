@@ -106,6 +106,34 @@ export interface BookingDetailResponse {
   status: BookingDetailResponseStatus;
 }
 
+export interface ReduceBookingParticipantsRequest {
+  /** @minimum 1 */
+  participantCount: number;
+}
+
+export type ReduceBookingParticipantsResponseStatus = typeof ReduceBookingParticipantsResponseStatus[keyof typeof ReduceBookingParticipantsResponseStatus];
+
+
+export const ReduceBookingParticipantsResponseStatus = {
+  BOOKED: 'BOOKED',
+} as const;
+
+export interface ReduceBookingParticipantsResponse {
+  /** @minimum 0 */
+  balanceAmount: number;
+  bookingId: number;
+  /** @minimum 1 */
+  canceledParticipantCount: number;
+  /** @minimum 0 */
+  depositAmount: number;
+  /** @minimum 1 */
+  participantCount: number;
+  refund: RefundProgressResponse | null;
+  /** @minimum 0 */
+  refundAmount: number;
+  status: ReduceBookingParticipantsResponseStatus;
+}
+
 export interface RescheduleRequest {
   newSlotId: number;
 }
@@ -322,6 +350,28 @@ export const getGuestBooking = async (bookingId: number, options?: RequestInit):
 
 
 
+export const getReduceGuestBookingParticipantsUrl = (bookingId: number,) => {
+
+
+
+
+  return `/api/v1/bookings/${bookingId}/participants`
+}
+
+export const reduceGuestBookingParticipants = async (bookingId: number,
+    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: RequestInit): Promise<ReduceBookingParticipantsResponse> => {
+
+  return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceGuestBookingParticipantsUrl(bookingId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reduceBookingParticipantsRequest)
+  }
+);}
+
+
+
 export const getRescheduleGuestBookingUrl = (bookingId: number,) => {
 
 
@@ -472,6 +522,28 @@ export const getMyBooking = async (id: number, options?: RequestInit): Promise<M
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getReduceMyBookingParticipantsUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/bookings/${id}/participants`
+}
+
+export const reduceMyBookingParticipants = async (id: number,
+    reduceBookingParticipantsRequest: ReduceBookingParticipantsRequest, options?: RequestInit): Promise<ReduceBookingParticipantsResponse> => {
+
+  return generatedApiClient<ReduceBookingParticipantsResponse>(getReduceMyBookingParticipantsUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reduceBookingParticipantsRequest)
   }
 );}
 

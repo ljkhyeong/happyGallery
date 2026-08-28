@@ -4,6 +4,8 @@ import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
+import com.personal.happygallery.adapter.in.web.booking.dto.ReduceBookingParticipantsRequest;
+import com.personal.happygallery.adapter.in.web.booking.dto.ReduceBookingParticipantsResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingDetail;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyBookingPageResponse;
@@ -85,6 +87,17 @@ public class MeBookingController {
         Booking booking = bookingRescheduleUseCase.rescheduleMemberBooking(
                 id, customer.userId(), req.newSlotId());
         return MyBookingSummary.from(booking);
+    }
+
+    @PatchMapping("/{id}/participants")
+    @Operation(operationId = "reduceMyBookingParticipants")
+    public ReduceBookingParticipantsResponse reduceParticipants(
+            @PathVariable Long id,
+            @RequestBody @Valid ReduceBookingParticipantsRequest request,
+            @AuthenticationPrincipal CustomerPrincipal customer) {
+        return ReduceBookingParticipantsResponse.from(
+                bookingCancelUseCase.reduceMemberBookingParticipants(
+                        id, customer.userId(), request.participantCount()));
     }
 
     @DeleteMapping("/{id}")

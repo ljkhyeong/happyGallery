@@ -73,6 +73,6 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     private BookingDetail detail(Booking booking) {
         return new BookingDetail(
                 booking,
-                refundPort.findByBookingId(booking.getId()).orElse(null));
+                refundPort.findLatestByBookingId(booking.getId()).orElse(null));
     }
 }

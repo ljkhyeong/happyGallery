@@ -5398,6 +5398,63 @@
         "required" : [ "phone", "verificationCode" ],
         "type" : "object"
       },
+      "ReduceBookingParticipantsRequest" : {
+        "properties" : {
+          "participantCount" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        },
+        "required" : [ "participantCount" ],
+        "type" : "object"
+      },
+      "ReduceBookingParticipantsResponse" : {
+        "properties" : {
+          "balanceAmount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "bookingId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "canceledParticipantCount" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "depositAmount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "participantCount" : {
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "refund" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/RefundProgressResponse"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "refundAmount" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "BOOKED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "balanceAmount", "bookingId", "canceledParticipantCount", "depositAmount", "participantCount", "refund", "refundAmount", "status" ],
+        "type" : "object"
+      },
       "RefundProgressResponse" : {
         "properties" : {
           "amount" : {
@@ -10928,6 +10985,50 @@
         "tags" : [ "booking-controller" ]
       }
     },
+    "/api/v1/bookings/{bookingId}/participants" : {
+      "patch" : {
+        "operationId" : "reduceGuestBookingParticipants",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "bookingId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReduceBookingParticipantsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReduceBookingParticipantsResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "booking-controller" ]
+      }
+    },
     "/api/v1/bookings/{bookingId}/reschedule" : {
       "patch" : {
         "operationId" : "rescheduleGuestBooking",
@@ -11405,6 +11506,43 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/MyBookingDetail"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-booking-controller" ]
+      }
+    },
+    "/api/v1/me/bookings/{id}/participants" : {
+      "patch" : {
+        "operationId" : "reduceMyBookingParticipants",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReduceBookingParticipantsRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ReduceBookingParticipantsResponse"
                 }
               }
             },

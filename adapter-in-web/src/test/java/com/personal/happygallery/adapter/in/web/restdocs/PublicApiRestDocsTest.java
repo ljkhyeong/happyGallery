@@ -135,7 +135,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         Slot slot = RestDocsFixtures.slot();
         PhoneVerification phoneVerification = RestDocsFixtures.phoneVerification();
         Booking booking = RestDocsFixtures.booking();
+        Booking reducedBooking = RestDocsFixtures.reducedBooking();
         Refund bookingRefund = RestDocsFixtures.bookingRefund();
+        Refund partialBookingRefund = RestDocsFixtures.partialBookingRefund();
         OrderQueryUseCase.OrderDetail orderDetail = RestDocsFixtures.orderDetail();
         Notice notice = RestDocsFixtures.notice();
         ReviewUseCase.ReviewItem productReview = RestDocsFixtures.productReviewItem();
@@ -180,6 +182,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelBooking(eq(100L), any()))
                 .thenReturn(new BookingCancelUseCase.CancelResult(booking, true, bookingRefund, false));
+        when(bookingCancelUseCase.reduceGuestBookingParticipants(eq(100L), any(), eq(2)))
+                .thenReturn(new BookingCancelUseCase.ParticipantReductionResult(
+                        reducedBooking, 1, partialBookingRefund));
         when(orderQueryUseCase.getOrderByToken(eq(200L), any())).thenReturn(orderDetail);
         when(paymentPrepareUseCase.prepare(any()))
                 .thenReturn(new PaymentPrepareUseCase.PrepareResult(
@@ -443,6 +448,20 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         .content("{\"newSlotId\":42}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participantCount").value(3));
+    }
+
+    @Test
+    @DisplayName("비회원 예약 부분취소 API를 문서화한다")
+    void reduce_guest_booking_participants() throws Exception {
+        mockMvc.perform(patch("/api/v1/bookings/{bookingId}/participants", 100L)
+                        .header("X-Access-Token", "guest-access-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"participantCount\":2}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("BOOKED"))
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.canceledParticipantCount").value(1))
+                .andExpect(jsonPath("$.refundAmount").value(5_000));
     }
 
     @Test
