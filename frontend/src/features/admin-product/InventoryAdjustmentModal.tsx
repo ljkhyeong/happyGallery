@@ -12,11 +12,18 @@ import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 interface Props {
   adminKey: string;
   product: ProductResponse | null;
+  initialVariantId?: number;
   onClose: () => void;
   onAuthError: () => void;
 }
 
-export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthError }: Props) {
+export function InventoryAdjustmentModal({
+  adminKey,
+  product,
+  initialVariantId,
+  onClose,
+  onAuthError,
+}: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [type, setType] = useState<InventoryAdjustmentType>("INCREASE");
@@ -27,9 +34,12 @@ export function InventoryAdjustmentModal({ adminKey, product, onClose, onAuthErr
 
   useEffect(() => {
     setProductVariantId(product?.type === "MADE_TO_ORDER"
-      ? (product.variants.find((variant) => variant.active)?.id ?? product.variants[0]?.id ?? null)
+      ? (product.variants.find((variant) => variant.id === initialVariantId)?.id
+        ?? product.variants.find((variant) => variant.active)?.id
+        ?? product.variants[0]?.id
+        ?? null)
       : null);
-  }, [product]);
+  }, [initialVariantId, product]);
 
   const historyQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "inventory-adjustments"],

@@ -5,6 +5,7 @@ import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminLoginGate } from "@/features/admin-auth/AdminLoginGate";
 import { AdminMfaSettings } from "@/features/admin-auth/AdminMfaSettings";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
+import { OutOfStockProductSection } from "@/features/admin-product/OutOfStockProductSection";
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
 import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
 import { ClassListSection } from "@/features/admin-class/ClassListSection";
@@ -159,6 +160,8 @@ export function AdminPage() {
   const focusedBookingStatus = parseBookingStatus(searchParams.get("bookingStatus"));
   const focusedBookingDate = searchParams.get("bookingDate") ?? undefined;
   const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
+  const focusedProductId = parsePositiveId(searchParams.get("productId"));
+  const focusedVariantId = parsePositiveId(searchParams.get("variantId"));
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -200,7 +203,10 @@ export function AdminPage() {
   function selectView(view: AdminView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", view);
-    ["orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId"]
+    [
+      "orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId",
+      "productId", "variantId",
+    ]
       .forEach((name) => next.delete(name));
     setSearchParams(next);
   }
@@ -345,6 +351,9 @@ export function AdminPage() {
               initialStatus="PAID_APPROVAL_PENDING"
             />
           </AdminPanel>
+          <AdminPanel title="품절 상품·옵션 조합">
+            <OutOfStockProductSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="오늘 예약">
             <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -403,7 +412,12 @@ export function AdminPage() {
             <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="상품 목록">
-            <ProductListSection adminKey={adminKey} onAuthError={handleAuthError} />
+            <ProductListSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              focusProductId={focusedProductId}
+              focusVariantId={focusedVariantId}
+            />
           </AdminPanel>
         </>
       )}

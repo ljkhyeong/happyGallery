@@ -13,11 +13,13 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 interface Props {
   adminKey: string;
   onAuthError: () => void;
+  focusProductId?: number;
+  focusVariantId?: number;
 }
 
-export function ProductListSection({ adminKey, onAuthError }: Props) {
+export function ProductListSection({ adminKey, onAuthError, focusProductId, focusVariantId }: Props) {
   const queryClient = useQueryClient();
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(focusProductId ?? null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const { data: products, isLoading, error } = useAdminQuery(onAuthError, {
@@ -120,6 +122,7 @@ export function ProductListSection({ adminKey, onAuthError }: Props) {
       <InventoryAdjustmentModal
         adminKey={adminKey}
         product={selectedProduct}
+        initialVariantId={selectedProductId === focusProductId ? focusVariantId : undefined}
         onClose={() => setSelectedProductId(null)}
         onAuthError={onAuthError}
       />
