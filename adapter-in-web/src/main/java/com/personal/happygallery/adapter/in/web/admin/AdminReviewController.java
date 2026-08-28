@@ -11,7 +11,7 @@ import com.personal.happygallery.adapter.in.web.review.dto.UpsertReviewReplyRequ
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -41,9 +41,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 @RequestMapping("/api/v1/admin")
 public class AdminReviewController {
 
-    private final ReviewUseCase reviewUseCase;
+    private final AdminReviewUseCase reviewUseCase;
 
-    public AdminReviewController(ReviewUseCase reviewUseCase) {
+    public AdminReviewController(AdminReviewUseCase reviewUseCase) {
         this.reviewUseCase = reviewUseCase;
     }
 

@@ -126,6 +126,7 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 - `settings.gradle`의 6개 운영 코드 모듈과 테스트 보조 `test-support` 모듈
 - `build.gradle`의 `java-library` 공통 적용과 모듈별 `api`/`implementation` 의존성 분리
 - `application/**/port/in`, `application/**/port/out`
+- 후기 입력 포트는 회원 작성·조회, 공개 조회, 관리자 심사, 회원 반응 경계로 나누고 응답 조립은 application 공용 조립기가 담당한다.
 - `adapter-in-web/**`, `adapter-out-persistence/**`, `adapter-out-external/**`
 - `adapter-out-persistence/**/Jpa*PersistenceAdapter.java`
 - `application/src/test/java/com/personal/happygallery/policy/LayerDependencyPolicyTest.java`

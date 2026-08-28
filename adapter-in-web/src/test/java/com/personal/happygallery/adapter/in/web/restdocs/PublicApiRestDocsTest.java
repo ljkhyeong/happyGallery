@@ -37,6 +37,7 @@ import com.personal.happygallery.application.product.ProductFilter;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
@@ -82,7 +83,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
 
     private ProductQueryUseCase productQueryUseCase;
     private ProductQnaUseCase qnaUseCase;
-    private ReviewUseCase reviewUseCase;
+    private PublicReviewUseCase publicReviewUseCase;
     private ClassQueryUseCase classQueryUseCase;
     private SlotQueryUseCase slotQueryUseCase;
     private GuestBookingUseCase guestBookingUseCase;
@@ -105,7 +106,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void setUp(RestDocumentationContextProvider restDocumentation) {
         productQueryUseCase = mock(ProductQueryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
-        reviewUseCase = mock(ReviewUseCase.class);
+        publicReviewUseCase = mock(PublicReviewUseCase.class);
         classQueryUseCase = mock(ClassQueryUseCase.class);
         slotQueryUseCase = mock(SlotQueryUseCase.class);
         guestBookingUseCase = mock(GuestBookingUseCase.class);
@@ -148,7 +149,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(qnaUseCase.listByProduct(eq(1L), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(publicQna), "cursor-next", true));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
-        when(reviewUseCase.listProductReviews(
+        when(publicReviewUseCase.listProductReviews(
                 eq(1L), eq(5), eq(ReviewSort.RATING_HIGH), isNull(), eq(20)))
                 .thenReturn(new ReviewUseCase.PublicReviewPage(
                         new ReviewUseCase.ReviewSummary(
@@ -157,7 +158,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 new ReviewUseCase.RatingHistogram(0L, 0L, 1L, 2L, 2L)),
                         2L,
                         new CursorPage<>(List.of(productReview), "cursor-next", true)));
-        when(reviewUseCase.listClassReviews(
+        when(publicReviewUseCase.listClassReviews(
                 eq(1L), isNull(), eq(ReviewSort.LATEST), isNull(), eq(20)))
                 .thenReturn(new ReviewUseCase.PublicReviewPage(
                         new ReviewUseCase.ReviewSummary(
@@ -245,9 +246,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc = mockMvc(restDocumentation,
                 new ProductController(productQueryUseCase),
                 new ProductQnaController(qnaUseCase),
-                new ProductReviewController(reviewUseCase),
+                new ProductReviewController(publicReviewUseCase),
                 new ClassController(classQueryUseCase),
-                new ClassReviewController(reviewUseCase),
+                new ClassReviewController(publicReviewUseCase),
                 new SlotController(slotQueryUseCase),
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,

@@ -16,7 +16,8 @@ import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,14 +55,17 @@ import org.springframework.web.multipart.MultipartFile;
 @SecurityRequirement(name = OpenApiSecuritySchemes.CUSTOMER_SESSION)
 public class MeReviewController {
 
-    private final ReviewUseCase reviewUseCase;
+    private final MemberReviewUseCase memberReviewUseCase;
+    private final ReviewInteractionUseCase reviewInteractionUseCase;
     private final SubjectRateLimitGuard rateLimitGuard;
 
     public MeReviewController(
-            ReviewUseCase reviewUseCase,
+            MemberReviewUseCase memberReviewUseCase,
+            ReviewInteractionUseCase reviewInteractionUseCase,
             SubjectRateLimitGuard rateLimitGuard
     ) {
-        this.reviewUseCase = reviewUseCase;
+        this.memberReviewUseCase = memberReviewUseCase;
+        this.reviewInteractionUseCase = reviewInteractionUseCase;
         this.rateLimitGuard = rateLimitGuard;
     }
 
@@ -72,7 +76,7 @@ public class MeReviewController {
             @RequestBody @Valid CreateProductReviewRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewMutation(customer.userId());
-        return MemberReviewResponse.from(reviewUseCase.createProductReview(
+        return MemberReviewResponse.from(memberReviewUseCase.createProductReview(
                 customer.userId(), request.orderItemId(), request.rating(), request.content()));
     }
 
@@ -83,7 +87,7 @@ public class MeReviewController {
             @RequestBody @Valid CreateClassReviewRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewMutation(customer.userId());
-        return MemberReviewResponse.from(reviewUseCase.createClassReview(
+        return MemberReviewResponse.from(memberReviewUseCase.createClassReview(
                 customer.userId(), request.bookingId(), request.rating(), request.content()));
     }
 
@@ -93,7 +97,7 @@ public class MeReviewController {
             @PathVariable @Positive Long orderItemId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         return ReviewCreationStateResponse.from(
-                reviewUseCase.getProductReviewCreationState(customer.userId(), orderItemId));
+                memberReviewUseCase.getProductReviewCreationState(customer.userId(), orderItemId));
     }
 
     @GetMapping("/classes/{bookingId}/creation-state")
@@ -102,7 +106,7 @@ public class MeReviewController {
             @PathVariable @Positive Long bookingId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         return ReviewCreationStateResponse.from(
-                reviewUseCase.getClassReviewCreationState(customer.userId(), bookingId));
+                memberReviewUseCase.getClassReviewCreationState(customer.userId(), bookingId));
     }
 
     @GetMapping
@@ -115,7 +119,7 @@ public class MeReviewController {
                     minimum = "1", maximum = "100"))
             @RequestParam(defaultValue = "20") int size) {
         return MemberReviewPageResponse.from(
-                reviewUseCase.listMyReviews(customer.userId(), cursor, size));
+                memberReviewUseCase.listMyReviews(customer.userId(), cursor, size));
     }
 
     @GetMapping("/opportunities")
@@ -128,7 +132,7 @@ public class MeReviewController {
                     minimum = "1", maximum = "100"))
             @RequestParam(defaultValue = "20") int size) {
         return ReviewOpportunityPageResponse.from(
-                reviewUseCase.listMyReviewOpportunities(customer.userId(), cursor, size));
+                memberReviewUseCase.listMyReviewOpportunities(customer.userId(), cursor, size));
     }
 
     @GetMapping("/reactions")
@@ -147,7 +151,7 @@ public class MeReviewController {
             @RequestParam
             @Size(min = 1, max = 100)
             List<@Positive Long> reviewIds) {
-        return reviewUseCase.listMyReviewReactions(customer.userId(), reviewIds).stream()
+        return reviewInteractionUseCase.listMyReviewReactions(customer.userId(), reviewIds).stream()
                 .map(ReviewReactionResponse::from)
                 .toList();
     }
@@ -157,7 +161,7 @@ public class MeReviewController {
     public List<MemberReviewResponse> listByOrder(
             @PathVariable @Positive Long orderId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
-        return reviewUseCase.listMyOrderReviews(customer.userId(), orderId).stream()
+        return memberReviewUseCase.listMyOrderReviews(customer.userId(), orderId).stream()
                 .map(MemberReviewResponse::from)
                 .toList();
     }
@@ -167,7 +171,7 @@ public class MeReviewController {
     public List<MemberReviewResponse> listByBooking(
             @PathVariable @Positive Long bookingId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
-        return reviewUseCase.listMyBookingReviews(customer.userId(), bookingId).stream()
+        return memberReviewUseCase.listMyBookingReviews(customer.userId(), bookingId).stream()
                 .map(MemberReviewResponse::from)
                 .toList();
     }
@@ -189,7 +193,7 @@ public class MeReviewController {
             @RequestBody @Valid UpdateReviewRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewMutation(customer.userId());
-        return MemberReviewResponse.from(reviewUseCase.updateReview(
+        return MemberReviewResponse.from(memberReviewUseCase.updateReview(
                 customer.userId(),
                 reviewId,
                 request.expectedContentRevision(),
@@ -204,7 +208,7 @@ public class MeReviewController {
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewHelpful(customer.userId());
         return ReviewHelpfulResponse.from(
-                reviewUseCase.markHelpful(customer.userId(), reviewId));
+                reviewInteractionUseCase.markHelpful(customer.userId(), reviewId));
     }
 
     @DeleteMapping("/{reviewId}/helpful")
@@ -214,7 +218,7 @@ public class MeReviewController {
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewHelpful(customer.userId());
         return ReviewHelpfulResponse.from(
-                reviewUseCase.unmarkHelpful(customer.userId(), reviewId));
+                reviewInteractionUseCase.unmarkHelpful(customer.userId(), reviewId));
     }
 
     @PostMapping("/{reviewId}/reports")
@@ -225,7 +229,7 @@ public class MeReviewController {
             @RequestBody @Valid CreateReviewReportRequest request,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewReport(customer.userId());
-        return MemberReviewReportResponse.from(reviewUseCase.createReport(
+        return MemberReviewReportResponse.from(reviewInteractionUseCase.createReport(
                 customer.userId(), reviewId, request.reason(), request.detail()));
     }
 
@@ -246,7 +250,7 @@ public class MeReviewController {
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewImageUpload(customer.userId());
         try {
-            return ReviewImageResponse.from(reviewUseCase.addReviewImage(
+            return ReviewImageResponse.from(memberReviewUseCase.addReviewImage(
                     customer.userId(), reviewId, file.getBytes(), file.getContentType()));
         } catch (IOException exception) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미지 파일을 읽을 수 없습니다.");
@@ -260,7 +264,7 @@ public class MeReviewController {
             @PathVariable @Positive Long reviewId,
             @PathVariable @Positive Long imageId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
-        reviewUseCase.deleteReviewImage(customer.userId(), reviewId, imageId);
+        memberReviewUseCase.deleteReviewImage(customer.userId(), reviewId, imageId);
     }
 
     @DeleteMapping("/{reviewId}")
@@ -270,6 +274,6 @@ public class MeReviewController {
             @PathVariable @Positive Long reviewId,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewMutation(customer.userId());
-        reviewUseCase.deleteReview(customer.userId(), reviewId);
+        memberReviewUseCase.deleteReview(customer.userId(), reviewId);
     }
 }

@@ -12,6 +12,10 @@ import com.personal.happygallery.adapter.out.persistence.review.ReviewImageRepos
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
+import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
+import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -61,7 +65,10 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class ReviewUseCaseIT {
 
-    @Autowired ReviewUseCase reviewUseCase;
+    @Autowired MemberReviewUseCase memberReviewUseCase;
+    @Autowired PublicReviewUseCase publicReviewUseCase;
+    @Autowired AdminReviewUseCase adminReviewUseCase;
+    @Autowired ReviewInteractionUseCase reviewInteractionUseCase;
     @Autowired ReviewRepository reviewRepository;
     @Autowired ReviewImageRepository reviewImageRepository;
     @Autowired ReviewImageAttachmentService imageAttachmentService;
@@ -102,16 +109,16 @@ class ReviewUseCaseIT {
         ProductOrderSource productSource = createProductOrderSource(user, true, "도자기 화병");
         ClassBookingSource classSource = createClassBookingSource(user, "향수 클래스");
 
-        ReviewUseCase.ReviewItem productReview = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem productReview = memberReviewUseCase.createProductReview(
                 user.getId(), productSource.orderItem().getId(), 5, "포장이 꼼꼼해요");
-        ReviewUseCase.ReviewItem classReview = reviewUseCase.createClassReview(
+        ReviewUseCase.ReviewItem classReview = memberReviewUseCase.createClassReview(
                 user.getId(), classSource.booking().getId(), 3, "차분하게 배웠어요");
-        var firstMyPage = reviewUseCase.listMyReviews(user.getId(), null, 1);
-        var secondMyPage = reviewUseCase.listMyReviews(
+        var firstMyPage = memberReviewUseCase.listMyReviews(user.getId(), null, 1);
+        var secondMyPage = memberReviewUseCase.listMyReviews(
                 user.getId(), firstMyPage.nextCursor(), 1);
 
         assertSoftly(softly -> {
-            ReviewUseCase.PublicReviewPage productPage = reviewUseCase.listProductReviews(
+            ReviewUseCase.PublicReviewPage productPage = publicReviewUseCase.listProductReviews(
                     productSource.product().getId(), null, 20);
             softly.assertThat(productPage.summary().reviewCount()).isEqualTo(1L);
             softly.assertThat(productPage.summary().averageRating()).isEqualTo(5.0);
@@ -120,16 +127,16 @@ class ReviewUseCaseIT {
                     .singleElement()
                     .satisfies(item -> softly.assertThat(item.authorName())
                             .isEqualTo("후기 회원"));
-            ReviewUseCase.ReviewSummary classSummary = reviewUseCase.listClassReviews(
+            ReviewUseCase.ReviewSummary classSummary = publicReviewUseCase.listClassReviews(
                     classSource.bookingClass().getId(), null, 20).summary();
             softly.assertThat(classSummary.reviewCount()).isEqualTo(1L);
             softly.assertThat(classSummary.averageRating()).isEqualTo(3.0);
-            softly.assertThat(reviewUseCase.listAdminReviews(
+            softly.assertThat(adminReviewUseCase.listAdminReviews(
                             null, null, null, 20).content())
                     .extracting(ReviewUseCase.ReviewItem::authorName)
                     .containsOnly("후기 회원");
             softly.assertThat(classReview.targetType()).isEqualTo(ReviewTargetType.CLASS);
-            softly.assertThat(reviewUseCase.listMyBookingReviews(
+            softly.assertThat(memberReviewUseCase.listMyBookingReviews(
                             user.getId(), classSource.booking().getId()))
                     .singleElement()
                     .satisfies(item -> softly.assertThat(item.id()).isEqualTo(classReview.id()));
@@ -142,14 +149,14 @@ class ReviewUseCaseIT {
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-admin-summary", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem hidden = adminReviewUseCase.updateStatus(
                 productReview.id(),
                 ReviewStatus.HIDDEN,
                 "운영 정책 위반",
                 productReview.contentRevision(),
                 productReview.version(),
                 admin.getId());
-        ReviewUseCase.PublicReviewPage hiddenPage = reviewUseCase.listProductReviews(
+        ReviewUseCase.PublicReviewPage hiddenPage = publicReviewUseCase.listProductReviews(
                 productSource.product().getId(), null, 20);
 
         assertSoftly(softly -> {
@@ -159,18 +166,18 @@ class ReviewUseCaseIT {
             softly.assertThat(hiddenPage.summary().reviewCount()).isZero();
             softly.assertThat(hiddenPage.summary().averageRating()).isZero();
             softly.assertThat(hiddenPage.reviews().content()).isEmpty();
-            softly.assertThat(reviewUseCase.listAdminReviews(
+            softly.assertThat(adminReviewUseCase.listAdminReviews(
                             ReviewTargetType.PRODUCT,
                             ReviewStatus.HIDDEN,
                             null,
                             20).content())
                     .singleElement()
                     .satisfies(item -> softly.assertThat(item.id()).isEqualTo(productReview.id()));
-            softly.assertThat(reviewUseCase.listAdminReviews(
+            softly.assertThat(adminReviewUseCase.listAdminReviews(
                             null, null, null, 20).content())
                     .extracting(ReviewUseCase.ReviewItem::id)
                     .containsExactlyInAnyOrder(productReview.id(), classReview.id());
-            softly.assertThat(reviewUseCase.listMyReviews(user.getId(), null, 20).content())
+            softly.assertThat(memberReviewUseCase.listMyReviews(user.getId(), null, 20).content())
                     .extracting(ReviewUseCase.ReviewItem::id)
                     .contains(productReview.id(), classReview.id());
         });
@@ -178,7 +185,7 @@ class ReviewUseCaseIT {
         productSource.product().updateDetails(
                 "도자기 화병 새 이름", null, 30_000L, null, null);
         productRepository.saveAndFlush(productSource.product());
-        ReviewUseCase.ReviewItem republished = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem republished = adminReviewUseCase.updateStatus(
                 productReview.id(),
                 ReviewStatus.PUBLISHED,
                 null,
@@ -190,10 +197,10 @@ class ReviewUseCaseIT {
             softly.assertThat(republished.hiddenReason()).isNull();
             softly.assertThat(republished.hiddenAt()).isNull();
             softly.assertThat(republished.hiddenByAdminId()).isNull();
-            softly.assertThat(reviewUseCase.listProductReviews(
+            softly.assertThat(publicReviewUseCase.listProductReviews(
                             productSource.product().getId(), null, 20).summary().reviewCount())
                     .isEqualTo(1L);
-            softly.assertThat(reviewUseCase.listMyOrderReviews(
+            softly.assertThat(memberReviewUseCase.listMyOrderReviews(
                             user.getId(), productSource.order().getId()))
                     .singleElement()
                     .satisfies(item -> softly.assertThat(item.targetName())
@@ -245,19 +252,19 @@ class ReviewUseCaseIT {
         User other = createUser("review-other@example.com", "01074000004", "다른 회원");
         ProductOrderSource pending = createProductOrderSource(owner, false, "미완료 상품");
 
-        assertThatThrownBy(() -> reviewUseCase.createProductReview(
+        assertThatThrownBy(() -> memberReviewUseCase.createProductReview(
                 owner.getId(), pending.orderItem().getId(), 4, "아직 완료 전"))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.REVIEW_NOT_ALLOWED));
-        assertThatThrownBy(() -> reviewUseCase.createProductReview(
+        assertThatThrownBy(() -> memberReviewUseCase.createProductReview(
                 other.getId(), pending.orderItem().getId(), 4, "타인 후기"))
                 .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> reviewUseCase.listMyOrderReviews(
+        assertThatThrownBy(() -> memberReviewUseCase.listMyOrderReviews(
                 other.getId(), pending.order().getId()))
                 .isInstanceOf(NotFoundException.class);
-        assertThat(reviewUseCase.listMyOrderReviews(
+        assertThat(memberReviewUseCase.listMyOrderReviews(
                 owner.getId(), pending.order().getId())).isEmpty();
     }
 
@@ -291,9 +298,9 @@ class ReviewUseCaseIT {
                 now)))
                 .isInstanceOf(DataIntegrityViolationException.class);
 
-        reviewUseCase.createClassReview(
+        memberReviewUseCase.createClassReview(
                 user.getId(), classSource.booking().getId(), 5, "정상 클래스 후기");
-        assertThatThrownBy(() -> reviewUseCase.createClassReview(
+        assertThatThrownBy(() -> memberReviewUseCase.createClassReview(
                 user.getId(), classSource.booking().getId(), 4, "중복 클래스 후기"))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
@@ -307,10 +314,10 @@ class ReviewUseCaseIT {
         User owner = createUser("review-edit-owner@example.com", "01074000005", "수정 회원");
         User other = createUser("review-edit-other@example.com", "01074000006", "다른 수정 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "수정 후기 상품");
-        ReviewUseCase.ReviewItem created = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem created = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 3, "수정 전 후기");
 
-        ReviewUseCase.ReviewItem updated = reviewUseCase.updateReview(
+        ReviewUseCase.ReviewItem updated = memberReviewUseCase.updateReview(
                 owner.getId(), created.id(), created.contentRevision(), 4, "수정한 후기");
 
         assertSoftly(softly -> {
@@ -319,13 +326,13 @@ class ReviewUseCaseIT {
             softly.assertThat(updated.updatedAt()).isAfterOrEqualTo(updated.createdAt());
             softly.assertThat(updated.edited()).isTrue();
         });
-        assertThatThrownBy(() -> reviewUseCase.updateReview(
+        assertThatThrownBy(() -> memberReviewUseCase.updateReview(
                 other.getId(), created.id(), created.contentRevision(), 5, "타인 수정"))
                 .isInstanceOf(NotFoundException.class);
-        assertThatThrownBy(() -> reviewUseCase.deleteReview(other.getId(), created.id()))
+        assertThatThrownBy(() -> memberReviewUseCase.deleteReview(other.getId(), created.id()))
                 .isInstanceOf(NotFoundException.class);
 
-        reviewUseCase.deleteReview(owner.getId(), created.id());
+        memberReviewUseCase.deleteReview(owner.getId(), created.id());
 
         Review tombstone = reviewRepository.findById(created.id()).orElseThrow();
         assertSoftly(softly -> {
@@ -333,15 +340,15 @@ class ReviewUseCaseIT {
             softly.assertThat(tombstone.getRating()).isNull();
             softly.assertThat(tombstone.getContent()).isNull();
             softly.assertThat(tombstone.isRecreationBlocked()).isFalse();
-            softly.assertThat(reviewUseCase.listProductReviews(
+            softly.assertThat(publicReviewUseCase.listProductReviews(
                             source.product().getId(), null, 20).summary().reviewCount())
                     .isZero();
-            softly.assertThat(reviewUseCase.getProductReviewCreationState(
+            softly.assertThat(memberReviewUseCase.getProductReviewCreationState(
                             owner.getId(), source.orderItem().getId()).status())
                     .isEqualTo(ReviewCreationStatus.AVAILABLE);
         });
 
-        ReviewUseCase.ReviewItem recreated = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem recreated = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "다시 작성한 후기");
         assertThat(recreated.id()).isNotEqualTo(created.id());
     }
@@ -362,35 +369,35 @@ class ReviewUseCaseIT {
         ProductOrderSource blockedSource = createProductOrderSource(
                 owner, true, "재작성 차단 후기 상품");
 
-        ReviewUseCase.ReviewItem ordinary = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem ordinary = memberReviewUseCase.createProductReview(
                 owner.getId(), ordinarySource.orderItem().getId(), 4, "정리할 후기");
-        reviewUseCase.deleteReview(owner.getId(), ordinary.id());
-        ReviewUseCase.ReviewItem recreated = reviewUseCase.createProductReview(
+        memberReviewUseCase.deleteReview(owner.getId(), ordinary.id());
+        ReviewUseCase.ReviewItem recreated = memberReviewUseCase.createProductReview(
                 owner.getId(), ordinarySource.orderItem().getId(), 5, "다시 작성한 활성 후기");
 
-        ReviewUseCase.ReviewItem recent = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem recent = memberReviewUseCase.createProductReview(
                 owner.getId(), recentSource.orderItem().getId(), 4, "아직 보존할 후기");
-        reviewUseCase.deleteReview(owner.getId(), recent.id());
+        memberReviewUseCase.deleteReview(owner.getId(), recent.id());
 
-        ReviewUseCase.ReviewItem reported = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem reported = memberReviewUseCase.createProductReview(
                 owner.getId(), reportedSource.orderItem().getId(), 2, "신고 증거 후기");
-        reviewUseCase.createReport(
+        reviewInteractionUseCase.createReport(
                 reporter.getId(), reported.id(), ReviewReportReason.OTHER, "분쟁 확인 중");
-        reviewUseCase.deleteReview(owner.getId(), reported.id());
+        memberReviewUseCase.deleteReview(owner.getId(), reported.id());
 
-        ReviewUseCase.ReviewItem blocked = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem blocked = memberReviewUseCase.createProductReview(
                 owner.getId(), blockedSource.orderItem().getId(), 1, "숨김 조치 후기");
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-retention-admin", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem hidden = adminReviewUseCase.updateStatus(
                 blocked.id(),
                 ReviewStatus.HIDDEN,
                 "운영 정책 위반",
                 blocked.contentRevision(),
                 blocked.version(),
                 admin.getId());
-        reviewUseCase.deleteReview(owner.getId(), hidden.id());
+        memberReviewUseCase.deleteReview(owner.getId(), hidden.id());
 
         LocalDateTime cutoff = LocalDateTime.now(clock)
                 .minus(ReviewTombstoneRetentionService.RETENTION);
@@ -431,20 +438,20 @@ class ReviewUseCaseIT {
     void staleMemberUpdateKeepsLatestContent() {
         User owner = createUser("review-stale-edit@example.com", "01074000018", "수정 충돌 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "수정 충돌 상품");
-        ReviewUseCase.ReviewItem created = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem created = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 3, "최초 후기");
 
-        ReviewUseCase.ReviewItem latest = reviewUseCase.updateReview(
+        ReviewUseCase.ReviewItem latest = memberReviewUseCase.updateReview(
                 owner.getId(), created.id(), created.contentRevision(), 4, "최신 후기");
 
-        assertThatThrownBy(() -> reviewUseCase.updateReview(
+        assertThatThrownBy(() -> memberReviewUseCase.updateReview(
                 owner.getId(), created.id(), created.contentRevision(), 1, "오래된 화면의 후기"))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.REVIEW_CONTENT_CHANGED));
 
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(created.id());
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(created.id());
         assertSoftly(softly -> {
             softly.assertThat(current.rating()).isEqualTo(4);
             softly.assertThat(current.content()).isEqualTo("최신 후기");
@@ -460,57 +467,57 @@ class ReviewUseCaseIT {
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-block-admin", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 1, "운영 검토 대상 후기");
 
-        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem hidden = adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.HIDDEN,
                 "운영 정책 위반",
                 review.contentRevision(),
                 review.version(),
                 admin.getId());
-        ReviewUseCase.ReviewItem duplicateHidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem duplicateHidden = adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.HIDDEN,
                 "중복 요청",
                 hidden.contentRevision(),
                 hidden.version(),
                 admin.getId());
-        ReviewUseCase.ReviewItem published = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem published = adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.PUBLISHED,
                 null,
                 duplicateHidden.contentRevision(),
                 duplicateHidden.version(),
                 admin.getId());
-        reviewUseCase.updateStatus(
+        adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.PUBLISHED,
                 null,
                 published.contentRevision(),
                 published.version(),
                 admin.getId());
-        reviewUseCase.deleteReview(owner.getId(), review.id());
+        memberReviewUseCase.deleteReview(owner.getId(), review.id());
 
         Review tombstone = reviewRepository.findById(review.id()).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(tombstone.isDeleted()).isTrue();
             softly.assertThat(tombstone.isRecreationBlocked()).isTrue();
-            softly.assertThat(reviewUseCase.listModerationActions(review.id()))
+            softly.assertThat(adminReviewUseCase.listModerationActions(review.id()))
                     .extracting(ReviewUseCase.ModerationActionItem::action)
                     .containsExactly(
                             com.personal.happygallery.domain.review.ReviewModerationActionType.HIDE,
                             com.personal.happygallery.domain.review.ReviewModerationActionType.REPUBLISH);
-            softly.assertThat(reviewUseCase.listMyReviews(owner.getId(), null, 20).content())
+            softly.assertThat(memberReviewUseCase.listMyReviews(owner.getId(), null, 20).content())
                     .isEmpty();
-            softly.assertThat(reviewUseCase.listAdminReviews(null, null, null, 20).content())
+            softly.assertThat(adminReviewUseCase.listAdminReviews(null, null, null, 20).content())
                     .isEmpty();
-            softly.assertThat(reviewUseCase.getProductReviewCreationState(
+            softly.assertThat(memberReviewUseCase.getProductReviewCreationState(
                             owner.getId(), source.orderItem().getId()).status())
                     .isEqualTo(ReviewCreationStatus.RECREATION_BLOCKED);
         });
-        assertThatThrownBy(() -> reviewUseCase.createProductReview(
+        assertThatThrownBy(() -> memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "재작성 우회"))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
@@ -523,19 +530,19 @@ class ReviewUseCaseIT {
     void staleModerationRevisionLeavesNoActionEvidenceOrNotification() {
         User owner = createUser("review-stale-owner@example.com", "01074000017", "수정 후기 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "수정 감지 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 3, "관리자가 확인한 본문");
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-stale-admin", "password-hash"));
         createdAdminId = admin.getId();
 
-        ReviewUseCase.ReviewItem edited = reviewUseCase.updateReview(
+        ReviewUseCase.ReviewItem edited = memberReviewUseCase.updateReview(
                 owner.getId(), review.id(), review.contentRevision(), 5, "작성자가 바꾼 본문");
         long actionCount = tableCount("review_moderation_actions");
         long evidenceCount = tableCount("review_evidence_snapshots");
         long notificationCount = tableCount("notification_outbox");
 
-        assertThatThrownBy(() -> reviewUseCase.updateStatus(
+        assertThatThrownBy(() -> adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.HIDDEN,
                 "이전 화면에서 숨김",
@@ -547,7 +554,7 @@ class ReviewUseCaseIT {
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.REVIEW_CONTENT_CHANGED));
 
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(review.id());
         assertSoftly(softly -> {
             softly.assertThat(edited.contentRevision()).isEqualTo(review.contentRevision() + 1L);
             softly.assertThat(current.status()).isEqualTo(ReviewStatus.PUBLISHED);
@@ -564,29 +571,29 @@ class ReviewUseCaseIT {
     void staleAdminVersionRejectsStatusAbaWithoutAction() {
         User owner = createUser("review-aba-owner@example.com", "01074000019", "상태 충돌 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "상태 충돌 상품");
-        ReviewUseCase.ReviewItem original = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem original = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 2, "상태 왕복 후기");
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-aba-admin", "password-hash"));
         createdAdminId = admin.getId();
 
-        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem hidden = adminReviewUseCase.updateStatus(
                 original.id(),
                 ReviewStatus.HIDDEN,
                 "운영 확인",
                 original.contentRevision(),
                 original.version(),
                 admin.getId());
-        ReviewUseCase.ReviewItem republished = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem republished = adminReviewUseCase.updateStatus(
                 original.id(),
                 ReviewStatus.PUBLISHED,
                 null,
                 hidden.contentRevision(),
                 hidden.version(),
                 admin.getId());
-        int actionCount = reviewUseCase.listModerationActions(original.id()).size();
+        int actionCount = adminReviewUseCase.listModerationActions(original.id()).size();
 
-        assertThatThrownBy(() -> reviewUseCase.updateStatus(
+        assertThatThrownBy(() -> adminReviewUseCase.updateStatus(
                 original.id(),
                 ReviewStatus.HIDDEN,
                 "오래된 화면에서 다시 숨김",
@@ -598,11 +605,11 @@ class ReviewUseCaseIT {
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
 
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(original.id());
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(original.id());
         assertSoftly(softly -> {
             softly.assertThat(current.status()).isEqualTo(ReviewStatus.PUBLISHED);
             softly.assertThat(current.version()).isEqualTo(republished.version());
-            softly.assertThat(reviewUseCase.listModerationActions(original.id()))
+            softly.assertThat(adminReviewUseCase.listModerationActions(original.id()))
                     .hasSize(actionCount);
         });
     }
@@ -627,7 +634,7 @@ class ReviewUseCaseIT {
                 """, classSource.booking().getId(), classCompletedAt);
 
         List<ReviewUseCase.ReviewOpportunity> initial =
-                reviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content();
+                memberReviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content();
 
         assertThat(initial)
                 .extracting(ReviewUseCase.ReviewOpportunity::targetType)
@@ -643,16 +650,16 @@ class ReviewUseCaseIT {
                 .extracting(ReviewUseCase.ReviewOpportunity::completedAt)
                 .isEqualTo(classCompletedAt);
 
-        ReviewUseCase.ReviewItem productReview = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem productReview = memberReviewUseCase.createProductReview(
                 owner.getId(), productSource.orderItem().getId(), 5, "작성한 후기");
-        assertThat(reviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content())
+        assertThat(memberReviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content())
                 .filteredOn(opportunity -> opportunity.targetType() == ReviewTargetType.PRODUCT)
                 .extracting(ReviewUseCase.ReviewOpportunity::sourceId)
                 .doesNotContain(productSource.orderItem().getId());
 
-        reviewUseCase.deleteReview(owner.getId(), productReview.id());
+        memberReviewUseCase.deleteReview(owner.getId(), productReview.id());
         List<ReviewUseCase.ReviewOpportunity> afterDelete =
-                reviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content();
+                memberReviewUseCase.listMyReviewOpportunities(owner.getId(), null, 20).content();
         assertThat(afterDelete)
                 .filteredOn(opportunity -> opportunity.targetType() == ReviewTargetType.PRODUCT)
                 .extracting(ReviewUseCase.ReviewOpportunity::sourceId)
@@ -711,7 +718,7 @@ class ReviewUseCaseIT {
         String cursor = null;
 
         for (int pageNumber = 0; pageNumber < 8; pageNumber++) {
-            var page = reviewUseCase.listMyReviewOpportunities(owner.getId(), cursor, 3);
+            var page = memberReviewUseCase.listMyReviewOpportunities(owner.getId(), cursor, 3);
             collected.addAll(page.content());
             pageKeys.add(page.content().stream()
                     .map(opportunity -> opportunity.targetType().name()
@@ -751,15 +758,15 @@ class ReviewUseCaseIT {
         ProductOrderSource low = createProductOrderSource(lowUser, true, product);
         ProductOrderSource high = createProductOrderSource(highUser, true, product);
         ProductOrderSource middle = createProductOrderSource(middleUser, true, product);
-        reviewUseCase.createProductReview(lowUser.getId(), low.orderItem().getId(), 2, "별점 2점");
-        reviewUseCase.createProductReview(highUser.getId(), high.orderItem().getId(), 5, "별점 5점");
-        reviewUseCase.createProductReview(middleUser.getId(), middle.orderItem().getId(), 3, "별점 3점");
+        memberReviewUseCase.createProductReview(lowUser.getId(), low.orderItem().getId(), 2, "별점 2점");
+        memberReviewUseCase.createProductReview(highUser.getId(), high.orderItem().getId(), 5, "별점 5점");
+        memberReviewUseCase.createProductReview(middleUser.getId(), middle.orderItem().getId(), 3, "별점 3점");
 
-        ReviewUseCase.PublicReviewPage first = reviewUseCase.listProductReviews(
+        ReviewUseCase.PublicReviewPage first = publicReviewUseCase.listProductReviews(
                 product.getId(), null, ReviewSort.RATING_HIGH, null, 2);
-        ReviewUseCase.PublicReviewPage second = reviewUseCase.listProductReviews(
+        ReviewUseCase.PublicReviewPage second = publicReviewUseCase.listProductReviews(
                 product.getId(), null, ReviewSort.RATING_HIGH, first.reviews().nextCursor(), 2);
-        ReviewUseCase.PublicReviewPage filtered = reviewUseCase.listProductReviews(
+        ReviewUseCase.PublicReviewPage filtered = publicReviewUseCase.listProductReviews(
                 product.getId(), 3, ReviewSort.LATEST, null, 20);
 
         assertSoftly(softly -> {
@@ -777,7 +784,7 @@ class ReviewUseCaseIT {
             softly.assertThat(filtered.summary().histogram())
                     .isEqualTo(new ReviewUseCase.RatingHistogram(0L, 1L, 1L, 0L, 1L));
         });
-        assertThatThrownBy(() -> reviewUseCase.listProductReviews(
+        assertThatThrownBy(() -> publicReviewUseCase.listProductReviews(
                 product.getId(), 3, ReviewSort.RATING_HIGH, first.reviews().nextCursor(), 20))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
@@ -806,17 +813,17 @@ class ReviewUseCaseIT {
         ClassBookingSource middleClassSource = createClassBookingSource(
                 middleUser, bookingClass, 2);
 
-        ReviewUseCase.ReviewItem lowProduct = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem lowProduct = memberReviewUseCase.createProductReview(
                 lowUser.getId(), lowProductSource.orderItem().getId(), 2, "상품 별점 2점");
-        ReviewUseCase.ReviewItem highProduct = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem highProduct = memberReviewUseCase.createProductReview(
                 highUser.getId(), highProductSource.orderItem().getId(), 5, "상품 별점 5점");
-        ReviewUseCase.ReviewItem middleProduct = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem middleProduct = memberReviewUseCase.createProductReview(
                 middleUser.getId(), middleProductSource.orderItem().getId(), 3, "상품 별점 3점");
-        ReviewUseCase.ReviewItem lowClass = reviewUseCase.createClassReview(
+        ReviewUseCase.ReviewItem lowClass = memberReviewUseCase.createClassReview(
                 lowUser.getId(), lowClassSource.booking().getId(), 2, "클래스 별점 2점");
-        ReviewUseCase.ReviewItem highClass = reviewUseCase.createClassReview(
+        ReviewUseCase.ReviewItem highClass = memberReviewUseCase.createClassReview(
                 highUser.getId(), highClassSource.booking().getId(), 5, "클래스 별점 5점");
-        ReviewUseCase.ReviewItem middleClass = reviewUseCase.createClassReview(
+        ReviewUseCase.ReviewItem middleClass = memberReviewUseCase.createClassReview(
                 middleUser.getId(), middleClassSource.booking().getId(), 3, "클래스 별점 3점");
 
         assertSoftly(softly -> {
@@ -847,14 +854,14 @@ class ReviewUseCaseIT {
         User owner = createUser("review-reaction-owner@example.com", "01074000012", "반응 후기 작성자");
         User actor = createUser("review-reaction-actor@example.com", "01074000013", "반응 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "신고 도움 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 2, "신고 시점 원문");
 
-        ReviewUseCase.HelpfulResult firstHelpful = reviewUseCase.markHelpful(actor.getId(), review.id());
-        ReviewUseCase.HelpfulResult duplicateHelpful = reviewUseCase.markHelpful(actor.getId(), review.id());
-        ReviewUseCase.ReviewReportItem report = reviewUseCase.createReport(
+        ReviewUseCase.HelpfulResult firstHelpful = reviewInteractionUseCase.markHelpful(actor.getId(), review.id());
+        ReviewUseCase.HelpfulResult duplicateHelpful = reviewInteractionUseCase.markHelpful(actor.getId(), review.id());
+        ReviewUseCase.ReviewReportItem report = reviewInteractionUseCase.createReport(
                 actor.getId(), review.id(), ReviewReportReason.FALSE_INFORMATION, "사실과 달라요");
-        reviewUseCase.updateReview(
+        memberReviewUseCase.updateReview(
                 owner.getId(),
                 review.id(),
                 review.contentRevision(),
@@ -867,7 +874,7 @@ class ReviewUseCaseIT {
             softly.assertThat(report.evidence().rating()).isEqualTo(2);
             softly.assertThat(report.evidence().content()).isEqualTo("신고 시점 원문");
             softly.assertThat(report.evidence().imagesComplete()).isTrue();
-            softly.assertThat(reviewUseCase.listMyReviewReactions(
+            softly.assertThat(reviewInteractionUseCase.listMyReviewReactions(
                             actor.getId(), List.of(review.id())))
                     .singleElement()
                     .satisfies(reaction -> {
@@ -875,29 +882,29 @@ class ReviewUseCaseIT {
                         softly.assertThat(reaction.reportedByMe()).isTrue();
                     });
         });
-        assertThatThrownBy(() -> reviewUseCase.markHelpful(owner.getId(), review.id()))
+        assertThatThrownBy(() -> reviewInteractionUseCase.markHelpful(owner.getId(), review.id()))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.REVIEW_SELF_INTERACTION_NOT_ALLOWED));
-        assertThatThrownBy(() -> reviewUseCase.createReport(
+        assertThatThrownBy(() -> reviewInteractionUseCase.createReport(
                 actor.getId(), review.id(), ReviewReportReason.SPAM, null))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.REVIEW_REPORT_ALREADY_EXISTS));
 
-        ReviewUseCase.HelpfulResult removed = reviewUseCase.unmarkHelpful(actor.getId(), review.id());
-        ReviewUseCase.HelpfulResult removedAgain = reviewUseCase.unmarkHelpful(actor.getId(), review.id());
+        ReviewUseCase.HelpfulResult removed = reviewInteractionUseCase.unmarkHelpful(actor.getId(), review.id());
+        ReviewUseCase.HelpfulResult removedAgain = reviewInteractionUseCase.unmarkHelpful(actor.getId(), review.id());
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-report-admin", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewReportItem decided = reviewUseCase.decideReport(
+        ReviewUseCase.ReviewReportItem decided = adminReviewUseCase.decideReport(
                 report.id(), ReviewReportStatus.ACCEPTED, "신고 수용", admin.getId());
-        reviewUseCase.deleteReview(owner.getId(), review.id());
-        ReviewUseCase.ReviewReportSummaryItem summary = reviewUseCase.listAdminReports(
+        memberReviewUseCase.deleteReview(owner.getId(), review.id());
+        ReviewUseCase.ReviewReportSummaryItem summary = adminReviewUseCase.listAdminReports(
                 ReviewReportStatus.ACCEPTED, null, 20).content().getFirst();
-        ReviewUseCase.ReviewReportItem persisted = reviewUseCase.getAdminReport(report.id());
+        ReviewUseCase.ReviewReportItem persisted = adminReviewUseCase.getAdminReport(report.id());
 
         assertSoftly(softly -> {
             softly.assertThat(removed.helpfulCount()).isZero();
@@ -917,22 +924,22 @@ class ReviewUseCaseIT {
         User reporter = createUser(
                 "review-visibility-reporter@example.com", "01074000031", "공개 경계 신고자");
         ProductOrderSource source = createProductOrderSource(owner, true, "공개 경계 상품");
-        ReviewUseCase.ReviewItem created = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem created = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "공개 경계 후기");
         imageAttachmentService.attach(owner.getId(), created.id(), imageUrl);
         LocalDateTime now = LocalDateTime.now(clock);
 
         assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isTrue();
 
-        reviewUseCase.createReport(
+        reviewInteractionUseCase.createReport(
                 reporter.getId(), created.id(), ReviewReportReason.OTHER, "이미지 증거 확인");
         assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isTrue();
 
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-visibility-admin", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(created.id());
-        ReviewUseCase.ReviewItem hidden = reviewUseCase.updateStatus(
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(created.id());
+        ReviewUseCase.ReviewItem hidden = adminReviewUseCase.updateStatus(
                 created.id(),
                 ReviewStatus.HIDDEN,
                 "이미지 공개 중지",
@@ -942,7 +949,7 @@ class ReviewUseCaseIT {
 
         assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isFalse();
 
-        reviewUseCase.deleteReview(owner.getId(), hidden.id());
+        memberReviewUseCase.deleteReview(owner.getId(), hidden.id());
         assertThat(imageReferenceReader.isPubliclyReferenced(imageUrl, now)).isFalse();
     }
 
@@ -952,39 +959,39 @@ class ReviewUseCaseIT {
         User owner = createUser("review-evidence-owner@example.com", "01074000018", "증거 후기 회원");
         User reporter = createUser("review-evidence-reporter@example.com", "01074000019", "증거 신고 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "증거 보존 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 2, "신고 당시 본문");
         var firstImage = imageAttachmentService.attach(
                 owner.getId(), review.id(), "/images/evidence-first.webp");
         imageAttachmentService.attach(owner.getId(), review.id(), "/images/evidence-second.webp");
 
-        ReviewUseCase.ReviewReportItem report = reviewUseCase.createReport(
+        ReviewUseCase.ReviewReportItem report = reviewInteractionUseCase.createReport(
                 reporter.getId(), review.id(), ReviewReportReason.FALSE_INFORMATION, "사실과 다릅니다");
-        ReviewUseCase.ReviewItem beforeEdit = reviewUseCase.getAdminReview(review.id());
-        reviewUseCase.updateReview(
+        ReviewUseCase.ReviewItem beforeEdit = adminReviewUseCase.getAdminReview(review.id());
+        memberReviewUseCase.updateReview(
                 owner.getId(),
                 review.id(),
                 beforeEdit.contentRevision(),
                 5,
                 "심사 당시 수정 본문");
-        reviewUseCase.deleteReviewImage(owner.getId(), review.id(), firstImage.getId());
+        memberReviewUseCase.deleteReviewImage(owner.getId(), review.id(), firstImage.getId());
         imageAttachmentService.attach(owner.getId(), review.id(), "/images/evidence-replacement.webp");
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(review.id());
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-evidence-admin", "password-hash"));
         createdAdminId = admin.getId();
 
-        reviewUseCase.updateStatus(
+        adminReviewUseCase.updateStatus(
                 review.id(),
                 ReviewStatus.HIDDEN,
                 "증거 확인 후 숨김",
                 current.contentRevision(),
                 current.version(),
                 admin.getId());
-        reviewUseCase.deleteReview(owner.getId(), review.id());
+        memberReviewUseCase.deleteReview(owner.getId(), review.id());
 
-        ReviewUseCase.ReviewReportItem persistedReport = reviewUseCase.getAdminReport(report.id());
-        ReviewUseCase.ModerationActionItem moderation = reviewUseCase
+        ReviewUseCase.ReviewReportItem persistedReport = adminReviewUseCase.getAdminReport(report.id());
+        ReviewUseCase.ModerationActionItem moderation = adminReviewUseCase
                 .listModerationActions(review.id())
                 .getFirst();
 
@@ -1012,9 +1019,9 @@ class ReviewUseCaseIT {
         User owner = createUser("review-retention-owner@example.com", "01074000020", "보존 후기 회원");
         User reporter = createUser("review-retention-reporter@example.com", "01074000021", "보존 신고 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "보존 정책 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 1, "보존 정책 검토 본문");
-        ReviewUseCase.ReviewReportItem pending = reviewUseCase.createReport(
+        ReviewUseCase.ReviewReportItem pending = reviewInteractionUseCase.createReport(
                 reporter.getId(), review.id(), ReviewReportReason.OTHER, "운영 확인이 필요합니다");
 
         int pendingDeleted = evidenceRetentionService.deleteExpiredBatch(
@@ -1029,7 +1036,7 @@ class ReviewUseCaseIT {
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-retention-admin", "password-hash"));
         createdAdminId = admin.getId();
-        ReviewUseCase.ReviewReportItem decided = reviewUseCase.decideReport(
+        ReviewUseCase.ReviewReportItem decided = adminReviewUseCase.decideReport(
                 pending.id(), ReviewReportStatus.REJECTED, "정책 위반 아님", admin.getId());
 
         int beforeDeadline = evidenceRetentionService.deleteExpiredBatch(
@@ -1050,20 +1057,20 @@ class ReviewUseCaseIT {
     void replyAndImageAttachmentLifecycleIsStable() {
         User owner = createUser("review-media-owner@example.com", "01074000014", "미디어 후기 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "미디어 후기 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "이미지와 답글 후기");
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-reply-admin", "password-hash"));
         createdAdminId = admin.getId();
 
-        ReviewUseCase.ReviewItem replied = reviewUseCase.upsertOfficialReply(
+        ReviewUseCase.ReviewItem replied = adminReviewUseCase.upsertOfficialReply(
                 review.id(), "첫 공식 답글", review.version(), admin.getId());
-        ReviewUseCase.ReviewItem editedReply = reviewUseCase.upsertOfficialReply(
+        ReviewUseCase.ReviewItem editedReply = adminReviewUseCase.upsertOfficialReply(
                 review.id(), "수정 공식 답글", replied.version(), admin.getId());
         var firstImage = imageAttachmentService.attach(owner.getId(), review.id(), "/images/a.webp");
         var middleImage = imageAttachmentService.attach(owner.getId(), review.id(), "/images/b.webp");
         var lastImage = imageAttachmentService.attach(owner.getId(), review.id(), "/images/c.webp");
-        reviewUseCase.deleteReviewImage(owner.getId(), review.id(), middleImage.getId());
+        memberReviewUseCase.deleteReviewImage(owner.getId(), review.id(), middleImage.getId());
         var replacement = imageAttachmentService.attach(
                 owner.getId(), review.id(), "/images/replacement.webp");
 
@@ -1084,8 +1091,8 @@ class ReviewUseCaseIT {
             softly.assertThat(lastImage.getId()).isNotNull();
         });
 
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
-        ReviewUseCase.ReviewItem withoutReply = reviewUseCase.deleteOfficialReply(
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(review.id());
+        ReviewUseCase.ReviewItem withoutReply = adminReviewUseCase.deleteOfficialReply(
                 review.id(), current.version());
         assertThat(withoutReply.officialReply()).isNull();
     }
@@ -1095,31 +1102,31 @@ class ReviewUseCaseIT {
     void staleOfficialReplyCommandsKeepLatestReply() {
         User owner = createUser("review-reply-stale-owner@example.com", "01074000020", "답글 충돌 회원");
         ProductOrderSource source = createProductOrderSource(owner, true, "답글 충돌 상품");
-        ReviewUseCase.ReviewItem review = reviewUseCase.createProductReview(
+        ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
                 owner.getId(), source.orderItem().getId(), 5, "답글 충돌 후기");
         AdminUser admin = adminUserRepository.saveAndFlush(
                 new AdminUser("review-reply-stale-admin", "password-hash"));
         createdAdminId = admin.getId();
 
-        ReviewUseCase.ReviewItem replied = reviewUseCase.upsertOfficialReply(
+        ReviewUseCase.ReviewItem replied = adminReviewUseCase.upsertOfficialReply(
                 review.id(), "첫 공식 답글", review.version(), admin.getId());
-        ReviewUseCase.ReviewItem latest = reviewUseCase.upsertOfficialReply(
+        ReviewUseCase.ReviewItem latest = adminReviewUseCase.upsertOfficialReply(
                 review.id(), "최신 공식 답글", replied.version(), admin.getId());
 
-        assertThatThrownBy(() -> reviewUseCase.upsertOfficialReply(
+        assertThatThrownBy(() -> adminReviewUseCase.upsertOfficialReply(
                 review.id(), "오래된 화면의 수정", replied.version(), admin.getId()))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
-        assertThatThrownBy(() -> reviewUseCase.deleteOfficialReply(
+        assertThatThrownBy(() -> adminReviewUseCase.deleteOfficialReply(
                 review.id(), replied.version()))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
 
-        ReviewUseCase.ReviewItem current = reviewUseCase.getAdminReview(review.id());
+        ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(review.id());
         assertSoftly(softly -> {
             softly.assertThat(current.version()).isEqualTo(latest.version());
             softly.assertThat(current.officialReply().content()).isEqualTo("최신 공식 답글");
@@ -1179,8 +1186,8 @@ class ReviewUseCaseIT {
         String cursor = null;
         for (int pageNumber = 0; pageNumber < 10; pageNumber++) {
             ReviewUseCase.PublicReviewPage response = targetType == ReviewTargetType.PRODUCT
-                    ? reviewUseCase.listProductReviews(targetId, null, sort, cursor, 1)
-                    : reviewUseCase.listClassReviews(targetId, null, sort, cursor, 1);
+                    ? publicReviewUseCase.listProductReviews(targetId, null, sort, cursor, 1)
+                    : publicReviewUseCase.listClassReviews(targetId, null, sort, cursor, 1);
             reviewIds.addAll(response.reviews().content().stream()
                     .map(ReviewUseCase.ReviewItem::id)
                     .toList());
@@ -1203,7 +1210,7 @@ class ReviewUseCaseIT {
             if (!start.await(5, TimeUnit.SECONDS)) {
                 return new AssertionError("동시 후기 작성 시작 신호를 기다리지 못했습니다.");
             }
-            reviewUseCase.createProductReview(userId, orderItemId, 5, content);
+            memberReviewUseCase.createProductReview(userId, orderItemId, 5, content);
             return null;
         } catch (Throwable throwable) {
             return throwable;

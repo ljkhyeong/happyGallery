@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.product;
 
 import com.personal.happygallery.adapter.in.web.review.dto.PublicReviewPageResponse;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.domain.review.ReviewSort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/products/{productId}/reviews")
 public class ProductReviewController {
 
-    private final ReviewUseCase reviewUseCase;
+    private final PublicReviewUseCase reviewUseCase;
 
-    public ProductReviewController(ReviewUseCase reviewUseCase) {
+    public ProductReviewController(PublicReviewUseCase reviewUseCase) {
         this.reviewUseCase = reviewUseCase;
     }
 

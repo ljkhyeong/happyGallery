@@ -20,6 +20,7 @@ import com.personal.happygallery.application.notice.port.in.NoticeAdminUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -64,7 +65,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
     private NoticeQueryUseCase noticeQueryUseCase;
     private ProductQnaUseCase qnaUseCase;
     private InquiryUseCase inquiryUseCase;
-    private ReviewUseCase reviewUseCase;
+    private AdminReviewUseCase adminReviewUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -73,7 +74,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
-        reviewUseCase = mock(ReviewUseCase.class);
+        adminReviewUseCase = mock(AdminReviewUseCase.class);
 
         Notice notice = RestDocsFixtures.notice();
         ProductQnaUseCase.QnaWithAuthor qna =
@@ -169,14 +170,14 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(inquiry), null, false));
         when(inquiryUseCase.findByIdForAdmin(9L)).thenReturn(inquiry);
         when(inquiryUseCase.replyAndGet(eq(9L), any(), eq(ADMIN_USER_ID))).thenReturn(inquiry);
-        when(reviewUseCase.listAdminReviews(
+        when(adminReviewUseCase.listAdminReviews(
                 eq(ReviewTargetType.PRODUCT),
                 eq(ReviewStatus.PUBLISHED),
                 isNull(),
                 eq(20)))
                 .thenReturn(new CursorPage<>(List.of(productReview), "cursor-next", true));
-        when(reviewUseCase.getAdminReview(31L)).thenReturn(productReview);
-        when(reviewUseCase.updateStatus(
+        when(adminReviewUseCase.getAdminReview(31L)).thenReturn(productReview);
+        when(adminReviewUseCase.updateStatus(
                 eq(31L),
                 eq(ReviewStatus.HIDDEN),
                 any(),
@@ -184,7 +185,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 eq(productReview.version()),
                 eq(ADMIN_USER_ID)))
                 .thenReturn(hiddenProductReview);
-        when(reviewUseCase.listModerationActions(31L))
+        when(adminReviewUseCase.listModerationActions(31L))
                 .thenReturn(List.of(new ReviewUseCase.ModerationActionItem(
                         61L,
                         31L,
@@ -195,18 +196,18 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                         ADMIN_USER_ID,
                         evidence,
                         LocalDateTime.of(2026, 5, 1, 21, 0))));
-        when(reviewUseCase.upsertOfficialReply(
+        when(adminReviewUseCase.upsertOfficialReply(
                 eq(31L), any(), eq(productReview.version()), eq(ADMIN_USER_ID)))
                 .thenReturn(productReview);
-        when(reviewUseCase.deleteOfficialReply(
+        when(adminReviewUseCase.deleteOfficialReply(
                 31L, productReview.version()))
                 .thenReturn(productReviewWithoutReply);
-        when(reviewUseCase.listAdminReports(
+        when(adminReviewUseCase.listAdminReports(
                 eq(ReviewReportStatus.PENDING), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(
                         List.of(pendingReportSummary), "report-cursor-next", true));
-        when(reviewUseCase.getAdminReport(71L)).thenReturn(pendingReport);
-        when(reviewUseCase.decideReport(
+        when(adminReviewUseCase.getAdminReport(71L)).thenReturn(pendingReport);
+        when(adminReviewUseCase.decideReport(
                 eq(71L), eq(ReviewReportStatus.ACCEPTED), any(), eq(ADMIN_USER_ID)))
                 .thenReturn(acceptedReport);
 
@@ -215,7 +216,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
-                new AdminReviewController(reviewUseCase));
+                new AdminReviewController(adminReviewUseCase));
     }
 
     @Test

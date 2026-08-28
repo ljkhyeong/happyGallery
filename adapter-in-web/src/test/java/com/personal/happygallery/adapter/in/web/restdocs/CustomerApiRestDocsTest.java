@@ -40,6 +40,8 @@ import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase.PassRefundResult;
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
@@ -110,7 +112,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     private InquiryUseCase inquiryUseCase;
     private ProductQnaUseCase qnaUseCase;
-    private ReviewUseCase reviewUseCase;
+    private MemberReviewUseCase memberReviewUseCase;
+    private ReviewInteractionUseCase reviewInteractionUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
     private CustomerStepUpAuthenticationStore stepUpStore;
 
@@ -133,7 +136,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         accountLifecycleUseCase = mock(CustomerAccountLifecycleUseCase.class);
         inquiryUseCase = mock(InquiryUseCase.class);
         qnaUseCase = mock(ProductQnaUseCase.class);
-        reviewUseCase = mock(ReviewUseCase.class);
+        memberReviewUseCase = mock(MemberReviewUseCase.class);
+        reviewInteractionUseCase = mock(ReviewInteractionUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
 
         User user = RestDocsFixtures.user();
@@ -211,29 +215,29 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(ownedQna), "cursor-next", true));
         when(qnaUseCase.getOwnedDetail(1L, 5L, CUSTOMER_USER_ID))
                 .thenReturn(new ProductQnaUseCase.QnaWithAuthor(qna, "홍길동"));
-        when(reviewUseCase.createProductReview(
+        when(memberReviewUseCase.createProductReview(
                 eq(CUSTOMER_USER_ID), eq(201L), eq(5), any()))
                 .thenReturn(productReview);
-        when(reviewUseCase.createClassReview(
+        when(memberReviewUseCase.createClassReview(
                 eq(CUSTOMER_USER_ID), eq(100L), eq(4), any()))
                 .thenReturn(classReview);
-        when(reviewUseCase.getProductReviewCreationState(CUSTOMER_USER_ID, 202L))
+        when(memberReviewUseCase.getProductReviewCreationState(CUSTOMER_USER_ID, 202L))
                 .thenReturn(new ReviewUseCase.ReviewCreationState(
                         ReviewTargetType.PRODUCT, 202L, ReviewCreationStatus.AVAILABLE));
-        when(reviewUseCase.getClassReviewCreationState(CUSTOMER_USER_ID, 100L))
+        when(memberReviewUseCase.getClassReviewCreationState(CUSTOMER_USER_ID, 100L))
                 .thenReturn(new ReviewUseCase.ReviewCreationState(
                         ReviewTargetType.CLASS, 100L, ReviewCreationStatus.RECREATION_BLOCKED));
-        when(reviewUseCase.listMyReviews(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(memberReviewUseCase.listMyReviews(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(
                         List.of(productReview, classReview), "cursor-next", true));
-        when(reviewUseCase.listMyOrderReviews(CUSTOMER_USER_ID, 200L))
+        when(memberReviewUseCase.listMyOrderReviews(CUSTOMER_USER_ID, 200L))
                 .thenReturn(List.of(productReview));
-        when(reviewUseCase.listMyBookingReviews(CUSTOMER_USER_ID, 100L))
+        when(memberReviewUseCase.listMyBookingReviews(CUSTOMER_USER_ID, 100L))
                 .thenReturn(List.of(classReview));
-        when(reviewUseCase.updateReview(
+        when(memberReviewUseCase.updateReview(
                 eq(CUSTOMER_USER_ID), eq(31L), eq(1L), eq(4), any()))
                 .thenReturn(productReview);
-        when(reviewUseCase.listMyReviewOpportunities(CUSTOMER_USER_ID, null, 20))
+        when(memberReviewUseCase.listMyReviewOpportunities(CUSTOMER_USER_ID, null, 20))
                 .thenReturn(new CursorPage<>(List.of(new ReviewUseCase.ReviewOpportunity(
                         ReviewTargetType.PRODUCT,
                         202L,
@@ -242,16 +246,16 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         200L,
                         null,
                         LocalDateTime.of(2026, 4, 30, 18, 0))), "opportunity-next", true));
-        when(reviewUseCase.markHelpful(CUSTOMER_USER_ID, 32L))
+        when(reviewInteractionUseCase.markHelpful(CUSTOMER_USER_ID, 32L))
                 .thenReturn(new ReviewUseCase.HelpfulResult(32L, 2L, true));
-        when(reviewUseCase.unmarkHelpful(CUSTOMER_USER_ID, 32L))
+        when(reviewInteractionUseCase.unmarkHelpful(CUSTOMER_USER_ID, 32L))
                 .thenReturn(new ReviewUseCase.HelpfulResult(32L, 1L, false));
-        when(reviewUseCase.listMyReviewReactions(
+        when(reviewInteractionUseCase.listMyReviewReactions(
                 CUSTOMER_USER_ID, List.of(31L, 32L)))
                 .thenReturn(List.of(
                         new ReviewUseCase.ReviewReaction(31L, false, false, true, false),
                         new ReviewUseCase.ReviewReaction(32L, true, false, false, true)));
-        when(reviewUseCase.createReport(
+        when(reviewInteractionUseCase.createReport(
                 eq(CUSTOMER_USER_ID), eq(32L), eq(ReviewReportReason.SPAM), any()))
                 .thenReturn(new ReviewUseCase.ReviewReportItem(
                         71L,
@@ -275,7 +279,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         null,
                         null,
                         LocalDateTime.of(2026, 5, 1, 21, 0)));
-        when(reviewUseCase.addReviewImage(
+        when(memberReviewUseCase.addReviewImage(
                 eq(CUSTOMER_USER_ID), eq(31L), any(byte[].class), eq("image/png")))
                 .thenReturn(new ReviewUseCase.ReviewImageItem(
                         52L,
@@ -322,7 +326,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         stepUpStore),
                 new MeInquiryController(inquiryUseCase),
                 new MeProductQnaController(qnaUseCase),
-                new MeReviewController(reviewUseCase, rateLimitGuard));
+                new MeReviewController(memberReviewUseCase, reviewInteractionUseCase, rateLimitGuard));
     }
 
     @Test

@@ -4,7 +4,8 @@ import com.personal.happygallery.adapter.in.web.ratelimit.RateLimitUnavailableEx
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.review.dto.CreateReviewReportRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,10 +24,12 @@ class MeReviewControllerRateLimitTest {
     @DisplayName("후기 신고 subject 제한이 닫히면 신고를 저장하지 않는다")
     @Test
     void report_doesNotReachUseCaseWhenSubjectLimitUnavailable() {
-        ReviewUseCase reviewUseCase = mock(ReviewUseCase.class);
+        MemberReviewUseCase memberReviewUseCase = mock(MemberReviewUseCase.class);
+        ReviewInteractionUseCase reviewInteractionUseCase = mock(ReviewInteractionUseCase.class);
         SubjectRateLimitGuard guard = mock(SubjectRateLimitGuard.class);
         doThrow(new RateLimitUnavailableException()).when(guard).checkReviewReport(11L);
-        MeReviewController controller = new MeReviewController(reviewUseCase, guard);
+        MeReviewController controller = new MeReviewController(
+                memberReviewUseCase, reviewInteractionUseCase, guard);
 
         assertThatThrownBy(() -> controller.report(
                 31L,
@@ -34,21 +37,23 @@ class MeReviewControllerRateLimitTest {
                 CUSTOMER))
                 .isInstanceOf(RateLimitUnavailableException.class);
 
-        verifyNoInteractions(reviewUseCase);
+        verifyNoInteractions(memberReviewUseCase, reviewInteractionUseCase);
     }
 
     @DisplayName("후기 이미지 subject 제한이 닫히면 multipart 파일도 읽지 않는다")
     @Test
     void imageUpload_doesNotReadFileWhenSubjectLimitUnavailable() {
-        ReviewUseCase reviewUseCase = mock(ReviewUseCase.class);
+        MemberReviewUseCase memberReviewUseCase = mock(MemberReviewUseCase.class);
+        ReviewInteractionUseCase reviewInteractionUseCase = mock(ReviewInteractionUseCase.class);
         SubjectRateLimitGuard guard = mock(SubjectRateLimitGuard.class);
         MultipartFile file = mock(MultipartFile.class);
         doThrow(new RateLimitUnavailableException()).when(guard).checkReviewImageUpload(11L);
-        MeReviewController controller = new MeReviewController(reviewUseCase, guard);
+        MeReviewController controller = new MeReviewController(
+                memberReviewUseCase, reviewInteractionUseCase, guard);
 
         assertThatThrownBy(() -> controller.addImage(31L, file, CUSTOMER))
                 .isInstanceOf(RateLimitUnavailableException.class);
 
-        verifyNoInteractions(file, reviewUseCase);
+        verifyNoInteractions(file, memberReviewUseCase, reviewInteractionUseCase);
     }
 }

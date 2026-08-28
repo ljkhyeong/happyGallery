@@ -6,13 +6,12 @@ import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
-import com.personal.happygallery.domain.review.ReviewSort;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** 회원·공개·관리자 후기 유스케이스. */
+/** 후기 계층 간 응답 모델. 실행 포트는 역할별 인터페이스로 분리한다. */
 public interface ReviewUseCase {
 
     record OfficialReplyItem(
@@ -173,90 +172,4 @@ public interface ReviewUseCase {
             boolean helpfulByMe
     ) {}
 
-    ReviewItem createProductReview(
-            Long userId, Long orderItemId, int rating, String content);
-
-    ReviewItem createClassReview(
-            Long userId, Long bookingId, int rating, String content);
-
-    ReviewItem updateReview(
-            Long userId,
-            Long reviewId,
-            long expectedContentRevision,
-            int rating,
-            String content);
-
-    void deleteReview(Long userId, Long reviewId);
-
-    default PublicReviewPage listProductReviews(Long productId, String cursor, int size) {
-        return listProductReviews(productId, null, ReviewSort.LATEST, cursor, size);
-    }
-
-    PublicReviewPage listProductReviews(
-            Long productId, Integer rating, ReviewSort sort, String cursor, int size);
-
-    default PublicReviewPage listClassReviews(Long classId, String cursor, int size) {
-        return listClassReviews(classId, null, ReviewSort.LATEST, cursor, size);
-    }
-
-    PublicReviewPage listClassReviews(
-            Long classId, Integer rating, ReviewSort sort, String cursor, int size);
-
-    CursorPage<ReviewItem> listMyReviews(Long userId, String cursor, int size);
-
-    List<ReviewItem> listMyOrderReviews(Long userId, Long orderId);
-
-    List<ReviewItem> listMyBookingReviews(Long userId, Long bookingId);
-
-    CursorPage<ReviewOpportunity> listMyReviewOpportunities(
-            Long userId, String cursor, int size);
-
-    ReviewCreationState getProductReviewCreationState(Long userId, Long orderItemId);
-
-    ReviewCreationState getClassReviewCreationState(Long userId, Long bookingId);
-
-    CursorPage<ReviewItem> listAdminReviews(
-            ReviewTargetType targetType, ReviewStatus status, String cursor, int size);
-
-    ReviewItem getAdminReview(Long reviewId);
-
-    ReviewItem updateStatus(
-            Long reviewId,
-            ReviewStatus status,
-            String reason,
-            long expectedContentRevision,
-            long expectedVersion,
-            Long adminUserId);
-
-    List<ModerationActionItem> listModerationActions(Long reviewId);
-
-    ReviewItem upsertOfficialReply(
-            Long reviewId, String content, long expectedVersion, Long adminUserId);
-
-    ReviewItem deleteOfficialReply(Long reviewId, long expectedVersion);
-
-    ReviewReportItem createReport(
-            Long userId, Long reviewId, ReviewReportReason reason, String detail);
-
-    CursorPage<ReviewReportSummaryItem> listAdminReports(
-            ReviewReportStatus status, String cursor, int size);
-
-    ReviewReportItem getAdminReport(Long reportId);
-
-    ReviewReportItem decideReport(
-            Long reportId,
-            ReviewReportStatus decision,
-            String decisionNote,
-            Long adminUserId);
-
-    HelpfulResult markHelpful(Long userId, Long reviewId);
-
-    HelpfulResult unmarkHelpful(Long userId, Long reviewId);
-
-    List<ReviewReaction> listMyReviewReactions(Long userId, List<Long> reviewIds);
-
-    ReviewImageItem addReviewImage(
-            Long userId, Long reviewId, byte[] bytes, String contentType);
-
-    void deleteReviewImage(Long userId, Long reviewId, Long imageId);
 }

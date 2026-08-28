@@ -4,7 +4,7 @@ import com.personal.happygallery.adapter.in.web.booking.SlotController;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
 import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase;
+import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.product.Product;
@@ -170,7 +170,7 @@ class GlobalExceptionHandlerTest {
     })
     void invalidReviewParameter_mapsToInvalidInput(String path) throws Exception {
         var mockMvc = standaloneSetup(
-                        new ProductReviewController(mock(ReviewUseCase.class)))
+                        new ProductReviewController(mock(PublicReviewUseCase.class)))
                 .setControllerAdvice(handler)
                 .build();
 
