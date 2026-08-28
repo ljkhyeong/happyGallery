@@ -10,7 +10,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
-test("비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
+test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,
   context,
   page,
@@ -120,7 +120,95 @@ test("비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 
   )).toBeNull();
 });
 
-test("회원은 예약 인원을 부분취소하고 환불 접수 결과를 확인한다", async ({
+test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이페이지에서 취소할 수 있다", async ({
+  baseURL,
+  context,
+  page,
+}) => {
+  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
+
+  let cancelCount = 0;
+  await context.addCookies([{
+    name: "XSRF-TOKEN",
+    value: "member-vacancy-alert-token",
+    url: baseURL,
+  }]);
+
+  await page.route("**/api/v1/**", async (route) => {
+    const request = route.request();
+    const { pathname } = new URL(request.url());
+
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, {
+        id: 102,
+        email: "vacancy-alert@example.com",
+        name: "빈자리 알림 회원",
+        phone: "01012345678",
+        phoneVerified: true,
+        localPasswordEnabled: true,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/vacancy-alerts") {
+      await fulfillJson(route, cancelCount === 0 ? [{
+        alertId: 701,
+        slotId: 78,
+        className: "닫힌 회차 가죽 클래스",
+        startAt: "2099-01-03T14:00:00",
+        endAt: "2099-01-03T16:00:00",
+        status: "WAITING",
+        accessToken: null,
+      }] : []);
+      return;
+    }
+    if (
+      pathname === "/api/v1/me/slots/78/vacancy-alerts"
+      && request.method() === "DELETE"
+    ) {
+      cancelCount += 1;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (pathname === "/api/v1/me/cart") {
+      await fulfillJson(route, {
+        items: [],
+        totalAmount: 0,
+        cartVersion: EMPTY_CART_VERSION,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/me/notifications/unread-count") {
+      await fulfillJson(route, { count: 0 });
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, {
+        name: "해피갤러리",
+        updatedAt: "2026-08-29T12:00:00",
+        version: 1,
+      });
+      return;
+    }
+    if (pathname === "/api/v1/policies/current") {
+      await fulfillJson(route, {
+        terms: { version: "2026-08", documentPath: "/terms/2026-08" },
+        privacy: { version: "2026-08", documentPath: "/privacy/2026-08" },
+      });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+
+  await page.goto("/my");
+  await expect(page.getByText("닫힌 회차 가죽 클래스", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "닫힌 회차 가죽 클래스 빈자리 알림 취소" }).click();
+
+  await expect.poll(() => cancelCount).toBe(1);
+  await expect(page.getByText("닫힌 회차 가죽 클래스", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("신청 중인 빈자리 알림이 없습니다.")).toBeVisible();
+});
+
+test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과를 확인한다", async ({
   baseURL,
   context,
   page,
