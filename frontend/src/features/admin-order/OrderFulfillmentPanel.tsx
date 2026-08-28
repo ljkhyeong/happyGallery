@@ -44,12 +44,10 @@ export function OrderFulfillmentDetails({
       {fulfillment.trackingNumber && (
         <>
           <div>운송장 번호: {fulfillment.trackingNumber}</div>
-          {fulfillment.carrier && (
-            <ShipmentTrackingActions
-              carrier={fulfillment.carrier}
-              trackingNumber={fulfillment.trackingNumber}
-            />
-          )}
+          <ShipmentTrackingActions
+            carrierCode={fulfillment.carrierCode}
+            trackingNumber={fulfillment.trackingNumber}
+          />
         </>
       )}
       {fulfillment.trackingStatusText && (

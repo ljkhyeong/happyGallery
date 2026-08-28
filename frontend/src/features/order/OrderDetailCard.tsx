@@ -159,12 +159,10 @@ export function OrderDetailCard({ order }: Props) {
                 <Col xs={6}>
                   <small className="text-muted-soft d-block">운송장 번호</small>
                   <span>{order.fulfillment.trackingNumber}</span>
-                  {order.fulfillment.carrier && (
-                    <ShipmentTrackingActions
-                      carrier={order.fulfillment.carrier}
-                      trackingNumber={order.fulfillment.trackingNumber}
-                    />
-                  )}
+                  <ShipmentTrackingActions
+                    carrierCode={order.fulfillment.carrierCode}
+                    trackingNumber={order.fulfillment.trackingNumber}
+                  />
                 </Col>
               )}
               {order.fulfillment.trackingStatusText && (

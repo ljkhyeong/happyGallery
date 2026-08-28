@@ -1,18 +1,21 @@
 import { useState } from "react";
 import { Button } from "react-bootstrap";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import type { FulfillmentDtoCarrierCode } from "@/generated/api/order";
 
 interface Props {
-  carrier: string;
+  carrierCode: FulfillmentDtoCarrierCode;
   trackingNumber: string;
 }
 
-function buildOfficialTrackingUrl(carrier: string, trackingNumber: string): string | null {
-  const normalizedCarrier = carrier.replace(/\s/g, "").toLowerCase();
+function buildOfficialTrackingUrl(
+  carrierCode: FulfillmentDtoCarrierCode,
+  trackingNumber: string,
+): string | null {
   const normalizedTrackingNumber = trackingNumber.replace(/[-\s]/g, "");
 
   if (
-    !["한진", "한진택배", "hanjin"].includes(normalizedCarrier)
+    carrierCode !== "HANJIN"
     || !/^\d{10,14}$/.test(normalizedTrackingNumber)
   ) {
     return null;
@@ -25,9 +28,9 @@ function buildOfficialTrackingUrl(carrier: string, trackingNumber: string): stri
   return url.toString();
 }
 
-export function ShipmentTrackingActions({ carrier, trackingNumber }: Props) {
+export function ShipmentTrackingActions({ carrierCode, trackingNumber }: Props) {
   const [copied, setCopied] = useState(false);
-  const trackingUrl = buildOfficialTrackingUrl(carrier, trackingNumber);
+  const trackingUrl = buildOfficialTrackingUrl(carrierCode, trackingNumber);
 
   const copyTrackingNumber = async () => {
     await navigator.clipboard.writeText(trackingNumber);
