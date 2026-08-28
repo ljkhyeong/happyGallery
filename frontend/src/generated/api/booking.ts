@@ -267,7 +267,10 @@ export interface VacancyAlertResponse {
   /** @nullable */
   accessToken: string | null;
   alertId: number;
+  className: string;
+  endAt: string;
   slotId: number;
+  startAt: string;
   status: VacancyAlertResponseStatus;
 }
 

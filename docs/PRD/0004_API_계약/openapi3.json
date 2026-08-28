@@ -6960,16 +6960,27 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "className" : {
+            "type" : "string"
+          },
+          "endAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
           "slotId" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "startAt" : {
+            "format" : "date-time",
+            "type" : "string"
           },
           "status" : {
             "enum" : [ "WAITING", "NOTIFIED", "CANCELED" ],
             "type" : "string"
           }
         },
-        "required" : [ "accessToken", "alertId", "slotId", "status" ],
+        "required" : [ "accessToken", "alertId", "className", "endAt", "slotId", "startAt", "status" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {

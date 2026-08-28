@@ -447,6 +447,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.alertId").value(700))
                 .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.className").value("향수 원데이"))
+                .andExpect(jsonPath("$.startAt").value("2026-05-07T19:00:00"))
+                .andExpect(jsonPath("$.endAt").value("2026-05-07T21:00:00"))
                 .andExpect(jsonPath("$.status").value("WAITING"))
                 .andExpect(jsonPath("$.accessToken").value("vacancy-access-token"));
     }

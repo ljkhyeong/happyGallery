@@ -41,7 +41,8 @@ public interface BookingVacancyAlertRepository
     @Override
     @Query("""
             SELECT a FROM BookingVacancyAlert a
-            JOIN FETCH a.slot
+            JOIN FETCH a.slot s
+            JOIN FETCH s.bookingClass
             WHERE a.userId = :userId
               AND a.status = com.personal.happygallery.domain.booking.VacancyAlertStatus.WAITING
             ORDER BY a.id

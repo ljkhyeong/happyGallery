@@ -18,6 +18,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -59,6 +61,7 @@ class MeBookingUseCaseIT {
     Long slotId;
     Long slot2Id;
     Long slot3Id;
+    BookingClass bookingClass;
     Cookie sessionCookie;
     Long userId;
     PaymentTestHelper paymentHelper;
@@ -73,11 +76,11 @@ class MeBookingUseCaseIT {
         paymentHelper = new PaymentTestHelper(mockMvc, objectMapper);
         customerHelper = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader);
 
-        BookingClass cls = classStorePort.save(defaultBookingClass());
-        classId = cls.getId();
-        Slot s1 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
-        Slot s2 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
-        Slot s3 = slotStorePort.save(slot(cls, BookingTestHelper.FUTURE.plusDays(2), BookingTestHelper.FUTURE.plusDays(2).plusHours(2)));
+        bookingClass = classStorePort.save(defaultBookingClass());
+        classId = bookingClass.getId();
+        Slot s1 = slotStorePort.save(slot(bookingClass, BookingTestHelper.FUTURE, BookingTestHelper.FUTURE.plusHours(2)));
+        Slot s2 = slotStorePort.save(slot(bookingClass, BookingTestHelper.FUTURE.plusDays(1), BookingTestHelper.FUTURE.plusDays(1).plusHours(2)));
+        Slot s3 = slotStorePort.save(slot(bookingClass, BookingTestHelper.FUTURE.plusDays(2), BookingTestHelper.FUTURE.plusDays(2).plusHours(2)));
         slotId = s1.getId();
         slot2Id = s2.getId();
         slot3Id = s3.getId();
@@ -198,6 +201,43 @@ class MeBookingUseCaseIT {
                 .andExpect(jsonPath("$.refundable").value(true))
                 .andExpect(jsonPath("$.refund.amount").value(5000))
                 .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
+    }
+
+    @DisplayName("예약 화면에서 닫힌 회원 빈자리 알림을 목록에서 조회하고 취소한다")
+    @Test
+    void manageVacancyAlert_afterSlotClosed() throws Exception {
+        LocalDateTime startAt = BookingTestHelper.FUTURE.plusDays(3);
+        Slot fullSlot = slot(bookingClass, startAt, startAt.plusHours(2));
+        fullSlot.incrementBookedCount(fullSlot.getCapacity());
+        fullSlot = slotStorePort.save(fullSlot);
+
+        mockMvc.perform(post("/api/v1/me/slots/{slotId}/vacancy-alerts", fullSlot.getId())
+                        .with(csrf())
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.className").value("향수 클래스"))
+                .andExpect(jsonPath("$.startAt").value("2030-01-04T10:00:00"))
+                .andExpect(jsonPath("$.endAt").value("2030-01-04T12:00:00"));
+
+        fullSlot.deactivate();
+        slotStorePort.save(fullSlot);
+
+        mockMvc.perform(get("/api/v1/me/vacancy-alerts")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].slotId").value(fullSlot.getId()))
+                .andExpect(jsonPath("$[0].className").value("향수 클래스"))
+                .andExpect(jsonPath("$[0].status").value("WAITING"));
+
+        mockMvc.perform(delete("/api/v1/me/slots/{slotId}/vacancy-alerts", fullSlot.getId())
+                        .with(csrf())
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/me/vacancy-alerts")
+                        .cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @DisplayName("인증 없이 회원 예약 목록을 조회하면 401을 반환한다")

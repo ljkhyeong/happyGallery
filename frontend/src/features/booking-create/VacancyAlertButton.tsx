@@ -19,7 +19,7 @@ import {
   fetchMyVacancyAlerts,
   registerGuestVacancyAlert,
   registerMyVacancyAlert,
-} from "./api";
+} from "@/features/vacancy-alert/api";
 import {
   clearGuestVacancyAlert,
   findGuestVacancyAlert,
