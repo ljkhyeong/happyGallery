@@ -122,7 +122,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
   };
 
   return (
-    <div className="d-grid gap-3">
+    <div className="store-option-form">
       {selectGroups.map((group) => (
         <Form.Group key={group.key} controlId={`product-option-${group.key}`}>
           <Form.Label>

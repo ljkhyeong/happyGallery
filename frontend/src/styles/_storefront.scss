@@ -541,17 +541,96 @@
 }
 
 .store-detail-card {
-  background: var(--hg-surface);
+  background: transparent;
   border: none;
-  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-product-intro {
+  padding: 0 0 clamp(1.75rem, 4vw, 3rem);
+}
+
+.store-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.store-detail-category {
+  color: var(--hg-accent-deep);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.store-detail-meta .store-detail-kicker {
+  margin: 0;
+}
+
+.store-detail-category {
+  padding-left: 0.65rem;
+  border-left: 1px solid var(--hg-border);
+  color: var(--hg-ink-soft);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.store-detail-availability {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  color: var(--hg-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &::before {
+    width: 0.45rem;
+    height: 0.45rem;
+    background: currentColor;
+    border-radius: 50%;
+    content: "";
+  }
+
+  &.is-available {
+    color: var(--hg-leaf);
+  }
+
+  &.is-sold-out {
+    color: var(--bs-secondary-color);
+  }
 }
 
 .store-detail-title {
   font-family: "Pretendard Variable", sans-serif;
-  font-size: 2.25rem;
+  max-width: 18ch;
+  margin: 0;
+  font-size: clamp(2.25rem, 5vw, 3.75rem);
   font-weight: 800;
-  letter-spacing: 0;
+  line-height: 1.18;
+  letter-spacing: -0.025em;
   color: var(--hg-dark);
+}
+
+.store-detail-description {
+  max-width: 42rem;
+  margin: 1.25rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.8;
+}
+
+.store-detail-price-block {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+
+  > span {
+    color: var(--hg-ink-soft);
+    font-size: 0.75rem;
+  }
 }
 
 .store-detail-media {
@@ -573,63 +652,179 @@
 
 .store-detail-price {
   font-family: "Gowun Batang", serif;
-  font-size: 2rem;
+  font-size: clamp(1.6rem, 3vw, 2rem);
   font-weight: 700;
   letter-spacing: 0;
   color: var(--hg-dark);
 }
 
-.store-detail-note-grid {
+.store-detail-facts {
+  padding: clamp(2rem, 5vw, 3.5rem) 0;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-detail-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  span {
+    color: var(--hg-accent-deep);
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+}
+
+.store-detail-terms > div {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 2rem;
+
+  > .alert,
+  > .btn {
+    grid-column: 1 / -1;
+  }
+
+  > div:not(.alert) {
+    padding: 1rem 0;
+    border-top: 1px solid var(--hg-border);
+  }
+
+  strong {
+    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+  }
+
+  .btn {
+    justify-self: start;
+  }
 }
 
-.store-detail-note {
-  padding: 1rem;
-  background: var(--hg-surface-alt);
-  border: 1px solid var(--hg-border);
-}
-
-.store-detail-note-label {
-  font-family: "Gowun Batang", serif;
-  font-size: 0.625rem;
-  color: var(--hg-accent);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.store-detail-note-body {
-  color: var(--hg-dark);
-  font-weight: 500;
+.store-detail-fulfillment {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--hg-border);
   font-size: 0.8125rem;
-  line-height: 1.5;
-}
 
-.store-detail-info-card {
-  background: var(--hg-surface-alt);
-  border: 1px solid var(--hg-border);
-}
-
-.store-detail-info-title {
-  color: var(--hg-dark);
-  font-weight: 700;
-  margin-bottom: 0.35rem;
+  span {
+    color: var(--hg-ink-soft);
+  }
 }
 
 // ── Purchase panel ─────────────────────────────────────
-.store-purchase-card {
-  background: #FFFFFF;
-  border: 2px solid var(--hg-dark);
+.store-purchase-card.store-order-sheet {
+  position: relative;
+  overflow: hidden;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  box-shadow: 0 24px 64px rgba(61, 48, 36, 0.11);
+
+  &::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0.3rem;
+    background: var(--hg-accent);
+    content: "";
+  }
 }
 
-.store-purchase-title {
-  font-weight: 700;
+.store-order-sheet-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hg-border);
+
+  h2 {
+    margin: 0.2rem 0 0.4rem;
+    font-size: 1.65rem;
+  }
+
+  p {
+    max-width: 23rem;
+    margin: 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+  }
+}
+
+.store-order-sheet-header .store-purchase-kicker {
+  margin: 0;
+}
+
+.store-order-sheet-base-price {
+  flex: 0 0 auto;
+  text-align: right;
+
+  span {
+    display: block;
+    color: var(--hg-ink-soft);
+    font-size: 0.6875rem;
+  }
+
+  strong {
+    font-size: 1rem;
+  }
+}
+
+.store-order-sheet-step {
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-order-sheet-step-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+
+  > span {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    color: #FFFFFF;
+    background: var(--hg-dark);
+    border-radius: 50%;
+    font-size: 0.6875rem;
+    font-weight: 700;
+  }
+
+  h3 {
+    margin: 0;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    font-weight: 700;
+  }
+}
+
+.store-order-sheet-action-heading {
+  margin-bottom: 1rem;
+}
+
+.store-purchase-quantity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .store-purchase-qty-label {
+  margin: 0;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
@@ -643,9 +838,10 @@
 }
 
 .store-purchase-summary {
+  margin: 1rem 0;
   padding: 1.25rem;
   background: var(--hg-surface-alt);
-  border: 1px solid var(--hg-border);
+  border: 0;
 }
 
 .store-purchase-line {
@@ -670,6 +866,49 @@
   color: var(--hg-ink-soft);
   font-size: 0.75rem;
   line-height: 1.5;
+}
+
+.store-order-sheet-actions {
+  padding-top: 1.5rem;
+}
+
+.store-option-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.store-option-form .form-label {
+  margin-bottom: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.store-option-form .form-control,
+.store-option-form .form-select {
+  min-height: 44px;
+  border-color: #CFC5B7;
+  background-color: #FFFDF8;
+}
+
+.store-option-form .form-text {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--hg-ink-soft);
+  text-align: right;
+}
+
+.store-option-form > .btn {
+  min-height: 42px;
+}
+
+.store-option-form .table {
+  --bs-table-bg: transparent;
+  border-top: 1px solid var(--hg-border);
+
+  td {
+    padding-block: 0.75rem;
+    border-color: var(--hg-border);
+  }
 }
 
 .store-purchase-btn-primary {
@@ -1409,7 +1648,7 @@
   }
 
   .store-highlight-grid,
-  .store-detail-note-grid {
+  .store-detail-terms > div {
     grid-template-columns: 1fr;
   }
 
@@ -1417,11 +1656,26 @@
     padding: 1.5rem;
   }
 
-  .purchase-panel {
-    position: sticky;
-    bottom: 0;
-    z-index: 10;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.12);
+  .store-detail-title {
+    font-size: 2.25rem;
+  }
+
+  .store-detail-availability {
+    margin-left: 0;
+  }
+
+  .store-detail-fulfillment {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+
+  .store-order-sheet-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .store-order-sheet-base-price {
+    text-align: left;
   }
 }
 
