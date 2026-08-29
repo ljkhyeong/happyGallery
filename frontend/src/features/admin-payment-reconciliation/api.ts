@@ -3,10 +3,12 @@ import {
   listPaymentSettlementIssues,
   listSmartStoreSettlementIssues,
   reconcile,
+  synchronizeSmartStoreSettlements,
   type PaymentReconciliationRequiredResponse,
   type PaymentReconciliationResultResponse,
   type PaymentSettlementIssueResponse,
   type SmartStoreSettlementIssueResponse,
+  type SmartStoreSettlementSyncResponse,
 } from "@/generated/api/adminOperations";
 import { adminHeaders } from "@/shared/api";
 
@@ -33,4 +35,15 @@ export function fetchPaymentSettlementIssues(
   adminKey: string,
 ): Promise<PaymentSettlementIssueResponse[]> {
   return listPaymentSettlementIssues({ headers: adminHeaders(adminKey) });
+}
+
+export function synchronizeSmartStoreSettlementRange(
+  adminKey: string,
+  from: string,
+  to: string,
+): Promise<SmartStoreSettlementSyncResponse> {
+  return synchronizeSmartStoreSettlements(
+    { from, to },
+    { headers: adminHeaders(adminKey) },
+  );
 }

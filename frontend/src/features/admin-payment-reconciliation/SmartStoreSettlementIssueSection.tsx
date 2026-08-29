@@ -1,9 +1,12 @@
-import { Table } from "react-bootstrap";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Alert, Button, Form, Table } from "react-bootstrap";
 import type { SmartStoreSettlementIssueResponse } from "@/generated/api/adminOperations";
-import { fetchSmartStoreSettlementIssues } from "./api";
+import { fetchSmartStoreSettlementIssues, synchronizeSmartStoreSettlementRange } from "./api";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 interface Props {
@@ -12,10 +15,21 @@ interface Props {
 }
 
 export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Props) {
+  const queryClient = useQueryClient();
+  const [from, setFrom] = useState(shiftDate(-6));
+  const [to, setTo] = useState(shiftDate(0));
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-settlements", "issues"],
     queryFn: () => fetchSmartStoreSettlementIssues(adminKey),
     refetchInterval: 60_000,
+  });
+  const synchronize = useAdminMutation(onAuthError, {
+    mutationFn: () => synchronizeSmartStoreSettlementRange(adminKey, from, to),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "smartstore-settlements", "issues"],
+      });
+    },
   });
 
   if (query.isLoading) return <LoadingSpinner />;
@@ -23,11 +37,28 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
     if (query.error instanceof ApiError && query.error.status === 401) return null;
     return <ErrorAlert error={query.error} />;
   }
-  if (!query.data?.length) {
-    return <EmptyState message="스마트스토어 주문과 다른 정산 내역이 없습니다." />;
-  }
-
-  return <Table responsive hover size="sm" className="align-middle">
+  return <>
+    <Form className="d-flex flex-wrap align-items-end gap-2 mb-3" onSubmit={(event) => {
+      event.preventDefault();
+      synchronize.mutate();
+    }}>
+      <Form.Group><Form.Label className="small">시작일</Form.Label>
+        <Form.Control type="date" required value={from} onChange={(event) => setFrom(event.target.value)} />
+      </Form.Group>
+      <Form.Group><Form.Label className="small">종료일</Form.Label>
+        <Form.Control type="date" required value={to} onChange={(event) => setTo(event.target.value)} />
+      </Form.Group>
+      <Button type="submit" variant="outline-primary" disabled={synchronize.isPending || from > to}>
+        {synchronize.isPending ? "조회 중..." : "기간 다시 조회"}
+      </Button>
+    </Form>
+    <ErrorAlert error={synchronize.error} />
+    {synchronize.data && <Alert variant={synchronize.data.issueCount ? "warning" : "success"}>
+      정상 {synchronize.data.successCount}건, 확인 필요 {synchronize.data.issueCount}건을 반영했습니다.
+    </Alert>}
+    {!query.data?.length ? (
+      <EmptyState message="스마트스토어 주문과 다른 정산 내역이 없습니다." />
+    ) : <Table responsive hover size="sm" className="align-middle">
     <thead>
       <tr>
         <th>상품 주문 번호</th>
@@ -51,7 +82,17 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
         <td className="small">{formatDateTime(entry.fetchedAt)}</td>
       </tr>)}
     </tbody>
-  </Table>;
+    </Table>}
+  </>;
+}
+
+function shiftDate(days: number): string {
+  const value = new Date();
+  value.setDate(value.getDate() + days);
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function settlementStatusLabel(status: SmartStoreSettlementIssueResponse["status"]): string {
