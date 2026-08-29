@@ -65,6 +65,7 @@ public class SecurityConfig {
             CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH,
             CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH,
             "/api/v1/policies/current",
+            "/api/v1/addresses/search",
             "/api/v1/payments/{orderId}",
             "/api/v1/payments/pass-policy",
             "/api/v1/bookings/{bookingId}",
@@ -248,6 +249,7 @@ public class SecurityConfig {
                                 "/api/v1/payments/confirm",
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
                                 "/api/v1/webhooks/delivery-tracking",
+                                "/api/v1/webhooks/toss-payments",
                                 "/api/v1/guest-records/recovery",
                                 "/api/v1/guest-records/payment-status-recovery",
                                 "/api/v1/bookings/phone-verifications",
@@ -281,7 +283,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf
                         .spa()
                         .csrfTokenRepository(csrfTokenRepository)
-                        .ignoringRequestMatchers(endpoint("/api/v1/webhooks/delivery-tracking")))
+                        .ignoringRequestMatchers(
+                                endpoint("/api/v1/webhooks/delivery-tracking"),
+                                endpoint("/api/v1/webhooks/toss-payments")))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(endpoint -> endpoint
                                 .baseUri(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)

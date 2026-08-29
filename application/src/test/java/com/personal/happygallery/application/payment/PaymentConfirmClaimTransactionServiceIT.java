@@ -71,11 +71,11 @@ class PaymentConfirmClaimTransactionServiceIT {
                     first.attemptId(), first.processingToken(), "늦게 도착한 실패", true,
                     first.priorPgCallPossible())).isFalse();
             softly.assertThat(claimTransactionService.tryMarkApproved(
-                    first.attemptId(), first.processingToken(), "confirmed-payment-key")).isFalse();
+                    first.attemptId(), first.processingToken(), "confirmed-payment-key", "CARD")).isFalse();
         });
 
         assertThat(claimTransactionService.tryMarkApproved(
-                second.attemptId(), second.processingToken(), "confirmed-payment-key")).isTrue();
+                second.attemptId(), second.processingToken(), "confirmed-payment-key", "CARD")).isTrue();
         assertThat(attemptReader.findByOrderIdExternal(prepared.orderId()))
                 .hasValueSatisfying(attempt -> assertSoftly(softly -> {
                     softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
@@ -135,7 +135,7 @@ class PaymentConfirmClaimTransactionServiceIT {
                 });
 
         ReadyForFulfillment reconciled = (ReadyForFulfillment)
-                claimTransactionService.reconcileLatePgApproval(command, "confirmed-payment-key");
+                claimTransactionService.reconcileLatePgApproval(command, "confirmed-payment-key", "CARD");
 
         assertSoftly(softly -> {
             softly.assertThat(reconciled.attemptId()).isEqualTo(first.attemptId());

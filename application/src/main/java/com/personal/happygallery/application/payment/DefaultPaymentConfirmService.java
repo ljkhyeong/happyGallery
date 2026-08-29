@@ -68,7 +68,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                 case ZeroAmountApprovalRequired required -> {
                     log.debug("amount=0 결제 — PG 호출 생략 [orderId={}]", required.orderId());
                     if (claimTransactionService.tryMarkApproved(
-                            required.attemptId(), required.processingToken(), null)) {
+                            required.attemptId(), required.processingToken(), null, null)) {
                         return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), 0L, null));
                     }
@@ -111,19 +111,23 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     }
 
                     String confirmedPaymentKey = pg.paymentKey();
+                    String confirmedPaymentMethod = pg.method();
                     boolean approved;
                     try {
                         approved = claimTransactionService.tryMarkApproved(
-                                required.attemptId(), required.processingToken(), confirmedPaymentKey);
+                                required.attemptId(), required.processingToken(),
+                                confirmedPaymentKey, confirmedPaymentMethod);
                     } catch (RuntimeException approvalFailure) {
-                        compensateUnpersistedApproval(required, confirmedPaymentKey, approvalFailure);
+                        compensateUnpersistedApproval(
+                                required, confirmedPaymentKey, confirmedPaymentMethod, approvalFailure);
                         throw approvalFailure;
                     }
                     if (approved) {
                         return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), required.amount(), confirmedPaymentKey));
                     }
-                    step = claimTransactionService.reconcileLatePgApproval(command, confirmedPaymentKey);
+                    step = claimTransactionService.reconcileLatePgApproval(
+                            command, confirmedPaymentKey, confirmedPaymentMethod);
                 }
             }
         }
@@ -152,10 +156,12 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
     private void compensateUnpersistedApproval(
             PgConfirmationRequired required,
             String confirmedPaymentKey,
+            String confirmedPaymentMethod,
             RuntimeException originalFailure) {
         try {
             boolean requested = fulfillmentTransactionService.requestCompensationForUnpersistedApproval(
                     required.attemptId(), required.processingToken(), confirmedPaymentKey,
+                    confirmedPaymentMethod,
                     "PG 승인 후 결제 상태 저장에 실패했습니다.");
             if (!requested) {
                 log.warn("stale confirm 결과의 보상 환불 요청을 건너뜁니다 [attemptId={}, orderId={}]",

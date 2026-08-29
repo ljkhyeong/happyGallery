@@ -141,7 +141,8 @@ class PaymentConfirmClaimTransactionService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep reconcileLatePgApproval(ConfirmCommand command,
-                                                     String confirmedPaymentKey) {
+                                                     String confirmedPaymentKey,
+                                                     String confirmedPaymentMethod) {
         PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
@@ -153,7 +154,8 @@ class PaymentConfirmClaimTransactionService {
             attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return readyForFulfillment(attempt);
         }
-        if (!attempt.reconcileLatePgApproval(confirmedPaymentKey, LocalDateTime.now(clock))) {
+        if (!attempt.reconcileLatePgApproval(
+                confirmedPaymentKey, confirmedPaymentMethod, LocalDateTime.now(clock))) {
             throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
         }
         attemptStore.save(attempt);
@@ -163,14 +165,16 @@ class PaymentConfirmClaimTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean tryMarkApproved(Long attemptId,
                                    String processingToken,
-                                   String confirmedPaymentKey) {
+                                   String confirmedPaymentKey,
+                                   String confirmedPaymentMethod) {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED
                 || attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
             attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return true;
         }
-        if (!attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
+        if (!attempt.markApproved(
+                processingToken, confirmedPaymentKey, confirmedPaymentMethod, LocalDateTime.now(clock))) {
             return false;
         }
         attemptStore.save(attempt);

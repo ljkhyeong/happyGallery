@@ -96,6 +96,9 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 4. Toss 멱등키를 요청마다 고정한다
 
+- 브라우저는 Toss의 `CARD` 통합 결제창을 열고 고객이 그 안에서 카드 또는 간편결제를 선택한다. prepare payload의
+  예약 결제수단은 PG 호출 전 표시용 스냅샷일 뿐이며, 승인·조회 응답의 `method`를 `confirmed_payment_method`에 저장해
+  최종 예약 결제수단으로 사용한다.
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 해당 응답을 결제 시도에 귀속할 수 없으므로
   현재 processing token 소유자만 즉시 `RECONCILIATION_REQUIRED`로 전이한다. 동일 응답을 자동 재시도하지 않는다.
@@ -158,6 +161,9 @@ fulfillment의 `VerifiedGuestResolver`는 현재
   분리한다. `DONE`은 저장된 paymentKey·orderId·금액을 모두 대조한 뒤 `APPROVED`와 fulfillment를 재개한다.
   Toss가 `NOT_FOUND_PAYMENT`로 결제 미존재를 명시한 경우에만 `FAILED`로 종결하고 payload를 제거한다.
   다른 404, 조회 실패, 자동 판정할 수 없는 상태는 `RECONCILIATION_REQUIRED`를 유지한다. 자동 복구는 이 상태를 다시 처리하지 않는다.
+- Toss `PAYMENT_STATUS_CHANGED` 웹훅은 `transmission-id` 유일키로 수신 기록하고 알려진 결제 시도에만 연결한다.
+  웹훅 본문을 상태 확정 근거로 쓰지 않으며, 매분 배치가 기존 Toss 조회 대사를 실행한다. 중복 웹훅은 같은 영수증 행에서
+  제거하고 처리 중 중단된 영수증은 1분 뒤 다시 선점한다.
 - confirm을 시작하지 않은 `PENDING`은 30분 유효시간을 둔다. confirm 진입과 만료 배치 모두 행 잠금 아래
   같은 UTC `created_at` 경계를 확인하고, 만료 시 `CANCELED` 전이와 암호화 payload 제거를 먼저 커밋한다. confirm은 payload
   복호화와 PG 호출을 시도하지 않고 `PAYMENT_ATTEMPT_EXPIRED`를 반환하며, 배치는 confirm 요청이 없는 레코드를 일괄 정리한다.

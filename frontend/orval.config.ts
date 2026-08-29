@@ -38,6 +38,9 @@ export default defineConfig({
   paymentQueryApi: generatedApi("./src/generated/api/paymentQuery.ts", [
     "payment-query-controller",
   ]),
+  roadAddressApi: generatedApi("./src/generated/api/roadAddress.ts", [
+    "road-address-controller",
+  ]),
   guestRecordRecoveryApi: generatedApi("./src/generated/api/guestRecordRecovery.ts", [
     "guest-record-recovery-controller",
   ]),

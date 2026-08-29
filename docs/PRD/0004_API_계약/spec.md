@@ -3453,6 +3453,7 @@ Content-Type: application/json
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
+  - 브라우저는 Toss `CARD` 통합 결제창을 열며 고객은 그 안에서 카드 또는 간편결제를 선택한다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - 비회원 주문·예약 fulfillment는 내부 proof의 HMAC을 현재 또는 이전 게스트 토큰 키로 검증하고, proof의 context·orderId·정규화 전화번호가 현재 `PaymentAttempt` 및 저장 payload와 모두 일치할 때만 Guest와 도메인을 생성한다. 원 인증 코드가 prepare 뒤 만료되어도 이미 소비된 결제 귀속 증거는 해당 결제 시도에서 유효하다.
@@ -3545,6 +3546,25 @@ GET /api/v1/payments/pass-policy
 
 - 프론트는 결제 전에 서버 설정 가격, 이용 횟수와 기간을 표시한다.
 - 표시값을 결제 요청 금액으로 신뢰하지 않는다. 최종 금액은 prepare가 현재 서버 설정으로 다시 확정한다.
+
+#### 2.15.6 Toss 결제 상태 웹훅
+
+```http
+POST /api/v1/webhooks/toss-payments
+tosspayments-webhook-transmission-id: {전송 식별자}
+Content-Type: application/json
+
+{
+  "eventType": "PAYMENT_STATUS_CHANGED",
+  "data": { "orderId": "pay_20260501_0001" }
+}
+```
+
+- `operationId`: `receiveTossPaymentWebhook`
+- 성공과 이미 수신한 전송: `200 OK`
+- `PAYMENT_STATUS_CHANGED`인 알려진 `orderId`만 전송 식별자 유일키로 저장한다.
+- 웹훅 본문만으로 결제를 확정하지 않는다. 배치가 저장된 결제 시도 ID로 기존 PG 조회 대사를 실행한다.
+- Toss가 같은 전송 식별자를 재전송해도 대사 요청은 한 건만 유지한다.
 
 ---
 
@@ -3676,6 +3696,27 @@ Content-Type: application/json
   두 충돌 모두 `409 CONFLICT`를 반환한다.
 - 기존 네이버톡톡 사용 여부 불리언 필드는 제거하고 `naverTalkUrl`로 대체한다. 네이버톡톡 문의 제공 여부는 `naverTalkUrl` 값의 존재로 판단하며, 클라이언트는 응답 URL을 그대로 링크에 사용한다.
 - 기준 프로필은 제공된 대표자명, 전자우편주소와 통신판매업 신고번호를 저장한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
+- 관리자 공방 주소와 주문 배송지는 아래 도로명주소 검색 결과의 `postalCode`, `roadAddress`를 적용하거나 직접 입력할 수 있다.
+
+```http
+GET /api/v1/addresses/search?keyword=계명대로%20161
+```
+
+```json
+[
+  {
+    "postalCode": "27360",
+    "roadAddress": "충청북도 충주시 계명대로 161",
+    "jibunAddress": "충청북도 충주시 연수동 1615",
+    "buildingName": "해피갤러리"
+  }
+]
+```
+
+- `operationId`: `searchRoadAddresses`
+- 인증 없이 조회하며 `keyword`는 2~100자다. 최대 10건을 반환한다.
+- 연동 비활성·외부 장애: `503 SERVICE_UNAVAILABLE`. 프런트는 기존 직접 입력을 유지한다.
+- 승인키는 백엔드에만 저장하고 브라우저가 공식 주소 API를 직접 호출하지 않는다.
 
 #### 2.19.2 이미지 업로드·조회
 

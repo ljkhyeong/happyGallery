@@ -26,18 +26,38 @@ class PaymentAttemptPolicyTest {
         LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
         String processingToken = attempt.startProcessing(10_000L, "payment-key", processingAt);
-        attempt.markApproved(processingToken, "confirmed-payment-key", approvedAt);
+        attempt.markApproved(processingToken, "confirmed-payment-key", "CARD", approvedAt);
         attempt.markConfirmed(12L, "encrypted-access-token");
 
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.CONFIRMED);
             softly.assertThat(attempt.getPaymentKey()).isEqualTo("payment-key");
             softly.assertThat(attempt.getConfirmedPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(attempt.getConfirmedPaymentMethod()).isEqualTo("CARD");
             softly.assertThat(attempt.getFulfilledDomainId()).isEqualTo(12L);
             softly.assertThat(attempt.getFulfilledAccessTokenEnc()).isEqualTo("encrypted-access-token");
             softly.assertThat(attempt.getProcessingAt()).isEqualTo(processingAt);
             softly.assertThat(attempt.getConfirmedAt()).isEqualTo(approvedAt);
         });
+    }
+
+    @DisplayName("유료 결제 승인은 PG가 확정한 결제수단을 요구한다")
+    @Test
+    void paidApproval_requiresConfirmedPaymentMethod() {
+        PaymentAttempt attempt = PaymentAttempt.startForMember(
+                "order-id", PaymentContext.BOOKING, 10_000L, "{}", 1L);
+        String processingToken = attempt.startProcessing(
+                10_000L, "payment-key", LocalDateTime.of(2026, 4, 23, 10, 0));
+
+        assertThatThrownBy(() -> attempt.markApproved(
+                processingToken,
+                "confirmed-payment-key",
+                null,
+                LocalDateTime.of(2026, 4, 23, 10, 1)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
+                    assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+                    assertThat(exception.getMessage()).isEqualTo("PG 승인 결과의 결제수단이 누락되었습니다.");
+                });
     }
 
     @DisplayName("승인된 결제의 후속 처리는 저장된 PG 결제 키와 같은 요청만 허용한다")
@@ -50,6 +70,7 @@ class PaymentAttemptPolicyTest {
         attempt.markApproved(
                 processingToken,
                 "confirmed-payment-key",
+                "CARD",
                 LocalDateTime.of(2026, 4, 23, 10, 1));
 
         attempt.requireMatchingConfirmedPaymentKey("confirmed-payment-key");
@@ -118,13 +139,15 @@ class PaymentAttemptPolicyTest {
             softly.assertThat(secondToken).isNotEqualTo(firstToken);
             softly.assertThat(attempt.markRetryable(firstToken, "늦게 도착한 실패")).isFalse();
             softly.assertThat(attempt.markApproved(
-                    firstToken, "confirmed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isFalse();
+                    firstToken, "confirmed-payment-key", "CARD",
+                    LocalDateTime.of(2026, 7, 19, 10, 3))).isFalse();
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PROCESSING);
             softly.assertThat(attempt.getProcessingToken()).isEqualTo(secondToken);
         });
 
         assertThat(attempt.markApproved(
-                secondToken, "confirmed-payment-key", LocalDateTime.of(2026, 7, 19, 10, 4))).isTrue();
+                secondToken, "confirmed-payment-key", "CARD",
+                LocalDateTime.of(2026, 7, 19, 10, 4))).isTrue();
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(attempt.getProcessingToken()).isNull();
@@ -152,11 +175,13 @@ class PaymentAttemptPolicyTest {
 
         assertSoftly(softly -> {
             softly.assertThat(retryable.reconcileLatePgApproval(
-                    "retryable-confirmed-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
+                    "retryable-confirmed-key", "CARD",
+                    LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
             softly.assertThat(retryable.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(retryable.getConfirmedPaymentKey()).isEqualTo("retryable-confirmed-key");
             softly.assertThat(failed.reconcileLatePgApproval(
-                    "failed-confirmed-key", LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
+                    "failed-confirmed-key", "CARD",
+                    LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
             softly.assertThat(failed.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(failed.getConfirmedPaymentKey()).isEqualTo("failed-confirmed-key");
         });
@@ -183,17 +208,17 @@ class PaymentAttemptPolicyTest {
                 "stale-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String staleToken = staleApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
-        staleApproved.markApproved(staleToken, "confirmed-key", boundary);
+        staleApproved.markApproved(staleToken, "confirmed-key", "CARD", boundary);
         PaymentAttempt freshApproved = PaymentAttempt.startForMember(
                 "fresh-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String freshToken = freshApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
-        freshApproved.markApproved(freshToken, "confirmed-key", boundary.plusNanos(1));
+        freshApproved.markApproved(freshToken, "confirmed-key", "CARD", boundary.plusNanos(1));
 
         PaymentAttempt confirmed = PaymentAttempt.startForMember(
                 "confirmed", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String confirmedToken = confirmed.startProcessing(10_000L, "confirmed-key", boundary.minusMinutes(10));
-        confirmed.markApproved(confirmedToken, "confirmed-key", boundary.minusMinutes(5));
+        confirmed.markApproved(confirmedToken, "confirmed-key", "CARD", boundary.minusMinutes(5));
         confirmed.markConfirmed(1L, null);
         PaymentAttempt zeroAmount = PaymentAttempt.startForMember(
                 "zero-amount", PaymentContext.BOOKING, 0L, "{}", 1L);

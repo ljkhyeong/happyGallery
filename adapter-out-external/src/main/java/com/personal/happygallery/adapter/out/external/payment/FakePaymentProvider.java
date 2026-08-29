@@ -36,10 +36,10 @@ public class FakePaymentProvider implements PaymentPort {
 
     @Override
     public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
-        confirmedPayments.put(orderId, PaymentLookupResult.approved(paymentKey, orderId, amount));
+        confirmedPayments.put(orderId, PaymentLookupResult.approved(paymentKey, orderId, amount, "CARD"));
         return PaymentConfirmResult.success(
                 paymentKey,
-                "FAKE_PG",
+                "CARD",
                 OffsetDateTime.now(clock).toString());
     }
 

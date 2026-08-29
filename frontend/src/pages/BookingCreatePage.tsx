@@ -39,7 +39,6 @@ interface BookingDraft {
   selectedSlot: PublicSlotResponse;
   selectedClass: ClassResponse | null;
   paymentPath: PaymentPath;
-  paymentMethod: DepositPaymentMethod;
   participantCount: number;
   passId: string;
   passFallbackAccepted: boolean;
@@ -128,9 +127,7 @@ function BookingCreateContent({
   const [paymentPath, setPaymentPath] = useState<PaymentPath>(
     () => resumeDraft?.paymentPath ?? "deposit",
   );
-  const [paymentMethod, setPaymentMethod] = useState<DepositPaymentMethod>(
-    () => resumeDraft?.paymentMethod ?? "CARD",
-  );
+  const paymentMethod: DepositPaymentMethod = "CARD";
   const [participantCount, setParticipantCount] = useState(
     () => resumeDraft?.participantCount ?? 1,
   );
@@ -345,7 +342,6 @@ function BookingCreateContent({
         selectedSlot,
         selectedClass,
         paymentPath,
-        paymentMethod,
         participantCount,
         passId,
         passFallbackAccepted,
@@ -451,19 +447,10 @@ function BookingCreateContent({
             {paymentPath === "deposit" ? (
               <Row className="g-2 mb-3">
                 <Col xs={12}>
-                  <Form.Group controlId="booking-method">
-                    <Form.Label>결제 수단</Form.Label>
-                    <Form.Select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as DepositPaymentMethod)}
-                    >
-                      <option value="CARD">카드</option>
-                      <option value="EASY_PAY">간편결제</option>
-                    </Form.Select>
-                    <Form.Text className="text-muted">
-                      결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
-                    </Form.Text>
-                  </Form.Group>
+                  <p className="small text-muted mb-0">
+                    토스 결제창에서 카드 또는 네이버페이·카카오페이 등 간편결제를 선택할 수 있습니다.
+                    결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
+                  </p>
                 </Col>
                 {selectedClass && (
                   <Col xs={12}>

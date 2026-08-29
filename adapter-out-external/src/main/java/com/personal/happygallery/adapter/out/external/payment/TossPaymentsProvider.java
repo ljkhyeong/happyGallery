@@ -105,7 +105,7 @@ public class TossPaymentsProvider implements PaymentPort {
             }
             return switch (response.status()) {
                 case "DONE" -> PaymentLookupResult.approved(
-                        response.paymentKey(), response.orderId(), response.totalAmount());
+                        response.paymentKey(), response.orderId(), response.totalAmount(), response.method());
                 case "CANCELED", "ABORTED", "EXPIRED" -> PaymentLookupResult.notApproved(
                         orderId, "PG 결제가 승인되지 않았거나 이미 전액 취소되었습니다.");
                 default -> PaymentLookupResult.reviewRequired(
@@ -177,7 +177,8 @@ public class TossPaymentsProvider implements PaymentPort {
 
     private record ConfirmResponse(String paymentKey, String orderId, String method, String approvedAt) {}
 
-    private record LookupResponse(String paymentKey, String orderId, String status, long totalAmount) {}
+    private record LookupResponse(
+            String paymentKey, String orderId, String status, long totalAmount, String method) {}
 
     private record RefundRequest(String cancelReason, long cancelAmount) {}
 

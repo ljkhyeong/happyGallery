@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.github.usingsky.calendar.KoreanLunarCalendar;
+import com.personal.happygallery.application.booking.port.out.PublicHolidaySnapshotPort;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,14 +13,28 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 
-/** 한국천문연구원 기준 음양력 변환과 현행 공휴일 규정으로 대한민국 공휴일을 계산한다. */
+/** 공식 공휴일 스냅샷을 우선 사용하고, 스냅샷이 없을 때만 내장 규칙으로 계산한다. */
 @Component
 class KoreanPublicHolidayPolicy {
 
+    private final PublicHolidaySnapshotPort snapshotPort;
     private final Map<Integer, Set<LocalDate>> holidaysByYear = new ConcurrentHashMap<>();
 
+    KoreanPublicHolidayPolicy(PublicHolidaySnapshotPort snapshotPort) {
+        this.snapshotPort = snapshotPort;
+    }
+
     boolean isPublicHoliday(LocalDate date) {
-        return holidaysByYear.computeIfAbsent(date.getYear(), this::calculate).contains(date);
+        return holidaysByYear.computeIfAbsent(date.getYear(), this::load).contains(date);
+    }
+
+    void evict(int year) {
+        holidaysByYear.remove(year);
+    }
+
+    private Set<LocalDate> load(int year) {
+        Set<LocalDate> officialDates = snapshotPort.findDatesByYear(year);
+        return officialDates.isEmpty() ? calculate(year) : Set.copyOf(officialDates);
     }
 
     private Set<LocalDate> calculate(int year) {

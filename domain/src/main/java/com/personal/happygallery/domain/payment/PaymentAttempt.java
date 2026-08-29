@@ -62,6 +62,9 @@ public class PaymentAttempt {
     @Column(name = "confirmed_payment_key", length = 200)
     private String confirmedPaymentKey;
 
+    @Column(name = "confirmed_payment_method", length = 30)
+    private String confirmedPaymentMethod;
+
     @Column(name = "fail_reason", length = 500)
     private String failReason;
 
@@ -196,11 +199,12 @@ public class PaymentAttempt {
     /** PG 승인 또는 amount=0 내부 승인이 끝나 도메인 생성을 수행할 수 있다. */
     public boolean markApproved(String expectedProcessingToken,
                                 String confirmedPaymentKey,
+                                String confirmedPaymentMethod,
                                 LocalDateTime approvedAt) {
         if (!ownsProcessing(expectedProcessingToken)) {
             return false;
         }
-        applyApproval(confirmedPaymentKey, approvedAt);
+        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, approvedAt);
         return true;
     }
 
@@ -209,27 +213,35 @@ public class PaymentAttempt {
      * 실패 결과와 달리 외부 승인은 이미 성립한 사실이므로, 새 실행이 처리 중이거나 실패로 끝났어도
      * 도메인 생성 전 APPROVED로 단조 전이한다.
      */
-    public boolean reconcileLatePgApproval(String confirmedPaymentKey, LocalDateTime approvedAt) {
+    public boolean reconcileLatePgApproval(String confirmedPaymentKey,
+                                           String confirmedPaymentMethod,
+                                           LocalDateTime approvedAt) {
         if (status != PaymentAttemptStatus.PROCESSING
                 && status != PaymentAttemptStatus.RETRYABLE
                 && status != PaymentAttemptStatus.FAILED
                 && status != PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
             return false;
         }
-        applyApproval(confirmedPaymentKey, approvedAt);
+        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, approvedAt);
         return true;
     }
 
-    private void applyApproval(String confirmedPaymentKey, LocalDateTime approvedAt) {
+    private void applyApproval(String confirmedPaymentKey,
+                               String confirmedPaymentMethod,
+                               LocalDateTime approvedAt) {
         boolean hasConfirmedPaymentKey = confirmedPaymentKey != null && !confirmedPaymentKey.isBlank();
         if (amount > 0 && !hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 paymentKey가 누락되었습니다.");
+        }
+        if (amount > 0 && (confirmedPaymentMethod == null || confirmedPaymentMethod.isBlank())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "PG 승인 결과의 결제수단이 누락되었습니다.");
         }
         if (amount == 0 && hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "0원 결제에는 PG 승인 키를 저장할 수 없습니다.");
         }
         this.status = PaymentAttemptStatus.APPROVED;
         this.confirmedPaymentKey = confirmedPaymentKey;
+        this.confirmedPaymentMethod = confirmedPaymentMethod;
         this.confirmedAt = approvedAt;
         this.processingToken = null;
     }
@@ -415,6 +427,7 @@ public class PaymentAttempt {
     public PaymentAttemptStatus getStatus() { return status; }
     public String getPaymentKey() { return paymentKey; }
     public String getConfirmedPaymentKey() { return confirmedPaymentKey; }
+    public String getConfirmedPaymentMethod() { return confirmedPaymentMethod; }
     public String getFailReason() { return failReason; }
     public String getPayloadEnc() { return payloadEnc; }
     public Long getFulfilledDomainId() { return fulfilledDomainId; }

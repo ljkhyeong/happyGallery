@@ -4518,6 +4518,17 @@
         "required" : [ "currentPassword" ],
         "type" : "object"
       },
+      "PaymentData" : {
+        "properties" : {
+          "orderId" : {
+            "maxLength" : 64,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "orderId" ],
+        "type" : "object"
+      },
       "PaymentPayload" : {
         "discriminator" : {
           "mapping" : {
@@ -6041,6 +6052,24 @@
         "required" : [ "availableBalance", "debtBalance", "history", "reservedBalance" ],
         "type" : "object"
       },
+      "RoadAddressResponse" : {
+        "properties" : {
+          "buildingName" : {
+            "type" : "string"
+          },
+          "jibunAddress" : {
+            "type" : "string"
+          },
+          "postalCode" : {
+            "type" : "string"
+          },
+          "roadAddress" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "buildingName", "jibunAddress", "postalCode", "roadAddress" ],
+        "type" : "object"
+      },
       "SendEmailVerificationRequest" : {
         "properties" : {
           "email" : {
@@ -6347,6 +6376,20 @@
           }
         },
         "required" : [ "productId", "productName", "productType", "totalQuantity", "totalRevenue" ],
+        "type" : "object"
+      },
+      "TossPaymentWebhookRequest" : {
+        "properties" : {
+          "data" : {
+            "$ref" : "#/components/schemas/PaymentData"
+          },
+          "eventType" : {
+            "maxLength" : 50,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "data", "eventType" ],
         "type" : "object"
       },
       "TrackingData" : {
@@ -7091,6 +7134,37 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
+    "/api/v1/addresses/search" : {
+      "get" : {
+        "operationId" : "searchRoadAddresses",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "keyword",
+          "required" : true,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 2,
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RoadAddressResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "road-address-controller" ]
+      }
+    },
     "/api/v1/admin/auth/login" : {
       "post" : {
         "operationId" : "adminLogin",
@@ -14355,6 +14429,38 @@
         },
         "summary" : "택배 배송현황 웹훅 수신",
         "tags" : [ "delivery-tracking-webhook-controller" ]
+      }
+    },
+    "/api/v1/webhooks/toss-payments" : {
+      "post" : {
+        "operationId" : "receiveTossPaymentWebhook",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "tosspayments-webhook-transmission-id",
+          "required" : true,
+          "schema" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/TossPaymentWebhookRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          }
+        },
+        "summary" : "토스 결제 상태 웹훅 수신",
+        "tags" : [ "toss-payment-webhook-controller" ]
       }
     },
     "/api/v1/workshop" : {

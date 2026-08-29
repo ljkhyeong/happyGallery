@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.adapter.in.web.address.RoadAddressController;
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
 import com.personal.happygallery.adapter.in.web.booking.BookingVacancyAlertController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
@@ -16,6 +17,8 @@ import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
 import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.workshop.WorkshopProfileController;
+import com.personal.happygallery.adapter.in.web.webhook.TossPaymentWebhookController;
+import com.personal.happygallery.application.address.port.in.RoadAddressSearchUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingVacancyAlertUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
@@ -33,6 +36,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentWebhookUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase.CustomerPaymentStatus;
 import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.product.ProductFilter;
@@ -107,6 +111,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private GuestRecordRecoveryUseCase guestRecordRecoveryUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
     private WorkshopProfileUseCase workshopProfileUseCase;
+    private RoadAddressSearchUseCase roadAddressSearchUseCase;
+    private PaymentWebhookUseCase paymentWebhookUseCase;
 
     @BeforeEach
     void setUp(RestDocumentationContextProvider restDocumentation) {
@@ -131,6 +137,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         guestRecordRecoveryUseCase = mock(GuestRecordRecoveryUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
+        roadAddressSearchUseCase = mock(RoadAddressSearchUseCase.class);
+        paymentWebhookUseCase = mock(PaymentWebhookUseCase.class);
 
         ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
@@ -261,6 +269,12 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 "https://smartstore.naver.com/happygallery",
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
+        when(roadAddressSearchUseCase.search("계명대로 161")).thenReturn(List.of(
+                new RoadAddressSearchUseCase.RoadAddress(
+                        "27360",
+                        "충청북도 충주시 계명대로 161",
+                        "충청북도 충주시 연수동 1615",
+                        "해피갤러리")));
 
         mockMvc = mockMvc(restDocumentation,
                 new ProductController(productQueryUseCase),
@@ -278,9 +292,37 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
                 new NoticeController(noticeQueryUseCase),
                 new WorkshopProfileController(workshopProfileUseCase),
+                new RoadAddressController(roadAddressSearchUseCase),
+                new TossPaymentWebhookController(paymentWebhookUseCase),
                 new GuestRecordRecoveryController(
                         guestRecordRecoveryUseCase, paymentStatusRecoveryUseCase, rateLimitGuard),
                 new ClientMonitoringController(clientMonitoringUseCase));
+    }
+
+    @Test
+    @DisplayName("도로명주소 검색 API를 문서화한다")
+    void search_road_addresses() throws Exception {
+        mockMvc.perform(get("/api/v1/addresses/search")
+                        .param("keyword", "계명대로 161"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].postalCode").value("27360"));
+    }
+
+    @Test
+    @DisplayName("토스 결제 상태 웹훅 수신 API를 문서화한다")
+    void receive_toss_payment_webhook() throws Exception {
+        mockMvc.perform(post("/api/v1/webhooks/toss-payments")
+                        .header("tosspayments-webhook-transmission-id", "tx-20260501-0001")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventType": "PAYMENT_STATUS_CHANGED",
+                                  "data": {
+                                    "orderId": "pay_20260501_0001"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
     }
 
     @Test

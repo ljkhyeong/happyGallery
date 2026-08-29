@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Col, Form, Row } from "react-bootstrap";
+import { Alert, Button, Col, Form, InputGroup, Row } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminWorkshopProfile, updateWorkshopProfile } from "@/features/workshop/api";
 import { ApiError } from "@/shared/api";
@@ -8,6 +8,7 @@ import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 
 interface Props {
   adminKey: string;
@@ -264,7 +265,16 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
         <Col md={3}>
           <Form.Group controlId="admin-workshop-postal-code">
             <Form.Label>우편번호</Form.Label>
-            <Form.Control value={form.postalCode} maxLength={20} onChange={(e) => update("postalCode", e.target.value)} />
+            <InputGroup>
+              <Form.Control value={form.postalCode} maxLength={20} onChange={(e) => update("postalCode", e.target.value)} />
+              <RoadAddressSearchButton onSelect={(address) => {
+                setForm((current) => ({
+                  ...current,
+                  postalCode: address.postalCode,
+                  addressLine1: address.roadAddress,
+                }));
+              }} />
+            </InputGroup>
           </Form.Group>
         </Col>
         <Col md={5}>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Button, ButtonGroup, Col, Form, Row } from "react-bootstrap";
+import { Button, ButtonGroup, Col, Form, InputGroup, Row } from "react-bootstrap";
 import type { FulfillmentType, ShippingAddress } from "@/features/payment";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { formatKRW } from "@/shared/lib";
 import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
+import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 
 export interface FulfillmentSelection {
   fulfillmentType: FulfillmentType | null;
@@ -185,12 +186,24 @@ export function FulfillmentForm({ value, onChange }: Props) {
           <Col sm={4}>
             <Form.Group controlId="shipping-postal-code">
               <Form.Label>우편번호</Form.Label>
-              <Form.Control
-                inputMode="numeric"
-                maxLength={5}
-                value={value.shippingAddress.postalCode}
-                onChange={(event) => updateAddress("postalCode", event.target.value.replace(/\D/g, ""))}
-              />
+              <InputGroup>
+                <Form.Control
+                  inputMode="numeric"
+                  maxLength={5}
+                  value={value.shippingAddress.postalCode}
+                  onChange={(event) => updateAddress("postalCode", event.target.value.replace(/\D/g, ""))}
+                />
+                <RoadAddressSearchButton onSelect={(address) => {
+                  onChange({
+                    ...value,
+                    shippingAddress: {
+                      ...value.shippingAddress,
+                      postalCode: address.postalCode,
+                      addressLine1: address.roadAddress,
+                    },
+                  });
+                }} />
+              </InputGroup>
             </Form.Group>
           </Col>
           <Col sm={8}>

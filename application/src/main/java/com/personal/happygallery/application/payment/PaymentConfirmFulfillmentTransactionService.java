@@ -68,10 +68,13 @@ class PaymentConfirmFulfillmentTransactionService {
     public boolean requestCompensationForUnpersistedApproval(Long attemptId,
                                                              String processingToken,
                                                              String confirmedPaymentKey,
+                                                             String confirmedPaymentMethod,
                                                              String reason) {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() != PaymentAttemptStatus.PROCESSING
-                || !attempt.markApproved(processingToken, confirmedPaymentKey, LocalDateTime.now(clock))) {
+                || !attempt.markApproved(
+                        processingToken, confirmedPaymentKey,
+                        confirmedPaymentMethod, LocalDateTime.now(clock))) {
             return false;
         }
         requestCompensation(attempt, confirmedPaymentKey, reason);

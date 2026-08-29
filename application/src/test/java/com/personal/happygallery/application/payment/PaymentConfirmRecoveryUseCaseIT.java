@@ -256,7 +256,7 @@ class PaymentConfirmRecoveryUseCaseIT {
         recoveryUseCase.recoverIncompleteConfirms();
         when(paymentProvider.lookupByOrderId(prepared.orderId())).thenReturn(
                 PaymentLookupResult.approved(
-                        "reconciliation-approved-key", prepared.orderId(), prepared.amount()));
+                        "reconciliation-approved-key", prepared.orderId(), prepared.amount(), "CARD"));
 
         PaymentReconciliationAdminUseCase.ReconciliationResult result =
                 reconciliationAdminUseCase.reconcile(first.attemptId());
@@ -560,7 +560,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     private Long approve(PreparedPayment prepared, String paymentKey) {
         PgConfirmationRequired required = beginConfirm(prepared, paymentKey);
         assertThat(claimTransactionService.tryMarkApproved(
-                required.attemptId(), required.processingToken(), "confirmed-payment-key")).isTrue();
+                required.attemptId(), required.processingToken(), "confirmed-payment-key", "CARD")).isTrue();
         return required.attemptId();
     }
 

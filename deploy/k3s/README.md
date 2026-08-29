@@ -90,6 +90,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - `ENCRYPT_KEY`, `HMAC_KEY`: 각각 별도로 `openssl rand -hex 32`
 - DB/Redis/guest token 비밀값: 서로 재사용하지 않은 충분히 긴 암호학적 난수
 - Toss, Google, Naver, Kakao, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
+- 도로명주소·공휴일: 공식 승인키를 설정한 뒤에만 각각 `ROAD_ADDRESS_ENABLED=true`, `PUBLIC_HOLIDAY_ENABLED=true`로 전환
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.

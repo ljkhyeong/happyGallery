@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.batch;
 
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
+import com.personal.happygallery.application.booking.port.in.PublicHolidaySyncUseCase;
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
@@ -8,6 +9,7 @@ import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegis
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentWebhookBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.domain.time.Clocks;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,7 +28,9 @@ import org.springframework.stereotype.Component;
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
  *   <li>매분 25초: 외부 배송조회 서비스 운송장 등록</li>
+ *   <li>매분 35초: 결제 상태 웹훅 처리</li>
  *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
+ *   <li>매월 1일 04:20: 공식 공휴일 연도별 스냅샷 동기화</li>
  *   <li>매일 03:30: 보존 기간이 지난 결제·휴대폰 인증 개인정보 정리</li>
  * </ul>
  */
@@ -43,6 +47,8 @@ public class BatchScheduler {
     private final PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase;
     private final PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase;
     private final ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
+    private final PaymentWebhookBatchUseCase paymentWebhookBatchUseCase;
+    private final PublicHolidaySyncUseCase publicHolidaySyncUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
@@ -53,7 +59,9 @@ public class BatchScheduler {
                           PaymentConfirmRecoveryUseCase paymentConfirmRecoveryUseCase,
                           PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase,
                           PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase,
-                          ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase) {
+                          ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase,
+                          PaymentWebhookBatchUseCase paymentWebhookBatchUseCase,
+                          PublicHolidaySyncUseCase publicHolidaySyncUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
         this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
@@ -64,6 +72,8 @@ public class BatchScheduler {
         this.paymentAttemptExpiryBatchUseCase = paymentAttemptExpiryBatchUseCase;
         this.personalDataRetentionBatchUseCase = personalDataRetentionBatchUseCase;
         this.shipmentTrackingRegistrationUseCase = shipmentTrackingRegistrationUseCase;
+        this.paymentWebhookBatchUseCase = paymentWebhookBatchUseCase;
+        this.publicHolidaySyncUseCase = publicHolidaySyncUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
@@ -141,6 +151,20 @@ public class BatchScheduler {
     @Scheduled(cron = "25 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runShipmentTrackingRegistration() {
         return shipmentTrackingRegistrationUseCase.registerPendingShipments();
+    }
+
+    /** Toss 결제 상태 변경 웹훅을 기존 PG 대사 흐름으로 처리한다. 매분 35초에 실행. */
+    @BatchJob(id = "payment_webhook_receipt", value = "결제 웹훅 처리")
+    @Scheduled(cron = "35 * * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runPaymentWebhookReceipts() {
+        return paymentWebhookBatchUseCase.processPendingReceipts();
+    }
+
+    /** 공식 공휴일 연도별 스냅샷을 갱신한다. 매월 1일 04:20 실행. */
+    @BatchJob(id = "public_holiday_snapshot", value = "공식 공휴일 동기화")
+    @Scheduled(cron = "0 20 4 1 * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runPublicHolidaySnapshotSync() {
+        return publicHolidaySyncUseCase.syncAnnualSnapshots();
     }
 
     /** 보존 기간이 지난 결제·휴대폰 인증·장바구니 병합 기록을 정리한다. 매일 03:30 실행. */

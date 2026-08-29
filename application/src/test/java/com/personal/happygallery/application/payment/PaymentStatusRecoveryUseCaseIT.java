@@ -152,7 +152,7 @@ class PaymentStatusRecoveryUseCaseIT {
         var attempt = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow();
         LocalDateTime now = LocalDateTime.now(clock);
         String processingToken = attempt.startProcessing(prepared.amount(), "compensation-key", now);
-        attempt.markApproved(processingToken, "compensation-key", now);
+        attempt.markApproved(processingToken, "compensation-key", "CARD", now);
         attempt.markCompensationRequested("주문 생성 실패");
         attemptStore.save(attempt);
         return refundRepository.save(Refund.forPaymentAttempt(

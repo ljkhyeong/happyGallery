@@ -193,7 +193,7 @@
   - 자동 복구는 `last_recovery_at`, 생성 시각, ID 순으로 후보를 순환해 반복 실패 환불이 뒤 요청을 계속 막지 않게 한다.
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
-  - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `fail_reason nullable`
+  - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `confirmed_payment_method nullable`, `fail_reason nullable`
   - `payload_enc`, `fulfilled_domain_id nullable`, `fulfilled_access_token_enc nullable`, `created_at`, `confirmed_at nullable`, `confirm_recovery_attempted_at nullable`, `version`
   - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
   - confirm을 선점할 때마다 새 `processing_token`을 발급하고 현재 토큰 소유자의 PG 결과만 상태에 반영한다.
@@ -201,6 +201,12 @@
   - `CONFIRMED` 결과의 도메인 ID와 비회원 접근 토큰 암호문을 저장해 동일 confirm 재호출에 같은 결과를 반환한다.
   - 상태: `PENDING | PROCESSING | RETRYABLE | APPROVED | CONFIRMED | FAILED | RECONCILIATION_REQUIRED | COMPENSATION_REQUESTED | COMPENSATION_FAILED | COMPENSATED | CANCELED`
   - PG 호출 전 확정 실패만 혜택 예약을 즉시 해제한다. PG 호출 가능성이 있는 실패는 `RECONCILIATION_REQUIRED`에서 쿠폰·적립금 예약을 보존하고 조회로 미승인이 확인된 뒤 해제한다.
+- `payment_webhook_receipts`
+  - `id`, `transmission_id(unique)`, `payment_attempt_id(FK)`, `event_type`, `received_at`, `processing_at nullable`, `processed_at nullable`, `version`
+  - Toss 결제 상태 웹훅의 중복 전송을 제거하고 기존 PG 대사 완료 여부를 추적한다.
+- `public_holiday_snapshot`
+  - `holiday_date(PK)`, `name`, `synced_at`
+  - 공공데이터 정상 응답으로 현재·다음 연도를 교체하며 예약 캘린더는 저장된 연도를 계산 정책보다 우선한다.
 
 #### 이벤트, 쿠폰과 적립금
 

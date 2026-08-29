@@ -564,7 +564,7 @@ class PaymentConfirmUseCaseIT {
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
     }
 
-    @DisplayName("비회원 예약은 prepare에서 소비한 휴대폰 인증의 결제 귀속 증거로 확정한다")
+    @DisplayName("비회원 예약은 인증 귀속 증거와 PG가 확정한 실제 결제수단으로 생성한다")
     @Test
     void confirm_guestBooking_usesPrepareVerificationProof() {
         String phone = "01045456767";
@@ -578,7 +578,7 @@ class PaymentConfirmUseCaseIT {
                 PaymentContext.BOOKING,
                 new BookingPayload(
                         null, phone, verificationCode, "비회원 예약자",
-                        slot.getId(), null, DepositPaymentMethod.CARD, acceptedPolicies()),
+                        slot.getId(), null, DepositPaymentMethod.EASY_PAY, acceptedPolicies()),
                 auth));
         jdbcTemplate.update(
                 "UPDATE phone_verifications SET expires_at = ? WHERE verified = true",
@@ -592,6 +592,7 @@ class PaymentConfirmUseCaseIT {
                 .hasValueSatisfying(booking -> assertSoftly(softly -> {
                     softly.assertThat(booking.getGuest()).isNotNull();
                     softly.assertThat(booking.getDepositAmount()).isEqualTo(6_000L);
+                    softly.assertThat(booking.getPaymentMethod()).isEqualTo(DepositPaymentMethod.CARD);
                     softly.assertThat(booking.getPaymentKey()).isEqualTo("confirmed-payment-key");
                     softly.assertThat(policyConsentRepository.findByPaymentAttemptIdOrderById(attemptId))
                             .hasSize(2)

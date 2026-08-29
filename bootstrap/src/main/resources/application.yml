@@ -248,6 +248,24 @@ app:
       acquire-timeout: ${DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${DELIVERY_API_MAX_CONNECTIONS:10}
       keep-alive: ${DELIVERY_API_KEEP_ALIVE_MILLIS:30000}ms
+    road-address:
+      enabled: ${ROAD_ADDRESS_ENABLED:false}
+      confirmation-key: ${ROAD_ADDRESS_CONFIRMATION_KEY:}
+      base-url: ${ROAD_ADDRESS_BASE_URL:https://business.juso.go.kr}
+      timeout: ${ROAD_ADDRESS_TIMEOUT_MILLIS:3000}ms
+      connect-timeout: ${ROAD_ADDRESS_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${ROAD_ADDRESS_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${ROAD_ADDRESS_MAX_CONNECTIONS:10}
+      keep-alive: ${ROAD_ADDRESS_KEEP_ALIVE_MILLIS:30000}ms
+    public-holiday:
+      enabled: ${PUBLIC_HOLIDAY_ENABLED:false}
+      service-key: ${PUBLIC_HOLIDAY_SERVICE_KEY:}
+      base-url: ${PUBLIC_HOLIDAY_BASE_URL:https://apis.data.go.kr}
+      timeout: ${PUBLIC_HOLIDAY_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${PUBLIC_HOLIDAY_MAX_CONNECTIONS:5}
+      keep-alive: ${PUBLIC_HOLIDAY_KEEP_ALIVE_MILLIS:30000}ms
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout: ${PAYMENT_TIMEOUT_MILLIS:5000}ms
