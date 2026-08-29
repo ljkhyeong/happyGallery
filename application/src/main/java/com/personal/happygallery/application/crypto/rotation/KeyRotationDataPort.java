@@ -28,6 +28,11 @@ public interface KeyRotationDataPort {
 
     void updateFulfillment(FulfillmentRotatedRow row);
 
+    List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
+            String afterProductOrderId, int limit);
+
+    void updateSmartStoreOrder(SmartStoreOrderRotatedRow row);
+
     List<SocialAccountEncryptedRow> findSocialAccountsAfterId(long afterId, int limit);
 
     void updateSocialAccount(SocialAccountRotatedRow row);
@@ -67,6 +72,10 @@ public interface KeyRotationDataPort {
     record FulfillmentEncryptedRow(long id, String shippingAddressEnc) implements IdentifiedRow {}
 
     record FulfillmentRotatedRow(long id, String shippingAddressEnc) {}
+
+    record SmartStoreOrderEncryptedRow(String productOrderId, String deliveryInfoEnc) {}
+
+    record SmartStoreOrderRotatedRow(String productOrderId, String deliveryInfoEnc) {}
 
     record SocialAccountEncryptedRow(long id, String providerIdEnc) implements IdentifiedRow {}
 

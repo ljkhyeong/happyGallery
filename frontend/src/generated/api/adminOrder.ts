@@ -678,6 +678,96 @@ export interface SmartStoreChannelOrderResponse {
   remainQuantity: number;
 }
 
+export interface DeliveryInfo {
+  /** @nullable */
+  addressLine1: string | null;
+  /** @nullable */
+  addressLine2: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  postalCode: string | null;
+  /** @nullable */
+  recipientName: string | null;
+  /** @nullable */
+  shippingMemo: string | null;
+}
+
+export interface SmartStoreChannelOrderDetailResponse {
+  /** @nullable */
+  channelCommission: number | null;
+  /** @nullable */
+  deliveryCompany: string | null;
+  deliveryInfo: DeliveryInfo | null;
+  /** @nullable */
+  expectedDeliveryMethod: string | null;
+  /** @nullable */
+  expectedSettlementAmount: number | null;
+  order: SmartStoreChannelOrderResponse;
+  /** @nullable */
+  paymentAmount: number | null;
+  /** @nullable */
+  paymentCommission: number | null;
+  /** @nullable */
+  placeOrderStatus: string | null;
+  /** @nullable */
+  saleCommission: number | null;
+  /** @nullable */
+  shippingDueDate: string | null;
+  /** @nullable */
+  trackingNumber: string | null;
+  /** @nullable */
+  unitPrice: number | null;
+}
+
+export interface DispatchSmartStoreExchangeRequest {
+  /**
+     * @minLength 1
+     * @pattern ^[A-Z0-9_]{1,40}$
+     */
+  deliveryCompanyCode: string;
+  /**
+     * @minLength 1
+     * @pattern ^[A-Z_]{1,40}$
+     */
+  deliveryMethod: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  trackingNumber: string;
+}
+
+export interface DelaySmartStoreOrderRequest {
+  /**
+     * @minLength 0
+     * @maxLength 4000
+     */
+  detailedReason: string;
+  dispatchDueDate: string;
+  /**
+     * @minLength 1
+     * @pattern ^(PRODUCT_PREPARE|CUSTOMER_REQUEST|CUSTOM_BUILD|RESERVED_DISPATCH|OVERSEA_DELIVERY|ETC)$
+     */
+  reasonCode: string;
+}
+
+export interface DispatchSmartStoreOrderRequest {
+  /** @pattern ^[A-Z0-9_]{1,40}$ */
+  deliveryCompanyCode?: string;
+  /**
+     * @minLength 1
+     * @pattern ^[A-Z_]{1,40}$
+     */
+  deliveryMethod: string;
+  dispatchDate: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  trackingNumber?: string;
+}
+
 export interface ResolveSmartStoreReturnRequest {
   restoreStock: boolean;
 }
@@ -1170,6 +1260,177 @@ export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannel
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getGetSmartStoreChannelOrderUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}`
+}
+
+export const getSmartStoreChannelOrder = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreChannelOrderDetailResponse> => {
+
+  return generatedApiClient<SmartStoreChannelOrderDetailResponse>(getGetSmartStoreChannelOrderUrl(productOrderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getApproveSmartStoreCancelClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/cancel/approve`
+}
+
+export const approveSmartStoreCancelClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getApproveSmartStoreCancelClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getDispatchSmartStoreExchangeClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/dispatch`
+}
+
+export const dispatchSmartStoreExchangeClaim = async (productOrderId: string,
+    dispatchSmartStoreExchangeRequest: DispatchSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDispatchSmartStoreExchangeClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dispatchSmartStoreExchangeRequest)
+  }
+);}
+
+
+
+export const getApproveSmartStoreReturnClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/approve`
+}
+
+export const approveSmartStoreReturnClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getApproveSmartStoreReturnClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getRejectSmartStoreReturnClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/reject`
+}
+
+export const rejectSmartStoreReturnClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRejectSmartStoreReturnClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getConfirmSmartStoreChannelOrderUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/confirm`
+}
+
+export const confirmSmartStoreChannelOrder = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getConfirmSmartStoreChannelOrderUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getDelaySmartStoreChannelOrderUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/delay`
+}
+
+export const delaySmartStoreChannelOrder = async (productOrderId: string,
+    delaySmartStoreOrderRequest: DelaySmartStoreOrderRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDelaySmartStoreChannelOrderUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(delaySmartStoreOrderRequest)
+  }
+);}
+
+
+
+export const getDispatchSmartStoreChannelOrderUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/dispatch`
+}
+
+export const dispatchSmartStoreChannelOrder = async (productOrderId: string,
+    dispatchSmartStoreOrderRequest: DispatchSmartStoreOrderRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDispatchSmartStoreChannelOrderUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(dispatchSmartStoreOrderRequest)
   }
 );}
 

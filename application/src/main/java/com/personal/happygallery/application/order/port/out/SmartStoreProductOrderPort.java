@@ -6,6 +6,8 @@ import java.util.Optional;
 
 public interface SmartStoreProductOrderPort {
 
+    Optional<SmartStoreProductOrder> findByProductOrderId(String productOrderId);
+
     Optional<SmartStoreProductOrder> findByProductOrderIdWithLock(String productOrderId);
 
     List<SmartStoreProductOrder> findRecent(boolean attentionOnly, int limit);

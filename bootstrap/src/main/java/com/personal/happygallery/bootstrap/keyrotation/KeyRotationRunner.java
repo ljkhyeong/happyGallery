@@ -32,11 +32,13 @@ public class KeyRotationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         var result = keyRotationUseCase.rotate(properties.sourceKeyId());
-        log.info("키 회전 완료 [users={}, guests={}, bookings={}, attempts={}, fulfillments={}, social={}, "
+        log.info("키 회전 완료 [users={}, guests={}, bookings={}, attempts={}, fulfillments={}, "
+                        + "smartStoreOrders={}, social={}, "
                         + "adminMfa={}, deletedPhoneVerifications={}, deletedEmailVerifications={}, "
                         + "pendingSocial={}, pendingAdminMfa={}]",
                 result.users(), result.guests(), result.bookings(),
                 result.paymentAttempts(), result.fulfillments(),
+                result.smartStoreOrders(),
                 result.socialAccounts(), result.adminMfaSecrets(),
                 result.deletedPhoneVerifications(), result.deletedEmailVerifications(),
                 result.pendingSocialAccounts(),

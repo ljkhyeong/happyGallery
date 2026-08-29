@@ -29,6 +29,26 @@ export interface QnaReplyRequest {
   replyContent: string;
 }
 
+export interface SmartStoreInquiryResponse {
+  /** @nullable */
+  answer: string | null;
+  answered: boolean;
+  channelProductId: number;
+  createdAt: string;
+  maskedWriterId: string;
+  productName: string;
+  question: string;
+  questionId: number;
+}
+
+export interface SmartStoreInquiryAnswerRequest {
+  /**
+     * @minLength 1
+     * @maxLength 16000
+     */
+  content: string;
+}
+
 export interface MyProductQnaListItem {
   createdAt: string;
   hasReply: boolean;
@@ -113,6 +133,15 @@ size?: number;
 export type ListUnansweredAdminProductQnaParams = {
 cursor?: string;
 size?: number;
+};
+
+export type ListSmartStoreInquiriesParams = {
+unansweredOnly?: boolean;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
 };
 
 export type ListMyProductQnaPageParams = {
@@ -234,6 +263,56 @@ export const replyProductQna = async (id: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(qnaReplyRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreInquiriesUrl = (params?: ListSmartStoreInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries`
+}
+
+export const listSmartStoreInquiries = async (params?: ListSmartStoreInquiriesParams, options?: RequestInit): Promise<SmartStoreInquiryResponse[]> => {
+
+  return generatedApiClient<SmartStoreInquiryResponse[]>(getListSmartStoreInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getAnswerSmartStoreInquiryUrl = (questionId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-inquiries/${questionId}/answer`
+}
+
+export const answerSmartStoreInquiry = async (questionId: number,
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getAnswerSmartStoreInquiryUrl(questionId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(smartStoreInquiryAnswerRequest)
   }
 );}
 

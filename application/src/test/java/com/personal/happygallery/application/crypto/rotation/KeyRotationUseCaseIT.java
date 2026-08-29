@@ -123,6 +123,16 @@ class KeyRotationUseCaseIT {
                 user.getId(), 50_000L, paidAt, paidAt.plusHours(24)));
         Fulfillment fulfillment = fulfillmentRepository.save(Fulfillment.shipping(
                 order.getId(), oldEncryptor.encrypt("{\"address\":\"서울\"}")));
+        jdbcTemplate.update("""
+                INSERT INTO smartstore_product_orders (
+                    product_order_id, order_id, origin_product_no, product_name,
+                    delivery_info_enc, product_order_status, initial_quantity, remain_quantity,
+                    inventory_applied_quantity, last_changed_type, last_changed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                "po-key-rotation", "order-key-rotation", 123L, "키 회전 상품",
+                oldEncryptor.encrypt("{\"recipientName\":\"회전 수령인\"}"),
+                "PAYED", 1, 1, 0, "PAYED", paidAt);
         PhoneVerification verification = new PhoneVerification(
                 "01012345678", "123456",
                 PhoneVerificationPurpose.GUEST_BOOKING, paidAt.plusMinutes(5));
@@ -158,6 +168,7 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.bookings()).isEqualTo(1);
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
+            softly.assertThat(result.smartStoreOrders()).isEqualTo(1);
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
             softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);
             softly.assertThat(result.deletedPhoneVerifications()).isEqualTo(1);
@@ -174,6 +185,12 @@ class KeyRotationUseCaseIT {
             softly.assertThat(value("payment_attempt", "owner_phone_hmac_key_id", attempt.getId()))
                     .isEqualTo("v2");
             softly.assertThat(value("fulfillments", "shipping_address_enc", fulfillment.getId()))
+                    .startsWith("hg:v2:");
+            softly.assertThat(jdbcTemplate.queryForObject("""
+                            SELECT delivery_info_enc
+                            FROM smartstore_product_orders
+                            WHERE product_order_id = 'po-key-rotation'
+                            """, String.class))
                     .startsWith("hg:v2:");
             softly.assertThat(value("user_social_accounts", "provider_id_enc", encryptedSocial.getId()))
                     .startsWith("hg:v2:");

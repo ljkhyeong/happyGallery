@@ -133,6 +133,7 @@ export default defineConfig({
     "admin-pass-controller",
     "admin-payment-reconciliation-controller",
     "admin-payment-settlement-controller",
+    "admin-smart-store-settlement-controller",
     "admin-refund-controller",
   ]),
   orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [
@@ -147,6 +148,7 @@ export default defineConfig({
     "product-qna-controller",
     "me-product-qna-controller",
     "admin-product-qna-controller",
+    "admin-smart-store-inquiry-controller",
   ]),
   reviewApi: generatedApi("./src/generated/api/review.ts", [
     "product-review-controller",

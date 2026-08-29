@@ -8,6 +8,7 @@ import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.PaymentAttemptEncryptedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.PaymentAttemptRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.SocialAccountRotatedRow;
+import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.SmartStoreOrderRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.UserRotatedRow;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
@@ -49,6 +50,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         int bookings = dataPort.refreshBookedOwnerPhoneHmac();
         int paymentAttempts = rotatePaymentAttempts();
         int fulfillments = rotateFulfillments();
+        int smartStoreOrders = rotateSmartStoreOrders();
         int socialAccounts = rotateSocialAccounts();
         int adminMfaSecrets = rotateAdminMfaSecrets();
         int deletedPhoneVerifications = dataPort.deletePhoneVerifications();
@@ -61,6 +63,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
                     "구 키로 암호화된 관리자 MFA 비밀키가 남아 있습니다: " + pendingAdminMfaSecrets);
         }
         return new RotationResult(users, guests, bookings, paymentAttempts, fulfillments,
+                smartStoreOrders,
                 socialAccounts, adminMfaSecrets,
                 deletedPhoneVerifications, deletedEmailVerifications,
                 pendingSocialAccounts, pendingAdminMfaSecrets);
@@ -138,6 +141,24 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
                     row.id(), fieldEncryptor.reencrypt(row.shippingAddressEnc())));
             return true;
         });
+    }
+
+    private int rotateSmartStoreOrders() {
+        String afterProductOrderId = "";
+        int rotated = 0;
+        while (true) {
+            var page = dataPort.findSmartStoreOrdersAfterProductOrderId(
+                    afterProductOrderId, PAGE_SIZE);
+            if (page.isEmpty()) {
+                return rotated;
+            }
+            for (var row : page) {
+                dataPort.updateSmartStoreOrder(new SmartStoreOrderRotatedRow(
+                        row.productOrderId(), fieldEncryptor.reencrypt(row.deliveryInfoEnc())));
+                rotated++;
+                afterProductOrderId = row.productOrderId();
+            }
+        }
     }
 
     private int rotateSocialAccounts() {

@@ -14,6 +14,11 @@ public interface SmartStoreProductOrderRepository
         extends JpaRepository<SmartStoreProductOrder, String>, SmartStoreProductOrderPort {
 
     @Override
+    default Optional<SmartStoreProductOrder> findByProductOrderId(String productOrderId) {
+        return findById(productOrderId);
+    }
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select channelOrder from SmartStoreProductOrder channelOrder "
             + "where channelOrder.productOrderId = :productOrderId")

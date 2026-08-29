@@ -308,6 +308,49 @@ export interface RefundStatusResponse {
   status: RefundStatusResponseStatus;
 }
 
+export type SmartStoreSettlementIssueResponseStatus = typeof SmartStoreSettlementIssueResponseStatus[keyof typeof SmartStoreSettlementIssueResponseStatus];
+
+
+export const SmartStoreSettlementIssueResponseStatus = {
+  MATCHED: 'MATCHED',
+  ORDER_NOT_FOUND: 'ORDER_NOT_FOUND',
+  EXPECTED_AMOUNT_MISSING: 'EXPECTED_AMOUNT_MISSING',
+  AMOUNT_MISMATCH: 'AMOUNT_MISMATCH',
+  NOT_APPLICABLE: 'NOT_APPLICABLE',
+} as const;
+
+export interface SmartStoreSettlementIssueResponse {
+  benefitSettleAmount: number;
+  entryKey: string;
+  fetchedAt: string;
+  /** @nullable */
+  orderId: string | null;
+  /** @nullable */
+  payDate: string | null;
+  paySettleAmount: number;
+  /** @nullable */
+  productName: string | null;
+  /** @nullable */
+  productOrderId: string | null;
+  productOrderType: string;
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  sellingInterlockCommissionAmount: number | null;
+  /** @nullable */
+  settleBasisDate: string | null;
+  /** @nullable */
+  settleCompleteDate: string | null;
+  settleExpectAmount: number;
+  /** @nullable */
+  settleExpectDate: string | null;
+  /** @nullable */
+  settleType: string | null;
+  status: SmartStoreSettlementIssueResponseStatus;
+  /** @nullable */
+  totalPayCommissionAmount: number | null;
+}
+
 export type ListAdminInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -657,6 +700,30 @@ export const retry = async (refundId: number, options?: RequestInit): Promise<Re
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getListSmartStoreSettlementIssuesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-settlements/issues`
+}
+
+/**
+ * @summary 스마트스토어 정산 대사 불일치 목록 조회
+ */
+export const listSmartStoreSettlementIssues = async ( options?: RequestInit): Promise<SmartStoreSettlementIssueResponse[]> => {
+
+  return generatedApiClient<SmartStoreSettlementIssueResponse[]>(getListSmartStoreSettlementIssuesUrl(),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

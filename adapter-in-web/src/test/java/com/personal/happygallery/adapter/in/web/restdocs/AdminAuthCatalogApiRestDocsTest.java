@@ -9,6 +9,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSmartStoreOrderController;
+import com.personal.happygallery.adapter.in.web.admin.AdminSmartStoreInquiryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
@@ -32,6 +33,10 @@ import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderResult;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DeliveryInfo;
+import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
+import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
@@ -89,6 +94,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private ProductQueryUseCase productQueryUseCase;
     private SmartStoreInventoryUseCase smartStoreInventoryUseCase;
     private SmartStoreChannelOrderUseCase smartStoreChannelOrderUseCase;
+    private SmartStoreInquiryUseCase smartStoreInquiryUseCase;
     private WorkshopProfileUseCase workshopProfileUseCase;
     private ClassManagementUseCase classManagementUseCase;
     private ClassQueryUseCase classQueryUseCase;
@@ -107,6 +113,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         productQueryUseCase = mock(ProductQueryUseCase.class);
         smartStoreInventoryUseCase = mock(SmartStoreInventoryUseCase.class);
         smartStoreChannelOrderUseCase = mock(SmartStoreChannelOrderUseCase.class);
+        smartStoreInquiryUseCase = mock(SmartStoreInquiryUseCase.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
         classManagementUseCase = mock(ClassManagementUseCase.class);
         classQueryUseCase = mock(ClassQueryUseCase.class);
@@ -178,6 +185,18 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(smartStoreOrder);
         when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true))
                 .thenReturn(smartStoreOrder);
+        when(smartStoreChannelOrderUseCase.detail("2026082912345678"))
+                .thenReturn(new ChannelOrderDetailResult(
+                        smartStoreOrder,
+                        new DeliveryInfo(
+                                "홍길동", "01012345678", "04524",
+                                "서울 중구 세종대로 110", "2층", "문 앞에 놓아주세요"),
+                        "OK", LocalDateTime.of(2026, 8, 30, 18, 0), "DELIVERY",
+                        "CJ대한통운", "1234567890", 35000L, 70000L, 1000L,
+                        2000L, 300L, 66700L));
+        when(smartStoreInquiryUseCase.list(true, 100)).thenReturn(List.of(new InquiryResult(
+                456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
+                false, LocalDateTime.of(2026, 8, 29, 10, 0))));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
         when(workshopProfileUseCase.update(any())).thenReturn(workshop);
         when(classManagementUseCase.createClass(any())).thenReturn(bookingClass);
@@ -213,6 +232,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminProductController(
                         productAdminUseCase, productQueryUseCase, smartStoreInventoryUseCase),
                 new AdminSmartStoreOrderController(smartStoreChannelOrderUseCase),
+                new AdminSmartStoreInquiryController(smartStoreInquiryUseCase),
                 new AdminMediaController(imageMediaUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
@@ -569,6 +589,53 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("{\"restoreStock\":true}"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 상세 API를 문서화한다")
+    void admin_get_smartstore_channel_order() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/{productOrderId}",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deliveryInfo.recipientName").value("홍길동"))
+                .andExpect(jsonPath("$.expectedSettlementAmount").value(66700));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 발송 API를 문서화한다")
+    void admin_dispatch_smartstore_channel_order() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/dispatch",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "deliveryMethod":"DELIVERY",
+                                  "deliveryCompanyCode":"CJGLS",
+                                  "trackingNumber":"1234567890",
+                                  "dispatchDate":"2026-08-29T15:00:00"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 상품 문의 조회와 답변 API를 문서화한다")
+    void admin_manage_smartstore_inquiry() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].questionId").value(456));
+        mockMvc.perform(put("/api/v1/admin/smartstore-inquiries/{questionId}/answer", 456L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"content\":\"원하시는 문구로 가능합니다.\"}"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

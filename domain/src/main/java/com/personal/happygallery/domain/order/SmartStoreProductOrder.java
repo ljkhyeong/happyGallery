@@ -38,8 +38,44 @@ public class SmartStoreProductOrder {
     @Column(name = "product_option", length = 4000)
     private String productOption;
 
+    @Column(name = "delivery_info_enc", columnDefinition = "TEXT")
+    private String deliveryInfoEnc;
+
     @Column(name = "product_order_status", nullable = false, length = 40)
     private String productOrderStatus;
+
+    @Column(name = "place_order_status", length = 20)
+    private String placeOrderStatus;
+
+    @Column(name = "shipping_due_date")
+    private LocalDateTime shippingDueDate;
+
+    @Column(name = "expected_delivery_method", length = 40)
+    private String expectedDeliveryMethod;
+
+    @Column(name = "delivery_company", length = 40)
+    private String deliveryCompany;
+
+    @Column(name = "tracking_number", length = 100)
+    private String trackingNumber;
+
+    @Column(name = "unit_price")
+    private Long unitPrice;
+
+    @Column(name = "payment_amount")
+    private Long paymentAmount;
+
+    @Column(name = "payment_commission")
+    private Long paymentCommission;
+
+    @Column(name = "sale_commission")
+    private Long saleCommission;
+
+    @Column(name = "channel_commission")
+    private Long channelCommission;
+
+    @Column(name = "expected_settlement_amount")
+    private Long expectedSettlementAmount;
 
     @Column(name = "claim_type", length = 40)
     private String claimType;
@@ -92,11 +128,46 @@ public class SmartStoreProductOrder {
             String lastChangedType,
             LocalDateTime paymentDate,
             LocalDateTime lastChangedAt) {
+        this(productOrderId, orderId, originProductNo, itemNo, productName, productOption,
+                null, productOrderStatus, null, claimType, claimStatus, initialQuantity,
+                remainQuantity, lastChangedType, paymentDate, lastChangedAt, null, null,
+                null, null, null, null, null, null, null, null);
+    }
+
+    public SmartStoreProductOrder(
+            String productOrderId,
+            String orderId,
+            Long originProductNo,
+            Long itemNo,
+            String productName,
+            String productOption,
+            String deliveryInfoEnc,
+            String productOrderStatus,
+            String placeOrderStatus,
+            String claimType,
+            String claimStatus,
+            int initialQuantity,
+            int remainQuantity,
+            String lastChangedType,
+            LocalDateTime paymentDate,
+            LocalDateTime lastChangedAt,
+            LocalDateTime shippingDueDate,
+            String expectedDeliveryMethod,
+            String deliveryCompany,
+            String trackingNumber,
+            Long unitPrice,
+            Long paymentAmount,
+            Long paymentCommission,
+            Long saleCommission,
+            Long channelCommission,
+            Long expectedSettlementAmount) {
         this.productOrderId = requireText(productOrderId, "상품 주문 번호");
         this.inventoryAppliedQuantity = 0;
-        refresh(orderId, originProductNo, itemNo, productName, productOption,
-                productOrderStatus, claimType, claimStatus, initialQuantity, remainQuantity,
-                lastChangedType, paymentDate, lastChangedAt);
+        refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
+                productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
+                remainQuantity, lastChangedType, paymentDate, lastChangedAt, shippingDueDate,
+                expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
+                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount);
     }
 
     public boolean refresh(
@@ -113,6 +184,39 @@ public class SmartStoreProductOrder {
             String lastChangedType,
             LocalDateTime paymentDate,
             LocalDateTime changedAt) {
+        return refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
+                productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
+                remainQuantity, lastChangedType, paymentDate, changedAt, shippingDueDate,
+                expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
+                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount);
+    }
+
+    public boolean refresh(
+            String orderId,
+            Long originProductNo,
+            Long itemNo,
+            String productName,
+            String productOption,
+            String deliveryInfoEnc,
+            String productOrderStatus,
+            String placeOrderStatus,
+            String claimType,
+            String claimStatus,
+            int initialQuantity,
+            int remainQuantity,
+            String lastChangedType,
+            LocalDateTime paymentDate,
+            LocalDateTime changedAt,
+            LocalDateTime shippingDueDate,
+            String expectedDeliveryMethod,
+            String deliveryCompany,
+            String trackingNumber,
+            Long unitPrice,
+            Long paymentAmount,
+            Long paymentCommission,
+            Long saleCommission,
+            Long channelCommission,
+            Long expectedSettlementAmount) {
         if (lastChangedAt != null
                 && (changedAt.isBefore(lastChangedAt)
                 || changedAt.equals(lastChangedAt) && Objects.equals(this.lastChangedType, lastChangedType))) {
@@ -126,7 +230,19 @@ public class SmartStoreProductOrder {
         this.itemNo = itemNo;
         this.productName = requireText(productName, "상품명");
         this.productOption = productOption;
+        this.deliveryInfoEnc = deliveryInfoEnc;
         this.productOrderStatus = requireText(productOrderStatus, "상품 주문 상태");
+        this.placeOrderStatus = placeOrderStatus;
+        this.shippingDueDate = shippingDueDate;
+        this.expectedDeliveryMethod = expectedDeliveryMethod;
+        this.deliveryCompany = deliveryCompany;
+        this.trackingNumber = trackingNumber;
+        this.unitPrice = requireNonNegative(unitPrice, "상품 가격");
+        this.paymentAmount = requireNonNegative(paymentAmount, "결제 금액");
+        this.paymentCommission = requireNonNegative(paymentCommission, "결제 수수료");
+        this.saleCommission = requireNonNegative(saleCommission, "판매 수수료");
+        this.channelCommission = requireNonNegative(channelCommission, "채널 수수료");
+        this.expectedSettlementAmount = requireNonNegative(expectedSettlementAmount, "정산 예정 금액");
         this.claimType = claimType;
         this.claimStatus = claimStatus;
         this.initialQuantity = initialQuantity;
@@ -135,6 +251,13 @@ public class SmartStoreProductOrder {
         this.paymentDate = paymentDate;
         this.lastChangedAt = Objects.requireNonNull(changedAt, "최종 변경 일시는 필수입니다.");
         return true;
+    }
+
+    private static Long requireNonNegative(Long value, String field) {
+        if (value != null && value < 0) {
+            throw new IllegalArgumentException(field + "은 0 이상이어야 합니다.");
+        }
+        return value;
     }
 
     public void mapTo(Long productId, Long productVariantId) {
@@ -177,7 +300,19 @@ public class SmartStoreProductOrder {
     public Long getProductVariantId() { return productVariantId; }
     public String getProductName() { return productName; }
     public String getProductOption() { return productOption; }
+    public String getDeliveryInfoEnc() { return deliveryInfoEnc; }
     public String getProductOrderStatus() { return productOrderStatus; }
+    public String getPlaceOrderStatus() { return placeOrderStatus; }
+    public LocalDateTime getShippingDueDate() { return shippingDueDate; }
+    public String getExpectedDeliveryMethod() { return expectedDeliveryMethod; }
+    public String getDeliveryCompany() { return deliveryCompany; }
+    public String getTrackingNumber() { return trackingNumber; }
+    public Long getUnitPrice() { return unitPrice; }
+    public Long getPaymentAmount() { return paymentAmount; }
+    public Long getPaymentCommission() { return paymentCommission; }
+    public Long getSaleCommission() { return saleCommission; }
+    public Long getChannelCommission() { return channelCommission; }
+    public Long getExpectedSettlementAmount() { return expectedSettlementAmount; }
     public String getClaimType() { return claimType; }
     public String getClaimStatus() { return claimStatus; }
     public int getInitialQuantity() { return initialQuantity; }

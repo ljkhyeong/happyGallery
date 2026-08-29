@@ -6,13 +6,11 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.function.Function;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
@@ -39,7 +37,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     @Override
     public ChangePage fetchChanges(ChangeCursor cursor, LocalDateTime changedTo) {
-        ChangedResponse response = authorized(token -> restClient.get()
+        ChangedResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> {
                     builder.path("/external/v1/pay-order/seller/product-orders/last-changed-statuses")
                             .queryParam("lastChangedFrom", format(cursor.changedFrom()))
@@ -76,7 +74,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         if (productOrderIds.isEmpty()) {
             return List.of();
         }
-        DetailResponse response = authorized(token -> restClient.post()
+        DetailResponse response = accessTokenProvider.authorized(token -> restClient.post()
                 .uri("/external/v1/pay-order/seller/product-orders/query")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -92,6 +90,13 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             if (order == null || productOrder == null) {
                 throw new IllegalStateException("스마트스토어 상품 주문 상세 항목이 비어 있습니다.");
             }
+            ShippingAddressInfo address = productOrder.shippingAddress();
+            DeliveryInfo deliveryInfo = address == null ? null : new DeliveryInfo(
+                    address.name(), address.tel1(), address.zipCode(), address.baseAddress(),
+                    address.detailedAddress(), productOrder.shippingMemo());
+            DeliveryResponse delivery = item.delivery() == null || item.delivery().isEmpty()
+                    ? null
+                    : item.delivery().getLast();
             return new ProductOrderDetail(
                     productOrder.productOrderId(),
                     order.orderId(),
@@ -99,24 +104,112 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     parseNullableLong(productOrder.itemNo()),
                     productOrder.productName(),
                     productOrder.productOption(),
+                    deliveryInfo,
                     productOrder.productOrderStatus(),
+                    productOrder.placeOrderStatus(),
                     productOrder.claimType(),
                     productOrder.claimStatus(),
                     productOrder.initialQuantity(),
                     productOrder.remainQuantity(),
-                    toNullableLocalDateTime(order.paymentDate()));
+                    toNullableLocalDateTime(order.paymentDate()),
+                    toNullableLocalDateTime(productOrder.shippingDueDate()),
+                    productOrder.expectedDeliveryMethod(),
+                    delivery == null ? null : delivery.deliveryCompany(),
+                    delivery == null ? null : delivery.trackingNumber(),
+                    productOrder.unitPrice(),
+                    productOrder.remainPaymentAmount(),
+                    productOrder.paymentCommission(),
+                    productOrder.saleCommission(),
+                    productOrder.channelCommission(),
+                    productOrder.expectedSettlementAmount());
         }).toList();
     }
 
-    private <T> T authorized(Function<String, T> request) {
-        try {
-            return request.apply(accessTokenProvider.accessToken(false));
-        } catch (RestClientResponseException exception) {
-            if (exception.getStatusCode().value() != 401) {
-                throw exception;
-            }
-            return request.apply(accessTokenProvider.accessToken(true));
+    @Override
+    public void confirm(String productOrderId) {
+        execute("/external/v1/pay-order/seller/product-orders/confirm",
+                new ConfirmRequest(List.of(productOrderId)), productOrderId);
+    }
+
+    @Override
+    public void dispatch(DispatchCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/dispatch",
+                new DispatchRequest(List.of(new DispatchItem(
+                        command.productOrderId(), command.deliveryMethod(),
+                        command.deliveryCompanyCode(), command.trackingNumber(),
+                        format(command.dispatchDate())))), command.productOrderId());
+    }
+
+    @Override
+    public void delay(DelayCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/delay",
+                new DelayRequest(
+                        format(command.dispatchDueDate()), command.reasonCode(),
+                        command.detailedReason()), command.productOrderId());
+    }
+
+    @Override
+    public void approveCancel(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/cancel/approve", productOrderId);
+    }
+
+    @Override
+    public void approveReturn(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/return/approve", productOrderId);
+    }
+
+    @Override
+    public void rejectReturn(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/return/reject", productOrderId);
+    }
+
+    @Override
+    public void dispatchExchange(ExchangeDispatchCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/exchange/dispatch",
+                new ExchangeDispatchRequest(
+                        command.deliveryMethod(), command.deliveryCompanyCode(),
+                        command.trackingNumber()), command.productOrderId());
+    }
+
+    private void execute(String path, Object body, String productOrderId) {
+        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+                .uri(path)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(OperationResponse.class));
+        requireOperationSuccess(response, productOrderId);
+    }
+
+    private void executeWithoutBody(String path, String productOrderId) {
+        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+                .uri(path)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentLength(0)
+                .retrieve()
+                .body(OperationResponse.class));
+        requireOperationSuccess(response, productOrderId);
+    }
+
+    private static void requireOperationSuccess(OperationResponse response, String productOrderId) {
+        if (response == null || response.data() == null) {
+            return;
         }
+        List<OperationFailure> failures = response.data().failProductOrderInfos();
+        if (failures == null || failures.isEmpty()) {
+            return;
+        }
+        OperationFailure failure = failures.stream()
+                .filter(item -> productOrderId.equals(item.productOrderId()))
+                .findFirst()
+                .orElse(failures.getFirst());
+        throw new IllegalStateException("스마트스토어 주문 처리 실패: " + failure.message());
     }
 
     private static String format(LocalDateTime value) {
@@ -166,7 +259,11 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private record DetailResponse(List<DetailItem> data) {}
 
-    private record DetailItem(OrderInfo order, ProductOrderInfo productOrder) {}
+    private record DetailItem(
+            OrderInfo order,
+            ProductOrderInfo productOrder,
+            List<DeliveryResponse> delivery
+    ) {}
 
     private record OrderInfo(
             String orderId,
@@ -179,10 +276,64 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             String itemNo,
             String productName,
             String productOption,
+            ShippingAddressInfo shippingAddress,
+            String shippingMemo,
+            OffsetDateTime shippingDueDate,
+            String expectedDeliveryMethod,
+            String placeOrderStatus,
             String productOrderStatus,
             String claimType,
             String claimStatus,
             int initialQuantity,
-            int remainQuantity
+            int remainQuantity,
+            Long unitPrice,
+            Long remainPaymentAmount,
+            Long paymentCommission,
+            Long saleCommission,
+            Long channelCommission,
+            Long expectedSettlementAmount
     ) {}
+
+    private record ShippingAddressInfo(
+            String name,
+            String tel1,
+            String zipCode,
+            String baseAddress,
+            String detailedAddress
+    ) {}
+
+    private record DeliveryResponse(String deliveryCompany, String trackingNumber) {}
+
+    private record ConfirmRequest(List<String> productOrderIds) {}
+
+    private record DispatchRequest(List<DispatchItem> dispatchProductOrders) {}
+
+    private record DispatchItem(
+            String productOrderId,
+            String deliveryMethod,
+            String deliveryCompanyCode,
+            String trackingNumber,
+            String dispatchDate
+    ) {}
+
+    private record DelayRequest(
+            String dispatchDueDate,
+            String delayedDispatchReason,
+            String dispatchDelayedDetailedReason
+    ) {}
+
+    private record ExchangeDispatchRequest(
+            String reDeliveryMethod,
+            String reDeliveryCompany,
+            String reDeliveryTrackingNumber
+    ) {}
+
+    private record OperationResponse(OperationData data) {}
+
+    private record OperationData(
+            List<String> successProductOrderIds,
+            List<OperationFailure> failProductOrderInfos
+    ) {}
+
+    private record OperationFailure(String productOrderId, String code, String message) {}
 }

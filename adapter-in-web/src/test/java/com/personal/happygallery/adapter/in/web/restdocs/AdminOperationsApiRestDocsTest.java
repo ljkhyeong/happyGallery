@@ -4,6 +4,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminNotificationControlle
 import com.personal.happygallery.adapter.in.web.admin.AdminPassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPaymentReconciliationController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPaymentSettlementController;
+import com.personal.happygallery.adapter.in.web.admin.AdminSmartStoreSettlementController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
 import com.personal.happygallery.adapter.in.web.admin.LocalEmailVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationController;
@@ -19,6 +20,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentReconciliati
 import com.personal.happygallery.application.payment.port.in.PaymentSettlementAdminUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundQueryUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase;
 import com.personal.happygallery.application.search.dto.AdminPassStatus;
 import com.personal.happygallery.application.search.dto.AdminPassView;
 import com.personal.happygallery.application.search.port.in.AdminPassQueryUseCase;
@@ -34,6 +36,8 @@ import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentSettlement;
 import com.personal.happygallery.domain.payment.PaymentSettlementStatus;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import com.personal.happygallery.domain.order.SmartStoreSettlementEntry;
+import com.personal.happygallery.domain.order.SmartStoreSettlementStatus;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -69,6 +73,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     private NotificationFailureAdminUseCase notificationFailureAdminUseCase;
     private PaymentReconciliationAdminUseCase paymentReconciliationAdminUseCase;
     private PaymentSettlementAdminUseCase paymentSettlementAdminUseCase;
+    private SmartStoreSettlementUseCase smartStoreSettlementUseCase;
     private PassExpiryBatchUseCase passExpiryBatchUseCase;
     private PassRefundUseCase passRefundUseCase;
     private AdminPassQueryUseCase adminPassQueryUseCase;
@@ -83,6 +88,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         notificationFailureAdminUseCase = mock(NotificationFailureAdminUseCase.class);
         paymentReconciliationAdminUseCase = mock(PaymentReconciliationAdminUseCase.class);
         paymentSettlementAdminUseCase = mock(PaymentSettlementAdminUseCase.class);
+        smartStoreSettlementUseCase = mock(SmartStoreSettlementUseCase.class);
         passExpiryBatchUseCase = mock(PassExpiryBatchUseCase.class);
         passRefundUseCase = mock(PassRefundUseCase.class);
         adminPassQueryUseCase = mock(AdminPassQueryUseCase.class);
@@ -133,6 +139,18 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 "같은 paymentKey의 로컬 결제 승인을 찾지 못했습니다.",
                 LocalDateTime.of(2026, 8, 29, 4, 40));
         when(paymentSettlementAdminUseCase.findIssues(100)).thenReturn(List.of(settlement));
+        SmartStoreSettlementEntry smartStoreSettlement = SmartStoreSettlementEntry.create(
+                "po-1|PROD_ORDER|NORMAL_SETTLE_ORIGINAL|2026-08-29");
+        smartStoreSettlement.synchronize(
+                "po-1", "order-1", "PROD_ORDER", "NORMAL_SETTLE_ORIGINAL", "가죽 지갑",
+                70000L, 1000L, 2000L, 0L, 66000L,
+                LocalDate.of(2026, 8, 27), LocalDate.of(2026, 8, 29),
+                LocalDate.of(2026, 8, 29), LocalDate.of(2026, 8, 29),
+                SmartStoreSettlementStatus.AMOUNT_MISMATCH,
+                "주문 상세의 정산 예정 금액과 실제 정산 원장의 예정 금액이 다릅니다.",
+                LocalDateTime.of(2026, 8, 29, 4, 50));
+        when(smartStoreSettlementUseCase.findIssues(100))
+                .thenReturn(List.of(smartStoreSettlement));
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
         when(passRefundUseCase.refundPass(300L))
                 .thenReturn(new PassRefundUseCase.PassRefundResult(
@@ -164,6 +182,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 new AdminNotificationController(notificationFailureAdminUseCase),
                 new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
                 new AdminPaymentSettlementController(paymentSettlementAdminUseCase),
+                new AdminSmartStoreSettlementController(smartStoreSettlementUseCase),
                 new AdminPassController(passExpiryBatchUseCase, passRefundUseCase, adminPassQueryUseCase),
                 new LocalPhoneVerificationController(phoneVerificationQueryUseCase),
                 new LocalEmailVerificationController(emailVerificationQueryUseCase),
@@ -238,6 +257,15 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].transactionKey").value("settlement-transaction-key"))
                 .andExpect(jsonPath("$[0].status").value("LOCAL_PAYMENT_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 정산 불일치 목록 API를 문서화한다")
+    void admin_list_smartstore_settlement_issues() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-settlements/issues").with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].productOrderId").value("po-1"))
+                .andExpect(jsonPath("$[0].status").value("AMOUNT_MISMATCH"));
     }
 
     @Test

@@ -20,8 +20,10 @@ import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection
 import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
 import { PaymentSettlementIssueSection } from "@/features/admin-payment-reconciliation/PaymentSettlementIssueSection";
+import { SmartStoreSettlementIssueSection } from "@/features/admin-payment-reconciliation/SmartStoreSettlementIssueSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
+import { SmartStoreInquirySection } from "@/features/admin-qna/SmartStoreInquirySection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { AdminEventSection } from "@/features/admin-event/AdminEventSection";
@@ -333,6 +335,9 @@ export function AdminPage() {
           <AdminPanel title="PG 정산 불일치">
             <PaymentSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
+          <AdminPanel title="스마트스토어 정산 불일치">
+            <SmartStoreSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="환불 확인 필요">
             <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -385,6 +390,9 @@ export function AdminPage() {
         <>
           <AdminPanel title="스마트스토어 채널 주문">
             <SmartStoreChannelOrderSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="스마트스토어 정산 불일치">
+            <SmartStoreSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="교환·환불 요청">
             <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
@@ -461,6 +469,9 @@ export function AdminPage() {
           </AdminPanel>
           <AdminPanel title="상품 문의 관리">
             <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="스마트스토어 상품 문의">
+            <SmartStoreInquirySection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="1:1 문의 관리">
             <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />

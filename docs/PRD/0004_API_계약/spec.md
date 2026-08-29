@@ -927,6 +927,36 @@ Content-Type: application/json
 - 성공: `200 OK` — 확인 사유를 해제한 주문 반환
 - 에러: 상품 주문 미존재 `404 NOT_FOUND`, 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`
 
+```http
+GET /api/v1/admin/smartstore-orders/{productOrderId}
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 채널 주문 기본 정보와 `deliveryInfo`, `placeOrderStatus`, `shippingDueDate`, 배송수단·택배사·운송장, 단가·결제액·수수료·정산 예정액을 반환한다.
+- `deliveryInfo`는 암호문을 관리자 단건 조회에서만 복호화한 결과이며 목록 응답에는 포함하지 않는다.
+
+| 기능 | 메서드와 경로 | 요청 본문 | 성공 |
+|---|---|---|---|
+| 발주 확인 | `POST /api/v1/admin/smartstore-orders/{id}/confirm` | 없음 | `204` |
+| 발송 처리 | `POST /api/v1/admin/smartstore-orders/{id}/dispatch` | `deliveryMethod`, nullable `deliveryCompanyCode`, nullable `trackingNumber`, `dispatchDate` | `204` |
+| 발송 지연 | `POST /api/v1/admin/smartstore-orders/{id}/delay` | `dispatchDueDate`, `reasonCode`, `detailedReason` | `204` |
+| 취소 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/approve` | 없음 | `204` |
+| 반품 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/approve` | 없음 | `204` |
+| 반품 거부 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/reject` | 없음 | `204` |
+| 교환품 재배송 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/dispatch` | `deliveryMethod`, `deliveryCompanyCode`, `trackingNumber` | `204` |
+
+- 서버는 로컬에 수집된 주문·발주·클레임 상태로 가능한 작업만 허용하고 맞지 않으면 `409 CONFLICT`를 반환한다.
+- 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 성공 뒤 로컬 상태는 변경 피드에서 다시 수집한다.
+
+```http
+GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
+PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
+Authorization: Bearer {token}
+```
+
+- 목록은 최근 30일 네이버 상품 문의를 최신순으로 최대 200건 반환한다. 답변 요청은 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
+
 #### 2.3.8 상품 표시 정보 수정
 
 ```http
@@ -2444,6 +2474,17 @@ Authorization: Bearer {token}
 - 응답은 최근 Toss 정산 내역 중 로컬 승인·환불과 일치하지 않은 건을 `id`, `transactionKey`, `paymentKey`, `orderId`, `amount`, `payOutAmount`, `soldDate`, `cancelTransaction`, `status`, `reason`, `fetchedAt`으로 반환한다.
 - `status`는 `LOCAL_PAYMENT_NOT_FOUND`, `LOCAL_REFUND_NOT_FOUND`, `IDENTIFIER_MISMATCH`, `AMOUNT_MISMATCH` 중 하나다. 일치한 `MATCHED` 건은 운영자 작업 목록에 노출하지 않는다.
 - 서버는 매시 40분에 Toss 정산 API에서 최근 7일 내역을 다시 읽어 `transactionKey` 기준으로 갱신한다. 정산 조회는 승인·취소용 HTTP 연결 풀과 분리해 긴 응답이 고객 결제 요청을 점유하지 않게 한다.
+
+#### 2.11.7 스마트스토어 정산 불일치 목록
+
+```http
+GET /api/v1/admin/smartstore-settlements/issues
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — `ORDER_NOT_FOUND`, `EXPECTED_AMOUNT_MISSING`, `AMOUNT_MISMATCH`인 최근 정산 원장을 최대 100건 반환한다.
+- 응답은 상품 주문·주문 번호, 정산 유형, 결제 정산액·수수료·혜택 정산액·정산 예정액, 기준일·예정일·완료일·지급일, 사유와 조회 시각을 포함한다.
+- 서버는 매시 50분 최근 7일을 지급일 기준으로 다시 조회하고 `productOrderId + 정산 유형 + 정산일` 조합으로 멱등 갱신한다. 부가 정산 유형은 `NOT_APPLICABLE`, 일치한 원거래는 `MATCHED`로 저장하되 작업 목록에는 표시하지 않는다.
 
 ### 2.12 회원 API (`/api/v1/me`)
 

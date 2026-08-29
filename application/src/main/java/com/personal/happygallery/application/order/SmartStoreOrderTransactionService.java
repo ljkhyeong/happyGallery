@@ -30,16 +30,19 @@ class SmartStoreOrderTransactionService {
     private final SmartStoreStockMappingPort mappingPort;
     private final InventoryService inventoryService;
     private final ProductVariantStockService variantStockService;
+    private final SmartStoreDeliveryInfoProtector deliveryInfoProtector;
 
     SmartStoreOrderTransactionService(
             SmartStoreProductOrderPort orderPort,
             SmartStoreStockMappingPort mappingPort,
             InventoryService inventoryService,
-            ProductVariantStockService variantStockService) {
+            ProductVariantStockService variantStockService,
+            SmartStoreDeliveryInfoProtector deliveryInfoProtector) {
         this.orderPort = orderPort;
         this.mappingPort = mappingPort;
         this.inventoryService = inventoryService;
         this.variantStockService = variantStockService;
+        this.deliveryInfoProtector = deliveryInfoProtector;
     }
 
     @Transactional
@@ -48,15 +51,24 @@ class SmartStoreOrderTransactionService {
                 .findByProductOrderIdWithLock(detail.productOrderId());
         SmartStoreProductOrder order = existing.orElseGet(() -> new SmartStoreProductOrder(
                 detail.productOrderId(), detail.orderId(), detail.originProductNo(), detail.itemNo(),
-                detail.productName(), detail.productOption(), detail.productOrderStatus(),
-                detail.claimType(), detail.claimStatus(), detail.initialQuantity(),
-                detail.remainQuantity(), change.lastChangedType(), detail.paymentDate(),
-                change.lastChangedAt()));
+                detail.productName(), detail.productOption(),
+                deliveryInfoProtector.encrypt(detail.deliveryInfo()), detail.productOrderStatus(),
+                detail.placeOrderStatus(), detail.claimType(), detail.claimStatus(),
+                detail.initialQuantity(), detail.remainQuantity(), change.lastChangedType(),
+                detail.paymentDate(), change.lastChangedAt(), detail.shippingDueDate(),
+                detail.expectedDeliveryMethod(), detail.deliveryCompany(), detail.trackingNumber(),
+                detail.unitPrice(), detail.paymentAmount(), detail.paymentCommission(),
+                detail.saleCommission(), detail.channelCommission(), detail.expectedSettlementAmount()));
         if (existing.isPresent() && !order.refresh(
                 detail.orderId(), detail.originProductNo(), detail.itemNo(), detail.productName(),
-                detail.productOption(), detail.productOrderStatus(), detail.claimType(), detail.claimStatus(),
-                detail.initialQuantity(), detail.remainQuantity(), change.lastChangedType(),
-                detail.paymentDate(), change.lastChangedAt())) {
+                detail.productOption(), deliveryInfoProtector.encrypt(detail.deliveryInfo()),
+                detail.productOrderStatus(), detail.placeOrderStatus(), detail.claimType(),
+                detail.claimStatus(), detail.initialQuantity(), detail.remainQuantity(),
+                change.lastChangedType(), detail.paymentDate(), change.lastChangedAt(),
+                detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
+                detail.trackingNumber(), detail.unitPrice(), detail.paymentAmount(),
+                detail.paymentCommission(), detail.saleCommission(), detail.channelCommission(),
+                detail.expectedSettlementAmount())) {
             return order;
         }
         reconcile(order);

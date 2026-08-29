@@ -2623,6 +2623,50 @@
         "required" : [ "decision" ],
         "type" : "object"
       },
+      "DelaySmartStoreOrderRequest" : {
+        "properties" : {
+          "detailedReason" : {
+            "maxLength" : 4000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "dispatchDueDate" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "reasonCode" : {
+            "minLength" : 1,
+            "pattern" : "^(PRODUCT_PREPARE|CUSTOMER_REQUEST|CUSTOM_BUILD|RESERVED_DISPATCH|OVERSEA_DELIVERY|ETC)$",
+            "type" : "string"
+          }
+        },
+        "required" : [ "detailedReason", "dispatchDueDate", "reasonCode" ],
+        "type" : "object"
+      },
+      "DeliveryInfo" : {
+        "properties" : {
+          "addressLine1" : {
+            "type" : [ "string", "null" ]
+          },
+          "addressLine2" : {
+            "type" : [ "string", "null" ]
+          },
+          "phone" : {
+            "type" : [ "string", "null" ]
+          },
+          "postalCode" : {
+            "type" : [ "string", "null" ]
+          },
+          "recipientName" : {
+            "type" : [ "string", "null" ]
+          },
+          "shippingMemo" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "addressLine1", "addressLine2", "phone", "postalCode", "recipientName", "shippingMemo" ],
+        "type" : "object"
+      },
       "DeliveryTrackingWebhookRequest" : {
         "properties" : {
           "event" : {
@@ -2641,6 +2685,51 @@
             "type" : "string"
           }
         },
+        "type" : "object"
+      },
+      "DispatchSmartStoreExchangeRequest" : {
+        "properties" : {
+          "deliveryCompanyCode" : {
+            "minLength" : 1,
+            "pattern" : "^[A-Z0-9_]{1,40}$",
+            "type" : "string"
+          },
+          "deliveryMethod" : {
+            "minLength" : 1,
+            "pattern" : "^[A-Z_]{1,40}$",
+            "type" : "string"
+          },
+          "trackingNumber" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "deliveryCompanyCode", "deliveryMethod", "trackingNumber" ],
+        "type" : "object"
+      },
+      "DispatchSmartStoreOrderRequest" : {
+        "properties" : {
+          "deliveryCompanyCode" : {
+            "pattern" : "^[A-Z0-9_]{1,40}$",
+            "type" : "string"
+          },
+          "deliveryMethod" : {
+            "minLength" : 1,
+            "pattern" : "^[A-Z_]{1,40}$",
+            "type" : "string"
+          },
+          "dispatchDate" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "trackingNumber" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "deliveryMethod", "dispatchDate" ],
         "type" : "object"
       },
       "ErrorResponse" : {
@@ -6389,6 +6478,62 @@
         "required" : [ "className", "date", "totalBooked", "totalCapacity", "utilizationRate" ],
         "type" : "object"
       },
+      "SmartStoreChannelOrderDetailResponse" : {
+        "properties" : {
+          "channelCommission" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "deliveryCompany" : {
+            "type" : [ "string", "null" ]
+          },
+          "deliveryInfo" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/DeliveryInfo"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "expectedDeliveryMethod" : {
+            "type" : [ "string", "null" ]
+          },
+          "expectedSettlementAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "order" : {
+            "$ref" : "#/components/schemas/SmartStoreChannelOrderResponse"
+          },
+          "paymentAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "paymentCommission" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "placeOrderStatus" : {
+            "type" : [ "string", "null" ]
+          },
+          "saleCommission" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "shippingDueDate" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "trackingNumber" : {
+            "type" : [ "string", "null" ]
+          },
+          "unitPrice" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "channelCommission", "deliveryCompany", "deliveryInfo", "expectedDeliveryMethod", "expectedSettlementAmount", "order", "paymentAmount", "paymentCommission", "placeOrderStatus", "saleCommission", "shippingDueDate", "trackingNumber", "unitPrice" ],
+        "type" : "object"
+      },
       "SmartStoreChannelOrderResponse" : {
         "properties" : {
           "attentionReason" : {
@@ -6456,6 +6601,50 @@
         "required" : [ "attentionReason", "claimStatus", "claimType", "initialQuantity", "inventoryAppliedQuantity", "itemNo", "lastChangedAt", "orderId", "originProductNo", "paymentDate", "productId", "productName", "productOption", "productOrderId", "productOrderStatus", "productVariantId", "remainQuantity" ],
         "type" : "object"
       },
+      "SmartStoreInquiryAnswerRequest" : {
+        "properties" : {
+          "content" : {
+            "maxLength" : 16000,
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "content" ],
+        "type" : "object"
+      },
+      "SmartStoreInquiryResponse" : {
+        "properties" : {
+          "answer" : {
+            "type" : [ "string", "null" ]
+          },
+          "answered" : {
+            "type" : "boolean"
+          },
+          "channelProductId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "maskedWriterId" : {
+            "type" : "string"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "question" : {
+            "type" : "string"
+          },
+          "questionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "answer", "answered", "channelProductId", "createdAt", "maskedWriterId", "productName", "question", "questionId" ],
+        "type" : "object"
+      },
       "SmartStoreInventoryMappingResponse" : {
         "properties" : {
           "attemptCount" : {
@@ -6492,6 +6681,77 @@
           }
         },
         "required" : [ "attemptCount", "enabled", "lastError", "originProductNo", "productId", "syncStatus", "syncedAt", "variants" ],
+        "type" : "object"
+      },
+      "SmartStoreSettlementIssueResponse" : {
+        "properties" : {
+          "benefitSettleAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "entryKey" : {
+            "type" : "string"
+          },
+          "fetchedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : [ "string", "null" ]
+          },
+          "payDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "paySettleAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productName" : {
+            "type" : [ "string", "null" ]
+          },
+          "productOrderId" : {
+            "type" : [ "string", "null" ]
+          },
+          "productOrderType" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "sellingInterlockCommissionAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "settleBasisDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "settleCompleteDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "settleExpectAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "settleExpectDate" : {
+            "format" : "date",
+            "type" : [ "string", "null" ]
+          },
+          "settleType" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "enum" : [ "MATCHED", "ORDER_NOT_FOUND", "EXPECTED_AMOUNT_MISSING", "AMOUNT_MISMATCH", "NOT_APPLICABLE" ],
+            "type" : "string"
+          },
+          "totalPayCommissionAmount" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "benefitSettleAmount", "entryKey", "fetchedAt", "orderId", "payDate", "paySettleAmount", "productName", "productOrderId", "productOrderType", "reason", "sellingInterlockCommissionAmount", "settleBasisDate", "settleCompleteDate", "settleExpectAmount", "settleExpectDate", "settleType", "status", "totalPayCommissionAmount" ],
         "type" : "object"
       },
       "SmartStoreVariantMappingRequest" : {
@@ -11165,6 +11425,77 @@
         "tags" : [ "admin-slot-session-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-inquiries" : {
+      "get" : {
+        "operationId" : "listSmartStoreInquiries",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "unansweredOnly",
+          "required" : false,
+          "schema" : {
+            "default" : true,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 200,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreInquiryResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-inquiries/{questionId}/answer" : {
+      "put" : {
+        "operationId" : "answerSmartStoreInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "questionId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SmartStoreInquiryAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-orders" : {
       "get" : {
         "operationId" : "listSmartStoreChannelOrders",
@@ -11201,6 +11532,195 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}" : {
+      "get" : {
+        "operationId" : "getSmartStoreChannelOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreChannelOrderDetailResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/cancel/approve" : {
+      "post" : {
+        "operationId" : "approveSmartStoreCancelClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/exchange/dispatch" : {
+      "post" : {
+        "operationId" : "dispatchSmartStoreExchangeClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DispatchSmartStoreExchangeRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/approve" : {
+      "post" : {
+        "operationId" : "approveSmartStoreReturnClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/reject" : {
+      "post" : {
+        "operationId" : "rejectSmartStoreReturnClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/confirm" : {
+      "post" : {
+        "operationId" : "confirmSmartStoreChannelOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/delay" : {
+      "post" : {
+        "operationId" : "delaySmartStoreChannelOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DelaySmartStoreOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/dispatch" : {
+      "post" : {
+        "operationId" : "dispatchSmartStoreChannelOrder",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/DispatchSmartStoreOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "admin-smart-store-order-controller" ]
@@ -11266,6 +11786,28 @@
           }
         },
         "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-settlements/issues" : {
+      "get" : {
+        "operationId" : "listSmartStoreSettlementIssues",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreSettlementIssueResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "스마트스토어 정산 대사 불일치 목록 조회",
+        "tags" : [ "admin-smart-store-settlement-controller" ]
       }
     },
     "/api/v1/admin/workshop" : {

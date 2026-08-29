@@ -1,6 +1,9 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ChangeCursor;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DelayCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DispatchCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,11 +89,32 @@ class NaverCommerceOrderProviderTest {
                               "originalProductId": "123456789",
                               "itemNo": "90001",
                               "productName": "각인 카드지갑",
-                              "productOption": "색상: 브라운",
+                            "productOption": "색상: 브라운",
+                              "shippingAddress": {
+                                "name": "홍길동",
+                                "tel1": "01012345678",
+                                "zipCode": "04524",
+                                "baseAddress": "서울 중구 세종대로 110",
+                                "detailedAddress": "2층"
+                              },
+                              "shippingMemo": "문 앞에 놓아주세요",
                               "productOrderStatus": "PAYED",
+                              "placeOrderStatus": "OK",
+                              "shippingDueDate": "2026-08-30T18:00:00+09:00",
+                              "expectedDeliveryMethod": "DELIVERY",
                               "initialQuantity": 2,
-                              "remainQuantity": 2
-                            }
+                              "remainQuantity": 2,
+                              "unitPrice": 35000,
+                              "remainPaymentAmount": 70000,
+                              "paymentCommission": 1000,
+                              "saleCommission": 2000,
+                              "channelCommission": 300,
+                              "expectedSettlementAmount": 66700
+                            },
+                            "delivery": [{
+                              "deliveryCompany": "CJ대한통운",
+                              "trackingNumber": "1234567890"
+                            }]
                           }]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -104,6 +129,75 @@ class NaverCommerceOrderProviderTest {
         assertThat(details.getFirst().originProductNo()).isEqualTo(123456789L);
         assertThat(details.getFirst().itemNo()).isEqualTo(90001L);
         assertThat(details.getFirst().remainQuantity()).isEqualTo(2);
+        assertThat(details.getFirst().deliveryInfo().recipientName()).isEqualTo("홍길동");
+        assertThat(details.getFirst().deliveryInfo().shippingMemo()).isEqualTo("문 앞에 놓아주세요");
+        assertThat(details.getFirst().trackingNumber()).isEqualTo("1234567890");
+        assertThat(details.getFirst().expectedSettlementAmount()).isEqualTo(66700L);
+    }
+
+    @Test
+    @DisplayName("발송·지연·교환 재배송 요청을 네이버 주문 API 계약에 맞춰 전송한다")
+    void executeOrderOperations_sendsDocumentedPayloads() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider tokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES, tokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/dispatch"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {"dispatchProductOrders":[{
+                          "productOrderId":"po-1",
+                          "deliveryMethod":"DELIVERY",
+                          "deliveryCompanyCode":"CJGLS",
+                          "trackingNumber":"1234",
+                          "dispatchDate":"2026-08-29T15:00:00+09:00"
+                        }]}
+                        """))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/po-1/delay"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "dispatchDueDate":"2026-08-31T18:00:00+09:00",
+                          "delayedDispatchReason":"CUSTOM_BUILD",
+                          "dispatchDelayedDetailedReason":"각인 제작 중"
+                        }
+                        """))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/exchange/dispatch")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "reDeliveryMethod":"DELIVERY",
+                          "reDeliveryCompany":"CJGLS",
+                          "reDeliveryTrackingNumber":"5678"
+                        }
+                        """))
+                .andRespond(operationSuccess());
+
+        provider.dispatch(new DispatchCommand(
+                "po-1", "DELIVERY", "CJGLS", "1234",
+                LocalDateTime.of(2026, 8, 29, 15, 0)));
+        provider.delay(new DelayCommand(
+                "po-1", LocalDateTime.of(2026, 8, 31, 18, 0),
+                "CUSTOM_BUILD", "각인 제작 중"));
+        provider.dispatchExchange(new ExchangeDispatchCommand(
+                "po-1", "DELIVERY", "CJGLS", "5678"));
+
+        server.verify();
+    }
+
+    private static ResponseCreator operationSuccess() {
+        return withSuccess("""
+                {"data":{"successProductOrderIds":["po-1"],"failProductOrderInfos":[]}}
+                """, MediaType.APPLICATION_JSON);
     }
 
     private static void expectToken(MockRestServiceServer server) {
