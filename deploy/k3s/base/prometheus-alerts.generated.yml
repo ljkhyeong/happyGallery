@@ -297,6 +297,22 @@ groups:
         annotations:
           summary: "결제·환불 복구 배치가 5분 넘게 정상 완료되지 않았습니다"
 
+      - alert: SmartStoreRealtimeBatchStalled
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"smartstore_order_sync|smartstore_stock_sync"}) > 300) and (time() - min(process_start_time_seconds{application="happygallery"}) > 300)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "스마트스토어 주문·재고 동기화가 5분 넘게 정상 완료되지 않았습니다"
+
+      - alert: SmartStoreSettlementBatchStalled
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job="smartstore_settlement_sync"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "스마트스토어 정산 대사가 2시간 넘게 정상 완료되지 않았습니다"
+
       - alert: HourlyBusinessBatchStalled
         expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
         for: 5m

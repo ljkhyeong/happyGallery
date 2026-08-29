@@ -46,6 +46,9 @@ public class AppMetrics {
             "refund_recovery",
             "payment_confirm_recovery",
             "payment_attempt_expiry",
+            "smartstore_order_sync",
+            "smartstore_stock_sync",
+            "smartstore_settlement_sync",
             "personal_data_retention");
 
     private final MeterRegistry registry;

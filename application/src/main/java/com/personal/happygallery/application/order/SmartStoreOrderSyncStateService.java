@@ -29,7 +29,6 @@ class SmartStoreOrderSyncStateService {
         SmartStoreOrderSyncState state = lockedState();
         if (state.getProcessingStartedAt() == null) {
             state.complete(LocalDateTime.now(clock), null);
-            statePort.save(state);
         }
     }
 
@@ -42,7 +41,6 @@ class SmartStoreOrderSyncStateService {
         if (!state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
             return Optional.empty();
         }
-        statePort.save(state);
         return Optional.of(new ClaimedCursor(
                 new ChangeCursor(state.getLastChangedFrom(), state.getMoreSequence()), now));
     }
@@ -54,7 +52,6 @@ class SmartStoreOrderSyncStateService {
             return;
         }
         state.complete(next.changedFrom(), next.moreSequence());
-        statePort.save(state);
     }
 
     @Transactional
@@ -64,7 +61,6 @@ class SmartStoreOrderSyncStateService {
             return;
         }
         state.release();
-        statePort.save(state);
     }
 
     private SmartStoreOrderSyncState lockedState() {

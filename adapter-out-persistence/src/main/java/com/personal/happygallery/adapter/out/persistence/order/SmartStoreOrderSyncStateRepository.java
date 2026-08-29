@@ -16,7 +16,4 @@ public interface SmartStoreOrderSyncStateRepository
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select state from SmartStoreOrderSyncState state where state.id = :id")
     Optional<SmartStoreOrderSyncState> findByIdWithLock(@Param("id") Long id);
-
-    @Override
-    <S extends SmartStoreOrderSyncState> S save(S state);
 }

@@ -6,6 +6,4 @@ import java.util.Optional;
 public interface SmartStoreOrderSyncStatePort {
 
     Optional<SmartStoreOrderSyncState> findByIdWithLock(Long id);
-
-    <S extends SmartStoreOrderSyncState> S save(S state);
 }

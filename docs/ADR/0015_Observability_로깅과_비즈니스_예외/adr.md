@@ -79,8 +79,8 @@
   `validate.sh`가 원본과 생성 파일 및 최종 ConfigMap의 drift를 차단한다.
 - k3s Prometheus는 private Alertmanager로 모든 rule을 전달한다. Alertmanager는 critical/warning 반복 간격을 분리하고 저장소 밖 Kubernetes Secret의 `url_file`로 외부 HTTPS generic webhook에 전달한다. Prometheus·Alertmanager·Grafana는 각각 Retain PVC를 사용하고, Grafana는 외부 Ingress 없이 cluster 내부 Viewer와 port-forward 접근만 허용한다. 같은 노트북 전체가 중단되는 상황은 별도 외부 uptime 감시가 담당한다.
 - `@BatchJob`은 고정된 영문 `id`와 한국어 로그 이름을 함께 가진다. `BatchLoggingAspect`는 실행 결과(`succeeded`, `partial`, `failed`), 항목 결과, 소요 시간과 마지막 정상 완료 Unix 시각을 Micrometer에 기록한다.
-- 결제·환불 복구 배치의 마지막 성공 gauge는 애플리케이션 시작 시 0으로 미리 등록한다. 한 작업이 한 번도 실행되지 않은 경우에도 시계열이 빠지지 않아 정체 알림이 이를 감지한다.
-- Prometheus는 최근 10분의 부분·전체 실패를 warning으로, 매분 실행되는 결제 준비 만료·결제 확정 복구·환불 복구 중 하나라도 마지막 정상 완료 뒤 5분을 넘기면 critical로 알린다.
+- 결제·환불 복구와 스마트스토어 주문·재고·정산 배치의 마지막 성공 gauge는 애플리케이션 시작 시 0으로 미리 등록한다. 한 작업이 한 번도 실행되지 않은 경우에도 시계열이 빠지지 않아 정체 알림이 이를 감지한다.
+- Prometheus는 최근 10분의 부분·전체 실패를 warning으로, 매분 실행되는 결제 준비 만료·결제 확정 복구·환불 복구 또는 스마트스토어 주문·재고 동기화 중 하나라도 마지막 정상 완료 뒤 5분을 넘기면 critical로 알린다. 스마트스토어 정산 대사는 2시간을 넘기면 별도 critical 경보를 보낸다.
 - `OperationalBacklogMetrics`는 환불과 알림 outbox를 상태별 `COUNT`와 처리 기준 시각의 `MIN` 그룹 쿼리로 15초마다 스냅샷한다. scrape마다 DB를 조회하지 않으며, 조회 실패 때 마지막 정상 값을 유지하고 갱신 실패 횟수와 마지막 정상 갱신 후 경과 시간을 별도 지표로 노출한다.
 - 승인 대기 주문과 예약 취소 후속 작업도 같은 스냅샷 주기로 건수와 가장 오래된 생성 기준 시각을
   집계한다. 한 번의 사건을 메모리 counter로 전달하지 않고 아직 처리되지 않은 DB 상태가 남은 동안
