@@ -38,19 +38,12 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
             return SyncResult.failure("스마트스토어 재고 연동이 비활성 상태입니다.");
         }
         try {
-            send(command, accessTokenProvider.accessToken(false));
+            accessTokenProvider.authorized(token -> {
+                send(command, token);
+                return null;
+            });
             return SyncResult.completed();
         } catch (RestClientResponseException exception) {
-            if (exception.getStatusCode().value() == 401) {
-                try {
-                    send(command, accessTokenProvider.accessToken(true));
-                    return SyncResult.completed();
-                } catch (RestClientResponseException retryException) {
-                    return rejected(command, retryException);
-                } catch (Exception retryException) {
-                    return unavailable(command, retryException);
-                }
-            }
             return rejected(command, exception);
         } catch (Exception exception) {
             return unavailable(command, exception);

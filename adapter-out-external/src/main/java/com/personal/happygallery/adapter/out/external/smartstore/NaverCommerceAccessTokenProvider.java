@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.function.Function;
 import org.mindrot.jbcrypt.BCrypt;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 class NaverCommerceAccessTokenProvider {
@@ -65,6 +67,17 @@ class NaverCommerceAccessTokenProvider {
         }
         cachedToken = new CachedToken(response.accessToken(), now.plusSeconds(response.expiresIn()));
         return response.accessToken();
+    }
+
+    <T> T authorized(Function<String, T> request) {
+        try {
+            return request.apply(accessToken(false));
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() != 401) {
+                throw exception;
+            }
+            return request.apply(accessToken(true));
+        }
     }
 
     private record CachedToken(String value, Instant expiresAt) {}
