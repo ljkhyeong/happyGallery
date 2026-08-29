@@ -37,6 +37,8 @@ memory/
 ## CODEX
 .gradle-codex/
 .codex/
+/.seo-cache/
+/output/
 
 ## Local persistent data
 /data/
