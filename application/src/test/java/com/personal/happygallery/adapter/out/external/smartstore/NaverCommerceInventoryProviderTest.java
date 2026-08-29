@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -106,6 +108,64 @@ class NaverCommerceInventoryProviderTest {
                 List.of(new OptionStock(11L, 3), new OptionStock(12L, 0))));
 
         server.verify();
+        assertThat(result.success()).isTrue();
+    }
+
+    @Test
+    @DisplayName("원상품 차이를 조회하고 판매가·옵션가·판매 상태를 명시적으로 반영한다")
+    void getAndApplyProduct_usesProductContracts() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "originProduct":{
+                            "salePrice":33000,
+                            "statusType":"SALE",
+                            "detailAttribute":{"optionInfo":{"optionCombinations":[
+                              {"id":11,"stockQuantity":3,"price":1000,"usable":true}
+                            ]}}
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/option-stock"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("""
+                        {
+                          "productSalePrice":{"salePrice":35000},
+                          "optionInfo":{
+                            "optionCombinations":[
+                              {"id":11,"stockQuantity":3,"price":2000,"usable":true}
+                            ],
+                            "useStockManagement":true
+                          }
+                        }
+                        """))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/change-status"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("{\"statusType\":\"SALE\"}"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var product = provider.getProduct(123456789L);
+        var result = provider.applyProduct(new ProductCommand(
+                123456789L, 35000L, "SALE", null,
+                List.of(new ProductOption(11L, 3, 2000L, true))));
+
+        server.verify();
+        assertThat(product.salePrice()).isEqualTo(33000L);
+        assertThat(product.options()).singleElement()
+                .satisfies(option -> assertThat(option.price()).isEqualTo(1000L));
         assertThat(result.success()).isTrue();
     }
 

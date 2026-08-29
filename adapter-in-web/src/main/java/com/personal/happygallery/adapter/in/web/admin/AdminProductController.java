@@ -1,27 +1,29 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.AdjustInventoryCommand;
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductResult;
-import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdjustInventoryRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.ApplySmartStoreProductRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.CreateProductRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.InventoryAdjustmentResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SaveSmartStoreInventoryMappingRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInventoryMappingResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductPreviewResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductStatusRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.AdjustInventoryCommand;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductResult;
+import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.domain.error.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -126,5 +128,21 @@ public class AdminProductController {
     @Operation(operationId = "retrySmartStoreInventorySync")
     public SmartStoreInventoryMappingResponse retrySmartStoreInventorySync(@PathVariable Long id) {
         return SmartStoreInventoryMappingResponse.from(smartStoreInventoryUseCase.retry(id));
+    }
+
+    @GetMapping("/{id}/smartstore-product-preview")
+    @Operation(operationId = "previewSmartStoreProductSync")
+    public SmartStoreProductPreviewResponse previewSmartStoreProductSync(@PathVariable Long id) {
+        return SmartStoreProductPreviewResponse.from(
+                smartStoreInventoryUseCase.previewProduct(id));
+    }
+
+    @PostMapping("/{id}/smartstore-product-sync")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "applySmartStoreProductSync")
+    public void applySmartStoreProductSync(
+            @PathVariable Long id,
+            @Valid @RequestBody ApplySmartStoreProductRequest request) {
+        smartStoreInventoryUseCase.applyProduct(id, request.productVersion());
     }
 }

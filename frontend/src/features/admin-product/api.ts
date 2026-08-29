@@ -9,12 +9,15 @@ import {
   retrySmartStoreInventorySync,
   saveSmartStoreInventoryMapping,
   updateAdminProduct,
+  previewSmartStoreProductSync,
+  applySmartStoreProductSync,
   type AdjustInventoryRequest,
   type CreateProductRequest,
   type InventoryAdjustmentResponse,
   type ProductResponse,
   type SaveSmartStoreInventoryMappingRequest,
   type SmartStoreInventoryMappingResponse,
+  type SmartStoreProductPreviewResponse,
   type UpdateProductRequest,
   type UpdateProductStatusRequestStatus,
 } from "@/generated/api/adminCatalog";
@@ -104,4 +107,23 @@ export function removeSmartStoreMapping(
   productId: number,
 ): Promise<void> {
   return deleteSmartStoreInventoryMapping(productId, { headers: adminHeaders(adminKey) });
+}
+
+export function fetchSmartStoreProductPreview(
+  adminKey: string,
+  productId: number,
+): Promise<SmartStoreProductPreviewResponse> {
+  return previewSmartStoreProductSync(productId, { headers: adminHeaders(adminKey) });
+}
+
+export function applySmartStoreProduct(
+  adminKey: string,
+  productId: number,
+  productVersion: number,
+): Promise<void> {
+  return applySmartStoreProductSync(
+    productId,
+    { productVersion },
+    { headers: adminHeaders(adminKey) },
+  );
 }

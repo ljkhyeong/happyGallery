@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import {
   fetchSmartStoreInventoryMapping,
+  fetchSmartStoreProductPreview,
+  applySmartStoreProduct,
   removeSmartStoreMapping,
   retrySmartStoreSync,
   saveSmartStoreMapping,
@@ -42,6 +44,12 @@ export function SmartStoreInventoryModal({
     queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
     queryFn: () => fetchSmartStoreInventoryMapping(adminKey, product!.id),
     enabled: product !== null,
+  });
+  const mapping = mappingQuery.data;
+  const previewQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+    queryFn: () => fetchSmartStoreProductPreview(adminKey, product!.id),
+    enabled: product !== null && mapping?.enabled === true,
   });
 
   useEffect(() => {
@@ -108,11 +116,25 @@ export function SmartStoreInventoryModal({
     },
   });
 
-  const mapping = mappingQuery.data;
+  const applyMutation = useAdminMutation(onAuthError, {
+    mutationFn: () => applySmartStoreProduct(
+      adminKey,
+      product!.id,
+      previewQuery.data!.productVersion,
+    ),
+    onSuccess: async () => {
+      toast.show("해피갤러리의 가격·판매 상태·옵션 가격을 스마트스토어에 반영했습니다.");
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+      });
+    },
+  });
+
   const close = () => {
     saveMutation.reset();
     retryMutation.reset();
     deleteMutation.reset();
+    applyMutation.reset();
     onClose();
   };
 
@@ -123,7 +145,8 @@ export function SmartStoreInventoryModal({
       </Modal.Header>
       <Modal.Body>
         {mappingQuery.isLoading && <LoadingSpinner />}
-        <ErrorAlert error={mappingQuery.error ?? saveMutation.error ?? retryMutation.error ?? deleteMutation.error} />
+        <ErrorAlert error={mappingQuery.error ?? previewQuery.error ?? saveMutation.error
+          ?? retryMutation.error ?? deleteMutation.error ?? applyMutation.error} />
 
         {mapping && (
           <Alert variant={mapping.syncStatus === "FAILED" ? "warning" : "light"}>
@@ -146,6 +169,43 @@ export function SmartStoreInventoryModal({
               )}
             </div>
             {mapping.lastError && <div className="small mt-2">{mapping.lastError}</div>}
+          </Alert>
+        )}
+
+        {mapping?.enabled && previewQuery.isLoading && <LoadingSpinner />}
+        {mapping?.enabled && previewQuery.data && (
+          <Alert variant={previewQuery.data.different ? "warning" : "success"}>
+            <div className="d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div className="fw-semibold">가격·판매 상태 비교</div>
+                <div className="small mt-1">
+                  판매가: 해피갤러리 {previewQuery.data.localSalePrice.toLocaleString()}원
+                  {" · "}스마트스토어 {previewQuery.data.channelSalePrice.toLocaleString()}원
+                </div>
+                <div className="small">
+                  판매 상태: 해피갤러리 기준 {previewQuery.data.localStatus}
+                  {" · "}스마트스토어 {previewQuery.data.channelStatus}
+                </div>
+              </div>
+              {previewQuery.data.different && (
+                <Button size="sm" variant="warning" disabled={applyMutation.isPending}
+                  onClick={() => applyMutation.mutate()}>
+                  {applyMutation.isPending ? "반영 중..." : "차이 반영"}
+                </Button>
+              )}
+            </div>
+            {previewQuery.data.options.some((option) => option.different) && (
+              <Table responsive size="sm" className="mt-3 mb-0 align-middle">
+                <thead><tr><th>옵션</th><th>해피갤러리 옵션가</th><th>스마트스토어 옵션가</th></tr></thead>
+                <tbody>{previewQuery.data.options.filter((option) => option.different).map((option) => (
+                  <tr key={option.productVariantId}>
+                    <td>{product ? variantLabel(product, option.productVariantId) : option.productVariantId}</td>
+                    <td>{option.localPrice.toLocaleString()}원</td>
+                    <td>{option.channelPrice === null ? "옵션 없음" : `${option.channelPrice.toLocaleString()}원`}</td>
+                  </tr>
+                ))}</tbody>
+              </Table>
+            )}
           </Alert>
         )}
 

@@ -10,6 +10,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreStockSyn
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductVariant;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreStockSync;
@@ -89,6 +90,59 @@ class SmartStoreStockSyncTransactionService {
         syncPort.save(sync);
     }
 
+    @Transactional(readOnly = true)
+    ProductSyncSnapshot productSnapshot(Long productId) {
+        Product product = productReaderPort.findById(productId)
+                .orElseThrow(() -> new IllegalStateException("연동할 상품이 없습니다."));
+        List<SmartStoreStockMapping> mappings = mappingPort
+                .findByProductIdOrderByProductVariantIdAsc(productId).stream()
+                .filter(SmartStoreStockMapping::isEnabled)
+                .toList();
+        if (mappings.isEmpty()) {
+            throw new IllegalStateException("스마트스토어 재고 연동 설정이 비활성 상태입니다.");
+        }
+        Long originProductNo = mappings.getFirst().getOriginProductNo();
+        if (product.getType() == ProductType.READY_STOCK) {
+            Inventory inventory = inventoryReaderPort.findByProductId(productId)
+                    .orElseThrow(() -> new IllegalStateException("연동할 상품 재고가 없습니다."));
+            return new ProductSyncSnapshot(
+                    productId, product.getVersion(), originProductNo, product.getPrice(),
+                    targetStatus(product.getStatus(), inventory.getQuantity()),
+                    inventory.getQuantity(), List.of());
+        }
+
+        Map<Long, SmartStoreStockMapping> mappingsByVariantId = mappings.stream()
+                .filter(mapping -> mapping.getProductVariantId() != null)
+                .collect(Collectors.toMap(
+                        SmartStoreStockMapping::getProductVariantId,
+                        Function.identity()));
+        List<ProductVariant> variants = variantReaderPort.findWithSelectionsByProductId(productId);
+        List<ProductOptionSnapshot> options = variants.stream()
+                .map(variant -> {
+                    SmartStoreStockMapping mapping = mappingsByVariantId.get(variant.getId());
+                    if (mapping == null) {
+                        throw new IllegalStateException(
+                                "상품 옵션이 변경되어 스마트스토어 옵션 매핑을 다시 저장해야 합니다.");
+                    }
+                    return new ProductOptionSnapshot(
+                            variant.getId(), mapping.getOptionId(),
+                            variant.isActive() ? variant.getQuantity() : 0,
+                            variant.getPriceAdjustment(), variant.isActive());
+                })
+                .toList();
+        int totalStock = options.stream().mapToInt(ProductOptionSnapshot::stockQuantity).sum();
+        return new ProductSyncSnapshot(
+                productId, product.getVersion(), originProductNo, product.getPrice(),
+                targetStatus(product.getStatus(), totalStock), null, options);
+    }
+
+    private static String targetStatus(ProductStatus status, int stockQuantity) {
+        if (status == ProductStatus.INACTIVE) {
+            return "SUSPENSION";
+        }
+        return stockQuantity == 0 ? "OUTOFSTOCK" : "SALE";
+    }
+
     private StockCommand buildCommand(Long productId) {
         Product product = productReaderPort.findById(productId)
                 .orElseThrow(() -> new IllegalStateException("연동할 상품이 없습니다."));
@@ -137,4 +191,22 @@ class SmartStoreStockSyncTransactionService {
     }
 
     record ClaimedStock(long version, StockCommand command, String configurationError) {}
+
+    record ProductSyncSnapshot(
+            Long productId,
+            long productVersion,
+            Long originProductNo,
+            long salePrice,
+            String targetStatus,
+            Integer stockQuantity,
+            List<ProductOptionSnapshot> options
+    ) {}
+
+    record ProductOptionSnapshot(
+            Long productVariantId,
+            Long optionId,
+            int stockQuantity,
+            long price,
+            boolean usable
+    ) {}
 }

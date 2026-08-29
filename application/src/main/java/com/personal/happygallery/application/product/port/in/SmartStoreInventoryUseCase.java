@@ -15,6 +15,10 @@ public interface SmartStoreInventoryUseCase {
 
     MappingResult retry(Long productId);
 
+    ProductPreviewResult previewProduct(Long productId);
+
+    void applyProduct(Long productId, long productVersion);
+
     record SaveMappingCommand(
             Long originProductNo,
             boolean enabled,
@@ -36,5 +40,27 @@ public interface SmartStoreInventoryUseCase {
             int attemptCount,
             String lastError,
             LocalDateTime syncedAt
+    ) {}
+
+    record ProductPreviewResult(
+            Long productId,
+            long productVersion,
+            Long originProductNo,
+            long localSalePrice,
+            long channelSalePrice,
+            String localStatus,
+            String channelStatus,
+            boolean different,
+            List<ProductOptionPreview> options
+    ) {}
+
+    record ProductOptionPreview(
+            Long productVariantId,
+            Long optionId,
+            long localPrice,
+            Long channelPrice,
+            boolean localUsable,
+            Boolean channelUsable,
+            boolean different
     ) {}
 }

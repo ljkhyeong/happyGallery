@@ -3,9 +3,15 @@ package com.personal.happygallery.application.product;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ChannelOption;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -16,9 +22,13 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -30,6 +40,8 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
     private final SmartStoreStockMappingPort mappingPort;
     private final SmartStoreStockSyncPort syncPort;
     private final SmartStoreStockSyncQueuePort queuePort;
+    private final SmartStoreInventoryProvider inventoryProvider;
+    private final SmartStoreStockSyncTransactionService transactionService;
     private final Clock clock;
 
     public DefaultSmartStoreInventoryService(
@@ -38,12 +50,16 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             SmartStoreStockMappingPort mappingPort,
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockSyncQueuePort queuePort,
+            SmartStoreInventoryProvider inventoryProvider,
+            SmartStoreStockSyncTransactionService transactionService,
             Clock clock) {
         this.productReaderPort = productReaderPort;
         this.variantReaderPort = variantReaderPort;
         this.mappingPort = mappingPort;
         this.syncPort = syncPort;
         this.queuePort = queuePort;
+        this.inventoryProvider = inventoryProvider;
+        this.transactionService = transactionService;
         this.clock = clock;
     }
 
@@ -103,6 +119,63 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         }
         queuePort.requestIfMapped(List.of(productId), LocalDateTime.now(clock));
         return result(mappings);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public ProductPreviewResult previewProduct(Long productId) {
+        requireProviderEnabled();
+        var local = transactionService.productSnapshot(productId);
+        var channel = inventoryProvider.getProduct(local.originProductNo());
+        Map<Long, ChannelOption> channelOptions = channel.options().stream()
+                .collect(Collectors.toMap(ChannelOption::optionId, Function.identity()));
+        List<ProductOptionPreview> options = local.options().stream()
+                .map(option -> {
+                    ChannelOption remote = channelOptions.get(option.optionId());
+                    boolean different = remote == null
+                            || option.price() != remote.price()
+                            || option.usable() != remote.usable();
+                    return new ProductOptionPreview(
+                            option.productVariantId(), option.optionId(), option.price(),
+                            remote == null ? null : remote.price(), option.usable(),
+                            remote == null ? null : remote.usable(), different);
+                })
+                .toList();
+        boolean different = local.salePrice() != channel.salePrice()
+                || !local.targetStatus().equals(channel.status())
+                || options.stream().anyMatch(ProductOptionPreview::different);
+        return new ProductPreviewResult(
+                local.productId(), local.productVersion(), local.originProductNo(),
+                local.salePrice(), channel.salePrice(), local.targetStatus(), channel.status(),
+                different, options);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void applyProduct(Long productId, long productVersion) {
+        requireProviderEnabled();
+        var local = transactionService.productSnapshot(productId);
+        if (local.productVersion() != productVersion) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "상품이 변경되었습니다. 최신 차이를 다시 확인해 주세요.");
+        }
+        var result = inventoryProvider.applyProduct(new ProductCommand(
+                local.originProductNo(), local.salePrice(), local.targetStatus(),
+                local.stockQuantity(), local.options().stream()
+                        .map(option -> new ProductOption(
+                                option.optionId(), option.stockQuantity(), option.price(),
+                                option.usable()))
+                        .toList()));
+        if (!result.success()) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, result.reason());
+        }
+    }
+
+    private void requireProviderEnabled() {
+        if (!inventoryProvider.isEnabled()) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "스마트스토어 연동이 비활성화되어 있습니다.");
+        }
     }
 
     private void validate(Product product, List<VariantMapping> requested) {

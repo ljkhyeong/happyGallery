@@ -50,6 +50,99 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         }
     }
 
+    @Override
+    public ChannelProduct getProduct(Long originProductNo) {
+        ProductResponse response = accessTokenProvider.authorized(token -> restClient.get()
+                .uri("/external/v2/products/origin-products/{originProductNo}", originProductNo)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(ProductResponse.class));
+        if (response == null || response.originProduct() == null) {
+            throw new IllegalStateException("스마트스토어 원상품 응답이 비어 있습니다.");
+        }
+        RemoteOriginProduct product = response.originProduct();
+        RemoteOptionInfo optionInfo = product.detailAttribute() == null
+                ? null : product.detailAttribute().optionInfo();
+        List<ChannelOption> options = optionInfo == null || optionInfo.optionCombinations() == null
+                ? List.of()
+                : optionInfo.optionCombinations().stream()
+                        .map(option -> new ChannelOption(
+                                option.id(), option.stockQuantity(), option.price(), option.usable()))
+                        .toList();
+        return new ChannelProduct(product.salePrice(), product.statusType(), options);
+    }
+
+    @Override
+    public SyncResult applyProduct(ProductCommand command) {
+        if (!properties.enabled()) {
+            return SyncResult.failure("스마트스토어 상품 연동이 비활성 상태입니다.");
+        }
+        try {
+            accessTokenProvider.authorized(token -> {
+                if (command.options().isEmpty()) {
+                    updatePriceAndStock(command, token);
+                } else {
+                    updateOptions(command, token);
+                }
+                if (!("OUTOFSTOCK".equals(command.targetStatus())
+                        && !command.options().isEmpty())) {
+                    updateStatus(command, token);
+                }
+                return null;
+            });
+            return SyncResult.completed();
+        } catch (RestClientResponseException exception) {
+            return SyncResult.failure(exception.getStatusCode().is5xxServerError()
+                    || exception.getStatusCode().value() == 429
+                    ? "스마트스토어가 상품 반영 요청을 처리하지 못했습니다."
+                    : "스마트스토어가 상품 반영 요청을 거절했습니다.");
+        } catch (Exception exception) {
+            return SyncResult.failure("스마트스토어에 연결하지 못했습니다.");
+        }
+    }
+
+    private void updatePriceAndStock(ProductCommand command, String token) {
+        restClient.patch()
+                .uri("/external/v1/products/origin-products/multi-update")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new MultiUpdateRequest(List.of(new MultiUpdateItem(
+                        command.originProductNo(), List.of("SALE_PRICE", "STOCK"),
+                        command.stockQuantity(), new ProductSalePrice(command.salePrice())))))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private void updateOptions(ProductCommand command, String token) {
+        restClient.put()
+                .uri("/external/v1/products/origin-products/{originProductNo}/option-stock",
+                        command.originProductNo())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ProductOptionUpdateRequest(
+                        new ProductSalePrice(command.salePrice()),
+                        new ProductOptionInfo(command.options().stream()
+                                .map(option -> new ProductOptionCombination(
+                                        option.optionId(), option.stockQuantity(), option.price(),
+                                        option.usable()))
+                                .toList(), true)))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    private void updateStatus(ProductCommand command, String token) {
+        restClient.put()
+                .uri("/external/v1/products/origin-products/{originProductNo}/change-status",
+                        command.originProductNo())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ProductStatusRequest(
+                        command.targetStatus(),
+                        "SALE".equals(command.targetStatus()) ? command.stockQuantity() : null))
+                .retrieve()
+                .toBodilessEntity();
+    }
+
     private void send(StockCommand command, String accessToken) {
         if (command.optionProduct()) {
             restClient.put()
@@ -72,7 +165,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(new MultiUpdateRequest(List.of(new MultiUpdateItem(
-                        command.originProductNo(), List.of("STOCK"), command.stockQuantity()))))
+                        command.originProductNo(), List.of("STOCK"), command.stockQuantity(), null))))
                 .retrieve()
                 .toBodilessEntity();
     }
@@ -103,6 +196,47 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
     private record MultiUpdateItem(
             Long originProductNo,
             List<String> multiUpdateTypes,
-            int stockQuantity
+            Integer stockQuantity,
+            ProductSalePrice productSalePrice
+    ) {}
+
+    private record ProductSalePrice(long salePrice) {}
+
+    private record ProductOptionUpdateRequest(
+            ProductSalePrice productSalePrice,
+            ProductOptionInfo optionInfo
+    ) {}
+
+    private record ProductOptionInfo(
+            List<ProductOptionCombination> optionCombinations,
+            boolean useStockManagement
+    ) {}
+
+    private record ProductOptionCombination(
+            Long id,
+            int stockQuantity,
+            long price,
+            boolean usable
+    ) {}
+
+    private record ProductStatusRequest(String statusType, Integer stockQuantity) {}
+
+    private record ProductResponse(RemoteOriginProduct originProduct) {}
+
+    private record RemoteOriginProduct(
+            long salePrice,
+            String statusType,
+            RemoteDetailAttribute detailAttribute
+    ) {}
+
+    private record RemoteDetailAttribute(RemoteOptionInfo optionInfo) {}
+
+    private record RemoteOptionInfo(List<RemoteOptionCombination> optionCombinations) {}
+
+    private record RemoteOptionCombination(
+            Long id,
+            int stockQuantity,
+            long price,
+            boolean usable
     ) {}
 }
