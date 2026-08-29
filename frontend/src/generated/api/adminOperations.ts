@@ -308,6 +308,85 @@ export interface RefundStatusResponse {
   status: RefundStatusResponseStatus;
 }
 
+export interface CommissionDetailResponse {
+  commissionAmount: number;
+  commissionBasisAmount: number;
+  commissionType: string;
+  /** @nullable */
+  maximumSellingInterlockCommissionAmount: number | null;
+  merchantId: string;
+  merchantName: string;
+  orderNo: string;
+  /** @nullable */
+  payMeansType: string | null;
+  /** @nullable */
+  productId: string | null;
+  /** @nullable */
+  productName: string | null;
+  productOrderId: string;
+  productOrderType: string;
+  /** @nullable */
+  settleBasisDate: string | null;
+  /** @nullable */
+  settleCompleteDate: string | null;
+  /** @nullable */
+  settleExpectDate: string | null;
+  settleType: string;
+  /** @nullable */
+  taxReturnDate: string | null;
+}
+
+export interface DailySettlementResponse {
+  benefitSettleAmount: number;
+  commissionSettleAmount: number;
+  deductionRestoreSettleAmount: number;
+  differenceSettleAmount: number;
+  /** @nullable */
+  merchantId: string | null;
+  /** @nullable */
+  merchantName: string | null;
+  minusChargeAmount: number;
+  normalSettleAmount: number;
+  payHoldbackAmount: number;
+  paySettleAmount: number;
+  preferentialCommissionAmount: number;
+  quickSettleAmount: number;
+  returnCareSettleAmount: number;
+  settleAmount: number;
+  settleBasisEndDate: string;
+  settleBasisStartDate: string;
+  /** @nullable */
+  settleCompleteDate: string | null;
+  settleExpectDate: string;
+  settleMethodType: string;
+  settlementLimitAmount: number;
+}
+
+export interface DailyVatResponse {
+  cashExclusionIssuanceAmount: number;
+  cashInComeDeductionAmount: number;
+  cashOutGoingEvidenceAmount: number;
+  creditCardAmount: number;
+  /** @nullable */
+  merchantId: string | null;
+  /** @nullable */
+  merchantName: string | null;
+  otherAmount: number;
+  settleBasisDate: string;
+  taxExemptionSalesAmount: number;
+  taxationSalesAmount: number;
+  totalSalesAmount: number;
+}
+
+export interface SmartStoreAccountingReportResponse {
+  commissionDetails: CommissionDetailResponse[];
+  dailySettlements: DailySettlementResponse[];
+  dailyVat: DailyVatResponse[];
+  from: string;
+  to: string;
+  vatAvailableThrough: string;
+}
+
 export type SmartStoreSettlementIssueResponseStatus = typeof SmartStoreSettlementIssueResponseStatus[keyof typeof SmartStoreSettlementIssueResponseStatus];
 
 
@@ -378,6 +457,11 @@ size?: number;
 export type ListFailedParams = {
 cursor?: string;
 size?: number;
+};
+
+export type GetSmartStoreAccountingReportParams = {
+from: string;
+to: string;
 };
 
 export const getListAdminInquiriesUrl = (params?: ListAdminInquiriesParams,) => {
@@ -713,6 +797,37 @@ export const retry = async (refundId: number, options?: RequestInit): Promise<Re
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getGetSmartStoreAccountingReportUrl = (params: GetSmartStoreAccountingReportParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-settlements/accounting?${stringifiedParams}` : `/api/v1/admin/smartstore-settlements/accounting`
+}
+
+/**
+ * @summary 스마트스토어 일별 정산·수수료·부가세 자료 조회
+ */
+export const getSmartStoreAccountingReport = async (params: GetSmartStoreAccountingReportParams, options?: RequestInit): Promise<SmartStoreAccountingReportResponse> => {
+
+  return generatedApiClient<SmartStoreAccountingReportResponse>(getGetSmartStoreAccountingReportUrl(params),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

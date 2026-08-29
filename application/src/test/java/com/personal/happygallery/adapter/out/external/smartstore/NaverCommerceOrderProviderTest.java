@@ -289,6 +289,67 @@ class NaverCommerceOrderProviderTest {
         server.verify();
     }
 
+    @Test
+    @DisplayName("발주와 발송 일괄 요청은 주문별 성공과 실패를 그대로 반환한다")
+    void bulkOperations_preservePartialResults() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider tokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES, tokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/confirm"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"productOrderIds\":[\"po-1\",\"po-2\"]}"))
+                .andRespond(withSuccess("""
+                        {"data":{
+                          "successProductOrderInfos":[{"productOrderId":"po-1"}],
+                          "failProductOrderInfos":[{
+                            "productOrderId":"po-2","code":"INVALID_STATUS","message":"발주 상태가 아닙니다."
+                          }]
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-order/seller/product-orders/dispatch"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {"dispatchProductOrders":[
+                          {"productOrderId":"po-1","deliveryMethod":"DELIVERY",
+                           "deliveryCompanyCode":"CJGLS","trackingNumber":"1111",
+                           "dispatchDate":"2026-08-29T15:00:00+09:00"},
+                          {"productOrderId":"po-2","deliveryMethod":"DELIVERY",
+                           "deliveryCompanyCode":"CJGLS","trackingNumber":"2222",
+                           "dispatchDate":"2026-08-29T15:00:00+09:00"}
+                        ]}
+                        """))
+                .andRespond(withSuccess("""
+                        {"data":{
+                          "successProductOrderIds":["po-1"],
+                          "failProductOrderInfos":[{
+                            "productOrderId":"po-2","code":"INVALID_TRACKING","message":"운송장을 확인해 주세요."
+                          }]
+                        }}
+                        """, MediaType.APPLICATION_JSON));
+
+        var confirm = provider.confirmAll(List.of("po-1", "po-2"));
+        var dispatch = provider.dispatchAll(List.of(
+                new DispatchCommand("po-1", "DELIVERY", "CJGLS", "1111",
+                        LocalDateTime.of(2026, 8, 29, 15, 0)),
+                new DispatchCommand("po-2", "DELIVERY", "CJGLS", "2222",
+                        LocalDateTime.of(2026, 8, 29, 15, 0))));
+
+        server.verify();
+        assertThat(confirm.successProductOrderIds()).containsExactly("po-1");
+        assertThat(confirm.failures()).singleElement()
+                .satisfies(failure -> assertThat(failure.productOrderId()).isEqualTo("po-2"));
+        assertThat(dispatch.successProductOrderIds()).containsExactly("po-1");
+        assertThat(dispatch.failures()).singleElement()
+                .satisfies(failure -> assertThat(failure.code()).isEqualTo("INVALID_TRACKING"));
+    }
+
     private static ResponseCreator operationSuccess() {
         return withSuccess("""
                 {"data":{"successProductOrderIds":["po-1"],"failProductOrderInfos":[]}}

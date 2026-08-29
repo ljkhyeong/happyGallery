@@ -678,6 +678,45 @@ export interface SmartStoreChannelOrderResponse {
   remainQuantity: number;
 }
 
+export interface BulkConfirmSmartStoreOrdersRequest {
+  /**
+     * @minItems 1
+     * @maxItems 30
+     * @items.minLength 1
+     */
+  productOrderIds: string[];
+}
+
+export interface Failure {
+  /** @nullable */
+  code: string | null;
+  message: string;
+  productOrderId: string;
+}
+
+export interface SmartStoreOrderBulkActionResponse {
+  failures: Failure[];
+  successProductOrderIds: string[];
+}
+
+export interface DispatchOrder {
+  deliveryCompanyCode?: string;
+  /** @minLength 1 */
+  deliveryMethod: string;
+  dispatchDate: string;
+  /** @minLength 1 */
+  productOrderId: string;
+  trackingNumber?: string;
+}
+
+export interface BulkDispatchSmartStoreOrdersRequest {
+  /**
+     * @minItems 1
+     * @maxItems 30
+     */
+  orders: DispatchOrder[];
+}
+
 export interface ClaimDetail {
   /** @nullable */
   claimDeliveryFeeDemandAmount: number | null;
@@ -1336,6 +1375,48 @@ export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannel
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getConfirmSmartStoreChannelOrdersUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/confirm`
+}
+
+export const confirmSmartStoreChannelOrders = async (bulkConfirmSmartStoreOrdersRequest: BulkConfirmSmartStoreOrdersRequest, options?: RequestInit): Promise<SmartStoreOrderBulkActionResponse> => {
+
+  return generatedApiClient<SmartStoreOrderBulkActionResponse>(getConfirmSmartStoreChannelOrdersUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkConfirmSmartStoreOrdersRequest)
+  }
+);}
+
+
+
+export const getDispatchSmartStoreChannelOrdersUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/dispatch`
+}
+
+export const dispatchSmartStoreChannelOrders = async (bulkDispatchSmartStoreOrdersRequest: BulkDispatchSmartStoreOrdersRequest, options?: RequestInit): Promise<SmartStoreOrderBulkActionResponse> => {
+
+  return generatedApiClient<SmartStoreOrderBulkActionResponse>(getDispatchSmartStoreChannelOrdersUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkDispatchSmartStoreOrdersRequest)
   }
 );}
 

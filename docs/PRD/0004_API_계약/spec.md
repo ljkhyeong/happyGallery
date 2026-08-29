@@ -875,7 +875,7 @@ GET /api/v1/admin/products/smartstore-catalog/{originProductNo}
 Authorization: Bearer {token}
 ```
 
-- 목록은 `products`, 1부터 시작하는 `page`, `size`, `totalElements`, `totalPages`를 반환한다. 상품 항목은 `originProductNo`, 상품명, 판매 상태·판매가·재고와 nullable 대표 이미지 주소를 포함한다.
+- 목록은 `products`, 1부터 시작하는 `page`, `size`, `totalElements`, `totalPages`를 반환한다. 상품 항목은 `originProductNo`, `channelProductNo`, 상품명, 판매 상태·판매가·재고와 nullable 대표 이미지 주소를 포함한다.
 - 원상품 상세는 판매가·판매 상태와 옵션별 `optionId`, 조합명, 재고, 옵션가, 사용 여부를 반환한다. 관리자는 이 정보를 보고 내부 주문제작 옵션 조합마다 네이버 옵션을 하나씩 선택한다.
 - `page`는 1 이상, `size`는 1~100이다. 스마트스토어 연동이 비활성화됐으면 `409 CONFLICT`를 반환한다.
 
@@ -913,6 +913,25 @@ Authorization: Bearer {token}
 - 미리보기는 상품 버전, 양쪽 판매가·판매 상태와 옵션별 양쪽 옵션가·사용 여부·차이 여부를 반환한다.
 - 반영 요청은 `{ "productVersion": 7 }`을 받는다. 현재 상품 버전과 다르면 `409 CONFLICT`로 거절해 오래된 미리보기 값을 적용하지 않는다.
 - 주문제작 상품은 판매가와 모든 옵션의 옵션가·사용 여부·현재 재고를 한 요청으로 보내고, 기성품은 판매가와 현재 재고를 함께 반영한다. 그 뒤 현재 재고를 고려한 `SALE|OUTOFSTOCK|SUSPENSION` 상태를 적용한다.
+
+네이버 검수 반려 상품과 상품 공지사항은 로컬에 복제하지 않고 실시간 관리한다.
+
+```http
+GET /api/v1/admin/products/smartstore-inspections?page=1&size=100
+PUT /api/v1/admin/products/smartstore-inspections/{channelProductNo}/restore
+GET /api/v1/admin/smartstore-notices?page=1&size=100
+GET /api/v1/admin/smartstore-notices/{sellerNoticeId}
+POST /api/v1/admin/smartstore-notices
+PUT /api/v1/admin/smartstore-notices/{sellerNoticeId}
+DELETE /api/v1/admin/smartstore-notices/{sellerNoticeId}
+PUT /api/v1/admin/smartstore-notices/{sellerNoticeId}/products
+Authorization: Bearer {token}
+```
+
+- 검수 목록은 `channelProductNo`, 반려 사유, 필요한 조치, 복원 요청 가능 여부를 반환한다. 복원 요청은 상품 수정 뒤 네이버에 전달하며 성공 시 `204`다.
+- 공지 목록은 유형·제목·중요/전체 공지 여부와 전시 기간을, 상세는 팝업 기간과 본문을 추가로 반환한다. 유형은 `ORDINARY|EVENT|DELIVERY|PRODUCT`다.
+- 등록·수정은 제목·본문과 중요/전체/팝업 여부 및 각 기간을 받는다. 저장 성공은 `sellerNoticeId`를 반환하고 삭제 성공은 `204`다. 상품에 적용된 공지의 삭제 가능 여부는 네이버가 최종 판정한다.
+- 상품 적용 요청은 비어 있지 않은 `channelProductNos`를 받고 성공 시 `204`다.
 
 #### 2.3.7 스마트스토어 채널 주문 관리
 
@@ -963,6 +982,8 @@ Authorization: Bearer {token}
 |---|---|---|---|
 | 발주 확인 | `POST /api/v1/admin/smartstore-orders/{id}/confirm` | 없음 | `204` |
 | 발송 처리 | `POST /api/v1/admin/smartstore-orders/{id}/dispatch` | `deliveryMethod`, nullable `deliveryCompanyCode`, nullable `trackingNumber`, `dispatchDate` | `204` |
+| 발주 일괄 확인 | `POST /api/v1/admin/smartstore-orders/confirm` | `productOrderIds` 최대 30건 | 성공·실패 주문별 결과 |
+| 발송 일괄 처리 | `POST /api/v1/admin/smartstore-orders/dispatch` | `orders` 최대 30건, 항목별 발송 정보 | 성공·실패 주문별 결과 |
 | 발송 지연 | `POST /api/v1/admin/smartstore-orders/{id}/delay` | `dispatchDueDate`, `reasonCode`, `detailedReason` | `204` |
 | 취소 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/approve` | 없음 | `204` |
 | 반품 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/approve` | 없음 | `204` |
@@ -979,6 +1000,7 @@ Authorization: Bearer {token}
 
 - 서버는 관리자 입력 형식과 연동 활성화 여부만 확인하며, 작업 가능 상태는 최신 상태를 보유한 네이버가 판정한다. 같은 상태 규칙을 로컬에서 중복 구현하지 않는다.
 - 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 성공 뒤 로컬 상태는 변경 피드에서 다시 수집한다.
+- 일괄 응답은 `successProductOrderIds`와 `failures[{productOrderId, code, message}]`를 반환한다. 일부 실패가 있어도 성공 결과를 유지하고 실패 주문만 다시 선택할 수 있게 한다.
 
 ```http
 GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
@@ -2521,6 +2543,7 @@ Authorization: Bearer {token}
 - 응답은 상품 주문·주문 번호, 정산 유형, 결제 정산액·수수료·혜택 정산액·정산 예정액, 기준일·예정일·완료일·지급일, 사유와 조회 시각을 포함한다.
 - 서버는 매시 50분 저장된 다음 지급일부터 오늘까지 한 실행당 최대 31일을 순차 처리하고, 오늘까지 완료한 뒤에는 당일을 다시 조회한다. 처리 날짜는 성공한 뒤에만 전진하므로 장기 장애 뒤에도 누락 기간을 자동 복구한다. `productOrderId + 정산 유형 + 정산일` 조합으로 멱등 갱신하며 부가 정산 유형은 `NOT_APPLICABLE`, 일치한 원거래는 `MATCHED`로 저장하되 작업 목록에는 표시하지 않는다.
 - 관리자는 `POST /api/v1/admin/smartstore-settlements/synchronize`에 `{ "from": "2026-08-01", "to": "2026-08-07" }`을 보내 31일 이내 기간을 다시 조회할 수 있다. 응답은 정상 건수, 확인 필요 건수와 사유별 건수를 반환한다.
+- `GET /api/v1/admin/smartstore-settlements/accounting?from=2026-07-01&to=2026-07-31`은 31일 이내 일별 정산·수수료 상세·일별 부가세 자료를 반환한다. 부가세는 전월 말까지만 조회하며 응답의 `vatAvailableThrough`로 제공 가능 종료일을 알린다. 구매자명·예금주·계좌번호는 반환하지 않고 CSV는 관리자 화면에서 내려받는다.
 
 ### 2.12 회원 API (`/api/v1/me`)
 

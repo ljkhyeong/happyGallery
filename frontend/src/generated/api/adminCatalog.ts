@@ -349,6 +349,7 @@ export interface CreateProductRequest {
 }
 
 export interface Product {
+  channelProductNo: number;
   /** @nullable */
   imageUrl: string | null;
   name: string;
@@ -380,6 +381,21 @@ export interface SmartStoreChannelProductResponse {
   originProductNo: number;
   salePrice: number;
   status: string;
+}
+
+export interface InspectionProduct {
+  action: string;
+  channelProductNo: number;
+  reason: string;
+  restorationRequestAvailable: boolean;
+}
+
+export interface SmartStoreInspectionPageResponse {
+  page: number;
+  products: InspectionProduct[];
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface UpdateProductRequest {
@@ -686,6 +702,88 @@ export interface AdminSlotSessionCancelResponse {
   passCreditsRestored: number;
 }
 
+export interface NoticeSummaryResponse {
+  /** @nullable */
+  displayEndDate: string | null;
+  /** @nullable */
+  displayStartDate: string | null;
+  importantNotice: boolean;
+  /** @nullable */
+  importantNoticeEndDate: string | null;
+  /** @nullable */
+  importantNoticeStartDate: string | null;
+  postCategoryType: string;
+  sellerNoticeId: number;
+  title: string;
+  wholeNotice: boolean;
+}
+
+export interface SmartStoreNoticePageResponse {
+  notices: NoticeSummaryResponse[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export type SaveSmartStoreNoticeRequestPostCategoryType = typeof SaveSmartStoreNoticeRequestPostCategoryType[keyof typeof SaveSmartStoreNoticeRequestPostCategoryType];
+
+
+export const SaveSmartStoreNoticeRequestPostCategoryType = {
+  ORDINARY: 'ORDINARY',
+  EVENT: 'EVENT',
+  DELIVERY: 'DELIVERY',
+  PRODUCT: 'PRODUCT',
+} as const;
+
+export interface SaveSmartStoreNoticeRequest {
+  /** @minLength 1 */
+  detailContents: string;
+  displayEndDate?: string;
+  displayStartDate?: string;
+  importantNotice?: boolean;
+  importantNoticeEndDate?: string;
+  importantNoticeStartDate?: string;
+  popup?: boolean;
+  popupEndDate?: string;
+  popupStartDate?: string;
+  postCategoryType: SaveSmartStoreNoticeRequestPostCategoryType;
+  /** @minLength 1 */
+  title: string;
+  wholeNotice?: boolean;
+}
+
+export interface SmartStoreNoticeIdResponse {
+  sellerNoticeId: number;
+}
+
+export interface SmartStoreNoticeResponse {
+  detailContents: string;
+  /** @nullable */
+  displayEndDate: string | null;
+  /** @nullable */
+  displayStartDate: string | null;
+  importantNotice: boolean;
+  /** @nullable */
+  importantNoticeEndDate: string | null;
+  /** @nullable */
+  importantNoticeStartDate: string | null;
+  popup: boolean;
+  /** @nullable */
+  popupEndDate: string | null;
+  /** @nullable */
+  popupStartDate: string | null;
+  postCategoryType: string;
+  sellerNoticeId: number;
+  title: string;
+  wholeNotice: boolean;
+}
+
+export interface ApplySmartStoreNoticeRequest {
+  /** @minItems 1 */
+  channelProductNos: number[];
+}
+
 export type UploadImageBody = {
   file: Blob;
 };
@@ -702,6 +800,18 @@ page?: number;
 size?: number;
 };
 
+export type ListSmartStoreInspectionProductsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 10
+ * @maximum 100
+ */
+size?: number;
+};
+
 export type ListSlotsParams = {
 classId: number;
 };
@@ -709,6 +819,18 @@ classId: number;
 export type GetAdminBookingCalendarParams = {
 dateFrom: string;
 dateTo: string;
+};
+
+export type ListSmartStoreProductNoticesParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
 };
 
 export const getListClassesUrl = () => {
@@ -925,6 +1047,55 @@ export const getSmartStoreProduct = async (originProductNo: number, options?: Re
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getListSmartStoreInspectionProductsUrl = (params?: ListSmartStoreInspectionProductsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/products/smartstore-inspections?${stringifiedParams}` : `/api/v1/admin/products/smartstore-inspections`
+}
+
+export const listSmartStoreInspectionProducts = async (params?: ListSmartStoreInspectionProductsParams, options?: RequestInit): Promise<SmartStoreInspectionPageResponse> => {
+
+  return generatedApiClient<SmartStoreInspectionPageResponse>(getListSmartStoreInspectionProductsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRestoreSmartStoreInspectionProductUrl = (channelProductNo: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/smartstore-inspections/${channelProductNo}/restore`
+}
+
+export const restoreSmartStoreInspectionProduct = async (channelProductNo: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRestoreSmartStoreInspectionProductUrl(channelProductNo),
+  {
+    ...options,
+    method: 'PUT'
 
 
   }
@@ -1347,5 +1518,140 @@ export const cancelAdminSlotSession = async (slotId: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(adminSlotSessionCancelRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreProductNoticesUrl = (params?: ListSmartStoreProductNoticesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-notices?${stringifiedParams}` : `/api/v1/admin/smartstore-notices`
+}
+
+export const listSmartStoreProductNotices = async (params?: ListSmartStoreProductNoticesParams, options?: RequestInit): Promise<SmartStoreNoticePageResponse> => {
+
+  return generatedApiClient<SmartStoreNoticePageResponse>(getListSmartStoreProductNoticesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreateSmartStoreProductNoticeUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-notices`
+}
+
+export const createSmartStoreProductNotice = async (saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: RequestInit): Promise<SmartStoreNoticeIdResponse> => {
+
+  return generatedApiClient<SmartStoreNoticeIdResponse>(getCreateSmartStoreProductNoticeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveSmartStoreNoticeRequest)
+  }
+);}
+
+
+
+export const getDeleteSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-notices/${sellerNoticeId}`
+}
+
+export const deleteSmartStoreProductNotice = async (sellerNoticeId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDeleteSmartStoreProductNoticeUrl(sellerNoticeId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-notices/${sellerNoticeId}`
+}
+
+export const getSmartStoreProductNotice = async (sellerNoticeId: number, options?: RequestInit): Promise<SmartStoreNoticeResponse> => {
+
+  return generatedApiClient<SmartStoreNoticeResponse>(getGetSmartStoreProductNoticeUrl(sellerNoticeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-notices/${sellerNoticeId}`
+}
+
+export const updateSmartStoreProductNotice = async (sellerNoticeId: number,
+    saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: RequestInit): Promise<SmartStoreNoticeIdResponse> => {
+
+  return generatedApiClient<SmartStoreNoticeIdResponse>(getUpdateSmartStoreProductNoticeUrl(sellerNoticeId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveSmartStoreNoticeRequest)
+  }
+);}
+
+
+
+export const getApplySmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-notices/${sellerNoticeId}/products`
+}
+
+export const applySmartStoreProductNotice = async (sellerNoticeId: number,
+    applySmartStoreNoticeRequest: ApplySmartStoreNoticeRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getApplySmartStoreProductNoticeUrl(sellerNoticeId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(applySmartStoreNoticeRequest)
   }
 );}

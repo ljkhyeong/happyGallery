@@ -129,10 +129,33 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         return new CatalogPageResult(
                 catalog.products().stream()
                         .map(product -> new CatalogProductResult(
-                                product.originProductNo(), product.name(), product.status(),
+                                product.originProductNo(), product.channelProductNo(),
+                                product.name(), product.status(),
                                 product.salePrice(), product.stockQuantity(), product.imageUrl()))
                         .toList(),
                 catalog.page(), catalog.size(), catalog.totalElements(), catalog.totalPages());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public InspectionPageResult listInspectionProducts(int page, int size) {
+        requireProviderEnabled();
+        var inspections = inventoryProvider.listInspectionProducts(page, size);
+        return new InspectionPageResult(
+                inspections.products().stream()
+                        .map(product -> new InspectionProductResult(
+                                product.channelProductNo(), product.reason(), product.action(),
+                                product.restorationRequestAvailable()))
+                        .toList(),
+                inspections.page(), inspections.size(),
+                inspections.totalElements(), inspections.totalPages());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void restoreInspectionProduct(Long channelProductNo) {
+        requireProviderEnabled();
+        inventoryProvider.restoreInspectionProduct(channelProductNo);
     }
 
     @Override

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Col, Form, Modal, Row, Table } from "react-bootstrap";
+import { Alert, Badge, Button, Col, Form, Modal, Row, Table } from "react-bootstrap";
 import type {
   DelaySmartStoreOrderRequest,
   DispatchSmartStoreExchangeRequest,
@@ -11,6 +11,7 @@ import type {
   HoldSmartStoreReturnRequest,
   RequestSmartStoreSellerCancelRequest,
   RequestSmartStoreSellerReturnRequest,
+  SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -21,9 +22,11 @@ import {
   approveSmartStoreCancel,
   approveSmartStoreReturn,
   confirmSmartStoreOrder,
+  confirmSmartStoreOrders,
   delaySmartStoreOrder,
   dispatchSmartStoreExchange,
   dispatchSmartStoreOrder,
+  dispatchSmartStoreOrders,
   completeSmartStoreExchangeCollection,
   holdSmartStoreExchange,
   holdSmartStoreReturn,
@@ -67,6 +70,8 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELED_BY_NOPAYMENT: "미결제 취소",
 };
 
+const MAX_BULK_ORDERS = 30;
+
 export function SmartStoreChannelOrderSection({
   adminKey,
   onAuthError,
@@ -77,6 +82,9 @@ export function SmartStoreChannelOrderSection({
   const [attentionOnly, setAttentionOnly] = useState(initialAttentionOnly);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDispatchOpen, setBulkDispatchOpen] = useState(false);
+  const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
   const queryKey = ["admin", "smartstore-orders", attentionOnly] as const;
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
@@ -115,6 +123,15 @@ export function SmartStoreChannelOrderSection({
     },
     onSettled: () => setPendingId(null),
   });
+  const bulkConfirm = useAdminMutation(onAuthError, {
+    mutationFn: () => confirmSmartStoreOrders(adminKey, [...selectedIds]),
+    onSuccess: (result) => {
+      setBulkResult(result);
+      setSelectedIds(new Set(result.failures.map((failure) => failure.productOrderId)));
+      toast.show(`발주 확인 ${result.successProductOrderIds.length}건을 요청했습니다.`);
+      invalidate();
+    },
+  });
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
@@ -134,6 +151,19 @@ export function SmartStoreChannelOrderSection({
           onChange={(event) => setAttentionOnly(event.target.checked)}
         />
       )}
+      {!!selectedIds.size && <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <Badge bg="primary">{selectedIds.size}건 선택</Badge>
+        <Button size="sm" variant="outline-primary" disabled={bulkConfirm.isPending}
+          onClick={() => bulkConfirm.mutate()}>
+          {bulkConfirm.isPending ? "처리 중..." : "선택 주문 발주 확인"}
+        </Button>
+        <Button size="sm" variant="outline-success"
+          onClick={() => setBulkDispatchOpen(true)}>선택 주문 발송</Button>
+        <Button size="sm" variant="outline-secondary"
+          onClick={() => setSelectedIds(new Set())}>선택 해제</Button>
+      </div>}
+      <ErrorAlert error={bulkConfirm.error} />
+      {bulkResult && <BulkResultAlert result={bulkResult} />}
       {!data?.length ? (
         <EmptyState message={attentionOnly
           ? "확인이 필요한 스마트스토어 주문이 없습니다."
@@ -142,6 +172,14 @@ export function SmartStoreChannelOrderSection({
         <Table responsive hover size="sm" className="align-middle">
           <thead>
             <tr>
+              <th style={{ width: 40 }}><Form.Check
+                aria-label="전체 주문 선택"
+                checked={!!data?.length && data.slice(0, MAX_BULK_ORDERS)
+                  .every((order) => selectedIds.has(order.productOrderId))}
+                onChange={(event) => setSelectedIds(event.target.checked
+                  ? new Set(data?.slice(0, MAX_BULK_ORDERS).map((order) => order.productOrderId))
+                  : new Set())}
+              /></th>
               <th>상품 주문 번호</th>
               <th>상품·옵션</th>
               <th>주문 상태</th>
@@ -155,6 +193,18 @@ export function SmartStoreChannelOrderSection({
           <tbody>
             {data.map((order) => (
               <tr key={order.productOrderId}>
+                <td><Form.Check
+                  aria-label={`${order.productOrderId} 선택`}
+                  checked={selectedIds.has(order.productOrderId)}
+                  disabled={!selectedIds.has(order.productOrderId)
+                    && selectedIds.size >= MAX_BULK_ORDERS}
+                  onChange={(event) => setSelectedIds((current) => {
+                    const next = new Set(current);
+                    if (event.target.checked) next.add(order.productOrderId);
+                    else next.delete(order.productOrderId);
+                    return next;
+                  })}
+                /></td>
                 <td className="small">{order.productOrderId}</td>
                 <td>
                   <div>{order.productName}</div>
@@ -194,8 +244,114 @@ export function SmartStoreChannelOrderSection({
         onClose={() => setSelectedId(null)}
         onChanged={invalidate}
       />
+      <BulkDispatchModal
+        show={bulkDispatchOpen}
+        adminKey={adminKey}
+        productOrderIds={[...selectedIds]}
+        onAuthError={onAuthError}
+        onClose={() => setBulkDispatchOpen(false)}
+        onCompleted={(result) => {
+          setBulkDispatchOpen(false);
+          setBulkResult(result);
+          setSelectedIds(new Set(result.failures.map((failure) => failure.productOrderId)));
+          invalidate();
+        }}
+      />
+      <DeliveryCompanyDatalist />
     </>
   );
+}
+
+function BulkResultAlert({ result }: { result: SmartStoreOrderBulkActionResponse }) {
+  return <Alert variant={result.failures.length ? "warning" : "success"}>
+    성공 {result.successProductOrderIds.length}건 · 실패 {result.failures.length}건
+    {result.failures.length > 0 && <ul className="small mb-0 mt-2">
+      {result.failures.map((failure) => <li key={failure.productOrderId}>
+        {failure.productOrderId}: {failure.message}
+        {failure.code ? ` (${failure.code})` : ""}
+      </li>)}
+    </ul>}
+  </Alert>;
+}
+
+function BulkDispatchModal({
+  show,
+  adminKey,
+  productOrderIds,
+  onAuthError,
+  onClose,
+  onCompleted,
+}: {
+  show: boolean;
+  adminKey: string;
+  productOrderIds: string[];
+  onAuthError: () => void;
+  onClose: () => void;
+  onCompleted: (result: SmartStoreOrderBulkActionResponse) => void;
+}) {
+  const toast = useToast();
+  const [deliveryMethod, setDeliveryMethod] = useState("DELIVERY");
+  const [deliveryCompanyCode, setDeliveryCompanyCode] = useState("");
+  const [dispatchDate, setDispatchDate] = useState(currentLocalDateTime());
+  const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
+  const dispatch = useAdminMutation(onAuthError, {
+    mutationFn: () => dispatchSmartStoreOrders(adminKey, {
+      orders: productOrderIds.map((productOrderId) => ({
+        productOrderId,
+        deliveryMethod,
+        deliveryCompanyCode: deliveryCompanyCode || undefined,
+        trackingNumber: trackingNumbers[productOrderId] || undefined,
+        dispatchDate,
+      })),
+    }),
+    onSuccess: (result) => {
+      toast.show(`발송 ${result.successProductOrderIds.length}건을 요청했습니다.`);
+      onCompleted(result);
+    },
+  });
+  const valid = productOrderIds.length > 0 && dispatchDate.length > 0;
+
+  return <Modal show={show} onHide={onClose} size="lg" centered>
+    <Form onSubmit={(event) => { event.preventDefault(); if (valid) dispatch.mutate(); }}>
+      <Modal.Header closeButton><Modal.Title className="fs-6">
+        스마트스토어 주문 {productOrderIds.length}건 발송
+      </Modal.Title></Modal.Header>
+      <Modal.Body>
+        <ErrorAlert error={dispatch.error} />
+        <Row className="g-2 mb-3">
+          <Col md={4}><Form.Select value={deliveryMethod}
+            onChange={(event) => setDeliveryMethod(event.target.value)}>
+            <option value="DELIVERY">택배</option>
+            <option value="DIRECT_DELIVERY">직접 배송</option>
+            <option value="VISIT_RECEIPT">방문 수령</option>
+            <option value="QUICK_SVC">퀵서비스</option>
+          </Form.Select></Col>
+          <Col md={4}><Form.Control list="smartstore-delivery-companies"
+            value={deliveryCompanyCode}
+            onChange={(event) => setDeliveryCompanyCode(event.target.value.toUpperCase())}
+            placeholder="택배사 코드" /></Col>
+          <Col md={4}><Form.Control type="datetime-local" required value={dispatchDate}
+            onChange={(event) => setDispatchDate(event.target.value)} /></Col>
+        </Row>
+        <Table responsive size="sm" className="align-middle">
+          <thead><tr><th>상품 주문 번호</th><th>운송장 번호</th></tr></thead>
+          <tbody>{productOrderIds.map((productOrderId) => <tr key={productOrderId}>
+            <td className="small">{productOrderId}</td>
+            <td><Form.Control value={trackingNumbers[productOrderId] ?? ""}
+              onChange={(event) => setTrackingNumbers((current) => ({
+                ...current, [productOrderId]: event.target.value,
+              }))} placeholder="운송장 번호" /></td>
+          </tr>)}</tbody>
+        </Table>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>취소</Button>
+        <Button type="submit" disabled={!valid || dispatch.isPending}>
+          {dispatch.isPending ? "발송 요청 중..." : "일괄 발송"}
+        </Button>
+      </Modal.Footer>
+    </Form>
+  </Modal>;
 }
 
 function actions(
@@ -440,6 +596,13 @@ function SmartStoreOrderDetailModal({
                     클레임 배송비: {formatKRW(detail.claimDetail.claimDeliveryFeeDemandAmount)}
                   </div>}
                   {detail.claimDetail.holdbackStatus && <div>보류 상태: {detail.claimDetail.holdbackStatus}</div>}
+                  {!!detail.claimDetail.imageUrls.length && <div className="d-flex flex-wrap gap-2 mt-2">
+                    {detail.claimDetail.imageUrls.map((imageUrl) => <a key={imageUrl}
+                      href={imageUrl} target="_blank" rel="noreferrer">
+                      <img src={imageUrl} alt="클레임 첨부" width={72} height={72}
+                        className="rounded border object-fit-cover" />
+                    </a>)}
+                  </div>}
                 </div>}
               </Col>
             </Row>
@@ -668,7 +831,8 @@ function SmartStoreOrderDetailModal({
                   <Col md={4}><Form.Control type="number" min={1} max={order.remainQuantity}
                     value={returnQuantity} onChange={(event) => setReturnQuantity(event.target.value)}
                     placeholder="수량(전체)" /></Col>
-                  <Col md={6}><Form.Control value={collectDeliveryCompany}
+                  <Col md={6}><Form.Control list="smartstore-delivery-companies"
+                    value={collectDeliveryCompany}
                     onChange={(event) => setCollectDeliveryCompany(event.target.value.toUpperCase())}
                     placeholder="수거 택배사 코드 (선택)" /></Col>
                   <Col md={6}><Form.Control value={collectTrackingNumber}
@@ -800,6 +964,7 @@ function DeliveryFields({
     </Form.Select>
     <Form.Control
       className="mb-2"
+      list="smartstore-delivery-companies"
       required={required}
       value={deliveryCompanyCode}
       maxLength={40}
@@ -815,6 +980,26 @@ function DeliveryFields({
       placeholder="운송장 번호"
     />
   </>;
+}
+
+function DeliveryCompanyDatalist() {
+  return <datalist id="smartstore-delivery-companies">
+    <option value="CJGLS">CJ대한통운</option>
+    <option value="HYUNDAI">롯데택배</option>
+    <option value="HANJIN">한진택배</option>
+    <option value="KGB">로젠택배</option>
+    <option value="EPOST">우체국택배</option>
+    <option value="CVSNET">GS25 편의점택배</option>
+    <option value="CUPARCEL">CU 편의점택배</option>
+    <option value="KDEXP">경동택배</option>
+    <option value="DAESIN">대신택배</option>
+  </datalist>;
+}
+
+function currentLocalDateTime(): string {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function amount(value: number | null): string {

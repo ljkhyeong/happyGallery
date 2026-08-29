@@ -20,6 +20,7 @@ public record SmartStoreProductCatalogPageResponse(
 
     public record Product(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long originProductNo,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long channelProductNo,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String status,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long salePrice,
@@ -28,8 +29,8 @@ public record SmartStoreProductCatalogPageResponse(
     ) {
         private static Product from(CatalogProductResult result) {
             return new Product(
-                    result.originProductNo(), result.name(), result.status(), result.salePrice(),
-                    result.stockQuantity(), result.imageUrl());
+                    result.originProductNo(), result.channelProductNo(), result.name(),
+                    result.status(), result.salePrice(), result.stockQuantity(), result.imageUrl());
         }
     }
 }

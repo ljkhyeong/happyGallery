@@ -131,6 +131,7 @@ class NaverCommerceInventoryProviderTest {
                             "originProductNo":123456789,
                             "channelProducts":[{
                               "originProductNo":123456789,
+                              "channelProductNo":987654321,
                               "channelServiceType":"STOREFARM",
                               "name":"각인 카드지갑",
                               "statusType":"SALE",
@@ -151,7 +152,48 @@ class NaverCommerceInventoryProviderTest {
         server.verify();
         assertThat(page.products()).singleElement().satisfies(product -> {
             assertThat(product.originProductNo()).isEqualTo(123456789L);
+            assertThat(product.channelProductNo()).isEqualTo(987654321L);
             assertThat(product.name()).isEqualTo("각인 카드지갑");
+        });
+    }
+
+    @Test
+    @DisplayName("검수 반려 상품을 조회하고 채널상품 복원을 요청한다")
+    void inspectAndRestoreProduct_usesInspectionContracts() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo(containsString(
+                        "/external/v1/product-inspections/channel-products?page=1&size=100")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "contents":[{
+                            "channelProductNo":987654321,
+                            "reason":"대표 이미지 확인 필요",
+                            "action":"이미지를 수정해 주세요.",
+                            "restorationRequestAvailable":true
+                          }],
+                          "page":1,"size":100,"totalElements":1,"totalPages":1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/product-inspections/channel-product/987654321/restore"))
+                .andExpect(method(HttpMethod.PUT))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        var page = provider.listInspectionProducts(1, 100);
+        provider.restoreInspectionProduct(987654321L);
+
+        server.verify();
+        assertThat(page.products()).singleElement().satisfies(product -> {
+            assertThat(product.reason()).isEqualTo("대표 이미지 확인 필요");
+            assertThat(product.restorationRequestAvailable()).isTrue();
         });
     }
 

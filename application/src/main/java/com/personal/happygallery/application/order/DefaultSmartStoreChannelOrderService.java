@@ -75,11 +75,30 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
+    public BulkOperationResult confirmAll(List<String> productOrderIds) {
+        requireEnabled();
+        return bulkResult(orderProvider.confirmAll(productOrderIds));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
     public void dispatch(DispatchCommand command) {
         requireEnabled();
         orderProvider.dispatch(new SmartStoreOrderProvider.DispatchCommand(
                 command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
                 command.trackingNumber(), command.dispatchDate()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public BulkOperationResult dispatchAll(List<DispatchCommand> commands) {
+        requireEnabled();
+        return bulkResult(orderProvider.dispatchAll(commands.stream()
+                .map(command -> new SmartStoreOrderProvider.DispatchCommand(
+                        command.productOrderId(), command.deliveryMethod(),
+                        command.deliveryCompanyCode(), command.trackingNumber(),
+                        command.dispatchDate()))
+                .toList()));
     }
 
     @Override
@@ -218,6 +237,16 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     private static HappyGalleryException conflict(String message) {
         return new HappyGalleryException(ErrorCode.CONFLICT, message);
+    }
+
+    private static BulkOperationResult bulkResult(
+            SmartStoreOrderProvider.OperationResult result) {
+        return new BulkOperationResult(
+                result.successProductOrderIds(),
+                result.failures().stream()
+                        .map(failure -> new BulkOperationFailure(
+                                failure.productOrderId(), failure.code(), failure.message()))
+                        .toList());
     }
 
     private ChannelOrderResult result(SmartStoreProductOrder order) {

@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.InventoryAdjustmentRes
 import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SaveSmartStoreInventoryMappingRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInventoryMappingResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInspectionPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductPreviewResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductCatalogPageResponse;
@@ -157,6 +158,22 @@ public class AdminProductController {
             @PathVariable Long originProductNo) {
         return SmartStoreChannelProductResponse.from(
                 smartStoreInventoryUseCase.getChannelProduct(originProductNo));
+    }
+
+    @GetMapping("/smartstore-inspections")
+    @Operation(operationId = "listSmartStoreInspectionProducts")
+    public SmartStoreInspectionPageResponse listSmartStoreInspectionProducts(
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "100") @Min(10) @Max(100) int size) {
+        return SmartStoreInspectionPageResponse.from(
+                smartStoreInventoryUseCase.listInspectionProducts(page, size));
+    }
+
+    @PutMapping("/smartstore-inspections/{channelProductNo}/restore")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "restoreSmartStoreInspectionProduct")
+    public void restoreSmartStoreInspectionProduct(@PathVariable Long channelProductNo) {
+        smartStoreInventoryUseCase.restoreInspectionProduct(channelProductNo);
     }
 
     @PostMapping("/{id}/smartstore-product-sync")

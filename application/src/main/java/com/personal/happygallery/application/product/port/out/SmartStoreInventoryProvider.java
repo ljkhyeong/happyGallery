@@ -10,6 +10,10 @@ public interface SmartStoreInventoryProvider {
 
     CatalogPage listProducts(int page, int size);
 
+    InspectionPage listInspectionProducts(int page, int size);
+
+    void restoreInspectionProduct(Long channelProductNo);
+
     ChannelProduct getProduct(Long originProductNo);
 
     SyncResult applyProduct(ProductCommand command);
@@ -50,11 +54,31 @@ public interface SmartStoreInventoryProvider {
 
     record CatalogProduct(
             Long originProductNo,
+            Long channelProductNo,
             String name,
             String status,
             long salePrice,
             Integer stockQuantity,
             String imageUrl
+    ) {}
+
+    record InspectionPage(
+            List<InspectionProduct> products,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {
+        public InspectionPage {
+            products = products == null ? List.of() : List.copyOf(products);
+        }
+    }
+
+    record InspectionProduct(
+            Long channelProductNo,
+            String reason,
+            String action,
+            boolean restorationRequestAvailable
     ) {}
 
     record ChannelOption(

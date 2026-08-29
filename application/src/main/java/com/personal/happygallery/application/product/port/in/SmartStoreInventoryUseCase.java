@@ -17,6 +17,10 @@ public interface SmartStoreInventoryUseCase {
 
     CatalogPageResult listChannelProducts(int page, int size);
 
+    InspectionPageResult listInspectionProducts(int page, int size);
+
+    void restoreInspectionProduct(Long channelProductNo);
+
     ChannelProductResult getChannelProduct(Long originProductNo);
 
     ProductPreviewResult previewProduct(Long productId);
@@ -45,11 +49,27 @@ public interface SmartStoreInventoryUseCase {
 
     record CatalogProductResult(
             Long originProductNo,
+            Long channelProductNo,
             String name,
             String status,
             long salePrice,
             Integer stockQuantity,
             String imageUrl
+    ) {}
+
+    record InspectionPageResult(
+            List<InspectionProductResult> products,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    record InspectionProductResult(
+            Long channelProductNo,
+            String reason,
+            String action,
+            boolean restorationRequestAvailable
     ) {}
 
     record ChannelProductResult(

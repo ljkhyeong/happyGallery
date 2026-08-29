@@ -186,7 +186,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreInventoryUseCase.listChannelProducts(1, 100))
                 .thenReturn(new CatalogPageResult(
                         List.of(new CatalogProductResult(
-                                123456789L, "각인 카드지갑", "SALE", 33000L, 7,
+                                123456789L, 987654321L, "각인 카드지갑", "SALE", 33000L, 7,
                                 "https://images.example.com/wallet.jpg")),
                         1, 100, 1, 1));
         when(smartStoreInventoryUseCase.getChannelProduct(123456789L))

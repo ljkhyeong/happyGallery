@@ -16,7 +16,11 @@ public interface SmartStoreChannelOrderUseCase {
 
     void confirm(String productOrderId);
 
+    BulkOperationResult confirmAll(List<String> productOrderIds);
+
     void dispatch(DispatchCommand command);
+
+    BulkOperationResult dispatchAll(List<DispatchCommand> commands);
 
     void delay(DelayCommand command);
 
@@ -159,4 +163,11 @@ public interface SmartStoreChannelOrderUseCase {
             String detailedReason,
             Integer quantity
     ) {}
+
+    record BulkOperationResult(
+            List<String> successProductOrderIds,
+            List<BulkOperationFailure> failures
+    ) {}
+
+    record BulkOperationFailure(String productOrderId, String code, String message) {}
 }

@@ -1,16 +1,19 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreSettlementIssueResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreAccountingReportResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreSettlementSyncResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SynchronizeSmartStoreSettlementRequest;
 import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -33,6 +36,16 @@ public class AdminSmartStoreSettlementController {
         return useCase.findIssues(ISSUE_LIMIT).stream()
                 .map(SmartStoreSettlementIssueResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/accounting")
+    @Operation(
+            operationId = "getSmartStoreAccountingReport",
+            summary = "스마트스토어 일별 정산·수수료·부가세 자료 조회")
+    public SmartStoreAccountingReportResponse accounting(
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
+        return SmartStoreAccountingReportResponse.from(useCase.accounting(from, to));
     }
 
     @PostMapping("/synchronize")

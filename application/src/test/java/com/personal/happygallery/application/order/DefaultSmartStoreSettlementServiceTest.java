@@ -70,4 +70,27 @@ class DefaultSmartStoreSettlementServiceTest {
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("31일");
     }
+
+    @Test
+    @DisplayName("회계 자료의 부가세 조회 종료일은 전월 말로 제한한다")
+    void accounting_clipsVatRangeToPreviousMonth() {
+        SmartStoreSettlementProvider provider = mock(SmartStoreSettlementProvider.class);
+        when(provider.isEnabled()).thenReturn(true);
+        LocalDate from = LocalDate.of(2026, 7, 20);
+        LocalDate to = LocalDate.of(2026, 8, 10);
+        when(provider.findDailySettlements(from, to)).thenReturn(List.of());
+        when(provider.findCommissionDetails(from, to)).thenReturn(List.of());
+        when(provider.findDailyVat(from, LocalDate.of(2026, 7, 31))).thenReturn(List.of());
+        var service = new DefaultSmartStoreSettlementService(
+                provider,
+                mock(SmartStoreSettlementTransactionService.class),
+                mock(SmartStoreSettlementPort.class),
+                mock(SmartStoreSettlementSyncStateService.class),
+                CLOCK);
+
+        var report = service.accounting(from, to);
+
+        assertThat(report.vatAvailableThrough()).isEqualTo(LocalDate.of(2026, 7, 31));
+        verify(provider).findDailyVat(from, LocalDate.of(2026, 7, 31));
+    }
 }

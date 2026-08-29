@@ -77,4 +77,76 @@ class NaverCommerceSettlementProviderTest {
             assertThat(item.settleExpectAmount()).isEqualTo(67000L);
         });
     }
+
+    @Test
+    @DisplayName("일별 정산과 수수료와 부가세 회계 자료를 각각 조회한다")
+    void findAccountingData_readsOfficialReportContracts() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceSettlementProvider provider = new NaverCommerceSettlementProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
+                .andRespond(withSuccess("""
+                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/external/v1/pay-settle/settle/daily")))
+                .andExpect(queryParam("startDate", "2026-07-01"))
+                .andExpect(queryParam("endDate", "2026-07-01"))
+                .andRespond(withSuccess("""
+                        {"elements":[{
+                          "settleBasisStartDate":"2026-07-01","settleBasisEndDate":"2026-07-01",
+                          "settleExpectDate":"2026-07-03","settleCompleteDate":"2026-07-03",
+                          "settleAmount":9000,"paySettleAmount":10000,"commissionSettleAmount":1000,
+                          "benefitSettleAmount":0,"deductionRestoreSettleAmount":0,
+                          "payHoldbackAmount":0,"minusChargeAmount":0,"differenceSettleAmount":0,
+                          "returnCareSettleAmount":0,"normalSettleAmount":9000,
+                          "quickSettleAmount":0,"preferentialCommissionAmount":0,
+                          "settlementLimitAmount":0,"settleMethodType":"BANK",
+                          "merchantId":"merchant-1","merchantName":"해피갤러리"
+                        }],"pagination":{"page":1,"size":1000,"totalPages":1,"totalElements":1}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-settle/settle/commission-details")))
+                .andExpect(queryParam("searchDate", "2026-07-01"))
+                .andRespond(withSuccess("""
+                        {"elements":[{
+                          "orderNo":"order-1","productOrderId":"po-1",
+                          "productOrderType":"PROD_ORDER","productId":"product-1",
+                          "productName":"가죽 지갑","merchantId":"merchant-1",
+                          "merchantName":"해피갤러리","settleType":"NORMAL_SETTLE_ORIGINAL",
+                          "settleBasisDate":"2026-07-01","settleExpectDate":"2026-07-03",
+                          "settleCompleteDate":"2026-07-03","taxReturnDate":"2026-07-31",
+                          "commissionBasisAmount":10000,"commissionType":"SALES_COMMISSION",
+                          "payMeansType":"CARD","commissionAmount":1000,
+                          "maximumSellingInterlockCommissionAmount":500
+                        }],"pagination":{"page":1,"size":1000,"totalPages":1,"totalElements":1}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/external/v1/pay-settle/vat/daily")))
+                .andExpect(queryParam("startDate", "2026-07-01"))
+                .andExpect(queryParam("endDate", "2026-07-01"))
+                .andRespond(withSuccess("""
+                        {"elements":[{
+                          "settleBasisDate":"2026-07-01","totalSalesAmount":10000,
+                          "taxationSalesAmount":10000,"taxExemptionSalesAmount":0,
+                          "creditCardAmount":10000,"cashInComeDeductionAmount":0,
+                          "cashOutGoingEvidenceAmount":0,"cashExclusionIssuanceAmount":0,
+                          "otherAmount":0,"merchantId":"merchant-1","merchantName":"해피갤러리"
+                        }],"pagination":{"page":1,"size":1000,"totalPages":1,"totalElements":1}}
+                        """, MediaType.APPLICATION_JSON));
+
+        LocalDate date = LocalDate.of(2026, 7, 1);
+        var settlements = provider.findDailySettlements(date, date);
+        var commissions = provider.findCommissionDetails(date, date);
+        var vat = provider.findDailyVat(date, date);
+
+        server.verify();
+        assertThat(settlements).singleElement()
+                .satisfies(item -> assertThat(item.settleAmount()).isEqualTo(9000L));
+        assertThat(commissions).singleElement()
+                .satisfies(item -> assertThat(item.commissionAmount()).isEqualTo(1000L));
+        assertThat(vat).singleElement()
+                .satisfies(item -> assertThat(item.totalSalesAmount()).isEqualTo(10000L));
+    }
 }

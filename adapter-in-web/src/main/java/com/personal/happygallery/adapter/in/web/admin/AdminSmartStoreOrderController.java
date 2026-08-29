@@ -1,6 +1,8 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.DelaySmartStoreOrderRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.BulkConfirmSmartStoreOrdersRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.BulkDispatchSmartStoreOrdersRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreExchangeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreOrderRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreExchangeRequest;
@@ -11,6 +13,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSelle
 import com.personal.happygallery.adapter.in.web.admin.dto.ResolveSmartStoreReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderDetailResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreOrderBulkActionResponse;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -85,6 +88,22 @@ public class AdminSmartStoreOrderController {
             @PathVariable String productOrderId,
             @Valid @RequestBody DispatchSmartStoreOrderRequest request) {
         channelOrderUseCase.dispatch(request.toCommand(productOrderId));
+    }
+
+    @PostMapping("/confirm")
+    @Operation(operationId = "confirmSmartStoreChannelOrders")
+    public SmartStoreOrderBulkActionResponse confirmAll(
+            @Valid @RequestBody BulkConfirmSmartStoreOrdersRequest request) {
+        return SmartStoreOrderBulkActionResponse.from(
+                channelOrderUseCase.confirmAll(request.productOrderIds()));
+    }
+
+    @PostMapping("/dispatch")
+    @Operation(operationId = "dispatchSmartStoreChannelOrders")
+    public SmartStoreOrderBulkActionResponse dispatchAll(
+            @Valid @RequestBody BulkDispatchSmartStoreOrdersRequest request) {
+        return SmartStoreOrderBulkActionResponse.from(
+                channelOrderUseCase.dispatchAll(request.toCommands()));
     }
 
     @PostMapping("/{productOrderId}/delay")

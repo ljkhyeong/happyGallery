@@ -2,8 +2,10 @@ import {
   approveSmartStoreCancelClaim,
   approveSmartStoreReturnClaim,
   confirmSmartStoreChannelOrder,
+  confirmSmartStoreChannelOrders,
   delaySmartStoreChannelOrder,
   dispatchSmartStoreChannelOrder,
+  dispatchSmartStoreChannelOrders,
   dispatchSmartStoreExchangeClaim,
   completeSmartStoreExchangeCollect,
   holdSmartStoreExchangeClaim,
@@ -25,6 +27,8 @@ import {
   type HoldSmartStoreReturnRequest,
   type RequestSmartStoreSellerCancelRequest,
   type RequestSmartStoreSellerReturnRequest,
+  type BulkDispatchSmartStoreOrdersRequest,
+  type SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
 import { adminHeaders } from "@/shared/api";
 
@@ -56,6 +60,25 @@ export function dispatchSmartStoreOrder(
   request: DispatchSmartStoreOrderRequest,
 ) {
   return dispatchSmartStoreChannelOrder(productOrderId, request, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function confirmSmartStoreOrders(
+  adminKey: string,
+  productOrderIds: string[],
+): Promise<SmartStoreOrderBulkActionResponse> {
+  return confirmSmartStoreChannelOrders(
+    { productOrderIds },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function dispatchSmartStoreOrders(
+  adminKey: string,
+  request: BulkDispatchSmartStoreOrdersRequest,
+): Promise<SmartStoreOrderBulkActionResponse> {
+  return dispatchSmartStoreChannelOrders(request, {
     headers: adminHeaders(adminKey),
   });
 }

@@ -11,9 +11,17 @@ public interface SmartStoreOrderProvider {
 
     List<ProductOrderDetail> fetchDetails(List<String> productOrderIds);
 
-    void confirm(String productOrderId);
+    default void confirm(String productOrderId) {
+        confirmAll(List.of(productOrderId)).requireSuccess(productOrderId);
+    }
 
-    void dispatch(DispatchCommand command);
+    OperationResult confirmAll(List<String> productOrderIds);
+
+    default void dispatch(DispatchCommand command) {
+        dispatchAll(List.of(command)).requireSuccess(command.productOrderId());
+    }
+
+    OperationResult dispatchAll(List<DispatchCommand> commands);
 
     void delay(DelayCommand command);
 
@@ -165,4 +173,24 @@ public interface SmartStoreOrderProvider {
             String detailedReason,
             Integer quantity
     ) {}
+
+    record OperationResult(List<String> successProductOrderIds, List<OperationFailure> failures) {
+        public OperationResult {
+            successProductOrderIds = successProductOrderIds == null
+                    ? List.of() : List.copyOf(successProductOrderIds);
+            failures = failures == null ? List.of() : List.copyOf(failures);
+        }
+
+        public void requireSuccess(String productOrderId) {
+            failures.stream()
+                    .filter(failure -> productOrderId.equals(failure.productOrderId()))
+                    .findFirst()
+                    .ifPresent(failure -> {
+                        throw new IllegalStateException(
+                                "스마트스토어 주문 처리 실패: " + failure.message());
+                    });
+        }
+    }
+
+    record OperationFailure(String productOrderId, String code, String message) {}
 }

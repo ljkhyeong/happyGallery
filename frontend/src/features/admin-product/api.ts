@@ -13,6 +13,14 @@ import {
   updateAdminProduct,
   previewSmartStoreProductSync,
   applySmartStoreProductSync,
+  applySmartStoreProductNotice,
+  createSmartStoreProductNotice,
+  deleteSmartStoreProductNotice,
+  getSmartStoreProductNotice,
+  listSmartStoreInspectionProducts,
+  listSmartStoreProductNotices,
+  restoreSmartStoreInspectionProduct,
+  updateSmartStoreProductNotice,
   type AdjustInventoryRequest,
   type CreateProductRequest,
   type InventoryAdjustmentResponse,
@@ -22,6 +30,10 @@ import {
   type SmartStoreChannelProductResponse,
   type SmartStoreProductCatalogPageResponse,
   type SmartStoreProductPreviewResponse,
+  type SaveSmartStoreNoticeRequest,
+  type SmartStoreInspectionPageResponse,
+  type SmartStoreNoticePageResponse,
+  type SmartStoreNoticeResponse,
   type UpdateProductRequest,
   type UpdateProductStatusRequestStatus,
 } from "@/generated/api/adminCatalog";
@@ -147,6 +159,74 @@ export function applySmartStoreProduct(
   return applySmartStoreProductSync(
     productId,
     { productVersion },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function fetchSmartStoreInspections(
+  adminKey: string,
+): Promise<SmartStoreInspectionPageResponse> {
+  return listSmartStoreInspectionProducts(
+    { page: 1, size: 100 },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function requestSmartStoreInspectionRestore(
+  adminKey: string,
+  channelProductNo: number,
+): Promise<void> {
+  return restoreSmartStoreInspectionProduct(channelProductNo, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function fetchSmartStoreNotices(
+  adminKey: string,
+): Promise<SmartStoreNoticePageResponse> {
+  return listSmartStoreProductNotices(
+    { page: 1, size: 100 },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function fetchSmartStoreNotice(
+  adminKey: string,
+  sellerNoticeId: number,
+): Promise<SmartStoreNoticeResponse> {
+  return getSmartStoreProductNotice(sellerNoticeId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function saveSmartStoreNotice(
+  adminKey: string,
+  sellerNoticeId: number | null,
+  request: SaveSmartStoreNoticeRequest,
+) {
+  const options = { headers: adminHeaders(adminKey) };
+  return sellerNoticeId === null
+    ? createSmartStoreProductNotice(request, options)
+    : updateSmartStoreProductNotice(sellerNoticeId, request, options);
+}
+
+export function removeSmartStoreNotice(
+  adminKey: string,
+  sellerNoticeId: number,
+): Promise<void> {
+  return deleteSmartStoreProductNotice(sellerNoticeId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function applyNoticeToSmartStoreProducts(
+  adminKey: string,
+  sellerNoticeId: number,
+  channelProductNos: number[],
+): Promise<void> {
+  return applySmartStoreProductNotice(
+    sellerNoticeId,
+    { channelProductNos },
     { headers: adminHeaders(adminKey) },
   );
 }

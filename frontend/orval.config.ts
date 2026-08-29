@@ -116,6 +116,7 @@ export default defineConfig({
     "admin-class-controller",
     "admin-media-controller",
     "admin-product-controller",
+    "admin-smart-store-notice-controller",
     "admin-slot-controller",
     "admin-slot-session-controller",
   ]),

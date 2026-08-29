@@ -7,6 +7,8 @@ import { AdminMfaSettings } from "@/features/admin-auth/AdminMfaSettings";
 import { ProductListSection } from "@/features/admin-product/ProductListSection";
 import { OutOfStockProductSection } from "@/features/admin-product/OutOfStockProductSection";
 import { CreateProductForm } from "@/features/admin-product/CreateProductForm";
+import { SmartStoreInspectionSection } from "@/features/admin-product/SmartStoreInspectionSection";
+import { SmartStoreNoticeSection } from "@/features/admin-product/SmartStoreNoticeSection";
 import { CreateClassForm } from "@/features/admin-class/CreateClassForm";
 import { ClassListSection } from "@/features/admin-class/ClassListSection";
 import { BookingCalendarSection } from "@/features/admin-slot/BookingCalendarSection";
@@ -21,6 +23,7 @@ import { FailedNotificationSection } from "@/features/admin-notification/FailedN
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
 import { PaymentSettlementIssueSection } from "@/features/admin-payment-reconciliation/PaymentSettlementIssueSection";
 import { SmartStoreSettlementIssueSection } from "@/features/admin-payment-reconciliation/SmartStoreSettlementIssueSection";
+import { SmartStoreAccountingSection } from "@/features/admin-payment-reconciliation/SmartStoreAccountingSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { SmartStoreInquirySection } from "@/features/admin-qna/SmartStoreInquirySection";
@@ -355,6 +358,9 @@ export function AdminPage() {
               attentionOnly
             />
           </AdminPanel>
+          <AdminPanel title="스마트스토어 상품 검수 확인">
+            <SmartStoreInspectionSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="다시 보낼 알림">
             <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -393,6 +399,9 @@ export function AdminPage() {
           </AdminPanel>
           <AdminPanel title="스마트스토어 정산 불일치">
             <SmartStoreSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="스마트스토어 회계 자료">
+            <SmartStoreAccountingSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="교환·환불 요청">
             <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
@@ -472,6 +481,9 @@ export function AdminPage() {
           </AdminPanel>
           <AdminPanel title="스마트스토어 상품 문의">
             <SmartStoreInquirySection token={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="스마트스토어 상품 공지">
+            <SmartStoreNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="1:1 문의 관리">
             <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />

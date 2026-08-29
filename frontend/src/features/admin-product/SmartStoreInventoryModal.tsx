@@ -42,6 +42,7 @@ export function SmartStoreInventoryModal({
   const [enabled, setEnabled] = useState(true);
   const [optionIds, setOptionIds] = useState<Record<number, string>>({});
   const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogSearch, setCatalogSearch] = useState("");
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const originNumber = Number(originProductNo);
   const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
@@ -49,7 +50,6 @@ export function SmartStoreInventoryModal({
     const value = Number(optionIds[variant.id]);
     return Number.isSafeInteger(value) && value > 0;
   });
-
   const mappingQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
     queryFn: () => fetchSmartStoreInventoryMapping(adminKey, product!.id),
@@ -61,6 +61,14 @@ export function SmartStoreInventoryModal({
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
     enabled: product !== null,
   });
+  const catalogProducts = useMemo(() => {
+    const keyword = catalogSearch.trim().toLowerCase();
+    if (!keyword) return catalogQuery.data?.products ?? [];
+    return (catalogQuery.data?.products ?? []).filter((item) =>
+      item.name.toLowerCase().includes(keyword)
+      || String(item.originProductNo).includes(keyword)
+      || String(item.channelProductNo).includes(keyword));
+  }, [catalogQuery.data?.products, catalogSearch]);
   const channelProductQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", "detail", originNumber],
     queryFn: () => fetchSmartStoreProduct(adminKey, originNumber),
@@ -85,6 +93,7 @@ export function SmartStoreInventoryModal({
 
   useEffect(() => {
     setCatalogPage(1);
+    setCatalogSearch("");
   }, [product?.id]);
 
   const saveMutation = useAdminMutation(onAuthError, {
@@ -233,25 +242,53 @@ export function SmartStoreInventoryModal({
         }}>
           <Form.Group className="mb-3" controlId="smartstore-origin-product-no">
             <Form.Label>스마트스토어 상품</Form.Label>
-            <Form.Select
-              value={originProductNo}
-              onChange={(event) => {
-                setOriginProductNo(event.target.value);
-                setOptionIds(Object.fromEntries(variants.map((variant) => [variant.id, ""])));
-              }}
-            >
-              <option value="">상품 선택</option>
-              {validOrigin && !catalogQuery.data?.products.some(
-                (item) => item.originProductNo === originNumber,
-              ) && (
-                <option value={originProductNo}>현재 연결 상품 · 원상품 {originProductNo}</option>
-              )}
-              {catalogQuery.data?.products.map((item) => (
-                <option key={item.originProductNo} value={item.originProductNo}>
-                  {item.name} · {item.salePrice.toLocaleString()}원 · {item.status}
-                </option>
-              ))}
-            </Form.Select>
+            <Form.Control
+              className="mb-2"
+              type="search"
+              value={catalogSearch}
+              onChange={(event) => setCatalogSearch(event.target.value)}
+              placeholder="상품명·원상품 번호·채널상품 번호 검색"
+            />
+            {validOrigin && !catalogQuery.data?.products.some(
+              (item) => item.originProductNo === originNumber,
+            ) && <Alert variant="light" className="small py-2">
+              현재 연결 상품 · 원상품 {originProductNo}
+            </Alert>}
+            <div className="border rounded overflow-auto" style={{ maxHeight: 280 }}>
+              <Table hover size="sm" className="align-middle mb-0">
+                <tbody>{catalogProducts.map((item) => (
+                  <tr
+                    key={item.channelProductNo}
+                    className={item.originProductNo === originNumber ? "table-primary" : undefined}
+                    role="button"
+                    onClick={() => {
+                      setOriginProductNo(String(item.originProductNo));
+                      setOptionIds(Object.fromEntries(variants.map((variant) => [variant.id, ""])));
+                    }}
+                  >
+                    <td style={{ width: 48 }}>
+                      {item.imageUrl
+                        ? <img src={item.imageUrl} alt="" width={40} height={40}
+                          className="rounded object-fit-cover" />
+                        : <div className="bg-light rounded" style={{ width: 40, height: 40 }} />}
+                    </td>
+                    <td>
+                      <div className="fw-semibold">{item.name}</div>
+                      <div className="small text-muted-soft">
+                        원상품 {item.originProductNo} · 채널상품 {item.channelProductNo}
+                      </div>
+                    </td>
+                    <td className="small text-end">
+                      <div>{item.salePrice.toLocaleString()}원 · {item.status}</div>
+                      <div className="text-muted-soft">재고 {item.stockQuantity ?? "-"}</div>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </Table>
+              {!catalogProducts.length && <div className="small text-muted-soft p-3">
+                이 페이지에 일치하는 상품이 없습니다.
+              </div>}
+            </div>
             {catalogQuery.data && catalogQuery.data.totalPages > 1 && (
               <div className="d-flex justify-content-between align-items-center mt-2">
                 <Button type="button" size="sm" variant="outline-secondary"

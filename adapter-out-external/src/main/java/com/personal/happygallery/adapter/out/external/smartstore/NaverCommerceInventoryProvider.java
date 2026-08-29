@@ -81,6 +81,44 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
     }
 
     @Override
+    public InspectionPage listInspectionProducts(int page, int size) {
+        InspectionSearchResponse response = accessTokenProvider.authorized(token -> restClient.get()
+                .uri(builder -> builder.path("/external/v1/product-inspections/channel-products")
+                        .queryParam("page", page)
+                        .queryParam("size", size)
+                        .build())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(InspectionSearchResponse.class));
+        if (response == null) {
+            throw new IllegalStateException("스마트스토어 상품 검수 응답이 비어 있습니다.");
+        }
+        List<InspectionProduct> products = response.contents() == null
+                ? List.of()
+                : response.contents().stream()
+                        .map(product -> new InspectionProduct(
+                                product.channelProductNo(), product.reason(), product.action(),
+                                product.restorationRequestAvailable()))
+                        .toList();
+        return new InspectionPage(
+                products, response.page(), response.size(),
+                response.totalElements(), response.totalPages());
+    }
+
+    @Override
+    public void restoreInspectionProduct(Long channelProductNo) {
+        accessTokenProvider.authorized(token -> {
+            restClient.put()
+                    .uri("/external/v1/product-inspections/channel-product/{channelProductNo}/restore",
+                            channelProductNo)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .retrieve()
+                    .toBodilessEntity();
+            return null;
+        });
+    }
+
+    @Override
     public ChannelProduct getProduct(Long originProductNo) {
         ProductResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri("/external/v2/products/origin-products/{originProductNo}", originProductNo)
@@ -228,6 +266,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         }
         return Optional.of(new CatalogProduct(
                 originProductNo,
+                channel.channelProductNo(),
                 Objects.requireNonNullElse(channel.name(), "상품명 없음"),
                 Objects.requireNonNullElse(channel.statusType(), "UNKNOWN"),
                 channel.salePrice(), channel.stockQuantity(),
@@ -296,12 +335,28 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
 
     private record RemoteChannelProduct(
             Long originProductNo,
+            Long channelProductNo,
             String channelServiceType,
             String name,
             String statusType,
             long salePrice,
             Integer stockQuantity,
             RemoteImage representativeImage
+    ) {}
+
+    private record InspectionSearchResponse(
+            List<RemoteInspectionProduct> contents,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    private record RemoteInspectionProduct(
+            Long channelProductNo,
+            String reason,
+            String action,
+            boolean restorationRequestAvailable
     ) {}
 
     private record RemoteImage(String url) {}

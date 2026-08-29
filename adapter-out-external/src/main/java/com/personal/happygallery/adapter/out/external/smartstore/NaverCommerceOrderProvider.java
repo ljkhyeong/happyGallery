@@ -128,18 +128,26 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void confirm(String productOrderId) {
-        execute("/external/v1/pay-order/seller/product-orders/confirm",
-                new ConfirmRequest(List.of(productOrderId)), productOrderId);
+    public OperationResult confirmAll(List<String> productOrderIds) {
+        OperationResponse response = executeBulk(
+                "/external/v1/pay-order/seller/product-orders/confirm",
+                new ConfirmRequest(productOrderIds));
+        return operationResult(response, productOrderIds);
     }
 
     @Override
-    public void dispatch(DispatchCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/dispatch",
-                new DispatchRequest(List.of(new DispatchItem(
-                        command.productOrderId(), command.deliveryMethod(),
-                        command.deliveryCompanyCode(), command.trackingNumber(),
-                        format(command.dispatchDate())))), command.productOrderId());
+    public OperationResult dispatchAll(List<DispatchCommand> commands) {
+        OperationResponse response = executeBulk(
+                "/external/v1/pay-order/seller/product-orders/dispatch",
+                new DispatchRequest(commands.stream()
+                        .map(command -> new DispatchItem(
+                                command.productOrderId(), command.deliveryMethod(),
+                                command.deliveryCompanyCode(), command.trackingNumber(),
+                                format(command.dispatchDate())))
+                        .toList()));
+        return operationResult(response, commands.stream()
+                .map(DispatchCommand::productOrderId)
+                .toList());
     }
 
     @Override
@@ -248,6 +256,16 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         requireOperationSuccess(response, productOrderId);
     }
 
+    private OperationResponse executeBulk(String path, Object body) {
+        return accessTokenProvider.authorized(token -> restClient.post()
+                .uri(path)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(OperationResponse.class));
+    }
+
     private void executeWithoutBody(String path, String productOrderId) {
         OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
                 .uri(path)
@@ -262,15 +280,48 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         if (response == null || response.data() == null) {
             return;
         }
-        List<OperationFailure> failures = response.data().failProductOrderInfos();
+        List<RemoteOperationFailure> failures = response.data().failProductOrderInfos();
         if (failures == null || failures.isEmpty()) {
             return;
         }
-        OperationFailure failure = failures.stream()
+        RemoteOperationFailure failure = failures.stream()
                 .filter(item -> productOrderId.equals(item.productOrderId()))
                 .findFirst()
                 .orElse(failures.getFirst());
         throw new IllegalStateException("스마트스토어 주문 처리 실패: " + failure.message());
+    }
+
+    private static OperationResult operationResult(
+            OperationResponse response, List<String> requestedIds) {
+        OperationData data = response == null ? null : response.data();
+        if (data == null) {
+            return new OperationResult(requestedIds, List.of());
+        }
+        List<String> successIds = data.successProductOrderIds() == null
+                ? List.of() : data.successProductOrderIds();
+        if (successIds.isEmpty() && data.successProductOrderInfos() != null) {
+            successIds = data.successProductOrderInfos().stream()
+                    .map(OperationSuccess::productOrderId)
+                    .toList();
+        }
+        List<OperationFailure> failures = data.failProductOrderInfos() == null
+                ? List.of() : data.failProductOrderInfos().stream()
+                        .map(failure -> new OperationFailure(
+                                failure.productOrderId(), failure.code(), failure.message()))
+                        .toList();
+        List<String> completedIds = successIds;
+        List<String> failedIds = failures.stream()
+                .map(OperationFailure::productOrderId)
+                .toList();
+        List<OperationFailure> missing = requestedIds.stream()
+                .filter(id -> !completedIds.contains(id) && !failedIds.contains(id))
+                .map(id -> new OperationFailure(
+                        id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
+                .toList();
+        if (!missing.isEmpty()) {
+            failures = java.util.stream.Stream.concat(failures.stream(), missing.stream()).toList();
+        }
+        return new OperationResult(successIds, failures);
     }
 
     private static String format(LocalDateTime value) {
@@ -502,8 +553,11 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private record OperationData(
             List<String> successProductOrderIds,
-            List<OperationFailure> failProductOrderInfos
+            List<OperationSuccess> successProductOrderInfos,
+            List<RemoteOperationFailure> failProductOrderInfos
     ) {}
 
-    private record OperationFailure(String productOrderId, String code, String message) {}
+    private record OperationSuccess(String productOrderId) {}
+
+    private record RemoteOperationFailure(String productOrderId, String code, String message) {}
 }
