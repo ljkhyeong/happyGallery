@@ -890,6 +890,18 @@ Content-Type: application/json
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
 - 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`
 
+가격·상태·옵션가를 반영하기 전에는 다음 미리보기를 조회한다.
+
+```http
+GET /api/v1/admin/products/{id}/smartstore-product-preview
+POST /api/v1/admin/products/{id}/smartstore-product-sync
+Authorization: Bearer {token}
+```
+
+- 미리보기는 상품 버전, 양쪽 판매가·판매 상태와 옵션별 양쪽 옵션가·사용 여부·차이 여부를 반환한다.
+- 반영 요청은 `{ "productVersion": 7 }`을 받는다. 현재 상품 버전과 다르면 `409 CONFLICT`로 거절해 오래된 미리보기 값을 적용하지 않는다.
+- 주문제작 상품은 판매가와 모든 옵션의 옵션가·사용 여부·현재 재고를 한 요청으로 보내고, 기성품은 판매가와 현재 재고를 함께 반영한다. 그 뒤 현재 재고를 고려한 `SALE|OUTOFSTOCK|SUSPENSION` 상태를 적용한다.
+
 #### 2.3.7 스마트스토어 채널 주문 관리
 
 ```http
@@ -932,7 +944,7 @@ GET /api/v1/admin/smartstore-orders/{productOrderId}
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` — 채널 주문 기본 정보와 `deliveryInfo`, `placeOrderStatus`, `shippingDueDate`, 배송수단·택배사·운송장, 단가·결제액·수수료·정산 예정액을 반환한다.
+- 성공: `200 OK` — 채널 주문 기본 정보와 `deliveryInfo`, `placeOrderStatus`, `shippingDueDate`, 배송수단·택배사·운송장, 단가·결제액·수수료·정산 예정액, 네이버에서 단건 조회한 현재 `claimDetail`을 반환한다. 클레임 상세에는 사유·상세 사유·요청 수량·요청일·수거 상태와 운송장·배송비·보류 상태·첨부 이미지 주소를 포함한다.
 - `deliveryInfo`는 암호문을 관리자 단건 조회에서만 복호화한 결과이며 목록 응답에는 포함하지 않는다.
 
 | 기능 | 메서드와 경로 | 요청 본문 | 성공 |
@@ -944,17 +956,24 @@ Authorization: Bearer {token}
 | 반품 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/approve` | 없음 | `204` |
 | 반품 거부 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/reject` | 없음 | `204` |
 | 교환품 재배송 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/dispatch` | `deliveryMethod`, `deliveryCompanyCode`, `trackingNumber` | `204` |
+| 교환 수거 완료 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/collect/complete` | 없음 | `204` |
+| 교환 거절 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/reject` | `reason` | `204` |
+| 교환 보류 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/hold` | `holdbackClassType`, `detailedReason`, nullable `extraExchangeFeeAmount` | `204` |
+| 교환 보류 해제 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/hold/release` | 없음 | `204` |
+| 판매자 취소 요청 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/request` | `reason`, nullable `detailedReason`, nullable `quantity` | `204` |
 
-- 서버는 로컬에 수집된 주문·발주·클레임 상태로 가능한 작업만 허용하고 맞지 않으면 `409 CONFLICT`를 반환한다.
+- 서버는 관리자 입력 형식과 연동 활성화 여부만 확인하며, 작업 가능 상태는 최신 상태를 보유한 네이버가 판정한다. 같은 상태 규칙을 로컬에서 중복 구현하지 않는다.
 - 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 성공 뒤 로컬 상태는 변경 피드에서 다시 수집한다.
 
 ```http
 GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
+GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
+PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
 Authorization: Bearer {token}
 ```
 
-- 목록은 최근 30일 네이버 상품 문의를 최신순으로 최대 200건 반환한다. 답변 요청은 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
 
 #### 2.3.8 상품 표시 정보 수정
@@ -2484,7 +2503,8 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK` — `ORDER_NOT_FOUND`, `EXPECTED_AMOUNT_MISSING`, `AMOUNT_MISMATCH`인 최근 정산 원장을 최대 100건 반환한다.
 - 응답은 상품 주문·주문 번호, 정산 유형, 결제 정산액·수수료·혜택 정산액·정산 예정액, 기준일·예정일·완료일·지급일, 사유와 조회 시각을 포함한다.
-- 서버는 매시 50분 최근 7일을 지급일 기준으로 다시 조회하고 `productOrderId + 정산 유형 + 정산일` 조합으로 멱등 갱신한다. 부가 정산 유형은 `NOT_APPLICABLE`, 일치한 원거래는 `MATCHED`로 저장하되 작업 목록에는 표시하지 않는다.
+- 서버는 매시 50분 저장된 다음 지급일부터 오늘까지 한 실행당 최대 31일을 순차 처리하고, 오늘까지 완료한 뒤에는 당일을 다시 조회한다. 처리 날짜는 성공한 뒤에만 전진하므로 장기 장애 뒤에도 누락 기간을 자동 복구한다. `productOrderId + 정산 유형 + 정산일` 조합으로 멱등 갱신하며 부가 정산 유형은 `NOT_APPLICABLE`, 일치한 원거래는 `MATCHED`로 저장하되 작업 목록에는 표시하지 않는다.
+- 관리자는 `POST /api/v1/admin/smartstore-settlements/synchronize`에 `{ "from": "2026-08-01", "to": "2026-08-07" }`을 보내 31일 이내 기간을 다시 조회할 수 있다. 응답은 정상 건수, 확인 필요 건수와 사유별 건수를 반환한다.
 
 ### 2.12 회원 API (`/api/v1/me`)
 
