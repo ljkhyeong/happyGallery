@@ -42,6 +42,8 @@ public class OperationalBacklogMetrics {
     private static final List<NotificationOutboxStatus> OUTBOX_BACKLOG_STATUSES = List.of(
             NotificationOutboxStatus.PENDING,
             NotificationOutboxStatus.PROCESSING,
+            NotificationOutboxStatus.DELIVERY_PENDING,
+            NotificationOutboxStatus.DELIVERY_CHECKING,
             NotificationOutboxStatus.FAILED);
 
     private final RefundPort refundPort;

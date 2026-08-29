@@ -23,6 +23,8 @@ public interface RefundPort {
 
     Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);
 
+    Optional<Refund> findByRefundTransactionKey(String refundTransactionKey);
+
     List<Refund> findByPaymentAttemptIdIn(List<Long> paymentAttemptIds);
 
     List<Refund> findByPassPurchaseIdIn(List<Long> passPurchaseIds);

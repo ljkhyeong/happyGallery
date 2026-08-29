@@ -16,6 +16,8 @@ public interface PaymentAttemptReaderPort {
 
     Optional<PaymentAttempt> findByOrderIdExternalForUpdate(String orderIdExternal);
 
+    Optional<PaymentAttempt> findByConfirmedPaymentKey(String confirmedPaymentKey);
+
     /** 회원 탈퇴를 막아야 하는 비종결 결제 시도가 있는지 조회한다. */
     boolean existsNonTerminalByOwnerUserId(Long userId);
 

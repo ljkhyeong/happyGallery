@@ -65,6 +65,9 @@ public class PaymentAttempt {
     @Column(name = "confirmed_payment_method", length = 30)
     private String confirmedPaymentMethod;
 
+    @Column(name = "confirmed_receipt_url", length = 500)
+    private String confirmedReceiptUrl;
+
     @Column(name = "fail_reason", length = 500)
     private String failReason;
 
@@ -201,10 +204,23 @@ public class PaymentAttempt {
                                 String confirmedPaymentKey,
                                 String confirmedPaymentMethod,
                                 LocalDateTime approvedAt) {
+        return markApproved(
+                expectedProcessingToken,
+                confirmedPaymentKey,
+                confirmedPaymentMethod,
+                null,
+                approvedAt);
+    }
+
+    public boolean markApproved(String expectedProcessingToken,
+                                String confirmedPaymentKey,
+                                String confirmedPaymentMethod,
+                                String confirmedReceiptUrl,
+                                LocalDateTime approvedAt) {
         if (!ownsProcessing(expectedProcessingToken)) {
             return false;
         }
-        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, approvedAt);
+        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, confirmedReceiptUrl, approvedAt);
         return true;
     }
 
@@ -216,18 +232,27 @@ public class PaymentAttempt {
     public boolean reconcileLatePgApproval(String confirmedPaymentKey,
                                            String confirmedPaymentMethod,
                                            LocalDateTime approvedAt) {
+        return reconcileLatePgApproval(
+                confirmedPaymentKey, confirmedPaymentMethod, null, approvedAt);
+    }
+
+    public boolean reconcileLatePgApproval(String confirmedPaymentKey,
+                                           String confirmedPaymentMethod,
+                                           String confirmedReceiptUrl,
+                                           LocalDateTime approvedAt) {
         if (status != PaymentAttemptStatus.PROCESSING
                 && status != PaymentAttemptStatus.RETRYABLE
                 && status != PaymentAttemptStatus.FAILED
                 && status != PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
             return false;
         }
-        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, approvedAt);
+        applyApproval(confirmedPaymentKey, confirmedPaymentMethod, confirmedReceiptUrl, approvedAt);
         return true;
     }
 
     private void applyApproval(String confirmedPaymentKey,
                                String confirmedPaymentMethod,
+                               String confirmedReceiptUrl,
                                LocalDateTime approvedAt) {
         boolean hasConfirmedPaymentKey = confirmedPaymentKey != null && !confirmedPaymentKey.isBlank();
         if (amount > 0 && !hasConfirmedPaymentKey) {
@@ -242,6 +267,7 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.APPROVED;
         this.confirmedPaymentKey = confirmedPaymentKey;
         this.confirmedPaymentMethod = confirmedPaymentMethod;
+        this.confirmedReceiptUrl = confirmedReceiptUrl;
         this.confirmedAt = approvedAt;
         this.processingToken = null;
     }
@@ -428,6 +454,7 @@ public class PaymentAttempt {
     public String getPaymentKey() { return paymentKey; }
     public String getConfirmedPaymentKey() { return confirmedPaymentKey; }
     public String getConfirmedPaymentMethod() { return confirmedPaymentMethod; }
+    public String getConfirmedReceiptUrl() { return confirmedReceiptUrl; }
     public String getFailReason() { return failReason; }
     public String getPayloadEnc() { return payloadEnc; }
     public Long getFulfilledDomainId() { return fulfilledDomainId; }

@@ -134,6 +134,7 @@ export function GuestPaymentStatusPage() {
         domainId: status.domainId,
         accessToken: status.accessToken,
         accessRecoveryRequired: status.accessRecoveryRequired,
+        receiptUrl: status.receiptUrl,
       }
     : null;
 
@@ -164,6 +165,16 @@ export function GuestPaymentStatusPage() {
 
       <div className="d-flex flex-wrap gap-2 mt-3">
         {completedResult && <PaymentCompletionNext result={completedResult} />}
+        {status.status === "COMPLETED" && status.receiptUrl && (
+          <a
+            className="btn btn-outline-secondary"
+            href={status.receiptUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            결제 영수증 보기
+          </a>
+        )}
         <Button
           variant={completedResult ? "outline-secondary" : "primary"}
           disabled={isFetching}

@@ -9,6 +9,7 @@ export type {
   FailedRefundResponse,
   PaymentReconciliationRequiredResponse,
   PaymentReconciliationResultResponse,
+  PaymentSettlementIssueResponse,
 } from "@/generated/api/adminOperations";
 export type {
   AdminOrderFulfillmentResponse,

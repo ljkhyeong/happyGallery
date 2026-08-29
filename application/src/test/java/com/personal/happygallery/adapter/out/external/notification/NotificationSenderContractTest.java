@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -33,6 +34,54 @@ class NotificationSenderContractTest {
     private static final String IDEMPOTENCY_KEY = "USER:10:BOOKING_CONFIRMED:BOOKING:20";
     private static final String SMS_CORRELATION_ID = "hg-" + UUID.nameUUIDFromBytes(
             IDEMPOTENCY_KEY.getBytes(StandardCharsets.UTF_8));
+
+    @DisplayName("NHN 알림톡 단건 조회의 완료 상태를 최종 수신 성공으로 판정한다")
+    @Test
+    void alimtalk_resultLookup_mapsCompletedResult() {
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl("https://kakaotalk-bizmessage.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var provider = new NhnAlimtalkDeliveryResultProvider(alimtalkProperties(), builder.build());
+
+        server.expect(requestTo("https://kakaotalk-bizmessage.api.nhncloudservice.com"
+                        + "/alimtalk/v2.2/appkeys/app-key/messages/request-id/1"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("X-Secret-Key", "secret-key"))
+                .andRespond(withSuccess("""
+                        {
+                          "header": {"isSuccessful": true, "resultCode": 0},
+                          "message": {"messageStatus": "COMPLETED", "resultCode": "MRC01"}
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var result = provider.findResult("request-id", 1L);
+
+        server.verify();
+        assertThat(result.status()).isEqualTo(NotificationDeliveryResultStatus.DELIVERED);
+    }
+
+    @DisplayName("NHN SMS 단건 조회의 성공 코드를 최종 수신 성공으로 판정한다")
+    @Test
+    void sms_resultLookup_mapsCompletedResult() {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        var provider = new NhnSmsDeliveryResultProvider(smsProperties(), builder.build());
+
+        server.expect(requestTo("https://sms.api.nhncloudservice.com"
+                        + "/sms/v3.0/appKeys/api-key/sender/sms/sms-request-id?recipientSeq=1"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "header": {"isSuccessful": true, "resultCode": 0},
+                          "body": {"data": {"msgStatus": 3, "resultCode": 1000}}
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var result = provider.findResult("sms-request-id", 1L);
+
+        server.verify();
+        assertThat(result.status()).isEqualTo(NotificationDeliveryResultStatus.DELIVERED);
+    }
 
     @DisplayName("NHN 알림톡은 v2.2 경로와 인증·멱등 헤더로 템플릿 치환 요청을 보낸다")
     @Test
@@ -67,7 +116,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
 
         server.verify();
-        assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
+        assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
     }
 
     @DisplayName("NHN 알림톡의 수신자별 결과 코드가 실패면 HTTP 200도 발송 실패로 판정한다")
@@ -162,7 +211,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
+        assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
     }
 
     @DisplayName("휴대폰 인증 SMS는 인증 코드와 유효 시간을 NHN Cloud 요청으로 보낸다")
@@ -270,6 +319,17 @@ class NotificationSenderContractTest {
                     "isSuccessful": true,
                     "resultCode": 0,
                     "resultMessage": "SUCCESS"
+                  },
+                  "body": {
+                    "data": {
+                      "requestId": "sms-request-id",
+                      "sendResultList": [
+                        {
+                          "recipientSeq": 1,
+                          "resultCode": 0
+                        }
+                      ]
+                    }
                   }
                 }
                 """;

@@ -22,6 +22,8 @@ export interface ConfirmPaymentResponse {
   context: ConfirmPaymentResponseContext;
   /** @nullable */
   domainId: number | null;
+  /** @nullable */
+  receiptUrl: string | null;
 }
 
 export type PreparePaymentRequestContext = typeof PreparePaymentRequestContext[keyof typeof PreparePaymentRequestContext];

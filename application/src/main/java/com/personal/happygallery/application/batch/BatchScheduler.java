@@ -10,6 +10,7 @@ import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentWebhookBatchUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentSettlementSyncUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRecoveryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
 import com.personal.happygallery.domain.time.Clocks;
@@ -51,6 +52,7 @@ public class BatchScheduler {
     private final PaymentWebhookBatchUseCase paymentWebhookBatchUseCase;
     private final PublicHolidaySyncUseCase publicHolidaySyncUseCase;
     private final SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase;
+    private final PaymentSettlementSyncUseCase paymentSettlementSyncUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
                           PickupExpireBatchUseCase pickupExpireBatchUseCase,
@@ -64,7 +66,8 @@ public class BatchScheduler {
                           ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase,
                           PaymentWebhookBatchUseCase paymentWebhookBatchUseCase,
                           PublicHolidaySyncUseCase publicHolidaySyncUseCase,
-                          SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase) {
+                          SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase,
+                          PaymentSettlementSyncUseCase paymentSettlementSyncUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
         this.pickupDeadlineReminderBatchUseCase = pickupDeadlineReminderBatchUseCase;
@@ -78,6 +81,7 @@ public class BatchScheduler {
         this.paymentWebhookBatchUseCase = paymentWebhookBatchUseCase;
         this.publicHolidaySyncUseCase = publicHolidaySyncUseCase;
         this.smartStoreStockSyncBatchUseCase = smartStoreStockSyncBatchUseCase;
+        this.paymentSettlementSyncUseCase = paymentSettlementSyncUseCase;
     }
 
     /** 주문 승인 SLA(24h) 초과 → 자동환불. 매시간 정각 실행. */
@@ -162,6 +166,13 @@ public class BatchScheduler {
     @Scheduled(cron = "55 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runSmartStoreStockSync() {
         return smartStoreStockSyncBatchUseCase.syncPendingStocks();
+    }
+
+    /** 최근 7일 Toss 정산 내역을 로컬 결제·환불 원장과 비교한다. 매시간 40분 실행. */
+    @BatchJob(id = "payment_settlement_sync", value = "결제 정산 대사")
+    @Scheduled(cron = "0 40 * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runPaymentSettlementSync() {
+        return paymentSettlementSyncUseCase.synchronizeRecent();
     }
 
     /** Toss 결제 상태 변경 웹훅을 기존 PG 대사 흐름으로 처리한다. 매분 35초에 실행. */

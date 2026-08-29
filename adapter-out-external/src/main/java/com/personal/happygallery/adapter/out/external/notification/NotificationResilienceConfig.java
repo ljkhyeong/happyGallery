@@ -6,6 +6,8 @@ import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuit
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
+import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultProvider;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
@@ -163,6 +165,20 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    NotificationDeliveryResultProvider alimtalkDeliveryResultProvider(
+            AlimtalkNotificationProperties properties,
+            @Qualifier("alimtalkRestClient") RestClient restClient) {
+        return new NhnAlimtalkDeliveryResultProvider(properties, restClient);
+    }
+
+    @Bean
+    NotificationDeliveryResultProvider smsDeliveryResultProvider(
+            SmsNotificationProperties properties,
+            @Qualifier("smsRestClient") RestClient restClient) {
+        return new NhnSmsDeliveryResultProvider(properties, restClient);
+    }
+
+    @Bean
     @Order(2)
     NotificationSenderPort smsNotificationSender(
             SmsNotificationProperties props,
@@ -259,6 +275,10 @@ class NotificationResilienceConfig {
     }
 
     private static boolean isFailureResult(Object result) {
+        if (result instanceof NotificationSendOutcome outcome) {
+            return outcome.result() == NotificationSendResult.TRANSIENT_FAILURE
+                    || outcome.result() == NotificationSendResult.DELIVERY_UNKNOWN;
+        }
         return result == NotificationSendResult.TRANSIENT_FAILURE
                 || result == NotificationSendResult.DELIVERY_UNKNOWN;
     }

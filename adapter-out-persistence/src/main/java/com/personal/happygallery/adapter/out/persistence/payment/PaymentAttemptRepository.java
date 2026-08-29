@@ -26,6 +26,8 @@ public interface PaymentAttemptRepository
 
     @Override Optional<PaymentAttempt> findByOrderIdExternal(String orderIdExternal);
 
+    @Override Optional<PaymentAttempt> findByConfirmedPaymentKey(String confirmedPaymentKey);
+
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select attempt from PaymentAttempt attempt where attempt.id = :id")

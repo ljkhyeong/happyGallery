@@ -140,9 +140,19 @@ class PaymentConfirmClaimTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public ConfirmationStep reconcileLatePgApproval(
+            ConfirmCommand command,
+            String confirmedPaymentKey,
+            String confirmedPaymentMethod) {
+        return reconcileLatePgApproval(
+                command, confirmedPaymentKey, confirmedPaymentMethod, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep reconcileLatePgApproval(ConfirmCommand command,
                                                      String confirmedPaymentKey,
-                                                     String confirmedPaymentMethod) {
+                                                     String confirmedPaymentMethod,
+                                                     String confirmedReceiptUrl) {
         PaymentAttempt attempt = findValidatedAttemptForUpdate(command);
         String paymentKey = StringUtils.hasText(command.paymentKey()) ? command.paymentKey() : null;
         attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
@@ -155,7 +165,10 @@ class PaymentConfirmClaimTransactionService {
             return readyForFulfillment(attempt);
         }
         if (!attempt.reconcileLatePgApproval(
-                confirmedPaymentKey, confirmedPaymentMethod, LocalDateTime.now(clock))) {
+                confirmedPaymentKey,
+                confirmedPaymentMethod,
+                confirmedReceiptUrl,
+                LocalDateTime.now(clock))) {
             throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
         }
         attemptStore.save(attempt);
@@ -167,6 +180,16 @@ class PaymentConfirmClaimTransactionService {
                                    String processingToken,
                                    String confirmedPaymentKey,
                                    String confirmedPaymentMethod) {
+        return tryMarkApproved(
+                attemptId, processingToken, confirmedPaymentKey, confirmedPaymentMethod, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean tryMarkApproved(Long attemptId,
+                                   String processingToken,
+                                   String confirmedPaymentKey,
+                                   String confirmedPaymentMethod,
+                                   String confirmedReceiptUrl) {
         PaymentAttempt attempt = findForUpdate(attemptId);
         if (attempt.getStatus() == PaymentAttemptStatus.APPROVED
                 || attempt.getStatus() == PaymentAttemptStatus.CONFIRMED) {
@@ -174,7 +197,11 @@ class PaymentConfirmClaimTransactionService {
             return true;
         }
         if (!attempt.markApproved(
-                processingToken, confirmedPaymentKey, confirmedPaymentMethod, LocalDateTime.now(clock))) {
+                processingToken,
+                confirmedPaymentKey,
+                confirmedPaymentMethod,
+                confirmedReceiptUrl,
+                LocalDateTime.now(clock))) {
             return false;
         }
         attemptStore.save(attempt);

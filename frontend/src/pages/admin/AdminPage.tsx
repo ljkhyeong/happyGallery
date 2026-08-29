@@ -18,6 +18,7 @@ import { AdminOrderClaimSection } from "@/features/admin-order-claim/AdminOrderC
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
+import { PaymentSettlementIssueSection } from "@/features/admin-payment-reconciliation/PaymentSettlementIssueSection";
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
@@ -327,6 +328,9 @@ export function AdminPage() {
         <>
           <AdminPanel title="결제 상태 확인 필요">
             <PaymentReconciliationSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="PG 정산 불일치">
+            <PaymentSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="환불 확인 필요">
             <FailedRefundSection adminKey={adminKey} onAuthError={handleAuthError} />

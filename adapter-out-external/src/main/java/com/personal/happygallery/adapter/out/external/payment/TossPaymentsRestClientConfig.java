@@ -34,6 +34,21 @@ class TossPaymentsRestClientConfig {
                 .build();
     }
 
+    @Bean
+    CloseableHttpClient tossSettlementHttpClient(TossSettlementHttpProperties props) {
+        return pooledHttpClientFactory.create(props);
+    }
+
+    @Bean
+    RestClient tossSettlementRestClient(
+            RestClient.Builder builder,
+            TossPaymentsProperties props,
+            @Qualifier("tossSettlementHttpClient") CloseableHttpClient httpClient) {
+        return configure(builder, props)
+                .requestFactory(new HttpComponentsClientHttpRequestFactory(httpClient))
+                .build();
+    }
+
     static RestClient.Builder configure(RestClient.Builder builder, TossPaymentsProperties props) {
         Assert.hasText(props.secretKey(), "prod 프로필에는 TOSS_SECRET_KEY가 필요합니다.");
         return builder

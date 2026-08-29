@@ -193,7 +193,7 @@
   - 자동 복구는 `last_recovery_at`, 생성 시각, ID 순으로 후보를 순환해 반복 실패 환불이 뒤 요청을 계속 막지 않게 한다.
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
-  - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `confirmed_payment_method nullable`, `fail_reason nullable`
+  - `processing_at nullable`, `processing_token nullable`, `payment_key nullable`, `confirmed_payment_key nullable`, `confirmed_payment_method nullable`, `confirmed_receipt_url nullable`, `fail_reason nullable`
   - `payload_enc`, `fulfilled_domain_id nullable`, `fulfilled_access_token_enc nullable`, `created_at`, `confirmed_at nullable`, `confirm_recovery_attempted_at nullable`, `version`
   - 내부 결제 payload는 AES-GCM 암호문으로 저장하고 claim·fulfillment 시점에만 복호화한다.
   - confirm을 선점할 때마다 새 `processing_token`을 발급하고 현재 토큰 소유자의 PG 결과만 상태에 반영한다.
@@ -204,6 +204,10 @@
 - `payment_webhook_receipts`
   - `id`, `transmission_id(unique)`, `payment_attempt_id(FK)`, `event_type`, `received_at`, `processing_at nullable`, `processed_at nullable`, `version`
   - Toss 결제 상태 웹훅의 중복 전송을 제거하고 기존 PG 대사 완료 여부를 추적한다.
+- `payment_settlements`
+  - `id`, `transaction_key(unique)`, `payment_key`, `order_id_external nullable`, `payment_method nullable`, `amount`, `fee_amount`, `supply_amount`, `vat`, `pay_out_amount`, `approved_at nullable`, `sold_date`, `paid_out_date nullable`, `cancel_transaction`, `reconciliation_status`, `reconciliation_reason nullable`, `fetched_at`, 생성·수정 시각
+  - Toss 정산 내역은 `transaction_key` 기준으로 멱등 갱신한다. 승인 정산은 로컬 `payment_attempt.confirmed_payment_key`, 취소 정산은 `refunds.refund_transaction_key`와 식별자·금액을 비교한다.
+  - 상태는 `MATCHED | LOCAL_PAYMENT_NOT_FOUND | LOCAL_REFUND_NOT_FOUND | IDENTIFIER_MISMATCH | AMOUNT_MISMATCH`다. 불일치 건은 자동으로 로컬 결제·환불 상태를 바꾸지 않고 관리자 작업 목록에만 노출한다.
 - `public_holiday_snapshot`
   - `holiday_date(PK)`, `name`, `synced_at`
   - 공공데이터 정상 응답으로 현재·다음 연도를 교체하며 예약 캘린더는 저장된 연도를 계산 정책보다 우선한다.
@@ -386,8 +390,8 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 #### 알림 outbox
 
 - `notification_outbox`
-  - `id`, 수신자 식별자, `event_type`, `aggregate_type`, `aggregate_id`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`
-  - 상태는 `PENDING → PROCESSING → SENT|OBSOLETE|FAILED`를 기본 흐름으로 사용한다. `OBSOLETE`는 발송 직전 현재 도메인 상태·시간 구간과 맞지 않아 외부 채널 호출 없이 종결된 시간 의존 리마인드다. 같은 aggregate가 미래 유효 구간에 다시 들어오면 배치만 같은 행을 `OBSOLETE → PENDING`으로 재활성화할 수 있다.
+  - `id`, 수신자 식별자, `event_type`, `aggregate_type`, `aggregate_id`, `idempotency_key`, `status`, 재시도 시각과 횟수, `processed_at`, `read_at`, `provider_channel`, `provider_request_id`, `provider_recipient_seq`
+  - 상태는 `PENDING → PROCESSING → DELIVERY_PENDING → DELIVERY_CHECKING → SENT|FAILED`를 외부 발송 결과 확인 흐름으로 사용한다. 외부 사업자가 최종 수신 결과를 즉시 확정하면 `PROCESSING → SENT|FAILED`로 바로 종결할 수 있다. `OBSOLETE`는 발송 직전 현재 도메인 상태·시간 구간과 맞지 않아 외부 채널 호출 없이 종결된 시간 의존 리마인드다. 같은 aggregate가 미래 유효 구간에 다시 들어오면 배치만 같은 행을 `OBSOLETE → PENDING`으로 재활성화할 수 있다.
   - `processing_token`, `locked_at`, `version`으로 재선점 전 실행의 오래된 결과 반영을 차단한다.
   - 리마인드 후보는 `(event_type, aggregate_type, aggregate_id)`로 이미 접수된 도메인 이벤트를 제외한다. 멱등키 문자열 형식이 달라도 같은 이력으로 인식한다.
   - `V108`은 영속 enum 확장에 맞춰 `status` 컬럼 comment에 `OBSOLETE`를 반영한다.
@@ -450,9 +454,13 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리
 - `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·8회권·픽업 리마인드 접수 이력 조회
+- `notification_outbox(status, next_attempt_at, locked_at, id)` NHN 최종 수신 결과 확인 대상 선점
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인
 - `notification_log(guest_id, event_type, status, sent_at)` 비회원 알림 중복 확인
+- `notification_log(channel, provider_request_id, provider_recipient_seq)` UNIQUE, 외부 수신자별 최종 결과 감사 로그 식별
+- `payment_settlements(transaction_key)` UNIQUE, Toss 정산 거래 멱등 갱신
+- `payment_settlements(reconciliation_status, sold_date, id)` 정산 불일치 관리자 작업 목록 조회
 - `product_qna(replied_at, created_at DESC, id DESC)` 관리자 미답변 작업함 커서 조회
 - `refunds(status, created_at)`
 - `refunds(status, next_attempt_at, created_at)`

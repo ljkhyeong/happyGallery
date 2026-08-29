@@ -195,6 +195,13 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
   관리자 복구 정보이므로 노출하지 않는다.
 - confirm 응답이 유실된 비회원 결제가 `CONFIRMED`이면 기존 암호문에서 주문·예약 접근 토큰을 복원해 반환한다.
 
+### 8. 고객 영수증과 PG 정산 대사는 결제 원장에 연결한다
+
+- Toss 승인 응답의 `receipt.url`은 `payment_attempt.confirmed_receipt_url`에 저장하고 결제 완료·상태 조회 응답에 포함한다. 주문·예약·8회권에 같은 값을 복제하지 않는다.
+- Toss 정산 API는 최대 60초가 걸릴 수 있으므로 confirm·cancel의 3초 풀과 분리한 전용 커넥션 풀을 사용한다. 인증 키와 base URL만 공유한다.
+- 매시간 최근 7일 정산을 다시 읽고 거래키로 upsert한다. 승인 거래는 `paymentKey`·`orderId`·금액, 취소 거래는 취소 `transactionKey`·금액을 로컬 원장과 비교한다.
+- 불일치는 `payment_settlements.reconciliation_status`와 사유로 유지하고 관리자 화면에 표시한다. 외부 조회 중에는 DB 트랜잭션을 열지 않고 각 거래 반영만 짧은 새 트랜잭션에서 수행한다.
+
 ## 결과
 
 | 항목 | 내용 |
@@ -236,6 +243,8 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `DefaultPaymentStatusQueryService`, `PaymentStatusQueryUseCase`, `PaymentQueryController`
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`
+- `TossPaymentSettlementProvider`, `DefaultPaymentSettlementService`, `PaymentSettlement`
+- `V155__store_payment_receipt_url.sql`, `V156__reconcile_payment_settlements.sql`
 - `V41__harden_payment_confirm_boundary.sql`
 - `V46__ProtectPlaintextPersonalData`
 - `V49__persist_payment_confirm_result.sql`

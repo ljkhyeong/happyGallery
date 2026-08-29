@@ -2396,6 +2396,18 @@ Authorization: Bearer {token}
   - `DONE`이면 저장된 paymentKey·orderId·amount를 모두 확인한 뒤 기존 주문·예약·8회권 처리를 재개한다.
   - Toss가 `NOT_FOUND_PAYMENT`로 승인 없음(결제 미존재)을 명시한 경우에만 `FAILED`로 확정한다. 다른 404를 포함해 결과를 자동 판정할 수 없으면 `RECONCILIATION_REQUIRED`를 유지한다.
 
+#### 2.11.6 PG 정산 불일치 목록
+
+```http
+GET /api/v1/admin/payment-settlements/issues
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK`
+- 응답은 최근 Toss 정산 내역 중 로컬 승인·환불과 일치하지 않은 건을 `id`, `transactionKey`, `paymentKey`, `orderId`, `amount`, `payOutAmount`, `soldDate`, `cancelTransaction`, `status`, `reason`, `fetchedAt`으로 반환한다.
+- `status`는 `LOCAL_PAYMENT_NOT_FOUND`, `LOCAL_REFUND_NOT_FOUND`, `IDENTIFIER_MISMATCH`, `AMOUNT_MISMATCH` 중 하나다. 일치한 `MATCHED` 건은 운영자 작업 목록에 노출하지 않는다.
+- 서버는 매시 40분에 Toss 정산 API에서 최근 7일 내역을 다시 읽어 `transactionKey` 기준으로 갱신한다. 정산 조회는 승인·취소용 HTTP 연결 풀과 분리해 긴 응답이 고객 결제 요청을 점유하지 않게 한다.
+
 ### 2.12 회원 API (`/api/v1/me`)
 
 회원 인증은 `HG_SESSION` HttpOnly 쿠키 기반이며, Spring Security의 회원 principal로 검증한다.
@@ -3454,7 +3466,8 @@ Content-Type: application/json
   "context": "ORDER",
   "domainId": 12,
   "accessToken": "eyJ...signed-token",
-  "accessRecoveryRequired": false
+  "accessRecoveryRequired": false,
+  "receiptUrl": "https://dashboard.tosspayments.com/receipt/redirection?transactionId=..."
 }
 ```
 
@@ -3492,6 +3505,7 @@ Content-Type: application/json
   - 환불 이력은 원결제 식별자인 Toss `paymentKey`를 `refunds.payment_key`, 환불 거래 식별자인 Toss cancel `transactionKey`를 `refunds.refund_transaction_key`에 분리해 저장한다. PG port의 성공 결과와 도메인의 `SUCCEEDED` 전이는 공백이 아닌 `transactionKey`를 필수로 검증하고, 잘못된 성공 응답은 성공으로 저장하지 않고 대사 대상으로 격리한다. 자동·수동 재처리는 `refunds.payment_key`와 최초 `idempotency_key`를 다시 사용한다.
   - 비회원 경로의 `accessToken`은 HMAC-SHA256 서명과 기본 30일 만료 시각을 포함한다. 주문·예약에는 서명 토큰 전체의 SHA-256 해시만 저장하며, 서명 없는 토큰은 허용하지 않는다. 응답 유실 뒤 동일 confirm 재호출을 위해 원문 토큰은 `payment_attempt`에 AES-GCM 암호문으로 저장한다. 재호출 시에도 토큰 서명·만료와 현재 주문·예약의 비회원 소유권·저장 해시를 다시 확인한다. 이미 회원에게 귀속됐거나 토큰이 교체·만료된 경우 `accessToken=null`, `accessRecoveryRequired=true`를 반환한다. 회원 경로는 두 값이 각각 `null`, `false`다.
   - `domainId`는 context에 따라 `orderId`(`ORDER`), `bookingId`(`BOOKING`), `passId`(`PASS`)다.
+  - 유료 결제가 완료되면 Toss 승인 응답의 `receipt.url`을 `receiptUrl`로 반환한다. 0원 결제이거나 PG가 영수증 URL을 제공하지 않으면 `null`이다.
   - 내부 결제 귀속 증거가 없거나 위조·재사용되어 현재 결제 시도와 일치하지 않으면 fulfillment를 중단하고 `400 INVALID_INPUT`으로 처리한다. PG가 이미 승인됐다면 기존 보상 환불 경계를 따른다.
   - confirm은 행 잠금 아래 30분 유효시간을 다시 확인하고, 경계를 넘긴 `PENDING`을 `CANCELED`로 전이한 뒤 `payload_enc`를 제거하고 `410 PAYMENT_ATTEMPT_EXPIRED`를 반환한다. 매분 배치도 같은 기준으로 confirm을 시작하지 않은 결제를 일괄 정리한다. 만료된 orderId는 새 prepare부터 다시 시작해야 한다.
   - prepare·confirm 성공 응답과 고객 상태 조회 응답은 `Cache-Control: no-store`로 반환한다.
@@ -3512,7 +3526,8 @@ X-Payment-Status-Token: {prepareStatusToken}      # 비회원
   "status": "REFUNDING",
   "domainId": null,
   "accessToken": null,
-  "accessRecoveryRequired": false
+  "accessRecoveryRequired": false,
+  "receiptUrl": "https://dashboard.tosspayments.com/receipt/redirection?transactionId=..."
 }
 ```
 
@@ -3521,6 +3536,7 @@ X-Payment-Status-Token: {prepareStatusToken}      # 비회원
 - 결제 미존재와 소유권 불일치는 모두 `404 NOT_FOUND`로 응답해 결제 존재 여부를 노출하지 않는다.
 - 고객 상태는 `READY`, `CONFIRMING`, `RETRYABLE`, `COMPLETED`, `FAILED`, `REVIEW_REQUIRED`, `REFUNDING`, `REFUNDED`, `SUPPORT_REQUIRED`, `EXPIRED`다.
 - `COMPLETED`만 `domainId`를 반환한다. 비회원 완료 결제는 응답 유실 복구를 위해 현재 주문·예약의 비회원 소유권과 저장 해시까지 일치하는 유효한 `accessToken`만 반환한다. 토큰을 안전하게 복원할 수 없으면 `accessRecoveryRequired=true`로 휴대폰 인증 복구가 필요함을 알린다.
+- PG 승인 시 저장한 영수증 URL이 있으면 `receiptUrl`을 반환한다. 결제 소유권 검증에 성공한 고객만 조회할 수 있으며 URL을 서버에서 재구성하지 않는다.
 - 실패 사유, `refundId`, PG 식별자, 재시도 횟수는 고객 응답에 포함하지 않는다.
 - 모든 응답은 `Cache-Control: no-store`로 반환한다.
 

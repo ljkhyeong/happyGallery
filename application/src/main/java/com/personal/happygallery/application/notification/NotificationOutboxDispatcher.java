@@ -48,6 +48,8 @@ public class NotificationOutboxDispatcher {
                 switch (dispatchReserved(claimed)) {
                     case SENT -> successCount++;
                     case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
+                    case DELIVERY_PENDING -> log.info(
+                            "[알림 outbox] 최종 수신 결과 대기 [outboxId={}]", claimed.outboxId());
                     case OBSOLETE -> log.info(
                             "[알림 outbox] 현재 상태와 맞지 않는 알림 종결 [outboxId={}]",
                             claimed.outboxId());
@@ -81,13 +83,13 @@ public class NotificationOutboxDispatcher {
             }
         }
         NotificationOutboxDeliveryRequest delivery = preparation.delivery();
-        NotificationSendResult result;
+        NotificationDeliveryAttempt attempt;
         try {
-            result = switch (delivery.recipientType()) {
-                case GUEST -> notificationService.sendByGuestId(
-                        delivery.guestId(), delivery.eventType(), delivery.idempotencyKey());
-                case USER -> notificationService.sendByUserId(
-                        delivery.userId(), delivery.eventType(), delivery.idempotencyKey());
+            attempt = switch (delivery.recipientType()) {
+                case GUEST -> notificationService.sendByGuestIdWithOutcome(
+                        delivery.guestId(), delivery.eventType(), delivery.idempotencyKey(), null);
+                case USER -> notificationService.sendByUserIdWithOutcome(
+                        delivery.userId(), delivery.eventType(), delivery.idempotencyKey(), null);
             };
         } catch (NotificationAuditPersistenceException exception) {
             return switch (exception.deliveryResult()) {
@@ -103,7 +105,7 @@ public class NotificationOutboxDispatcher {
                                 DELIVERY_RESULT_UNKNOWN + ":" + AUDIT_LOG_PERSISTENCE_FAILED)
                         ? DispatchOutcome.FAILED
                         : DispatchOutcome.STALE;
-                case TRANSIENT_FAILURE, PERMANENT_FAILURE -> transactionService.markDeliveryFailed(
+                case ACCEPTED, TRANSIENT_FAILURE, PERMANENT_FAILURE -> transactionService.markDeliveryFailed(
                                 reservation.outboxId(),
                                 reservation.processingToken(),
                                 TRANSIENT_DELIVERY_FAILURE + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
@@ -113,7 +115,16 @@ public class NotificationOutboxDispatcher {
             };
         }
 
-        return switch (result) {
+        return switch (attempt.result()) {
+            case ACCEPTED -> transactionService.markDeliveryPending(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    attempt.channel(),
+                    attempt.providerRequestId(),
+                    attempt.providerRecipientSeq(),
+                    null)
+                    ? DispatchOutcome.DELIVERY_PENDING
+                    : DispatchOutcome.STALE;
             case SUCCESS -> transactionService.markSent(
                     reservation.outboxId(), reservation.processingToken())
                     ? DispatchOutcome.SENT
@@ -158,6 +169,7 @@ public class NotificationOutboxDispatcher {
 
     private enum DispatchOutcome {
         SENT,
+        DELIVERY_PENDING,
         FAILED,
         OBSOLETE,
         STALE

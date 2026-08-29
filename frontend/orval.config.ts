@@ -131,6 +131,7 @@ export default defineConfig({
     "admin-notification-controller",
     "admin-pass-controller",
     "admin-payment-reconciliation-controller",
+    "admin-payment-settlement-controller",
     "admin-refund-controller",
   ]),
   orderClaimApi: generatedApi("./src/generated/api/orderClaim.ts", [

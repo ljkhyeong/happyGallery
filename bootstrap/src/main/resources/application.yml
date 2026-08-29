@@ -299,6 +299,12 @@ app:
         acquire-timeout: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}ms
         max-connections: ${TOSS_MAX_CONNECTIONS:10}
         keep-alive: ${TOSS_KEEP_ALIVE_MILLIS:30000}ms
+      toss-settlement:
+        timeout: ${TOSS_SETTLEMENT_TIMEOUT_SECONDS:60}s
+        connect-timeout: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}ms
+        acquire-timeout: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}ms
+        max-connections: ${TOSS_SETTLEMENT_MAX_CONNECTIONS:2}
+        keep-alive: ${TOSS_KEEP_ALIVE_MILLIS:30000}ms
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
     previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}

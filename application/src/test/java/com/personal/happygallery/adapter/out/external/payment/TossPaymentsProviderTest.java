@@ -63,7 +63,10 @@ class TossPaymentsProviderTest {
                           "paymentKey": "payment-key",
                           "orderId": "order-id",
                           "method": "카드",
-                          "approvedAt": "2026-04-23T10:00:00+09:00"
+                          "approvedAt": "2026-04-23T10:00:00+09:00",
+                          "receipt": {
+                            "url": "https://dashboard.tosspayments.com/receipt/payment-key"
+                          }
                         }
                         """, MediaType.APPLICATION_JSON));
 
@@ -76,6 +79,8 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.paymentKey()).isEqualTo("payment-key");
             softly.assertThat(result.method()).isEqualTo("카드");
             softly.assertThat(result.approvedAt()).isEqualTo("2026-04-23T10:00:00+09:00");
+            softly.assertThat(result.receiptUrl())
+                    .isEqualTo("https://dashboard.tosspayments.com/receipt/payment-key");
             softly.assertThat(result.failReason()).isNull();
         });
     }

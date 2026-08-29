@@ -217,6 +217,33 @@ export interface PaymentReconciliationResultResponse {
   status: PaymentReconciliationResultResponseStatus;
 }
 
+export type PaymentSettlementIssueResponseStatus = typeof PaymentSettlementIssueResponseStatus[keyof typeof PaymentSettlementIssueResponseStatus];
+
+
+export const PaymentSettlementIssueResponseStatus = {
+  MATCHED: 'MATCHED',
+  LOCAL_PAYMENT_NOT_FOUND: 'LOCAL_PAYMENT_NOT_FOUND',
+  LOCAL_REFUND_NOT_FOUND: 'LOCAL_REFUND_NOT_FOUND',
+  IDENTIFIER_MISMATCH: 'IDENTIFIER_MISMATCH',
+  AMOUNT_MISMATCH: 'AMOUNT_MISMATCH',
+} as const;
+
+export interface PaymentSettlementIssueResponse {
+  amount: number;
+  cancelTransaction: boolean;
+  fetchedAt: string;
+  id: number;
+  /** @nullable */
+  orderId: string | null;
+  payOutAmount: number;
+  paymentKey: string;
+  /** @nullable */
+  reason: string | null;
+  soldDate: string;
+  status: PaymentSettlementIssueResponseStatus;
+  transactionKey: string;
+}
+
 export type FailedRefundResponseStatus = typeof FailedRefundResponseStatus[keyof typeof FailedRefundResponseStatus];
 
 
@@ -536,6 +563,30 @@ export const reconcile = async (attemptId: number, options?: RequestInit): Promi
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getListPaymentSettlementIssuesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/payment-settlements/issues`
+}
+
+/**
+ * @summary PG 정산 대사 불일치 목록 조회
+ */
+export const listPaymentSettlementIssues = async ( options?: RequestInit): Promise<PaymentSettlementIssueResponse[]> => {
+
+  return generatedApiClient<PaymentSettlementIssueResponse[]>(getListPaymentSettlementIssuesUrl(),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

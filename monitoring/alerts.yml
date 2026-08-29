@@ -214,6 +214,22 @@ groups:
         annotations:
           summary: "알림 outbox가 재시도 예정 시각을 1분 넘겼습니다"
 
+      - alert: NotificationDeliveryResultCheckStalled
+        expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="delivery_checking"}) > 120
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "알림 최종 수신 결과 조회가 2분 넘게 완료되지 않았습니다"
+
+      - alert: NotificationDeliveryResultPendingStalled
+        expr: max(happygallery_notification_outbox_backlog_oldest_age_seconds{application="happygallery",status="delivery_pending"}) > 60
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "알림 최종 수신 결과 조회 예정 시각을 1분 넘겼습니다"
+
       - alert: NotificationLogPersistenceFailed
         expr: increase(happygallery_notification_log_persistence_failed_total{application="happygallery"}[5m]) > 0
         for: 1m

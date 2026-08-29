@@ -77,7 +77,8 @@ public class TossPaymentsProvider implements PaymentPort {
             return PaymentConfirmResult.success(
                     response.paymentKey(),
                     Objects.requireNonNullElse(response.method(), "UNKNOWN"),
-                    response.approvedAt());
+                    response.approvedAt(),
+                    response.receipt() == null ? null : response.receipt().url());
         } catch (RestClientResponseException e) {
             log.warn("Toss confirm 거절 [orderId={} status={}]", orderId, e.getStatusCode());
             if (isRetryableStatus(e)) {
@@ -175,7 +176,10 @@ public class TossPaymentsProvider implements PaymentPort {
 
     private record ConfirmRequest(String paymentKey, String orderId, long amount) {}
 
-    private record ConfirmResponse(String paymentKey, String orderId, String method, String approvedAt) {}
+    private record ConfirmResponse(
+            String paymentKey, String orderId, String method, String approvedAt, Receipt receipt) {}
+
+    private record Receipt(String url) {}
 
     private record LookupResponse(
             String paymentKey, String orderId, String status, long totalAmount, String method) {}

@@ -60,7 +60,8 @@ class PaymentConfirmAttemptResolver {
                 attempt.getContext(),
                 attempt.getFulfilledDomainId(),
                 access.accessToken(),
-                access.recoveryRequired());
+                access.recoveryRequired(),
+                attempt.getConfirmedReceiptUrl());
     }
 
     private PaymentFulfiller fulfiller(PaymentContext context) {

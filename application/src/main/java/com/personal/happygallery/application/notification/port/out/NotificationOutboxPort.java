@@ -17,6 +17,9 @@ public interface NotificationOutboxPort {
 
     List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit);
 
+    List<NotificationOutbox> findDeliveryResultCheckable(
+            LocalDateTime now, LocalDateTime staleBefore, int limit);
+
     List<NotificationOutbox> findFailed(int limit);
 
     List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset);

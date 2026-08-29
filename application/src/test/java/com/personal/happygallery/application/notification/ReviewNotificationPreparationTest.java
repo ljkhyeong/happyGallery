@@ -2,6 +2,7 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxInsertPort;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
+import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -118,6 +119,7 @@ class ReviewNotificationPreparationTest {
             ReviewNotificationEligibility reviewEligibility) {
         return new NotificationOutboxTransactionService(
                 outboxPort,
+                mock(NotificationLogStorePort.class),
                 reminderEligibility,
                 reviewEligibility,
                 mock(ApplicationEventPublisher.class),

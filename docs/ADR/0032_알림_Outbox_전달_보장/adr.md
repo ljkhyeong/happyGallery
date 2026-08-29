@@ -39,6 +39,8 @@
 - `PROCESSING`이 1분 넘게 유지된 outbox는 오래된 실행으로 보고 재선점한다. 정상 알림 transport 상한 5초보다 충분히 길고 NHN 멱등키의 10분 중복 차단 창보다 짧아, 중단된 실행의 복구를 중복 차단 창 안에서 시작한다.
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
+- NHN이 발송 요청을 접수한 응답은 전달 성공과 구분한다. `requestId`·`recipientSeq`를 outbox와 요청 감사 로그에 저장하고 `DELIVERY_PENDING`으로 전이한 뒤, 별도 scheduler가 단건 결과 API를 조회한다. 결과 조회 lease는 `DELIVERY_CHECKING`과 새 processing token으로 보호하고 1분 넘게 멈춘 실행만 재선점한다.
+- Alimtalk `COMPLETED` 또는 SMS `msgStatus=3`·`resultCode=1000`을 확인한 뒤에만 감사 로그를 `SUCCESS`, outbox를 `SENT`로 확정한다. Alimtalk `FAILED/CANCEL`을 확인하면 기존 KAKAO 감사 로그를 실패로 끝내고 그때 SMS를 요청한다. SMS도 같은 최종 결과 확인을 거치며 최종 실패는 outbox를 `FAILED`로 종결한다.
 - 예약 D-1·당일, 8회권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
   짧은 `REQUIRES_NEW` 트랜잭션에서 outbox 행을 `FOR UPDATE`로 잠근다. 현재 token을 확인한 뒤 aggregate별 SQL 한 번으로
   상태·시간 구간·현재 회원/비회원 소유자를 같은 DB snapshot에서 읽는다. 부적격이면 `OBSOLETE`로 종결하고, 적격이면 outbox의
@@ -97,7 +99,7 @@
   인증 SMS는 outbox를 사용하지 않으므로 이 상관관계 ID를 보내지 않는다.
 - 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
-- `PENDING`·`PROCESSING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. `PROCESSING`은 현재 선점의 `locked_at`이 2분 넘은 경우, `PENDING`은 `next_attempt_at`이 1분 넘게 지난 경우를 정체로 보고, `FAILED`는 최종 실패가 확정된 `processed_at`부터 경과 시간을 계산한다. 미래 재시도 예정 시각의 age는 0이므로 최대 5회 지수 백오프 중인 정상 대기는 경보를 울리지 않는다.
+- `PENDING`·`PROCESSING`·`DELIVERY_PENDING`·`DELIVERY_CHECKING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. 실행 상태는 현재 선점의 `locked_at`, 대기 상태는 `next_attempt_at`, `FAILED`는 `processed_at`부터 경과 시간을 계산한다. 실행 상태가 2분, 예정 시각이 지난 대기 상태가 1분을 넘으면 경보를 울린다. 미래 예정 시각의 age는 0으로 유지한다.
 - 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.
 - 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 - 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
@@ -114,7 +116,7 @@
   자동 중복 가능성은 낮추지만, 실제 미발송이었다면 운영 확인 전까지 전달이 지연되는 가용성 비용을 감수한다.
 - `notification_outbox`의 `SENT` 행은 회원 알림함 목록·읽지 않은 건수·읽음 처리의 원본이자 동일 도메인 이벤트의 멱등 기록이다. 알림함의 전달 시각은 도메인 이벤트 발생 시각이 아니라 외부 채널 전달 성공 후 로컬 `SENT`가 확정된 `processed_at`이다. `notification_log`는 카카오톡·SMS fallback을 포함한 채널별 감사 이력으로만 사용하므로 한 outbox에서 로그가 여러 건 생겨도 알림함은 중복되지 않는다.
 - 알림함 원본 전환 migration 이전에 이미 `SENT`였던 outbox는 `read_at=processed_at`으로 이관해 과거 알림 전체가 새 미확인 알림으로 보이지 않게 한다.
-- 발송 완료 `SENT`, 현재 의미가 사라진 `OBSOLETE`, 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
+- 발송 완료 `SENT`, 현재 의미가 사라진 `OBSOLETE`, 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`, 실행 중인 `PROCESSING`, 제공자 결과 대기·조회 상태인 `DELIVERY_PENDING`·`DELIVERY_CHECKING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
 
 ---
 
@@ -138,6 +140,7 @@
 
 - `notification_outbox` 테이블과 dispatch/unique 인덱스 추가
 - `NotificationOutbox`, `NotificationOutboxStatus`, `NotificationRecipientType` 추가
+- 제공자 요청 식별자, `DELIVERY_PENDING`·`DELIVERY_CHECKING`, `NotificationDeliveryResultReconciler`와 단건 결과 조회 어댑터 추가
 - 시간 의존 리마인드의 발송 직전 적격성 조회와 `OBSOLETE` terminal 상태 추가
 - `prepareDelivery`에서 token·현재 적격성·현재 수신자·lease를 한 트랜잭션으로 확정하고 커밋 뒤 외부 발송
 - 미래 유효 구간에 다시 들어온 `OBSOLETE` 리마인드의 동일 행·멱등키 자동 재활성화 추가

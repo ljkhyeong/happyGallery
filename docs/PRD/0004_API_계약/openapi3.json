@@ -2072,9 +2072,12 @@
           "domainId" : {
             "format" : "int64",
             "type" : [ "integer", "null" ]
+          },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "accessRecoveryRequired", "accessToken", "context", "domainId" ],
+        "required" : [ "accessRecoveryRequired", "accessToken", "context", "domainId", "receiptUrl" ],
         "type" : "object"
       },
       "CreateAdminBookingRequest" : {
@@ -4595,6 +4598,51 @@
         "required" : [ "attemptId", "domainId", "message", "status" ],
         "type" : "object"
       },
+      "PaymentSettlementIssueResponse" : {
+        "properties" : {
+          "amount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "cancelTransaction" : {
+            "type" : "boolean"
+          },
+          "fetchedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "orderId" : {
+            "type" : [ "string", "null" ]
+          },
+          "payOutAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "paymentKey" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "soldDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "MATCHED", "LOCAL_PAYMENT_NOT_FOUND", "LOCAL_REFUND_NOT_FOUND", "IDENTIFIER_MISMATCH", "AMOUNT_MISMATCH" ],
+            "type" : "string"
+          },
+          "transactionKey" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "cancelTransaction", "fetchedAt", "id", "orderId", "payOutAmount", "paymentKey", "reason", "soldDate", "status", "transactionKey" ],
+        "type" : "object"
+      },
       "PaymentStatusRecoveryResponse" : {
         "properties" : {
           "expiresAt" : {
@@ -4634,12 +4682,15 @@
             "format" : "int64",
             "type" : [ "integer", "null" ]
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "status" : {
             "enum" : [ "READY", "CONFIRMING", "RETRYABLE", "COMPLETED", "FAILED", "REVIEW_REQUIRED", "REFUNDING", "REFUNDED", "SUPPORT_REQUIRED", "EXPIRED" ],
             "type" : "string"
           }
         },
-        "required" : [ "accessRecoveryRequired", "accessToken", "amount", "context", "domainId", "status" ],
+        "required" : [ "accessRecoveryRequired", "accessToken", "amount", "context", "domainId", "receiptUrl", "status" ],
         "type" : "object"
       },
       "PaymentSummary" : {
@@ -9689,6 +9740,28 @@
           }
         },
         "tags" : [ "admin-payment-reconciliation-controller" ]
+      }
+    },
+    "/api/v1/admin/payment-settlements/issues" : {
+      "get" : {
+        "operationId" : "listPaymentSettlementIssues",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/PaymentSettlementIssueResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "summary" : "PG 정산 대사 불일치 목록 조회",
+        "tags" : [ "admin-payment-settlement-controller" ]
       }
     },
     "/api/v1/admin/products" : {

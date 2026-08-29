@@ -244,9 +244,10 @@ class NotificationServiceTest {
                 .thenReturn(Optional.of(reservation), Optional.empty());
         when(transactionService.prepareDelivery(99L, "processing-token"))
                 .thenReturn(NotificationOutboxDeliveryPreparation.ready(delivery));
-        when(notificationService.sendByUserId(
-                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
-                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
+        when(notificationService.sendByUserIdWithOutcome(
+                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY, null))
+                .thenReturn(NotificationDeliveryAttempt.immediate(
+                        NotificationSendResult.PERMANENT_FAILURE));
         when(transactionService.markPermanentFailure(
                 99L, "processing-token", "PERMANENT_DELIVERY_FAILURE"))
                 .thenReturn(true);
@@ -285,9 +286,10 @@ class NotificationServiceTest {
                         "BOOKING",
                         99L,
                         IDEMPOTENCY_KEY)));
-        when(notificationService.sendByUserId(
-                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY))
-                .thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+        when(notificationService.sendByUserIdWithOutcome(
+                10L, NotificationEventType.BOOKING_CONFIRMED, IDEMPOTENCY_KEY, null))
+                .thenReturn(NotificationDeliveryAttempt.immediate(
+                        NotificationSendResult.DELIVERY_UNKNOWN));
         when(transactionService.markPermanentFailure(
                 99L, "processing-token", "DELIVERY_RESULT_UNKNOWN"))
                 .thenReturn(true);

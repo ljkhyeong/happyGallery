@@ -140,6 +140,7 @@ export function PaymentSuccessPage() {
         domainId: status.domainId,
         accessToken: status.accessToken,
         accessRecoveryRequired: status.accessRecoveryRequired,
+        receiptUrl: status.receiptUrl,
       });
       setError(null);
       if (returnHintSession) consumePaymentReturnHint(returnHintSession);
@@ -363,7 +364,19 @@ export function PaymentSuccessPage() {
     <Container className="page-container" style={{ maxWidth: 540 }}>
       <h4 className="mb-4">결제 완료</h4>
       <p className="text-muted-soft mb-4">결제가 정상 처리되었습니다.</p>
-      <PaymentCompletionNext result={result} />
+      <div className="d-flex flex-wrap gap-2">
+        <PaymentCompletionNext result={result} />
+        {result.receiptUrl && (
+          <a
+            className="btn btn-outline-secondary"
+            href={result.receiptUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            결제 영수증 보기
+          </a>
+        )}
+      </div>
     </Container>
   );
 }

@@ -297,6 +297,7 @@
   멱등키를 `PENDING`으로 다시 열고 현재 수신자로 갱신한다. 새 outbox를 만들거나 운영자가 임의로 재발송하지 않는다.
 - Alimtalk·일반 SMS·휴대폰 인증 SMS 외부 호출은 서로 분리된 서킷 브레이커와 제한 큐 timeout executor로 보호한다. 명시적 영구 거절은 다음 채널 fallback으로 넘기되 서킷 장애율에는 넣지 않는다. 408·425·429·5xx, NHN SMS `-9999` 시스템 오류와 `-2021` 발송 큐 저장 실패, 호출 전 차단·대기열 포화와 DNS·라우팅·TCP 연결·TLS handshake/peer 검증·연결 풀 대기 실패는 재시도 가능한 실패로 처리한다. 요청 전달 뒤 응답 대기 timeout처럼 제공자 수락 여부를 알 수 없는 통신 예외는 전달 결과 불명으로 분류해 즉시 SMS fallback과 자동 재시도를 멈추고 `FAILED + DELIVERY_RESULT_UNKNOWN`으로 운영 확인 대상에 남긴다. NHN transport 단계 합은 바깥 TimeLimiter보다 짧아야 하며 역전된 운영 설정은 기동 시 거부한다.
 - Alimtalk은 NHN 공식 v2.2 경로와 `X-Secret-Key`, outbox 멱등키를 담은 `X-NC-API-IDEMPOTENCY-KEY`를 사용한다. HTTP 상태뿐 아니라 응답 헤더 결과와 단일 수신자 결과 코드가 모두 성공일 때만 발송 성공으로 판단한다. 공식 중복 차단 시간은 10분이며, 실패는 애플리케이션의 SMS fallback으로 넘기고 NHN 자체 대체발송은 사용하지 않는다.
+- Alimtalk·일반 SMS 발송 요청이 정상 접수되면 제공자 `requestId`와 `recipientSeq`를 outbox와 `notification_log`에 저장하고 `DELIVERY_PENDING`으로 둔다. 30초 간격 결과 조회가 `COMPLETED` 또는 SMS 성공 코드 `1000`을 확인한 뒤에만 `SENT`와 채널 성공 이력을 확정한다. 알림톡 최종 실패를 확인한 경우에만 같은 outbox 실행권으로 SMS를 요청하며, SMS도 최종 성공 확인 전에는 알림함에 노출하지 않는다. 결과 조회 중단은 `DELIVERY_CHECKING` lease를 1분 뒤 다시 선점한다.
 - NHN SMS v3에는 클라이언트 멱등키 계약이 없으므로 일반 SMS 요청의 `userId`에는 outbox 멱등키로 만든 불투명 상관관계 ID만 전달한다. 이 값은 운영 대사용이며 중복 차단을 보장하지 않는다.
 - outbox는 실행당 최대 50건을 처리하되 한 건씩 선점하고 결과를 확정한 뒤 다음 건을 선점한다. 선점마다 처리 토큰을 새로 발급하고 결과 반영 시 토큰과 행 버전을 확인한다. 오래된 실행의 성공·실패는 최신 재선점 상태를 덮지 않는다.
 - `PROCESSING`이 1분 넘게 유지되면 NHN의 10분 멱등키 중복 차단 창 안에서 재선점을 시작한다. 알림 전달은 at-least-once이며 외부 성공 뒤 로컬 완료 저장 유실, 10분을 넘긴 중단, 멱등 계약이 없는 SMS fallback에서는 중복 발송될 수 있다.
@@ -305,7 +306,7 @@
 - 회원 이메일 소유 확인도 일반 알림 outbox와 이메일 fallback 채널을 사용하지 않는다. 5분짜리 코드를 먼저 커밋하고 DB 트랜잭션 밖에서 별도 서킷 브레이커·제한 큐와 SMTP transport 제한보다 큰 전용 TimeLimiter로 보호한 전용 SMTP로 발송한 뒤 성공한 행만 사용 가능하게 표시한다. 운영 SMTP는 STARTTLS와 직접 SSL 중 정확히 하나를 필수로 하고 인증서 호스트명을 검증한다. 발송에 실패한 요청은 `503`으로 끝나며 자동 재발송하지 않고 사용자가 다시 요청한다.
 - `notification_outbox`와 `notification_log`는 회원 또는 비회원 수신자 중 정확히 하나만 가진다.
 - `notification_outbox`의 `SENT` 한 건을 회원 알림함의 논리 알림 한 건으로 사용하고, `notification_log`는 카카오톡·SMS 등 채널별 발송 감사 이력으로만 사용한다. fallback으로 채널 로그가 여러 건 생겨도 알림함에는 한 건만 표시한다.
-- 발송 완료(`SENT`), 현재 의미가 사라져 발송하지 않은 리마인드(`OBSOLETE`), 자동 재시도를 모두 소진해 최종 실패(`FAILED`)로 종결된 outbox와 채널 감사 로그는 `processed_at`부터 180일 보존한 뒤 매일 03:30 배치에서 100건씩 삭제한다. 이 기간이 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간이다. 아직 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
+- 발송 완료(`SENT`), 현재 의미가 사라져 발송하지 않은 리마인드(`OBSOLETE`), 자동 재시도를 모두 소진해 최종 실패(`FAILED`)로 종결된 outbox와 채널 감사 로그는 `processed_at`부터 180일 보존한 뒤 매일 03:30 배치에서 100건씩 삭제한다. 이 기간이 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간이다. 아직 재시도 가능한 `PENDING`, 발송 중인 `PROCESSING`, 제공자 최종 결과를 기다리거나 조회 중인 `DELIVERY_PENDING`·`DELIVERY_CHECKING`은 생성 시각이 오래돼도 자동 삭제하지 않는다.
 - 발송 이벤트:
     - 예약 완료, 예약 변경
     - D-1 리마인드, 당일 아침 리마인드
@@ -400,6 +401,8 @@
 - PG 승인 상태 또는 보상 환불 요청을 저장하는 트랜잭션까지 실패해 결제 시도가 `PROCESSING`·`RETRYABLE`·`APPROVED`에 남으면, 1분 경과 후 매분 45초에 최대 10건씩 자동 복구한다. `PROCESSING/RETRYABLE`은 기존 `orderId` 멱등키로 confirm을 재확인하고, `APPROVED`는 PG 재호출 없이 도메인 생성을 재개한다. 마지막 복구 시각을 저장해 1분 backoff와 후보 순환을 보장하므로 사용자 confirm 재호출은 자동 복구의 필수 조건이 아니다. 단, 생성 후 14일이 지난 유료 미확정 PG 호출은 다시 승인 요청하지 않고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다.
 - Toss의 `PAYMENT_STATUS_CHANGED` 웹훅은 `tosspayments-webhook-transmission-id`를 유일키로 한 번만 저장한다. 알려진 결제의 상태 변경은 매분 기존 PG 대사를 실행하며 웹훅 본문만으로 승인·실패를 확정하지 않는다.
 - 운영자는 `RECONCILIATION_REQUIRED` 결제를 관리자 화면에서 조회하고 저장된 `orderId`로 Toss 상태 조회를 실행한다. `DONE`이면 저장된 paymentKey·orderId·금액 일치 확인 후 기존 fulfillment를 재개하고, Toss가 `NOT_FOUND_PAYMENT`로 결제 미존재를 명시한 경우에만 `FAILED`로 확정한다. 다른 404나 조회 결과가 불명확하면 상태를 그대로 유지한다. 대사 조회 중에는 DB 트랜잭션을 열지 않는다.
+- Toss 승인 응답의 `receipt.url`은 결제 시도에 보존하고 결제 완료 응답과 소유권이 확인된 결제 상태 조회 응답에서만 고객에게 제공한다. 0원 내부 결제와 영수증이 없는 결제수단은 `null`이다.
+- 매시간 최근 7일의 Toss 정산을 `soldDate` 기준, 페이지당 최대 5,000건으로 조회한다. 승인 정산은 `paymentKey`·`orderId`·금액을 로컬 결제 시도와, 취소 정산은 취소 `transactionKey`·금액을 로컬 환불 완료 이력과 비교한다. 정산 전용 HTTP 풀은 공식 최대 처리 시간에 맞춰 60초 응답 상한과 최대 연결 2개를 사용한다. 거래키별 최신 대사 결과를 `payment_settlements`에 upsert하고 `MATCHED`가 아닌 건은 관리자 `GET /api/v1/admin/payment-settlements/issues`와 오늘 할 일 화면에 표시한다.
 - 예약·8회권·결제 시도 보상과 주문의 전액 취소 원인은 각각 환불 요청 한 건만 가진다. 배송·픽업 뒤 부분 환불은 주문 클레임별 한 건을 가지며 누적 품목 상한을 넘지 않는다. 모든 재시도는 새 이력을 만들지 않고 기존 환불 행과 멱등키를 사용한다.
 - 환불이 `RECONCILIATION_REQUIRED`이면 cancel을 바로 재호출하지 않고 PG 결제의 취소 내역을 조회한다. 취소 사유의 멱등키, 금액, 완료 상태, 거래 식별자가 모두 해당 요청과 일치하면 성공으로 화해하고, 해당 멱등키의 취소가 없으며 미취소가 명확할 때만 `RETRYABLE`로 돌려 다음 실행에서 같은 멱등키로 cancel한다. 모순되거나 조회할 수 없는 결과는 대사 필요 상태로 유지한다.
 - 주문 거절·예약 취소·8회권 정산 완료와 PG 환불 완료는 구분한다. 시작 응답은 로컬 상태 변경과 `REQUESTED` 이력 접수를 뜻하며, 고객은 소유권이 검증된 예약·주문 상세 또는 8회권 목록·상세의 환불 금액과 상태로, 운영자는 `refundId` 단건 조회로 실제 결과를 확인한다.

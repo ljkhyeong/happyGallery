@@ -114,9 +114,13 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     String confirmedPaymentMethod = pg.method();
                     boolean approved;
                     try {
-                        approved = claimTransactionService.tryMarkApproved(
-                                required.attemptId(), required.processingToken(),
-                                confirmedPaymentKey, confirmedPaymentMethod);
+                        approved = pg.receiptUrl() == null
+                                ? claimTransactionService.tryMarkApproved(
+                                        required.attemptId(), required.processingToken(),
+                                        confirmedPaymentKey, confirmedPaymentMethod)
+                                : claimTransactionService.tryMarkApproved(
+                                        required.attemptId(), required.processingToken(),
+                                        confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
                     } catch (RuntimeException approvalFailure) {
                         compensateUnpersistedApproval(
                                 required, confirmedPaymentKey, confirmedPaymentMethod, approvalFailure);
@@ -126,8 +130,11 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                         return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), required.amount(), confirmedPaymentKey));
                     }
-                    step = claimTransactionService.reconcileLatePgApproval(
-                            command, confirmedPaymentKey, confirmedPaymentMethod);
+                    step = pg.receiptUrl() == null
+                            ? claimTransactionService.reconcileLatePgApproval(
+                                    command, confirmedPaymentKey, confirmedPaymentMethod)
+                            : claimTransactionService.reconcileLatePgApproval(
+                                    command, confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
                 }
             }
         }

@@ -75,6 +75,16 @@ public class NotificationOutbox {
     @Column(name = "last_error", length = LAST_ERROR_LIMIT)
     private String lastError;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "provider_channel", length = 10)
+    private NotificationChannel providerChannel;
+
+    @Column(name = "provider_request_id", length = 100)
+    private String providerRequestId;
+
+    @Column(name = "provider_recipient_seq")
+    private Long providerRecipientSeq;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -214,6 +224,64 @@ public class NotificationOutbox {
         return completeSent(token, now, truncate(reason));
     }
 
+    public boolean markDeliveryPending(
+            String token,
+            NotificationChannel channel,
+            String requestId,
+            Long recipientSeq,
+            LocalDateTime nextCheckAt,
+            String auditError) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
+        if (channel == null || requestId == null || requestId.isBlank() || recipientSeq == null) {
+            throw new IllegalArgumentException("알림 최종 결과 조회 식별자가 올바르지 않습니다.");
+        }
+        status = NotificationOutboxStatus.DELIVERY_PENDING;
+        providerChannel = channel;
+        providerRequestId = requestId;
+        providerRecipientSeq = recipientSeq;
+        nextAttemptAt = nextCheckAt;
+        lastError = truncate(auditError);
+        clearProcessing();
+        return true;
+    }
+
+    public String markDeliveryChecking(LocalDateTime now) {
+        if (status != NotificationOutboxStatus.DELIVERY_PENDING) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "결과 확인 대기 알림만 선점할 수 있습니다.");
+        }
+        return beginDeliveryChecking(now);
+    }
+
+    public String reclaimDeliveryChecking(LocalDateTime now, LocalDateTime staleBefore) {
+        if (status != NotificationOutboxStatus.DELIVERY_CHECKING
+                || lockedAt == null
+                || !lockedAt.isBefore(staleBefore)) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "결과 확인 실행 시간이 지난 알림만 재선점할 수 있습니다.");
+        }
+        return beginDeliveryChecking(now);
+    }
+
+    private String beginDeliveryChecking(LocalDateTime now) {
+        status = NotificationOutboxStatus.DELIVERY_CHECKING;
+        lockedAt = now;
+        processingToken = UUID.randomUUID().toString();
+        return processingToken;
+    }
+
+    public boolean rescheduleDeliveryCheck(
+            String token, LocalDateTime nextCheckAt, String reason) {
+        if (!isProcessingOwnedBy(token)) {
+            return false;
+        }
+        status = NotificationOutboxStatus.DELIVERY_PENDING;
+        nextAttemptAt = nextCheckAt;
+        lastError = truncate(reason);
+        clearProcessing();
+        return true;
+    }
+
     private boolean completeSent(String token, LocalDateTime now, String lastError) {
         if (!isProcessingOwnedBy(token)) {
             return false;
@@ -293,7 +361,8 @@ public class NotificationOutbox {
     }
 
     public boolean isProcessingOwnedBy(String token) {
-        return status == NotificationOutboxStatus.PROCESSING
+        return (status == NotificationOutboxStatus.PROCESSING
+                || status == NotificationOutboxStatus.DELIVERY_CHECKING)
                 && token != null
                 && token.equals(processingToken);
     }
@@ -309,6 +378,9 @@ public class NotificationOutbox {
         clearProcessing();
         this.processedAt = null;
         this.lastError = null;
+        this.providerChannel = null;
+        this.providerRequestId = null;
+        this.providerRecipientSeq = null;
     }
 
     public void markRead(LocalDateTime now) {
@@ -349,6 +421,9 @@ public class NotificationOutbox {
     public LocalDateTime getReadAt() { return readAt; }
     public boolean isRead() { return readAt != null; }
     public String getLastError() { return lastError; }
+    public NotificationChannel getProviderChannel() { return providerChannel; }
+    public String getProviderRequestId() { return providerRequestId; }
+    public Long getProviderRecipientSeq() { return providerRecipientSeq; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public long getVersion() { return version; }
 }

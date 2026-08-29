@@ -11,12 +11,13 @@ public record PaymentStatusResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) CustomerPaymentStatus status,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long domainId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String accessToken,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean accessRecoveryRequired
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean accessRecoveryRequired,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String receiptUrl
 ) {
 
     public static PaymentStatusResponse from(PaymentStatusResult result) {
         return new PaymentStatusResponse(
                 result.context(), result.amount(), result.status(), result.domainId(), result.accessToken(),
-                result.accessRecoveryRequired());
+                result.accessRecoveryRequired(), result.receiptUrl());
     }
 }

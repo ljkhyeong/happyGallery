@@ -43,7 +43,8 @@ public class DefaultPaymentStatusQueryService implements PaymentStatusQueryUseCa
                 status,
                 status == CustomerPaymentStatus.COMPLETED ? attempt.getFulfilledDomainId() : null,
                 access.accessToken(),
-                access.recoveryRequired());
+                access.recoveryRequired(),
+                status == CustomerPaymentStatus.COMPLETED ? attempt.getConfirmedReceiptUrl() : null);
     }
 
 }

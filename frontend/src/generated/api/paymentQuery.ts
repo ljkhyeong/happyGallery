@@ -38,6 +38,8 @@ export interface PaymentStatusResponse {
   context: PaymentStatusResponseContext;
   /** @nullable */
   domainId: number | null;
+  /** @nullable */
+  receiptUrl: string | null;
   status: PaymentStatusResponseStatus;
 }
 

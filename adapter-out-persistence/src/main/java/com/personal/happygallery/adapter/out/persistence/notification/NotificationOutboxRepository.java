@@ -138,6 +138,28 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
                 PageRequest.ofSize(limit));
     }
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT n
+            FROM NotificationOutbox n
+            WHERE (n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_PENDING
+                   AND n.nextAttemptAt <= :now)
+               OR (n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_CHECKING
+                   AND n.lockedAt < :staleBefore)
+            ORDER BY n.createdAt ASC, n.id ASC
+            """)
+    List<NotificationOutbox> findDeliveryResultCheckableForUpdate(
+            @Param("now") LocalDateTime now,
+            @Param("staleBefore") LocalDateTime staleBefore,
+            Pageable pageable);
+
+    @Override
+    default List<NotificationOutbox> findDeliveryResultCheckable(
+            LocalDateTime now, LocalDateTime staleBefore, int limit) {
+        return findDeliveryResultCheckableForUpdate(
+                now, staleBefore, PageRequest.ofSize(limit));
+    }
+
     @Override
     @Query("""
             SELECT new com.personal.happygallery.application.notification.port.out.NotificationOutboxBacklogSummary(
@@ -148,6 +170,10 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
                         THEN n.nextAttemptAt
                     WHEN n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.PROCESSING
                         THEN COALESCE(n.lockedAt, n.createdAt)
+                    WHEN n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_PENDING
+                        THEN n.nextAttemptAt
+                    WHEN n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_CHECKING
+                        THEN COALESCE(n.lockedAt, n.createdAt)
                     ELSE COALESCE(n.processedAt, n.createdAt)
                 END)
             )
@@ -155,6 +181,8 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             WHERE n.status IN (
                 com.personal.happygallery.domain.notification.NotificationOutboxStatus.PENDING,
                 com.personal.happygallery.domain.notification.NotificationOutboxStatus.PROCESSING,
+                com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_PENDING,
+                com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_CHECKING,
                 com.personal.happygallery.domain.notification.NotificationOutboxStatus.FAILED
             )
             GROUP BY n.status

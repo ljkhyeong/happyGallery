@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.admin.AdminNotificationController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminPaymentReconciliationController;
+import com.personal.happygallery.adapter.in.web.admin.AdminPaymentSettlementController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRefundController;
 import com.personal.happygallery.adapter.in.web.admin.LocalEmailVerificationController;
 import com.personal.happygallery.adapter.in.web.admin.LocalPhoneVerificationController;
@@ -15,6 +16,7 @@ import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
 import com.personal.happygallery.application.payment.port.in.DevRefundFailureUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentSettlementAdminUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundQueryUseCase;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.application.search.dto.AdminPassStatus;
@@ -29,7 +31,10 @@ import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
+import com.personal.happygallery.domain.payment.PaymentSettlement;
+import com.personal.happygallery.domain.payment.PaymentSettlementStatus;
 import com.personal.happygallery.domain.payment.RefundStatus;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +68,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     private RefundQueryUseCase refundQueryUseCase;
     private NotificationFailureAdminUseCase notificationFailureAdminUseCase;
     private PaymentReconciliationAdminUseCase paymentReconciliationAdminUseCase;
+    private PaymentSettlementAdminUseCase paymentSettlementAdminUseCase;
     private PassExpiryBatchUseCase passExpiryBatchUseCase;
     private PassRefundUseCase passRefundUseCase;
     private AdminPassQueryUseCase adminPassQueryUseCase;
@@ -76,6 +82,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         refundQueryUseCase = mock(RefundQueryUseCase.class);
         notificationFailureAdminUseCase = mock(NotificationFailureAdminUseCase.class);
         paymentReconciliationAdminUseCase = mock(PaymentReconciliationAdminUseCase.class);
+        paymentSettlementAdminUseCase = mock(PaymentSettlementAdminUseCase.class);
         passExpiryBatchUseCase = mock(PassExpiryBatchUseCase.class);
         passRefundUseCase = mock(PassRefundUseCase.class);
         adminPassQueryUseCase = mock(AdminPassQueryUseCase.class);
@@ -108,6 +115,24 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                         PaymentAttemptStatus.CONFIRMED,
                         300L,
                         "PG 승인 확인 후 서비스 처리를 완료했습니다."));
+        PaymentSettlement settlement = PaymentSettlement.create("settlement-transaction-key");
+        settlement.synchronize(
+                "payment-key",
+                "order-id",
+                "카드",
+                10_000L,
+                330L,
+                300L,
+                30L,
+                9_670L,
+                "2026-08-28T10:00:00+09:00",
+                LocalDate.of(2026, 8, 28),
+                LocalDate.of(2026, 9, 1),
+                false,
+                PaymentSettlementStatus.LOCAL_PAYMENT_NOT_FOUND,
+                "같은 paymentKey의 로컬 결제 승인을 찾지 못했습니다.",
+                LocalDateTime.of(2026, 8, 29, 4, 40));
+        when(paymentSettlementAdminUseCase.findIssues(100)).thenReturn(List.of(settlement));
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
         when(passRefundUseCase.refundPass(300L))
                 .thenReturn(new PassRefundUseCase.PassRefundResult(
@@ -138,6 +163,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 new AdminRefundController(refundRetryUseCase, refundQueryUseCase),
                 new AdminNotificationController(notificationFailureAdminUseCase),
                 new AdminPaymentReconciliationController(paymentReconciliationAdminUseCase),
+                new AdminPaymentSettlementController(paymentSettlementAdminUseCase),
                 new AdminPassController(passExpiryBatchUseCase, passRefundUseCase, adminPassQueryUseCase),
                 new LocalPhoneVerificationController(phoneVerificationQueryUseCase),
                 new LocalEmailVerificationController(emailVerificationQueryUseCase),
@@ -203,6 +229,15 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.domainId").value(300L));
+    }
+
+    @Test
+    @DisplayName("관리자 PG 정산 불일치 목록 API를 문서화한다")
+    void admin_list_payment_settlement_issues() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/payment-settlements/issues").with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].transactionKey").value("settlement-transaction-key"))
+                .andExpect(jsonPath("$[0].status").value("LOCAL_PAYMENT_NOT_FOUND"));
     }
 
     @Test
