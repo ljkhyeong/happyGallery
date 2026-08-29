@@ -8,6 +8,8 @@ import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SaveSmartStoreInventoryMappingRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInventoryMappingResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductPreviewResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelProductResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductCatalogPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductStatusRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
@@ -19,6 +21,8 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.domain.error.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,6 +34,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -135,6 +140,23 @@ public class AdminProductController {
     public SmartStoreProductPreviewResponse previewSmartStoreProductSync(@PathVariable Long id) {
         return SmartStoreProductPreviewResponse.from(
                 smartStoreInventoryUseCase.previewProduct(id));
+    }
+
+    @GetMapping("/smartstore-catalog")
+    @Operation(operationId = "listSmartStoreProducts")
+    public SmartStoreProductCatalogPageResponse listSmartStoreProducts(
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(100) int size) {
+        return SmartStoreProductCatalogPageResponse.from(
+                smartStoreInventoryUseCase.listChannelProducts(page, size));
+    }
+
+    @GetMapping("/smartstore-catalog/{originProductNo}")
+    @Operation(operationId = "getSmartStoreProduct")
+    public SmartStoreChannelProductResponse getSmartStoreProduct(
+            @PathVariable Long originProductNo) {
+        return SmartStoreChannelProductResponse.from(
+                smartStoreInventoryUseCase.getChannelProduct(originProductNo));
     }
 
     @PostMapping("/{id}/smartstore-product-sync")

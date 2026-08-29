@@ -114,6 +114,32 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
+    public void holdReturn(ReturnHoldCommand command) {
+        requireEnabled();
+        orderProvider.holdReturn(new SmartStoreOrderProvider.ReturnHoldCommand(
+                command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
+                command.extraReturnFeeAmount()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void releaseReturnHold(String productOrderId) {
+        requireEnabled();
+        orderProvider.releaseReturnHold(productOrderId);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void requestSellerReturn(SellerReturnCommand command) {
+        requireEnabled();
+        orderProvider.requestSellerReturn(new SmartStoreOrderProvider.SellerReturnCommand(
+                command.productOrderId(), command.returnReason(), command.collectDeliveryMethod(),
+                command.collectDeliveryCompany(), command.collectTrackingNumber(),
+                command.returnQuantity()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
     public void dispatchExchange(ExchangeDispatchCommand command) {
         requireEnabled();
         orderProvider.dispatchExchange(new SmartStoreOrderProvider.ExchangeDispatchCommand(

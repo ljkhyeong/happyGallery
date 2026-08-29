@@ -7,9 +7,12 @@ import {
   dispatchSmartStoreExchangeClaim,
   completeSmartStoreExchangeCollect,
   holdSmartStoreExchangeClaim,
+  holdSmartStoreReturnClaim,
   releaseSmartStoreExchangeHold,
+  releaseSmartStoreReturnHold,
   rejectSmartStoreExchangeClaim,
   requestSmartStoreSellerCancel,
+  requestSmartStoreSellerReturn,
   getSmartStoreChannelOrder,
   listSmartStoreChannelOrders,
   rejectSmartStoreReturnClaim,
@@ -19,7 +22,9 @@ import {
   type DispatchSmartStoreExchangeRequest,
   type DispatchSmartStoreOrderRequest,
   type HoldSmartStoreExchangeRequest,
+  type HoldSmartStoreReturnRequest,
   type RequestSmartStoreSellerCancelRequest,
+  type RequestSmartStoreSellerReturnRequest,
 } from "@/generated/api/adminOrder";
 import { adminHeaders } from "@/shared/api";
 
@@ -79,6 +84,35 @@ export function approveSmartStoreReturn(adminKey: string, productOrderId: string
 
 export function rejectSmartStoreReturn(adminKey: string, productOrderId: string) {
   return rejectSmartStoreReturnClaim(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function holdSmartStoreReturn(
+  adminKey: string,
+  productOrderId: string,
+  request: HoldSmartStoreReturnRequest,
+) {
+  return holdSmartStoreReturnClaim(productOrderId, request, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function releaseSmartStoreReturn(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return releaseSmartStoreReturnHold(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function requestSmartStoreOrderReturn(
+  adminKey: string,
+  productOrderId: string,
+  request: RequestSmartStoreSellerReturnRequest,
+) {
+  return requestSmartStoreSellerReturn(productOrderId, request, {
     headers: adminHeaders(adminKey),
   });
 }

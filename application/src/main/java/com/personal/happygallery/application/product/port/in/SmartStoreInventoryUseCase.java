@@ -15,6 +15,10 @@ public interface SmartStoreInventoryUseCase {
 
     MappingResult retry(Long productId);
 
+    CatalogPageResult listChannelProducts(int page, int size);
+
+    ChannelProductResult getChannelProduct(Long originProductNo);
+
     ProductPreviewResult previewProduct(Long productId);
 
     void applyProduct(Long productId, long productVersion);
@@ -30,6 +34,38 @@ public interface SmartStoreInventoryUseCase {
     }
 
     record VariantMapping(Long productVariantId, Long optionId) {}
+
+    record CatalogPageResult(
+            List<CatalogProductResult> products,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    record CatalogProductResult(
+            Long originProductNo,
+            String name,
+            String status,
+            long salePrice,
+            Integer stockQuantity,
+            String imageUrl
+    ) {}
+
+    record ChannelProductResult(
+            Long originProductNo,
+            long salePrice,
+            String status,
+            List<ChannelOptionResult> options
+    ) {}
+
+    record ChannelOptionResult(
+            Long optionId,
+            String name,
+            int stockQuantity,
+            long price,
+            boolean usable
+    ) {}
 
     record MappingResult(
             Long productId,

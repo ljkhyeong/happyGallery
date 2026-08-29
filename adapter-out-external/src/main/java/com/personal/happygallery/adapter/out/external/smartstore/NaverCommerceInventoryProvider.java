@@ -2,6 +2,10 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -9,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import org.springframework.util.StringUtils;
 
 @Component
 public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvider {
@@ -51,6 +56,31 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
     }
 
     @Override
+    public CatalogPage listProducts(int page, int size) {
+        ProductSearchResponse response = accessTokenProvider.authorized(token -> restClient.post()
+                .uri("/external/v1/products/search")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new ProductSearchRequest(page, size))
+                .retrieve()
+                .body(ProductSearchResponse.class));
+        if (response == null) {
+            throw new IllegalStateException("스마트스토어 상품 목록 응답이 비어 있습니다.");
+        }
+        List<CatalogProduct> products = response.contents() == null
+                ? List.of()
+                : response.contents().stream()
+                        .flatMap(content -> content.channelProducts() == null
+                                ? Stream.empty()
+                                : content.channelProducts().stream()
+                                        .flatMap(channel -> catalogProduct(content, channel).stream()))
+                        .toList();
+        return new CatalogPage(
+                products, response.page(), response.size(),
+                response.totalElements(), response.totalPages());
+    }
+
+    @Override
     public ChannelProduct getProduct(Long originProductNo) {
         ProductResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri("/external/v2/products/origin-products/{originProductNo}", originProductNo)
@@ -67,7 +97,8 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                 ? List.of()
                 : optionInfo.optionCombinations().stream()
                         .map(option -> new ChannelOption(
-                                option.id(), option.stockQuantity(), option.price(), option.usable()))
+                                option.id(), optionName(option), option.stockQuantity(),
+                                option.price(), option.usable()))
                         .toList();
         return new ChannelProduct(product.salePrice(), product.statusType(), options);
     }
@@ -185,6 +216,33 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         return SyncResult.failure("스마트스토어에 연결하지 못했습니다.");
     }
 
+    private static Optional<CatalogProduct> catalogProduct(
+            ProductSearchContent content, RemoteChannelProduct channel) {
+        if (!"STOREFARM".equals(channel.channelServiceType())) {
+            return Optional.empty();
+        }
+        Long originProductNo = channel.originProductNo() == null
+                ? content.originProductNo() : channel.originProductNo();
+        if (originProductNo == null) {
+            return Optional.empty();
+        }
+        return Optional.of(new CatalogProduct(
+                originProductNo,
+                Objects.requireNonNullElse(channel.name(), "상품명 없음"),
+                Objects.requireNonNullElse(channel.statusType(), "UNKNOWN"),
+                channel.salePrice(), channel.stockQuantity(),
+                channel.representativeImage() == null ? null : channel.representativeImage().url()));
+    }
+
+    private static String optionName(RemoteOptionCombination option) {
+        String name = Stream.of(
+                        option.optionName1(), option.optionName2(),
+                        option.optionName3(), option.optionName4())
+                .filter(StringUtils::hasText)
+                .collect(Collectors.joining(" / "));
+        return name.isEmpty() ? "옵션 " + option.id() : name;
+    }
+
     private record OptionStockRequest(OptionInfo optionInfo) {}
 
     private record OptionInfo(List<OptionCombination> optionCombinations, boolean useStockManagement) {}
@@ -221,6 +279,33 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
 
     private record ProductStatusRequest(String statusType, Integer stockQuantity) {}
 
+    private record ProductSearchRequest(int page, int size) {}
+
+    private record ProductSearchResponse(
+            List<ProductSearchContent> contents,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
+    private record ProductSearchContent(
+            Long originProductNo,
+            List<RemoteChannelProduct> channelProducts
+    ) {}
+
+    private record RemoteChannelProduct(
+            Long originProductNo,
+            String channelServiceType,
+            String name,
+            String statusType,
+            long salePrice,
+            Integer stockQuantity,
+            RemoteImage representativeImage
+    ) {}
+
+    private record RemoteImage(String url) {}
+
     private record ProductResponse(RemoteOriginProduct originProduct) {}
 
     private record RemoteOriginProduct(
@@ -235,6 +320,10 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
 
     private record RemoteOptionCombination(
             Long id,
+            String optionName1,
+            String optionName2,
+            String optionName3,
+            String optionName4,
             int stockQuantity,
             long price,
             boolean usable

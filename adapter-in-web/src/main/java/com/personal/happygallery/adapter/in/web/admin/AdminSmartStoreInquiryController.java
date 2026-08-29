@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.admin;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerTemplateResponse;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -39,6 +40,13 @@ public class AdminSmartStoreInquiryController {
         return useCase.list(unansweredOnly, limit).stream()
                 .map(SmartStoreInquiryResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/template")
+    @Operation(operationId = "getSmartStoreInquiryAnswerTemplate")
+    public SmartStoreInquiryAnswerTemplateResponse getAnswerTemplate() {
+        return SmartStoreInquiryAnswerTemplateResponse.from(
+                useCase.getProductInquiryAnswerTemplate());
     }
 
     @PutMapping("/{questionId}/answer")

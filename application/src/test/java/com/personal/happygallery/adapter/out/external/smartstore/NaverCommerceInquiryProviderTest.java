@@ -31,7 +31,7 @@ class NaverCommerceInquiryProviderTest {
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 
     @Test
-    @DisplayName("상품 문의 목록을 페이지 응답에서 읽고 답변 본문을 공식 필드명으로 전송한다")
+    @DisplayName("상품 문의와 답변 템플릿을 조회하고 답변 본문을 공식 필드명으로 전송한다")
     void findAndAnswer_usesOfficialContract() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -68,6 +68,16 @@ class NaverCommerceInquiryProviderTest {
                         }
                         """, MediaType.APPLICATION_JSON));
         server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/contents/qnas/templates"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {
+                          "questionType":"PRODUCT",
+                          "subject":"상품 문의 기본 답변",
+                          "content":"문의해 주셔서 감사합니다."
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v1/contents/qnas/456"))
                 .andExpect(method(HttpMethod.PUT))
                 .andExpect(content().json("""
@@ -78,6 +88,7 @@ class NaverCommerceInquiryProviderTest {
         var inquiries = provider.findProductInquiries(
                 LocalDateTime.of(2026, 8, 1, 0, 0),
                 LocalDateTime.of(2026, 8, 29, 12, 0));
+        var template = provider.findProductInquiryAnswerTemplate();
         provider.answerProductInquiry(456L, "원하시는 문구로 가능합니다.");
 
         server.verify();
@@ -86,6 +97,7 @@ class NaverCommerceInquiryProviderTest {
             assertThat(inquiry.answered()).isFalse();
             assertThat(inquiry.question()).isEqualTo("각인 가능한가요?");
         });
+        assertThat(template.subject()).isEqualTo("상품 문의 기본 답변");
     }
 
     @Test

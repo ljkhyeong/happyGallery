@@ -4,10 +4,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   answerChannelQna,
   answerCustomerInquiry,
+  fetchSmartStoreAnswerTemplate,
   fetchSmartStoreCustomerInquiries,
   fetchSmartStoreInquiries,
 } from "./api";
-import type { SmartStoreCustomerInquiryResponse, SmartStoreInquiryResponse } from "./api";
+import type {
+  SmartStoreCustomerInquiryResponse,
+  SmartStoreInquiryAnswerTemplateResponse,
+  SmartStoreInquiryResponse,
+} from "./api";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -35,6 +40,11 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     queryFn: () => fetchSmartStoreCustomerInquiries(token, unansweredOnly),
     enabled: inquiryType === "customer",
     refetchInterval: 60_000,
+  });
+  const templateQuery = useAdminQuery(onAuthError, {
+    queryKey: [...queryKey, "template"],
+    queryFn: () => fetchSmartStoreAnswerTemplate(token),
+    enabled: inquiryType === "product",
   });
   const isLoading = inquiryType === "product" ? productQuery.isLoading : customerQuery.isLoading;
   const error = inquiryType === "product" ? productQuery.error : customerQuery.error;
@@ -66,6 +76,9 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
       checked={unansweredOnly}
       onChange={(event) => setUnansweredOnly(event.target.checked)}
     />
+    {inquiryType === "product" && templateQuery.error && (
+      <ErrorAlert error={templateQuery.error} />
+    )}
     {empty ? (
       <EmptyState message={unansweredOnly
         ? "답변을 기다리는 스마트스토어 문의가 없습니다."
@@ -73,7 +86,7 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     ) : inquiryType === "product"
       ? productQuery.data?.map((inquiry) => (
         <SmartStoreInquiryCard key={inquiry.questionId} inquiry={inquiry}
-          token={token} onAuthError={onAuthError} />
+          template={templateQuery.data} token={token} onAuthError={onAuthError} />
       ))
       : customerQuery.data?.map((inquiry) => (
         <SmartStoreCustomerInquiryCard key={inquiry.inquiryNo} inquiry={inquiry}
@@ -135,12 +148,14 @@ function InquiryAnswerForm({
   error,
   onContent,
   onSubmit,
+  template,
 }: {
   content: string;
   pending: boolean;
   error: unknown;
   onContent: (value: string) => void;
   onSubmit: () => void;
+  template?: SmartStoreInquiryAnswerTemplateResponse;
 }) {
   return <Form className="mt-2" onSubmit={(event) => {
     event.preventDefault();
@@ -149,6 +164,12 @@ function InquiryAnswerForm({
     <Form.Control as="textarea" rows={3} maxLength={CONTENT_BODY_MAX_LENGTH}
       value={content} onChange={(event) => onContent(event.target.value)}
       placeholder="스마트스토어에 등록할 답변" />
+    {template && (
+      <Button className="mt-2" type="button" size="sm" variant="outline-secondary"
+        onClick={() => onContent(template.content)}>
+        {template.subject} 적용
+      </Button>
+    )}
     <div className="d-flex justify-content-between align-items-center mt-1">
       <Form.Text>{contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}</Form.Text>
       <Button type="submit" size="sm" disabled={!content.trim() || pending}>답변 등록</Button>
@@ -159,10 +180,12 @@ function InquiryAnswerForm({
 
 function SmartStoreInquiryCard({
   inquiry,
+  template,
   token,
   onAuthError,
 }: {
   inquiry: SmartStoreInquiryResponse;
+  template?: SmartStoreInquiryAnswerTemplateResponse;
   token: string;
   onAuthError: () => void;
 }) {
@@ -196,7 +219,7 @@ function SmartStoreInquiryCard({
         </div>
       ) : (
         <InquiryAnswerForm content={content} pending={mutation.isPending} error={mutation.error}
-          onContent={setContent} onSubmit={() => mutation.mutate()} />
+          template={template} onContent={setContent} onSubmit={() => mutation.mutate()} />
       )}
     </Card.Body>
   </Card>;

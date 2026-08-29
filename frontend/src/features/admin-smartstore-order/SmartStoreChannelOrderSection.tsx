@@ -8,7 +8,9 @@ import type {
   SmartStoreChannelOrderResponse,
   SmartStoreChannelOrderResponseAttentionReason,
   HoldSmartStoreExchangeRequest,
+  HoldSmartStoreReturnRequest,
   RequestSmartStoreSellerCancelRequest,
+  RequestSmartStoreSellerReturnRequest,
 } from "@/generated/api/adminOrder";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -24,9 +26,12 @@ import {
   dispatchSmartStoreOrder,
   completeSmartStoreExchangeCollection,
   holdSmartStoreExchange,
+  holdSmartStoreReturn,
   releaseSmartStoreExchange,
+  releaseSmartStoreReturn,
   rejectSmartStoreExchange,
   requestSmartStoreOrderCancel,
+  requestSmartStoreOrderReturn,
   fetchSmartStoreChannelOrder,
   fetchSmartStoreChannelOrders,
   rejectSmartStoreReturn,
@@ -267,6 +272,9 @@ type ChannelAction =
   | { kind: "rejectExchange"; reason: string }
   | { kind: "holdExchange"; request: HoldSmartStoreExchangeRequest }
   | { kind: "releaseExchangeHold" }
+  | { kind: "holdReturn"; request: HoldSmartStoreReturnRequest }
+  | { kind: "releaseReturnHold" }
+  | { kind: "requestSellerReturn"; request: RequestSmartStoreSellerReturnRequest }
   | { kind: "requestSellerCancel"; request: RequestSmartStoreSellerCancelRequest };
 
 function SmartStoreOrderDetailModal({
@@ -298,6 +306,14 @@ function SmartStoreOrderDetailModal({
   const [cancelReason, setCancelReason] = useState("SOLD_OUT");
   const [cancelDetailedReason, setCancelDetailedReason] = useState("");
   const [cancelQuantity, setCancelQuantity] = useState("");
+  const [returnHoldbackClassType, setReturnHoldbackClassType] = useState("RETURN_DELIVERYFEE");
+  const [returnHoldbackReason, setReturnHoldbackReason] = useState("");
+  const [extraReturnFeeAmount, setExtraReturnFeeAmount] = useState("");
+  const [sellerReturnReason, setSellerReturnReason] = useState("PRODUCT_UNSATISFIED");
+  const [collectDeliveryMethod, setCollectDeliveryMethod] = useState("RETURN_DESIGNATED");
+  const [collectDeliveryCompany, setCollectDeliveryCompany] = useState("");
+  const [collectTrackingNumber, setCollectTrackingNumber] = useState("");
+  const [returnQuantity, setReturnQuantity] = useState("");
 
   const detailQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
@@ -330,7 +346,13 @@ function SmartStoreOrderDetailModal({
         await holdSmartStoreExchange(adminKey, productOrderId, request.request);
       } else if (request.kind === "releaseExchangeHold") {
         await releaseSmartStoreExchange(adminKey, productOrderId);
-      } else {
+      } else if (request.kind === "holdReturn") {
+        await holdSmartStoreReturn(adminKey, productOrderId, request.request);
+      } else if (request.kind === "releaseReturnHold") {
+        await releaseSmartStoreReturn(adminKey, productOrderId);
+      } else if (request.kind === "requestSellerReturn") {
+        await requestSmartStoreOrderReturn(adminKey, productOrderId, request.request);
+      } else if (request.kind === "requestSellerCancel") {
         await requestSmartStoreOrderCancel(adminKey, productOrderId, request.request);
       }
     },
@@ -535,6 +557,52 @@ function SmartStoreOrderDetailModal({
               )}
             </div>
 
+            {order.claimType === "RETURN" && (
+              <div className="border rounded p-3 mb-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <div className="fw-semibold">반품 보류</div>
+                  {detail.claimDetail?.holdbackStatus && (
+                    <Button type="button" size="sm" variant="outline-primary"
+                      disabled={action.isPending}
+                      onClick={() => action.mutate({ kind: "releaseReturnHold" })}>
+                      보류 해제
+                    </Button>
+                  )}
+                </div>
+                <Form onSubmit={(event) => {
+                  event.preventDefault();
+                  action.mutate({
+                    kind: "holdReturn",
+                    request: {
+                      holdbackClassType: returnHoldbackClassType,
+                      detailedReason: returnHoldbackReason,
+                      extraReturnFeeAmount: extraReturnFeeAmount
+                        ? Number(extraReturnFeeAmount) : undefined,
+                    },
+                  });
+                }}>
+                  <Row className="g-2">
+                    <Col md={4}><Form.Select value={returnHoldbackClassType}
+                      onChange={(event) => setReturnHoldbackClassType(event.target.value)}>
+                      <option value="RETURN_DELIVERYFEE">반품 배송비</option>
+                      <option value="RETURN_EXTRAFEE">추가 비용</option>
+                      <option value="PURCHASER_CONFIRM_NEED">구매자 확인 필요</option>
+                      <option value="SELLER_CONFIRM_NEED">판매자 확인 필요</option>
+                      <option value="ETC">기타</option>
+                    </Form.Select></Col>
+                    <Col md={5}><Form.Control required value={returnHoldbackReason}
+                      onChange={(event) => setReturnHoldbackReason(event.target.value)}
+                      placeholder="보류 상세 사유" /></Col>
+                    <Col md={3}><Form.Control type="number" min={0} value={extraReturnFeeAmount}
+                      onChange={(event) => setExtraReturnFeeAmount(event.target.value)}
+                      placeholder="추가 비용" /></Col>
+                  </Row>
+                  <Button className="mt-2" type="submit" size="sm" variant="outline-warning"
+                    disabled={action.isPending || !returnHoldbackReason.trim()}>반품 보류</Button>
+                </Form>
+              </div>
+            )}
+
             {!order.claimType && ["PAYED", "DELIVERING"].includes(order.productOrderStatus) && (
               <Form className="border rounded p-3 mb-3" onSubmit={(event) => {
                 event.preventDefault();
@@ -565,6 +633,50 @@ function SmartStoreOrderDetailModal({
                 </Row>
                 <Button className="mt-2" type="submit" size="sm" variant="outline-danger"
                   disabled={action.isPending}>취소 요청</Button>
+              </Form>
+            )}
+
+            {!order.claimType && (
+              <Form className="border rounded p-3 mb-3" onSubmit={(event) => {
+                event.preventDefault();
+                action.mutate({
+                  kind: "requestSellerReturn",
+                  request: {
+                    returnReason: sellerReturnReason,
+                    collectDeliveryMethod,
+                    collectDeliveryCompany: collectDeliveryCompany || undefined,
+                    collectTrackingNumber: collectTrackingNumber || undefined,
+                    returnQuantity: returnQuantity ? Number(returnQuantity) : undefined,
+                  },
+                });
+              }}>
+                <div className="fw-semibold mb-2">판매자 반품 요청</div>
+                <Row className="g-2">
+                  <Col md={4}><Form.Select value={sellerReturnReason}
+                    onChange={(event) => setSellerReturnReason(event.target.value)}>
+                    <option value="PRODUCT_UNSATISFIED">상품 문제</option>
+                    <option value="DELAYED_DELIVERY">배송 지연</option>
+                    <option value="SOLD_OUT">품절</option>
+                    <option value="WRONG_ORDER">오배송</option>
+                    <option value="BROKEN">상품 파손</option>
+                  </Form.Select></Col>
+                  <Col md={4}><Form.Select value={collectDeliveryMethod}
+                    onChange={(event) => setCollectDeliveryMethod(event.target.value)}>
+                    <option value="RETURN_DESIGNATED">지정 택배 수거</option>
+                    <option value="RETURN_INDIVIDUAL">구매자 직접 반송</option>
+                  </Form.Select></Col>
+                  <Col md={4}><Form.Control type="number" min={1} max={order.remainQuantity}
+                    value={returnQuantity} onChange={(event) => setReturnQuantity(event.target.value)}
+                    placeholder="수량(전체)" /></Col>
+                  <Col md={6}><Form.Control value={collectDeliveryCompany}
+                    onChange={(event) => setCollectDeliveryCompany(event.target.value.toUpperCase())}
+                    placeholder="수거 택배사 코드 (선택)" /></Col>
+                  <Col md={6}><Form.Control value={collectTrackingNumber}
+                    onChange={(event) => setCollectTrackingNumber(event.target.value)}
+                    placeholder="수거 운송장 번호 (선택)" /></Col>
+                </Row>
+                <Button className="mt-2" type="submit" size="sm" variant="outline-danger"
+                  disabled={action.isPending}>반품 요청</Button>
               </Form>
             )}
 

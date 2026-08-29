@@ -3,8 +3,10 @@ import {
   changeStatus,
   deleteSmartStoreInventoryMapping,
   getSmartStoreInventoryMapping,
+  getSmartStoreProduct,
   listAll,
   listInventoryAdjustments,
+  listSmartStoreProducts,
   register,
   retrySmartStoreInventorySync,
   saveSmartStoreInventoryMapping,
@@ -17,6 +19,8 @@ import {
   type ProductResponse,
   type SaveSmartStoreInventoryMappingRequest,
   type SmartStoreInventoryMappingResponse,
+  type SmartStoreChannelProductResponse,
+  type SmartStoreProductCatalogPageResponse,
   type SmartStoreProductPreviewResponse,
   type UpdateProductRequest,
   type UpdateProductStatusRequestStatus,
@@ -81,6 +85,25 @@ export async function fetchSmartStoreInventoryMapping(
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+}
+
+export function fetchSmartStoreProducts(
+  adminKey: string,
+  page: number,
+): Promise<SmartStoreProductCatalogPageResponse> {
+  return listSmartStoreProducts(
+    { page, size: 100 },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function fetchSmartStoreProduct(
+  adminKey: string,
+  originProductNo: number,
+): Promise<SmartStoreChannelProductResponse> {
+  return getSmartStoreProduct(originProductNo, {
+    headers: adminHeaders(adminKey),
+  });
 }
 
 export function saveSmartStoreMapping(

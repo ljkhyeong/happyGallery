@@ -6,6 +6,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeRejectCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeHoldCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
 import java.time.Clock;
 import java.time.Duration;
@@ -154,7 +156,7 @@ class NaverCommerceOrderProviderTest {
     }
 
     @Test
-    @DisplayName("발송·지연·교환 재배송 요청을 네이버 주문 API 계약에 맞춰 전송한다")
+    @DisplayName("발송·지연·교환·반품 요청을 네이버 주문 API 계약에 맞춰 전송한다")
     void executeOrderOperations_sendsDocumentedPayloads() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -234,6 +236,34 @@ class NaverCommerceOrderProviderTest {
                         }
                         """))
                 .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/return/holdback")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "holdbackClassType":"RETURN_DELIVERYFEE",
+                          "holdbackReturnDetailReason":"반품 배송비 입금 대기",
+                          "extraReturnFeeAmount":3000
+                        }
+                        """))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/return/holdback/release")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/return/request")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "returnReason":"PRODUCT_UNSATISFIED",
+                          "collectDeliveryMethod":"RETURN_DESIGNATED",
+                          "collectDeliveryCompany":"CJGLS",
+                          "collectTrackingNumber":"9876",
+                          "returnQuantity":1
+                        }
+                        """))
+                .andRespond(operationSuccess());
 
         provider.dispatch(new DispatchCommand(
                 "po-1", "DELIVERY", "CJGLS", "1234",
@@ -250,6 +280,11 @@ class NaverCommerceOrderProviderTest {
         provider.releaseExchangeHold("po-1");
         provider.requestSellerCancel(new SellerCancelCommand(
                 "po-1", "SOLD_OUT", "부자재 품절", 1));
+        provider.holdReturn(new ReturnHoldCommand(
+                "po-1", "RETURN_DELIVERYFEE", "반품 배송비 입금 대기", 3000L));
+        provider.releaseReturnHold("po-1");
+        provider.requestSellerReturn(new SellerReturnCommand(
+                "po-1", "PRODUCT_UNSATISFIED", "RETURN_DESIGNATED", "CJGLS", "9876", 1));
 
         server.verify();
     }

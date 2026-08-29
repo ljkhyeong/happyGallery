@@ -867,6 +867,18 @@ Authorization: Bearer {token}
 
 #### 2.3.6 스마트스토어 재고 연동 설정
 
+연동할 상품과 옵션은 네이버 상품 목록과 원상품 상세에서 선택한다.
+
+```http
+GET /api/v1/admin/products/smartstore-catalog?page=1&size=100
+GET /api/v1/admin/products/smartstore-catalog/{originProductNo}
+Authorization: Bearer {token}
+```
+
+- 목록은 `products`, 1부터 시작하는 `page`, `size`, `totalElements`, `totalPages`를 반환한다. 상품 항목은 `originProductNo`, 상품명, 판매 상태·판매가·재고와 nullable 대표 이미지 주소를 포함한다.
+- 원상품 상세는 판매가·판매 상태와 옵션별 `optionId`, 조합명, 재고, 옵션가, 사용 여부를 반환한다. 관리자는 이 정보를 보고 내부 주문제작 옵션 조합마다 네이버 옵션을 하나씩 선택한다.
+- `page`는 1 이상, `size`는 1~100이다. 스마트스토어 연동이 비활성화됐으면 `409 CONFLICT`를 반환한다.
+
 ```http
 PUT /api/v1/admin/products/{id}/smartstore-inventory
 Authorization: Bearer {token}
@@ -955,6 +967,9 @@ Authorization: Bearer {token}
 | 취소 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/approve` | 없음 | `204` |
 | 반품 승인 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/approve` | 없음 | `204` |
 | 반품 거부 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/reject` | 없음 | `204` |
+| 반품 보류 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/hold` | `holdbackClassType`, `detailedReason`, nullable `extraReturnFeeAmount` | `204` |
+| 반품 보류 해제 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/hold/release` | 없음 | `204` |
+| 판매자 반품 요청 | `POST /api/v1/admin/smartstore-orders/{id}/claims/return/request` | `returnReason`, `collectDeliveryMethod`, nullable `collectDeliveryCompany`, nullable `collectTrackingNumber`, nullable `returnQuantity` | `204` |
 | 교환품 재배송 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/dispatch` | `deliveryMethod`, `deliveryCompanyCode`, `trackingNumber` | `204` |
 | 교환 수거 완료 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/collect/complete` | 없음 | `204` |
 | 교환 거절 | `POST /api/v1/admin/smartstore-orders/{id}/claims/exchange/reject` | `reason` | `204` |
@@ -967,13 +982,14 @@ Authorization: Bearer {token}
 
 ```http
 GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
+GET /api/v1/admin/smartstore-inquiries/template
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
 GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
 Authorization: Bearer {token}
 ```
 
-- 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
 
 #### 2.3.8 상품 표시 정보 수정

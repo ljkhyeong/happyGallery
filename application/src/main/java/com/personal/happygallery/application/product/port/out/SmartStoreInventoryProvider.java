@@ -8,6 +8,8 @@ public interface SmartStoreInventoryProvider {
 
     SyncResult sync(StockCommand command);
 
+    CatalogPage listProducts(int page, int size);
+
     ChannelProduct getProduct(Long originProductNo);
 
     SyncResult applyProduct(ProductCommand command);
@@ -34,7 +36,34 @@ public interface SmartStoreInventoryProvider {
         }
     }
 
-    record ChannelOption(Long optionId, int stockQuantity, long price, boolean usable) {}
+    record CatalogPage(
+            List<CatalogProduct> products,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {
+        public CatalogPage {
+            products = products == null ? List.of() : List.copyOf(products);
+        }
+    }
+
+    record CatalogProduct(
+            Long originProductNo,
+            String name,
+            String status,
+            long salePrice,
+            Integer stockQuantity,
+            String imageUrl
+    ) {}
+
+    record ChannelOption(
+            Long optionId,
+            String name,
+            int stockQuantity,
+            long price,
+            boolean usable
+    ) {}
 
     record ProductCommand(
             Long originProductNo,

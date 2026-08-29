@@ -3223,6 +3223,24 @@
         "required" : [ "detailedReason", "holdbackClassType" ],
         "type" : "object"
       },
+      "HoldSmartStoreReturnRequest" : {
+        "properties" : {
+          "detailedReason" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "extraReturnFeeAmount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "holdbackClassType" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "detailedReason", "holdbackClassType" ],
+        "type" : "object"
+      },
       "ImageUploadResponse" : {
         "properties" : {
           "url" : {
@@ -4170,6 +4188,30 @@
         "required" : [ "content", "createdAt", "edited", "editedAt" ],
         "type" : "object"
       },
+      "Option" : {
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "optionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "price" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "stockQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "usable" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "name", "optionId", "price", "stockQuantity", "usable" ],
+        "type" : "object"
+      },
       "OptionPreview" : {
         "properties" : {
           "channelPrice" : {
@@ -5024,6 +5066,33 @@
         "required" : [ "amount", "context", "orderId", "statusToken" ],
         "type" : "object"
       },
+      "Product" : {
+        "properties" : {
+          "imageUrl" : {
+            "type" : [ "string", "null" ]
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "originProductNo" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "salePrice" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "stockQuantity" : {
+            "format" : "int32",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "imageUrl", "name", "originProductNo", "salePrice", "status", "stockQuantity" ],
+        "type" : "object"
+      },
       "ProductDetailResponse" : {
         "properties" : {
           "available" : {
@@ -5869,6 +5938,30 @@
           }
         },
         "required" : [ "reason" ],
+        "type" : "object"
+      },
+      "RequestSmartStoreSellerReturnRequest" : {
+        "properties" : {
+          "collectDeliveryCompany" : {
+            "type" : "string"
+          },
+          "collectDeliveryMethod" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "collectTrackingNumber" : {
+            "type" : "string"
+          },
+          "returnQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "returnReason" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "collectDeliveryMethod", "returnReason" ],
         "type" : "object"
       },
       "RescheduleRequest" : {
@@ -6749,6 +6842,29 @@
         "required" : [ "attentionReason", "claimStatus", "claimType", "initialQuantity", "inventoryAppliedQuantity", "itemNo", "lastChangedAt", "orderId", "originProductNo", "paymentDate", "productId", "productName", "productOption", "productOrderId", "productOrderStatus", "productVariantId", "remainQuantity" ],
         "type" : "object"
       },
+      "SmartStoreChannelProductResponse" : {
+        "properties" : {
+          "options" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Option"
+            },
+            "type" : "array"
+          },
+          "originProductNo" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "salePrice" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "options", "originProductNo", "salePrice", "status" ],
+        "type" : "object"
+      },
       "SmartStoreCustomerInquiryResponse" : {
         "properties" : {
           "answerContent" : {
@@ -6812,6 +6928,21 @@
           }
         },
         "required" : [ "content" ],
+        "type" : "object"
+      },
+      "SmartStoreInquiryAnswerTemplateResponse" : {
+        "properties" : {
+          "content" : {
+            "type" : "string"
+          },
+          "questionType" : {
+            "type" : "string"
+          },
+          "subject" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "content", "questionType", "subject" ],
         "type" : "object"
       },
       "SmartStoreInquiryResponse" : {
@@ -6883,6 +7014,34 @@
           }
         },
         "required" : [ "attemptCount", "enabled", "lastError", "originProductNo", "productId", "syncStatus", "syncedAt", "variants" ],
+        "type" : "object"
+      },
+      "SmartStoreProductCatalogPageResponse" : {
+        "properties" : {
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Product"
+            },
+            "type" : "array"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "page", "products", "size", "totalElements", "totalPages" ],
         "type" : "object"
       },
       "SmartStoreProductPreviewResponse" : {
@@ -10425,6 +10584,73 @@
         "tags" : [ "admin-product-controller" ]
       }
     },
+    "/api/v1/admin/products/smartstore-catalog" : {
+      "get" : {
+        "operationId" : "listSmartStoreProducts",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 1,
+            "format" : "int32",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreProductCatalogPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/v1/admin/products/smartstore-catalog/{originProductNo}" : {
+      "get" : {
+        "operationId" : "getSmartStoreProduct",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "originProductNo",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreChannelProductResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
     "/api/v1/admin/products/{id}" : {
       "patch" : {
         "operationId" : "updateAdminProduct",
@@ -11872,6 +12098,24 @@
         "tags" : [ "admin-smart-store-inquiry-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-inquiries/template" : {
+      "get" : {
+        "operationId" : "getSmartStoreInquiryAnswerTemplate",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInquiryAnswerTemplateResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-inquiries/{questionId}/answer" : {
       "put" : {
         "operationId" : "answerSmartStoreInquiry",
@@ -12161,6 +12405,54 @@
         "tags" : [ "admin-smart-store-order-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/hold" : {
+      "post" : {
+        "operationId" : "holdSmartStoreReturnClaim",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/HoldSmartStoreReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/hold/release" : {
+      "post" : {
+        "operationId" : "releaseSmartStoreReturnHold",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/reject" : {
       "post" : {
         "operationId" : "rejectSmartStoreReturnClaim",
@@ -12172,6 +12464,35 @@
             "type" : "string"
           }
         } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return/request" : {
+      "post" : {
+        "operationId" : "requestSmartStoreSellerReturn",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RequestSmartStoreSellerReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
         "responses" : {
           "204" : {
             "description" : "No Content"

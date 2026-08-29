@@ -796,6 +796,24 @@ export interface RejectSmartStoreExchangeRequest {
   reason: string;
 }
 
+export interface HoldSmartStoreReturnRequest {
+  /** @minLength 1 */
+  detailedReason: string;
+  extraReturnFeeAmount?: number;
+  /** @minLength 1 */
+  holdbackClassType: string;
+}
+
+export interface RequestSmartStoreSellerReturnRequest {
+  collectDeliveryCompany?: string;
+  /** @minLength 1 */
+  collectDeliveryMethod: string;
+  collectTrackingNumber?: string;
+  returnQuantity?: number;
+  /** @minLength 1 */
+  returnReason: string;
+}
+
 export interface DelaySmartStoreOrderRequest {
   /**
      * @minLength 0
@@ -1516,6 +1534,49 @@ export const approveSmartStoreReturnClaim = async (productOrderId: string, optio
 
 
 
+export const getHoldSmartStoreReturnClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/hold`
+}
+
+export const holdSmartStoreReturnClaim = async (productOrderId: string,
+    holdSmartStoreReturnRequest: HoldSmartStoreReturnRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getHoldSmartStoreReturnClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(holdSmartStoreReturnRequest)
+  }
+);}
+
+
+
+export const getReleaseSmartStoreReturnHoldUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/hold/release`
+}
+
+export const releaseSmartStoreReturnHold = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getReleaseSmartStoreReturnHoldUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export const getRejectSmartStoreReturnClaimUrl = (productOrderId: string,) => {
 
 
@@ -1532,6 +1593,28 @@ export const rejectSmartStoreReturnClaim = async (productOrderId: string, option
     method: 'POST'
 
 
+  }
+);}
+
+
+
+export const getRequestSmartStoreSellerReturnUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/request`
+}
+
+export const requestSmartStoreSellerReturn = async (productOrderId: string,
+    requestSmartStoreSellerReturnRequest: RequestSmartStoreSellerReturnRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRequestSmartStoreSellerReturnUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(requestSmartStoreSellerReturnRequest)
   }
 );}
 

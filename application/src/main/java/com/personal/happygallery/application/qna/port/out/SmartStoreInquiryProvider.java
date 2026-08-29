@@ -13,6 +13,8 @@ public interface SmartStoreInquiryProvider {
     List<CustomerInquiryItem> findCustomerInquiries(
             LocalDate from, LocalDate to, boolean unansweredOnly, int limit);
 
+    AnswerTemplate findProductInquiryAnswerTemplate();
+
     void answerProductInquiry(long questionId, String content);
 
     void answerCustomerInquiry(long inquiryNo, String content);
@@ -26,6 +28,12 @@ public interface SmartStoreInquiryProvider {
             String answer,
             boolean answered,
             LocalDateTime createdAt
+    ) {}
+
+    record AnswerTemplate(
+            String questionType,
+            String subject,
+            String content
     ) {}
 
     record CustomerInquiryItem(

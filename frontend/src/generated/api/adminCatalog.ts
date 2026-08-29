@@ -348,6 +348,40 @@ export interface CreateProductRequest {
   variants?: ProductVariantRequest[];
 }
 
+export interface Product {
+  /** @nullable */
+  imageUrl: string | null;
+  name: string;
+  originProductNo: number;
+  salePrice: number;
+  status: string;
+  /** @nullable */
+  stockQuantity: number | null;
+}
+
+export interface SmartStoreProductCatalogPageResponse {
+  page: number;
+  products: Product[];
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface Option {
+  name: string;
+  optionId: number;
+  price: number;
+  stockQuantity: number;
+  usable: boolean;
+}
+
+export interface SmartStoreChannelProductResponse {
+  options: Option[];
+  originProductNo: number;
+  salePrice: number;
+  status: string;
+}
+
 export interface UpdateProductRequest {
   /**
      * @minLength 0
@@ -656,6 +690,18 @@ export type UploadImageBody = {
   file: Blob;
 };
 
+export type ListSmartStoreProductsParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
+
 export type ListSlotsParams = {
 classId: number;
 };
@@ -832,6 +878,55 @@ export const register = async (createProductRequest: CreateProductRequest, optio
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(createProductRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreProductsUrl = (params?: ListSmartStoreProductsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/products/smartstore-catalog?${stringifiedParams}` : `/api/v1/admin/products/smartstore-catalog`
+}
+
+export const listSmartStoreProducts = async (params?: ListSmartStoreProductsParams, options?: RequestInit): Promise<SmartStoreProductCatalogPageResponse> => {
+
+  return generatedApiClient<SmartStoreProductCatalogPageResponse>(getListSmartStoreProductsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetSmartStoreProductUrl = (originProductNo: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/smartstore-catalog/${originProductNo}`
+}
+
+export const getSmartStoreProduct = async (originProductNo: number, options?: RequestInit): Promise<SmartStoreChannelProductResponse> => {
+
+  return generatedApiClient<SmartStoreChannelProductResponse>(getGetSmartStoreProductUrl(originProductNo),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

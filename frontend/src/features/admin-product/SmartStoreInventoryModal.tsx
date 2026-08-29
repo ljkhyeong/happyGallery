@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import {
   fetchSmartStoreInventoryMapping,
+  fetchSmartStoreProduct,
+  fetchSmartStoreProducts,
   fetchSmartStoreProductPreview,
   applySmartStoreProduct,
   removeSmartStoreMapping,
@@ -39,6 +41,14 @@ export function SmartStoreInventoryModal({
   const [originProductNo, setOriginProductNo] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [optionIds, setOptionIds] = useState<Record<number, string>>({});
+  const [catalogPage, setCatalogPage] = useState(1);
+  const variants = useMemo(() => product?.variants ?? [], [product]);
+  const originNumber = Number(originProductNo);
+  const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
+  const validOptions = product?.type !== "MADE_TO_ORDER" || variants.every((variant) => {
+    const value = Number(optionIds[variant.id]);
+    return Number.isSafeInteger(value) && value > 0;
+  });
 
   const mappingQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
@@ -46,6 +56,16 @@ export function SmartStoreInventoryModal({
     enabled: product !== null,
   });
   const mapping = mappingQuery.data;
+  const catalogQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "smartstore-products", catalogPage],
+    queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
+    enabled: product !== null,
+  });
+  const channelProductQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "smartstore-products", "detail", originNumber],
+    queryFn: () => fetchSmartStoreProduct(adminKey, originNumber),
+    enabled: product !== null && validOrigin,
+  });
   const previewQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
     queryFn: () => fetchSmartStoreProductPreview(adminKey, product!.id),
@@ -63,13 +83,9 @@ export function SmartStoreInventoryModal({
     ])));
   }, [mappingQuery.data, product]);
 
-  const variants = useMemo(() => product?.variants ?? [], [product]);
-  const originNumber = Number(originProductNo);
-  const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
-  const validOptions = product?.type !== "MADE_TO_ORDER" || variants.every((variant) => {
-    const value = Number(optionIds[variant.id]);
-    return Number.isSafeInteger(value) && value > 0;
-  });
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [product?.id]);
 
   const saveMutation = useAdminMutation(onAuthError, {
     mutationFn: () => saveSmartStoreMapping(adminKey, product!.id, {
@@ -144,8 +160,10 @@ export function SmartStoreInventoryModal({
         <Modal.Title className="fs-6">{product?.name} 스마트스토어 재고 연동</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {mappingQuery.isLoading && <LoadingSpinner />}
-        <ErrorAlert error={mappingQuery.error ?? previewQuery.error ?? saveMutation.error
+        {(mappingQuery.isLoading || catalogQuery.isLoading || channelProductQuery.isLoading)
+          && <LoadingSpinner />}
+        <ErrorAlert error={mappingQuery.error ?? catalogQuery.error ?? channelProductQuery.error
+          ?? previewQuery.error ?? saveMutation.error
           ?? retryMutation.error ?? deleteMutation.error ?? applyMutation.error} />
 
         {mapping && (
@@ -214,14 +232,39 @@ export function SmartStoreInventoryModal({
           if (validOrigin && validOptions) saveMutation.mutate();
         }}>
           <Form.Group className="mb-3" controlId="smartstore-origin-product-no">
-            <Form.Label>스마트스토어 원상품 번호</Form.Label>
-            <Form.Control
-              type="number"
-              min={1}
+            <Form.Label>스마트스토어 상품</Form.Label>
+            <Form.Select
               value={originProductNo}
-              onChange={(event) => setOriginProductNo(event.target.value)}
-              placeholder="스마트스토어 상품 관리에서 확인한 원상품 번호"
-            />
+              onChange={(event) => {
+                setOriginProductNo(event.target.value);
+                setOptionIds(Object.fromEntries(variants.map((variant) => [variant.id, ""])));
+              }}
+            >
+              <option value="">상품 선택</option>
+              {validOrigin && !catalogQuery.data?.products.some(
+                (item) => item.originProductNo === originNumber,
+              ) && (
+                <option value={originProductNo}>현재 연결 상품 · 원상품 {originProductNo}</option>
+              )}
+              {catalogQuery.data?.products.map((item) => (
+                <option key={item.originProductNo} value={item.originProductNo}>
+                  {item.name} · {item.salePrice.toLocaleString()}원 · {item.status}
+                </option>
+              ))}
+            </Form.Select>
+            {catalogQuery.data && catalogQuery.data.totalPages > 1 && (
+              <div className="d-flex justify-content-between align-items-center mt-2">
+                <Button type="button" size="sm" variant="outline-secondary"
+                  disabled={catalogPage <= 1}
+                  onClick={() => setCatalogPage((page) => page - 1)}>이전</Button>
+                <span className="small text-muted-soft">
+                  {catalogPage} / {catalogQuery.data.totalPages}페이지
+                </span>
+                <Button type="button" size="sm" variant="outline-secondary"
+                  disabled={catalogPage >= catalogQuery.data.totalPages}
+                  onClick={() => setCatalogPage((page) => page + 1)}>다음</Button>
+              </div>
+            )}
           </Form.Group>
 
           {product?.type === "MADE_TO_ORDER" && (
@@ -229,7 +272,7 @@ export function SmartStoreInventoryModal({
               <thead>
                 <tr>
                   <th>해피갤러리 옵션 조합</th>
-                  <th style={{ width: 220 }}>스마트스토어 옵션 ID</th>
+                  <th style={{ width: 360 }}>스마트스토어 옵션 조합</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,16 +280,22 @@ export function SmartStoreInventoryModal({
                   <tr key={variant.id}>
                     <td>{variantLabel(product, variant.id)}</td>
                     <td>
-                      <Form.Control
-                        type="number"
-                        min={1}
+                      <Form.Select
                         value={optionIds[variant.id] ?? ""}
                         onChange={(event) => setOptionIds((current) => ({
                           ...current,
                           [variant.id]: event.target.value,
                         }))}
-                        aria-label={`${variantLabel(product, variant.id)} 스마트스토어 옵션 ID`}
-                      />
+                        aria-label={`${variantLabel(product, variant.id)} 스마트스토어 옵션 조합`}
+                      >
+                        <option value="">옵션 선택</option>
+                        {channelProductQuery.data?.options.map((option) => (
+                          <option key={option.optionId} value={option.optionId}>
+                            {option.name} · 옵션가 {option.price.toLocaleString()}원
+                            {` · 재고 ${option.stockQuantity}${option.usable ? "" : " · 판매 중지"}`}
+                          </option>
+                        ))}
+                      </Form.Select>
                     </td>
                   </tr>
                 ))}

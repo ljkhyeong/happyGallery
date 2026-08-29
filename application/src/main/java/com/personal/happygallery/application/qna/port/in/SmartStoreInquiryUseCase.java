@@ -9,6 +9,8 @@ public interface SmartStoreInquiryUseCase {
 
     List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit);
 
+    AnswerTemplateResult getProductInquiryAnswerTemplate();
+
     void answer(long questionId, String content);
 
     void answerCustomerInquiry(long inquiryNo, String content);
@@ -22,6 +24,12 @@ public interface SmartStoreInquiryUseCase {
             String answer,
             boolean answered,
             LocalDateTime createdAt
+    ) {}
+
+    record AnswerTemplateResult(
+            String questionType,
+            String subject,
+            String content
     ) {}
 
     record CustomerInquiryResult(

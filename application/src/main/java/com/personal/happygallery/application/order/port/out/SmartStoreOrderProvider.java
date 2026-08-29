@@ -23,6 +23,12 @@ public interface SmartStoreOrderProvider {
 
     void rejectReturn(String productOrderId);
 
+    void holdReturn(ReturnHoldCommand command);
+
+    void releaseReturnHold(String productOrderId);
+
+    void requestSellerReturn(SellerReturnCommand command);
+
     void dispatchExchange(ExchangeDispatchCommand command);
 
     void completeExchangeCollect(String productOrderId);
@@ -135,6 +141,22 @@ public interface SmartStoreOrderProvider {
             String holdbackClassType,
             String detailedReason,
             Long extraExchangeFeeAmount
+    ) {}
+
+    record ReturnHoldCommand(
+            String productOrderId,
+            String holdbackClassType,
+            String detailedReason,
+            Long extraReturnFeeAmount
+    ) {}
+
+    record SellerReturnCommand(
+            String productOrderId,
+            String returnReason,
+            String collectDeliveryMethod,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Integer returnQuantity
     ) {}
 
     record SellerCancelCommand(

@@ -123,6 +123,34 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
+    public CatalogPageResult listChannelProducts(int page, int size) {
+        requireProviderEnabled();
+        var catalog = inventoryProvider.listProducts(page, size);
+        return new CatalogPageResult(
+                catalog.products().stream()
+                        .map(product -> new CatalogProductResult(
+                                product.originProductNo(), product.name(), product.status(),
+                                product.salePrice(), product.stockQuantity(), product.imageUrl()))
+                        .toList(),
+                catalog.page(), catalog.size(), catalog.totalElements(), catalog.totalPages());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public ChannelProductResult getChannelProduct(Long originProductNo) {
+        requireProviderEnabled();
+        var product = inventoryProvider.getProduct(originProductNo);
+        return new ChannelProductResult(
+                originProductNo, product.salePrice(), product.status(),
+                product.options().stream()
+                        .map(option -> new ChannelOptionResult(
+                                option.optionId(), option.name(), option.stockQuantity(),
+                                option.price(), option.usable()))
+                        .toList());
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
     public ProductPreviewResult previewProduct(Long productId) {
         requireProviderEnabled();
         var local = transactionService.productSnapshot(productId);

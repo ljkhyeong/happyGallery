@@ -1,6 +1,7 @@
 import {
   answerSmartStoreInquiry,
   answerSmartStoreCustomerInquiry,
+  getSmartStoreInquiryAnswerTemplate,
   listAdminProductQnaPage,
   listSmartStoreInquiries,
   listSmartStoreCustomerInquiries,
@@ -10,18 +11,28 @@ import {
   type AdminQnaResponse,
   type SmartStoreInquiryResponse,
   type SmartStoreCustomerInquiryResponse,
+  type SmartStoreInquiryAnswerTemplateResponse,
 } from "@/generated/api/productQna";
 import { adminHeaders } from "@/shared/api";
 
 export type { AdminQnaResponse } from "@/generated/api/productQna";
 export type { SmartStoreInquiryResponse } from "@/generated/api/productQna";
 export type { SmartStoreCustomerInquiryResponse } from "@/generated/api/productQna";
+export type { SmartStoreInquiryAnswerTemplateResponse } from "@/generated/api/productQna";
 
 export function fetchSmartStoreInquiries(
   token: string,
   unansweredOnly: boolean,
 ): Promise<SmartStoreInquiryResponse[]> {
   return listSmartStoreInquiries({ unansweredOnly, limit: 100 }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function fetchSmartStoreAnswerTemplate(
+  token: string,
+): Promise<SmartStoreInquiryAnswerTemplateResponse> {
+  return getSmartStoreInquiryAnswerTemplate({
     headers: adminHeaders(token),
   });
 }

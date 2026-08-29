@@ -45,6 +45,14 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
     }
 
     @Override
+    public AnswerTemplateResult getProductInquiryAnswerTemplate() {
+        requireEnabled();
+        var template = provider.findProductInquiryAnswerTemplate();
+        return new AnswerTemplateResult(
+                template.questionType(), template.subject(), template.content());
+    }
+
+    @Override
     public List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit) {
         requireEnabled();
         LocalDate today = LocalDate.now(clock);

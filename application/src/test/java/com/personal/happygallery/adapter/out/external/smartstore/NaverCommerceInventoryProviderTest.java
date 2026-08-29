@@ -112,6 +112,50 @@ class NaverCommerceInventoryProviderTest {
     }
 
     @Test
+    @DisplayName("스마트스토어 상품 목록을 공식 페이지 계약으로 조회한다")
+    void listProducts_readsSmartStoreCatalogPage() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/products/search"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"page\":1,\"size\":100}"))
+                .andRespond(withSuccess("""
+                        {
+                          "contents":[{
+                            "originProductNo":123456789,
+                            "channelProducts":[{
+                              "originProductNo":123456789,
+                              "channelServiceType":"STOREFARM",
+                              "name":"각인 카드지갑",
+                              "statusType":"SALE",
+                              "salePrice":33000,
+                              "stockQuantity":7,
+                              "representativeImage":{"url":"https://images.example.com/wallet.jpg"}
+                            }]
+                          }],
+                          "page":1,
+                          "size":100,
+                          "totalElements":1,
+                          "totalPages":1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var page = provider.listProducts(1, 100);
+
+        server.verify();
+        assertThat(page.products()).singleElement().satisfies(product -> {
+            assertThat(product.originProductNo()).isEqualTo(123456789L);
+            assertThat(product.name()).isEqualTo("각인 카드지갑");
+        });
+    }
+
+    @Test
     @DisplayName("원상품 차이를 조회하고 판매가·옵션가·판매 상태를 명시적으로 반영한다")
     void getAndApplyProduct_usesProductContracts() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
@@ -131,7 +175,8 @@ class NaverCommerceInventoryProviderTest {
                             "salePrice":33000,
                             "statusType":"SALE",
                             "detailAttribute":{"optionInfo":{"optionCombinations":[
-                              {"id":11,"stockQuantity":3,"price":1000,"usable":true}
+                              {"id":11,"optionName1":"브라운","optionName2":"금박",
+                               "stockQuantity":3,"price":1000,"usable":true}
                             ]}}
                           }
                         }
@@ -165,7 +210,10 @@ class NaverCommerceInventoryProviderTest {
         server.verify();
         assertThat(product.salePrice()).isEqualTo(33000L);
         assertThat(product.options()).singleElement()
-                .satisfies(option -> assertThat(option.price()).isEqualTo(1000L));
+                .satisfies(option -> {
+                    assertThat(option.name()).isEqualTo("브라운 / 금박");
+                    assertThat(option.price()).isEqualTo(1000L);
+                });
         assertThat(result.success()).isTrue();
     }
 

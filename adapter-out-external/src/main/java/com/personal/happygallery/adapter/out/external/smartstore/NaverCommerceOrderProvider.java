@@ -170,6 +170,30 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
+    public void holdReturn(ReturnHoldCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/return/holdback",
+                new ReturnHoldRequest(command.holdbackClassType(), command.detailedReason(),
+                        command.extraReturnFeeAmount()), command.productOrderId());
+    }
+
+    @Override
+    public void releaseReturnHold(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/return/holdback/release", productOrderId);
+    }
+
+    @Override
+    public void requestSellerReturn(SellerReturnCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/return/request",
+                new SellerReturnRequest(
+                        command.returnReason(), command.collectDeliveryMethod(),
+                        command.collectDeliveryCompany(), command.collectTrackingNumber(),
+                        command.returnQuantity()), command.productOrderId());
+    }
+
+    @Override
     public void dispatchExchange(ExchangeDispatchCommand command) {
         execute("/external/v1/pay-order/seller/product-orders/"
                         + command.productOrderId() + "/claim/exchange/dispatch",
@@ -452,6 +476,20 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             String holdbackClassType,
             String holdbackExchangeDetailReason,
             Long extraExchangeFeeAmount
+    ) {}
+
+    private record ReturnHoldRequest(
+            String holdbackClassType,
+            String holdbackReturnDetailReason,
+            Long extraReturnFeeAmount
+    ) {}
+
+    private record SellerReturnRequest(
+            String returnReason,
+            String collectDeliveryMethod,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Integer returnQuantity
     ) {}
 
     private record SellerCancelRequest(

@@ -4,8 +4,10 @@ import com.personal.happygallery.adapter.in.web.admin.dto.DelaySmartStoreOrderRe
 import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreExchangeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreOrderRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.RejectSmartStoreExchangeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSellerCancelRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSellerReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.ResolveSmartStoreReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderDetailResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderResponse;
@@ -113,6 +115,31 @@ public class AdminSmartStoreOrderController {
     @Operation(operationId = "rejectSmartStoreReturnClaim")
     public void rejectReturn(@PathVariable String productOrderId) {
         channelOrderUseCase.rejectReturn(productOrderId);
+    }
+
+    @PostMapping("/{productOrderId}/claims/return/hold")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "holdSmartStoreReturnClaim")
+    public void holdReturn(
+            @PathVariable String productOrderId,
+            @Valid @RequestBody HoldSmartStoreReturnRequest request) {
+        channelOrderUseCase.holdReturn(request.toCommand(productOrderId));
+    }
+
+    @PostMapping("/{productOrderId}/claims/return/hold/release")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "releaseSmartStoreReturnHold")
+    public void releaseReturnHold(@PathVariable String productOrderId) {
+        channelOrderUseCase.releaseReturnHold(productOrderId);
+    }
+
+    @PostMapping("/{productOrderId}/claims/return/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "requestSmartStoreSellerReturn")
+    public void requestSellerReturn(
+            @PathVariable String productOrderId,
+            @Valid @RequestBody RequestSmartStoreSellerReturnRequest request) {
+        channelOrderUseCase.requestSellerReturn(request.toCommand(productOrderId));
     }
 
     @PostMapping("/{productOrderId}/claims/exchange/dispatch")

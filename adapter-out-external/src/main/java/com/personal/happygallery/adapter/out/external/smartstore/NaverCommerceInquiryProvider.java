@@ -139,6 +139,20 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
+    public AnswerTemplate findProductInquiryAnswerTemplate() {
+        AnswerTemplateResponse response = accessTokenProvider.authorized(token -> restClient.get()
+                .uri("/external/v1/contents/qnas/templates")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(AnswerTemplateResponse.class));
+        if (response == null) {
+            throw new IllegalStateException("스마트스토어 문의 답변 템플릿 응답이 비어 있습니다.");
+        }
+        return new AnswerTemplate(
+                response.questionType(), response.subject(), response.content());
+    }
+
+    @Override
     public void answerCustomerInquiry(long inquiryNo, String content) {
         accessTokenProvider.authorized(token -> {
             restClient.post()
@@ -187,6 +201,12 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     ) {}
 
     private record AnswerRequest(String commentContent) {}
+
+    private record AnswerTemplateResponse(
+            String questionType,
+            String subject,
+            String content
+    ) {}
 
     private record CustomerInquiryResponse(List<CustomerInquiryContent> content, int totalPages) {}
 

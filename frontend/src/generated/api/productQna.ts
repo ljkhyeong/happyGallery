@@ -78,6 +78,12 @@ export interface SmartStoreInquiryAnswerRequest {
   content: string;
 }
 
+export interface SmartStoreInquiryAnswerTemplateResponse {
+  content: string;
+  questionType: string;
+  subject: string;
+}
+
 export interface MyProductQnaListItem {
   createdAt: string;
   hasReply: boolean;
@@ -379,6 +385,27 @@ export const answerSmartStoreCustomerInquiry = async (inquiryNo: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(smartStoreInquiryAnswerRequest)
+  }
+);}
+
+
+
+export const getGetSmartStoreInquiryAnswerTemplateUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-inquiries/template`
+}
+
+export const getSmartStoreInquiryAnswerTemplate = async ( options?: RequestInit): Promise<SmartStoreInquiryAnswerTemplateResponse> => {
+
+  return generatedApiClient<SmartStoreInquiryAnswerTemplateResponse>(getGetSmartStoreInquiryAnswerTemplateUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

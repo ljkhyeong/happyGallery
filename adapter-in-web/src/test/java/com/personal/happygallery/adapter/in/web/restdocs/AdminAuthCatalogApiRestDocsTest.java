@@ -39,12 +39,17 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.CustomerInquiryResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
+import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.AnswerTemplateResult;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ProductPreviewResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogPageResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogProductResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelOptionResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelProductResult;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingCalendarSettings;
@@ -178,6 +183,17 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreInventoryUseCase.previewProduct(1L)).thenReturn(new ProductPreviewResult(
                 1L, 0L, 123456789L, 35000L, 33000L,
                 "SALE", "SALE", true, List.of()));
+        when(smartStoreInventoryUseCase.listChannelProducts(1, 100))
+                .thenReturn(new CatalogPageResult(
+                        List.of(new CatalogProductResult(
+                                123456789L, "각인 카드지갑", "SALE", 33000L, 7,
+                                "https://images.example.com/wallet.jpg")),
+                        1, 100, 1, 1));
+        when(smartStoreInventoryUseCase.getChannelProduct(123456789L))
+                .thenReturn(new ChannelProductResult(
+                        123456789L, 33000L, "SALE",
+                        List.of(new ChannelOptionResult(
+                                11L, "브라운 / 금박", 3, 1000L, true))));
         ChannelOrderResult smartStoreOrder = new ChannelOrderResult(
                 "2026082912345678", "2026082911111111", 123456789L, 90001L,
                 1L, 31L, "각인 카드지갑", "색상: 브라운", "RETURNED",
@@ -208,6 +224,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreInquiryUseCase.list(true, 100)).thenReturn(List.of(new InquiryResult(
                 456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
                 false, LocalDateTime.of(2026, 8, 29, 10, 0))));
+        when(smartStoreInquiryUseCase.getProductInquiryAnswerTemplate())
+                .thenReturn(new AnswerTemplateResult(
+                        "PRODUCT", "상품 문의 기본 답변", "문의해 주셔서 감사합니다."));
         when(smartStoreInquiryUseCase.listCustomerInquiries(true, 100))
                 .thenReturn(List.of(new CustomerInquiryResult(
                         789L, "DELIVERY", "배송 문의", "언제 도착하나요?", null,
@@ -583,6 +602,22 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 스마트스토어 상품 목록과 옵션 조회 API를 문서화한다")
+    void admin_list_and_get_smartstore_products() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products/smartstore-catalog")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.products[0].originProductNo").value(123456789));
+        mockMvc.perform(get("/api/v1/admin/products/smartstore-catalog/{originProductNo}",
+                        123456789L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.options[0].name").value("브라운 / 금박"));
+    }
+
+    @Test
     @DisplayName("관리자 스마트스토어 재고 연동 해제 API를 문서화한다")
     void admin_delete_smartstore_inventory_mapping() throws Exception {
         mockMvc.perform(delete("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
@@ -671,6 +706,16 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("관리자 스마트스토어 상품 문의 답변 템플릿 API를 문서화한다")
+    void admin_get_smartstore_inquiry_answer_template() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/template")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject").value("상품 문의 기본 답변"));
+    }
+
+    @Test
     @DisplayName("관리자 스마트스토어 고객 문의 조회와 답변 API를 문서화한다")
     void admin_manage_smartstore_customer_inquiry() throws Exception {
         mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers")
@@ -718,6 +763,37 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "reason":"SOLD_OUT",
                                   "detailedReason":"부자재 품절",
                                   "quantity":1
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 반품 보류와 판매자 반품 요청 API를 문서화한다")
+    void admin_manage_smartstore_return() throws Exception {
+        String path = "/api/v1/admin/smartstore-orders/{productOrderId}/claims/return";
+        mockMvc.perform(post(path + "/hold", "2026082912345678")
+                        .with(adminUser()).contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "holdbackClassType":"RETURN_DELIVERYFEE",
+                                  "detailedReason":"반품 배송비 입금 대기",
+                                  "extraReturnFeeAmount":3000
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post(path + "/hold/release", "2026082912345678")
+                        .with(adminUser()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post(path + "/request", "2026082912345678")
+                        .with(adminUser()).contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "returnReason":"PRODUCT_UNSATISFIED",
+                                  "collectDeliveryMethod":"RETURN_DESIGNATED",
+                                  "collectDeliveryCompany":"CJGLS",
+                                  "collectTrackingNumber":"1234567890",
+                                  "returnQuantity":1
                                 }
                                 """))
                 .andExpect(status().isNoContent());
