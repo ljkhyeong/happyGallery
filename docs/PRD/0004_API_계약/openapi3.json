@@ -5734,6 +5734,15 @@
         "required" : [ "approved", "restoreInventory" ],
         "type" : "object"
       },
+      "ResolveSmartStoreReturnRequest" : {
+        "properties" : {
+          "restoreStock" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "restoreStock" ],
+        "type" : "object"
+      },
       "RevenueBreakdownResponse" : {
         "properties" : {
           "bookingBalanceRevenue" : {
@@ -6378,6 +6387,73 @@
           }
         },
         "required" : [ "className", "date", "totalBooked", "totalCapacity", "utilizationRate" ],
+        "type" : "object"
+      },
+      "SmartStoreChannelOrderResponse" : {
+        "properties" : {
+          "attentionReason" : {
+            "enum" : [ "MAPPING_REQUIRED", "STOCK_SHORTAGE", "RETURN_REVIEW", "STATUS_REVIEW" ],
+            "type" : [ "string", "null" ]
+          },
+          "claimStatus" : {
+            "type" : [ "string", "null" ]
+          },
+          "claimType" : {
+            "type" : [ "string", "null" ]
+          },
+          "initialQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "inventoryAppliedQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "itemNo" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "lastChangedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "orderId" : {
+            "type" : "string"
+          },
+          "originProductNo" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "paymentDate" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "productOption" : {
+            "type" : [ "string", "null" ]
+          },
+          "productOrderId" : {
+            "type" : "string"
+          },
+          "productOrderStatus" : {
+            "type" : "string"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "remainQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "attentionReason", "claimStatus", "claimType", "initialQuantity", "inventoryAppliedQuantity", "itemNo", "lastChangedAt", "orderId", "originProductNo", "paymentDate", "productId", "productName", "productOption", "productOrderId", "productOrderStatus", "productVariantId", "remainQuantity" ],
         "type" : "object"
       },
       "SmartStoreInventoryMappingResponse" : {
@@ -11087,6 +11163,109 @@
           }
         },
         "tags" : [ "admin-slot-session-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders" : {
+      "get" : {
+        "operationId" : "listSmartStoreChannelOrders",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "attentionOnly",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "default" : 100,
+            "format" : "int32",
+            "maximum" : 200,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreChannelOrderResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry" : {
+      "post" : {
+        "operationId" : "retrySmartStoreChannelOrderInventory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreChannelOrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution" : {
+      "post" : {
+        "operationId" : "resolveSmartStoreChannelOrderReturn",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ResolveSmartStoreReturnRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreChannelOrderResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
       }
     },
     "/api/v1/admin/workshop" : {

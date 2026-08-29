@@ -125,6 +125,7 @@ export default defineConfig({
     "admin-order-production-controller",
     "admin-order-query-controller",
     "admin-order-shipping-controller",
+    "admin-smart-store-order-controller",
   ]),
   adminOperationsApi: generatedApi("./src/generated/api/adminOperations.ts", [
     "admin-inquiry-controller",

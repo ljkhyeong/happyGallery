@@ -890,7 +890,44 @@ Content-Type: application/json
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
 - 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`
 
-#### 2.3.7 상품 표시 정보 수정
+#### 2.3.7 스마트스토어 채널 주문 관리
+
+```http
+GET /api/v1/admin/smartstore-orders?attentionOnly=false&limit=100
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 최신 변경순 채널 상품 주문을 최대 `limit`건 반환한다. `limit`은 1~200이고 기본값은 100이다.
+- `attentionOnly=true`이면 재고 반영에 관리자 확인이 필요한 주문만 반환한다.
+- 응답의 `attentionReason`:
+  - `MAPPING_REQUIRED`: 네이버 원상품·옵션 ID에 연결된 내부 상품·옵션 조합 없음
+  - `STOCK_SHORTAGE`: 내부 재고가 네이버 잔여 주문 수량보다 부족함
+  - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
+  - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
+- `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. `remainQuantity`와의 차이만 다음 동기화에서 변경한다.
+
+```http
+POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry
+Authorization: Bearer {token}
+```
+
+- 매핑 누락 또는 재고 부족 주문의 현재 상태를 기준으로 내부 재고 반영을 다시 시도하고 `200 OK`로 갱신된 주문을 반환한다.
+- 재시도 뒤에도 반영할 수 없으면 오류 응답으로 버리지 않고 현재 `attentionReason`을 유지한다.
+- 상품 주문이 없으면 `404 NOT_FOUND`를 반환한다.
+
+```http
+POST /api/v1/admin/smartstore-orders/{productOrderId}/return-resolution
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{ "restoreStock": true }
+```
+
+- `RETURN_REVIEW` 주문만 처리한다. `restoreStock=true`이면 검수한 반품 수량을 기존 내부 상품·옵션 재고에 복원하고, `false`이면 판매 불가 반품으로 재고를 복원하지 않는다.
+- 성공: `200 OK` — 확인 사유를 해제한 주문 반환
+- 에러: 상품 주문 미존재 `404 NOT_FOUND`, 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`
+
+#### 2.3.8 상품 표시 정보 수정
 
 ```http
 PATCH /api/v1/admin/products/{id}

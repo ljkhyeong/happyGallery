@@ -637,6 +637,51 @@ export interface OrderRejectResponse {
   refund: RefundStatusResponse;
 }
 
+/**
+ * @nullable
+ */
+export type SmartStoreChannelOrderResponseAttentionReason = typeof SmartStoreChannelOrderResponseAttentionReason[keyof typeof SmartStoreChannelOrderResponseAttentionReason] | null;
+
+
+export const SmartStoreChannelOrderResponseAttentionReason = {
+  MAPPING_REQUIRED: 'MAPPING_REQUIRED',
+  STOCK_SHORTAGE: 'STOCK_SHORTAGE',
+  RETURN_REVIEW: 'RETURN_REVIEW',
+  STATUS_REVIEW: 'STATUS_REVIEW',
+} as const;
+
+export interface SmartStoreChannelOrderResponse {
+  /** @nullable */
+  attentionReason: SmartStoreChannelOrderResponseAttentionReason;
+  /** @nullable */
+  claimStatus: string | null;
+  /** @nullable */
+  claimType: string | null;
+  initialQuantity: number;
+  inventoryAppliedQuantity: number;
+  /** @nullable */
+  itemNo: number | null;
+  lastChangedAt: string;
+  orderId: string;
+  originProductNo: number;
+  /** @nullable */
+  paymentDate: string | null;
+  /** @nullable */
+  productId: number | null;
+  productName: string;
+  /** @nullable */
+  productOption: string | null;
+  productOrderId: string;
+  productOrderStatus: string;
+  /** @nullable */
+  productVariantId: number | null;
+  remainQuantity: number;
+}
+
+export interface ResolveSmartStoreReturnRequest {
+  restoreStock: boolean;
+}
+
 export type ListOrdersParams = {
 status?: ListOrdersStatus;
 cursor?: string;
@@ -697,6 +742,15 @@ export const SearchOrdersStatus = {
   PICKUP_FORFEITED: 'PICKUP_FORFEITED',
   COMPLETED: 'COMPLETED',
 } as const;
+
+export type ListSmartStoreChannelOrdersParams = {
+attentionOnly?: boolean;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
 
 export const getListOrdersUrl = (params?: ListOrdersParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -1088,5 +1142,76 @@ export const resumeOrderAfterDelay = async (id: number, options?: RequestInit): 
     method: 'POST'
 
 
+  }
+);}
+
+
+
+export const getListSmartStoreChannelOrdersUrl = (params?: ListSmartStoreChannelOrdersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-orders?${stringifiedParams}` : `/api/v1/admin/smartstore-orders`
+}
+
+export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannelOrdersParams, options?: RequestInit): Promise<SmartStoreChannelOrderResponse[]> => {
+
+  return generatedApiClient<SmartStoreChannelOrderResponse[]>(getListSmartStoreChannelOrdersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRetrySmartStoreChannelOrderInventoryUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/inventory/retry`
+}
+
+export const retrySmartStoreChannelOrderInventory = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreChannelOrderResponse> => {
+
+  return generatedApiClient<SmartStoreChannelOrderResponse>(getRetrySmartStoreChannelOrderInventoryUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getResolveSmartStoreChannelOrderReturnUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/return-resolution`
+}
+
+export const resolveSmartStoreChannelOrderReturn = async (productOrderId: string,
+    resolveSmartStoreReturnRequest: ResolveSmartStoreReturnRequest, options?: RequestInit): Promise<SmartStoreChannelOrderResponse> => {
+
+  return generatedApiClient<SmartStoreChannelOrderResponse>(getResolveSmartStoreChannelOrderReturnUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(resolveSmartStoreReturnRequest)
   }
 );}

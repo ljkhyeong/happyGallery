@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminMfaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSetupController;
 import com.personal.happygallery.adapter.in.web.admin.AdminSlotController;
+import com.personal.happygallery.adapter.in.web.admin.AdminSmartStoreOrderController;
 import com.personal.happygallery.adapter.in.web.admin.AdminWorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.config.properties.AdminSetupProperties;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminBearerTokenResolver;
@@ -29,6 +30,8 @@ import com.personal.happygallery.application.booking.port.in.BookingCalendarUseC
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderResult;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
@@ -44,6 +47,7 @@ import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
+import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -84,6 +88,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private ProductAdminUseCase productAdminUseCase;
     private ProductQueryUseCase productQueryUseCase;
     private SmartStoreInventoryUseCase smartStoreInventoryUseCase;
+    private SmartStoreChannelOrderUseCase smartStoreChannelOrderUseCase;
     private WorkshopProfileUseCase workshopProfileUseCase;
     private ClassManagementUseCase classManagementUseCase;
     private ClassQueryUseCase classQueryUseCase;
@@ -101,6 +106,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         productAdminUseCase = mock(ProductAdminUseCase.class);
         productQueryUseCase = mock(ProductQueryUseCase.class);
         smartStoreInventoryUseCase = mock(SmartStoreInventoryUseCase.class);
+        smartStoreChannelOrderUseCase = mock(SmartStoreChannelOrderUseCase.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
         classManagementUseCase = mock(ClassManagementUseCase.class);
         classQueryUseCase = mock(ClassQueryUseCase.class);
@@ -159,6 +165,19 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreInventoryUseCase.saveMapping(eq(1L), any())).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.getMapping(1L)).thenReturn(Optional.of(smartStoreMapping));
         when(smartStoreInventoryUseCase.retry(1L)).thenReturn(smartStoreMapping);
+        ChannelOrderResult smartStoreOrder = new ChannelOrderResult(
+                "2026082912345678", "2026082911111111", 123456789L, 90001L,
+                1L, 31L, "각인 카드지갑", "색상: 브라운", "RETURNED",
+                "RETURN", "RETURN_DONE", 2, 0, 2,
+                SmartStoreOrderAttentionReason.RETURN_REVIEW,
+                LocalDateTime.of(2026, 8, 29, 11, 58),
+                LocalDateTime.of(2026, 8, 29, 12, 0));
+        when(smartStoreChannelOrderUseCase.list(false, 100))
+                .thenReturn(List.of(smartStoreOrder));
+        when(smartStoreChannelOrderUseCase.retryInventory("2026082912345678"))
+                .thenReturn(smartStoreOrder);
+        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true))
+                .thenReturn(smartStoreOrder);
         when(workshopProfileUseCase.get()).thenReturn(workshop);
         when(workshopProfileUseCase.update(any())).thenReturn(workshop);
         when(classManagementUseCase.createClass(any())).thenReturn(bookingClass);
@@ -193,6 +212,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
                 new AdminProductController(
                         productAdminUseCase, productQueryUseCase, smartStoreInventoryUseCase),
+                new AdminSmartStoreOrderController(smartStoreChannelOrderUseCase),
                 new AdminMediaController(imageMediaUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
@@ -517,6 +537,38 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 채널 주문 목록 API를 문서화한다")
+    void admin_list_smartstore_channel_orders() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].attentionReason").value("RETURN_REVIEW"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 재고 반영 재시도 API를 문서화한다")
+    void admin_retry_smartstore_channel_order_inventory() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 반품 재고 처리 API를 문서화한다")
+    void admin_resolve_smartstore_channel_order_return() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"restoreStock\":true}"))
+                .andExpect(status().isOk());
     }
 
     @Test

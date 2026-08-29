@@ -15,6 +15,7 @@ import { BookingListSection } from "@/features/admin-booking/BookingListSection"
 import { BookingCancellationTaskSection } from "@/features/admin-booking/BookingCancellationTaskSection";
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
 import { AdminOrderClaimSection } from "@/features/admin-order-claim/AdminOrderClaimSection";
+import { SmartStoreChannelOrderSection } from "@/features/admin-smartstore-order/SmartStoreChannelOrderSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
@@ -342,6 +343,13 @@ export function AdminPage() {
               initialStatus="REQUESTED"
             />
           </AdminPanel>
+          <AdminPanel title="스마트스토어 주문 확인 필요">
+            <SmartStoreChannelOrderSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              attentionOnly
+            />
+          </AdminPanel>
           <AdminPanel title="다시 보낼 알림">
             <FailedNotificationSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -375,6 +383,9 @@ export function AdminPage() {
 
       {activeView === "orders" && (
         <>
+          <AdminPanel title="스마트스토어 채널 주문">
+            <SmartStoreChannelOrderSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="교환·환불 요청">
             <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>

@@ -1,21 +1,12 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
-import java.nio.charset.StandardCharsets;
-import java.time.Clock;
-import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
-import org.mindrot.jbcrypt.BCrypt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -23,20 +14,17 @@ import org.springframework.web.client.RestClientResponseException;
 public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvider {
 
     private static final Logger log = LoggerFactory.getLogger(NaverCommerceInventoryProvider.class);
-    private static final long TOKEN_EXPIRY_MARGIN_SECONDS = 60;
-
     private final RestClient restClient;
     private final SmartStoreProperties properties;
-    private final Clock clock;
-    private volatile CachedToken cachedToken;
+    private final NaverCommerceAccessTokenProvider accessTokenProvider;
 
     public NaverCommerceInventoryProvider(
             RestClient smartStoreRestClient,
             SmartStoreProperties properties,
-            Clock clock) {
+            NaverCommerceAccessTokenProvider accessTokenProvider) {
         this.restClient = smartStoreRestClient;
         this.properties = properties;
-        this.clock = clock;
+        this.accessTokenProvider = accessTokenProvider;
     }
 
     @Override
@@ -50,12 +38,12 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
             return SyncResult.failure("스마트스토어 재고 연동이 비활성 상태입니다.");
         }
         try {
-            send(command, accessToken(false));
+            send(command, accessTokenProvider.accessToken(false));
             return SyncResult.completed();
         } catch (RestClientResponseException exception) {
             if (exception.getStatusCode().value() == 401) {
                 try {
-                    send(command, accessToken(true));
+                    send(command, accessTokenProvider.accessToken(true));
                     return SyncResult.completed();
                 } catch (RestClientResponseException retryException) {
                     return rejected(command, retryException);
@@ -96,41 +84,6 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                 .toBodilessEntity();
     }
 
-    private synchronized String accessToken(boolean forceRefresh) {
-        Instant now = clock.instant();
-        CachedToken current = cachedToken;
-        if (!forceRefresh && current != null
-                && current.expiresAt().isAfter(now.plusSeconds(TOKEN_EXPIRY_MARGIN_SECONDS))) {
-            return current.value();
-        }
-
-        long timestamp = now.toEpochMilli();
-        String password = properties.clientId() + "_" + timestamp;
-        String hashed = BCrypt.hashpw(password, properties.clientSecret());
-        String signature = Base64.getUrlEncoder()
-                .encodeToString(hashed.getBytes(StandardCharsets.UTF_8));
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("client_id", properties.clientId());
-        form.add("timestamp", Long.toString(timestamp));
-        form.add("grant_type", "client_credentials");
-        form.add("client_secret_sign", signature);
-        form.add("type", properties.accountType());
-        if (StringUtils.hasText(properties.accountId())) {
-            form.add("account_id", properties.accountId());
-        }
-        TokenResponse response = restClient.post()
-                .uri("/external/v1/oauth2/token")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(form)
-                .retrieve()
-                .body(TokenResponse.class);
-        if (response == null || !StringUtils.hasText(response.accessToken()) || response.expiresIn() < 1) {
-            throw new IllegalStateException("스마트스토어 인증 토큰 응답이 비어 있습니다.");
-        }
-        cachedToken = new CachedToken(response.accessToken(), now.plusSeconds(response.expiresIn()));
-        return response.accessToken();
-    }
-
     private SyncResult rejected(StockCommand command, RestClientResponseException exception) {
         log.warn("스마트스토어 재고 반영 실패 [originProductNo={} status={}]",
                 command.originProductNo(), exception.getStatusCode());
@@ -145,14 +98,6 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                 command.originProductNo(), exception.getClass().getSimpleName());
         return SyncResult.failure("스마트스토어에 연결하지 못했습니다.");
     }
-
-    private record CachedToken(String value, Instant expiresAt) {}
-
-    private record TokenResponse(
-            @JsonProperty("access_token") String accessToken,
-            @JsonProperty("expires_in") long expiresIn,
-            @JsonProperty("token_type") String tokenType
-    ) {}
 
     private record OptionStockRequest(OptionInfo optionInfo) {}
 

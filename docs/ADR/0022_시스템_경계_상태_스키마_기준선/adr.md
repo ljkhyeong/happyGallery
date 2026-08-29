@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-27
+**갱신**: 2026-08-29
 
 ---
 
@@ -143,6 +143,13 @@
   - `id`, `product_id(FK)`, `product_variant_id nullable`, `type(INCREASE|DECREASE)`, `quantity`, `quantity_before`, `quantity_after`, `reason`
   - `adjusted_by_admin_id nullable`, `adjusted_by`, `adjusted_at`
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
+- `smartstore_stock_mappings`, `smartstore_stock_syncs`
+  - 내부 상품·옵션 조합과 네이버 원상품·옵션 ID를 연결하고, 로컬 최신 절대 재고를 외부에 보낼 요청 버전·처리 상태·재시도 시각을 저장한다.
+- `smartstore_product_orders`
+  - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다.
+  - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.
+- `smartstore_order_sync_state`
+  - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
 - `cart_items`
   - `id`, `user_id(FK)`, `product_id(FK)`, `product_variant_id nullable`, `line_key`, `qty`, `created_at`, `updated_at`
   - `(user_id, line_key)`를 유일하게 유지한다. `line_key`는 상품·SKU·정규화된 직접입력값을 식별한다.
@@ -450,6 +457,9 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `inventory_adjustments(product_id, adjusted_at, id)` 최근 수동 조정 이력 조회
 - `product_variants(product_id, active, id)` 주문제작 상품의 판매 가능 SKU 일괄 조회
 - `inventory_adjustments(product_variant_id, adjusted_at DESC, id DESC)` 주문제작 SKU 수동 조정 이력 조회
+- `smartstore_stock_mappings(origin_product_no, external_target_key)` 네이버 원상품·옵션 주문의 내부 SKU 매핑
+- `smartstore_product_orders(last_changed_at DESC, product_order_id)` 최신 채널 주문 조회
+- `smartstore_product_orders(attention_reason, last_changed_at DESC)` 관리자 확인 필요 채널 주문 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리

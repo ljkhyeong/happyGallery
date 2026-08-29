@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchU
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
@@ -32,6 +33,8 @@ import org.springframework.stereotype.Component;
  *   <li>매분 25초: 외부 배송조회 서비스 운송장 등록</li>
  *   <li>매분 35초: 결제 상태 웹훅 처리</li>
  *   <li>매분 45초: confirm 도중 중단된 결제 확정 복구</li>
+ *   <li>매분 50초: 스마트스토어 변경 주문 수집과 내부 재고 반영</li>
+ *   <li>매분 55초: 내부 최신 재고를 스마트스토어에 반영</li>
  *   <li>매월 1일 04:20: 공식 공휴일 연도별 스냅샷 동기화</li>
  *   <li>매일 03:30: 보존 기간이 지난 결제·휴대폰 인증 개인정보 정리</li>
  * </ul>
@@ -52,6 +55,7 @@ public class BatchScheduler {
     private final PaymentWebhookBatchUseCase paymentWebhookBatchUseCase;
     private final PublicHolidaySyncUseCase publicHolidaySyncUseCase;
     private final SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase;
+    private final SmartStoreOrderSyncBatchUseCase smartStoreOrderSyncBatchUseCase;
     private final PaymentSettlementSyncUseCase paymentSettlementSyncUseCase;
 
     public BatchScheduler(OrderAutoRefundBatchUseCase orderAutoRefundBatchUseCase,
@@ -67,6 +71,7 @@ public class BatchScheduler {
                           PaymentWebhookBatchUseCase paymentWebhookBatchUseCase,
                           PublicHolidaySyncUseCase publicHolidaySyncUseCase,
                           SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase,
+                          SmartStoreOrderSyncBatchUseCase smartStoreOrderSyncBatchUseCase,
                           PaymentSettlementSyncUseCase paymentSettlementSyncUseCase) {
         this.orderAutoRefundBatchUseCase = orderAutoRefundBatchUseCase;
         this.pickupExpireBatchUseCase = pickupExpireBatchUseCase;
@@ -81,6 +86,7 @@ public class BatchScheduler {
         this.paymentWebhookBatchUseCase = paymentWebhookBatchUseCase;
         this.publicHolidaySyncUseCase = publicHolidaySyncUseCase;
         this.smartStoreStockSyncBatchUseCase = smartStoreStockSyncBatchUseCase;
+        this.smartStoreOrderSyncBatchUseCase = smartStoreOrderSyncBatchUseCase;
         this.paymentSettlementSyncUseCase = paymentSettlementSyncUseCase;
     }
 
@@ -159,6 +165,13 @@ public class BatchScheduler {
     @Scheduled(cron = "25 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runShipmentTrackingRegistration() {
         return shipmentTrackingRegistrationUseCase.registerPendingShipments();
+    }
+
+    /** 스마트스토어 변경 주문을 가져와 내부 재고에 반영한다. 매분 50초에 실행. */
+    @BatchJob(id = "smartstore_order_sync", value = "스마트스토어 주문 동기화")
+    @Scheduled(cron = "50 * * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runSmartStoreOrderSync() {
+        return smartStoreOrderSyncBatchUseCase.syncChangedOrders();
     }
 
     /** 해피갤러리의 최신 재고를 스마트스토어에 반영한다. 매분 55초에 실행. */

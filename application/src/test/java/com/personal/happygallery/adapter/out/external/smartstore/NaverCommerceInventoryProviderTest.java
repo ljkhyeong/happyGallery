@@ -45,8 +45,10 @@ class NaverCommerceInventoryProviderTest {
     void sync_readyStock_sendsAbsoluteStockQuantity() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
                 builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
 
         expectToken(server);
         server.expect(requestTo(
@@ -75,8 +77,10 @@ class NaverCommerceInventoryProviderTest {
     void sync_optionProduct_sendsAllOptionStocksTogether() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
                 builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
 
         expectToken(server);
         server.expect(requestTo(

@@ -34,7 +34,7 @@ public record SmartStoreProperties(
             throw new IllegalArgumentException("스마트스토어 계정 유형은 SELF 또는 SELLER여야 합니다.");
         }
         if (enabled && (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret))) {
-            throw new IllegalArgumentException("스마트스토어 재고 연동을 사용하려면 클라이언트 인증 정보가 필요합니다.");
+            throw new IllegalArgumentException("스마트스토어 주문·재고 연동을 사용하려면 클라이언트 인증 정보가 필요합니다.");
         }
         if (enabled && accountType.equals("SELLER") && !StringUtils.hasText(accountId)) {
             throw new IllegalArgumentException("SELLER 방식 스마트스토어 연동에는 판매자 계정 ID가 필요합니다.");
