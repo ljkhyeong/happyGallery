@@ -5,6 +5,11 @@ import {
   delaySmartStoreChannelOrder,
   dispatchSmartStoreChannelOrder,
   dispatchSmartStoreExchangeClaim,
+  completeSmartStoreExchangeCollect,
+  holdSmartStoreExchangeClaim,
+  releaseSmartStoreExchangeHold,
+  rejectSmartStoreExchangeClaim,
+  requestSmartStoreSellerCancel,
   getSmartStoreChannelOrder,
   listSmartStoreChannelOrders,
   rejectSmartStoreReturnClaim,
@@ -13,6 +18,8 @@ import {
   type DelaySmartStoreOrderRequest,
   type DispatchSmartStoreExchangeRequest,
   type DispatchSmartStoreOrderRequest,
+  type HoldSmartStoreExchangeRequest,
+  type RequestSmartStoreSellerCancelRequest,
 } from "@/generated/api/adminOrder";
 import { adminHeaders } from "@/shared/api";
 
@@ -105,4 +112,52 @@ export function resolveSmartStoreReturn(
     { restoreStock },
     { headers: adminHeaders(adminKey) },
   );
+}
+
+export function completeSmartStoreExchangeCollection(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return completeSmartStoreExchangeCollect(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function rejectSmartStoreExchange(
+  adminKey: string,
+  productOrderId: string,
+  reason: string,
+) {
+  return rejectSmartStoreExchangeClaim(productOrderId, { reason }, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function holdSmartStoreExchange(
+  adminKey: string,
+  productOrderId: string,
+  request: HoldSmartStoreExchangeRequest,
+) {
+  return holdSmartStoreExchangeClaim(productOrderId, request, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function releaseSmartStoreExchange(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return releaseSmartStoreExchangeHold(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function requestSmartStoreOrderCancel(
+  adminKey: string,
+  productOrderId: string,
+  request: RequestSmartStoreSellerCancelRequest,
+) {
+  return requestSmartStoreSellerCancel(productOrderId, request, {
+    headers: adminHeaders(adminKey),
+  });
 }

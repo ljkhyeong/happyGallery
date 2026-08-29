@@ -25,6 +25,16 @@ public interface SmartStoreOrderProvider {
 
     void dispatchExchange(ExchangeDispatchCommand command);
 
+    void completeExchangeCollect(String productOrderId);
+
+    void rejectExchange(ExchangeRejectCommand command);
+
+    void holdExchange(ExchangeHoldCommand command);
+
+    void releaseExchangeHold(String productOrderId);
+
+    void requestSellerCancel(SellerCancelCommand command);
+
     record ChangeCursor(LocalDateTime changedFrom, String moreSequence) {}
 
     record ChangePage(List<ProductOrderChange> changes, ChangeCursor nextCursor) {
@@ -51,6 +61,7 @@ public interface SmartStoreOrderProvider {
             String placeOrderStatus,
             String claimType,
             String claimStatus,
+            ClaimDetail claimDetail,
             int initialQuantity,
             int remainQuantity,
             LocalDateTime paymentDate,
@@ -65,6 +76,26 @@ public interface SmartStoreOrderProvider {
             Long channelCommission,
             Long expectedSettlementAmount
     ) {}
+
+    record ClaimDetail(
+            String claimId,
+            String claimType,
+            String claimStatus,
+            String reason,
+            String detailedReason,
+            Integer requestQuantity,
+            LocalDateTime requestedAt,
+            String collectStatus,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Long claimDeliveryFeeDemandAmount,
+            String holdbackStatus,
+            List<String> imageUrls
+    ) {
+        public ClaimDetail {
+            imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
+        }
+    }
 
     record DeliveryInfo(
             String recipientName,
@@ -95,5 +126,21 @@ public interface SmartStoreOrderProvider {
             String deliveryMethod,
             String deliveryCompanyCode,
             String trackingNumber
+    ) {}
+
+    record ExchangeRejectCommand(String productOrderId, String reason) {}
+
+    record ExchangeHoldCommand(
+            String productOrderId,
+            String holdbackClassType,
+            String detailedReason,
+            Long extraExchangeFeeAmount
+    ) {}
+
+    record SellerCancelCommand(
+            String productOrderId,
+            String reason,
+            String detailedReason,
+            Integer quantity
     ) {}
 }

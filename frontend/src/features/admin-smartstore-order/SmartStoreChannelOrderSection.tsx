@@ -7,6 +7,8 @@ import type {
   DispatchSmartStoreOrderRequest,
   SmartStoreChannelOrderResponse,
   SmartStoreChannelOrderResponseAttentionReason,
+  HoldSmartStoreExchangeRequest,
+  RequestSmartStoreSellerCancelRequest,
 } from "@/generated/api/adminOrder";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -20,6 +22,11 @@ import {
   delaySmartStoreOrder,
   dispatchSmartStoreExchange,
   dispatchSmartStoreOrder,
+  completeSmartStoreExchangeCollection,
+  holdSmartStoreExchange,
+  releaseSmartStoreExchange,
+  rejectSmartStoreExchange,
+  requestSmartStoreOrderCancel,
   fetchSmartStoreChannelOrder,
   fetchSmartStoreChannelOrders,
   rejectSmartStoreReturn,
@@ -255,7 +262,12 @@ type ChannelAction =
   | { kind: "approveCancel" }
   | { kind: "approveReturn" }
   | { kind: "rejectReturn" }
-  | { kind: "dispatchExchange"; request: DispatchSmartStoreExchangeRequest };
+  | { kind: "dispatchExchange"; request: DispatchSmartStoreExchangeRequest }
+  | { kind: "completeExchangeCollect" }
+  | { kind: "rejectExchange"; reason: string }
+  | { kind: "holdExchange"; request: HoldSmartStoreExchangeRequest }
+  | { kind: "releaseExchangeHold" }
+  | { kind: "requestSellerCancel"; request: RequestSmartStoreSellerCancelRequest };
 
 function SmartStoreOrderDetailModal({
   adminKey,
@@ -279,6 +291,13 @@ function SmartStoreOrderDetailModal({
   const [dispatchDueDate, setDispatchDueDate] = useState("");
   const [delayReasonCode, setDelayReasonCode] = useState("PRODUCT_PREPARE");
   const [delayDetail, setDelayDetail] = useState("");
+  const [exchangeRejectReason, setExchangeRejectReason] = useState("");
+  const [holdbackClassType, setHoldbackClassType] = useState("EXCHANGE_DELIVERYFEE");
+  const [holdbackReason, setHoldbackReason] = useState("");
+  const [extraExchangeFeeAmount, setExtraExchangeFeeAmount] = useState("");
+  const [cancelReason, setCancelReason] = useState("SOLD_OUT");
+  const [cancelDetailedReason, setCancelDetailedReason] = useState("");
+  const [cancelQuantity, setCancelQuantity] = useState("");
 
   const detailQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
@@ -301,8 +320,18 @@ function SmartStoreOrderDetailModal({
         await approveSmartStoreReturn(adminKey, productOrderId);
       } else if (request.kind === "rejectReturn") {
         await rejectSmartStoreReturn(adminKey, productOrderId);
-      } else {
+      } else if (request.kind === "dispatchExchange") {
         await dispatchSmartStoreExchange(adminKey, productOrderId, request.request);
+      } else if (request.kind === "completeExchangeCollect") {
+        await completeSmartStoreExchangeCollection(adminKey, productOrderId);
+      } else if (request.kind === "rejectExchange") {
+        await rejectSmartStoreExchange(adminKey, productOrderId, request.reason);
+      } else if (request.kind === "holdExchange") {
+        await holdSmartStoreExchange(adminKey, productOrderId, request.request);
+      } else if (request.kind === "releaseExchangeHold") {
+        await releaseSmartStoreExchange(adminKey, productOrderId);
+      } else {
+        await requestSmartStoreOrderCancel(adminKey, productOrderId, request.request);
       }
     },
     onSuccess: async () => {
@@ -374,6 +403,22 @@ function SmartStoreOrderDetailModal({
               <Col md={6}>
                 <div className="fw-semibold mb-1">클레임</div>
                 <div>{order.claimType ?? "없음"} · {claimStatus ?? "-"}</div>
+                {detail.claimDetail && <div className="mt-1">
+                  <div>사유: {detail.claimDetail.reason ?? "-"}</div>
+                  {detail.claimDetail.detailedReason && <div>{detail.claimDetail.detailedReason}</div>}
+                  <div>요청 수량: {detail.claimDetail.requestQuantity ?? "-"}개</div>
+                  <div>요청일: {detail.claimDetail.requestedAt
+                    ? formatDateTime(detail.claimDetail.requestedAt) : "-"}</div>
+                  {detail.claimDetail.collectStatus && <div>
+                    수거: {detail.claimDetail.collectStatus}
+                    {detail.claimDetail.collectTrackingNumber
+                      ? ` · ${detail.claimDetail.collectDeliveryCompany ?? ""} ${detail.claimDetail.collectTrackingNumber}` : ""}
+                  </div>}
+                  {detail.claimDetail.claimDeliveryFeeDemandAmount !== null && <div>
+                    클레임 배송비: {formatKRW(detail.claimDetail.claimDeliveryFeeDemandAmount)}
+                  </div>}
+                  {detail.claimDetail.holdbackStatus && <div>보류 상태: {detail.claimDetail.holdbackStatus}</div>}
+                </div>}
               </Col>
             </Row>
 
@@ -489,6 +534,98 @@ function SmartStoreOrderDetailModal({
                 </Button>
               )}
             </div>
+
+            {!order.claimType && ["PAYED", "DELIVERING"].includes(order.productOrderStatus) && (
+              <Form className="border rounded p-3 mb-3" onSubmit={(event) => {
+                event.preventDefault();
+                action.mutate({
+                  kind: "requestSellerCancel",
+                  request: {
+                    reason: cancelReason,
+                    detailedReason: cancelDetailedReason || undefined,
+                    quantity: cancelQuantity ? Number(cancelQuantity) : undefined,
+                  },
+                });
+              }}>
+                <div className="fw-semibold mb-2">판매자 취소 요청</div>
+                <Row className="g-2">
+                  <Col md={4}><Form.Select value={cancelReason}
+                    onChange={(event) => setCancelReason(event.target.value)}>
+                    <option value="SOLD_OUT">품절</option>
+                    <option value="DELAYED_DELIVERY">배송 지연</option>
+                    <option value="INCORRECT_INFO">상품 정보 오류</option>
+                    <option value="PRODUCT_UNSATISFIED">상품 문제</option>
+                  </Form.Select></Col>
+                  <Col md={2}><Form.Control type="number" min={1} max={order.remainQuantity}
+                    value={cancelQuantity} onChange={(event) => setCancelQuantity(event.target.value)}
+                    placeholder="수량(전체)" /></Col>
+                  <Col md={6}><Form.Control maxLength={500} value={cancelDetailedReason}
+                    onChange={(event) => setCancelDetailedReason(event.target.value)}
+                    placeholder="상세 사유" /></Col>
+                </Row>
+                <Button className="mt-2" type="submit" size="sm" variant="outline-danger"
+                  disabled={action.isPending}>취소 요청</Button>
+              </Form>
+            )}
+
+            {order.claimType === "EXCHANGE" && (
+              <div className="border rounded p-3 mb-3">
+                <div className="fw-semibold mb-2">교환 클레임 처리</div>
+                <div className="d-flex flex-wrap gap-2 mb-3">
+                  <Button size="sm" variant="outline-success" disabled={action.isPending}
+                    onClick={() => action.mutate({ kind: "completeExchangeCollect" })}>
+                    수거 완료
+                  </Button>
+                  {detail.claimDetail?.holdbackStatus && <Button size="sm" variant="outline-primary"
+                    disabled={action.isPending}
+                    onClick={() => action.mutate({ kind: "releaseExchangeHold" })}>
+                    보류 해제
+                  </Button>}
+                </div>
+                <Form className="mb-3" onSubmit={(event) => {
+                  event.preventDefault();
+                  action.mutate({ kind: "rejectExchange", reason: exchangeRejectReason });
+                }}>
+                  <Form.Control required maxLength={500} value={exchangeRejectReason}
+                    onChange={(event) => setExchangeRejectReason(event.target.value)}
+                    placeholder="교환 거절 사유" />
+                  <Button className="mt-2" type="submit" size="sm" variant="outline-danger"
+                    disabled={action.isPending || !exchangeRejectReason.trim()}>교환 거절</Button>
+                </Form>
+                <Form onSubmit={(event) => {
+                  event.preventDefault();
+                  action.mutate({
+                    kind: "holdExchange",
+                    request: {
+                      holdbackClassType,
+                      detailedReason: holdbackReason,
+                      extraExchangeFeeAmount: extraExchangeFeeAmount
+                        ? Number(extraExchangeFeeAmount) : undefined,
+                    },
+                  });
+                }}>
+                  <Row className="g-2">
+                    <Col md={4}><Form.Select value={holdbackClassType}
+                      onChange={(event) => setHoldbackClassType(event.target.value)}>
+                      <option value="EXCHANGE_DELIVERYFEE">교환 배송비</option>
+                      <option value="EXCHANGE_EXTRAFEE">추가 비용</option>
+                      <option value="EXCHANGE_PRODUCT_READY">교환 상품 준비</option>
+                      <option value="PURCHASER_CONFIRM_NEED">구매자 확인 필요</option>
+                      <option value="SELLER_CONFIRM_NEED">판매자 확인 필요</option>
+                      <option value="ETC">기타</option>
+                    </Form.Select></Col>
+                    <Col md={5}><Form.Control required maxLength={500} value={holdbackReason}
+                      onChange={(event) => setHoldbackReason(event.target.value)}
+                      placeholder="보류 상세 사유" /></Col>
+                    <Col md={3}><Form.Control type="number" min={0} value={extraExchangeFeeAmount}
+                      onChange={(event) => setExtraExchangeFeeAmount(event.target.value)}
+                      placeholder="추가 비용" /></Col>
+                  </Row>
+                  <Button className="mt-2" type="submit" size="sm" variant="outline-warning"
+                    disabled={action.isPending || !holdbackReason.trim()}>교환 보류</Button>
+                </Form>
+              </div>
+            )}
 
             {order.claimType === "EXCHANGE" && claimStatus === "COLLECT_DONE" && (
               <Form

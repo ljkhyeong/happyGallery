@@ -1,8 +1,11 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.DelaySmartStoreOrderRequest;
-import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreOrderRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreOrderRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.RejectSmartStoreExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSellerCancelRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.ResolveSmartStoreReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderDetailResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderResponse;
@@ -12,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.HttpStatus;
 
 @Validated
 @RestController
@@ -119,5 +122,46 @@ public class AdminSmartStoreOrderController {
             @PathVariable String productOrderId,
             @Valid @RequestBody DispatchSmartStoreExchangeRequest request) {
         channelOrderUseCase.dispatchExchange(request.toCommand(productOrderId));
+    }
+
+    @PostMapping("/{productOrderId}/claims/exchange/collect/complete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "completeSmartStoreExchangeCollect")
+    public void completeExchangeCollect(@PathVariable String productOrderId) {
+        channelOrderUseCase.completeExchangeCollect(productOrderId);
+    }
+
+    @PostMapping("/{productOrderId}/claims/exchange/reject")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "rejectSmartStoreExchangeClaim")
+    public void rejectExchange(
+            @PathVariable String productOrderId,
+            @Valid @RequestBody RejectSmartStoreExchangeRequest request) {
+        channelOrderUseCase.rejectExchange(request.toCommand(productOrderId));
+    }
+
+    @PostMapping("/{productOrderId}/claims/exchange/hold")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "holdSmartStoreExchangeClaim")
+    public void holdExchange(
+            @PathVariable String productOrderId,
+            @Valid @RequestBody HoldSmartStoreExchangeRequest request) {
+        channelOrderUseCase.holdExchange(request.toCommand(productOrderId));
+    }
+
+    @PostMapping("/{productOrderId}/claims/exchange/hold/release")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "releaseSmartStoreExchangeHold")
+    public void releaseExchangeHold(@PathVariable String productOrderId) {
+        channelOrderUseCase.releaseExchangeHold(productOrderId);
+    }
+
+    @PostMapping("/{productOrderId}/claims/cancel/request")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "requestSmartStoreSellerCancel")
+    public void requestSellerCancel(
+            @PathVariable String productOrderId,
+            @Valid @RequestBody RequestSmartStoreSellerCancelRequest request) {
+        channelOrderUseCase.requestSellerCancel(request.toCommand(productOrderId));
     }
 }

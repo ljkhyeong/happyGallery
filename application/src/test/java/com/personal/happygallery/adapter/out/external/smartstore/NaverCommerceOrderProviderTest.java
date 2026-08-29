@@ -4,6 +4,9 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DelayCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DispatchCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeRejectCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeHoldCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -114,7 +117,20 @@ class NaverCommerceOrderProviderTest {
                             "delivery": [{
                               "deliveryCompany": "CJ대한통운",
                               "trackingNumber": "1234567890"
-                            }]
+                            }],
+                            "currentClaim": {
+                              "return": {
+                                "claimId":"claim-1",
+                                "claimStatus":"RETURN_REQUEST",
+                                "claimRequestDate":"2026-08-29T12:30:00+09:00",
+                                "requestQuantity":1,
+                                "returnReason":"PRODUCT_UNSATISFIED",
+                                "returnDetailedReason":"색상이 달라요",
+                                "collectStatus":"COLLECT_REQUEST",
+                                "claimDeliveryFeeDemandAmount":3000,
+                                "returnImageUrl":["https://example.com/claim.jpg"]
+                              }
+                            }
                           }]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -133,6 +149,8 @@ class NaverCommerceOrderProviderTest {
         assertThat(details.getFirst().deliveryInfo().shippingMemo()).isEqualTo("문 앞에 놓아주세요");
         assertThat(details.getFirst().trackingNumber()).isEqualTo("1234567890");
         assertThat(details.getFirst().expectedSettlementAmount()).isEqualTo(66700L);
+        assertThat(details.getFirst().claimDetail().reason()).isEqualTo("PRODUCT_UNSATISFIED");
+        assertThat(details.getFirst().claimDetail().requestQuantity()).isEqualTo(1);
     }
 
     @Test
@@ -181,6 +199,41 @@ class NaverCommerceOrderProviderTest {
                         }
                         """))
                 .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/exchange/collect/approve")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/exchange/reject")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("{\"rejectExchangeReason\":\"교환 대상이 아닙니다.\"}"))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/exchange/holdback")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "holdbackClassType":"EXCHANGE_DELIVERYFEE",
+                          "holdbackExchangeDetailReason":"배송비 입금 대기",
+                          "extraExchangeFeeAmount":3000
+                        }
+                        """))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/exchange/holdback/release")))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(operationSuccess());
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/po-1/claim/cancel/request")))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "cancelReason":"SOLD_OUT",
+                          "cancelDetailedReason":"부자재 품절",
+                          "cancelQuantity":1
+                        }
+                        """))
+                .andRespond(operationSuccess());
 
         provider.dispatch(new DispatchCommand(
                 "po-1", "DELIVERY", "CJGLS", "1234",
@@ -190,6 +243,13 @@ class NaverCommerceOrderProviderTest {
                 "CUSTOM_BUILD", "각인 제작 중"));
         provider.dispatchExchange(new ExchangeDispatchCommand(
                 "po-1", "DELIVERY", "CJGLS", "5678"));
+        provider.completeExchangeCollect("po-1");
+        provider.rejectExchange(new ExchangeRejectCommand("po-1", "교환 대상이 아닙니다."));
+        provider.holdExchange(new ExchangeHoldCommand(
+                "po-1", "EXCHANGE_DELIVERYFEE", "배송비 입금 대기", 3000L));
+        provider.releaseExchangeHold("po-1");
+        provider.requestSellerCancel(new SellerCancelCommand(
+                "po-1", "SOLD_OUT", "부자재 품절", 1));
 
         server.verify();
     }

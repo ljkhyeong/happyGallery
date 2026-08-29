@@ -93,7 +93,7 @@ class SmartStoreOrderTransactionServiceTest {
     private static ProductOrderDetail detail(String status, int remainQuantity) {
         return new ProductOrderDetail(
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, null, status,
-                null, null, null, 2, remainQuantity, CHANGED_AT.minusMinutes(1), null,
+                null, null, null, null, 2, remainQuantity, CHANGED_AT.minusMinutes(1), null,
                 null, null, null, null, null, null, null, null, null);
     }
 

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryResponse;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
@@ -47,5 +48,24 @@ public class AdminSmartStoreInquiryController {
             @PathVariable long questionId,
             @Valid @RequestBody SmartStoreInquiryAnswerRequest request) {
         useCase.answer(questionId, request.content());
+    }
+
+    @GetMapping("/customers")
+    @Operation(operationId = "listSmartStoreCustomerInquiries")
+    public List<SmartStoreCustomerInquiryResponse> listCustomerInquiries(
+            @RequestParam(defaultValue = "true") boolean unansweredOnly,
+            @RequestParam(defaultValue = "100") @Min(1) @Max(200) int limit) {
+        return useCase.listCustomerInquiries(unansweredOnly, limit).stream()
+                .map(SmartStoreCustomerInquiryResponse::from)
+                .toList();
+    }
+
+    @PutMapping("/customers/{inquiryNo}/answer")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "answerSmartStoreCustomerInquiry")
+    public void answerCustomerInquiry(
+            @PathVariable long inquiryNo,
+            @Valid @RequestBody SmartStoreInquiryAnswerRequest request) {
+        useCase.answerCustomerInquiry(inquiryNo, request.content());
     }
 }

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.domain.time.Clocks;
 import java.time.LocalDateTime;
@@ -109,6 +110,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     productOrder.placeOrderStatus(),
                     productOrder.claimType(),
                     productOrder.claimStatus(),
+                    claimDetail(item.currentClaim()),
                     productOrder.initialQuantity(),
                     productOrder.remainQuantity(),
                     toNullableLocalDateTime(order.paymentDate()),
@@ -176,6 +178,41 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                         command.trackingNumber()), command.productOrderId());
     }
 
+    @Override
+    public void completeExchangeCollect(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/exchange/collect/approve", productOrderId);
+    }
+
+    @Override
+    public void rejectExchange(ExchangeRejectCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/exchange/reject",
+                new ExchangeRejectRequest(command.reason()), command.productOrderId());
+    }
+
+    @Override
+    public void holdExchange(ExchangeHoldCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/exchange/holdback",
+                new ExchangeHoldRequest(command.holdbackClassType(), command.detailedReason(),
+                        command.extraExchangeFeeAmount()), command.productOrderId());
+    }
+
+    @Override
+    public void releaseExchangeHold(String productOrderId) {
+        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
+                + productOrderId + "/claim/exchange/holdback/release", productOrderId);
+    }
+
+    @Override
+    public void requestSellerCancel(SellerCancelCommand command) {
+        execute("/external/v1/pay-order/seller/product-orders/"
+                        + command.productOrderId() + "/claim/cancel/request",
+                new SellerCancelRequest(command.reason(), command.detailedReason(),
+                        command.quantity()), command.productOrderId());
+    }
+
     private void execute(String path, Object body, String productOrderId) {
         OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
                 .uri(path)
@@ -240,6 +277,41 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         return StringUtils.hasText(value) ? Long.valueOf(value) : null;
     }
 
+    private static ClaimDetail claimDetail(CurrentClaim currentClaim) {
+        if (currentClaim == null) {
+            return null;
+        }
+        if (currentClaim.cancel() != null) {
+            CancelClaim claim = currentClaim.cancel();
+            return new ClaimDetail(
+                    claim.claimId(), "CANCEL", claim.claimStatus(), claim.cancelReason(),
+                    claim.cancelDetailedReason(), claim.requestQuantity(),
+                    toNullableLocalDateTime(claim.claimRequestDate()), null, null, null,
+                    null, null, List.of());
+        }
+        if (currentClaim.returned() != null) {
+            ReturnClaim claim = currentClaim.returned();
+            return new ClaimDetail(
+                    claim.claimId(), "RETURN", claim.claimStatus(), claim.returnReason(),
+                    claim.returnDetailedReason(), claim.requestQuantity(),
+                    toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),
+                    claim.collectDeliveryCompany(), claim.collectTrackingNumber(),
+                    claim.claimDeliveryFeeDemandAmount(), claim.holdbackStatus(),
+                    claim.returnImageUrl());
+        }
+        if (currentClaim.exchange() != null) {
+            ExchangeClaim claim = currentClaim.exchange();
+            return new ClaimDetail(
+                    claim.claimId(), "EXCHANGE", claim.claimStatus(), claim.exchangeReason(),
+                    claim.exchangeDetailedReason(), claim.requestQuantity(),
+                    toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),
+                    claim.collectDeliveryCompany(), claim.collectTrackingNumber(),
+                    claim.claimDeliveryFeeDemandAmount(), claim.holdbackStatus(),
+                    claim.exchangeImageUrl());
+        }
+        return null;
+    }
+
     private record ChangedResponse(ChangedData data) {}
 
     private record ChangedData(List<ChangedOrder> lastChangeStatuses, More more) {}
@@ -262,7 +334,53 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     private record DetailItem(
             OrderInfo order,
             ProductOrderInfo productOrder,
-            List<DeliveryResponse> delivery
+            List<DeliveryResponse> delivery,
+            CurrentClaim currentClaim
+    ) {}
+
+    private record CurrentClaim(
+            CancelClaim cancel,
+            @JsonProperty("return") ReturnClaim returned,
+            ExchangeClaim exchange
+    ) {}
+
+    private record CancelClaim(
+            String claimId,
+            String claimStatus,
+            OffsetDateTime claimRequestDate,
+            Integer requestQuantity,
+            String cancelReason,
+            String cancelDetailedReason
+    ) {}
+
+    private record ReturnClaim(
+            String claimId,
+            String claimStatus,
+            OffsetDateTime claimRequestDate,
+            Integer requestQuantity,
+            String returnReason,
+            String returnDetailedReason,
+            String collectStatus,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Long claimDeliveryFeeDemandAmount,
+            String holdbackStatus,
+            List<String> returnImageUrl
+    ) {}
+
+    private record ExchangeClaim(
+            String claimId,
+            String claimStatus,
+            OffsetDateTime claimRequestDate,
+            Integer requestQuantity,
+            String exchangeReason,
+            String exchangeDetailedReason,
+            String collectStatus,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Long claimDeliveryFeeDemandAmount,
+            String holdbackStatus,
+            List<String> exchangeImageUrl
     ) {}
 
     private record OrderInfo(
@@ -326,6 +444,20 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             String reDeliveryMethod,
             String reDeliveryCompany,
             String reDeliveryTrackingNumber
+    ) {}
+
+    private record ExchangeRejectRequest(String rejectExchangeReason) {}
+
+    private record ExchangeHoldRequest(
+            String holdbackClassType,
+            String holdbackExchangeDetailReason,
+            Long extraExchangeFeeAmount
+    ) {}
+
+    private record SellerCancelRequest(
+            String cancelReason,
+            String cancelDetailedReason,
+            Integer cancelQuantity
     ) {}
 
     private record OperationResponse(OperationData data) {}

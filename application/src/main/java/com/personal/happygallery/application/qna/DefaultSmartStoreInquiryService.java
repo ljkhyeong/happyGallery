@@ -5,6 +5,7 @@ import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvi
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -40,7 +41,28 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
     @Override
     public void answer(long questionId, String content) {
         requireEnabled();
-        provider.answer(questionId, content);
+        provider.answerProductInquiry(questionId, content);
+    }
+
+    @Override
+    public List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit) {
+        requireEnabled();
+        LocalDate today = LocalDate.now(clock);
+        return provider.findCustomerInquiries(today.minusDays(30), today, unansweredOnly, limit)
+                .stream()
+                .map(item -> new CustomerInquiryResult(
+                        item.inquiryNo(), item.category(), item.title(), item.inquiryContent(),
+                        item.answerContent(), item.answered(), item.orderId(),
+                        item.channelProductId(), item.productOrderIds(), item.productName(),
+                        item.productOrderOption(), item.maskedCustomerId(), item.customerName(),
+                        item.createdAt(), item.answeredAt()))
+                .toList();
+    }
+
+    @Override
+    public void answerCustomerInquiry(long inquiryNo, String content) {
+        requireEnabled();
+        provider.answerCustomerInquiry(inquiryNo, content);
     }
 
     private void requireEnabled() {
