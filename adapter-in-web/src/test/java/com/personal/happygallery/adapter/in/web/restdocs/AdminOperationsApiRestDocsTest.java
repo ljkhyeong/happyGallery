@@ -151,6 +151,9 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 8, 29, 4, 50));
         when(smartStoreSettlementUseCase.findIssues(100))
                 .thenReturn(List.of(smartStoreSettlement));
+        when(smartStoreSettlementUseCase.synchronize(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 7)))
+                .thenReturn(new BatchResult(12, 1, Map.of("AMOUNT_MISMATCH", 1)));
         when(passExpiryBatchUseCase.expireAll()).thenReturn(batchResult());
         when(passRefundUseCase.refundPass(300L))
                 .thenReturn(new PassRefundUseCase.PassRefundResult(
@@ -266,6 +269,18 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].productOrderId").value("po-1"))
                 .andExpect(jsonPath("$[0].status").value("AMOUNT_MISMATCH"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 정산 기간 재동기화 API를 문서화한다")
+    void admin_synchronize_smartstore_settlements() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-settlements/synchronize")
+                        .with(adminUser())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"from\":\"2026-08-01\",\"to\":\"2026-08-07\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.successCount").value(12))
+                .andExpect(jsonPath("$.issueCount").value(1));
     }
 
     @Test

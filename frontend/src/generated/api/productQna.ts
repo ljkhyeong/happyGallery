@@ -41,6 +41,35 @@ export interface SmartStoreInquiryResponse {
   questionId: number;
 }
 
+export interface SmartStoreCustomerInquiryResponse {
+  /** @nullable */
+  answerContent: string | null;
+  answered: boolean;
+  /** @nullable */
+  answeredAt: string | null;
+  /** @nullable */
+  category: string | null;
+  /** @nullable */
+  channelProductId: string | null;
+  createdAt: string;
+  /** @nullable */
+  customerName: string | null;
+  inquiryContent: string;
+  inquiryNo: number;
+  /** @nullable */
+  maskedCustomerId: string | null;
+  /** @nullable */
+  orderId: string | null;
+  /** @nullable */
+  productName: string | null;
+  /** @nullable */
+  productOrderIds: string | null;
+  /** @nullable */
+  productOrderOption: string | null;
+  /** @nullable */
+  title: string | null;
+}
+
 export interface SmartStoreInquiryAnswerRequest {
   /**
      * @minLength 1
@@ -136,6 +165,15 @@ size?: number;
 };
 
 export type ListSmartStoreInquiriesParams = {
+unansweredOnly?: boolean;
+/**
+ * @minimum 1
+ * @maximum 200
+ */
+limit?: number;
+};
+
+export type ListSmartStoreCustomerInquiriesParams = {
 unansweredOnly?: boolean;
 /**
  * @minimum 1
@@ -291,6 +329,56 @@ export const listSmartStoreInquiries = async (params?: ListSmartStoreInquiriesPa
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getListSmartStoreCustomerInquiriesUrl = (params?: ListSmartStoreCustomerInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/customers?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/customers`
+}
+
+export const listSmartStoreCustomerInquiries = async (params?: ListSmartStoreCustomerInquiriesParams, options?: RequestInit): Promise<SmartStoreCustomerInquiryResponse[]> => {
+
+  return generatedApiClient<SmartStoreCustomerInquiryResponse[]>(getListSmartStoreCustomerInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getAnswerSmartStoreCustomerInquiryUrl = (inquiryNo: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-inquiries/customers/${inquiryNo}/answer`
+}
+
+export const answerSmartStoreCustomerInquiry = async (inquiryNo: number,
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getAnswerSmartStoreCustomerInquiryUrl(inquiryNo),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(smartStoreInquiryAnswerRequest)
   }
 );}
 

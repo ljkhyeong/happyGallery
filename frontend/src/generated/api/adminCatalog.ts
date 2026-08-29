@@ -491,6 +491,34 @@ export interface SaveSmartStoreInventoryMappingRequest {
   variants?: SmartStoreVariantMappingRequest[];
 }
 
+export interface OptionPreview {
+  /** @nullable */
+  channelPrice: number | null;
+  /** @nullable */
+  channelUsable: boolean | null;
+  different: boolean;
+  localPrice: number;
+  localUsable: boolean;
+  optionId: number;
+  productVariantId: number;
+}
+
+export interface SmartStoreProductPreviewResponse {
+  channelSalePrice: number;
+  channelStatus: string;
+  different: boolean;
+  localSalePrice: number;
+  localStatus: string;
+  options: OptionPreview[];
+  originProductNo: number;
+  productId: number;
+  productVersion: number;
+}
+
+export interface ApplySmartStoreProductRequest {
+  productVersion: number;
+}
+
 export type UpdateProductStatusRequestStatus = typeof UpdateProductStatusRequestStatus[keyof typeof UpdateProductStatusRequestStatus];
 
 
@@ -954,6 +982,49 @@ export const retrySmartStoreInventorySync = async (id: number, options?: Request
     method: 'POST'
 
 
+  }
+);}
+
+
+
+export const getPreviewSmartStoreProductSyncUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-product-preview`
+}
+
+export const previewSmartStoreProductSync = async (id: number, options?: RequestInit): Promise<SmartStoreProductPreviewResponse> => {
+
+  return generatedApiClient<SmartStoreProductPreviewResponse>(getPreviewSmartStoreProductSyncUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getApplySmartStoreProductSyncUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-product-sync`
+}
+
+export const applySmartStoreProductSync = async (id: number,
+    applySmartStoreProductRequest: ApplySmartStoreProductRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getApplySmartStoreProductSyncUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(applySmartStoreProductRequest)
   }
 );}
 

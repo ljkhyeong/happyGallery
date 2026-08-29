@@ -678,6 +678,33 @@ export interface SmartStoreChannelOrderResponse {
   remainQuantity: number;
 }
 
+export interface ClaimDetail {
+  /** @nullable */
+  claimDeliveryFeeDemandAmount: number | null;
+  /** @nullable */
+  claimId: string | null;
+  /** @nullable */
+  claimStatus: string | null;
+  claimType: string;
+  /** @nullable */
+  collectDeliveryCompany: string | null;
+  /** @nullable */
+  collectStatus: string | null;
+  /** @nullable */
+  collectTrackingNumber: string | null;
+  /** @nullable */
+  detailedReason: string | null;
+  /** @nullable */
+  holdbackStatus: string | null;
+  imageUrls: string[];
+  /** @nullable */
+  reason: string | null;
+  /** @nullable */
+  requestQuantity: number | null;
+  /** @nullable */
+  requestedAt: string | null;
+}
+
 export interface DeliveryInfo {
   /** @nullable */
   addressLine1: string | null;
@@ -696,6 +723,7 @@ export interface DeliveryInfo {
 export interface SmartStoreChannelOrderDetailResponse {
   /** @nullable */
   channelCommission: number | null;
+  claimDetail: ClaimDetail | null;
   /** @nullable */
   deliveryCompany: string | null;
   deliveryInfo: DeliveryInfo | null;
@@ -720,6 +748,17 @@ export interface SmartStoreChannelOrderDetailResponse {
   unitPrice: number | null;
 }
 
+export interface RequestSmartStoreSellerCancelRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  detailedReason?: string;
+  quantity?: number;
+  /** @minLength 1 */
+  reason: string;
+}
+
 export interface DispatchSmartStoreExchangeRequest {
   /**
      * @minLength 1
@@ -736,6 +775,25 @@ export interface DispatchSmartStoreExchangeRequest {
      * @maxLength 100
      */
   trackingNumber: string;
+}
+
+export interface HoldSmartStoreExchangeRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  detailedReason: string;
+  extraExchangeFeeAmount?: number;
+  /** @minLength 1 */
+  holdbackClassType: string;
+}
+
+export interface RejectSmartStoreExchangeRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  reason: string;
 }
 
 export interface DelaySmartStoreOrderRequest {
@@ -1307,6 +1365,49 @@ export const approveSmartStoreCancelClaim = async (productOrderId: string, optio
 
 
 
+export const getRequestSmartStoreSellerCancelUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/cancel/request`
+}
+
+export const requestSmartStoreSellerCancel = async (productOrderId: string,
+    requestSmartStoreSellerCancelRequest: RequestSmartStoreSellerCancelRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRequestSmartStoreSellerCancelUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(requestSmartStoreSellerCancelRequest)
+  }
+);}
+
+
+
+export const getCompleteSmartStoreExchangeCollectUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/collect/complete`
+}
+
+export const completeSmartStoreExchangeCollect = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getCompleteSmartStoreExchangeCollectUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
 export const getDispatchSmartStoreExchangeClaimUrl = (productOrderId: string,) => {
 
 
@@ -1324,6 +1425,71 @@ export const dispatchSmartStoreExchangeClaim = async (productOrderId: string,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(dispatchSmartStoreExchangeRequest)
+  }
+);}
+
+
+
+export const getHoldSmartStoreExchangeClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/hold`
+}
+
+export const holdSmartStoreExchangeClaim = async (productOrderId: string,
+    holdSmartStoreExchangeRequest: HoldSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getHoldSmartStoreExchangeClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(holdSmartStoreExchangeRequest)
+  }
+);}
+
+
+
+export const getReleaseSmartStoreExchangeHoldUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/hold/release`
+}
+
+export const releaseSmartStoreExchangeHold = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getReleaseSmartStoreExchangeHoldUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getRejectSmartStoreExchangeClaimUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/reject`
+}
+
+export const rejectSmartStoreExchangeClaim = async (productOrderId: string,
+    rejectSmartStoreExchangeRequest: RejectSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRejectSmartStoreExchangeClaimUrl(productOrderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rejectSmartStoreExchangeRequest)
   }
 );}
 

@@ -351,6 +351,19 @@ export interface SmartStoreSettlementIssueResponse {
   totalPayCommissionAmount: number | null;
 }
 
+export interface SynchronizeSmartStoreSettlementRequest {
+  from: string;
+  to: string;
+}
+
+export type SmartStoreSettlementSyncResponseIssueReasons = {[key: string]: number};
+
+export interface SmartStoreSettlementSyncResponse {
+  issueCount: number;
+  issueReasons: SmartStoreSettlementSyncResponseIssueReasons;
+  successCount: number;
+}
+
 export type ListAdminInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -726,5 +739,29 @@ export const listSmartStoreSettlementIssues = async ( options?: RequestInit): Pr
     method: 'GET'
 
 
+  }
+);}
+
+
+
+export const getSynchronizeSmartStoreSettlementsUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-settlements/synchronize`
+}
+
+/**
+ * @summary 스마트스토어 정산 기간 재동기화
+ */
+export const synchronizeSmartStoreSettlements = async (synchronizeSmartStoreSettlementRequest: SynchronizeSmartStoreSettlementRequest, options?: RequestInit): Promise<SmartStoreSettlementSyncResponse> => {
+
+  return generatedApiClient<SmartStoreSettlementSyncResponse>(getSynchronizeSmartStoreSettlementsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(synchronizeSmartStoreSettlementRequest)
   }
 );}
