@@ -865,7 +865,32 @@ Authorization: Bearer {token}
 - 에러:
   - `404 NOT_FOUND` — 상품 미존재
 
-#### 2.3.6 상품 표시 정보 수정
+#### 2.3.6 스마트스토어 재고 연동 설정
+
+```http
+PUT /api/v1/admin/products/{id}/smartstore-inventory
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "originProductNo": 123456789,
+  "enabled": true,
+  "variants": [
+    { "productVariantId": 31, "optionId": 90001 },
+    { "productVariantId": 32, "optionId": 90002 }
+  ]
+}
+```
+
+- 성공: `200 OK` — 저장된 매핑과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
+- 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다.
+- 주문제작 상품은 현재 존재하는 모든 variant를 정확히 한 번씩 보내야 한다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
+- `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
+- 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`
+- 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
+- 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`
+
+#### 2.3.7 상품 표시 정보 수정
 
 ```http
 PATCH /api/v1/admin/products/{id}

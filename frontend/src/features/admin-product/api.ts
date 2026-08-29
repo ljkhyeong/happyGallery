@@ -1,18 +1,24 @@
 import {
   adjustInventory as adjustAdminInventory,
   changeStatus,
+  deleteSmartStoreInventoryMapping,
+  getSmartStoreInventoryMapping,
   listAll,
   listInventoryAdjustments,
   register,
+  retrySmartStoreInventorySync,
+  saveSmartStoreInventoryMapping,
   updateAdminProduct,
   type AdjustInventoryRequest,
   type CreateProductRequest,
   type InventoryAdjustmentResponse,
   type ProductResponse,
+  type SaveSmartStoreInventoryMappingRequest,
+  type SmartStoreInventoryMappingResponse,
   type UpdateProductRequest,
   type UpdateProductStatusRequestStatus,
 } from "@/generated/api/adminCatalog";
-import { adminHeaders } from "@/shared/api";
+import { adminHeaders, ApiError } from "@/shared/api";
 
 export type ProductStatus = UpdateProductStatusRequestStatus;
 
@@ -60,4 +66,42 @@ export function fetchInventoryAdjustments(
   productId: number,
 ): Promise<InventoryAdjustmentResponse[]> {
   return listInventoryAdjustments(productId, { headers: adminHeaders(adminKey) });
+}
+
+export async function fetchSmartStoreInventoryMapping(
+  adminKey: string,
+  productId: number,
+): Promise<SmartStoreInventoryMappingResponse | null> {
+  try {
+    return await getSmartStoreInventoryMapping(productId, { headers: adminHeaders(adminKey) });
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+export function saveSmartStoreMapping(
+  adminKey: string,
+  productId: number,
+  body: SaveSmartStoreInventoryMappingRequest,
+): Promise<SmartStoreInventoryMappingResponse> {
+  return saveSmartStoreInventoryMapping(
+    productId,
+    body,
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function retrySmartStoreSync(
+  adminKey: string,
+  productId: number,
+): Promise<SmartStoreInventoryMappingResponse> {
+  return retrySmartStoreInventorySync(productId, { headers: adminHeaders(adminKey) });
+}
+
+export function removeSmartStoreMapping(
+  adminKey: string,
+  productId: number,
+): Promise<void> {
+  return deleteSmartStoreInventoryMapping(productId, { headers: adminHeaders(adminKey) });
 }

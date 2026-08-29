@@ -13,6 +13,7 @@ dependencies {
 	implementation 'dev.samstevens.totp:totp:1.7.1'
 	implementation 'org.springframework.session:spring-session-core'
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
+	implementation 'org.mindrot:jbcrypt:0.4'
 	implementation 'io.micrometer:micrometer-core'
 	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
 	implementation 'io.github.resilience4j:resilience4j-micrometer:2.3.0'

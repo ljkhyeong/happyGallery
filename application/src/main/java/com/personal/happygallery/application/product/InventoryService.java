@@ -1,11 +1,14 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
+import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -18,9 +21,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryService {
 
     private final InventoryStorePort inventoryStorePort;
+    private final SmartStoreStockSyncQueuePort smartStoreStockSyncQueuePort;
+    private final Clock clock;
 
-    public InventoryService(InventoryStorePort inventoryStorePort) {
+    public InventoryService(
+            InventoryStorePort inventoryStorePort,
+            SmartStoreStockSyncQueuePort smartStoreStockSyncQueuePort,
+            Clock clock) {
         this.inventoryStorePort = inventoryStorePort;
+        this.smartStoreStockSyncQueuePort = smartStoreStockSyncQueuePort;
+        this.clock = clock;
     }
 
     /**
@@ -31,7 +41,9 @@ public class InventoryService {
      * @return 생성된 재고
      */
     public Inventory create(Product product, int quantity) {
-        return inventoryStorePort.save(new Inventory(product, quantity));
+        Inventory saved = inventoryStorePort.save(new Inventory(product, quantity));
+        requestSmartStoreSync(List.of(product.getId()));
+        return saved;
     }
 
     /**
@@ -90,6 +102,7 @@ public class InventoryService {
             case DECREASE -> inventory.deduct(quantity);
         }
         Inventory saved = inventoryStorePort.save(inventory);
+        requestSmartStoreSync(List.of(productId));
         return new InventoryChange(quantityBefore, saved.getQuantity());
     }
 
@@ -115,7 +128,13 @@ public class InventoryService {
             update.accept(inventory, quantitiesByProductId.get(inventory.getProductId()));
         }
 
-        return List.copyOf(inventoryStorePort.saveAll(inventories));
+        List<Inventory> saved = List.copyOf(inventoryStorePort.saveAll(inventories));
+        requestSmartStoreSync(saved.stream().map(Inventory::getProductId).toList());
+        return saved;
+    }
+
+    private void requestSmartStoreSync(List<Long> productIds) {
+        smartStoreStockSyncQueuePort.requestIfMapped(productIds, LocalDateTime.now(clock));
     }
 
     public record InventoryAdjustment(Long productId, int qty) {}

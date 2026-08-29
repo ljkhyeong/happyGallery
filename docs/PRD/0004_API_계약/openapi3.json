@@ -6070,6 +6070,27 @@
         "required" : [ "buildingName", "jibunAddress", "postalCode", "roadAddress" ],
         "type" : "object"
       },
+      "SaveSmartStoreInventoryMappingRequest" : {
+        "properties" : {
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "originProductNo" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "variants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreVariantMappingRequest"
+            },
+            "maxItems" : 500,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "originProductNo" ],
+        "type" : "object"
+      },
       "SendEmailVerificationRequest" : {
         "properties" : {
           "email" : {
@@ -6306,6 +6327,72 @@
           }
         },
         "required" : [ "className", "date", "totalBooked", "totalCapacity", "utilizationRate" ],
+        "type" : "object"
+      },
+      "SmartStoreInventoryMappingResponse" : {
+        "properties" : {
+          "attemptCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ]
+          },
+          "originProductNo" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "syncStatus" : {
+            "enum" : [ "PENDING", "PROCESSING", "SYNCED", "FAILED" ],
+            "type" : [ "string", "null" ]
+          },
+          "syncedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "variants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreVariantMappingResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "attemptCount", "enabled", "lastError", "originProductNo", "productId", "syncStatus", "syncedAt", "variants" ],
+        "type" : "object"
+      },
+      "SmartStoreVariantMappingRequest" : {
+        "properties" : {
+          "optionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "optionId", "productVariantId" ],
+        "type" : "object"
+      },
+      "SmartStoreVariantMappingResponse" : {
+        "properties" : {
+          "optionId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "optionId", "productVariantId" ],
         "type" : "object"
       },
       "SocialAccountAuthorizationResponse" : {
@@ -9744,6 +9831,113 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/InventoryAdjustmentResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/v1/admin/products/{id}/smartstore-inventory" : {
+      "delete" : {
+        "operationId" : "deleteSmartStoreInventoryMapping",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      },
+      "get" : {
+        "operationId" : "getSmartStoreInventoryMapping",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInventoryMappingResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      },
+      "put" : {
+        "operationId" : "saveSmartStoreInventoryMapping",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SaveSmartStoreInventoryMappingRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInventoryMappingResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/v1/admin/products/{id}/smartstore-inventory/retry" : {
+      "post" : {
+        "operationId" : "retrySmartStoreInventorySync",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInventoryMappingResponse"
                 }
               }
             },

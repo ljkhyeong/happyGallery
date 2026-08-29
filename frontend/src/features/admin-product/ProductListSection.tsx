@@ -4,6 +4,7 @@ import { Badge, Button, Table } from "react-bootstrap";
 import { fetchProducts, updateProductStatus } from "./api";
 import { InventoryAdjustmentModal } from "./InventoryAdjustmentModal";
 import { ProductEditModal } from "./ProductEditModal";
+import { SmartStoreInventoryModal } from "./SmartStoreInventoryModal";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import { ApiError } from "@/shared/api";
@@ -22,6 +23,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
   const [selectedProductId, setSelectedProductId] = useState<number | null>(focusProductId ?? null);
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
+  const [smartStoreProductId, setSmartStoreProductId] = useState<number | null>(null);
   const { data: products, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products"],
     queryFn: () => fetchProducts(adminKey),
@@ -48,6 +50,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
 
   const selectedProduct = products?.find((product) => product.id === selectedProductId) ?? null;
   const editingProduct = products?.find((product) => product.id === editingProductId) ?? null;
+  const smartStoreProduct = products?.find((product) => product.id === smartStoreProductId) ?? null;
 
   return (
     <>
@@ -84,7 +87,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
                 </Badge>
               </td>
               <td>
-                <div className="d-flex gap-2 justify-content-end" style={{ minWidth: 270 }}>
+                <div className="d-flex gap-2 justify-content-end flex-wrap" style={{ minWidth: 360 }}>
                   <Button
                     size="sm"
                     variant="outline-dark"
@@ -98,6 +101,13 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
                     onClick={() => setSelectedProductId(product.id)}
                   >
                     재고 조정
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-success"
+                    onClick={() => setSmartStoreProductId(product.id)}
+                  >
+                    스마트스토어
                   </Button>
                   <Button
                     size="sm"
@@ -130,6 +140,12 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
         adminKey={adminKey}
         product={editingProduct}
         onClose={() => setEditingProductId(null)}
+        onAuthError={onAuthError}
+      />
+      <SmartStoreInventoryModal
+        adminKey={adminKey}
+        product={smartStoreProduct}
+        onClose={() => setSmartStoreProductId(null)}
         onAuthError={onAuthError}
       />
     </>

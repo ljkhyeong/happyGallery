@@ -266,6 +266,18 @@ app:
       acquire-timeout: ${PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${PUBLIC_HOLIDAY_MAX_CONNECTIONS:5}
       keep-alive: ${PUBLIC_HOLIDAY_KEEP_ALIVE_MILLIS:30000}ms
+    smartstore:
+      enabled: ${SMARTSTORE_ENABLED:false}
+      client-id: ${SMARTSTORE_CLIENT_ID:}
+      client-secret: ${SMARTSTORE_CLIENT_SECRET:}
+      account-type: ${SMARTSTORE_ACCOUNT_TYPE:SELF}
+      account-id: ${SMARTSTORE_ACCOUNT_ID:}
+      base-url: ${SMARTSTORE_BASE_URL:https://api.commerce.naver.com}
+      timeout: ${SMARTSTORE_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${SMARTSTORE_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${SMARTSTORE_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${SMARTSTORE_MAX_CONNECTIONS:5}
+      keep-alive: ${SMARTSTORE_KEEP_ALIVE_MILLIS:30000}ms
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
       timeout: ${PAYMENT_TIMEOUT_MILLIS:5000}ms

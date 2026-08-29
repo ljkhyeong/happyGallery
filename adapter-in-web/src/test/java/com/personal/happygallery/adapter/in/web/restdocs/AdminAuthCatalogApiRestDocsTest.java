@@ -31,6 +31,9 @@ import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingCalendarSettings;
@@ -40,11 +43,13 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -78,6 +83,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     private AdminSetupUseCase adminSetupUseCase;
     private ProductAdminUseCase productAdminUseCase;
     private ProductQueryUseCase productQueryUseCase;
+    private SmartStoreInventoryUseCase smartStoreInventoryUseCase;
     private WorkshopProfileUseCase workshopProfileUseCase;
     private ClassManagementUseCase classManagementUseCase;
     private ClassQueryUseCase classQueryUseCase;
@@ -94,6 +100,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         adminSetupUseCase = mock(AdminSetupUseCase.class);
         productAdminUseCase = mock(ProductAdminUseCase.class);
         productQueryUseCase = mock(ProductQueryUseCase.class);
+        smartStoreInventoryUseCase = mock(SmartStoreInventoryUseCase.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
         classManagementUseCase = mock(ClassManagementUseCase.class);
         classQueryUseCase = mock(ClassQueryUseCase.class);
@@ -140,6 +147,18 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(productAdminUseCase.adjustInventory(any())).thenReturn(inventoryAdjustment);
         when(productAdminUseCase.listRecentInventoryAdjustments(1L))
                 .thenReturn(List.of(inventoryAdjustment));
+        MappingResult smartStoreMapping = new MappingResult(
+                1L,
+                123456789L,
+                true,
+                List.of(),
+                SmartStoreStockSyncStatus.PENDING,
+                0,
+                null,
+                null);
+        when(smartStoreInventoryUseCase.saveMapping(eq(1L), any())).thenReturn(smartStoreMapping);
+        when(smartStoreInventoryUseCase.getMapping(1L)).thenReturn(Optional.of(smartStoreMapping));
+        when(smartStoreInventoryUseCase.retry(1L)).thenReturn(smartStoreMapping);
         when(workshopProfileUseCase.get()).thenReturn(workshop);
         when(workshopProfileUseCase.update(any())).thenReturn(workshop);
         when(classManagementUseCase.createClass(any())).thenReturn(bookingClass);
@@ -172,7 +191,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminCredentialController(adminCredentialUseCase),
                 new AdminMfaController(adminMfaUseCase),
                 new AdminSetupController(new AdminSetupProperties("setup-token"), adminSetupUseCase),
-                new AdminProductController(productAdminUseCase, productQueryUseCase),
+                new AdminProductController(
+                        productAdminUseCase, productQueryUseCase, smartStoreInventoryUseCase),
                 new AdminMediaController(imageMediaUseCase),
                 new AdminWorkshopProfileController(workshopProfileUseCase),
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
@@ -450,6 +470,53 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 연동 설정 저장 API를 문서화한다")
+    void admin_save_smartstore_inventory_mapping() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "originProductNo": 123456789,
+                                  "enabled": true,
+                                  "variants": []
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.syncStatus").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 연동 설정 조회 API를 문서화한다")
+    void admin_get_smartstore_inventory_mapping() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.originProductNo").value(123456789));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 동기화 재시도 API를 문서화한다")
+    void admin_retry_smartstore_inventory_sync() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/products/{id}/smartstore-inventory/retry", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.syncStatus").value("PENDING"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 연동 해제 API를 문서화한다")
+    void admin_delete_smartstore_inventory_mapping() throws Exception {
+        mockMvc.perform(delete("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

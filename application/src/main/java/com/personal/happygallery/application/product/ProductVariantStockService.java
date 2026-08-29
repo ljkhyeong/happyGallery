@@ -1,9 +1,12 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.out.ProductVariantStorePort;
+import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductVariant;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,9 +19,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProductVariantStockService {
 
     private final ProductVariantStorePort variantStorePort;
+    private final SmartStoreStockSyncQueuePort smartStoreStockSyncQueuePort;
+    private final Clock clock;
 
-    public ProductVariantStockService(ProductVariantStorePort variantStorePort) {
+    public ProductVariantStockService(
+            ProductVariantStorePort variantStorePort,
+            SmartStoreStockSyncQueuePort smartStoreStockSyncQueuePort,
+            Clock clock) {
         this.variantStorePort = variantStorePort;
+        this.smartStoreStockSyncQueuePort = smartStoreStockSyncQueuePort;
+        this.clock = clock;
     }
 
     public List<ProductVariant> deductAll(List<VariantAdjustment> adjustments) {
@@ -44,6 +54,7 @@ public class ProductVariantStockService {
             case DECREASE -> variant.deduct(quantity);
         }
         ProductVariant saved = variantStorePort.save(variant);
+        requestSmartStoreSync(List.of(saved));
         return new InventoryService.InventoryChange(quantityBefore, saved.getQuantity());
     }
 
@@ -65,7 +76,15 @@ public class ProductVariantStockService {
         for (ProductVariant variant : variants) {
             update.accept(variant, quantitiesByVariantId.get(variant.getId()));
         }
-        return List.copyOf(variantStorePort.saveAll(variants));
+        List<ProductVariant> saved = List.copyOf(variantStorePort.saveAll(variants));
+        requestSmartStoreSync(saved);
+        return saved;
+    }
+
+    private void requestSmartStoreSync(List<ProductVariant> variants) {
+        smartStoreStockSyncQueuePort.requestIfMapped(
+                variants.stream().map(ProductVariant::getProductId).distinct().toList(),
+                LocalDateTime.now(clock));
     }
 
     public record VariantAdjustment(Long variantId, int qty) {}

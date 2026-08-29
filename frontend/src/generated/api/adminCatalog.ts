@@ -444,6 +444,53 @@ export interface AdjustInventoryRequest {
   type: AdjustInventoryRequestType;
 }
 
+/**
+ * @nullable
+ */
+export type SmartStoreInventoryMappingResponseSyncStatus = typeof SmartStoreInventoryMappingResponseSyncStatus[keyof typeof SmartStoreInventoryMappingResponseSyncStatus] | null;
+
+
+export const SmartStoreInventoryMappingResponseSyncStatus = {
+  PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
+  SYNCED: 'SYNCED',
+  FAILED: 'FAILED',
+} as const;
+
+export interface SmartStoreVariantMappingResponse {
+  optionId: number;
+  productVariantId: number;
+}
+
+export interface SmartStoreInventoryMappingResponse {
+  attemptCount: number;
+  enabled: boolean;
+  /** @nullable */
+  lastError: string | null;
+  originProductNo: number;
+  productId: number;
+  /** @nullable */
+  syncStatus: SmartStoreInventoryMappingResponseSyncStatus;
+  /** @nullable */
+  syncedAt: string | null;
+  variants: SmartStoreVariantMappingResponse[];
+}
+
+export interface SmartStoreVariantMappingRequest {
+  optionId: number;
+  productVariantId: number;
+}
+
+export interface SaveSmartStoreInventoryMappingRequest {
+  enabled?: boolean;
+  originProductNo: number;
+  /**
+     * @minItems 0
+     * @maxItems 500
+     */
+  variants?: SmartStoreVariantMappingRequest[];
+}
+
 export type UpdateProductStatusRequestStatus = typeof UpdateProductStatusRequestStatus[keyof typeof UpdateProductStatusRequestStatus];
 
 
@@ -822,6 +869,91 @@ export const adjustInventory = async (id: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(adjustInventoryRequest)
+  }
+);}
+
+
+
+export const getDeleteSmartStoreInventoryMappingUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory`
+}
+
+export const deleteSmartStoreInventoryMapping = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDeleteSmartStoreInventoryMappingUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetSmartStoreInventoryMappingUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory`
+}
+
+export const getSmartStoreInventoryMapping = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+
+  return generatedApiClient<SmartStoreInventoryMappingResponse>(getGetSmartStoreInventoryMappingUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSaveSmartStoreInventoryMappingUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory`
+}
+
+export const saveSmartStoreInventoryMapping = async (id: number,
+    saveSmartStoreInventoryMappingRequest: SaveSmartStoreInventoryMappingRequest, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+
+  return generatedApiClient<SmartStoreInventoryMappingResponse>(getSaveSmartStoreInventoryMappingUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(saveSmartStoreInventoryMappingRequest)
+  }
+);}
+
+
+
+export const getRetrySmartStoreInventorySyncUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory/retry`
+}
+
+export const retrySmartStoreInventorySync = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+
+  return generatedApiClient<SmartStoreInventoryMappingResponse>(getRetrySmartStoreInventorySyncUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
   }
 );}
 
