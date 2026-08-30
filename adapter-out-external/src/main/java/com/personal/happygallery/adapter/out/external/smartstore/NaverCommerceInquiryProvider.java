@@ -1,12 +1,12 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider;
+import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.time.Clocks;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -15,8 +15,6 @@ import org.springframework.web.client.RestClient;
 
 @Component
 public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
-
-    private static final int PAGE_SIZE = 100;
 
     private final RestClient restClient;
     private final SmartStoreProperties properties;
@@ -37,34 +35,31 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
-    public List<InquiryItem> findProductInquiries(LocalDateTime from, LocalDateTime to) {
-        List<InquiryItem> inquiries = new ArrayList<>();
-        int page = 1;
-        int totalPages;
-        do {
-            InquiryResponse response = fetch(from, to, page);
-            if (response.contents() != null) {
-                response.contents().stream()
-                        .map(item -> new InquiryItem(
-                                item.questionId(), item.productId(), item.productName(),
-                                item.maskedWriterId(), item.question(), item.answer(), item.answered(),
-                                toLocalDateTime(item.createDate())))
-                        .forEach(inquiries::add);
-            }
-            totalPages = response.totalPages();
-            page++;
-        } while (page <= totalPages);
-        return List.copyOf(inquiries);
+    public OffsetPage<InquiryItem> findProductInquiries(
+            LocalDateTime from, LocalDateTime to, boolean unansweredOnly, int page, int size) {
+        InquiryResponse response = fetch(from, to, unansweredOnly, page + 1, size);
+        List<InquiryItem> items = response.contents() == null ? List.of() : response.contents().stream()
+                .map(item -> new InquiryItem(
+                        item.questionId(), item.productId(), item.productName(),
+                        item.maskedWriterId(), item.question(), item.answer(), item.answered(),
+                        toLocalDateTime(item.createDate())))
+                .toList();
+        return new OffsetPage<>(items, page, size, response.totalElements(), response.totalPages());
     }
 
-    private InquiryResponse fetch(LocalDateTime from, LocalDateTime to, int page) {
+    private InquiryResponse fetch(LocalDateTime from, LocalDateTime to, boolean unansweredOnly, int page, int size) {
         InquiryResponse response = accessTokenProvider.authorized(token -> restClient.get()
-                .uri(builder -> builder.path("/external/v1/contents/qnas")
-                        .queryParam("fromDate", format(from))
-                        .queryParam("toDate", format(to))
-                        .queryParam("page", page)
-                        .queryParam("size", PAGE_SIZE)
-                        .build())
+                .uri(builder -> {
+                    builder.path("/external/v1/contents/qnas")
+                            .queryParam("fromDate", format(from))
+                            .queryParam("toDate", format(to))
+                            .queryParam("page", page)
+                            .queryParam("size", size);
+                    if (unansweredOnly) {
+                        builder.queryParam("answered", false);
+                    }
+                    return builder.build();
+                })
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .body(InquiryResponse.class));
@@ -75,30 +70,19 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
-    public List<CustomerInquiryItem> findCustomerInquiries(
-            LocalDate from, LocalDate to, boolean unansweredOnly, int limit) {
-        List<CustomerInquiryItem> inquiries = new ArrayList<>();
-        int page = 1;
-        int totalPages;
-        do {
-            CustomerInquiryResponse response = fetchCustomerInquiries(
-                    from, to, unansweredOnly, page, Math.min(limit, 200));
-            if (response.content() != null) {
-                response.content().stream()
-                        .map(item -> new CustomerInquiryItem(
-                                item.inquiryNo(), item.category(), item.title(),
-                                item.inquiryContent(), item.answerContent(), item.answered(),
-                                item.orderId(), item.productNo(), item.productOrderIdList(),
-                                item.productName(), item.productOrderOption(), item.customerId(),
-                                item.customerName(), toLocalDateTime(item.inquiryRegistrationDateTime()),
-                                toNullableLocalDateTime(item.answerRegistrationDateTime())))
-                        .limit(limit - inquiries.size())
-                        .forEach(inquiries::add);
-            }
-            totalPages = response.totalPages();
-            page++;
-        } while (page <= totalPages && inquiries.size() < limit);
-        return List.copyOf(inquiries);
+    public OffsetPage<CustomerInquiryItem> findCustomerInquiries(
+            LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size) {
+        CustomerInquiryResponse response = fetchCustomerInquiries(from, to, unansweredOnly, page + 1, size);
+        List<CustomerInquiryItem> items = response.content() == null ? List.of() : response.content().stream()
+                .map(item -> new CustomerInquiryItem(
+                        item.inquiryNo(), item.answerContentId(), item.category(), item.title(),
+                        item.inquiryContent(), item.answerContent(), item.answered(),
+                        item.orderId(), item.productNo(), item.productOrderIdList(),
+                        item.productName(), item.productOrderOption(), item.customerId(),
+                        item.customerName(), toLocalDateTime(item.inquiryRegistrationDateTime()),
+                        toNullableLocalDateTime(item.answerRegistrationDateTime())))
+                .toList();
+        return new OffsetPage<>(items, page, size, response.totalElements(), response.totalPages());
     }
 
     private CustomerInquiryResponse fetchCustomerInquiries(
@@ -166,6 +150,21 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
         });
     }
 
+    @Override
+    public void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content) {
+        accessTokenProvider.authorized(token -> {
+            restClient.put()
+                    .uri("/external/v1/pay-merchant/inquiries/{inquiryNo}/answer/{answerContentId}",
+                            inquiryNo, answerContentId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new CustomerAnswerRequest(content))
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        });
+    }
+
     private static String format(LocalDateTime value) {
         return value.atZone(Clocks.SEOUL).toOffsetDateTime()
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
@@ -208,10 +207,11 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
             String content
     ) {}
 
-    private record CustomerInquiryResponse(List<CustomerInquiryContent> content, int totalPages) {}
+    private record CustomerInquiryResponse(List<CustomerInquiryContent> content, long totalElements, int totalPages) {}
 
     private record CustomerInquiryContent(
             long inquiryNo,
+            Long answerContentId,
             String category,
             String title,
             String inquiryContent,

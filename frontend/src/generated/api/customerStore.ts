@@ -527,6 +527,8 @@ export interface OrderDetailResponse {
   paidAt: string | null;
   pgPaidAmount: number;
   productAmount: number;
+  /** @nullable */
+  receiptUrl: string | null;
   refund: RefundProgressResponse | null;
   rewardEarnBase: number;
   rewardUsedAmount: number;
@@ -561,6 +563,8 @@ export interface MyPassSummary {
   planCode: MyPassSummaryPlanCode;
   planName: string;
   purchasedAt: string;
+  /** @nullable */
+  receiptUrl: string | null;
   refund: RefundProgressResponse | null;
   remainingCredits: number;
   totalCredits: number;

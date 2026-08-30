@@ -2,7 +2,6 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
@@ -11,7 +10,6 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductStatus;
-import com.personal.happygallery.domain.product.ProductVariant;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreStockSync;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
@@ -19,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -31,19 +30,19 @@ class SmartStoreStockSyncTransactionService {
     private final SmartStoreStockMappingPort mappingPort;
     private final ProductReaderPort productReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
-    private final ProductVariantReaderPort variantReaderPort;
+    private final ProductOptionConfigurationService optionConfigurationService;
 
     SmartStoreStockSyncTransactionService(
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockMappingPort mappingPort,
             ProductReaderPort productReaderPort,
             InventoryReaderPort inventoryReaderPort,
-            ProductVariantReaderPort variantReaderPort) {
+            ProductOptionConfigurationService optionConfigurationService) {
         this.syncPort = syncPort;
         this.mappingPort = mappingPort;
         this.productReaderPort = productReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
-        this.variantReaderPort = variantReaderPort;
+        this.optionConfigurationService = optionConfigurationService;
     }
 
     @Transactional
@@ -65,15 +64,16 @@ class SmartStoreStockSyncTransactionService {
         syncPort.save(sync);
 
         try {
-            return Optional.of(new ClaimedStock(claimedVersion, buildCommand(productId), null));
+            return Optional.of(new ClaimedStock(sync.getGeneration(), claimedVersion, buildCommand(productId), null));
         } catch (IllegalStateException exception) {
-            return Optional.of(new ClaimedStock(claimedVersion, null, exception.getMessage()));
+            return Optional.of(new ClaimedStock(sync.getGeneration(), claimedVersion, null, exception.getMessage()));
         }
     }
 
     @Transactional
     public void finish(
             Long productId,
+            String claimedGeneration,
             long claimedVersion,
             boolean success,
             String reason,
@@ -83,9 +83,9 @@ class SmartStoreStockSyncTransactionService {
             return;
         }
         if (success) {
-            sync.complete(claimedVersion, now);
+            sync.complete(claimedGeneration, claimedVersion, now);
         } else {
-            sync.fail(claimedVersion, reason, now);
+            sync.fail(claimedGeneration, claimedVersion, reason, now);
         }
         syncPort.save(sync);
     }
@@ -111,25 +111,7 @@ class SmartStoreStockSyncTransactionService {
                     inventory.getQuantity(), List.of());
         }
 
-        Map<Long, SmartStoreStockMapping> mappingsByVariantId = mappings.stream()
-                .filter(mapping -> mapping.getProductVariantId() != null)
-                .collect(Collectors.toMap(
-                        SmartStoreStockMapping::getProductVariantId,
-                        Function.identity()));
-        List<ProductVariant> variants = variantReaderPort.findWithSelectionsByProductId(productId);
-        List<ProductOptionSnapshot> options = variants.stream()
-                .map(variant -> {
-                    SmartStoreStockMapping mapping = mappingsByVariantId.get(variant.getId());
-                    if (mapping == null) {
-                        throw new IllegalStateException(
-                                "상품 옵션이 변경되어 스마트스토어 옵션 매핑을 다시 저장해야 합니다.");
-                    }
-                    return new ProductOptionSnapshot(
-                            variant.getId(), mapping.getOptionId(),
-                            variant.isActive() ? variant.getQuantity() : 0,
-                            variant.getPriceAdjustment(), variant.isActive());
-                })
-                .toList();
+        List<ProductOptionSnapshot> options = mappedOptions(productId, mappings);
         int totalStock = options.stream().mapToInt(ProductOptionSnapshot::stockQuantity).sum();
         return new ProductSyncSnapshot(
                 productId, product.getVersion(), originProductNo, product.getPrice(),
@@ -163,34 +145,32 @@ class SmartStoreStockSyncTransactionService {
             return new StockCommand(originProductNo, inventory.getQuantity(), List.of());
         }
 
-        List<ProductVariant> variants = variantReaderPort.findWithSelectionsByProductId(productId);
-        Map<Long, SmartStoreStockMapping> mappingsByVariantId = mappings.stream()
-                .filter(mapping -> mapping.getProductVariantId() != null)
-                .collect(Collectors.toMap(
-                        SmartStoreStockMapping::getProductVariantId,
-                        Function.identity()));
-        if (mappingsByVariantId.size() != variants.size()) {
-            throw new IllegalStateException("상품 옵션이 변경되어 스마트스토어 옵션 매핑을 다시 저장해야 합니다.");
-        }
-        List<OptionStock> options = variants.stream()
-                .map(variant -> optionStock(variant, mappingsByVariantId))
+        List<OptionStock> options = mappedOptions(productId, mappings).stream()
+                .map(option -> new OptionStock(option.optionId(), option.stockQuantity()))
                 .toList();
         return new StockCommand(originProductNo, null, options);
     }
 
-    private static OptionStock optionStock(
-            ProductVariant variant,
-            Map<Long, SmartStoreStockMapping> mappingsByVariantId) {
-        SmartStoreStockMapping mapping = mappingsByVariantId.get(variant.getId());
-        if (mapping == null) {
-            throw new IllegalStateException("스마트스토어 옵션 번호가 없는 상품 옵션이 있습니다.");
+    private List<ProductOptionSnapshot> mappedOptions(Long productId, List<SmartStoreStockMapping> mappings) {
+        Map<Long, ProductOptions.Variant> currentVariants = optionConfigurationService.get(productId, true)
+                .variants().stream().collect(Collectors.toMap(ProductOptions.Variant::id, Function.identity()));
+        Set<Long> mappedIds = mappings.stream().filter(mapping -> !mapping.isRetired())
+                .map(SmartStoreStockMapping::getProductVariantId)
+                .collect(Collectors.toSet());
+        if (!mappedIds.containsAll(currentVariants.keySet())) {
+            throw new IllegalStateException("상품 옵션이 변경되어 스마트스토어 옵션 매핑을 다시 저장해야 합니다.");
         }
-        return new OptionStock(
-                mapping.getOptionId(),
-                variant.isActive() ? variant.getQuantity() : 0);
+        return mappings.stream().map(mapping -> {
+            ProductOptions.Variant variant = mapping.isRetired()
+                    ? null : currentVariants.get(mapping.getProductVariantId());
+            boolean usable = variant != null && variant.active();
+            return new ProductOptionSnapshot(mapping.getProductVariantId(), mapping.getOptionId(),
+                    usable ? variant.quantity() : 0,
+                    variant == null ? 0L : variant.priceAdjustment(), usable);
+        }).toList();
     }
 
-    record ClaimedStock(long version, StockCommand command, String configurationError) {}
+    record ClaimedStock(String generation, long version, StockCommand command, String configurationError) {}
 
     record ProductSyncSnapshot(
             Long productId,

@@ -3,7 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer.dto;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingCancelPolicyResponse;
 import com.personal.happygallery.adapter.in.web.payment.dto.RefundProgressResponse;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase.BookingDetail;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -30,9 +30,12 @@ public record MyBookingDetail(
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 nullable = true)
-        RefundProgressResponse refund
+        RefundProgressResponse refund,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String receiptUrl
 ) {
-    public static MyBookingDetail from(Booking b, Refund refund, Clock clock) {
+    public static MyBookingDetail from(BookingDetail detail, Clock clock) {
+        Booking b = detail.booking();
         return new MyBookingDetail(b.getId(), b.getBookingClass().getId(), b.getSlot().getId(), b.getStatus().name(),
                 b.getBookingClass().getName(),
                 b.getSlot().getStartAt(), b.getSlot().getEndAt(),
@@ -40,6 +43,7 @@ public record MyBookingDetail(
                 b.getDepositAmount(), b.getBalanceAmount(),
                 b.getBalanceStatus().name(), b.isPassBooking(),
                 BookingCancelPolicyResponse.from(b, clock),
-                refund != null ? RefundProgressResponse.from(refund) : null);
+                detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null,
+                detail.receiptUrl());
     }
 }

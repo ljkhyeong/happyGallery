@@ -2,7 +2,6 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ChannelOption;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
@@ -15,11 +14,11 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
-import com.personal.happygallery.domain.product.ProductVariant;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreStockSync;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUseCase {
 
     private final ProductReaderPort productReaderPort;
-    private final ProductVariantReaderPort variantReaderPort;
+    private final ProductOptionConfigurationService optionConfigurationService;
     private final SmartStoreStockMappingPort mappingPort;
     private final SmartStoreStockSyncPort syncPort;
     private final SmartStoreStockSyncQueuePort queuePort;
@@ -46,7 +45,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     public DefaultSmartStoreInventoryService(
             ProductReaderPort productReaderPort,
-            ProductVariantReaderPort variantReaderPort,
+            ProductOptionConfigurationService optionConfigurationService,
             SmartStoreStockMappingPort mappingPort,
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockSyncQueuePort queuePort,
@@ -54,7 +53,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             SmartStoreStockSyncTransactionService transactionService,
             Clock clock) {
         this.productReaderPort = productReaderPort;
-        this.variantReaderPort = variantReaderPort;
+        this.optionConfigurationService = optionConfigurationService;
         this.mappingPort = mappingPort;
         this.syncPort = syncPort;
         this.queuePort = queuePort;
@@ -65,12 +64,15 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     public MappingResult saveMapping(Long productId, SaveMappingCommand command) {
-        Product product = productReaderPort.findById(productId)
+        Product product = productReaderPort.findByIdWithLock(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         validate(product, command.variants());
 
+        List<SmartStoreStockMapping> previous = mappingPort.findByProductIdOrderByProductVariantIdAsc(productId);
+        Set<Long> requestedOptionIds = command.variants().stream()
+                .map(VariantMapping::optionId).collect(Collectors.toSet());
         mappingPort.deleteByProductId(productId);
-        List<SmartStoreStockMapping> mappings = command.variants().isEmpty()
+        List<SmartStoreStockMapping> mappings = new ArrayList<>(command.variants().isEmpty()
                 ? List.of(new SmartStoreStockMapping(
                         productId, null, command.originProductNo(), null, command.enabled()))
                 : command.variants().stream()
@@ -80,7 +82,15 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
                                 command.originProductNo(),
                                 variant.optionId(),
                                 command.enabled()))
-                        .toList();
+                        .toList());
+        for (SmartStoreStockMapping mapping : previous) {
+            if (product.getType() == ProductType.MADE_TO_ORDER
+                    && mapping.getOriginProductNo().equals(command.originProductNo())
+                    && mapping.getProductVariantId() != null
+                    && !requestedOptionIds.contains(mapping.getOptionId())) {
+                mappings.add(mapping.retiredCopy(command.enabled()));
+            }
+        }
         mappingPort.saveAll(mappings);
         if (command.enabled()) {
             queuePort.requestIfMapped(List.of(productId), LocalDateTime.now(clock));
@@ -236,9 +246,8 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             }
             return;
         }
-        List<ProductVariant> variants = variantReaderPort
-                .findWithSelectionsByProductId(product.getId());
-        Set<Long> existingIds = variants.stream().map(ProductVariant::getId).collect(HashSet::new, Set::add, Set::addAll);
+        Set<Long> existingIds = optionConfigurationService.get(product.getId(), true).variants().stream()
+                .map(ProductOptions.Variant::id).collect(Collectors.toSet());
         Set<Long> requestedIds = requested.stream()
                 .map(VariantMapping::productVariantId)
                 .collect(HashSet::new, Set::add, Set::addAll);
@@ -258,7 +267,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
                 first.getOriginProductNo(),
                 first.isEnabled(),
                 mappings.stream()
-                        .filter(mapping -> mapping.getProductVariantId() != null)
+                        .filter(mapping -> mapping.getProductVariantId() != null && !mapping.isRetired())
                         .map(mapping -> new VariantMapping(
                                 mapping.getProductVariantId(), mapping.getOptionId()))
                         .toList(),

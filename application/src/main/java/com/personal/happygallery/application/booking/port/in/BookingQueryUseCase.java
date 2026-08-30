@@ -12,7 +12,7 @@ import java.util.List;
  */
 public interface BookingQueryUseCase {
 
-    record BookingDetail(Booking booking, Refund refund) {}
+    record BookingDetail(Booking booking, Refund refund, String receiptUrl) {}
 
     BookingDetail getBookingByToken(Long bookingId, String accessToken);
 

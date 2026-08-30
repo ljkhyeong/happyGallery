@@ -83,7 +83,7 @@ export function PhoneVerificationStep({
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
-              disabled={sent || lockPhone || sendMutation.isPending}
+              disabled={sent || lockPhone || sendMutation.isPending || confirming}
               isInvalid={showPhoneError}
               aria-invalid={showPhoneError}
               aria-describedby={showPhoneError ? phoneErrorId : undefined}
@@ -98,7 +98,7 @@ export function PhoneVerificationStep({
             type="button"
             variant="outline-primary"
             className="w-100"
-            disabled={!phoneValid || sendMutation.isPending}
+            disabled={!phoneValid || sendMutation.isPending || confirming}
             onClick={() => sendMutation.mutate()}
           >
             {sendMutation.isPending ? "발송 중..." : sent ? "재발송" : "인증코드 발송"}
@@ -114,6 +114,7 @@ export function PhoneVerificationStep({
                 <Form.Label>인증코드</Form.Label>
                 <Form.Control
                   value={code}
+                  disabled={confirming}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="인증코드 입력"
                   inputMode="numeric"

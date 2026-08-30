@@ -21,10 +21,12 @@ const PAYMENT_STATUS_TOKEN_PREFIX = "hg_payment_status_token:";
 export interface PaymentReturnHint {
   customerName?: string;
   customerPhone?: string;
+  returnPath?: string;
+  orderId?: string;
 }
 
 export interface PaymentConfirmRequest {
-  paymentKey: string;
+  paymentKey: string | null;
   orderId: string;
   amount: number;
 }
@@ -84,20 +86,22 @@ function samePaymentSessionHandle<T>(
 function isPaymentConfirmRequest(value: unknown): value is PaymentConfirmRequest {
   if (typeof value !== "object" || value === null) return false;
   const request = value as Partial<PaymentConfirmRequest>;
-  return typeof request.paymentKey === "string"
-    && request.paymentKey.trim().length > 0
-    && typeof request.orderId === "string"
+  return typeof request.orderId === "string"
     && request.orderId.trim().length > 0
     && typeof request.amount === "number"
     && Number.isSafeInteger(request.amount)
-    && request.amount > 0;
+    && (request.amount === 0
+      ? request.paymentKey === null
+      : request.amount > 0 && typeof request.paymentKey === "string" && request.paymentKey.trim().length > 0);
 }
 
 function isPaymentReturnHint(value: unknown): value is PaymentReturnHint {
   if (typeof value !== "object" || value === null) return false;
   const hint = value as Partial<PaymentReturnHint>;
   return (hint.customerName === undefined || typeof hint.customerName === "string")
-    && (hint.customerPhone === undefined || typeof hint.customerPhone === "string");
+    && (hint.customerPhone === undefined || typeof hint.customerPhone === "string")
+    && (hint.returnPath === undefined || typeof hint.returnPath === "string")
+    && (hint.orderId === undefined || typeof hint.orderId === "string");
 }
 
 function isPaymentStatusToken(value: unknown): value is string {
@@ -218,7 +222,9 @@ export function consumePaymentReturnHint(
           expected,
           (left, right) =>
             left.customerName === right.customerName
-            && left.customerPhone === right.customerPhone,
+            && left.customerPhone === right.customerPhone
+            && left.returnPath === right.returnPath
+            && left.orderId === right.orderId,
         )
       ) {
         return null;

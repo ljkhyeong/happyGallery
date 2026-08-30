@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Modal, Button, Form, Nav } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Modal, Button, Form, Nav, Alert } from "react-bootstrap";
 import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
@@ -23,9 +23,10 @@ interface Props {
   onClose: () => void;
   onMemberAuthenticated: (member: CustomerUser) => void;
   onGuestConfirm: (info: GuestInfo) => void;
+  guestVerificationReset: { version: number; message: string };
 }
 
-export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestConfirm }: Props) {
+export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestConfirm, guestVerificationReset }: Props) {
   const { isAuthenticated, login, signup, user } = useCustomerAuth();
   const [tab, setTab] = useState<AuthPath>("login");
 
@@ -45,6 +46,11 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
   const [guestName, setGuestName] = useState("");
   const [guestNameTouched, setGuestNameTouched] = useState(false);
   const normalizedGuestName = guestName.trim();
+
+  useEffect(() => {
+    setGuestVerified(false);
+    setGuestCode("");
+  }, [guestVerificationReset.version]);
 
   // If already authenticated, confirm directly
   if (isAuthenticated && show) {
@@ -238,8 +244,13 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
 
         {tab === "guest" && (
           <div>
+            {!guestVerified && guestVerificationReset.message && (
+              <Alert variant="info">{guestVerificationReset.message}</Alert>
+            )}
             {!guestVerified ? (
               <PhoneVerificationStep
+                key={guestVerificationReset.version}
+                initialPhone={guestPhone}
                 purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {
                   setGuestPhone(p);
@@ -282,6 +293,10 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                   onClick={handleGuestSubmit}
                 >
                   비회원으로 진행
+                </Button>
+                <Button variant="link" size="sm" className="mt-2"
+                  onClick={() => { setGuestVerified(false); setGuestCode(""); }}>
+                  휴대폰 인증 다시 하기
                 </Button>
               </>
             )}

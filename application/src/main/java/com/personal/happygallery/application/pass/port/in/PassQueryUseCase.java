@@ -18,5 +18,5 @@ public interface PassQueryUseCase {
 
     PassView findMyPass(Long id, Long userId);
 
-    record PassView(PassPurchase pass, Refund refund) {}
+    record PassView(PassPurchase pass, Refund refund, String receiptUrl) {}
 }

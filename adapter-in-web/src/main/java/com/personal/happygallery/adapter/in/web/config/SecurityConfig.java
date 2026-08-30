@@ -247,6 +247,7 @@ public class SecurityConfig {
                                 CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH,
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm",
+                                "/api/v1/payments/{orderId}/abandon",
                                 CustomerSecurityRoutes.CLIENT_MONITORING_API,
                                 "/api/v1/webhooks/delivery-tracking",
                                 "/api/v1/webhooks/toss-payments",

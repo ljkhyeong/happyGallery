@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.payment.dto.PreparePaymentRespon
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
+import com.personal.happygallery.application.payment.port.in.PaymentAbandonUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
@@ -16,12 +17,15 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 /**
  * 결제 prepare / confirm 단일 진입점.
@@ -37,13 +41,16 @@ public class PaymentController {
 
     private final PaymentPrepareUseCase prepareUseCase;
     private final PaymentConfirmUseCase confirmUseCase;
+    private final PaymentAbandonUseCase abandonUseCase;
     private final SubjectRateLimitGuard rateLimitGuard;
 
     public PaymentController(PaymentPrepareUseCase prepareUseCase,
                              PaymentConfirmUseCase confirmUseCase,
+                             PaymentAbandonUseCase abandonUseCase,
                              SubjectRateLimitGuard rateLimitGuard) {
         this.prepareUseCase = prepareUseCase;
         this.confirmUseCase = confirmUseCase;
+        this.abandonUseCase = abandonUseCase;
         this.rateLimitGuard = rateLimitGuard;
     }
 
@@ -60,6 +67,16 @@ public class PaymentController {
         PrepareResult result = prepareUseCase.prepare(
                 new PrepareCommand(req.context(), req.payload().toCommand(), auth));
         return PreparePaymentResponse.from(result);
+    }
+
+    @PostMapping("/{orderId}/abandon")
+    @Operation(operationId = "abandonPayment")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void abandon(@PathVariable String orderId,
+                        @RequestHeader(value = PAYMENT_STATUS_TOKEN_HEADER, required = false) String statusToken,
+                        @AuthenticationPrincipal CustomerPrincipal customer) {
+        AuthContext auth = customer == null ? AuthContext.guest() : AuthContext.member(customer.userId());
+        abandonUseCase.abandon(orderId, auth, statusToken);
     }
 
     @PostMapping("/confirm")

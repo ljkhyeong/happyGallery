@@ -1,4 +1,8 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import type { SmartStoreNoticePageResponse } from "../../src/generated/api/adminCatalog";
+import type { SmartStoreAccountingReportResponse } from "../../src/generated/api/adminOperations";
+import type { SmartStoreInquiryPageResponse, SmartStoreInquiryAnswerTemplateResponse } from "../../src/generated/api/productQna";
+import { skipExternalFonts } from "./external-fonts";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "admin-content-recovery-token";
@@ -7,6 +11,12 @@ const EMPTY_CURSOR_PAGE = {
   nextCursor: null,
   hasMore: false,
 };
+
+test.beforeEach(async ({ page }) => {
+  await skipExternalFonts({ page });
+  await page.route("**/api/v1/me", (route) => json(route, { code: "UNAUTHORIZED" }, 401));
+  await page.route("**/api/v1/workshop", (route) => json(route, { name: "해피갤러리", version: 1 }));
+});
 
 async function openAuthenticatedAdmin(page: Page, view: "support" | "settings" | "orders") {
   await page.addInitScript(([key, token]) => {
@@ -93,8 +103,24 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
       await json(route, EMPTY_CURSOR_PAGE);
       return;
     }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/page") {
+      await json(route, {
+        content: [], totalPages: 0, totalCount: 0, page: 0, size: 50,
+      } satisfies SmartStoreInquiryPageResponse);
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/template") {
+      await json(route, { content: "", questionType: "", subject: "" } satisfies SmartStoreInquiryAnswerTemplateResponse);
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-notices") {
+      await json(route, {
+        notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0,
+      } satisfies SmartStoreNoticePageResponse);
+      return;
+    }
 
-    await json(route, []);
+    throw new Error(`정의하지 않은 관리자 요청: ${request.method()} ${pathname}`);
   });
 
   await openAuthenticatedAdmin(page, "support");
@@ -206,7 +232,7 @@ test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전
       return;
     }
 
-    await json(route, []);
+    throw new Error(`정의하지 않은 관리자 요청: ${request.method()} ${pathname}`);
   });
 
   await openAuthenticatedAdmin(page, "settings");
@@ -240,7 +266,7 @@ test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전
   await expect(page.getByRole("heading", { name: "관리자 로그인" })).toBeVisible();
   await expect.poll(() => page.evaluate((key) => sessionStorage.getItem(key), ADMIN_TOKEN_KEY))
     .toBeNull();
-  await expect(page.getByText("이 브라우저에서는 로그아웃했습니다.")).toBeVisible();
+  await expect(page.getByText("이 브라우저에서는 로그아웃했지만 다른 기기의 로그인 상태는 유지될 수 있습니다. 다른 기기에서도 로그아웃해 주세요.")).toBeVisible();
 });
 
 test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 않고 다시 조회한다", async ({
@@ -266,8 +292,21 @@ test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 
       await json(route, EMPTY_CURSOR_PAGE);
       return;
     }
+    if (pathname === "/api/v1/admin/smartstore-orders"
+      || pathname === "/api/v1/admin/smartstore-settlements/issues") {
+      await json(route, []);
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-settlements/accounting") {
+      const params = new URL(route.request().url()).searchParams;
+      await json(route, {
+        from: params.get("from")!, to: params.get("to")!, vatAvailableThrough: "2026-07-31",
+        dailySettlements: [], commissionDetails: [], dailyVat: [],
+      } satisfies SmartStoreAccountingReportResponse);
+      return;
+    }
 
-    await json(route, []);
+    throw new Error(`정의하지 않은 관리자 요청: ${route.request().method()} ${pathname}`);
   });
 
   await openAuthenticatedAdmin(page, "orders");

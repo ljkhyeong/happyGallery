@@ -19,7 +19,9 @@ public record UpdateProductRequest(
         @Size(max = 50) String category,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         @Positive @Max(Product.MAX_PRICE) long price,
-        @PositiveOrZero @Schema(nullable = true) Integer quantity,
+        @PositiveOrZero
+        @Schema(nullable = true, description = "선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.")
+        Integer quantity,
         @Size(max = Product.MAX_DESCRIPTION_LENGTH) String description,
         @Size(max = Product.MAX_IMAGE_URL_LENGTH) String imageUrl,
         @Size(max = Product.MAX_SPECIFICATION_LENGTH) String specification,

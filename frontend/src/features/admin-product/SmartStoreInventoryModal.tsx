@@ -107,7 +107,7 @@ export function SmartStoreInventoryModal({
         }))
         : [],
     }),
-    onSuccess: (mapping) => {
+    onSuccess: async (mapping) => {
       queryClient.setQueryData(
         ["admin", "products", product?.id, "smartstore-inventory"],
         mapping,
@@ -115,6 +115,9 @@ export function SmartStoreInventoryModal({
       toast.show(enabled
         ? "스마트스토어 재고 연동을 저장하고 최신 재고 반영을 예약했습니다."
         : "스마트스토어 재고 연동을 비활성화했습니다.");
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+      });
     },
   });
 
@@ -225,8 +228,15 @@ export function SmartStoreInventoryModal({
               <Table responsive size="sm" className="mt-3 mb-0 align-middle">
                 <thead><tr><th>옵션</th><th>해피갤러리 옵션가</th><th>스마트스토어 옵션가</th></tr></thead>
                 <tbody>{previewQuery.data.options.filter((option) => option.different).map((option) => (
-                  <tr key={option.productVariantId}>
-                    <td>{product ? variantLabel(product, option.productVariantId) : option.productVariantId}</td>
+                  <tr key={option.optionId}>
+                    <td>
+                      {product ? variantLabel(product, option.productVariantId) : option.productVariantId}
+                      <div className="small text-muted-soft">
+                        스마트스토어 옵션 {option.optionId}
+                        {!mapping.variants.some((variant) => variant.optionId === option.optionId)
+                          && " · 이전 연결 (재고 0개)"}
+                      </div>
+                    </td>
                     <td>{option.localPrice.toLocaleString()}원</td>
                     <td>{option.channelPrice === null ? "옵션 없음" : `${option.channelPrice.toLocaleString()}원`}</td>
                   </tr>

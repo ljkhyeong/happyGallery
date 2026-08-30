@@ -3,6 +3,8 @@ package com.personal.happygallery.adapter.out.persistence.payment;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
+import com.personal.happygallery.application.payment.port.out.PaymentReceiptReaderPort;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import jakarta.persistence.LockModeType;
@@ -17,7 +19,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface PaymentAttemptRepository
-        extends JpaRepository<PaymentAttempt, Long>, PaymentAttemptReaderPort, PaymentAttemptStorePort {
+        extends JpaRepository<PaymentAttempt, Long>, PaymentAttemptReaderPort, PaymentAttemptStorePort, PaymentReceiptReaderPort {
+
+    @Override
+    @Query("""
+            select new com.personal.happygallery.application.payment.port.out.PaymentReceiptReaderPort$PaymentReceipt(
+                attempt.fulfilledDomainId, attempt.confirmedReceiptUrl)
+            from PaymentAttempt attempt
+            where attempt.context = :context and attempt.fulfilledDomainId in :domainIds
+              and attempt.status = com.personal.happygallery.domain.payment.PaymentAttemptStatus.CONFIRMED
+              and attempt.amount > 0 and attempt.confirmedReceiptUrl is not null
+            """)
+    List<PaymentReceipt> findReceipts(@Param("context") PaymentContext context,
+                                     @Param("domainIds") List<Long> domainIds);
 
     @Override
     <S extends PaymentAttempt> S save(S attempt);

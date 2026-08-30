@@ -7,6 +7,10 @@ public interface SmartStoreOrderProvider {
 
     boolean isEnabled();
 
+    List<ReturnDeliveryCompany> findReturnDeliveryCompanies();
+
+    record ReturnDeliveryCompany(long id, String name, String returnDeliveryCompanyPriorityType) {}
+
     ChangePage fetchChanges(ChangeCursor cursor, LocalDateTime changedTo);
 
     List<ProductOrderDetail> fetchDetails(List<String> productOrderIds);

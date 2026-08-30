@@ -43,6 +43,33 @@ class NaverCommerceOrderProviderTest {
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 
     @Test
+    @DisplayName("반품 택배사 계약번호와 우선순위를 v2 공식 응답에서 조회한다")
+    void findReturnDeliveryCompanies_usesContractIds() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/product-delivery-info/return-delivery-companies"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andRespond(withSuccess("""
+                        {"returnDeliveryCompanies":[
+                          {"id":1001,"name":"CJ대한통운","returnDeliveryCompanyPriorityType":"PRIMARY"}
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findReturnDeliveryCompanies()).singleElement().satisfies(company -> {
+            assertThat(company.id()).isEqualTo(1001L);
+            assertThat(company.name()).isEqualTo("CJ대한통운");
+            assertThat(company.returnDeliveryCompanyPriorityType()).isEqualTo("PRIMARY");
+        });
+        server.verify();
+    }
+
+    @Test
     @DisplayName("변경 주문 식별자를 조회한 뒤 상품 주문 상세와 옵션 아이템 번호를 읽는다")
     void fetchChangedOrders_readsDetailAndItemNumber() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());

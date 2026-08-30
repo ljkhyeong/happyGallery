@@ -31,6 +31,9 @@ public class SmartStoreStockMapping {
     @Column(nullable = false)
     private boolean enabled;
 
+    @Column(nullable = false)
+    private boolean retired;
+
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -58,12 +61,20 @@ public class SmartStoreStockMapping {
         this.enabled = enabled;
     }
 
+    public SmartStoreStockMapping retiredCopy(boolean enabled) {
+        SmartStoreStockMapping mapping = new SmartStoreStockMapping(
+                productId, productVariantId, originProductNo, optionId, enabled);
+        mapping.retired = true;
+        return mapping;
+    }
+
     public Long getId() { return id; }
     public Long getProductId() { return productId; }
     public Long getProductVariantId() { return productVariantId; }
     public Long getOriginProductNo() { return originProductNo; }
     public Long getOptionId() { return optionId; }
     public boolean isEnabled() { return enabled; }
+    public boolean isRetired() { return retired; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

@@ -479,7 +479,7 @@ export function AdminPage() {
           <AdminPanel title="상품 문의 관리">
             <AdminQnaSection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
-          <AdminPanel title="스마트스토어 상품 문의">
+          <AdminPanel title="스마트스토어 문의">
             <SmartStoreInquirySection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="스마트스토어 상품 공지">

@@ -68,11 +68,12 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
     @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("""
-            select item
+            select distinct item
               from CartItem item
+              left join fetch item.textInputs
              where item.userId = :userId
                and item.productId in :productIds
-             order by item.productId
+             order by item.productId, item.id
             """)
     List<CartItem> findAllByUserIdAndProductIdInForUpdate(
             @Param("userId") Long userId,

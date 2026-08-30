@@ -14,6 +14,7 @@ import type {
   SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
 import { ApiError } from "@/shared/api";
+import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -141,6 +142,7 @@ export function SmartStoreChannelOrderSection({
 
   return (
     <>
+      {!initialAttentionOnly && <ReturnDeliveryCompanies adminKey={adminKey} onAuthError={onAuthError} />}
       {!initialAttentionOnly && (
         <Form.Check
           className="mb-3"

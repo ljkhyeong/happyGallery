@@ -2,12 +2,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Container, Card, Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { executePaymentFlow, fetchPassPaymentPolicy } from "@/features/payment";
+import { executePaymentFlow, fetchPassPaymentPolicy, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection } from "@/features/payment";
 import { formatKRW } from "@/shared/lib";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 
 export function PassPurchasePage() {
   const { isAuthenticated, user } = useCustomerAuth();
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const policyQuery = useQuery({
     queryKey: ["payment", "pass-policy"],
     queryFn: fetchPassPaymentPolicy,
@@ -17,13 +18,17 @@ export function PassPurchasePage() {
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
       await executePaymentFlow({
+        checkoutSelection,
         context: "PASS",
         payload: { type: "PASS", userId: user.id },
         orderName: "8회권",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
-        returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
+        returnHint: {
+          customerName: user.name, customerPhone: user.phone ?? undefined,
+          returnPath: "/passes/purchase",
+        },
       });
     },
   });
@@ -94,7 +99,10 @@ export function PassPurchasePage() {
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={purchaseMutation.error} />
+      {isAuthenticated && (
+        <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={purchaseMutation.isPending} />
+      )}
+      <PaymentErrorAlert error={purchaseMutation.error} />
 
       {isAuthenticated ? (
         <Button

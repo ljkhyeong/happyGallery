@@ -416,7 +416,7 @@ public class ProductOptionConfigurationService {
             Map<Long, List<ProductOptionValue>> valuesByGroupId) {
         List<OptionGroupDefinition> selectDefinitions = groupDefinitions.stream()
                 .filter(group -> group.type() == ProductOptionType.SELECT)
-                .sorted(Comparator.comparingInt(OptionGroupDefinition::sortOrder))
+                .sorted(Comparator.comparing(OptionGroupDefinition::key))
                 .toList();
         List<VariantDefinition> definitions = requestedVariants;
         if (selectDefinitions.isEmpty() && requestedVariants.isEmpty()) {
@@ -439,7 +439,7 @@ public class ProductOptionConfigurationService {
             valuesByGroupKey.put(definition.key(), valuesByKey);
         }
 
-        List<String> expectedKeys = expectedCombinationKeys(selectDefinitions);
+        List<String> expectedKeys = expectedCombinationKeys(groupsByKey.values(), valuesByGroupId);
         if (expectedKeys.size() > ProductOptionPolicy.MAX_COMBINATIONS) {
             throw invalid("옵션 조합은 최대 " + ProductOptionPolicy.MAX_COMBINATIONS + "개까지 만들 수 있습니다.");
         }
@@ -479,10 +479,9 @@ public class ProductOptionConfigurationService {
                         definition.active(),
                         selections(definition.selections(), groupsByKey, valuesByGroupKey));
             } else {
-                variant.update(
+                variant.updateDetails(
                         product.getPrice(),
                         definition.priceAdjustment(),
-                        definition.quantity(),
                         definition.active());
             }
             changed.add(variant);
@@ -516,17 +515,24 @@ public class ProductOptionConfigurationService {
         return List.copyOf(selections);
     }
 
-    private static List<String> expectedCombinationKeys(List<OptionGroupDefinition> groups) {
+    private static List<String> expectedCombinationKeys(
+            Collection<ProductOptionGroup> allGroups,
+            Map<Long, List<ProductOptionValue>> valuesByGroupId) {
+        List<ProductOptionGroup> groups = allGroups.stream()
+                .filter(group -> group.getType() == ProductOptionType.SELECT)
+                .sorted(Comparator.comparing(ProductOptionGroup::getKey))
+                .toList();
         if (groups.isEmpty()) {
             return List.of(ProductVariant.DEFAULT_COMBINATION_KEY);
         }
         List<String> keys = new ArrayList<>();
-        appendCombinationKey(groups, 0, new ArrayList<>(), keys);
+        appendCombinationKey(groups, valuesByGroupId, 0, new ArrayList<>(), keys);
         return List.copyOf(keys);
     }
 
     private static void appendCombinationKey(
-            List<OptionGroupDefinition> groups,
+            List<ProductOptionGroup> groups,
+            Map<Long, List<ProductOptionValue>> valuesByGroupId,
             int index,
             List<String> parts,
             List<String> result) {
@@ -534,17 +540,17 @@ public class ProductOptionConfigurationService {
             result.add(String.join("|", parts));
             return;
         }
-        OptionGroupDefinition group = groups.get(index);
-        if (!group.required()) {
-            parts.add(group.key() + "=-");
-            appendCombinationKey(groups, index + 1, parts, result);
+        ProductOptionGroup group = groups.get(index);
+        if (!group.isRequired()) {
+            parts.add(group.getKey() + "=-");
+            appendCombinationKey(groups, valuesByGroupId, index + 1, parts, result);
             parts.removeLast();
         }
-        for (OptionValueDefinition value : group.values().stream()
-                .sorted(Comparator.comparingInt(OptionValueDefinition::sortOrder))
+        for (ProductOptionValue value : valuesByGroupId.getOrDefault(group.getId(), List.of()).stream()
+                .sorted(Comparator.comparingInt(ProductOptionValue::getSortOrder))
                 .toList()) {
-            parts.add(group.key() + "=" + value.key());
-            appendCombinationKey(groups, index + 1, parts, result);
+            parts.add(group.getKey() + "=" + value.getKey());
+            appendCombinationKey(groups, valuesByGroupId, index + 1, parts, result);
             parts.removeLast();
         }
     }
@@ -674,8 +680,10 @@ public class ProductOptionConfigurationService {
                                 .toList()))
                 .toList();
 
+        Set<String> currentKeys = new HashSet<>(expectedCombinationKeys(groups, valuesByGroup));
         List<Variant> variantViews = allVariants.stream()
                 .filter(variant -> includeInactiveVariants || variant.isActive())
+                .filter(variant -> currentKeys.contains(variant.getCombinationKey()))
                 .filter(variant -> variant.getSelections().stream()
                         .allMatch(selection -> groupsById.containsKey(selection.getOptionGroupId())
                                 && valuesById.containsKey(selection.getOptionValueId())))

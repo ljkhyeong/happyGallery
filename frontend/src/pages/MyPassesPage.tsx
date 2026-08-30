@@ -20,6 +20,7 @@ import {
   runForCurrentCustomer,
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
   customerRefundPollingInterval,
@@ -223,6 +224,7 @@ function MyPassesContent() {
               <Col xs={12} md={4} className="text-md-end">
                 <small className="d-block text-muted-soft">~{formatDateTime(pass.expiresAt)}</small>
                 <div className="d-flex flex-wrap justify-content-md-end gap-2 mt-2">
+                  <PaymentReceiptLink receiptUrl={pass.receiptUrl} />
                   {isPassAvailableForBooking(pass) && (
                     <LinkButton
                       to={`/bookings/new?passId=${pass.passId}`}

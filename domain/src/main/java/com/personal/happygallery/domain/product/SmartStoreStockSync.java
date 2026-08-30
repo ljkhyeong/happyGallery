@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "smartstore_stock_syncs")
@@ -21,6 +22,9 @@ public class SmartStoreStockSync {
 
     @Column(name = "request_version", nullable = false)
     private long requestVersion;
+
+    @Column(nullable = false, length = 36)
+    private String generation;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -59,6 +63,7 @@ public class SmartStoreStockSync {
         }
         this.productId = productId;
         this.requestVersion = 1;
+        this.generation = UUID.randomUUID().toString();
         this.status = SmartStoreStockSyncStatus.PENDING;
         this.nextAttemptAt = now;
     }
@@ -84,7 +89,10 @@ public class SmartStoreStockSync {
         return requestVersion;
     }
 
-    public void complete(long claimedVersion, LocalDateTime now) {
+    public void complete(String claimedGeneration, long claimedVersion, LocalDateTime now) {
+        if (!generation.equals(claimedGeneration)) {
+            return;
+        }
         if (requestVersion == claimedVersion) {
             status = SmartStoreStockSyncStatus.SYNCED;
             attemptCount = 0;
@@ -98,7 +106,10 @@ public class SmartStoreStockSync {
         processingStartedAt = null;
     }
 
-    public void fail(long claimedVersion, String reason, LocalDateTime now) {
+    public void fail(String claimedGeneration, long claimedVersion, String reason, LocalDateTime now) {
+        if (!generation.equals(claimedGeneration)) {
+            return;
+        }
         if (requestVersion != claimedVersion) {
             status = SmartStoreStockSyncStatus.PENDING;
             nextAttemptAt = now;
@@ -126,6 +137,7 @@ public class SmartStoreStockSync {
 
     public Long getProductId() { return productId; }
     public long getRequestVersion() { return requestVersion; }
+    public String getGeneration() { return generation; }
     public SmartStoreStockSyncStatus getStatus() { return status; }
     public int getAttemptCount() { return attemptCount; }
     public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }

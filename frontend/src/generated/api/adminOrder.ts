@@ -717,6 +717,13 @@ export interface BulkDispatchSmartStoreOrdersRequest {
   orders: DispatchOrder[];
 }
 
+export interface SmartStoreReturnDeliveryCompanyResponse {
+  id: number;
+  name: string;
+  /** @nullable */
+  priorityType: string | null;
+}
+
 export interface ClaimDetail {
   /** @nullable */
   claimDeliveryFeeDemandAmount: number | null;
@@ -1417,6 +1424,27 @@ export const dispatchSmartStoreChannelOrders = async (bulkDispatchSmartStoreOrde
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(bulkDispatchSmartStoreOrdersRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreReturnDeliveryCompaniesUrl = () => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/return-delivery-companies`
+}
+
+export const listSmartStoreReturnDeliveryCompanies = async ( options?: RequestInit): Promise<SmartStoreReturnDeliveryCompanyResponse[]> => {
+
+  return generatedApiClient<SmartStoreReturnDeliveryCompanyResponse[]>(getListSmartStoreReturnDeliveryCompaniesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

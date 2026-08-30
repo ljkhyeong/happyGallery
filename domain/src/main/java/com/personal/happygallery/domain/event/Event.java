@@ -13,6 +13,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
@@ -63,6 +64,7 @@ public class Event {
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "event_products", joinColumns = @JoinColumn(name = "event_id"))
     @Column(name = "product_id", nullable = false)
+    @OrderBy
     private Set<Long> relatedProductIds = new LinkedHashSet<>();
 
     @Version

@@ -1,5 +1,7 @@
 package com.personal.happygallery.application.qna.port.in;
 
+import com.personal.happygallery.application.shared.page.OffsetPage;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,11 +11,18 @@ public interface SmartStoreInquiryUseCase {
 
     List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit);
 
+    OffsetPage<InquiryResult> listPage(LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size);
+
+    OffsetPage<CustomerInquiryResult> listCustomerPage(
+            LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size);
+
     AnswerTemplateResult getProductInquiryAnswerTemplate();
 
     void answer(long questionId, String content);
 
     void answerCustomerInquiry(long inquiryNo, String content);
+
+    void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content);
 
     record InquiryResult(
             long questionId,
@@ -34,6 +43,7 @@ public interface SmartStoreInquiryUseCase {
 
     record CustomerInquiryResult(
             long inquiryNo,
+            Long answerContentId,
             String category,
             String title,
             String inquiryContent,

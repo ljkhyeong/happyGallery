@@ -37,6 +37,21 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
+    public List<ReturnDeliveryCompany> findReturnDeliveryCompanies() {
+        ReturnDeliveryCompaniesResponse response = accessTokenProvider.authorized(token -> restClient.get()
+                .uri("/external/v2/product-delivery-info/return-delivery-companies")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                .retrieve()
+                .body(ReturnDeliveryCompaniesResponse.class));
+        if (response == null) {
+            throw new IllegalStateException("스마트스토어 반품 택배사 응답이 비어 있습니다.");
+        }
+        return response.returnDeliveryCompanies() == null ? List.of() : response.returnDeliveryCompanies();
+    }
+
+    private record ReturnDeliveryCompaniesResponse(List<ReturnDeliveryCompany> returnDeliveryCompanies) {}
+
+    @Override
     public ChangePage fetchChanges(ChangeCursor cursor, LocalDateTime changedTo) {
         ChangedResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> {

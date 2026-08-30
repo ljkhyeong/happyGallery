@@ -67,6 +67,11 @@ export interface ProductDetailResponse {
   productionLeadDays: number | null;
   /** @nullable */
   specification: string | null;
+  /**
+     * 현재 재고 수량. 주문제작은 활성 옵션 조합의 합계
+     * @minimum 0
+     */
+  stockQuantity: number;
   type: ProductDetailResponseType;
   variants: ProductVariantResponse[];
 }

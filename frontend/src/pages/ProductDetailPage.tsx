@@ -9,6 +9,9 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   executePaymentFlow,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   type OrderPayload,
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -28,14 +31,18 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
-import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
+import { productSelectionView } from "@/features/product/productSelectionView";
+import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { saveGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import {
@@ -59,14 +66,18 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
+  const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
+  const [rewardAmount, setRewardAmount] = useState(0);
   const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
   const purchasePanelRef = useRef<HTMLDivElement>(null);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
     user?.name,
     user?.phone ?? undefined,
   );
-  const { addItem: addToCart } = useCart();
+  const { addItems: addToCart } = useCart();
+  const cartRequestRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
 
   const {
     data: product,
@@ -83,7 +94,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
-      const items = product?.optionGroups.length
+      const items = (product?.optionGroups.length || purchaseLines.length)
         ? purchaseLines.map((line) => ({
           productId,
           productVariantId: line.productVariantId,
@@ -92,9 +103,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         }))
         : [{
           productId,
-          productVariantId: product?.type === "MADE_TO_ORDER"
-            ? (product.variants[0]?.id ?? null)
-            : null,
+          productVariantId: product ? productSelectionView(product, {}).productVariantId : null,
           textInputs: [],
           qty,
         }];
@@ -104,11 +113,14 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         name: user.name,
         items,
         cartCheckout: false,
+        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        rewardAmount,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
         orderName: product
@@ -117,7 +129,10 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
-        returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
+        returnHint: {
+          customerName: user.name, customerPhone: user.phone ?? undefined,
+          returnPath: `/products/${productId}`,
+        },
       });
     },
     onError: consent.handleSubmissionError,
@@ -126,20 +141,21 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
     mutationFn: () => runForCurrentCustomer(
       async () => {
         if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
-        if (product.optionGroups.length) {
-          for (const line of purchaseLines) {
-            await addToCart(productId, line.productVariantId, line.textInputs, line.qty);
-          }
-          return;
+        const items = (product.optionGroups.length || purchaseLines.length)
+          ? purchaseLines.map((line) => ({
+            productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+          }))
+          : [{ productId, productVariantId: productSelectionView(product, {}).productVariantId, textInputs: [], qty }];
+        const fingerprint = JSON.stringify(items);
+        if (cartRequestRef.current?.fingerprint !== fingerprint) {
+          cartRequestRef.current = { fingerprint, idempotencyKey: crypto.randomUUID() };
         }
-        await addToCart(
-          productId,
-          product.type === "MADE_TO_ORDER" ? (product.variants[0]?.id ?? null) : null,
-          [],
-          qty,
-        );
+        await addToCart(items, cartRequestRef.current.idempotencyKey);
       },
-      () => toast.show("장바구니에 추가되었습니다."),
+      () => {
+        cartRequestRef.current = null;
+        toast.show("장바구니에 추가되었습니다.");
+      },
     ),
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
@@ -160,17 +176,28 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;
 
-  const hasConfiguredOptions = product.optionGroups.length > 0;
+  const hasConfiguredOptions = product.optionGroups.length > 0 || purchaseLines.length > 0;
+  const selectionViews = purchaseLines.map((line) => productSelectionView(product, line));
+  const selectionChanged = selectionViews.some((view, index) => {
+    const initial = productSelectionView(initialProduct, purchaseLines[index]!);
+    return view.unitPrice !== initial.unitPrice || view.label !== initial.label
+      || view.configurationValid !== initial.configurationValid;
+  });
   const selectedQuantity = hasConfiguredOptions
     ? purchaseLines.reduce((sum, line) => sum + line.qty, 0)
     : qty;
+  const defaultSelection = productSelectionView(product, {});
+  const defaultQuantityLimit = productQuantityLimit(product, defaultSelection.productVariantId);
   const itemAmount = hasConfiguredOptions
-    ? purchaseLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0)
-    : product.price * qty;
+    ? purchaseLines.reduce((sum, line, index) => sum + selectionViews[index]!.unitPrice * line.qty, 0)
+    : defaultSelection.unitPrice * qty;
+  const selectedQuantities = sumQuantitiesByVariant(purchaseLines);
   const canBuy = product.available
     && selectedQuantity >= 1
-    && (hasConfiguredOptions || selectedQuantity <= MAX_PRODUCT_QUANTITY)
-    && purchaseLines.every((line) => line.qty <= line.availableQuantity);
+    && (hasConfiguredOptions || selectedQuantity <= defaultQuantityLimit)
+    && (hasConfiguredOptions || defaultSelection.configurationValid)
+    && selectionViews.every((view) => view.configurationValid)
+    && [...selectedQuantities].every(([variantId, quantity]) => quantity <= productQuantityLimit(product, variantId));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
@@ -262,6 +289,11 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   <span aria-hidden="true">1</span>
                   <h3 id="product-option-title">옵션 선택</h3>
                 </div>
+                {selectionChanged && (
+                  <Alert variant="info" className="py-2">
+                    상품 가격 또는 옵션 정보가 변경되었습니다. 현재 표시된 옵션과 금액을 확인해 주세요.
+                  </Alert>
+                )}
                 {hasConfiguredOptions ? (
                   <ProductPurchaseOptions
                     product={product}
@@ -286,25 +318,28 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                         id="product-qty"
                         type="number"
                         min={1}
-                        max={MAX_PRODUCT_QUANTITY}
+                        max={Math.max(1, defaultQuantityLimit)}
                         value={qty}
                         onChange={(e) => {
                           const v = Number(e.target.value);
-                          if (Number.isInteger(v) && v >= 1 && v <= MAX_PRODUCT_QUANTITY) setQty(v);
+                          if (Number.isInteger(v) && v >= 1 && (v < qty || v <= defaultQuantityLimit)) setQty(v);
                         }}
                         className="text-center store-purchase-qty-input"
                       />
                       <Button
                         variant="outline-dark"
                         size="sm"
-                        disabled={qty >= MAX_PRODUCT_QUANTITY}
-                        onClick={() => setQty((q) => Math.min(MAX_PRODUCT_QUANTITY, q + 1))}
+                        disabled={qty >= defaultQuantityLimit}
+                        onClick={() => setQty((q) => Math.min(defaultQuantityLimit, q + 1))}
                         aria-label="수량 증가"
                         className="store-purchase-qty-btn"
                       >
                         +
                       </Button>
                     </div>
+                    {qty > defaultQuantityLimit && product.available && (
+                      <Form.Text className="text-danger">현재 {defaultQuantityLimit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.</Form.Text>
+                    )}
                   </div>
                 )}
               </section>
@@ -314,11 +349,23 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
                   <span className="store-purchase-line">{selectedQuantity}개</span>
                 </div>
-                <OrderPriceSummary
-                  itemAmount={itemAmount}
-                  fulfillmentType={fulfillment.fulfillmentType}
-                  className="pt-2"
-                />
+                {!authLoading && isAuthenticated ? (
+                  <MemberOrderBenefits
+                    productAmount={itemAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    selectedCouponId={issuedCouponId}
+                    rewardPointsToUse={rewardAmount}
+                    disabled={orderMutation.isPending}
+                    onCouponChange={setIssuedCouponId}
+                    onRewardPointsChange={setRewardAmount}
+                  />
+                ) : (
+                  <OrderPriceSummary
+                    itemAmount={itemAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    className="pt-2"
+                  />
+                )}
               </div>
 
               {!authLoading && isAuthenticated && (
@@ -332,7 +379,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               )}
 
               <div className="store-order-sheet-actions">
-                <ErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
+                <PaymentErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
                 {cartMutation.error instanceof CartQuantityError ? (
                   <Alert variant="danger">{cartMutation.error.message}</Alert>
                 ) : (
@@ -341,6 +388,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
 
                 {!authLoading && isAuthenticated ? (
                   <>
+                    <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
                     <MadeToOrderConsent
                       required={requiresMadeToOrderConsent}
                       policy={consent.policyQuery.data}
@@ -371,7 +419,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                       {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                     </Button>
                     <p className="store-purchase-helper mb-0">
-                      결제가 완료되면 바로 내 주문 상세로 이동합니다.
+                      결제 완료 화면에서 내 주문 상세를 확인할 수 있습니다.
                     </p>
                   </>
                 ) : !authLoading ? (
@@ -410,11 +458,14 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                         className="w-100 text-muted-soft store-purchase-guest-link"
                         disabled={!canBuy}
                         onClick={() => {
-                          sessionStorage.setItem("hg_guest_order_draft", JSON.stringify({
-                            productId,
-                            items: purchaseLines,
-                          }));
-                          navigate(`/orders/new?productId=${productId}&draft=options`);
+                          const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
+                            productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+                          })));
+                          if (!draftId) {
+                            toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
+                            return;
+                          }
+                          navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
                         }}
                       >
                         비회원 주문하기 →
@@ -422,8 +473,11 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                     ) : (
                       <LinkButton
                         to={guestFallbackPath}
+                        aria-disabled={!canBuy}
+                        tabIndex={canBuy ? undefined : -1}
+                        onClick={(event) => { if (!canBuy) event.preventDefault(); }}
                         variant="link"
-                        className="w-100 text-muted-soft store-purchase-guest-link"
+                        className={`w-100 text-muted-soft store-purchase-guest-link${canBuy ? "" : " disabled"}`}
                       >
                         비회원 주문하기 →
                       </LinkButton>

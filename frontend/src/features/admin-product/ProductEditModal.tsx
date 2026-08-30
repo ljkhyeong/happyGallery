@@ -45,7 +45,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
     setSpecification(product.specification ?? "");
     setCareInstructions(product.careInstructions ?? "");
     setProductionLeadDays(product.productionLeadDays?.toString() ?? "");
-    setQuantity(String(product.quantity));
+    setQuantity("0");
     const drafts = optionDraftsFromProduct(product);
     setOptionGroups(drafts.groups);
     setVariants(drafts.variants);
@@ -65,6 +65,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
         : undefined,
       quantity: product!.type === "MADE_TO_ORDER"
         && optionGroups.every((group) => group.type !== "SELECT")
+        && variants.length === 0
         ? Number(quantity)
         : undefined,
       optionGroups: product!.type === "MADE_TO_ORDER" ? optionGroups : [],
@@ -86,12 +87,15 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       && leadDays >= 1
       && leadDays <= 180);
   const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
+  const defaultVariant = !hasSelectOptions && product?.optionGroups.every((group) => group.type !== "SELECT")
+    ? product.variants.find((variant) => variant.selections.length === 0)
+    : undefined;
   const optionsValid = product?.type !== "MADE_TO_ORDER" || (
     optionGroups.every((group) => group.name.trim().length > 0
       && (group.type !== "SELECT"
         || group.values.every((value) => value.name.trim().length > 0)))
     && variants.length <= 500
-    && variants.every((variant) => Number(variant.quantity) >= 0
+    && variants.every((variant) => Number(variant.quantity ?? 0) >= 0
       && Number(price) + Number(variant.priceAdjustment ?? 0) > 0)
   );
   const valid = name.trim().length > 0
@@ -164,22 +168,26 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
                     />
                   </Form.Group>
                 </Col>
-                <Col xs={12} md={6}>
+                {!hasSelectOptions && <Col xs={12} md={6}>
                   <Form.Group controlId="admin-edit-product-default-quantity">
-                    <Form.Label>기본 조합 재고</Form.Label>
+                    <Form.Label>{defaultVariant ? "기본 조합 재고" : "신규 기본 조합 최초 재고"}</Form.Label>
                     <Form.Control
                       type="number"
                       min={0}
-                      value={quantity}
-                      disabled={hasSelectOptions}
+                      value={defaultVariant?.quantity ?? quantity}
+                      readOnly={defaultVariant !== undefined}
                       onChange={(event) => setQuantity(event.target.value)}
                     />
+                    {defaultVariant && (
+                      <Form.Text>재고는 상품 목록의 ‘재고 조정’에서 변경합니다.</Form.Text>
+                    )}
                   </Form.Group>
-                </Col>
+                </Col>}
                 <Col xs={12}>
                   <ProductOptionEditor
                     groups={optionGroups}
                     variants={variants}
+                    existingProduct={product}
                     onChange={(nextGroups, nextVariants) => {
                       setOptionGroups(nextGroups);
                       setVariants(nextVariants);

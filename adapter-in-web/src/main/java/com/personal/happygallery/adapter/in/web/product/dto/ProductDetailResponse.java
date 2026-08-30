@@ -30,6 +30,9 @@ public record ProductDetailResponse(
         Integer productionLeadDays,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
         boolean available,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, minimum = "0",
+                description = "현재 재고 수량. 주문제작은 활성 옵션 조합의 합계")
+        long stockQuantity,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductOptionGroupResponse> optionGroups,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductVariantResponse> variants
 ) {
@@ -47,6 +50,7 @@ public record ProductDetailResponse(
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
                 product.getStatus() == ProductStatus.ACTIVE && r.available(),
+                r.quantity(),
                 r.options().groups().stream().map(ProductOptionGroupResponse::from).toList(),
                 r.options().variants().stream().map(ProductVariantResponse::from).toList()
         );

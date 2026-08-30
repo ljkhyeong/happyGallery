@@ -44,6 +44,8 @@ export interface SmartStoreInquiryResponse {
 export interface SmartStoreCustomerInquiryResponse {
   /** @nullable */
   answerContent: string | null;
+  /** @nullable */
+  answerContentId: number | null;
   answered: boolean;
   /** @nullable */
   answeredAt: string | null;
@@ -70,12 +72,28 @@ export interface SmartStoreCustomerInquiryResponse {
   title: string | null;
 }
 
+export interface SmartStoreCustomerInquiryPageResponse {
+  content: SmartStoreCustomerInquiryResponse[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface SmartStoreInquiryAnswerRequest {
   /**
      * @minLength 1
      * @maxLength 16000
      */
   content: string;
+}
+
+export interface SmartStoreInquiryPageResponse {
+  content: SmartStoreInquiryResponse[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
 }
 
 export interface SmartStoreInquiryAnswerTemplateResponse {
@@ -186,6 +204,38 @@ unansweredOnly?: boolean;
  * @maximum 200
  */
 limit?: number;
+};
+
+export type ListSmartStoreCustomerInquiriesPageParams = {
+from: string;
+to: string;
+unansweredOnly?: boolean;
+/**
+ * @minimum 0
+ * @maximum 999999
+ */
+page?: number;
+/**
+ * @minimum 10
+ * @maximum 100
+ */
+size?: number;
+};
+
+export type ListSmartStoreInquiriesPageParams = {
+from: string;
+to: string;
+unansweredOnly?: boolean;
+/**
+ * @minimum 0
+ * @maximum 999999
+ */
+page?: number;
+/**
+ * @minimum 10
+ * @maximum 100
+ */
+size?: number;
 };
 
 export type ListMyProductQnaPageParams = {
@@ -368,6 +418,34 @@ export const listSmartStoreCustomerInquiries = async (params?: ListSmartStoreCus
 
 
 
+export const getListSmartStoreCustomerInquiriesPageUrl = (params: ListSmartStoreCustomerInquiriesPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/customers/page?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/customers/page`
+}
+
+export const listSmartStoreCustomerInquiriesPage = async (params: ListSmartStoreCustomerInquiriesPageParams, options?: RequestInit): Promise<SmartStoreCustomerInquiryPageResponse> => {
+
+  return generatedApiClient<SmartStoreCustomerInquiryPageResponse>(getListSmartStoreCustomerInquiriesPageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getAnswerSmartStoreCustomerInquiryUrl = (inquiryNo: number,) => {
 
 
@@ -385,6 +463,58 @@ export const answerSmartStoreCustomerInquiry = async (inquiryNo: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(smartStoreInquiryAnswerRequest)
+  }
+);}
+
+
+
+export const getUpdateSmartStoreCustomerInquiryAnswerUrl = (inquiryNo: number,
+    answerContentId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-inquiries/customers/${inquiryNo}/answer/${answerContentId}`
+}
+
+export const updateSmartStoreCustomerInquiryAnswer = async (inquiryNo: number,
+    answerContentId: number,
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateSmartStoreCustomerInquiryAnswerUrl(inquiryNo,answerContentId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(smartStoreInquiryAnswerRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreInquiriesPageUrl = (params: ListSmartStoreInquiriesPageParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/page?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/page`
+}
+
+export const listSmartStoreInquiriesPage = async (params: ListSmartStoreInquiriesPageParams, options?: RequestInit): Promise<SmartStoreInquiryPageResponse> => {
+
+  return generatedApiClient<SmartStoreInquiryPageResponse>(getListSmartStoreInquiriesPageUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

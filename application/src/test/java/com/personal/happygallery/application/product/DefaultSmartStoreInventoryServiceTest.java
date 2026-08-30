@@ -2,7 +2,6 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.SmartStoreStockSyncTransactionService.ProductSyncSnapshot;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
-import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
@@ -44,7 +43,7 @@ class DefaultSmartStoreInventoryServiceTest {
             SmartStoreStockSyncTransactionService transactionService) {
         return new DefaultSmartStoreInventoryService(
                 mock(ProductReaderPort.class),
-                mock(ProductVariantReaderPort.class),
+                mock(ProductOptionConfigurationService.class),
                 mock(SmartStoreStockMappingPort.class),
                 mock(SmartStoreStockSyncPort.class),
                 mock(SmartStoreStockSyncQueuePort.class),

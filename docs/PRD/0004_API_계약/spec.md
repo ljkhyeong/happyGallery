@@ -525,6 +525,7 @@ GET /api/v1/products
     "productionLeadDays": null,
     "optionGroups": [],
     "variants": [],
+    "stockQuantity": 3,
     "available": true
   }
 ]
@@ -534,7 +535,7 @@ GET /api/v1/products
 - 정책:
   - `ACTIVE` 상태 상품만 노출한다.
   - 응답은 상품 상세 조회와 동일한 필드 구조를 사용한다.
-  - 재고 수량 원문은 노출하지 않고 `available`만 공개한다.
+  - `stockQuantity`는 현재 재고 수량을 반환한다. 기성품은 상품 재고, 주문제작은 활성 조합의 재고 합계이며, 특정 조합의 제한에는 `variants[].quantity`를 사용한다. 재고를 예약하는 값은 아니며 서버는 결제 시 다시 확인한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 
@@ -558,6 +559,7 @@ GET /api/v1/products/{id}
   "productionLeadDays": null,
   "optionGroups": [],
   "variants": [],
+  "stockQuantity": 3,
   "available": true
 }
 ```
@@ -792,6 +794,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 정책:
   - `ACTIVE`, `INACTIVE` 상품을 모두 최신 등록순으로 반환한다.
+  - 주문제작 `variants`는 현재 선택형 그룹·값·필수 여부로 만들 수 있는 조합만 반환한다. 현재 조합의 판매 중지 행은 포함하지만 구조 변경으로 사라진 조합과 V164 과거 보존 행은 제외한다. 상품 수정 응답도 같은 기준을 사용한다.
   - `available`은 `status=ACTIVE`이면서 재고가 1개 이상일 때만 `true`다.
 
 #### 2.3.3 상품 판매 상태 변경
@@ -896,8 +899,10 @@ Content-Type: application/json
 
 - 성공: `200 OK` — 저장된 매핑과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
 - 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다.
-- 주문제작 상품은 현재 존재하는 모든 variant를 정확히 한 번씩 보내야 한다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
+- 주문제작 상품은 관리자 상품 응답에 표시되는 현재 조합을 판매 중지 여부와 관계없이 정확히 한 번씩 보내야 한다. 과거 주문 보존용 조합은 입력하지 않는다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
+- 매핑 응답의 `variants`에는 현재 연결만 반환한다. 같은 원상품에서 옵션 구조 변경 또는 같은 조합의 원격 옵션 번호 변경으로 해제된 연결은 내부에 보존하며 자동 재고 전송에서는 0개를 보낸다. 실패하면 기존 재시도 경로에서 현재·과거 옵션을 함께 다시 전송한다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
 - `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
+- 비활성화·해제 후 다시 등록한 동기화는 이전 전송과 구분한다. 이전 전송의 성공·실패 응답은 새 요청의 완료 상태, 시도 횟수, 오류와 재시도 시각을 바꾸지 않는다.
 - 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
 - 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`
@@ -911,6 +916,7 @@ Authorization: Bearer {token}
 ```
 
 - 미리보기는 상품 버전, 양쪽 판매가·판매 상태와 옵션별 양쪽 옵션가·사용 여부·차이 여부를 반환한다.
+- 미리보기에는 과거 연결도 포함하며 추가금 0원·사용 불가로 반환한다. 같은 `productVariantId`가 여러 원격 옵션에 남을 수 있으므로 옵션 행은 `optionId`로 구분한다. 관리자 화면은 원격 옵션 번호와 이전 연결 여부를 표시하고 매핑 저장 후 미리보기를 다시 조회한다.
 - 반영 요청은 `{ "productVersion": 7 }`을 받는다. 현재 상품 버전과 다르면 `409 CONFLICT`로 거절해 오래된 미리보기 값을 적용하지 않는다.
 - 주문제작 상품은 판매가와 모든 옵션의 옵션가·사용 여부·현재 재고를 한 요청으로 보내고, 기성품은 판매가와 현재 재고를 함께 반영한다. 그 뒤 현재 재고를 고려한 `SALE|OUTOFSTOCK|SUSPENSION` 상태를 적용한다.
 
@@ -934,6 +940,14 @@ Authorization: Bearer {token}
 - 상품 적용 요청은 비어 있지 않은 `channelProductNos`를 받고 성공 시 `204`다.
 
 #### 2.3.7 스마트스토어 채널 주문 관리
+
+```http
+GET /api/v1/admin/smartstore-orders/return-delivery-companies
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 네이버에 등록된 반품·교환 택배사 계약을 `[{id, name, priorityType}]`로 반환한다. 계약이 없으면 빈 배열이며 우선순위가 없으면 `priorityType`은 `null`이다. 우선순위는 `PRIMARY`, `SECONDARY_1`~`SECONDARY_9` 등 네이버 문자열을 그대로 전달한다.
+- `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 CONFLICT`를 반환한다.
 
 ```http
 GET /api/v1/admin/smartstore-orders?attentionOnly=false&limit=100
@@ -1004,14 +1018,22 @@ Authorization: Bearer {token}
 
 ```http
 GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
+GET /api/v1/admin/smartstore-inquiries/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 GET /api/v1/admin/smartstore-inquiries/template
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
 GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
+GET /api/v1/admin/smartstore-inquiries/customers/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
+PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}
 Authorization: Bearer {token}
 ```
 
-- 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 기존 배열 목록 API는 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 상품 문의는 최대 두 페이지, 고객 문의는 한 페이지를 읽으며 전체 페이지를 미리 수집하지 않는다.
+- 페이지 목록 API의 operationId는 상품 문의 `listSmartStoreInquiriesPage`, 고객 문의 `listSmartStoreCustomerInquiriesPage`다. 필수 `from`, `to`는 `yyyy-MM-dd`이며 양 끝 날짜를 포함한다. 상품 문의는 한국 시간 `00:00:00`부터 `23:59:59.999`까지, 고객 문의는 날짜 그대로 전달한다. 시작일이 종료일보다 늦으면 `400 INVALID_INPUT`이며 별도 최대 기간은 정하지 않는다.
+- 페이지 요청은 `page` 0~999999(기본 0), `size` 10~100(기본 50), `unansweredOnly` 기본 `true`다. 네이버에는 페이지 번호를 1부터 전달하고, 미답변 조회일 때만 `answered=false`를 보낸다. 응답은 `{content, page, size, totalCount, totalPages}`이며 `content`는 기존 문의 DTO 배열이다. 합계는 네이버 응답을 사용하고 선택한 한 페이지만 요청한다.
+- 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 상품 문의의 `PUT /{questionId}/answer`는 신규 답변 등록과 기존 답변 수정에 함께 사용한다. 관리자 화면은 기존 본문을 편집하고, 취소 시 요청을 보내지 않으며 저장 실패 시 초안을 유지한다. 조회 실패는 목록·템플릿 영역의 재시도로 처리하고 문의 유형 탭과 조회 조건은 계속 표시한다.
+- 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 CONFLICT`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
 
 #### 2.3.8 상품 표시 정보 수정
@@ -1038,6 +1060,8 @@ Content-Type: application/json
 - 성공: `200 OK`, 현재 재고를 포함한 `ProductResponse` 반환
 - 상품 유형과 판매 상태는 이 API에서 바꾸지 않는다. 기성품 재고와 주문제작 variant 재고의 수동 변경은 재고 조정 API를 사용한다.
 - 주문제작은 현재 전체 `optionGroups`, `variants`를 보내 옵션 구성을 교체한다. 서버가 가능한 조합의 누락·중복을 검증하고 유지된 조합은 같은 선택 키로 식별한다.
+- 기존 조합은 가격 추가금·판매 여부만 수정하며 `variants[].quantity`나 `quantity`에 과거 수량을 보내도 현재 재고를 보존한다. 재고는 기본 조합을 포함해 재고 조정 API로만 변경한다. 새로 만드는 조합에만 `variants[].quantity`를 최초 재고로 사용하며, 선택형과 `variants`가 모두 없는 신규 기본 조합은 `quantity`를 사용한다.
+- 선택형 그룹의 표시 순서는 조합 식별에 포함하지 않는다. 그룹·값 키가 같으면 조합 번호와 재고를 유지한다. 관리자 화면에서는 기존 조합 재고를 읽기 전용으로 보여 주고 신규 조합만 최초 재고를 입력받는다.
 - 이미 결제된 주문은 `order_items`의 상품명·기본가·옵션 추가금·최종 단가·선택 옵션·직접입력 문구·고정 사양·관리 방법·예상 제작 기간 스냅샷을 사용하므로 이후 상품 변경의 영향을 받지 않는다.
 
 ### 2.4 예약 API
@@ -2981,6 +3005,8 @@ Cookie: HG_SESSION={sessionToken}
 
 회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
+회원 주문 상세·예약 상세와 8회권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 8회권 목록은 영수증을 일괄 조회한다.
+
 회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
 
 ```json
@@ -3174,6 +3200,9 @@ Cookie: HG_SESSION={sessionToken}
 - 비회원 장바구니 병합의 멱등키 기록과 회원 장바구니 수량 변경은 같은 DB 트랜잭션으로 처리한다.
 - 장바구니 병합 멱등 응답은 요청 생성 후 7일간 보장한다. 클라이언트는 이 기간을 넘겨 같은 키를 재사용하지 않으며 서버는 보존 배치에서 오래된 기록을 정리한다.
 - 비회원 장바구니 화면은 로컬 항목의 `productId`·variant·직접입력값과 최신 공개 상품 상세를 조립해 상품명·옵션·단가·소계·구매 가능 여부를 표시한다. 서로 다른 직접입력 문구는 각각 수량 변경·삭제하고, 주문은 로그인 후 병합이 완료된 회원 장바구니에서 진행한다.
+- 비회원 추가·수량 증가는 공개 상품의 `stockQuantity` 또는 선택한 `variants[].quantity`와 같은 SKU 합산 99개 한도를 저장 직전에 확인한다. 재고 감소로 초과한 항목은 수량 조정을 안내하며 감소·삭제는 허용한다.
+- 회원 수량 감소·유지는 소유권과 수량 범위만 확인하며 현재 판매 옵션·재고 검증은 증가에 적용한다. 관리자가 옵션 표시 순서를 바꿔도 동일 각인은 기존 행에 합산한다. V163 이전 중복 행은 ID·수량을 보존하고 이후 추가·병합은 입력이 같은 최소 ID 행을 사용한다.
+- 상품 상세의 회원 다건 담기도 `/api/v1/me/cart/merge`를 사용한다. 선택한 모든 항목을 한 요청으로 전송하고 결과가 불명확한 재시도에는 같은 멱등키를 사용한다. 비회원은 한 번의 로컬 장바구니 잠금·저장으로 반영한다.
 - 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 로컬 항목은 요청 당시 계보를 함께 보존하고 성공 후 같은 계보의 스냅샷 수량만 차감한다. 도중에 추가된 수량은 새 멱등키로 이어서 병합하며, 로그아웃 뒤 상품을 삭제하고 다시 담아 새 계보가 된 수량은 이전 계정의 늦은 성공 응답이 차감하지 않는다. 계보 식별자는 브라우저 내부 값이며 API 요청에는 보내지 않는다.
 - 같은 브라우저의 여러 탭은 비회원 장바구니 추가·수량 변경·삭제와 병합의 최신 로컬 조회부터 성공분 제거까지를 같은 탭 간 잠금으로 직렬화한다. 한 탭의 로컬 변경은 다른 탭에도 반영하며, 병합 응답 뒤 보류 요청이 이미 정리됐더라도 응답을 받은 탭은 자신이 전송한 계보 스냅샷을 제거한다.
 - 상품이 `ACTIVE`가 아니거나 같은 SKU의 장바구니 합산 수량보다 재고가 적으면 관련 항목을 모두 `available=false`로 표시하며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
@@ -3421,7 +3450,7 @@ GET /api/v1/products/{productId}/qna/{id}
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
 회원 경로는 현재 회원의 `phone`이 존재하고 `phoneVerified=true`여야 하며, 미등록 상태에서는 `422 PHONE_VERIFICATION_REQUIRED`를 반환한다.
-8회권 사용 예약처럼 amount가 0이면 응답된 `amount=0`을 보고 프론트가 PG 호출 없이 `confirm`을 직접 호출한다.
+8회권 사용 예약과 쿠폰·적립금 전액 결제처럼 amount가 0이면 프론트가 현재 고객 세션에 확정 요청을 저장하고 공통 `/payments/success` 화면에서 PG 없이 `confirm`한다. 응답 유실 시 기존 `orderId`로 상태를 조회·재확인하고 미확인 0원 요청이 있으면 새 prepare를 만들지 않는다. 저장소에 기록하지 못하면 승인 전에 기존 결제 종료 API를 호출한다. 서버 요청·응답 계약은 유료 결제와 같다.
 
 #### 2.15.1 결제 준비 (prepare)
 
@@ -3628,13 +3657,14 @@ Content-Type: application/json
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
-  - 브라우저는 Toss `CARD` 통합 결제창을 열며 고객은 그 안에서 카드 또는 간편결제를 선택한다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
+  - 브라우저 기본 결제는 Toss `CARD` 통합창이며, 네이버페이·카카오페이를 선택하면 같은 SDK의 해당 간편결제 자체창을 연다. 이 선택은 prepare/confirm 요청 계약을 바꾸지 않는다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - 비회원 주문·예약 fulfillment는 내부 proof의 HMAC을 현재 또는 이전 게스트 토큰 키로 검증하고, proof의 context·orderId·정규화 전화번호가 현재 `PaymentAttempt` 및 저장 payload와 모두 일치할 때만 Guest와 도메인을 생성한다. 원 인증 코드가 prepare 뒤 만료되어도 이미 소비된 결제 귀속 증거는 해당 결제 시도에서 유효하다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
   - 결제 실패 화면은 provider query의 원문 `message`를 표시하지 않는다. 허용 목록에 있는 `code`만 고정된 한국어 안내로 변환하고, 화면 진입 직후 query를 브라우저 주소에서 제거한다.
+  - 결제창 인증 취소·실패 후 구매 화면 복귀는 고객 세션 귀속 `hg_payment_return_hint`의 `returnPath`, prepare에서 받은 `orderId`를 사용한다. 콜백에 주문번호가 없어도 저장된 ID로 결제 종료 후 복귀한다. 종료 실패 시 화면에 머물러 현재 상태를 조회하며 조회 자격은 보존한다. SDK가 오류를 반환해도 같은 종료를 시도한다. 로그인 복귀와 같은 내부 주소 확인을 사용하며 고객 세션이 다르거나 저장 정보가 없으면 복귀 버튼을 표시하지 않는다. 결제 준비·승인 API는 자동 호출하지 않는다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.
@@ -3676,6 +3706,21 @@ X-Payment-Status-Token: {prepareStatusToken}      # 비회원
 - PG 승인 시 저장한 영수증 URL이 있으면 `receiptUrl`을 반환한다. 결제 소유권 검증에 성공한 고객만 조회할 수 있으며 URL을 서버에서 재구성하지 않는다.
 - 실패 사유, `refundId`, PG 식별자, 재시도 횟수는 고객 응답에 포함하지 않는다.
 - 모든 응답은 `Cache-Control: no-store`로 반환한다.
+
+#### 승인 전 결제 종료
+
+```http
+POST /api/v1/payments/{orderId}/abandon
+Cookie: HG_SESSION={sessionToken}                 # 회원
+X-Payment-Status-Token: {prepareStatusToken}      # 비회원
+```
+
+- `operationId`: `abandonPayment`, 요청 본문 없음, 성공 `204 No Content`.
+- 결제 상태 조회와 같은 소유권 검증을 적용한다. 미존재·다른 소유자는 `404 NOT_FOUND`다.
+- confirm과 같은 결제 행 잠금 아래 `PENDING`만 `CANCELED`로 종료하고 payload 제거와 쿠폰·적립금 예약 해제를 한 트랜잭션으로 처리한다. PG 승인·환불은 호출하지 않는다.
+- 이미 `CANCELED`이면 `204`를 재응답한다. 나머지 상태는 `409 CONFLICT`로 변경 없이 거절한다.
+- 종료한 결제의 confirm은 기존 `410 PAYMENT_ATTEMPT_EXPIRED`, 상태 조회는 `EXPIRED`를 사용한다. 고객 화면은 만료·직접 종료를 함께 뜻하는 ‘결제 준비가 종료되었습니다’로 안내한다.
+- 브라우저 자체 종료·요청 실패 시 기존 30분 만료 배치를 유지한다. 비회원 조회 토큰은 보존하며 CSRF와 `Cache-Control: no-store`를 적용한다.
 
 #### 2.15.4 비회원 결제 상태 조회 권한 복구
 

@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-29
+**갱신**: 2026-08-31
 
 ---
 
@@ -136,6 +136,7 @@
 - `product_variants`, `product_variant_selections`
   - 주문제작 상품의 선택형 옵션 조합마다 `combination_key`, 가격 추가금, 재고, 판매 여부와 낙관적 락 버전을 저장한다.
   - 선택형 옵션이 없으면 `DEFAULT` 조합 한 개를 사용하고, 조합 선택 행은 그룹·값 ID와 표시 순서를 보존한다.
+  - V164부터 조합 키는 옵션 키 순으로 고정한다. 과거 중복 조합은 활성·최소 ID 우선으로 현재 조합을 정하고 나머지를 비활성 보존한다. 번호·재고·외부 참조는 변경하지 않으며 전환·롤백 조건은 ADR-0046을 따른다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.
@@ -145,6 +146,8 @@
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
 - `smartstore_stock_mappings`, `smartstore_stock_syncs`
   - 내부 상품·옵션 조합과 네이버 원상품·옵션 ID를 연결하고, 로컬 최신 절대 재고를 외부에 보낼 요청 버전·처리 상태·재시도 시각을 저장한다.
+  - V165의 `smartstore_stock_syncs.generation`은 기존 행에 `legacy`를 채우고 새 행은 Java UUID로 생성한다. 상품별 기존 행과 재등록 행을 구분하며, 같은 행의 재고 요청 버전이 증가할 때는 유지한다. 선점 결과에 함께 전달해 삭제·재등록 전 응답을 제외한다.
+  - V166의 `smartstore_stock_mappings.retired`는 과거 원격 옵션에 재고 0개만 전송하는 연결을 구분한다. `internal_target_key`는 과거 연결일 때 NULL이므로 같은 SKU의 여러 과거 연결을 보존하면서 현재 연결은 SKU당 한 개만 허용한다. 원격 상품·옵션 유일 제약과 상품·SKU FK는 유지한다.
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.
@@ -155,6 +158,7 @@
 - `cart_items`
   - `id`, `user_id(FK)`, `product_id(FK)`, `product_variant_id nullable`, `line_key`, `qty`, `created_at`, `updated_at`
   - `(user_id, line_key)`를 유일하게 유지한다. `line_key`는 상품·SKU·정규화된 직접입력값을 식별한다.
+  - V163부터 직접입력은 표시 순서가 아닌 옵션 키 순으로 정렬한다. 기존 동일 입력의 중복 행은 최소 ID에 정상 키, 나머지에 `legacy-cart-item:{id}`를 부여해 모든 ID·수량과 결제 준비 참조를 보존한다. 추가·병합은 입력 기준으로 기존 최소 ID에 합산하며 구버전과 혼용하지 않는다. 세부 전환·롤백 조건은 ADR-0012를 따른다.
 - `cart_item_text_inputs`
   - `cart_item_id`, `option_group_id`, `option_key`, `value`, `sort_order`
   - 같은 SKU라도 직접입력 제작 문구가 다른 장바구니 행의 선택을 보존한다.
@@ -446,6 +450,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `review_evidence_snapshots(retention_until, id)` 종결 후기 분쟁 증거 보존 만료 조회
 - `review_evidence_snapshot_images(snapshot_id, sort_order)`, `review_evidence_snapshot_images(image_url)` 후기 분쟁 증거 사진 순서와 미디어 참조 조회
 - `payment_attempt(order_id_external)` UNIQUE
+- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·8회권 목록의 영수증 조회 (`V161`)
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회

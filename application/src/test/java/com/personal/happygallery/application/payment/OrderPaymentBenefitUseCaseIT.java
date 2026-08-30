@@ -9,6 +9,7 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
+import com.personal.happygallery.application.payment.port.in.PaymentAbandonUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentAttemptExpiryBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
@@ -51,6 +52,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
@@ -75,6 +78,7 @@ class OrderPaymentBenefitUseCaseIT {
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentAttemptExpiryBatchUseCase expiryUseCase;
+    @Autowired PaymentAbandonUseCase abandonUseCase;
     @Autowired PaymentConfirmClaimTransactionService claimTransactionService;
     @Autowired PaymentReconciliationTransactionService reconciliationTransactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
@@ -283,6 +287,57 @@ class OrderPaymentBenefitUseCaseIT {
         });
         verify(paymentProvider, times(2)).confirm(
                 "benefit-failure-key", prepared.orderId(), 7_000L, prepared.orderId());
+    }
+
+    @Test
+    @DisplayName("결제를 종료하면 혜택을 즉시 다시 사용할 수 있고 이전 결제 승인은 차단된다")
+    void abandonPending_releasesBenefitsOnceAndPreventsConfirmation() {
+        User user = createUser("benefit-abandon@example.com", "01081001007");
+        Product product = createProduct("결제 중단 상품", 10_000L, 1);
+        IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
+        creditReward(user, 1_000L);
+        PrepareResult prepared = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+                FulfillmentType.PICKUP, coupon.getId(), 1_000L);
+        PaymentAttempt attempt = attempt(prepared);
+
+        assertThatThrownBy(() -> abandonUseCase.abandon(prepared.orderId(), AuthContext.member(-1L), null))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND));
+        abandonUseCase.abandon(prepared.orderId(), AuthContext.member(user.getId()), null);
+        abandonUseCase.abandon(prepared.orderId(), AuthContext.member(user.getId()), null);
+
+        assertBenefitsReleased(user, coupon, attempt);
+        assertThat(attempt(prepared).getPayloadEnc()).isNull();
+        assertThatThrownBy(() -> confirmUseCase.confirm(customerCommand("abandoned-key", prepared, user)))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_ATTEMPT_EXPIRED));
+        PrepareResult retried = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+                FulfillmentType.PICKUP, coupon.getId(), 1_000L);
+        assertThat(retried.amount()).isEqualTo(7_000L);
+        verifyNoInteractions(paymentProvider);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = PaymentAttemptStatus.class, names = {"PENDING", "CANCELED"}, mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("승인이 시작된 결제는 종료 요청으로 상태나 혜택 예약을 변경하지 않는다")
+    void abandonStartedPayment_preservesStateAndReservations(PaymentAttemptStatus status) {
+        User user = createUser("benefit-started@example.com", "01081001008");
+        Product product = createProduct("진행 중 결제 상품", 10_000L, 1);
+        IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
+        creditReward(user, 1_000L);
+        PrepareResult prepared = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+                FulfillmentType.PICKUP, coupon.getId(), 1_000L);
+        jdbcTemplate.update("UPDATE payment_attempt SET status = ? WHERE id = ?", status.name(), attempt(prepared).getId());
+
+        assertThatThrownBy(() -> abandonUseCase.abandon(prepared.orderId(), AuthContext.member(user.getId()), null))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+        assertSoftly(softly -> {
+            softly.assertThat(attempt(prepared).getStatus()).isEqualTo(status);
+            softly.assertThat(issuedCoupon(coupon).getStatus()).isEqualTo(IssuedCouponStatus.RESERVED);
+            softly.assertThat(rewardQueryUseCase.getWallet(user.getId()).reservedBalance()).isEqualTo(1_000L);
+        });
+        verifyNoInteractions(paymentProvider);
     }
 
     @Test
