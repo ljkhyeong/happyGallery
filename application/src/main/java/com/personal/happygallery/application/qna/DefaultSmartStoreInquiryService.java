@@ -59,7 +59,7 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
         return provider.findCustomerInquiries(today.minusDays(30), today, unansweredOnly, limit)
                 .stream()
                 .map(item -> new CustomerInquiryResult(
-                        item.inquiryNo(), item.category(), item.title(), item.inquiryContent(),
+                        item.inquiryNo(), item.answerContentId(), item.category(), item.title(), item.inquiryContent(),
                         item.answerContent(), item.answered(), item.orderId(),
                         item.channelProductId(), item.productOrderIds(), item.productName(),
                         item.productOrderOption(), item.maskedCustomerId(), item.customerName(),
@@ -71,6 +71,12 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
     public void answerCustomerInquiry(long inquiryNo, String content) {
         requireEnabled();
         provider.answerCustomerInquiry(inquiryNo, content);
+    }
+
+    @Override
+    public void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content) {
+        requireEnabled();
+        provider.updateCustomerInquiryAnswer(inquiryNo, answerContentId, content);
     }
 
     private void requireEnabled() {

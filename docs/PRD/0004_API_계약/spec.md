@@ -936,6 +936,14 @@ Authorization: Bearer {token}
 #### 2.3.7 스마트스토어 채널 주문 관리
 
 ```http
+GET /api/v1/admin/smartstore-orders/return-delivery-companies
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 네이버에 등록된 반품·교환 택배사 계약을 `[{id, name, priorityType}]`로 반환한다. 계약이 없으면 빈 배열이며 우선순위가 없으면 `priorityType`은 `null`이다. 우선순위는 `PRIMARY`, `SECONDARY_1`~`SECONDARY_9` 등 네이버 문자열을 그대로 전달한다.
+- `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 CONFLICT`를 반환한다.
+
+```http
 GET /api/v1/admin/smartstore-orders?attentionOnly=false&limit=100
 Authorization: Bearer {token}
 ```
@@ -1008,10 +1016,12 @@ GET /api/v1/admin/smartstore-inquiries/template
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
 GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
+PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}
 Authorization: Bearer {token}
 ```
 
 - 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 CONFLICT`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
 
 #### 2.3.8 상품 표시 정보 수정

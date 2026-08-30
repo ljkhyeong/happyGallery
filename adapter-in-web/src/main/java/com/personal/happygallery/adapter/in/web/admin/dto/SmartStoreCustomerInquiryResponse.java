@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 public record SmartStoreCustomerInquiryResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long inquiryNo,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long answerContentId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String category,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String title,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String inquiryContent,
@@ -23,7 +24,7 @@ public record SmartStoreCustomerInquiryResponse(
 ) {
     public static SmartStoreCustomerInquiryResponse from(CustomerInquiryResult result) {
         return new SmartStoreCustomerInquiryResponse(
-                result.inquiryNo(), result.category(), result.title(), result.inquiryContent(),
+                result.inquiryNo(), result.answerContentId(), result.category(), result.title(), result.inquiryContent(),
                 result.answerContent(), result.answered(), result.orderId(),
                 result.channelProductId(), result.productOrderIds(), result.productName(),
                 result.productOrderOption(), result.maskedCustomerId(), result.customerName(),

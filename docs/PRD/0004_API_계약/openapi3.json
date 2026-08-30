@@ -7295,6 +7295,10 @@
           "answerContent" : {
             "type" : [ "string", "null" ]
           },
+          "answerContentId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
           "answered" : {
             "type" : "boolean"
           },
@@ -7341,7 +7345,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "answerContent", "answered", "answeredAt", "category", "channelProductId", "createdAt", "customerName", "inquiryContent", "inquiryNo", "maskedCustomerId", "orderId", "productName", "productOrderIds", "productOrderOption", "title" ],
+        "required" : [ "answerContent", "answerContentId", "answered", "answeredAt", "category", "channelProductId", "createdAt", "customerName", "inquiryContent", "inquiryNo", "maskedCustomerId", "orderId", "productName", "productOrderIds", "productOrderOption", "title" ],
         "type" : "object"
       },
       "SmartStoreInquiryAnswerRequest" : {
@@ -7644,6 +7648,22 @@
           }
         },
         "required" : [ "channelSalePrice", "channelStatus", "different", "localSalePrice", "localStatus", "options", "originProductNo", "productId", "productVersion" ],
+        "type" : "object"
+      },
+      "SmartStoreReturnDeliveryCompanyResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "priorityType" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "id", "name", "priorityType" ],
         "type" : "object"
       },
       "SmartStoreSettlementIssueResponse" : {
@@ -12719,6 +12739,46 @@
         "tags" : [ "admin-smart-store-inquiry-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}" : {
+      "put" : {
+        "operationId" : "updateSmartStoreCustomerInquiryAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "inquiryNo",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "answerContentId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SmartStoreInquiryAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-inquiries/template" : {
       "get" : {
         "operationId" : "getSmartStoreInquiryAnswerTemplate",
@@ -13031,6 +13091,27 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/SmartStoreOrderBulkActionResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/return-delivery-companies" : {
+      "get" : {
+        "operationId" : "listSmartStoreReturnDeliveryCompanies",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreReturnDeliveryCompanyResponse"
+                  },
+                  "type" : "array"
                 }
               }
             },

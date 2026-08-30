@@ -25,12 +25,14 @@
 - 관리자 단건 화면의 현재 클레임 상세는 네이버에서 실시간 조회하며 사유·요청 수량·수거·배송비·보류 정보를 로컬에 중복 저장하지 않는다.
 - 발주 확인과 발송은 네이버 공식 제한에 맞춰 한 번에 최대 30건을 요청한다. 응답은 성공 주문 번호와 주문별 실패 코드·메시지를 모두 보존하며 일부 실패 때문에 성공 결과를 버리지 않는다.
 - 택배사 코드는 자주 쓰는 값을 화면에서 선택할 수 있게 하되 직접 입력도 허용해 네이버 코드 추가를 로컬 배포가 막지 않게 한다.
+- `GET /v2/product-delivery-info/return-delivery-companies`는 스마트스토어센터의 반품 택배사 계약번호·이름·우선순위를 반환한다. 주문의 `collectDeliveryCompany`나 `deliveryCompanyCode`와 다른 식별자이므로 이름으로 코드를 추측하거나 계약번호를 자동 대입하지 않는다. 관리자 주문 화면에서 필요할 때 조회하는 참고 목록으로 제공하고 로컬 DB에는 저장하지 않는다.
 - 클레임 첨부 이미지는 네이버가 반환한 주소를 관리자 단건 화면에만 표시하고 별도 저장하지 않는다.
 
 ### 3. 문의는 실시간 조회·답변으로 제공한다
 
 - 최근 30일 상품 문의와 주문·배송 고객 문의를 각각 공식 페이지 응답에서 읽고 미답변 필터를 관리자에게 제공한다.
 - 상품 문의 답변은 `commentContent`, 고객 문의 답변은 `answerComment` 계약으로 직접 전송한다. 고객 식별자는 네이버가 제공한 마스킹 값만 표시한다.
+- 고객 문의 조회의 nullable `answerContentId`를 전달하고, 기존 답변 수정은 문의번호와 답변번호를 지정한 PUT으로 전송한다. 편집 시작 시의 답변번호를 유지해 목록 재조회가 수정 대상을 바꾸지 않게 한다. 수정 가능 여부는 네이버가 판정하며 로컬에 문의 상태를 중복 저장하지 않는다.
 - 상품 문의 화면은 네이버의 단일 답변 템플릿을 실시간 조회해 본문 적용 버튼으로 제공한다. 템플릿을 로컬에 중복 저장하지 않는다.
 - 네이버 커머스 API가 후기를 제공하지 않으므로 후기 연동은 구현하지 않는다.
 
@@ -62,4 +64,6 @@
 
 - [교환 재배송 처리](https://apicenter.commerce.naver.com/docs/commerce-api/current/seller-dispatch-exchange-product-order-pay-order-seller)
 - [상품 문의 목록 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-qnas-contents)
+- [고객 문의 답변 수정](https://apicenter.commerce.naver.com/docs/commerce-api/current/update-inquiry-answer-pay-merchant)
+- [반품 택배사 다건 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-return-delivery-company-list-product)
 - [건별 정산 내역 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-case-settle-pay-settle)

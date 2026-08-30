@@ -44,6 +44,8 @@ export interface SmartStoreInquiryResponse {
 export interface SmartStoreCustomerInquiryResponse {
   /** @nullable */
   answerContent: string | null;
+  /** @nullable */
+  answerContentId: number | null;
   answered: boolean;
   /** @nullable */
   answeredAt: string | null;
@@ -380,6 +382,30 @@ export const answerSmartStoreCustomerInquiry = async (inquiryNo: number,
     smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
 
   return generatedApiClient<void>(getAnswerSmartStoreCustomerInquiryUrl(inquiryNo),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(smartStoreInquiryAnswerRequest)
+  }
+);}
+
+
+
+export const getUpdateSmartStoreCustomerInquiryAnswerUrl = (inquiryNo: number,
+    answerContentId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-inquiries/customers/${inquiryNo}/answer/${answerContentId}`
+}
+
+export const updateSmartStoreCustomerInquiryAnswer = async (inquiryNo: number,
+    answerContentId: number,
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateSmartStoreCustomerInquiryAnswerUrl(inquiryNo,answerContentId),
   {
     ...options,
     method: 'PUT',

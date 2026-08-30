@@ -1,6 +1,7 @@
 import {
   answerSmartStoreInquiry,
   answerSmartStoreCustomerInquiry,
+  updateSmartStoreCustomerInquiryAnswer,
   getSmartStoreInquiryAnswerTemplate,
   listAdminProductQnaPage,
   listSmartStoreInquiries,
@@ -62,6 +63,17 @@ export function answerCustomerInquiry(
   token: string,
 ): Promise<void> {
   return answerSmartStoreCustomerInquiry(inquiryNo, { content }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function updateCustomerInquiryAnswer(
+  inquiryNo: number,
+  answerContentId: number,
+  content: string,
+  token: string,
+): Promise<void> {
+  return updateSmartStoreCustomerInquiryAnswer(inquiryNo, answerContentId, { content }, {
     headers: adminHeaders(token),
   });
 }

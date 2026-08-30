@@ -17,6 +17,7 @@ import {
   requestSmartStoreSellerReturn,
   getSmartStoreChannelOrder,
   listSmartStoreChannelOrders,
+  listSmartStoreReturnDeliveryCompanies,
   rejectSmartStoreReturnClaim,
   resolveSmartStoreChannelOrderReturn,
   retrySmartStoreChannelOrderInventory,
@@ -40,6 +41,10 @@ export function fetchSmartStoreChannelOrders(
     { attentionOnly, limit: 100 },
     { headers: adminHeaders(adminKey) },
   );
+}
+
+export function fetchSmartStoreReturnDeliveryCompanies(adminKey: string) {
+  return listSmartStoreReturnDeliveryCompanies({ headers: adminHeaders(adminKey) });
 }
 
 export function fetchSmartStoreChannelOrder(adminKey: string, productOrderId: string) {

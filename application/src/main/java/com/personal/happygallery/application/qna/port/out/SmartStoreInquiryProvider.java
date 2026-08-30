@@ -19,6 +19,8 @@ public interface SmartStoreInquiryProvider {
 
     void answerCustomerInquiry(long inquiryNo, String content);
 
+    void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content);
+
     record InquiryItem(
             long questionId,
             long channelProductId,
@@ -38,6 +40,7 @@ public interface SmartStoreInquiryProvider {
 
     record CustomerInquiryItem(
             long inquiryNo,
+            Long answerContentId,
             String category,
             String title,
             String inquiryContent,

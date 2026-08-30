@@ -39,6 +39,16 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
+    public List<ReturnDeliveryCompanyResult> listReturnDeliveryCompanies() {
+        requireEnabled();
+        return orderProvider.findReturnDeliveryCompanies().stream()
+                .map(company -> new ReturnDeliveryCompanyResult(
+                        company.id(), company.name(), company.returnDeliveryCompanyPriorityType()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
     public ChannelOrderDetailResult detail(String productOrderId) {
         SmartStoreProductOrder order = order(productOrderId);
         SmartStoreOrderProvider.DeliveryInfo protectedInfo =

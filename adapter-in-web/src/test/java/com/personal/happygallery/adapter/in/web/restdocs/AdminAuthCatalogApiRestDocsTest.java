@@ -36,6 +36,7 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DeliveryInfo;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ClaimDetail;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.CustomerInquiryResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
@@ -77,6 +78,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -203,6 +205,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 LocalDateTime.of(2026, 8, 29, 12, 0));
         when(smartStoreChannelOrderUseCase.list(false, 100))
                 .thenReturn(List.of(smartStoreOrder));
+        when(smartStoreChannelOrderUseCase.listReturnDeliveryCompanies())
+                .thenReturn(List.of(new ReturnDeliveryCompanyResult(1001L, "CJ대한통운", "PRIMARY")));
         when(smartStoreChannelOrderUseCase.retryInventory("2026082912345678"))
                 .thenReturn(smartStoreOrder);
         when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true))
@@ -229,7 +233,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "PRODUCT", "상품 문의 기본 답변", "문의해 주셔서 감사합니다."));
         when(smartStoreInquiryUseCase.listCustomerInquiries(true, 100))
                 .thenReturn(List.of(new CustomerInquiryResult(
-                        789L, "DELIVERY", "배송 문의", "언제 도착하나요?", null,
+                        789L, null, "DELIVERY", "배송 문의", "언제 도착하나요?", null,
                         false, "order-1", "123", "po-1", "가죽 지갑", "브라운",
                         "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
@@ -730,6 +734,41 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("{\"content\":\"오늘 출고 예정입니다.\"}"))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 고객 문의 답변 수정 API를 문서화한다")
+    void admin_update_smartstore_customer_inquiry_answer() throws Exception {
+        when(smartStoreInquiryUseCase.listCustomerInquiries(false, 100))
+                .thenReturn(List.of(new CustomerInquiryResult(
+                        789L, 456L, "DELIVERY", "배송 문의", "언제 도착하나요?", "오늘 출고 예정입니다.",
+                        true, "order-1", "123", "po-1", "가죽 지갑", "브라운",
+                        "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)));
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers")
+                        .queryParam("unansweredOnly", "false")
+                        .with(adminUser()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].answerContentId").value(456));
+        mockMvc.perform(put(
+                        "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}",
+                        789L, 456L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"content\":\"내일 출고 예정입니다.\"}"))
+                .andExpect(status().isNoContent());
+        verify(smartStoreInquiryUseCase).updateCustomerInquiryAnswer(789L, 456L, "내일 출고 예정입니다.");
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 반품 택배사 계약 조회 API를 문서화한다")
+    void admin_list_smartstore_return_delivery_companies() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/return-delivery-companies")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(1001))
+                .andExpect(jsonPath("$[0].priorityType").value("PRIMARY"));
     }
 
     @Test

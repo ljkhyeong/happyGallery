@@ -15,6 +15,8 @@ public interface SmartStoreInquiryUseCase {
 
     void answerCustomerInquiry(long inquiryNo, String content);
 
+    void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content);
+
     record InquiryResult(
             long questionId,
             long channelProductId,
@@ -34,6 +36,7 @@ public interface SmartStoreInquiryUseCase {
 
     record CustomerInquiryResult(
             long inquiryNo,
+            Long answerContentId,
             String category,
             String title,
             String inquiryContent,

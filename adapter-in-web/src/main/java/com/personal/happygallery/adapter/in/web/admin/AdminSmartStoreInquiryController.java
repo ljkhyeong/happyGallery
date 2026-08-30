@@ -76,4 +76,14 @@ public class AdminSmartStoreInquiryController {
             @Valid @RequestBody SmartStoreInquiryAnswerRequest request) {
         useCase.answerCustomerInquiry(inquiryNo, request.content());
     }
+
+    @PutMapping("/customers/{inquiryNo}/answer/{answerContentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "updateSmartStoreCustomerInquiryAnswer")
+    public void updateCustomerInquiryAnswer(
+            @PathVariable @Min(1) long inquiryNo,
+            @PathVariable @Min(1) long answerContentId,
+            @Valid @RequestBody SmartStoreInquiryAnswerRequest request) {
+        useCase.updateCustomerInquiryAnswer(inquiryNo, answerContentId, request.content());
+    }
 }

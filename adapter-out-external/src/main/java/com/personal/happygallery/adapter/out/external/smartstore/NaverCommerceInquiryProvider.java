@@ -86,7 +86,7 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
             if (response.content() != null) {
                 response.content().stream()
                         .map(item -> new CustomerInquiryItem(
-                                item.inquiryNo(), item.category(), item.title(),
+                                item.inquiryNo(), item.answerContentId(), item.category(), item.title(),
                                 item.inquiryContent(), item.answerContent(), item.answered(),
                                 item.orderId(), item.productNo(), item.productOrderIdList(),
                                 item.productName(), item.productOrderOption(), item.customerId(),
@@ -166,6 +166,21 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
         });
     }
 
+    @Override
+    public void updateCustomerInquiryAnswer(long inquiryNo, long answerContentId, String content) {
+        accessTokenProvider.authorized(token -> {
+            restClient.put()
+                    .uri("/external/v1/pay-merchant/inquiries/{inquiryNo}/answer/{answerContentId}",
+                            inquiryNo, answerContentId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(new CustomerAnswerRequest(content))
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        });
+    }
+
     private static String format(LocalDateTime value) {
         return value.atZone(Clocks.SEOUL).toOffsetDateTime()
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
@@ -212,6 +227,7 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
 
     private record CustomerInquiryContent(
             long inquiryNo,
+            Long answerContentId,
             String category,
             String title,
             String inquiryContent,

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   answerChannelQna,
   answerCustomerInquiry,
+  updateCustomerInquiryAnswer,
   fetchSmartStoreAnswerTemplate,
   fetchSmartStoreCustomerInquiries,
   fetchSmartStoreInquiries,
@@ -107,11 +108,16 @@ function SmartStoreCustomerInquiryCard({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [content, setContent] = useState("");
+  const [editingAnswerId, setEditingAnswerId] = useState<number | null>(null);
+  const editing = editingAnswerId !== null;
   const mutation = useAdminMutation(onAuthError, {
-    mutationFn: () => answerCustomerInquiry(inquiry.inquiryNo, content, token),
+    mutationFn: () => editingAnswerId !== null
+      ? updateCustomerInquiryAnswer(inquiry.inquiryNo, editingAnswerId, content, token)
+      : answerCustomerInquiry(inquiry.inquiryNo, content, token),
     onSuccess: async () => {
       setContent("");
-      toast.show("스마트스토어 주문·배송 문의에 답변했습니다.");
+      setEditingAnswerId(null);
+      toast.show("스마트스토어 주문·배송 문의 답변을 저장했습니다.");
       await queryClient.invalidateQueries({ queryKey });
     },
   });
@@ -131,12 +137,22 @@ function SmartStoreCustomerInquiryCard({
       {inquiry.productName ?? "상품"}{inquiry.productOrderOption ? ` · ${inquiry.productOrderOption}` : ""}
     </div>}
     <div className="small bg-light rounded p-2">{inquiry.inquiryContent}</div>
-    {inquiry.answerContent ? (
+    {inquiry.answered && !editing ? (
       <div className="small rounded p-2 mt-2" style={{ background: "#f0f4ff" }}>
         <strong>답변:</strong> {inquiry.answerContent}
+        {inquiry.answerContentId != null && (
+          <Button type="button" size="sm" variant="outline-secondary" className="ms-2"
+            onClick={() => {
+              setContent(inquiry.answerContent ?? "");
+              mutation.reset();
+              setEditingAnswerId(inquiry.answerContentId);
+            }}>답변 수정</Button>
+        )}
       </div>
     ) : (
       <InquiryAnswerForm content={content} pending={mutation.isPending} error={mutation.error}
+        submitLabel={editing ? "수정 저장" : "답변 등록"}
+        onCancel={editing ? () => { setEditingAnswerId(null); mutation.reset(); } : undefined}
         onContent={setContent} onSubmit={() => mutation.mutate()} />
     )}
   </Card.Body></Card>;
@@ -149,6 +165,8 @@ function InquiryAnswerForm({
   onContent,
   onSubmit,
   template,
+  submitLabel = "답변 등록",
+  onCancel,
 }: {
   content: string;
   pending: boolean;
@@ -156,12 +174,15 @@ function InquiryAnswerForm({
   onContent: (value: string) => void;
   onSubmit: () => void;
   template?: SmartStoreInquiryAnswerTemplateResponse;
+  submitLabel?: string;
+  onCancel?: () => void;
 }) {
   return <Form className="mt-2" onSubmit={(event) => {
     event.preventDefault();
     onSubmit();
   }}>
     <Form.Control as="textarea" rows={3} maxLength={CONTENT_BODY_MAX_LENGTH}
+      disabled={pending}
       value={content} onChange={(event) => onContent(event.target.value)}
       placeholder="스마트스토어에 등록할 답변" />
     {template && (
@@ -172,7 +193,10 @@ function InquiryAnswerForm({
     )}
     <div className="d-flex justify-content-between align-items-center mt-1">
       <Form.Text>{contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}</Form.Text>
-      <Button type="submit" size="sm" disabled={!content.trim() || pending}>답변 등록</Button>
+      <div className="d-flex gap-2">
+        {onCancel && <Button type="button" size="sm" variant="outline-secondary" disabled={pending} onClick={onCancel}>취소</Button>}
+        <Button type="submit" size="sm" disabled={!content.trim() || pending}>{submitLabel}</Button>
+      </div>
     </div>
     <ErrorAlert error={error} />
   </Form>;

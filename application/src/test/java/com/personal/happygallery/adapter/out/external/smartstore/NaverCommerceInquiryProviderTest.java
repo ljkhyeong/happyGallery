@@ -150,8 +150,46 @@ class NaverCommerceInquiryProviderTest {
         server.verify();
         assertThat(inquiries).singleElement().satisfies(inquiry -> {
             assertThat(inquiry.inquiryNo()).isEqualTo(789L);
+            assertThat(inquiry.answerContentId()).isNull();
             assertThat(inquiry.orderId()).isEqualTo("order-1");
             assertThat(inquiry.channelProductId()).isEqualTo("123");
         });
+    }
+
+    @Test
+    @DisplayName("기존 고객 문의 답변번호를 조회하고 해당 답변만 수정한다")
+    void updateCustomerInquiryAnswer_usesAnswerContentId() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceInquiryProvider provider = new NaverCommerceInquiryProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
+                .andRespond(withSuccess("""
+                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/external/v1/pay-user/inquiries")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"content":[{
+                          "inquiryNo":789,"answerContentId":456,"answered":true,
+                          "inquiryContent":"배송 문의","answerContent":"오늘 출고 예정입니다.",
+                          "inquiryRegistrationDateTime":"2026-08-29T11:00:00+09:00"
+                        }],"totalPages":1}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-merchant/inquiries/789/answer/456"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("{\"answerComment\":\"내일 출고 예정입니다.\"}"))
+                .andRespond(withSuccess());
+
+        var inquiries = provider.findCustomerInquiries(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 29), false, 100);
+        assertThat(inquiries).singleElement().satisfies(inquiry -> {
+            assertThat(inquiry.answerContentId()).isEqualTo(456L);
+            provider.updateCustomerInquiryAnswer(inquiry.inquiryNo(), inquiry.answerContentId(),
+                    "내일 출고 예정입니다.");
+        });
+        server.verify();
     }
 }

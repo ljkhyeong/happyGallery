@@ -14,6 +14,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.ResolveSmartStoreRetur
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderDetailResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreOrderBulkActionResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreReturnDeliveryCompanyResponse;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -50,6 +51,13 @@ public class AdminSmartStoreOrderController {
         return channelOrderUseCase.list(attentionOnly, limit).stream()
                 .map(SmartStoreChannelOrderResponse::from)
                 .toList();
+    }
+
+    @GetMapping("/return-delivery-companies")
+    @Operation(operationId = "listSmartStoreReturnDeliveryCompanies")
+    public List<SmartStoreReturnDeliveryCompanyResponse> listReturnDeliveryCompanies() {
+        return channelOrderUseCase.listReturnDeliveryCompanies().stream()
+                .map(SmartStoreReturnDeliveryCompanyResponse::from).toList();
     }
 
     @GetMapping("/{productOrderId}")
