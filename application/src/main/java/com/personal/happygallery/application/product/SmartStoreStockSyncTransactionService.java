@@ -64,15 +64,16 @@ class SmartStoreStockSyncTransactionService {
         syncPort.save(sync);
 
         try {
-            return Optional.of(new ClaimedStock(claimedVersion, buildCommand(productId), null));
+            return Optional.of(new ClaimedStock(sync.getGeneration(), claimedVersion, buildCommand(productId), null));
         } catch (IllegalStateException exception) {
-            return Optional.of(new ClaimedStock(claimedVersion, null, exception.getMessage()));
+            return Optional.of(new ClaimedStock(sync.getGeneration(), claimedVersion, null, exception.getMessage()));
         }
     }
 
     @Transactional
     public void finish(
             Long productId,
+            String claimedGeneration,
             long claimedVersion,
             boolean success,
             String reason,
@@ -82,9 +83,9 @@ class SmartStoreStockSyncTransactionService {
             return;
         }
         if (success) {
-            sync.complete(claimedVersion, now);
+            sync.complete(claimedGeneration, claimedVersion, now);
         } else {
-            sync.fail(claimedVersion, reason, now);
+            sync.fail(claimedGeneration, claimedVersion, reason, now);
         }
         syncPort.save(sync);
     }
@@ -167,7 +168,7 @@ class SmartStoreStockSyncTransactionService {
         }).toList();
     }
 
-    record ClaimedStock(long version, StockCommand command, String configurationError) {}
+    record ClaimedStock(String generation, long version, StockCommand command, String configurationError) {}
 
     record ProductSyncSnapshot(
             Long productId,

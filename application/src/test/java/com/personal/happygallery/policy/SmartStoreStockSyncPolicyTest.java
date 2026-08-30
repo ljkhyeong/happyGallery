@@ -22,7 +22,7 @@ class SmartStoreStockSyncPolicyTest {
         long claimedVersion = sync.claim(NOW, NOW.minusMinutes(5));
 
         sync.request(NOW.plusSeconds(1));
-        sync.complete(claimedVersion, NOW.plusSeconds(2));
+        sync.complete(sync.getGeneration(), claimedVersion, NOW.plusSeconds(2));
 
         assertSoftly(softly -> {
             softly.assertThat(sync.getRequestVersion()).isEqualTo(2);
@@ -38,7 +38,7 @@ class SmartStoreStockSyncPolicyTest {
 
         for (int attempt = 1; attempt <= SmartStoreStockSync.MAX_ATTEMPTS; attempt++) {
             long version = sync.claim(NOW.plusMinutes(attempt), NOW.minusMinutes(5));
-            sync.fail(version, "스마트스토어 연결 실패", NOW.plusMinutes(attempt));
+            sync.fail(sync.getGeneration(), version, "스마트스토어 연결 실패", NOW.plusMinutes(attempt));
         }
 
         assertThat(sync.getStatus()).isEqualTo(SmartStoreStockSyncStatus.FAILED);

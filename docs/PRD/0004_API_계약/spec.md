@@ -902,6 +902,7 @@ Content-Type: application/json
 - 주문제작 상품은 관리자 상품 응답에 표시되는 현재 조합을 판매 중지 여부와 관계없이 정확히 한 번씩 보내야 한다. 과거 주문 보존용 조합은 입력하지 않는다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
 - 같은 원상품에서 이미 연결했던 과거 조합은 매핑 응답에 남을 수 있으며, 자동 재고 전송에서는 0개를 보낸다. 가격·상태 수동 반영에서는 추가금 0원·사용 불가로 보낸다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
 - `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
+- 비활성화·해제 후 다시 등록한 동기화는 이전 전송과 구분한다. 이전 전송의 성공·실패 응답은 새 요청의 완료 상태, 시도 횟수, 오류와 재시도 시각을 바꾸지 않는다.
 - 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
 - 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`

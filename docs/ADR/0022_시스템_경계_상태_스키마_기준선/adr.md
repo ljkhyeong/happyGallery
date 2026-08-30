@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-29
+**갱신**: 2026-08-31
 
 ---
 
@@ -146,6 +146,7 @@
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
 - `smartstore_stock_mappings`, `smartstore_stock_syncs`
   - 내부 상품·옵션 조합과 네이버 원상품·옵션 ID를 연결하고, 로컬 최신 절대 재고를 외부에 보낼 요청 버전·처리 상태·재시도 시각을 저장한다.
+  - V165의 `smartstore_stock_syncs.generation`은 기존 행에 `legacy`를 채우고 새 행은 Java UUID로 생성한다. 상품별 기존 행과 재등록 행을 구분하며, 같은 행의 재고 요청 버전이 증가할 때는 유지한다. 선점 결과에 함께 전달해 삭제·재등록 전 응답을 제외한다.
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.

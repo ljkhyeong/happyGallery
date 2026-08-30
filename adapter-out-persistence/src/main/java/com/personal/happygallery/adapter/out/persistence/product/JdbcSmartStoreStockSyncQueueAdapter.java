@@ -4,6 +4,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreStockSyn
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -12,9 +13,9 @@ public class JdbcSmartStoreStockSyncQueueAdapter implements SmartStoreStockSyncQ
 
     private static final String REQUEST_SQL = """
             insert into smartstore_stock_syncs (
-                product_id, request_version, status, attempt_count, next_attempt_at, row_version
+                product_id, request_version, status, attempt_count, next_attempt_at, row_version, generation
             )
-            select ?, 1, 'PENDING', 0, ?, 0
+            select ?, 1, 'PENDING', 0, ?, 0, ?
              where exists (
                 select 1
                   from smartstore_stock_mappings
@@ -41,6 +42,6 @@ public class JdbcSmartStoreStockSyncQueueAdapter implements SmartStoreStockSyncQ
     public void requestIfMapped(Collection<Long> productIds, LocalDateTime now) {
         Timestamp requestedAt = Timestamp.valueOf(now);
         productIds.stream().distinct().forEach(productId -> jdbcTemplate.update(
-                REQUEST_SQL, productId, requestedAt, productId));
+                REQUEST_SQL, productId, requestedAt, UUID.randomUUID().toString(), productId));
     }
 }

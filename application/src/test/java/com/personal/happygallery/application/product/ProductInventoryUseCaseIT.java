@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductVariant;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
+import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionGroupDefinition;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionValueDefinition;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
@@ -24,6 +25,7 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -31,6 +33,8 @@ import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -70,6 +74,7 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductVariantRepository variantRepository;
     @Autowired SmartStoreInventoryUseCase smartStoreInventoryUseCase;
     @Autowired SmartStoreStockMappingPort mappingPort;
+    @Autowired SmartStoreStockSyncPort stockSyncPort;
     @Autowired SmartStoreStockSyncTransactionService stockSyncTransactionService;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -226,6 +231,56 @@ class ProductInventoryUseCaseIT {
         assertThat(stockSyncTransactionService.productSnapshot(productId).options())
                 .extracting(option -> new OptionStock(option.optionId(), option.stockQuantity()))
                 .containsExactlyInAnyOrder(new OptionStock(100L, 2), new OptionStock(101L, 0), new OptionStock(102L, 0));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("전송 중 연동을 비활성화하거나 해제한 뒤 재등록해도 이전 응답이 새 요청과 재시도를 바꾸지 않는다")
+    void reenableSmartStoreMapping_ignoresPreviousGeneration(boolean deleteMapping) {
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        var command = new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 100L)));
+        smartStoreInventoryUseCase.saveMapping(productId, command);
+        LocalDateTime now = LocalDateTime.now(clock);
+        var previous = stockSyncTransactionService.claim(productId, now).orElseThrow();
+
+        if (deleteMapping) {
+            smartStoreInventoryUseCase.deleteMapping(productId);
+        } else {
+            smartStoreInventoryUseCase.saveMapping(productId,
+                    new SaveMappingCommand(123L, false, command.variants()));
+        }
+        smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 101L))));
+        var pending = stockSyncPort.findByProductId(productId).orElseThrow();
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), false, "이전 전송 실패", now);
+        var afterOldResponse = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(pending.getGeneration()).isNotEqualTo(previous.generation());
+            softly.assertThat(pending.getRequestVersion()).isEqualTo(previous.version());
+            softly.assertThat(afterOldResponse.getStatus()).isEqualTo(SmartStoreStockSyncStatus.PENDING);
+            softly.assertThat(afterOldResponse.getAttemptCount()).isZero();
+            softly.assertThat(afterOldResponse.getNextAttemptAt()).isEqualTo(pending.getNextAttemptAt());
+        });
+
+        var current = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
+        assertThat(current.command().options()).contains(new OptionStock(101L, 9));
+        stockSyncTransactionService.finish(productId, current.generation(), current.version(), false, "새 전송 실패", now);
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), false, "이전 전송 실패", now);
+        var retry = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(retry.getStatus()).isEqualTo(SmartStoreStockSyncStatus.PENDING);
+            softly.assertThat(retry.getAttemptCount()).isEqualTo(1);
+            softly.assertThat(retry.getLastError()).isEqualTo("새 전송 실패");
+            softly.assertThat(retry.getNextAttemptAt()).isEqualTo(now.plusMinutes(1));
+        });
+        var retried = stockSyncTransactionService.claim(productId, retry.getNextAttemptAt()).orElseThrow();
+        stockSyncTransactionService.finish(productId, retried.generation(), retried.version(), true, null, retry.getNextAttemptAt());
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
     }
 
     private static List<VariantDefinition> variantsFrom(ProductOptions options) {
