@@ -11,7 +11,7 @@ import {
 } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 import { useToast } from "@/shared/ui/ToastContainer";
-import { mergeGuestCart } from "./api";
+import { mergeCartItems } from "./api";
 import {
   editGuestCartExclusive,
   GuestCartLockUnavailableError,
@@ -128,7 +128,7 @@ export function useGuestCartMerge({
             }
 
             requireMergeCustomerSession(customerSession, userId);
-            await mergeGuestCart(
+            await mergeCartItems(
               userId,
               mergeRequest.idempotencyKey,
               mergeRequest.items.map(({

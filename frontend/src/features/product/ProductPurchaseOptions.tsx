@@ -9,6 +9,7 @@ import type { OrderTextInput } from "@/generated/api/payment";
 import { formatKRW } from "@/shared/lib";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
+import { productOptionLineKey } from "./optionLineKey";
 
 export interface PurchaseLine {
   key: string;
@@ -34,13 +35,6 @@ function matchesVariant(
     && selected.every(([groupKey, valueKey]) => variant.selections.some(
       (selection) => selection.groupKey === groupKey && selection.valueKey === valueKey,
     ));
-}
-
-function lineKey(variantId: number, textInputs: OrderTextInput[]) {
-  return `${variantId}:${[...textInputs]
-    .sort((left, right) => left.groupKey.localeCompare(right.groupKey))
-    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
-    .join("|")}`;
 }
 
 function valueLabel(group: ProductOptionGroupResponse, valueKey: string) {
@@ -98,7 +92,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         : 0),
       0,
     );
-    const key = lineKey(selectedVariant.id, textInputs);
+    const key = productOptionLineKey(product.id, selectedVariant.id, textInputs);
     const labels = [
       ...selectGroups.flatMap((group) => selectedValues[group.key]
         ? [`${group.name}: ${valueLabel(group, selectedValues[group.key] ?? "")}`]

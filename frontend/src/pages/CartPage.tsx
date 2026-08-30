@@ -5,6 +5,7 @@ import { Link } from "react-router";
 import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
+import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
@@ -231,7 +232,9 @@ function CartContent() {
           retrying={isRefetching}
         />
       )}
-      <ErrorAlert error={itemMutationError} />
+      {itemMutationError instanceof CartQuantityError
+        ? <Alert variant="warning">{itemMutationError.message}</Alert>
+        : <ErrorAlert error={itemMutationError} />}
       {isItemMutationPending && (
         <Alert variant="info" role="status" className="mb-3">
           장바구니 변경을 반영하고 있습니다.
@@ -272,7 +275,8 @@ function CartContent() {
                             />
                           </div>
                         )}
-                        {!item.available && (
+                        {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
+                        {!item.available && !item.quantityWarning && (
                           <span className="badge bg-secondary">품절</span>
                         )}
                       </td>
@@ -292,7 +296,7 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={isItemMutationPending || item.qty >= MAX_PRODUCT_QUANTITY}
+                            disabled={isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
                             onClick={() => {
                               void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
                             }}

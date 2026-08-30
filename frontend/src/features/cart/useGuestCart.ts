@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { editGuestCartExclusive } from "./guestCartLock";
 import type { ProductTextInputRequest } from "@/generated/api/customerStore";
+import { productOptionLineKey } from "@/features/product/optionLineKey";
+import type { ProductDetailResponse } from "@/generated/api/product";
+import { captureCustomerSession, requireCurrentCustomerSession } from "@/shared/api";
+import { cartQuantities, cartQuantityLimit, cartSkuKey } from "./cartStock";
 
 const STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -21,9 +25,11 @@ export interface GuestCartMergeRequest {
   items: GuestCartItem[];
 }
 
+export type CartAddition = Pick<GuestCartItem, "productId" | "productVariantId" | "textInputs" | "qty">;
+
 export class CartQuantityError extends Error {
-  constructor() {
-    super(`상품별 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`);
+  constructor(message = `같은 상품·옵션 조합의 장바구니 수량은 1개 이상 ${MAX_PRODUCT_QUANTITY}개 이하여야 합니다.`) {
+    super(message);
     this.name = "CartQuantityError";
   }
 }
@@ -32,18 +38,6 @@ function requireCartQuantity(qty: number) {
   if (!Number.isSafeInteger(qty) || qty < 1 || qty > MAX_PRODUCT_QUANTITY) {
     throw new CartQuantityError();
   }
-}
-
-function guestLineKey(
-  productId: number,
-  productVariantId: number | null,
-  textInputs: ProductTextInputRequest[],
-) {
-  const inputs = [...textInputs]
-    .sort((left, right) => left.groupKey.localeCompare(right.groupKey))
-    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
-    .join("|");
-  return `${productId}:${productVariantId ?? 0}:${inputs}`;
 }
 
 function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
@@ -78,7 +72,7 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     productId: item.productId,
     productVariantId,
     textInputs,
-    lineKey: guestLineKey(item.productId, productVariantId, textInputs),
+    lineKey: productOptionLineKey(item.productId, productVariantId, textInputs),
     qty: item.qty,
     lineageId: item.lineageId ?? `legacy:${item.productId}`,
   };
@@ -197,7 +191,21 @@ function persistGuestCartItemsWhileLocked(items: GuestCartItem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-export function useGuestCart() {
+function requireStock(items: GuestCartItem[], changed: readonly CartAddition[], products: ProductDetailResponse[]) {
+  const quantities = cartQuantities(items);
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  for (const item of new Map(changed.map((item) => [cartSkuKey(item), item])).values()) {
+    const quantity = quantities.get(cartSkuKey(item)) ?? 0;
+    requireCartQuantity(quantity);
+    const product = productsById.get(item.productId)!;
+    const limit = cartQuantityLimit(product, item.productVariantId);
+    if (quantity > limit) {
+      throw new CartQuantityError(`${product.name}의 같은 옵션 조합은 합계 ${limit}개까지 담을 수 있습니다.`);
+    }
+  }
+}
+
+export function useGuestCart(loadProduct: (productId: number) => Promise<ProductDetailResponse>) {
   const [items, setItems] = useState<GuestCartItem[]>([]);
 
   useEffect(() => {
@@ -227,44 +235,48 @@ export function useGuestCart() {
   );
 
   const updateItems = useCallback(
-    (update: (current: GuestCartItem[]) => GuestCartItem[]) =>
-      editGuestCartExclusive(() => updateItemsWhileLocked(update)),
-    [updateItemsWhileLocked],
+    (update: (current: GuestCartItem[]) => GuestCartItem[] | Promise<GuestCartItem[]>) => {
+      const snapshot = captureCustomerSession();
+      return editGuestCartExclusive(async () => {
+        requireCurrentCustomerSession(snapshot);
+        const next = await update(readGuestCartItemsWhileLocked());
+        requireCurrentCustomerSession(snapshot);
+        persistGuestCartItemsWhileLocked(next);
+        setItems(next);
+        return next;
+      });
+    },
+    [],
   );
 
-  const addItem = useCallback(async (
-    productId: number,
-    productVariantId: number | null,
-    textInputs: ProductTextInputRequest[],
-    qty: number,
-  ) => {
-    requireCartQuantity(qty);
-    const lineKey = guestLineKey(productId, productVariantId, textInputs);
-    await updateItems((prev) => {
-      const existing = prev.find((item) => item.lineKey === lineKey);
-      const nextQty = (existing?.qty ?? 0) + qty;
-      requireCartQuantity(nextQty);
-      return existing
-        ? prev.map((i) =>
-          i.lineKey === lineKey ? { ...i, qty: nextQty } : i,
-        )
-        : [...prev, {
-          productId,
-          productVariantId,
-          textInputs,
-          lineKey,
-          qty,
-          lineageId: crypto.randomUUID(),
-        }];
+  const addItems = useCallback(async (additions: CartAddition[]) => {
+    for (const item of additions) requireCartQuantity(item.qty);
+    await updateItems(async (prev) => {
+      const products = await Promise.all([...new Set(additions.map((item) => item.productId))].map(loadProduct));
+      const next = new Map(prev.map((item) => [item.lineKey, item]));
+      for (const item of additions) {
+        const lineKey = productOptionLineKey(item.productId, item.productVariantId, item.textInputs);
+        const existing = next.get(lineKey);
+        next.set(lineKey, existing
+          ? { ...existing, qty: existing.qty + item.qty }
+          : { ...item, lineKey, lineageId: crypto.randomUUID() });
+      }
+      const result = [...next.values()];
+      requireStock(result, additions, products);
+      return result;
     });
-  }, [updateItems]);
+  }, [loadProduct, updateItems]);
 
   const updateQty = useCallback(async (lineKey: string, qty: number) => {
     requireCartQuantity(qty);
-    await updateItems((prev) =>
-      prev.map((item) => (item.lineKey === lineKey ? { ...item, qty } : item)),
-    );
-  }, [updateItems]);
+    await updateItems(async (prev) => {
+      const item = prev.find((candidate) => candidate.lineKey === lineKey);
+      if (!item) return prev;
+      const next = prev.map((candidate) => candidate.lineKey === lineKey ? { ...candidate, qty } : candidate);
+      if (qty > item.qty) requireStock(next, [item], [await loadProduct(item.productId)]);
+      return next;
+    });
+  }, [loadProduct, updateItems]);
 
   const removeItem = useCallback(async (lineKey: string) => {
     await updateItems((prev) => prev.filter((item) => item.lineKey !== lineKey));
@@ -291,7 +303,7 @@ export function useGuestCart() {
   return {
     items,
     itemCount,
-    addItem,
+    addItems,
     updateQty,
     removeItem,
     consumeMergedItemsWhileLocked,

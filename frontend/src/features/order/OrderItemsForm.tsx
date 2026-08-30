@@ -10,6 +10,7 @@ import type { ProductType } from "@/shared/types/product";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { OrderOptionList, type OrderOptionDisplay } from "./OrderOptionList";
+import { productOptionLineKey } from "@/features/product/optionLineKey";
 
 interface Props {
   items: OrderItemInput[];
@@ -30,10 +31,7 @@ function getProductTypes(
 }
 
 function itemKey(item: OrderItemInput) {
-  return `${item.productId}:${item.productVariantId ?? 0}:${(item.textInputs ?? [])
-    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
-    .sort()
-    .join("|")}`;
+  return productOptionLineKey(item.productId, item.productVariantId, item.textInputs);
 }
 
 function unitPrice(item: OrderItemInput, product: ProductDetailResponse) {

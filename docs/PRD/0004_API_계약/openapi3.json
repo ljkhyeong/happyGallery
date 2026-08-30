@@ -5481,6 +5481,12 @@
           "specification" : {
             "type" : [ "string", "null" ]
           },
+          "stockQuantity" : {
+            "description" : "현재 재고 수량. 주문제작은 활성 옵션 조합의 합계",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
           "type" : {
             "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
             "type" : "string"
@@ -5492,7 +5498,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "optionGroups", "price", "productionLeadDays", "specification", "type", "variants" ],
+        "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "optionGroups", "price", "productionLeadDays", "specification", "stockQuantity", "type", "variants" ],
         "type" : "object"
       },
       "ProductOptionGroupRequest" : {

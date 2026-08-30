@@ -74,7 +74,8 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
     user?.name,
     user?.phone ?? undefined,
   );
-  const { addItem: addToCart } = useCart();
+  const { addItems: addToCart } = useCart();
+  const cartRequestRef = useRef<{ fingerprint: string; idempotencyKey: string } | null>(null);
 
   const {
     data: product,
@@ -140,20 +141,22 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
     mutationFn: () => runForCurrentCustomer(
       async () => {
         if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
-        if (product.optionGroups.length) {
-          for (const line of purchaseLines) {
-            await addToCart(productId, line.productVariantId, line.textInputs, line.qty);
-          }
-          return;
+        const items = product.optionGroups.length
+          ? purchaseLines.map((line) => ({
+            productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+          }))
+          : [{ productId, productVariantId: product.type === "MADE_TO_ORDER"
+            ? (product.variants[0]?.id ?? null) : null, textInputs: [], qty }];
+        const fingerprint = JSON.stringify(items);
+        if (cartRequestRef.current?.fingerprint !== fingerprint) {
+          cartRequestRef.current = { fingerprint, idempotencyKey: crypto.randomUUID() };
         }
-        await addToCart(
-          productId,
-          product.type === "MADE_TO_ORDER" ? (product.variants[0]?.id ?? null) : null,
-          [],
-          qty,
-        );
+        await addToCart(items, cartRequestRef.current.idempotencyKey);
       },
-      () => toast.show("장바구니에 추가되었습니다."),
+      () => {
+        cartRequestRef.current = null;
+        toast.show("장바구니에 추가되었습니다.");
+      },
     ),
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);

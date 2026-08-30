@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -111,7 +112,8 @@ public class CartItem {
                         .thenComparing(CartItemTextInput::getOptionKey))
                 .forEach(input -> canonical
                         .append(input.getOptionKey()).append('=')
-                        .append(input.getValue()).append(';'));
+                        .append(Base64.getEncoder().encodeToString(
+                                input.getValue().getBytes(StandardCharsets.UTF_8))).append(';'));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));

@@ -21,10 +21,14 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -44,6 +48,56 @@ class CartQueryUseCaseIT {
     @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired InventoryStorePort inventoryStore;
     @Autowired Clock clock;
+    @Autowired EntityManager entityManager;
+    @Autowired JdbcTemplate jdbc;
+
+    @Test
+    @DisplayName("각인 구분문자를 보존하고 기존 장바구니 키 전환 뒤에도 같은 항목에 수량을 더한다")
+    void textInputKeys_preserveStructureAndMigrateExistingItems() {
+        User user = userStore.save(new User(
+                "cart-encoding@example.com", "hashed", "각인 고객", "01012345678"));
+        var registered = productAdminUseCase.register(new ProductAdminUseCase.SaveProductCommand(
+                "구분문자 키링", ProductType.MADE_TO_ORDER, null,
+                10_000L, 10, null, null, "키링", null, 5,
+                List.of(
+                        new ProductAdminUseCase.OptionGroupDefinition(
+                                "a", ProductOptionType.TEXT, "앞면", false, 0, null, 200, 0L, List.of()),
+                        new ProductAdminUseCase.OptionGroupDefinition(
+                                "b", ProductOptionType.TEXT, "뒷면", false, 1, null, 200, 0L, List.of())),
+                List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        String message = "각인🙂".repeat(25);
+        List<TextInput> singleInput = List.of(new TextInput("a", message + ";b=B"));
+        List<TextInput> twoInputs = List.of(new TextInput("a", message), new TextInput("b", "B"));
+        cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
+        entityManager.flush();
+        Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
+        String expectedKey = jdbc.queryForObject("SELECT line_key FROM cart_items WHERE id = ?", String.class, itemId);
+        jdbc.update("UPDATE cart_items SET line_key = SHA2(?, 256) WHERE id = ?",
+                "product=" + productId + "|variant=" + variantId + "|inputs=a=" + message + ";b=B;", itemId);
+
+        new ResourceDatabasePopulator(new ClassPathResource(
+                "db/migration/V162__encode_cart_text_input_keys.sql")).execute(jdbc.getDataSource());
+        entityManager.clear();
+        assertThat(jdbc.queryForObject("SELECT line_key FROM cart_items WHERE id = ?", String.class, itemId))
+                .isEqualTo(expectedKey);
+        cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
+        UUID mergeKey = UUID.randomUUID();
+        cartUseCase.mergeItems(user.getId(), mergeKey,
+                List.of(new CartUseCase.MergeItem(productId, variantId, twoInputs, 1)));
+        assertThat(cartUseCase.getCart(user.getId()).items())
+                .extracting(CartUseCase.CartItemView::qty).containsExactlyInAnyOrder(2, 1);
+        assertThat(cartUseCase.getCart(user.getId()).items())
+                .anySatisfy(item -> {
+                    assertThat(item.cartItemId()).isEqualTo(itemId);
+                    assertThat(item.qty()).isEqualTo(2);
+                });
+        assertThatThrownBy(() -> cartUseCase.mergeItems(user.getId(), mergeKey,
+                List.of(new CartUseCase.MergeItem(productId, variantId, singleInput, 1))))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+    }
 
     @DisplayName("장바구니 조회는 상품과 재고 정보를 함께 조회해 가용성과 합계를 반환한다")
     @Test

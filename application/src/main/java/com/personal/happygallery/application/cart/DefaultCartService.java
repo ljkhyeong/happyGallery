@@ -35,6 +35,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -433,8 +434,10 @@ public class DefaultCartService implements CartUseCase {
                 .map(item -> {
                     String inputs = item.textInputs().stream()
                             .sorted(Comparator.comparing(TextInput::groupKey))
-                            .map(input -> input.groupKey() + "="
-                                    + (input.value() == null ? "" : input.value().strip()))
+                            .map(input -> Base64.getEncoder().encodeToString(
+                                    input.groupKey().getBytes(StandardCharsets.UTF_8)) + "="
+                                    + Base64.getEncoder().encodeToString((input.value() == null
+                                            ? "" : input.value().strip()).getBytes(StandardCharsets.UTF_8)))
                             .collect(Collectors.joining(";"));
                     return item.productId() + "|" + item.productVariantId()
                             + "|" + inputs + "|" + item.qty();

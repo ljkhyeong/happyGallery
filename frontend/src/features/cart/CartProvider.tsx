@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useMemo,
   type ReactNode,
 } from "react";
@@ -7,15 +8,14 @@ import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/rea
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { fetchProduct } from "@/features/product/api";
 import {
-  addToCart,
+  mergeCartItems,
   fetchCart,
   removeCartItem,
   updateCartItemQty,
 } from "./api";
-import { useGuestCart } from "./useGuestCart";
+import { useGuestCart, type CartAddition } from "./useGuestCart";
 import {
   useGuestCartMerge,
   type GuestCartMergeIssue,
@@ -40,12 +40,7 @@ interface CartContextValue {
   guestCartMergeIssue: GuestCartMergeIssue | null;
   retryGuestCartMerge: () => void;
   discardGuestCartMerge: () => void;
-  addItem: (
-    productId: number,
-    productVariantId: number | null,
-    textInputs: ProductTextInputRequest[],
-    qty: number,
-  ) => Promise<void>;
+  addItems: (items: CartAddition[], idempotencyKey: string) => Promise<void>;
   updateQty: (cartItemId: CartItemIdentifier, qty: number) => Promise<void>;
   removeItem: (cartItemId: CartItemIdentifier) => Promise<void>;
 }
@@ -55,14 +50,19 @@ export const CartContext = createContext<CartContextValue | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const { user, sessionVersion } = useCustomerAuth();
   const queryClient = useQueryClient();
+  const loadProduct = useCallback((productId: number) => queryClient.fetchQuery({
+    queryKey: queryKeys.catalog.productDetail(productId),
+    queryFn: () => fetchProduct(productId),
+    staleTime: 0,
+  }), [queryClient]);
   const {
     items: guestItems,
     itemCount: guestItemCount,
-    addItem: addGuestItem,
+    addItems: addGuestItems,
     updateQty: updateGuestQty,
     removeItem: removeGuestItem,
     consumeMergedItemsWhileLocked,
-  } = useGuestCart();
+  } = useGuestCart(loadProduct);
   const userId = user?.id ?? null;
   const guestProductIds = useMemo(
     () => [...new Set(guestItems.map((item) => item.productId))],
@@ -95,16 +95,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   });
 
   const addMutation = useMutation({
-    mutationFn: ({ productId, productVariantId, textInputs, qty }: {
-      productId: number;
-      productVariantId: number | null;
-      textInputs: ProductTextInputRequest[];
-      qty: number;
+    mutationFn: ({ items, idempotencyKey }: {
+      items: CartAddition[];
+      idempotencyKey: string;
     }) =>
       runForCurrentCustomer(
-        () => addToCart(productId, productVariantId, textInputs, qty),
+        () => mergeCartItems(user!.id, idempotencyKey, items),
         () => queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
       ),
+  });
+
+  const guestMutation = useMutation({
+    mutationFn: (operation: () => Promise<void>) => runForCurrentCustomer(operation),
   });
 
   const updateMutation = useMutation({
@@ -144,12 +146,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       guestCartMergeIssue,
       retryGuestCartMerge,
       discardGuestCartMerge,
-      addItem: (productId, productVariantId, textInputs, qty) => addMutation.mutateAsync({
-        productId,
-        productVariantId,
-        textInputs,
-        qty,
-      }),
+      addItems: (items, idempotencyKey) => addMutation.mutateAsync({ items, idempotencyKey }),
       updateQty: (cartItemId, qty) => {
         if (typeof cartItemId !== "number") {
           throw new Error("회원 장바구니 항목 번호가 올바르지 않습니다.");
@@ -185,15 +182,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       refetch: () => {
         for (const query of guestProductQueries) void query.refetch();
       },
-      itemMutationError: null,
-      isItemMutationPending: false,
+      itemMutationError: guestMutation.error,
+      isItemMutationPending: guestMutation.isPending,
       guestCartMergeIssue: null,
       retryGuestCartMerge,
       discardGuestCartMerge,
-      addItem: async (productId, productVariantId, textInputs, qty) =>
-        addGuestItem(productId, productVariantId, textInputs, qty),
-      updateQty: async (cartItemId, qty) => updateGuestQty(String(cartItemId), qty),
-      removeItem: async (cartItemId) => removeGuestItem(String(cartItemId)),
+      addItems: (items) => guestMutation.mutateAsync(() => addGuestItems(items)),
+      updateQty: (cartItemId, qty) => guestMutation.mutateAsync(() => updateGuestQty(String(cartItemId), qty)),
+      removeItem: (cartItemId) => guestMutation.mutateAsync(() => removeGuestItem(String(cartItemId))),
     };
   }
 

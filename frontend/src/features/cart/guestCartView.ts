@@ -4,12 +4,15 @@ import type {
 } from "@/generated/api/customerStore";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { GuestCartItem } from "./useGuestCart";
+import { cartQuantities, cartQuantityLimit, cartSkuKey } from "./cartStock";
 
 export type CartItemIdentifier = number | string;
 
 export type CartItemView = Omit<CartItemResponse, "cartItemId" | "productType"> & {
   cartItemId: CartItemIdentifier;
   productType: CartItemResponse["productType"] | null;
+  maxQuantity?: number;
+  quantityWarning?: string;
 };
 
 export function projectGuestCartItems(
@@ -17,11 +20,7 @@ export function projectGuestCartItems(
   products: ProductDetailResponse[],
 ): CartItemView[] {
   const productsById = new Map(products.map((product) => [product.id, product]));
-  const quantitiesBySku = new Map<string, number>();
-  for (const item of items) {
-    const skuKey = guestSkuKey(item);
-    quantitiesBySku.set(skuKey, (quantitiesBySku.get(skuKey) ?? 0) + item.qty);
-  }
+  const quantitiesBySku = cartQuantities(items);
 
   return items.map((item) => {
     const product = productsById.get(item.productId);
@@ -36,13 +35,9 @@ export function projectGuestCartItems(
       .filter((option) => option.type === "TEXT")
       .reduce((sum, option) => sum + option.priceAdjustment, 0);
     const price = product.price + variantPriceAdjustment + textOptionPriceAdjustment;
-    const skuQuantity = quantitiesBySku.get(guestSkuKey(item)) ?? item.qty;
-    const available = product.type === "READY_STOCK"
-      ? product.available
-      : product.available
-        && variant !== null
-        && variant.active
-        && variant.quantity >= skuQuantity;
+    const skuQuantity = quantitiesBySku.get(cartSkuKey(item)) ?? item.qty;
+    const limit = cartQuantityLimit(product, item.productVariantId);
+    const available = product.available && skuQuantity <= limit;
 
     return {
       cartItemId: item.lineKey,
@@ -58,6 +53,10 @@ export function projectGuestCartItems(
       qty: item.qty,
       subtotal: price * item.qty,
       available,
+      maxQuantity: Math.max(0, limit - skuQuantity + item.qty),
+      quantityWarning: product.available && skuQuantity > limit
+        ? `같은 상품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
+        : undefined,
       specification: product.specification,
       careInstructions: product.careInstructions,
       productionLeadDays: product.productionLeadDays,
@@ -102,10 +101,6 @@ function guestOptions(
     .sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
-function guestSkuKey(item: GuestCartItem): string {
-  return `${item.productId}:${item.productVariantId ?? 0}`;
-}
-
 function unavailableGuestItem(item: GuestCartItem): CartItemView {
   return {
     cartItemId: item.lineKey,
@@ -121,6 +116,7 @@ function unavailableGuestItem(item: GuestCartItem): CartItemView {
     qty: item.qty,
     subtotal: 0,
     available: false,
+    maxQuantity: 0,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

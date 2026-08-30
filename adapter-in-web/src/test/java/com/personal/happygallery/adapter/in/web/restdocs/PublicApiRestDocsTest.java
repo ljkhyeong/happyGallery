@@ -350,7 +350,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("공개 상품 상세 API를 문서화한다")
     void get_product() throws Exception {
         mockMvc.perform(get("/api/v1/products/{id}", 1L))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stockQuantity").value(RestDocsFixtures.productWithInventory().quantity()));
     }
 
     @Test
