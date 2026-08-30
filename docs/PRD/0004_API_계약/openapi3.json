@@ -5822,6 +5822,7 @@
             "type" : "integer"
           },
           "quantity" : {
+            "description" : "신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다.",
             "format" : "int32",
             "type" : "integer"
           },
@@ -5834,7 +5835,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "selections" ],
+        "required" : [ "active", "priceAdjustment", "quantity", "selections" ],
         "type" : "object"
       },
       "ProductVariantResponse" : {
@@ -8351,6 +8352,7 @@
             "type" : "integer"
           },
           "quantity" : {
+            "description" : "선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.",
             "format" : "int32",
             "type" : [ "integer", "null" ]
           },

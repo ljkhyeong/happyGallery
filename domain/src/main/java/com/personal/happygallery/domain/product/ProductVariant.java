@@ -71,15 +71,15 @@ public class ProductVariant {
         this.productId = productId;
         this.combinationKey = combinationKey;
         this.selections = List.copyOf(selections);
-        update(basePrice, priceAdjustment, quantity, active);
-    }
-
-    public void update(long basePrice, long priceAdjustment, int quantity, boolean active) {
         if (quantity < 0) {
             throw new IllegalArgumentException("옵션 조합 재고는 0 이상이어야 합니다.");
         }
-        this.priceAdjustment = ProductOptionPolicy.requireVariantPrice(basePrice, priceAdjustment);
         this.quantity = quantity;
+        updateDetails(basePrice, priceAdjustment, active);
+    }
+
+    public void updateDetails(long basePrice, long priceAdjustment, boolean active) {
+        this.priceAdjustment = ProductOptionPolicy.requireVariantPrice(basePrice, priceAdjustment);
         this.active = active;
     }
 

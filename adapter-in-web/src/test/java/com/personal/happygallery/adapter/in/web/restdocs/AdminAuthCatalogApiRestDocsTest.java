@@ -43,6 +43,7 @@ import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCas
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.AnswerTemplateResult;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
@@ -61,6 +62,8 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.store.WorkshopProfile;
@@ -75,6 +78,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -513,6 +517,36 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("관리자 주문제작 상품 수정은 기존 조합의 현재 재고를 반환한다")
+    void admin_update_product_options() throws Exception {
+        Product product = new Product("주문제작 키링", ProductType.MADE_TO_ORDER, null,
+                10000L, null, null, "가죽 키링", null, 3);
+        ReflectionTestUtils.setField(product, "id", 2L);
+        when(productAdminUseCase.update(eq(2L), any())).thenReturn(new ProductAdminUseCase.ProductResult(
+                product, 4, true, new ProductOptions(List.of(),
+                List.of(new ProductOptions.Variant(20L, 2000L, 4, true, List.of())))));
+
+        mockMvc.perform(patch("/api/v1/admin/products/{id}", 2L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "주문제작 키링",
+                                  "price": 10000,
+                                  "specification": "가죽 키링",
+                                  "productionLeadDays": 3,
+                                  "optionGroups": [],
+                                  "variants": [{"selections": [], "priceAdjustment": 2000, "quantity": 5, "active": true}]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(4))
+                .andExpect(jsonPath("$.variants[0].id").value(20))
+                .andExpect(jsonPath("$.variants[0].quantity").value(4));
     }
 
     @Test

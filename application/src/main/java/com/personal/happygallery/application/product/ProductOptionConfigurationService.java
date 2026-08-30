@@ -416,7 +416,7 @@ public class ProductOptionConfigurationService {
             Map<Long, List<ProductOptionValue>> valuesByGroupId) {
         List<OptionGroupDefinition> selectDefinitions = groupDefinitions.stream()
                 .filter(group -> group.type() == ProductOptionType.SELECT)
-                .sorted(Comparator.comparingInt(OptionGroupDefinition::sortOrder))
+                .sorted(Comparator.comparing(OptionGroupDefinition::key))
                 .toList();
         List<VariantDefinition> definitions = requestedVariants;
         if (selectDefinitions.isEmpty() && requestedVariants.isEmpty()) {
@@ -479,10 +479,9 @@ public class ProductOptionConfigurationService {
                         definition.active(),
                         selections(definition.selections(), groupsByKey, valuesByGroupKey));
             } else {
-                variant.update(
+                variant.updateDetails(
                         product.getPrice(),
                         definition.priceAdjustment(),
-                        definition.quantity(),
                         definition.active());
             }
             changed.add(variant);
@@ -676,6 +675,7 @@ public class ProductOptionConfigurationService {
 
         List<Variant> variantViews = allVariants.stream()
                 .filter(variant -> includeInactiveVariants || variant.isActive())
+                .filter(variant -> !variant.getCombinationKey().startsWith("legacy-variant:"))
                 .filter(variant -> variant.getSelections().stream()
                         .allMatch(selection -> groupsById.containsKey(selection.getOptionGroupId())
                                 && valuesById.containsKey(selection.getOptionValueId())))

@@ -12,6 +12,10 @@ export type VariantDraft = ProductVariantRequest;
 interface Props {
   groups: OptionGroupDraft[];
   variants: VariantDraft[];
+  existingProduct?: {
+    optionGroups: ProductOptionGroupResponse[];
+    variants: ProductVariantResponse[];
+  };
   onChange: (groups: OptionGroupDraft[], variants: VariantDraft[]) => void;
 }
 
@@ -19,19 +23,26 @@ function createKey(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "")}`;
 }
 
-function variantKey(variant: Pick<ProductVariantRequest, "selections">) {
-  return variant.selections
-    .map((selection) => `${selection.groupKey}=${selection.valueKey}`)
+function variantKey(
+  variant: Pick<ProductVariantRequest, "selections">,
+  groups: Pick<OptionGroupDraft, "key" | "type">[],
+) {
+  return groups.filter((group) => group.type === "SELECT")
+    .map((group) => group.key)
     .sort()
+    .map((key) => `${key}=${variant.selections.find((selection) => selection.groupKey === key)?.valueKey ?? "-"}`)
     .join("|");
 }
 
 function generatedVariants(
   groups: OptionGroupDraft[],
   previous: VariantDraft[],
+  previousGroups: OptionGroupDraft[],
 ): VariantDraft[] {
   const selectGroups = groups.filter((group) => group.type === "SELECT");
-  if (selectGroups.length === 0) return [];
+  if (selectGroups.length === 0) {
+    return previousGroups.some((group) => group.type === "SELECT") ? [] : previous;
+  }
 
   let combinations: ProductVariantRequest["selections"][] = [[]];
   for (const group of selectGroups) {
@@ -46,8 +57,8 @@ function generatedVariants(
     )));
   }
 
-  const previousByKey = new Map(previous.map((variant) => [variantKey(variant), variant]));
-  return combinations.map((selections) => previousByKey.get(variantKey({ selections })) ?? ({
+  const previousByKey = new Map(previous.map((variant) => [variantKey(variant, previousGroups), variant]));
+  return combinations.map((selections) => previousByKey.get(variantKey({ selections }, groups)) ?? ({
     selections,
     priceAdjustment: 0,
     quantity: 0,
@@ -80,13 +91,16 @@ export function optionDraftsFromProduct(product: {
   };
 }
 
-export function ProductOptionEditor({ groups, variants, onChange }: Props) {
+export function ProductOptionEditor({ groups, variants, existingProduct, onChange }: Props) {
   const selectCount = groups.filter((group) => group.type === "SELECT").length;
   const textCount = groups.filter((group) => group.type === "TEXT").length;
+  const existingQuantities = new Map(existingProduct?.variants.map((variant) => [
+    variantKey(variant, existingProduct.optionGroups), variant.quantity,
+  ]));
 
   const updateGroups = (nextGroups: OptionGroupDraft[]) => {
     const normalized = nextGroups.map((group, index) => ({ ...group, sortOrder: index }));
-    onChange(normalized, generatedVariants(normalized, variants));
+    onChange(normalized, generatedVariants(normalized, variants, groups));
   };
 
   const updateGroup = (index: number, next: OptionGroupDraft) => {
@@ -296,6 +310,11 @@ export function ProductOptionEditor({ groups, variants, onChange }: Props) {
               <h3 className="h6 mb-0">옵션 조합별 가격·재고</h3>
               <Badge bg={variants.length > 500 ? "danger" : "dark"}>{variants.length}/500</Badge>
             </div>
+            {existingProduct && (
+              <p className="small text-muted">
+                기존 조합의 재고는 상품 목록의 ‘재고 조정’에서 변경합니다. 신규 조합만 최초 재고를 입력하세요.
+              </p>
+            )}
             <div className="table-responsive">
               <Table size="sm" bordered className="align-middle mb-0">
                 <thead>
@@ -308,7 +327,7 @@ export function ProductOptionEditor({ groups, variants, onChange }: Props) {
                 </thead>
                 <tbody>
                   {variants.map((variant, index) => (
-                    <tr key={variantKey(variant) || `empty-${index}`}>
+                    <tr key={variantKey(variant, groups) || `empty-${index}`}>
                       <td>{selectionLabel(variant) || "선택 안 함"}</td>
                       <td>
                         <Form.Control
@@ -327,7 +346,9 @@ export function ProductOptionEditor({ groups, variants, onChange }: Props) {
                           size="sm"
                           type="number"
                           min={0}
-                          value={variant.quantity ?? 0}
+                          aria-label={`${selectionLabel(variant)} 재고`}
+                          readOnly={existingQuantities.has(variantKey(variant, groups))}
+                          value={existingQuantities.get(variantKey(variant, groups)) ?? variant.quantity ?? 0}
                           onChange={(event) => onChange(groups, variants.map((item, itemIndex) => (
                             itemIndex === index
                               ? { ...item, quantity: Number(event.target.value) }

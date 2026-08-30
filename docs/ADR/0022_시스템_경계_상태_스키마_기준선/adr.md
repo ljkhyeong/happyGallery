@@ -136,6 +136,7 @@
 - `product_variants`, `product_variant_selections`
   - 주문제작 상품의 선택형 옵션 조합마다 `combination_key`, 가격 추가금, 재고, 판매 여부와 낙관적 락 버전을 저장한다.
   - 선택형 옵션이 없으면 `DEFAULT` 조합 한 개를 사용하고, 조합 선택 행은 그룹·값 ID와 표시 순서를 보존한다.
+  - V164부터 조합 키는 옵션 키 순으로 고정한다. 과거 중복 조합은 활성·최소 ID 우선으로 현재 조합을 정하고 나머지를 비활성 보존한다. 번호·재고·외부 참조는 변경하지 않으며 전환·롤백 조건은 ADR-0046을 따른다.
 - `inventory`
   - `product_id(PK/FK)`, `quantity`, `version`, `updated_at`
   - `quantity >= 0`을 DB `CHECK` 제약으로도 강제한다.

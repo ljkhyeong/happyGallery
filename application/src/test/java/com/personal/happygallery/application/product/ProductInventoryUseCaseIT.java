@@ -8,6 +8,13 @@ import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.ProductOptionType;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionGroupDefinition;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionValueDefinition;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SelectionDefinition;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.VariantDefinition;
+import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -21,6 +28,7 @@ import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,12 +54,84 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired InventoryService inventoryService;
+    @Autowired ProductVariantStockService variantStockService;
     @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired TestCleanupSupport cleanupSupport;
 
     @AfterEach
     void tearDown() {
         cleanupSupport.clearProductData();
+    }
+
+    @Test
+    @DisplayName("기본 조합 상품 정보를 수정해도 판매 후 재고를 보존하고 재고 조정은 이력을 남긴다")
+    void updateDefaultVariant_preservesStockAfterSale() {
+        var draft = List.of(new VariantDefinition(List.of(), 2000L, 5, true));
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), draft));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        variantStockService.deductAll(List.of(new VariantAdjustment(variantId, 1)));
+
+        var updated = productAdminUseCase.update(productId, madeToOrderCommand(List.of(), draft));
+        assertSoftly(softly -> {
+            softly.assertThat(updated.quantity()).isEqualTo(4);
+            softly.assertThat(updated.options().variants().getFirst().id()).isEqualTo(variantId);
+            softly.assertThat(updated.options().variants().getFirst().priceAdjustment()).isEqualTo(2000L);
+        });
+
+        var adjustment = productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
+                productId, variantId, InventoryAdjustmentType.INCREASE, 2,
+                "제작 가능 수량 추가", null, "local-api-key"));
+        assertSoftly(softly -> {
+            softly.assertThat(adjustment.getQuantityBefore()).isEqualTo(4);
+            softly.assertThat(adjustment.getQuantityAfter()).isEqualTo(6);
+            softly.assertThat(productAdminUseCase.listRecentInventoryAdjustments(productId))
+                    .extracting(InventoryAdjustment::getId).containsExactly(adjustment.getId());
+        });
+    }
+
+    @Test
+    @DisplayName("선택형 표시 순서와 가격을 바꿔도 조합 번호와 재고를 보존하고 새 조합만 최초 재고를 받는다")
+    void updateSelectVariants_preservesIdentityAndStock() {
+        var groups = List.of(selectGroup("size", 0, false, "large"), selectGroup("color", 1, true, "red"));
+        var red = List.of(new SelectionDefinition("color", "red"));
+        var redLarge = List.of(new SelectionDefinition("color", "red"), new SelectionDefinition("size", "large"));
+        var draft = List.of(new VariantDefinition(red, 0L, 3, true),
+                new VariantDefinition(redLarge, 1000L, 5, true));
+        var registered = productAdminUseCase.register(madeToOrderCommand(groups, draft));
+        var existing = registered.options().variants();
+        Long largeId = existing.stream().filter(variant -> variant.selections().size() == 2)
+                .findFirst().orElseThrow().id();
+        variantStockService.deductAll(List.of(new VariantAdjustment(largeId, 1)));
+
+        var reordered = List.of(selectGroup("color", 0, true, "red"), selectGroup("size", 1, false, "large", "small"));
+        var updated = productAdminUseCase.update(registered.product().getId(), madeToOrderCommand(reordered,
+                List.of(draft.getFirst(), new VariantDefinition(redLarge, 2500L, 5, true),
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "red"),
+                                new SelectionDefinition("size", "small")), 500L, 7, true))));
+        var large = updated.options().variants().stream().filter(variant -> variant.id().equals(largeId))
+                .findFirst().orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(updated.options().variants()).hasSize(3);
+            softly.assertThat(updated.options().variants()).extracting(ProductOptions.Variant::id)
+                    .containsAll(existing.stream().map(ProductOptions.Variant::id).toList());
+            softly.assertThat(large.quantity()).isEqualTo(4);
+            softly.assertThat(large.priceAdjustment()).isEqualTo(2500L);
+            softly.assertThat(large.active()).isTrue();
+            softly.assertThat(updated.quantity()).isEqualTo(14);
+        });
+    }
+
+    private static SaveProductCommand madeToOrderCommand(
+            List<OptionGroupDefinition> groups, List<VariantDefinition> variants) {
+        return new SaveProductCommand("주문제작 키링", ProductType.MADE_TO_ORDER, null,
+                10000L, 9, null, null, "가죽 키링", null, 3, groups, variants);
+    }
+
+    private static OptionGroupDefinition selectGroup(String key, int sortOrder, boolean required, String... values) {
+        return new OptionGroupDefinition(key, ProductOptionType.SELECT, key, required, sortOrder,
+                null, null, null, IntStream.range(0, values.length)
+                        .mapToObj(index -> new OptionValueDefinition(values[index], values[index], index)).toList());
     }
 
     // -----------------------------------------------------------------------
