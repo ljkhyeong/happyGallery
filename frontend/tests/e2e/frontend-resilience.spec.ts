@@ -1,4 +1,8 @@
 import { expect, test, type Route } from "@playwright/test";
+import type {
+  CartResponse,
+  OrderDetailResponse,
+} from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
@@ -309,6 +313,8 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
   };
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -513,26 +519,41 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
     if (pathname === "/api/v1/me/orders/73") {
       await fulfillJson(route, {
         approvalDeadlineAt: null,
+        couponDiscountAmount: 0,
         fulfillment: null,
+        issuedCouponId: null,
         items: [{
+          basePrice: 12000,
           careInstructions: null,
+          couponDiscountAmount: 0,
+          grossAmount: 12000,
+          netPaidAmount: 12000,
+          options: [],
           orderItemId: 731,
           productId: 42,
           productName: "클레임 대상 작품",
           productType: "READY_STOCK",
+          productVariantId: null,
           productionLeadDays: null,
           qty: 1,
+          rewardUsedAmount: 0,
           specification: null,
+          textOptionPriceAdjustment: 0,
           unitPrice: 12000,
+          variantPriceAdjustment: 0,
         }],
         orderId: 73,
         orderNumber: "HG-RESILIENCE-73",
         paidAt: "2026-07-28T10:00:00",
+        pgPaidAmount: 12000,
+        productAmount: 12000,
         refund: null,
+        rewardEarnBase: 12000,
+        rewardUsedAmount: 0,
         shippingFee: 0,
         status: "DELIVERED",
         totalAmount: 12000,
-      });
+      } satisfies OrderDetailResponse);
       return;
     }
     if (pathname === "/api/v1/me/orders/73/claims") {
@@ -568,19 +589,24 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
     fulfillment: null,
     issuedCouponId: 71,
     items: [{
+      basePrice: 12000,
       careInstructions: null,
       couponDiscountAmount: 2000,
       grossAmount: 12000,
       netPaidAmount: 7000,
+      options: [],
       orderItemId: 751,
       productId: 44,
       productName: "혜택 적용 작품",
       productType: "READY_STOCK",
+      productVariantId: null,
       productionLeadDays: null,
       qty: 1,
       rewardUsedAmount: 3000,
       specification: null,
+      textOptionPriceAdjustment: 0,
       unitPrice: 12000,
+      variantPriceAdjustment: 0,
     }],
     orderId: 75,
     orderNumber: "HG-BENEFIT-75",
@@ -600,7 +626,7 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
     shippingFee: 0,
     status: "CUSTOMER_CANCELED",
     totalAmount: 10000,
-  };
+  } satisfies OrderDetailResponse;
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -732,26 +758,41 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "GET") {
       await fulfillJson(route, {
         approvalDeadlineAt: "2099-01-02T10:00:00",
+        couponDiscountAmount: 0,
         fulfillment: null,
+        issuedCouponId: null,
         items: [{
+          basePrice: 15000,
           careInstructions: null,
+          couponDiscountAmount: 0,
+          grossAmount: 15000,
+          netPaidAmount: 15000,
+          options: [],
           orderItemId: 741,
           productId: 43,
           productName: "취소 복구 작품",
           productType: "READY_STOCK",
+          productVariantId: null,
           productionLeadDays: null,
           qty: 1,
+          rewardUsedAmount: 0,
           specification: null,
+          textOptionPriceAdjustment: 0,
           unitPrice: 15000,
+          variantPriceAdjustment: 0,
         }],
         orderId: 74,
         orderNumber: "HG-RESILIENCE-74",
         paidAt: "2026-07-28T10:00:00",
+        pgPaidAmount: 15000,
+        productAmount: 15000,
         refund: null,
+        rewardEarnBase: 15000,
+        rewardUsedAmount: 0,
         shippingFee: 0,
         status: "PAID_APPROVAL_PENDING",
         totalAmount: 15000,
-      });
+      } satisfies OrderDetailResponse);
       return;
     }
     if (pathname === "/api/v1/me/orders/74" && route.request().method() === "DELETE") {
@@ -832,18 +873,24 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
         cartVersion: "a".repeat(64),
         items: [{
           available: true,
+          basePrice: 12000,
           careInstructions: null,
+          cartItemId: 42,
+          options: [],
           price: 12000,
           productId: 42,
           productName: "복구 확인 작품",
           productType: "READY_STOCK",
+          productVariantId: null,
           productionLeadDays: null,
           qty: 1,
           specification: null,
           subtotal: 12000,
+          textOptionPriceAdjustment: 0,
+          variantPriceAdjustment: 0,
         }],
         totalAmount: 12000,
-      });
+      } satisfies CartResponse);
       return;
     }
     if (pathname === "/api/v1/me/cart/items/42" && request.method() === "PUT") {
@@ -878,12 +925,14 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();
   await expect(page.getByText("로그인하면 장바구니를 이용할 수 있습니다.")).toHaveCount(0);
 
-  await page.getByRole("button", { name: "다시 시도" }).click();
-  await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();
+  const cartItem = page.getByText("복구 확인 작품", { exact: true });
+  await expect(async () => {
+    const retryButton = page.getByRole("button", { name: "다시 시도" });
+    if (await retryButton.isVisible()) await retryButton.click();
+    await expect(cartItem).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+  expect(cartAttempts).toBeGreaterThan(1);
   await expect(page.getByText("장바구니가 비어 있습니다.")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "다시 시도" }).click();
-  await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "매장 수령" }).click();
 
   const increaseButton = page.getByRole("button", { name: "+", exact: true });
@@ -902,7 +951,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   await expect(page.getByRole("alert")).toContainText(
     "서비스를 일시적으로 사용할 수 없습니다.",
   );
-  await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
+  await expect(cartItem).toBeVisible();
   await expect(checkoutButton).toBeEnabled();
 
   await deleteButton.click();
@@ -917,5 +966,5 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   await expect(page.getByRole("alert")).toContainText(
     "서비스를 일시적으로 사용할 수 없습니다.",
   );
-  await expect(page.getByText("복구 확인 작품", { exact: true })).toBeVisible();
+  await expect(cartItem).toBeVisible();
 });

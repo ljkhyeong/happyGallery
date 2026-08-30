@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import type { OrderDetailResponse } from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
@@ -519,6 +520,8 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
   };
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -918,26 +921,41 @@ test("@smoke 후기 작성 폼은 첫 입력으로 이동하고 취소 후 작�
     if (pathname === "/api/v1/me/orders/83") {
       await fulfillJson(route, {
         approvalDeadlineAt: null,
+        couponDiscountAmount: 0,
         fulfillment: null,
+        issuedCouponId: null,
         items: [{
+          basePrice: 12000,
           careInstructions: null,
+          couponDiscountAmount: 0,
+          grossAmount: 12000,
+          netPaidAmount: 12000,
+          options: [],
           orderItemId: 831,
           productId: 42,
           productName: "후기 포커스 검증 작품",
           productType: "READY_STOCK",
+          productVariantId: null,
           productionLeadDays: null,
           qty: 1,
+          rewardUsedAmount: 0,
           specification: null,
+          textOptionPriceAdjustment: 0,
           unitPrice: 12000,
+          variantPriceAdjustment: 0,
         }],
         orderId: 83,
         orderNumber: "HG-REVIEW-FOCUS-83",
         paidAt: "2026-08-09T10:00:00",
+        pgPaidAmount: 12000,
+        productAmount: 12000,
         refund: null,
+        rewardEarnBase: 12000,
+        rewardUsedAmount: 0,
         shippingFee: 0,
         status: "COMPLETED",
         totalAmount: 12000,
-      });
+      } satisfies OrderDetailResponse);
       return;
     }
     if (pathname === "/api/v1/me/reviews/orders/83") {

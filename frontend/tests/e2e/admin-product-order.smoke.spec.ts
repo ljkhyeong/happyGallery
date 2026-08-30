@@ -12,7 +12,7 @@ import {
   makeUniqueLabel,
   openAdminView,
   plusDays,
-  readRouterState,
+  readGuestOrderLookupCredentials,
   toDateTimeLocalInput,
   waitForFailedRefundByOrderId,
   waitForFailedRefundGone,
@@ -70,17 +70,18 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
-  const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
-  const orderId = guestOrderState?.orderId;
+  const guestOrderState = await readGuestOrderLookupCredentials(page);
+  const orderId = guestOrderState.orderId;
   if (!orderId) {
     throw new Error("Guest order id should be kept in router state");
   }
-  expect(guestOrderState?.token, "Guest order token should be kept in router state").toBeTruthy();
+  expect(guestOrderState.token, "Guest order token should be prefilled").toBeTruthy();
   const approvalPendingOrder = await waitForOrder(request, orderId, "PAID_APPROVAL_PENDING");
 
   await loginAdmin(page);
   await openAdminView(page, "현황·검색");
   const searchCard = adminCard(page, "주문·예약 검색");
+  await searchCard.getByRole("button", { name: "주문", exact: true }).click();
   await searchCard.getByLabel("주문·예약 번호 또는 고객명").fill(approvalPendingOrder.orderNumber);
   await searchCard.getByRole("button", { name: "검색", exact: true }).click();
   const searchRow = searchCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
@@ -109,7 +110,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
 
   await page.goto("/guest/orders");
   await page.getByLabel("주문 번호").fill(String(orderId));
-  await page.getByLabel("조회 코드").fill(guestOrderState!.token);
+  await page.getByLabel("조회 코드").fill(guestOrderState.token);
   await page.getByRole("button", { name: "조회" }).click();
 
   await expect(page.locator(".badge-status").filter({ hasText: "수령 완료" }).first()).toBeVisible();
@@ -146,8 +147,8 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
 
     await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
     await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
-    const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
-    const orderId = guestOrderState?.orderId;
+    const guestOrderState = await readGuestOrderLookupCredentials(page);
+    const orderId = guestOrderState.orderId;
     if (!orderId) {
       throw new Error("Guest order id should be kept in router state");
     }

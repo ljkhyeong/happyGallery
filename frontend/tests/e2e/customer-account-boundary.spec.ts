@@ -50,6 +50,8 @@ function productFixture(name: string) {
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
   };
 }
 

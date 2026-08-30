@@ -34,7 +34,8 @@ let observedBoundary = initialBoundaryRead.boundary;
 let localBoundaryFallback: LocalBoundaryFallback | null = null;
 // undefined는 이 탭이 아직 /me로 실제 세션 주체를 확인하지 않은 상태다.
 let activeCustomerId: number | null | undefined;
-let advanceOnInitialMemberObservation = true;
+let advanceOnInitialMemberObservation =
+  initialBoundaryRead.boundary?.customerId == null;
 
 function readCustomerSessionBoundary(): CustomerSessionBoundaryRead {
   if (typeof window === "undefined") {

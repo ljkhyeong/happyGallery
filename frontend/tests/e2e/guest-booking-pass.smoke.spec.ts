@@ -11,7 +11,7 @@ import {
   makePhoneNumber,
   makeUniqueLabel,
   openAdminView,
-  readRouterState,
+  readGuestBookingLookupCredentials,
   signupCustomer,
 } from "./support";
 
@@ -43,11 +43,11 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 예약 확인하기" }).click();
-  const guestBookingState = await readRouterState<{ bookingId: number; token: string }>(page);
-  if (!guestBookingState?.bookingId) {
+  const guestBookingState = await readGuestBookingLookupCredentials(page);
+  if (!guestBookingState.bookingId) {
     throw new Error("Guest booking id should be kept in router state");
   }
-  expect(guestBookingState?.token, "Guest booking token should be kept in router state").toBeTruthy();
+  expect(guestBookingState.token, "Guest booking token should be prefilled").toBeTruthy();
 
   const booked = await fetchGuestBookingSlot(
     request,
@@ -80,7 +80,8 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
   const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
   await expect(cancelDialog.getByText(/예약금 ₩[\d,]+ 환불이 요청됩니다/)).toBeVisible();
   await cancelDialog.getByRole("button", { name: "취소 및 환불 요청" }).click();
-  await expect(page.getByText("취소됨")).toBeVisible();
+  await expect(page.locator(".badge-status").filter({ hasText: "예약 취소" }).first())
+    .toBeVisible();
 
   await loginAdmin(page);
   await openAdminView(page, "현황·검색");

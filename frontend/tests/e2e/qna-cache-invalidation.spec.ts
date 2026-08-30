@@ -57,6 +57,8 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
   };
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));

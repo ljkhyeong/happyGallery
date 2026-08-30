@@ -35,8 +35,11 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   const customer = await signupCustomer(page, "p8-member-order");
 
   await page.goto(`/products/${product.id}`);
-  await page.getByRole("spinbutton", { name: "수량" }).fill("2");
   await page.getByRole("button", { name: "매장 수령" }).click();
+  await expect(page.getByText("준비 완료 알림을 받은 뒤 매장에서 수령합니다.")).toBeVisible();
+  const quantityInput = page.getByRole("spinbutton", { name: "수량" });
+  await quantityInput.fill("2");
+  await expect(quantityInput).toHaveValue("2");
   await page.getByRole("button", { name: "바로 구매하기" }).click();
 
   await expect(page.getByText("결제 결과를 다시 확인해 주세요")).toBeVisible();
@@ -59,7 +62,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
 
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
-  await page.getByLabel("상태", { exact: true }).selectOption("승인 대기");
+  await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
   await page.getByLabel("주문 번호 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
   await expect(page).toHaveURL(new RegExp(`/my/orders/${orderId}$`));
@@ -67,8 +70,10 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await page.getByRole("button", { name: "주문 취소" }).click();
   const refundDialog = page.getByRole("dialog", { name: "주문 취소 및 환불 요청" });
   await expect(refundDialog).toBeVisible();
-  await expect(refundDialog.getByText("결제사 환불 완료 시점은 별도입니다.")).toBeVisible();
-  await refundDialog.getByRole("button", { name: "취소 및 환불 요청" }).click();
+  await expect(refundDialog.getByText(
+    "주문 취소는 바로 반영되며, 실제 환불 완료 시점은 결제사에 따라 달라질 수 있습니다.",
+  )).toBeVisible();
+  await refundDialog.getByRole("button", { name: "취소하고 환불 요청" }).click();
   await expect(page.locator(".badge-status").filter({ hasText: "고객 취소" }).first())
     .toBeVisible();
 });

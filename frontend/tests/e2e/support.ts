@@ -24,7 +24,10 @@ import type {
   FailedRefundPageResponse,
   FailedRefundResponse,
 } from "../../src/generated/api/adminOperations";
-import type { SignupRequest } from "../../src/generated/api/customerAuth";
+import type {
+  CustomerUserResponse,
+  SignupRequest,
+} from "../../src/generated/api/customerAuth";
 import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
@@ -94,6 +97,14 @@ async function expectMyPageEmail(page: Page, email: string) {
   await expect(
     page.locator(".my-dashboard-hero").getByText(email, { exact: true }),
   ).toBeVisible();
+}
+
+async function expectCustomerSessionBoundary(page: Page, customerId: number) {
+  await expect.poll(() => page.evaluate(() => {
+    const rawBoundary = localStorage.getItem("hg_customer_session_boundary");
+    if (!rawBoundary) return null;
+    return (JSON.parse(rawBoundary) as { customerId?: number }).customerId ?? null;
+  })).toBe(customerId);
 }
 
 export function plusDays(days: number, hour: number, minute: number, durationMin: number) {
@@ -174,13 +185,18 @@ export async function installTossPaymentStub(page: Page) {
   await page.evaluate(install);
 }
 
-export async function readRouterState<T>(page: Page): Promise<T | null> {
-  return page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      history?: { state?: { usr?: unknown } };
-    };
-    return (browserGlobal.history?.state?.usr ?? null) as T | null;
-  });
+export async function readGuestOrderLookupCredentials(page: Page) {
+  return {
+    orderId: Number(await page.getByLabel("주문 번호").inputValue()),
+    token: await page.getByLabel("조회 코드").inputValue(),
+  };
+}
+
+export async function readGuestBookingLookupCredentials(page: Page) {
+  return {
+    bookingId: Number(await page.getByLabel("예약 번호").inputValue()),
+    token: await page.getByLabel("조회 코드").inputValue(),
+  };
 }
 
 export async function loginAdmin(page: Page) {
@@ -270,9 +286,11 @@ export async function signupCustomer(
     headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
+  const customer = (await response.json()) as CustomerUserResponse;
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
   await expectMyPageEmail(page, credentials.email);
+  await expectCustomerSessionBoundary(page, customer.id);
   return credentials;
 }
 
@@ -283,9 +301,11 @@ export async function loginCustomer(page: Page, credentials: CustomerFixtureCred
     headers: csrfHeaders,
   });
   expect(response.ok(), "Customer login API should succeed").toBeTruthy();
+  const customer = (await response.json()) as CustomerUserResponse;
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
   await expectMyPageEmail(page, credentials.email);
+  await expectCustomerSessionBoundary(page, customer.id);
 }
 
 export async function logoutCustomer(page: Page) {

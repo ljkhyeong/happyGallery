@@ -9,7 +9,8 @@ import {
   installTossPaymentStub,
   makePhoneNumber,
   makeUniqueLabel,
-  readRouterState,
+  readGuestBookingLookupCredentials,
+  readGuestOrderLookupCredentials,
   signupCustomer,
 } from "./support";
 
@@ -45,8 +46,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
-  const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
-  const orderId = guestOrderState?.orderId;
+  const guestOrderState = await readGuestOrderLookupCredentials(page);
+  const orderId = guestOrderState.orderId;
   if (!orderId) {
     throw new Error("Guest order id should be kept in router state");
   }
@@ -59,8 +60,8 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await completeGuestAuthGate(page, guestPhone, guestName);
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 예약 확인하기" }).click();
-  const guestBookingState = await readRouterState<{ bookingId: number; token: string }>(page);
-  const bookingId = guestBookingState?.bookingId;
+  const guestBookingState = await readGuestBookingLookupCredentials(page);
+  const bookingId = guestBookingState.bookingId;
   if (!bookingId) {
     throw new Error("Guest booking id should be kept in router state");
   }

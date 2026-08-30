@@ -33,6 +33,8 @@ function product(name: string) {
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
   };
 }
 
