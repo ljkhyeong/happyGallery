@@ -79,12 +79,16 @@ async function mockGuestCheckout(page: Page) {
   return prepared;
 }
 
-async function completeGuestOrderForm(page: Page, madeToOrder = true) {
+async function verifyGuestOrderPhone(page: Page) {
   await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
   await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
   await expect(page.getByLabel("인증코드", { exact: true })).toBeVisible();
   await page.getByLabel("인증코드", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
+}
+
+async function completeGuestOrderForm(page: Page, madeToOrder = true) {
+  await verifyGuestOrderPhone(page);
   await page.getByLabel("주문자 이름", { exact: true }).fill("주문 확인 고객");
   await page.getByRole("button", { name: "매장 수령", exact: true }).click();
   if (madeToOrder) await page.getByRole("checkbox", { name: "주문제작 조건에 동의합니다.", exact: true }).check();
@@ -115,9 +119,13 @@ for (const readyStock of [false, true]) {
     await expect(page.getByText("추가 가능 수량: 1개")).toBeVisible();
     await page.getByRole("button", { name: "추가", exact: true }).click();
     await expect(row).toHaveCount(1);
+    await row.getByRole("spinbutton").fill("1");
+    await page.reload();
+    await completeGuestOrderForm(page, !readyStock);
+    await expect(row.getByRole("spinbutton")).toHaveValue("1");
     await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
     await expect.poll(() => prepared).toEqual([expect.objectContaining({ payload: expect.objectContaining({
-      items: [{ productId: 80, productVariantId: readyStock ? null : 801, textInputs: [], qty: 2 }],
+      items: [{ productId: 80, productVariantId: readyStock ? null : 801, textInputs: [], qty: 1 }],
     }) })]);
   });
 }
@@ -186,6 +194,83 @@ test("@payment 옵션 주문 초안은 주문서별로 복원하고 누락되거
   await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toHaveCount(0);
   await page.goto("/orders/new?productId=80&draft=options");
   await expect(page.getByText(/선택한 옵션 정보를 불러올 수 없습니다/)).toBeVisible();
+});
+
+test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실패 복귀와 새로고침 후에도 유지한다", async ({ page }) => {
+  const product = await openOptionProduct(page, 5);
+  const prepared = await mockGuestCheckout(page);
+  const extra: ProductDetailResponse = { ...product, id: 81, name: "추가 작품", type: "READY_STOCK", optionGroups: [], variants: [] };
+  await page.route("**/api/v1/products", (route) => json(route, [product, extra]));
+  await page.route("**/api/v1/payments/prepare", (route) => {
+    prepared.push(route.request().postDataJSON());
+    return json(route, { orderId: "draft-return", amount: 56000, context: "ORDER", statusToken: "draft-return-token" });
+  });
+  await page.route("**/api/v1/payments/draft-return/abandon", (route) => route.fulfill({ status: 204 }));
+  await page.evaluate(() => {
+    (window as unknown as { TossPayments: unknown }).TossPayments = () => ({ payment: () => ({
+      requestPayment: async () => { window.location.assign("/payments/fail?code=PAY_PROCESS_CANCELED"); },
+    }) });
+  });
+  const color = page.getByRole("combobox", { name: /색상/ });
+  for (const value of ["brown", "blue"]) {
+    await color.selectOption(value);
+    await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+  }
+  await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+  await completeGuestOrderForm(page);
+  const orderUrl = page.url();
+  const brown = page.locator(".list-group-item").filter({ hasText: "색상: 브라운" });
+  await brown.getByRole("spinbutton").fill("3");
+  await page.locator(".list-group-item").filter({ hasText: "색상: 블루" }).getByRole("button", { name: "삭제", exact: true }).click();
+  await page.getByLabel("상품", { exact: true }).selectOption("81");
+  await page.getByLabel("수량", { exact: true }).fill("2");
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "결제 실패", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true }).click();
+  await expect(page).toHaveURL(orderUrl);
+  await expect(page.getByLabel("휴대폰 번호", { exact: true })).toHaveValue("");
+  await verifyGuestOrderPhone(page);
+  await expect(brown.getByRole("spinbutton")).toHaveValue("3");
+  await expect(page.locator(".list-group-item").filter({ hasText: "추가 작품" }).getByRole("spinbutton")).toHaveValue("2");
+  await expect(page.locator(".list-group-item")).toHaveCount(2);
+  await page.locator(".list-group-item").getByRole("button", { name: "삭제", exact: true }).first().click();
+  await page.locator(".list-group-item").getByRole("button", { name: "삭제", exact: true }).click();
+  await page.reload();
+  await verifyGuestOrderPhone(page);
+  await expect(page.locator(".list-group-item")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeDisabled();
+});
+
+test("@payment 수동 주문서도 초안을 만들고 저장 실패 시 현재 수량을 유지하며 재저장한다", async ({ page }) => {
+  await openOptionProduct(page, 5, { readyStock: true });
+  await mockGuestCheckout(page);
+  await page.goto("/orders/new");
+  await expect(page).toHaveURL(/draftId=/);
+  await page.getByRole("button", { name: "비회원 다중 상품 주문 계속", exact: true }).click();
+  await completeGuestOrderForm(page, false);
+  await page.getByLabel("상품", { exact: true }).selectOption("80");
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith("hg_guest_order_draft:")) {
+        Storage.prototype.setItem = original;
+        throw new DOMException("test storage full", "QuotaExceededError");
+      }
+      original.call(this, key, value);
+    };
+  });
+  const quantity = page.locator(".list-group-item").getByRole("spinbutton");
+  await quantity.fill("2");
+  await expect(quantity).toHaveValue("2");
+  await expect(page.getByText(/변경한 주문 내용을 저장하지 못했습니다/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "다시 저장", exact: true }).click();
+  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toBeEnabled();
+  await page.reload();
+  await verifyGuestOrderPhone(page);
+  await expect(quantity).toHaveValue("2");
 });
 
 for (const { quantity, limit, name } of [
@@ -417,4 +502,54 @@ test("@payment 모든 옵션이 삭제되어도 이전 선택을 기본 상품 �
   await page.locator(".store-option-form").getByRole("button", { name: "삭제", exact: true }).click();
   await expect(page.getByLabel("수량", { exact: true })).toHaveValue("1");
   await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeEnabled();
+});
+
+test("@payment 선택형 그룹 삭제 뒤에는 남아 있는 옵션을 새로 선택할 수 있다", async ({ page }) => {
+  const product = await openOptionProduct(page, 5);
+  await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+  await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+  product.optionGroups = product.optionGroups.filter((group) => group.key !== "color");
+  product.variants = [{ id: 803, active: true, quantity: 5, priceAdjustment: 0, selections: [] }];
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.getByText("선택한 옵션이 변경되었습니다. 이 항목을 삭제한 뒤 다시 선택해 주세요.")).toBeVisible();
+  await page.locator(".store-option-form").getByRole("button", { name: "삭제", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: /색상/ })).toHaveCount(0);
+  await page.getByRole("textbox", { name: /각인 문구/ }).fill("새 문구");
+  await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+  await expect(page.locator(".store-option-form tbody tr")).toContainText("각인 문구: 새 문구");
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!));
+  expect(stored).toEqual([expect.objectContaining({ productVariantId: 803, textInputs: [{ groupKey: "engraving", value: "새 문구" }] })]);
+});
+
+test("@payment 비회원은 같은 조합이라도 삭제된 각인이 있으면 다건 담기와 증가를 막고 감소·삭제는 허용한다", async ({ page }) => {
+  const product = await openOptionProduct(page, 5);
+  await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+  const engraving = page.getByRole("textbox", { name: /각인 문구/ });
+  const add = page.getByRole("button", { name: "선택한 옵션 추가", exact: true });
+  await engraving.fill("이전 각인");
+  await add.click();
+  await engraving.fill("");
+  await add.click();
+  product.optionGroups = product.optionGroups.filter((group) => group.key !== "engraving");
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.getByText("각인 키링의 선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요.", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("hg_guest_cart"))).toBeNull();
+  await page.locator(".store-option-form tbody tr").filter({ hasText: "선택한 옵션이 변경되었습니다" }).getByRole("button", { name: "삭제", exact: true }).click();
+  await add.click();
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
+  await page.goto("/cart");
+  const plus = page.getByRole("button", { name: "+", exact: true });
+  await expect(plus).toBeEnabled();
+  product.optionGroups.find((group) => group.key === "note")!.required = true;
+  await plus.click();
+  await expect(page.getByText("각인 키링의 선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요.", { exact: true })).toBeVisible();
+  await expect(plus).toBeDisabled();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(2);
+  await page.getByRole("button", { name: "-", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("hg_guest_cart")!)[0].qty)).toBe(1);
+  await page.getByRole("button", { name: "삭제", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("hg_guest_cart"))).toBeNull();
 });

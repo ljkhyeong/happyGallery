@@ -48,16 +48,19 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
   const [textValues, setTextValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const selectedQuantities = useMemo(() => sumQuantitiesByVariant(lines), [lines]);
+  const currentSelectedValues = Object.fromEntries(selectGroups.map((group) => [
+    group.key, group.values.find((value) => value.key === selectedValues[group.key])?.key ?? "",
+  ]));
 
   const selectedVariant = product.variants.find(
-    (variant) => variant.active && matchesVariant(variant, selectedValues),
+    (variant) => variant.active && matchesVariant(variant, currentSelectedValues),
   );
   const remainingQuantity = selectedVariant
     ? Math.max(0, productQuantityLimit(product, selectedVariant.id)
       - (selectedQuantities.get(selectedVariant.id) ?? 0))
     : 0;
   const requiredComplete = selectGroups.every(
-    (group) => !group.required || Boolean(selectedValues[group.key]),
+    (group) => !group.required || Boolean(currentSelectedValues[group.key]),
   ) && textGroups.every(
     (group) => !group.required || Boolean(textValues[group.key]?.trim()),
   );
@@ -103,7 +106,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
             {group.name} {group.required && <span className="text-danger">*</span>}
           </Form.Label>
           <Form.Select
-            value={selectedValues[group.key] ?? ""}
+            value={currentSelectedValues[group.key] ?? ""}
             onChange={(event) => {
               setSelectedValues((current) => ({ ...current, [group.key]: event.target.value }));
               setMessage(null);

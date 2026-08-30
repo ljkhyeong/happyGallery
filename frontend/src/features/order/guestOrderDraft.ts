@@ -9,31 +9,37 @@ import {
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 
 const DRAFT_KEY_PREFIX = "hg_guest_order_draft:";
-interface GuestOrderDraft { productId: number; items: OrderItemInput[] }
+interface GuestOrderDraft { productId: number | null; items: OrderItemInput[] }
+type GuestOrderDraftHandle = CustomerSessionStorageHandle<GuestOrderDraft>;
 
-export function saveGuestOrderDraft(productId: number, items: OrderItemInput[]): string | null {
+export function saveGuestOrderDraft(productId: number | null, items: OrderItemInput[]): string | null {
   const owner = currentCustomerSessionStorageOwner();
   if (!owner) return null;
   const id = crypto.randomUUID();
-  return writeSessionValue(`${DRAFT_KEY_PREFIX}${id}`, JSON.stringify({ owner, value: { productId, items } }))
+  return writeGuestOrderDraft(id, { owner, value: { productId, items } })
     ? id : null;
 }
 
-export function readGuestOrderDraft(id: string | null, productId: number): OrderItemInput[] | null {
+export function writeGuestOrderDraft(id: string, draft: GuestOrderDraftHandle): boolean {
+  return isCurrentCustomerSessionStorageOwner(draft.owner)
+    && writeSessionValue(`${DRAFT_KEY_PREFIX}${id}`, JSON.stringify(draft));
+}
+
+export function readGuestOrderDraft(id: string | null, productId: number | null): GuestOrderDraftHandle | null {
   if (!id) return null;
   try {
     const raw = readSessionValue(`${DRAFT_KEY_PREFIX}${id}`);
     if (!raw) return null;
-    const draft = JSON.parse(raw) as CustomerSessionStorageHandle<GuestOrderDraft>;
+    const draft = JSON.parse(raw) as GuestOrderDraftHandle;
     if (!isCustomerSessionStorageOwner(draft.owner) || !isCurrentCustomerSessionStorageOwner(draft.owner)
-      || draft.value?.productId !== productId || !Array.isArray(draft.value.items)
-      || draft.value.items.length === 0) return null;
-    return draft.value.items.every((item) => item?.productId === productId
-      && Number.isSafeInteger(item.productVariantId) && Number(item.productVariantId) > 0
+      || draft.value?.productId !== productId || !Array.isArray(draft.value.items)) return null;
+    return draft.value.items.every((item) => Number.isSafeInteger(item?.productId) && item.productId > 0
+      && (item.productVariantId === null
+        || (Number.isSafeInteger(item.productVariantId) && Number(item.productVariantId) > 0))
       && Number.isInteger(item.qty) && item.qty >= 1 && item.qty <= MAX_PRODUCT_QUANTITY
       && Array.isArray(item.textInputs) && item.textInputs.every((input) => (
         typeof input?.groupKey === "string" && typeof input.value === "string"
-      ))) ? draft.value.items : null;
+      ))) ? draft : null;
   } catch {
     return null;
   }

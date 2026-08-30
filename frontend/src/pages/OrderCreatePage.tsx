@@ -1,13 +1,13 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
-import { useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
 import { useOrderItems } from "@/features/order/useOrderItems";
-import { readGuestOrderDraft } from "@/features/order/guestOrderDraft";
+import { readGuestOrderDraft, saveGuestOrderDraft, writeGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   executePaymentFlow,
@@ -42,26 +42,55 @@ type Step = "verify" | "items";
 export function OrderCreatePage() {
   const { isLoading, sessionVersion } = useCustomerAuth();
   const [searchParams] = useSearchParams();
+  const requestedProductId = Number(searchParams.get("productId"));
+  const productId = Number.isSafeInteger(requestedProductId) && requestedProductId > 0 ? requestedProductId : null;
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
-  return <OrderCreateForm key={`${sessionVersion}:${searchParams}`} />;
+  const key = `${sessionVersion}:${searchParams}`;
+  if (!searchParams.has("draftId") && searchParams.get("draft") !== "options") {
+    return <NewOrderDraft key={key} productId={productId} searchParams={searchParams} />;
+  }
+  return <OrderCreateForm key={key} productId={productId} />;
 }
 
-function OrderCreateForm() {
+function NewOrderDraft({ productId, searchParams }: { productId: number | null; searchParams: URLSearchParams }) {
+  const navigate = useNavigate();
+  const [saveFailed, setSaveFailed] = useState(false);
+  const savedDraftId = useRef<string | null>(null);
+  useEffect(() => {
+    const requestedQty = Number(searchParams.get("qty") ?? "1");
+    const qty = Number.isInteger(requestedQty) && requestedQty >= 1
+      ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY) : 1;
+    const items = productId ? [{ productId, productVariantId: null, textInputs: [], qty }] : [];
+    const draftId = savedDraftId.current ?? saveGuestOrderDraft(productId, items);
+    if (!draftId) {
+      setSaveFailed(true);
+      return;
+    }
+    savedDraftId.current = draftId;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("draftId", draftId);
+    void navigate(`/orders/new?${nextParams}`, { replace: true });
+  }, [navigate, productId, searchParams]);
+
+  return <Container className="page-container" style={{ maxWidth: 640 }}>
+    {saveFailed ? <Alert variant="warning">
+      주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.
+      <Button variant="link" onClick={() => void navigate(0)}>다시 시도</Button>
+    </Alert> : <LoadingSpinner text="주문서를 준비하는 중입니다..." />}
+  </Container>;
+}
+
+function OrderCreateForm({ productId }: { productId: number | null }) {
   const [searchParams] = useSearchParams();
-  const prefilledProductId = Number(searchParams.get("productId"));
-  const requestedQty = Number(searchParams.get("qty") ?? "1");
-  const orderDraftType = searchParams.get("draft");
-  const hasPrefilledItem = Number.isSafeInteger(prefilledProductId) && prefilledProductId > 0;
-  const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
-    ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY) : 1;
-  const [optionDraft] = useState(() => orderDraftType === "options"
-    ? readGuestOrderDraft(searchParams.get("draftId"), prefilledProductId) : null);
-  const draftMissing = orderDraftType === "options" && optionDraft === null;
+  const draftId = searchParams.get("draftId");
+  const hasPrefilledItem = productId !== null;
+  const [draft] = useState(() => readGuestOrderDraft(draftId, productId));
+  const draftMissing = draft === null;
   const { user } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
-  const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
+  const [manualEntryConfirmed, setManualEntryConfirmed] = useState((draft?.value.items.length ?? 0) > 0);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [verificationReset, setVerificationReset] = useState({ version: 0, message: "" });
@@ -71,10 +100,14 @@ function OrderCreateForm() {
   };
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
-  const [items, setItems] = useState<OrderItemInput[]>(() => optionDraft
-    ?? (hasPrefilledItem && !draftMissing
-      ? [{ productId: prefilledProductId, productVariantId: null, textInputs: [], qty: normalizedPrefilledQty }]
-      : []));
+  const [items, setItems] = useState<OrderItemInput[]>(draft?.value.items ?? []);
+  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
+  const updateItems = (nextItems: OrderItemInput[]) => {
+    setItems(nextItems);
+    setDraftSaveFailed(!draft || !draftId || !writeGuestOrderDraft(draftId, {
+      ...draft, value: { ...draft.value, items: nextItems },
+    }));
+  };
   const orderItems = useOrderItems(items);
   const { itemAmount } = orderItems;
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
@@ -145,8 +178,10 @@ function OrderCreateForm() {
 
   if (draftMissing) {
     return <Container className="page-container" style={{ maxWidth: 640 }}>
-      <Alert variant="warning">선택한 옵션 정보를 불러올 수 없습니다. 상품 상세에서 옵션과 수량을 다시 선택해 주세요.</Alert>
-      <LinkButton to={hasPrefilledItem ? `/products/${prefilledProductId}` : "/products"}>
+      <Alert variant="warning">{searchParams.get("draft") === "options"
+        ? "선택한 옵션 정보를 불러올 수 없습니다. 상품 상세에서 옵션과 수량을 다시 선택해 주세요."
+        : "주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요."}</Alert>
+      <LinkButton to={hasPrefilledItem ? `/products/${productId}` : "/products"}>
         상품 다시 선택
       </LinkButton>
     </Container>;
@@ -276,8 +311,12 @@ function OrderCreateForm() {
             <Card.Body>
               <OrderItemsForm
                 state={orderItems}
-                onChange={setItems}
+                onChange={updateItems}
               />
+              {draftSaveFailed && <Alert variant="warning" className="mt-3 mb-0">
+                변경한 주문 내용을 저장하지 못했습니다. 현재 선택은 유지됩니다. 브라우저 저장소 설정을 확인한 뒤 다시 저장해 주세요.
+                <Button variant="link" onClick={() => updateItems(items)}>다시 저장</Button>
+              </Alert>}
             </Card.Body>
           </Card>
 
@@ -336,7 +375,7 @@ function OrderCreateForm() {
 
           <Button
             variant="primary" size="lg" className="w-100"
-            disabled={!normalizedName || !orderItems.canPurchase
+            disabled={!normalizedName || !orderItems.canPurchase || draftSaveFailed
               || !isFulfillmentComplete(fulfillment) || !consent.ready
               || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>

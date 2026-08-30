@@ -3,6 +3,7 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { editGuestCartExclusive } from "./guestCartLock";
 import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
+import { productSelectionView } from "@/features/product/productSelectionView";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import { captureCustomerSession, requireCurrentCustomerSession } from "@/shared/api";
 import { productQuantities, productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
@@ -191,9 +192,15 @@ function persistGuestCartItemsWhileLocked(items: GuestCartItem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
-function requireStock(items: GuestCartItem[], changed: readonly CartAddition[], products: ProductDetailResponse[]) {
+function requirePurchasableAdditions(items: GuestCartItem[], changed: readonly CartAddition[], products: ProductDetailResponse[]) {
   const quantities = productQuantities(items);
   const productsById = new Map(products.map((product) => [product.id, product]));
+  for (const item of changed) {
+    const product = productsById.get(item.productId)!;
+    if (!productSelectionView(product, item).configurationValid) {
+      throw new CartQuantityError(`${product.name}의 선택한 옵션이 변경되었습니다. 상품 상세에서 다시 선택해 주세요.`);
+    }
+  }
   for (const item of new Map(changed.map((item) => [productSkuKey(item), item])).values()) {
     const quantity = quantities.get(productSkuKey(item)) ?? 0;
     requireCartQuantity(quantity);
@@ -262,7 +269,7 @@ export function useGuestCart(loadProduct: (productId: number) => Promise<Product
           : { ...item, lineKey, lineageId: crypto.randomUUID() });
       }
       const result = [...next.values()];
-      requireStock(result, additions, products);
+      requirePurchasableAdditions(result, additions, products);
       return result;
     });
   }, [loadProduct, updateItems]);
@@ -273,7 +280,7 @@ export function useGuestCart(loadProduct: (productId: number) => Promise<Product
       const item = prev.find((candidate) => candidate.lineKey === lineKey);
       if (!item) return prev;
       const next = prev.map((candidate) => candidate.lineKey === lineKey ? { ...candidate, qty } : candidate);
-      if (qty > item.qty) requireStock(next, [item], [await loadProduct(item.productId)]);
+      if (qty > item.qty) requirePurchasableAdditions(next, [item], [await loadProduct(item.productId)]);
       return next;
     });
   }, [loadProduct, updateItems]);

@@ -56,7 +56,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
   await page.getByRole("link", { name: /비회원 주문하기/ }).click();
 
-  await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2$`));
+  await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2&draftId=`));
   await expect(page.getByText("상품 상세에서 선택한 상품과 수량을 미리 담아두었습니다.")).toBeVisible();
 
   await completePhoneVerification(page, phone);
