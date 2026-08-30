@@ -4,14 +4,15 @@ import {
   updateSmartStoreCustomerInquiryAnswer,
   getSmartStoreInquiryAnswerTemplate,
   listAdminProductQnaPage,
-  listSmartStoreInquiries,
-  listSmartStoreCustomerInquiries,
+  listSmartStoreInquiriesPage,
+  listSmartStoreCustomerInquiriesPage,
   listUnansweredAdminProductQna,
   replyProductQna,
   type AdminQnaPageResponse,
   type AdminQnaResponse,
-  type SmartStoreInquiryResponse,
-  type SmartStoreCustomerInquiryResponse,
+  type SmartStoreInquiryPageResponse,
+  type SmartStoreCustomerInquiryPageResponse,
+  type ListSmartStoreInquiriesPageParams,
   type SmartStoreInquiryAnswerTemplateResponse,
 } from "@/generated/api/productQna";
 import { adminHeaders } from "@/shared/api";
@@ -23,9 +24,9 @@ export type { SmartStoreInquiryAnswerTemplateResponse } from "@/generated/api/pr
 
 export function fetchSmartStoreInquiries(
   token: string,
-  unansweredOnly: boolean,
-): Promise<SmartStoreInquiryResponse[]> {
-  return listSmartStoreInquiries({ unansweredOnly, limit: 100 }, {
+  params: ListSmartStoreInquiriesPageParams,
+): Promise<SmartStoreInquiryPageResponse> {
+  return listSmartStoreInquiriesPage(params, {
     headers: adminHeaders(token),
   });
 }
@@ -50,9 +51,9 @@ export function answerChannelQna(
 
 export function fetchSmartStoreCustomerInquiries(
   token: string,
-  unansweredOnly: boolean,
-): Promise<SmartStoreCustomerInquiryResponse[]> {
-  return listSmartStoreCustomerInquiries({ unansweredOnly, limit: 100 }, {
+  params: ListSmartStoreInquiriesPageParams,
+): Promise<SmartStoreCustomerInquiryPageResponse> {
+  return listSmartStoreCustomerInquiriesPage(params, {
     headers: adminHeaders(token),
   });
 }

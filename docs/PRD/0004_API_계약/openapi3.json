@@ -7299,6 +7299,34 @@
         "required" : [ "options", "originProductNo", "salePrice", "status" ],
         "type" : "object"
       },
+      "SmartStoreCustomerInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreCustomerInquiryResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "page", "size", "totalCount", "totalPages" ],
+        "type" : "object"
+      },
       "SmartStoreCustomerInquiryResponse" : {
         "properties" : {
           "answerContent" : {
@@ -7381,6 +7409,34 @@
           }
         },
         "required" : [ "content", "questionType", "subject" ],
+        "type" : "object"
+      },
+      "SmartStoreInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreInquiryResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "page", "size", "totalCount", "totalPages" ],
         "type" : "object"
       },
       "SmartStoreInquiryResponse" : {
@@ -12718,6 +12774,71 @@
         "tags" : [ "admin-smart-store-inquiry-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-inquiries/customers/page" : {
+      "get" : {
+        "operationId" : "listSmartStoreCustomerInquiriesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "unansweredOnly",
+          "required" : false,
+          "schema" : {
+            "default" : true,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 999999,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 10,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreCustomerInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer" : {
       "put" : {
         "operationId" : "answerSmartStoreCustomerInquiry",
@@ -12783,6 +12904,71 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-inquiries/page" : {
+      "get" : {
+        "operationId" : "listSmartStoreInquiriesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "unansweredOnly",
+          "required" : false,
+          "schema" : {
+            "default" : true,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 999999,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 10,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "admin-smart-store-inquiry-controller" ]

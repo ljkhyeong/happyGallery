@@ -1,17 +1,18 @@
 package com.personal.happygallery.application.qna.port.out;
 
+import com.personal.happygallery.application.shared.page.OffsetPage;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 public interface SmartStoreInquiryProvider {
 
     boolean isEnabled();
 
-    List<InquiryItem> findProductInquiries(LocalDateTime from, LocalDateTime to);
+    OffsetPage<InquiryItem> findProductInquiries(
+            LocalDateTime from, LocalDateTime to, boolean unansweredOnly, int page, int size);
 
-    List<CustomerInquiryItem> findCustomerInquiries(
-            LocalDate from, LocalDate to, boolean unansweredOnly, int limit);
+    OffsetPage<CustomerInquiryItem> findCustomerInquiries(
+            LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size);
 
     AnswerTemplate findProductInquiryAnswerTemplate();
 

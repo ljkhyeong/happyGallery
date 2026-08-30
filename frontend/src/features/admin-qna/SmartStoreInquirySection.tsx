@@ -26,19 +26,39 @@ interface Props {
 }
 
 const queryKey = ["admin", "smartstore-inquiries"] as const;
+type InquiryType = "product" | "customer";
+const dateInputFormat = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
+
+function initialSearch() {
+  const from = dateInputFormat.format(new Date(Date.now() - 29 * 86400000));
+  const to = dateInputFormat.format(new Date());
+  return { from, to, draftFrom: from, draftTo: to, unansweredOnly: true, page: 0 };
+}
 
 export function SmartStoreInquirySection({ token, onAuthError }: Props) {
-  const [inquiryType, setInquiryType] = useState<"product" | "customer">("product");
-  const [unansweredOnly, setUnansweredOnly] = useState(true);
+  const [inquiryType, setInquiryType] = useState<InquiryType>("product");
+  const [searches, setSearches] = useState(() => ({ product: initialSearch(), customer: initialSearch() }));
+  const search = searches[inquiryType];
+  const updateSearch = (change: Partial<typeof search>) => setSearches((previous) => ({
+    ...previous, [inquiryType]: { ...previous[inquiryType], ...change },
+  }));
+  const productParams = {
+    from: searches.product.from, to: searches.product.to,
+    unansweredOnly: searches.product.unansweredOnly, page: searches.product.page, size: 50,
+  };
+  const customerParams = {
+    from: searches.customer.from, to: searches.customer.to,
+    unansweredOnly: searches.customer.unansweredOnly, page: searches.customer.page, size: 50,
+  };
   const productQuery = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, "product", unansweredOnly],
-    queryFn: () => fetchSmartStoreInquiries(token, unansweredOnly),
+    queryKey: [...queryKey, "product", productParams],
+    queryFn: () => fetchSmartStoreInquiries(token, productParams),
     enabled: inquiryType === "product",
     refetchInterval: 60_000,
   });
   const customerQuery = useAdminQuery(onAuthError, {
-    queryKey: [...queryKey, "customer", unansweredOnly],
-    queryFn: () => fetchSmartStoreCustomerInquiries(token, unansweredOnly),
+    queryKey: [...queryKey, "customer", customerParams],
+    queryFn: () => fetchSmartStoreCustomerInquiries(token, customerParams),
     enabled: inquiryType === "customer",
     refetchInterval: 60_000,
   });
@@ -62,13 +82,29 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
         onClick={() => setInquiryType("customer")}
       >주문·배송 문의</Button>
     </div>
+    <Form className="d-flex flex-wrap align-items-end gap-2 mb-3" onSubmit={(event) => {
+      event.preventDefault();
+      updateSearch({ from: search.draftFrom, to: search.draftTo, page: 0 });
+    }}>
+      <Form.Group controlId="smartstore-inquiry-from">
+        <Form.Label className="small">문의 시작일</Form.Label>
+        <Form.Control type="date" required value={search.draftFrom} max={search.draftTo}
+          onChange={(event) => updateSearch({ draftFrom: event.target.value })} />
+      </Form.Group>
+      <Form.Group controlId="smartstore-inquiry-to">
+        <Form.Label className="small">문의 종료일</Form.Label>
+        <Form.Control type="date" required value={search.draftTo} min={search.draftFrom}
+          onChange={(event) => updateSearch({ draftTo: event.target.value })} />
+      </Form.Group>
+      <Button type="submit" variant="outline-primary">문의 조회</Button>
+    </Form>
     <Form.Check
       className="mb-3"
       type="switch"
       id="smartstore-inquiry-unanswered-only"
       label="미답변 문의만 보기"
-      checked={unansweredOnly}
-      onChange={(event) => setUnansweredOnly(event.target.checked)}
+      checked={search.unansweredOnly}
+      onChange={(event) => updateSearch({ unansweredOnly: event.target.checked, page: 0 })}
     />
     {inquiryType === "product" && templateQuery.error && (
       <ErrorAlert error={templateQuery.error}
@@ -77,19 +113,30 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     {activeQuery.isLoading && <LoadingSpinner />}
     <ErrorAlert error={activeQuery.error}
       onRetry={() => { void activeQuery.refetch(); }} retrying={activeQuery.isFetching} />
-    {activeQuery.data && (activeQuery.data.length === 0 ? (
-      <EmptyState message={unansweredOnly
+    <p className="small text-muted-soft">조회 기간 {search.from} ~ {search.to} · 50건씩 표시</p>
+    {activeQuery.data && (activeQuery.data.content.length === 0 ? (
+      <EmptyState message={search.unansweredOnly
         ? "답변을 기다리는 스마트스토어 문의가 없습니다."
-        : "최근 스마트스토어 문의가 없습니다."} />
+        : "선택한 기간의 스마트스토어 문의가 없습니다."} />
     ) : inquiryType === "product"
-      ? productQuery.data?.map((inquiry) => (
+      ? productQuery.data?.content.map((inquiry) => (
         <SmartStoreInquiryCard key={inquiry.questionId} inquiry={inquiry}
           template={templateQuery.data} token={token} onAuthError={onAuthError} />
       ))
-      : customerQuery.data?.map((inquiry) => (
+      : customerQuery.data?.content.map((inquiry) => (
         <SmartStoreCustomerInquiryCard key={inquiry.inquiryNo} inquiry={inquiry}
           token={token} onAuthError={onAuthError} />
       )))}
+    {activeQuery.data && (
+      <div className="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <Button size="sm" variant="outline-secondary" disabled={search.page === 0 || activeQuery.isFetching}
+          onClick={() => updateSearch({ page: search.page - 1 })}>이전 페이지</Button>
+        <span className="small">{search.page + 1} / {Math.max(1, activeQuery.data.totalPages)}페이지 · 총 {activeQuery.data.totalCount}건</span>
+        <Button size="sm" variant="outline-secondary"
+          disabled={search.page + 1 >= activeQuery.data.totalPages || activeQuery.isFetching}
+          onClick={() => updateSearch({ page: search.page + 1 })}>다음 페이지</Button>
+      </div>
+    )}
   </>;
 }
 

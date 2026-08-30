@@ -4,12 +4,16 @@ import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInqu
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerTemplateResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryPageResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInquiryPageResponse;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,6 +51,28 @@ public class AdminSmartStoreInquiryController {
     public SmartStoreInquiryAnswerTemplateResponse getAnswerTemplate() {
         return SmartStoreInquiryAnswerTemplateResponse.from(
                 useCase.getProductInquiryAnswerTemplate());
+    }
+
+    @GetMapping("/page")
+    @Operation(operationId = "listSmartStoreInquiriesPage")
+    public SmartStoreInquiryPageResponse listPage(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "true") boolean unansweredOnly,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(999999) int page,
+            @RequestParam(defaultValue = "50") @Min(10) @Max(100) int size) {
+        return SmartStoreInquiryPageResponse.from(useCase.listPage(from, to, unansweredOnly, page, size));
+    }
+
+    @GetMapping("/customers/page")
+    @Operation(operationId = "listSmartStoreCustomerInquiriesPage")
+    public SmartStoreCustomerInquiryPageResponse listCustomerPage(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "true") boolean unansweredOnly,
+            @RequestParam(defaultValue = "0") @Min(0) @Max(999999) int page,
+            @RequestParam(defaultValue = "50") @Min(10) @Max(100) int size) {
+        return SmartStoreCustomerInquiryPageResponse.from(useCase.listCustomerPage(from, to, unansweredOnly, page, size));
     }
 
     @PutMapping("/{questionId}/answer")

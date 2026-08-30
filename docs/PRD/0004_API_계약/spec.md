@@ -1012,15 +1012,20 @@ Authorization: Bearer {token}
 
 ```http
 GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
+GET /api/v1/admin/smartstore-inquiries/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 GET /api/v1/admin/smartstore-inquiries/template
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
 GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
+GET /api/v1/admin/smartstore-inquiries/customers/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}
 Authorization: Bearer {token}
 ```
 
-- 목록은 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
+- 기존 배열 목록 API는 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 상품 문의는 최대 두 페이지, 고객 문의는 한 페이지를 읽으며 전체 페이지를 미리 수집하지 않는다.
+- 페이지 목록 API의 operationId는 상품 문의 `listSmartStoreInquiriesPage`, 고객 문의 `listSmartStoreCustomerInquiriesPage`다. 필수 `from`, `to`는 `yyyy-MM-dd`이며 양 끝 날짜를 포함한다. 상품 문의는 한국 시간 `00:00:00`부터 `23:59:59.999`까지, 고객 문의는 날짜 그대로 전달한다. 시작일이 종료일보다 늦으면 `400 INVALID_INPUT`이며 별도 최대 기간은 정하지 않는다.
+- 페이지 요청은 `page` 0~999999(기본 0), `size` 10~100(기본 50), `unansweredOnly` 기본 `true`다. 네이버에는 페이지 번호를 1부터 전달하고, 미답변 조회일 때만 `answered=false`를 보낸다. 응답은 `{content, page, size, totalCount, totalPages}`이며 `content`는 기존 문의 DTO 배열이다. 합계는 네이버 응답을 사용하고 선택한 한 페이지만 요청한다.
+- 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
 - 상품 문의의 `PUT /{questionId}/answer`는 신규 답변 등록과 기존 답변 수정에 함께 사용한다. 관리자 화면은 기존 본문을 편집하고, 취소 시 요청을 보내지 않으며 저장 실패 시 초안을 유지한다. 조회 실패는 목록·템플릿 영역의 재시도로 처리하고 문의 유형 탭과 조회 조건은 계속 표시한다.
 - 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 CONFLICT`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.

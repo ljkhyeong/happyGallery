@@ -30,7 +30,10 @@
 
 ### 3. 문의는 실시간 조회·답변으로 제공한다
 
-- 최근 30일 상품 문의와 주문·배송 고객 문의를 각각 공식 페이지 응답에서 읽고 미답변 필터를 관리자에게 제공한다.
+- 상품 문의와 주문·배송 고객 문의를 각각 공식 페이지 응답에서 읽고 기간·미답변 필터·페이지 이동을 관리자에게 제공한다. 화면 초기 기간은 오늘을 포함한 최근 30일이며 유형별 조회 조건을 유지한다.
+- 기존 배열 API는 유지하고 `/page`, `/customers/page`를 추가한다. 공통 `OffsetPage`를 사용하며 로컬 페이지는 0부터, 네이버 페이지는 1부터 시작한다. 페이지 크기는 두 외부 API가 모두 허용하는 10~100건으로 제한하고 기본은 50건이다. 미답변 조건도 네이버에 전달해 합계와 페이지 내용이 일치하게 한다.
+- 새 API는 요청한 한 페이지만 읽는다. 기존 배열 API도 최대 200건을 채우는 데 필요한 상품 문의 두 페이지 또는 고객 문의 한 페이지만 읽는다. 전체 페이지를 읽은 뒤 자르는 방식은 사용하지 않는다.
+- 조회 기간은 필수이며 시작일이 종료일보다 늦은 경우만 거절한다. 공식 상품·고객 문의 명세에 최대 조회 일수가 지정되어 있지 않으므로 자체 30일 제한을 추가하지 않는다. 상품 문의의 날짜는 한국 시간 하루 전체로 바꾸고 고객 문의는 날짜 그대로 전달한다.
 - 상품 문의 답변은 `commentContent`, 고객 문의 답변은 `answerComment` 계약으로 직접 전송한다. 고객 식별자는 네이버가 제공한 마스킹 값만 표시한다.
 - 고객 문의 조회의 nullable `answerContentId`를 전달하고, 기존 답변 수정은 문의번호와 답변번호를 지정한 PUT으로 전송한다. 편집 시작 시의 답변번호를 유지해 목록 재조회가 수정 대상을 바꾸지 않게 한다. 수정 가능 여부는 네이버가 판정하며 로컬에 문의 상태를 중복 저장하지 않는다.
 - 상품 문의 화면은 네이버의 단일 답변 템플릿을 실시간 조회해 본문 적용 버튼으로 제공한다. 템플릿을 로컬에 중복 저장하지 않는다.
@@ -63,7 +66,8 @@
 ## 참고
 
 - [교환 재배송 처리](https://apicenter.commerce.naver.com/docs/commerce-api/current/seller-dispatch-exchange-product-order-pay-order-seller)
-- [상품 문의 목록 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-qnas-contents)
+- [상품 문의 목록 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-comments-contents)
+- [고객 문의 목록 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-customer-inquiry-pay-user)
 - [고객 문의 답변 수정](https://apicenter.commerce.naver.com/docs/commerce-api/current/update-inquiry-answer-pay-merchant)
 - [반품 택배사 다건 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-return-delivery-company-list-product)
 - [건별 정산 내역 조회](https://apicenter.commerce.naver.com/docs/commerce-api/current/get-case-settle-pay-settle)

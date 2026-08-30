@@ -38,6 +38,7 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ClaimDetail;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
+import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.CustomerInquiryResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.AnswerTemplateResult;
@@ -701,6 +702,17 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].questionId").value(456));
+        when(smartStoreInquiryUseCase.listPage(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), true, 1, 50))
+                .thenReturn(new OffsetPage<>(List.of(new InquiryResult(
+                        456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
+                        false, LocalDateTime.of(2026, 7, 29, 10, 0))), 1, 50, 101, 3));
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/page")
+                        .with(adminUser()).header("Authorization", "Bearer admin-session-token")
+                        .param("from", "2026-07-01").param("to", "2026-07-31").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].questionId").value(456))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.totalCount").value(101));
         mockMvc.perform(put("/api/v1/admin/smartstore-inquiries/{questionId}/answer", 456L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
@@ -727,6 +739,15 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].inquiryNo").value(789));
+        when(smartStoreInquiryUseCase.listCustomerPage(
+                LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), false, 0, 50))
+                .thenReturn(new OffsetPage<>(List.of(), 0, 50, 0, 0));
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers/page")
+                        .with(adminUser()).header("Authorization", "Bearer admin-session-token")
+                        .param("from", "2026-07-01").param("to", "2026-07-31").param("unansweredOnly", "false"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.totalPages").value(0));
         mockMvc.perform(put(
                         "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer", 789L)
                         .with(adminUser())
