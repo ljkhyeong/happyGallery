@@ -9,8 +9,9 @@ import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
 import type { ProductType } from "@/shared/types/product";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
-import { OrderOptionList, type OrderOptionDisplay } from "./OrderOptionList";
+import { OrderOptionList } from "./OrderOptionList";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
+import { productSelectionView } from "@/features/product/productSelectionView";
 
 interface Props {
   items: OrderItemInput[];
@@ -32,34 +33,6 @@ function getProductTypes(
 
 function itemKey(item: OrderItemInput) {
   return productOptionLineKey(item.productId, item.productVariantId, item.textInputs);
-}
-
-function unitPrice(item: OrderItemInput, product: ProductDetailResponse) {
-  const variantAdjustment = product.variants.find(
-    (variant) => variant.id === item.productVariantId,
-  )?.priceAdjustment ?? 0;
-  const textAdjustment = (item.textInputs ?? []).reduce((sum, input) => {
-    if (!input.value?.trim()) return sum;
-    return sum + (product.optionGroups.find(
-      (group) => group.key === input.groupKey,
-    )?.inputPriceAdjustment ?? 0);
-  }, 0);
-  return product.price + variantAdjustment + textAdjustment;
-}
-
-function selectedOptions(item: OrderItemInput, product: ProductDetailResponse): OrderOptionDisplay[] {
-  const variant = product.variants.find((candidate) => candidate.id === item.productVariantId);
-  return product.optionGroups.flatMap((group) => {
-    const selection = variant?.selections.find((candidate) => candidate.groupKey === group.key);
-    const value = group.type === "SELECT"
-      ? group.values.find((candidate) => candidate.key === selection?.valueKey)?.name
-      : item.textInputs?.find((input) => input.groupKey === group.key)?.value?.trim();
-    return value ? [{
-      groupName: group.name,
-      value,
-      priceAdjustment: group.type === "TEXT" ? group.inputPriceAdjustment ?? 0 : 0,
-    }] : [];
-  });
 }
 
 export function OrderItemsForm({
@@ -122,7 +95,7 @@ export function OrderItemsForm({
 
   const totalAmount = items.reduce((sum, item) => {
     const product = productMap.get(item.productId);
-    return sum + (product ? unitPrice(item, product) * item.qty : 0);
+    return sum + (product ? productSelectionView(product, item).unitPrice * item.qty : 0);
   }, 0);
   const selectedProductTypes = useMemo(
     () => getProductTypes(items, productMap),
@@ -188,22 +161,23 @@ export function OrderItemsForm({
           <ListGroup className="mb-2">
             {items.map((item) => {
               const product = productMap.get(item.productId);
+              const selection = product ? productSelectionView(product, item) : null;
               return (
                 <ListGroup.Item key={itemKey(item)}>
                   <div className="d-flex justify-content-between align-items-center mb-2">
                     <span>
                       {product?.name ?? `상품 #${item.productId}`}
                       <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
-                      {product && (
+                      {selection && (
                         <small className="text-muted-soft ms-2">
-                          {formatKRW(unitPrice(item, product) * item.qty)}
+                          {formatKRW(selection.unitPrice * item.qty)}
                         </small>
                       )}
                     </span>
                     <Button size="sm" variant="outline-danger"
                       onClick={() => removeItem(itemKey(item))}>삭제</Button>
                   </div>
-                  {product && <OrderOptionList options={selectedOptions(item, product)} />}
+                  {selection && <OrderOptionList options={selection.options} />}
                   {product && (
                     <ProductPurchaseTerms
                       productName={product.name}

@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Alert, Button, Form, Table } from "react-bootstrap";
 import type {
   ProductDetailResponse,
-  ProductOptionGroupResponse,
   ProductVariantResponse,
 } from "@/generated/api/product";
 import type { OrderTextInput } from "@/generated/api/payment";
@@ -10,13 +9,12 @@ import { formatKRW } from "@/shared/lib";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
 import { productOptionLineKey } from "./optionLineKey";
+import { productSelectionView } from "./productSelectionView";
 
 export interface PurchaseLine {
   key: string;
   productVariantId: number;
   textInputs: OrderTextInput[];
-  label: string;
-  unitPrice: number;
   qty: number;
 }
 
@@ -37,10 +35,6 @@ function matchesVariant(
     ));
 }
 
-function valueLabel(group: ProductOptionGroupResponse, valueKey: string) {
-  return group.values.find((value) => value.key === valueKey)?.name ?? valueKey;
-}
-
 export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
   const selectGroups = useMemo(
     () => product.optionGroups.filter((group) => group.type === "SELECT"),
@@ -56,7 +50,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
   const selectedQuantities = useMemo(() => sumQuantitiesByVariant(lines), [lines]);
 
   const selectedVariant = product.variants.find(
-    (variant) => matchesVariant(variant, selectedValues),
+    (variant) => variant.active && matchesVariant(variant, selectedValues),
   );
   const remainingQuantity = selectedVariant
     ? Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, selectedVariant.quantity)
@@ -86,21 +80,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
     const textInputs = textGroups
       .map((group) => ({ groupKey: group.key, value: textValues[group.key]?.trim() }))
       .filter((input) => Boolean(input.value));
-    const textAdjustment = textGroups.reduce(
-      (sum, group) => sum + (textValues[group.key]?.trim()
-        ? (group.inputPriceAdjustment ?? 0)
-        : 0),
-      0,
-    );
     const key = productOptionLineKey(product.id, selectedVariant.id, textInputs);
-    const labels = [
-      ...selectGroups.flatMap((group) => selectedValues[group.key]
-        ? [`${group.name}: ${valueLabel(group, selectedValues[group.key] ?? "")}`]
-        : []),
-      ...textGroups.flatMap((group) => textValues[group.key]?.trim()
-        ? [`${group.name}: ${textValues[group.key]?.trim()}`]
-        : []),
-    ];
     const existing = lines.find((line) => line.key === key);
     if (existing) {
       onChange(lines.map((line) => line.key === key ? { ...line, qty: line.qty + 1 } : line));
@@ -109,8 +89,6 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         key,
         productVariantId: selectedVariant.id,
         textInputs,
-        label: labels.join(" / ") || "기본 조합",
-        unitPrice: product.price + selectedVariant.priceAdjustment + textAdjustment,
         qty: 1,
       }]);
     }
@@ -174,14 +152,18 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         <Table responsive size="sm" className="align-middle mb-0">
           <tbody>
             {lines.map((line) => {
+              const view = productSelectionView(product, line);
               const variantQuantity = product.variants.find((variant) => variant.id === line.productVariantId)?.quantity ?? 0;
               const maximumLineQuantity = Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, variantQuantity)
                 - (selectedQuantities.get(line.productVariantId) ?? 0) + line.qty);
               return (
                 <tr key={line.key}>
                   <td>
-                    <div className="small fw-semibold">{line.label}</div>
-                    <div className="small text-muted">{formatKRW(line.unitPrice)}</div>
+                    <div className="small fw-semibold">{view.label}</div>
+                    <div className="small text-muted">{formatKRW(view.unitPrice)}</div>
+                    {!view.configurationValid && (
+                      <div className="small text-danger">선택한 옵션이 변경되었습니다. 이 항목을 삭제한 뒤 다시 선택해 주세요.</div>
+                    )}
                   </td>
                   <td style={{ width: 100 }}>
                     <Form.Control
@@ -189,13 +171,13 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
                       type="number"
                       min={1}
                       max={maximumLineQuantity}
-                      aria-label={`${line.label} 수량`}
+                      aria-label={`${view.label} 수량`}
                       value={line.qty}
                       onChange={(event) => {
                         const qty = Number(event.target.value);
                         if (Number.isInteger(qty)
                           && qty >= 1
-                          && qty <= maximumLineQuantity) {
+                          && (qty < line.qty || qty <= maximumLineQuantity)) {
                           onChange(lines.map((item) => item.key === line.key ? { ...item, qty } : item));
                           setMessage(null);
                         }

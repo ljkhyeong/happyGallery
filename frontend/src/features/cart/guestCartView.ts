@@ -1,10 +1,8 @@
-import type {
-  CartItemResponse,
-  ProductOptionSnapshotResponse,
-} from "@/generated/api/customerStore";
+import type { CartItemResponse } from "@/generated/api/customerStore";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { GuestCartItem } from "./useGuestCart";
 import { cartQuantities, cartQuantityLimit, cartSkuKey } from "./cartStock";
+import { productSelectionView } from "@/features/product/productSelectionView";
 
 export type CartItemIdentifier = number | string;
 
@@ -26,18 +24,11 @@ export function projectGuestCartItems(
     const product = productsById.get(item.productId);
     if (!product) return unavailableGuestItem(item);
 
-    const variant = item.productVariantId === null
-      ? null
-      : product.variants.find((candidate) => candidate.id === item.productVariantId) ?? null;
-    const variantPriceAdjustment = variant?.priceAdjustment ?? 0;
-    const options = guestOptions(item, product, variant?.selections ?? []);
-    const textOptionPriceAdjustment = options
-      .filter((option) => option.type === "TEXT")
-      .reduce((sum, option) => sum + option.priceAdjustment, 0);
-    const price = product.price + variantPriceAdjustment + textOptionPriceAdjustment;
+    const { variantPriceAdjustment, textOptionPriceAdjustment, options, unitPrice: price,
+      configurationValid } = productSelectionView(product, item);
     const skuQuantity = quantitiesBySku.get(cartSkuKey(item)) ?? item.qty;
     const limit = cartQuantityLimit(product, item.productVariantId);
-    const available = product.available && skuQuantity <= limit;
+    const available = product.available && configurationValid && skuQuantity <= limit;
 
     return {
       cartItemId: item.lineKey,
@@ -54,7 +45,7 @@ export function projectGuestCartItems(
       subtotal: price * item.qty,
       available,
       maxQuantity: Math.max(0, limit - skuQuantity + item.qty),
-      quantityWarning: product.available && skuQuantity > limit
+      quantityWarning: product.available && configurationValid && skuQuantity > limit
         ? `같은 상품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
         : undefined,
       specification: product.specification,
@@ -62,43 +53,6 @@ export function projectGuestCartItems(
       productionLeadDays: product.productionLeadDays,
     };
   });
-}
-
-function guestOptions(
-  item: GuestCartItem,
-  product: ProductDetailResponse,
-  selections: Array<{ groupKey: string; valueKey: string }>,
-): ProductOptionSnapshotResponse[] {
-  const selectedOptions = selections.flatMap((selection) => {
-    const group = product.optionGroups.find((candidate) =>
-      candidate.type === "SELECT" && candidate.key === selection.groupKey,
-    );
-    const value = group?.values.find((candidate) => candidate.key === selection.valueKey);
-    if (!group || !value) return [];
-    return [{
-      type: "SELECT" as const,
-      groupName: group.name,
-      value: value.name,
-      priceAdjustment: 0,
-      sortOrder: group.sortOrder,
-    }];
-  });
-  const textOptions = item.textInputs.flatMap((input) => {
-    const value = input.value?.trim() ?? "";
-    const group = product.optionGroups.find((candidate) =>
-      candidate.type === "TEXT" && candidate.key === input.groupKey,
-    );
-    if (!group || value.length === 0) return [];
-    return [{
-      type: "TEXT" as const,
-      groupName: group.name,
-      value,
-      priceAdjustment: group.inputPriceAdjustment ?? 0,
-      sortOrder: group.sortOrder,
-    }];
-  });
-  return [...selectedOptions, ...textOptions]
-    .sort((left, right) => left.sortOrder - right.sortOrder);
 }
 
 function unavailableGuestItem(item: GuestCartItem): CartItemView {

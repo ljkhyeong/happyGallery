@@ -41,6 +41,7 @@ import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
+import { productSelectionView } from "@/features/product/productSelectionView";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import {
@@ -92,7 +93,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
-      const items = product?.optionGroups.length
+      const items = (product?.optionGroups.length || purchaseLines.length)
         ? purchaseLines.map((line) => ({
           productId,
           productVariantId: line.productVariantId,
@@ -141,7 +142,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
     mutationFn: () => runForCurrentCustomer(
       async () => {
         if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
-        const items = product.optionGroups.length
+        const items = (product.optionGroups.length || purchaseLines.length)
           ? purchaseLines.map((line) => ({
             productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
           }))
@@ -177,17 +178,28 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   if (!product) return null;
 
-  const hasConfiguredOptions = product.optionGroups.length > 0;
+  const hasConfiguredOptions = product.optionGroups.length > 0 || purchaseLines.length > 0;
+  const selectionViews = purchaseLines.map((line) => productSelectionView(product, line));
+  const selectionChanged = selectionViews.some((view, index) => {
+    const initial = productSelectionView(initialProduct, purchaseLines[index]!);
+    return view.unitPrice !== initial.unitPrice || view.label !== initial.label
+      || view.configurationValid !== initial.configurationValid;
+  });
   const selectedQuantity = hasConfiguredOptions
     ? purchaseLines.reduce((sum, line) => sum + line.qty, 0)
     : qty;
+  const defaultSelection = productSelectionView(product, {
+    productVariantId: product.type === "MADE_TO_ORDER" ? product.variants[0]?.id : null,
+  });
   const itemAmount = hasConfiguredOptions
-    ? purchaseLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0)
-    : product.price * qty;
+    ? purchaseLines.reduce((sum, line, index) => sum + selectionViews[index]!.unitPrice * line.qty, 0)
+    : defaultSelection.unitPrice * qty;
   const selectedQuantities = sumQuantitiesByVariant(purchaseLines);
   const canBuy = product.available
     && selectedQuantity >= 1
     && (hasConfiguredOptions || selectedQuantity <= MAX_PRODUCT_QUANTITY)
+    && (hasConfiguredOptions || defaultSelection.configurationValid)
+    && selectionViews.every((view) => view.configurationValid)
     && [...selectedQuantities].every(([variantId, quantity]) => quantity <= Math.min(
       MAX_PRODUCT_QUANTITY,
       product.variants.find((variant) => variant.id === variantId)?.quantity ?? 0,
@@ -283,6 +295,11 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   <span aria-hidden="true">1</span>
                   <h3 id="product-option-title">옵션 선택</h3>
                 </div>
+                {selectionChanged && (
+                  <Alert variant="info" className="py-2">
+                    상품 가격 또는 옵션 정보가 변경되었습니다. 현재 표시된 옵션과 금액을 확인해 주세요.
+                  </Alert>
+                )}
                 {hasConfiguredOptions ? (
                   <ProductPurchaseOptions
                     product={product}

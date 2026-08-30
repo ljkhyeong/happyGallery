@@ -248,3 +248,43 @@ test("@payment 회원 다건 담기는 한 요청을 보내고 응답 실패 뒤
   expect(requests[0]!.items).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
 });
+
+test("@payment 선택한 옵션은 상품 재조회 뒤 현재 이름과 단가로 합계를 갱신한다", async ({ page }) => {
+  const product = await openOptionProduct(page, 10);
+  await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+  await page.getByRole("textbox", { name: /각인 문구/ }).fill("문구 A");
+  await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+  await page.locator(".store-option-form").getByRole("spinbutton").fill("2");
+  await expect(page.locator(".store-purchase-summary")).toContainText("₩26,000");
+
+  product.price = 12000;
+  product.variants[0]!.priceAdjustment = 4000;
+  product.optionGroups[0]!.values[0]!.name = "밤색";
+  product.optionGroups[1]!.inputPriceAdjustment = 1500;
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
+  const row = page.locator(".store-option-form tbody tr");
+  await expect(row).toContainText("색상: 밤색 / 각인 문구: 문구 A");
+  await expect(row).toContainText("₩17,500");
+  await expect(row.getByRole("spinbutton")).toHaveValue("2");
+  await expect(page.locator(".store-purchase-summary")).toContainText("₩35,000");
+  await expect(page.getByText("상품 가격 또는 옵션 정보가 변경되었습니다. 현재 표시된 옵션과 금액을 확인해 주세요.")).toBeVisible();
+  await page.goto("/cart");
+  await expect(page.locator("tbody tr")).toContainText("₩35,000");
+});
+
+test("@payment 모든 옵션이 삭제되어도 이전 선택을 기본 상품 주문으로 바꾸지 않는다", async ({ page }) => {
+  const product = await openOptionProduct(page, 5);
+  await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+  await page.getByRole("textbox", { name: /각인 문구/ }).fill("남길 문구");
+  await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+  product.optionGroups = [];
+  product.variants = [{ id: 803, active: true, quantity: 5, priceAdjustment: 0, selections: [] }];
+  await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+  await expect(page.locator(".store-option-form tbody tr")).toHaveCount(1);
+  await expect(page.getByText("선택한 옵션이 변경되었습니다. 이 항목을 삭제한 뒤 다시 선택해 주세요.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeDisabled();
+  await page.locator(".store-option-form").getByRole("button", { name: "삭제", exact: true }).click();
+  await expect(page.getByLabel("수량", { exact: true })).toHaveValue("1");
+  await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeEnabled();
+});
