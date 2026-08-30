@@ -8,6 +8,7 @@ import {
   type PaymentReturnHint,
 } from "./session";
 import { requestTossPayment } from "./TossCheckout";
+import { requireCheckoutTerms, type CheckoutSelection } from "./checkoutSelection";
 import {
   captureCustomerSession,
   CustomerSessionChangedError,
@@ -16,6 +17,7 @@ import {
 import type { PaymentContext, PaymentPayload, PreparePaymentResponse } from "./types";
 
 interface ExecutePaymentFlowArgs<T extends PaymentPayload> {
+  checkoutSelection?: CheckoutSelection;
   context: PaymentContext;
   payload: T;
   orderName: string | ((prep: PreparePaymentResponse) => string);
@@ -40,6 +42,7 @@ interface ExecutePaymentFlowArgs<T extends PaymentPayload> {
 export async function executePaymentFlow<T extends PaymentPayload>(
   args: ExecutePaymentFlowArgs<T>,
 ): Promise<void> {
+  requireCheckoutTerms(args.checkoutSelection);
   const customerSession = captureCustomerSession();
   const requireCurrentCustomer = () =>
     requireCurrentCustomerSession(customerSession);
@@ -118,6 +121,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
       typeof args.orderName === "function" ? args.orderName(prep) : args.orderName);
     await runCustomerStep(() =>
       requestTossPayment({
+        checkoutMethod: args.checkoutSelection?.method,
         orderId: prep.orderId,
         amount: prep.amount,
         orderName,

@@ -218,6 +218,8 @@ Delivery API를 처음 연결할 때는 `DELIVERY_TRACKING_ENABLED=false`와 직
 
 Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호스트>/api/v1/webhooks/toss-payments`를 등록한다. 웹훅은 `PAYMENT_STATUS_CHANGED`만 수신 기록하고, 알려진 `orderId`를 기존 결제 대사 흐름으로 확인한다.
 
+상품 상세·주문서·장바구니·예약금·8회권 구매 화면에서 `카드·간편결제` 또는 `네이버페이`를 선택한다. 네이버페이는 토스 경유 자체창으로 열며 별도 네이버 PG 서버를 두지 않는다. 전용창 선택 시 토스 결제 약관 동의를 받은 뒤 prepare를 요청하고, 승인·부분취소·정산은 기존 토스 경로를 사용한다. 운영 사용 전 토스 가맹점의 네이버페이 계약 활성화와 실제 결제·취소를 확인해야 한다. [공식 자체창 연동 안내](https://docs.tosspayments.com/guides/v2/payment-window/integration-direct)
+
 도로명주소와 공휴일 연동은 각각 공식 서비스 승인키를 발급한 뒤 키를 먼저 주입하고 `ROAD_ADDRESS_ENABLED`, `PUBLIC_HOLIDAY_ENABLED`를 켠다. 주소 검색 장애 때 고객과 관리자는 주소를 직접 입력할 수 있고, 공휴일 조회 실패 때는 마지막 정상 스냅샷을 보존한다.
 
 | 이름 | 위치 | 설명 |

@@ -96,7 +96,9 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 4. Toss 멱등키를 요청마다 고정한다
 
-- 브라우저는 Toss의 `CARD` 통합 결제창을 열고 고객이 그 안에서 카드 또는 간편결제를 선택한다. prepare payload의
+- 브라우저 기본 선택은 Toss `CARD` 통합 결제창이다. 네이버페이를 선택하면 같은 SDK에 `card.flowMode=DIRECT`,
+  `card.easyPay=NAVERPAY`, `windowTarget=self`를 전달한다. 전용창의 토스 결제 약관 동의는 prepare 전에 확인한다.
+  선택값은 브라우저 진입 방식일 뿐 별도 PG나 서버 결제 상태를 추가하지 않으며, 기존 승인·부분환불·정산을 재사용한다. prepare payload의
   예약 결제수단은 PG 호출 전 표시용 스냅샷일 뿐이며, 승인·조회 응답의 `method`를 `confirmed_payment_method`에 저장해
   최종 예약 결제수단으로 사용한다.
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
@@ -106,6 +108,8 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 - 멱등키만 바꿔 같은 요청을 재시도하지 않는다.
 
 공식 계약: [토스페이먼츠 인증 및 기타 헤더 설정](https://docs.tosspayments.com/reference/using-api/authorization)
+
+자체창 계약: [토스페이먼츠 카드사 및 간편결제 자체창 연동](https://docs.tosspayments.com/guides/v2/payment-window/integration-direct)
 
 ### 5. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
 

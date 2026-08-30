@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router";
 import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
-import { confirmPayment, executePaymentFlow, type OrderPayload } from "@/features/payment";
+import { confirmPayment, executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import {
@@ -54,6 +54,7 @@ function CartContent() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
   const [rewardAmount, setRewardAmount] = useState(0);
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const { isAuthenticated, user } = useCustomerAuth();
   const {
     items,
@@ -102,6 +103,7 @@ function CartContent() {
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
         orderName: availableItems.length === 1
@@ -398,7 +400,8 @@ function CartContent() {
                     <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
                   </div>
 
-                  <ErrorAlert
+                  <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={checkout.isPending} />
+                  <PaymentErrorAlert
                     error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
                   />
                   {cartSnapshotConflict && (

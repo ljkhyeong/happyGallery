@@ -9,6 +9,9 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   executePaymentFlow,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   type OrderPayload,
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -59,6 +62,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const { isAuthenticated, isLoading: authLoading, user } = useCustomerAuth();
 
   const [qty, setQty] = useState(1);
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
   const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
   const purchasePanelRef = useRef<HTMLDivElement>(null);
@@ -109,6 +113,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
         orderName: product
@@ -332,7 +337,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               )}
 
               <div className="store-order-sheet-actions">
-                <ErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
+                <PaymentErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
                 {cartMutation.error instanceof CartQuantityError ? (
                   <Alert variant="danger">{cartMutation.error.message}</Alert>
                 ) : (
@@ -341,6 +346,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
 
                 {!authLoading && isAuthenticated ? (
                   <>
+                    <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
                     <MadeToOrderConsent
                       required={requiresMadeToOrderConsent}
                       policy={consent.policyQuery.data}

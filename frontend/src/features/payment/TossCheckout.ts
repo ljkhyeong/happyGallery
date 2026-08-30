@@ -1,3 +1,5 @@
+import { tossCheckoutOptions, type CheckoutMethod } from "./checkoutSelection";
+
 const TOSS_SDK_URL = "https://js.tosspayments.com/v2/standard";
 
 let sdkPromise: Promise<TossPaymentsCtor> | null = null;
@@ -21,6 +23,8 @@ interface TossRequestPaymentArgs {
   failUrl: string;
   customerName?: string;
   customerMobilePhone?: string;
+  card?: { flowMode: "DIRECT"; easyPay: "NAVERPAY" };
+  windowTarget?: "self";
 }
 
 declare global {
@@ -53,6 +57,7 @@ function loadTossSdk(): Promise<TossPaymentsCtor> {
 }
 
 export interface RequestTossPaymentArgs {
+  checkoutMethod?: CheckoutMethod;
   orderId: string;
   amount: number;
   orderName: string;
@@ -78,6 +83,7 @@ export async function requestTossPayment(
   const payment = tossPayments.payment({ customerKey });
   requireAllowed();
   await payment.requestPayment({
+    ...tossCheckoutOptions(args.checkoutMethod),
     method: "CARD",
     amount: { currency: "KRW", value: args.amount },
     orderId: args.orderId,

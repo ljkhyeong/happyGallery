@@ -10,6 +10,9 @@ import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
   confirmPayment,
   executePaymentFlow,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   type BookingPayload,
 } from "@/features/payment";
 import {
@@ -128,6 +131,7 @@ function BookingCreateContent({
     () => resumeDraft?.paymentPath ?? "deposit",
   );
   const paymentMethod: DepositPaymentMethod = "CARD";
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const [participantCount, setParticipantCount] = useState(
     () => resumeDraft?.participantCount ?? 1,
   );
@@ -291,6 +295,7 @@ function BookingCreateContent({
             };
 
       await executePaymentFlow({
+        checkoutSelection: paymentPath === "deposit" ? checkoutSelection : undefined,
         context: "BOOKING",
         payload,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
@@ -448,7 +453,6 @@ function BookingCreateContent({
               <Row className="g-2 mb-3">
                 <Col xs={12}>
                   <p className="small text-muted mb-0">
-                    토스 결제창에서 카드 또는 네이버페이·카카오페이 등 간편결제를 선택할 수 있습니다.
                     결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
                   </p>
                 </Col>
@@ -505,7 +509,10 @@ function BookingCreateContent({
         </Card>
       )}
 
-      <ErrorAlert error={startPayment.error} />
+      {paymentPath === "deposit" && (
+        <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={startPayment.isPending} />
+      )}
+      <PaymentErrorAlert error={startPayment.error} />
 
       {matchingResume !== null && (
         <Alert variant="info" role="status">

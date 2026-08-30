@@ -9,10 +9,13 @@ import { OrderItemsForm } from "@/features/order/OrderItemsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   executePaymentFlow,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   confirmPayment,
   type OrderPayload,
 } from "@/features/payment";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { LoadingSpinner, useToast } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
 import {
   FulfillmentForm,
@@ -103,6 +106,7 @@ function OrderCreateForm() {
   const requiresMadeToOrderConsent = selectedProductTypes?.includes("MADE_TO_ORDER") ?? false;
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
   const guestPolicyConsent = usePolicyAcceptance();
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
 
   const prefilledProductId = Number(searchParams.get("productId"));
   const requestedQty = Number(searchParams.get("qty") ?? "1");
@@ -162,6 +166,7 @@ function OrderCreateForm() {
             ...fulfillmentPayload(fulfillment),
           };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
         orderName: items.length === 1 && items[0]
@@ -350,7 +355,8 @@ function OrderCreateForm() {
             </Card.Body>
           </Card>
 
-          <ErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+          <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={mutation.isPending} />
+          <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
           <MadeToOrderConsent
             required={requiresMadeToOrderConsent}
             policy={consent.policyQuery.data}
