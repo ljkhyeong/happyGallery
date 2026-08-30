@@ -8,6 +8,7 @@ import type {
 import type { OrderTextInput } from "@/generated/api/payment";
 import { formatKRW } from "@/shared/lib";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { sumQuantitiesByVariant } from "./purchaseQuantity";
 
 export interface PurchaseLine {
   key: string;
@@ -15,7 +16,6 @@ export interface PurchaseLine {
   textInputs: OrderTextInput[];
   label: string;
   unitPrice: number;
-  availableQuantity: number;
   qty: number;
 }
 
@@ -59,10 +59,15 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
   const [selectedValues, setSelectedValues] = useState<Record<string, string>>({});
   const [textValues, setTextValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
+  const selectedQuantities = useMemo(() => sumQuantitiesByVariant(lines), [lines]);
 
   const selectedVariant = product.variants.find(
     (variant) => matchesVariant(variant, selectedValues),
   );
+  const remainingQuantity = selectedVariant
+    ? Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, selectedVariant.quantity)
+      - (selectedQuantities.get(selectedVariant.id) ?? 0))
+    : 0;
   const requiredComplete = selectGroups.every(
     (group) => !group.required || Boolean(selectedValues[group.key]),
   ) && textGroups.every(
@@ -78,8 +83,10 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
       setMessage("선택한 옵션 조합은 현재 판매하지 않습니다.");
       return;
     }
-    if (selectedVariant.quantity < 1) {
-      setMessage("선택한 옵션 조합은 품절되었습니다.");
+    if (remainingQuantity < 1) {
+      setMessage(selectedVariant.quantity < 1
+        ? "선택한 옵션 조합은 품절되었습니다."
+        : "이 옵션 조합은 더 담을 수 없습니다.");
       return;
     }
     const textInputs = textGroups
@@ -102,10 +109,6 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
     ];
     const existing = lines.find((line) => line.key === key);
     if (existing) {
-      if (existing.qty >= Math.min(MAX_PRODUCT_QUANTITY, existing.availableQuantity)) {
-        setMessage("이 옵션 조합은 더 담을 수 없습니다.");
-        return;
-      }
       onChange(lines.map((line) => line.key === key ? { ...line, qty: line.qty + 1 } : line));
     } else {
       onChange([...lines, {
@@ -114,7 +117,6 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         textInputs,
         label: labels.join(" / ") || "기본 조합",
         unitPrice: product.price + selectedVariant.priceAdjustment + textAdjustment,
-        availableQuantity: selectedVariant.quantity,
         qty: 1,
       }]);
     }
@@ -164,6 +166,11 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         </Form.Group>
       ))}
 
+      {selectedVariant && (
+        <Form.Text className="d-block">
+          같은 옵션 조합으로 추가 가능: {remainingQuantity}개
+        </Form.Text>
+      )}
       {message && <Alert variant="warning" className="py-2 mb-0">{message}</Alert>}
       <Button type="button" variant="outline-dark" onClick={addLine}>
         선택한 옵션 추가
@@ -172,42 +179,52 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
       {lines.length > 0 && (
         <Table responsive size="sm" className="align-middle mb-0">
           <tbody>
-            {lines.map((line) => (
-              <tr key={line.key}>
-                <td>
-                  <div className="small fw-semibold">{line.label}</div>
-                  <div className="small text-muted">{formatKRW(line.unitPrice)}</div>
-                </td>
-                <td style={{ width: 100 }}>
-                  <Form.Control
-                    size="sm"
-                    type="number"
-                    min={1}
-                    max={Math.min(MAX_PRODUCT_QUANTITY, line.availableQuantity)}
-                    value={line.qty}
-                    onChange={(event) => {
-                      const qty = Number(event.target.value);
-                      if (Number.isInteger(qty)
-                        && qty >= 1
-                        && qty <= Math.min(MAX_PRODUCT_QUANTITY, line.availableQuantity)) {
-                        onChange(lines.map((item) => item.key === line.key ? { ...item, qty } : item));
-                      }
-                    }}
-                  />
-                </td>
-                <td className="text-end" style={{ width: 70 }}>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="link"
-                    className="text-danger"
-                    onClick={() => onChange(lines.filter((item) => item.key !== line.key))}
-                  >
-                    삭제
-                  </Button>
-                </td>
-              </tr>
-            ))}
+            {lines.map((line) => {
+              const variantQuantity = product.variants.find((variant) => variant.id === line.productVariantId)?.quantity ?? 0;
+              const maximumLineQuantity = Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, variantQuantity)
+                - (selectedQuantities.get(line.productVariantId) ?? 0) + line.qty);
+              return (
+                <tr key={line.key}>
+                  <td>
+                    <div className="small fw-semibold">{line.label}</div>
+                    <div className="small text-muted">{formatKRW(line.unitPrice)}</div>
+                  </td>
+                  <td style={{ width: 100 }}>
+                    <Form.Control
+                      size="sm"
+                      type="number"
+                      min={1}
+                      max={maximumLineQuantity}
+                      aria-label={`${line.label} 수량`}
+                      value={line.qty}
+                      onChange={(event) => {
+                        const qty = Number(event.target.value);
+                        if (Number.isInteger(qty)
+                          && qty >= 1
+                          && qty <= maximumLineQuantity) {
+                          onChange(lines.map((item) => item.key === line.key ? { ...item, qty } : item));
+                          setMessage(null);
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="text-end" style={{ width: 70 }}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="link"
+                      className="text-danger"
+                      onClick={() => {
+                        onChange(lines.filter((item) => item.key !== line.key));
+                        setMessage(null);
+                      }}
+                    >
+                      삭제
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       )}

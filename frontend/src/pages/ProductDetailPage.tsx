@@ -40,6 +40,7 @@ import {
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import {
@@ -180,10 +181,14 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const itemAmount = hasConfiguredOptions
     ? purchaseLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0)
     : product.price * qty;
+  const selectedQuantities = sumQuantitiesByVariant(purchaseLines);
   const canBuy = product.available
     && selectedQuantity >= 1
     && (hasConfiguredOptions || selectedQuantity <= MAX_PRODUCT_QUANTITY)
-    && purchaseLines.every((line) => line.qty <= line.availableQuantity);
+    && [...selectedQuantities].every(([variantId, quantity]) => quantity <= Math.min(
+      MAX_PRODUCT_QUANTITY,
+      product.variants.find((variant) => variant.id === variantId)?.quantity ?? 0,
+    ));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
