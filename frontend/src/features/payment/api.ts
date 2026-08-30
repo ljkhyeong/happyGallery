@@ -41,7 +41,7 @@ export function fetchPaymentStatus(
   orderId: string,
   statusToken: string | null,
 ): Promise<PaymentStatusResponse> {
-  return getPaymentStatus(orderId, {
+  return getPaymentStatus(encodeURIComponent(orderId), {
     headers: statusToken ? { "X-Payment-Status-Token": statusToken } : undefined,
   });
 }

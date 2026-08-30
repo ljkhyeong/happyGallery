@@ -128,6 +128,12 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 0원 요청을 URL에서 복원하지 않으며, 저장소를 사용할 수 없으면 승인 전에 기존 abandon API로 종료한다.
 다른 고객의 저장 요청은 사용하지 않고, 정리할 때도 소유자와 요청 값이 모두 일치한 항목만 제거한다.
 
+완료 결과는 승인 재시도 정보와 분리한다. 완료가 확인되면 확정 요청을 삭제하고 URL에는 조회용
+`completedOrderId`만 남기며 `paymentKey`와 금액은 제거한다. 새로고침은 기존 소유권 확인 상태 API만
+호출하고 회원 세션 또는 고객 세션에 귀속된 비회원 조회 토큰을 사용한다. 별도 완료 결과 저장소는
+만들지 않으며, 조회 오류는 결제 실패와 구분해 조회만 재시도한다. 이 경로는 아직 처리 중인 다른
+결제의 확정 요청이나 복귀 정보를 읽거나 삭제하지 않는다.
+
 1. `PENDING/RETRYABLE -> PROCESSING` 선점과 새 processing token 저장
 2. DB 트랜잭션 밖에서 PG confirm
 3. 최종 PG 실패면 별도 트랜잭션으로 `FAILED`, 일시 실패면 `RETRYABLE`
