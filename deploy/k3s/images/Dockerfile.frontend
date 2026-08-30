@@ -24,7 +24,10 @@ ENV NODE_ENV=production \
     PORT=8080
 
 COPY --from=build /app/package.json /app/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev \
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /app/build ./build
 COPY --from=build /app/server.mjs ./server.mjs
 

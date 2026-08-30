@@ -175,7 +175,7 @@ CONFIRM_REDIS_CREDENTIAL_ROTATION=rotate-happygallery-redis \
 
 ## 3. 이미지 빌드와 k3s import
 
-애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 `tag@sha256:digest` 별칭을 함께 보존한다.
+애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 프런트 런타임 이미지는 운영 의존성을 설치한 뒤 서버 실행에 쓰지 않는 npm/npx를 제거한다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 `tag@sha256:digest` 별칭을 함께 보존한다.
 
 ```bash
 export VITE_TOSS_CLIENT_KEY='운영 client key'
