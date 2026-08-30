@@ -335,22 +335,21 @@ function OrderCreateForm() {
           <Card className="mb-4">
             <Card.Header>{user ? "4." : "5."} 결제 금액</Card.Header>
             <Card.Body>
-              <OrderPriceSummary
-                itemAmount={itemAmount}
-                fulfillmentType={fulfillment.fulfillmentType}
-              />
-              {user && (
-                <>
-                  <hr />
-                  <MemberOrderBenefits
-                    productAmount={itemAmount}
-                    selectedCouponId={issuedCouponId}
-                    rewardPointsToUse={rewardAmount}
-                    disabled={mutation.isPending}
-                    onCouponChange={setIssuedCouponId}
-                    onRewardPointsChange={setRewardAmount}
-                  />
-                </>
+              {user ? (
+                <MemberOrderBenefits
+                  productAmount={itemAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                  selectedCouponId={issuedCouponId}
+                  rewardPointsToUse={rewardAmount}
+                  disabled={mutation.isPending}
+                  onCouponChange={setIssuedCouponId}
+                  onRewardPointsChange={setRewardAmount}
+                />
+              ) : (
+                <OrderPriceSummary
+                  itemAmount={itemAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                />
               )}
             </Card.Body>
           </Card>

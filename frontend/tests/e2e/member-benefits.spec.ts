@@ -1,4 +1,13 @@
 import { expect, test, type Route } from "@playwright/test";
+import {
+  clearSsrUpstreamFixtures,
+  replaceSsrUpstreamFixtures,
+  ssrApiFixture,
+} from "./ssr-upstream-fixture";
+
+test.afterEach(async () => {
+  await clearSsrUpstreamFixtures();
+});
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({
@@ -8,7 +17,10 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
-test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적립금을 사용할 수 있다", async ({
+[
+  { path: "/cart", name: "장바구니", button: "결제하기", cartCheckout: true },
+  { path: "/products/52", name: "상품 바로구매", button: "바로 구매하기", cartCheckout: false },
+].forEach((checkout) => test(`@payment 회원은 ${checkout.name}에 쿠폰과 적립금을 사용하고 배송비를 확인할 수 있다`, async ({
   baseURL,
   context,
   page,
@@ -18,6 +30,24 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
   const cartVersion = "d".repeat(64);
   let claimed = false;
   let preparedPayload: Record<string, unknown> | null = null;
+  const product = {
+    id: 52,
+    name: "혜택 적용 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 20000,
+    imageUrl: null,
+    available: true,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
+  };
+  if (!checkout.cartCheckout) {
+    await replaceSsrUpstreamFixtures(ssrApiFixture("/products/52", product));
+  }
 
   await context.addCookies([{
     name: "XSRF-TOKEN",
@@ -151,6 +181,24 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
       });
       return;
     }
+    if (pathname === "/api/v1/products/52") {
+      await fulfillJson(route, product);
+      return;
+    }
+    if (pathname.endsWith("/qna/page")) {
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      return;
+    }
+    if (pathname === "/api/v1/products/52/reviews") {
+      await fulfillJson(route, {
+        content: [], filteredCount: 0, hasMore: false, nextCursor: null,
+        summary: {
+          averageRating: 0, reviewCount: 0,
+          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
+        },
+      });
+      return;
+    }
     if (pathname === "/api/v1/payments/prepare") {
       preparedPayload = (request.postDataJSON() as { payload: Record<string, unknown> }).payload;
       await fulfillJson(route, {
@@ -198,8 +246,8 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
   await expect(page.getByText("현재 새로 받을 수 있는 쿠폰이 없습니다.")).toBeVisible();
   await expect(page.getByText("사용 가능 2장 · 전체 3장")).toBeVisible();
 
-  await page.goto("/cart");
-  await expect(page.getByText("혜택 적용 작품", { exact: true })).toBeVisible();
+  await page.goto(checkout.path);
+  await expect(page.getByText("혜택 적용 작품", { exact: true }).first()).toBeVisible();
   const couponSelect = page.getByLabel("사용할 쿠폰");
   await expect(couponSelect.locator("option")).toHaveCount(3);
   const couponLabels = await couponSelect.locator("option").allTextContents();
@@ -208,16 +256,32 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
   const rewardInput = page.getByLabel("사용할 적립금");
   await rewardInput.fill("99999");
   await expect(rewardInput).toHaveValue("15000");
-  await expect(page.getByText(/예상 상품 결제액 ₩0/)).toBeVisible();
+  const paymentSummary = page.getByText("결제 예정 금액", { exact: true }).locator("..");
+  await page.getByRole("button", { name: /택배 배송/ }).click();
+  await expect(paymentSummary).toContainText("₩3,000");
 
   await page.getByRole("button", { name: "매장 수령" }).click();
-  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect(paymentSummary).toContainText("₩0");
+  if (!checkout.cartCheckout) {
+    await page.getByRole("button", { name: "수량 증가", exact: true }).click();
+    await expect(paymentSummary).toContainText("₩20,000");
+    await page.getByRole("button", { name: "전액 사용", exact: true }).click();
+    await expect(rewardInput).toHaveValue("35000");
+    await page.getByRole("button", { name: "수량 감소", exact: true }).click();
+    await expect(rewardInput).toHaveValue("15000");
+    await expect(paymentSummary).toContainText("₩0");
+  }
+  await page.getByRole("button", { name: checkout.button, exact: true }).click();
   await expect.poll(() => preparedPayload).not.toBeNull();
   expect(preparedPayload).toMatchObject({
     issuedCouponId: 71,
     rewardAmount: 15000,
-    cartCheckout: true,
-    expectedCartVersion: cartVersion,
+    cartCheckout: checkout.cartCheckout,
+    ...(checkout.cartCheckout
+      ? { expectedCartVersion: cartVersion }
+      : { items: [{ productId: 52, productVariantId: null, textInputs: [], qty: 1 }] }),
   });
-  await expect(page).toHaveURL(/\/my\/orders\/999$/);
-});
+  await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "내 주문 상세 보기" }))
+    .toHaveAttribute("href", "/my/orders/999");
+}));

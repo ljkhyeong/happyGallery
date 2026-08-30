@@ -341,14 +341,13 @@ function CartContent() {
                 <span className="text-muted">상품 수</span>
                 <span>{items.length}종</span>
               </div>
-              <OrderPriceSummary
-                itemAmount={totalAmount}
-                fulfillmentType={fulfillment.fulfillmentType}
-                className="mb-3"
-              />
-
               {!isAuthenticated ? (
                 <>
+                  <OrderPriceSummary
+                    itemAmount={totalAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    className="mb-3"
+                  />
                   <Alert variant="light" className="border mb-3">
                     담은 상품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다.
                   </Alert>
@@ -366,6 +365,7 @@ function CartContent() {
                   <div className="border-top pt-3 mb-3">
                     <MemberOrderBenefits
                       productAmount={totalAmount}
+                      fulfillmentType={fulfillment.fulfillmentType}
                       selectedCouponId={issuedCouponId}
                       rewardPointsToUse={rewardAmount}
                       disabled={checkout.isPending || isItemMutationPending || isRefetching}

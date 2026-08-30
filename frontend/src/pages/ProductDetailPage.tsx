@@ -31,6 +31,7 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import {
   isMadeToOrderConsentVersionMismatch,
@@ -64,6 +65,8 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const [qty, setQty] = useState(1);
   const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const [purchaseLines, setPurchaseLines] = useState<PurchaseLine[]>([]);
+  const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
+  const [rewardAmount, setRewardAmount] = useState(0);
   const [showMobilePurchaseCta, setShowMobilePurchaseCta] = useState(false);
   const purchasePanelRef = useRef<HTMLDivElement>(null);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
@@ -108,6 +111,8 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         name: user.name,
         items,
         cartCheckout: false,
+        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        rewardAmount,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
         ...fulfillmentPayload(fulfillment),
@@ -322,11 +327,23 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
                   <span className="store-purchase-line">{selectedQuantity}개</span>
                 </div>
-                <OrderPriceSummary
-                  itemAmount={itemAmount}
-                  fulfillmentType={fulfillment.fulfillmentType}
-                  className="pt-2"
-                />
+                {!authLoading && isAuthenticated ? (
+                  <MemberOrderBenefits
+                    productAmount={itemAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    selectedCouponId={issuedCouponId}
+                    rewardPointsToUse={rewardAmount}
+                    disabled={orderMutation.isPending}
+                    onCouponChange={setIssuedCouponId}
+                    onRewardPointsChange={setRewardAmount}
+                  />
+                ) : (
+                  <OrderPriceSummary
+                    itemAmount={itemAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    className="pt-2"
+                  />
+                )}
               </div>
 
               {!authLoading && isAuthenticated && (
@@ -380,7 +397,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                       {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                     </Button>
                     <p className="store-purchase-helper mb-0">
-                      결제가 완료되면 바로 내 주문 상세로 이동합니다.
+                      결제 완료 화면에서 내 주문 상세를 확인할 수 있습니다.
                     </p>
                   </>
                 ) : !authLoading ? (
