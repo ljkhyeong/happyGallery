@@ -69,8 +69,6 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         validate(product, command.variants());
 
         List<SmartStoreStockMapping> previous = mappingPort.findByProductIdOrderByProductVariantIdAsc(productId);
-        Set<Long> requestedVariantIds = command.variants().stream()
-                .map(VariantMapping::productVariantId).collect(Collectors.toSet());
         Set<Long> requestedOptionIds = command.variants().stream()
                 .map(VariantMapping::optionId).collect(Collectors.toSet());
         mappingPort.deleteByProductId(productId);
@@ -89,10 +87,8 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             if (product.getType() == ProductType.MADE_TO_ORDER
                     && mapping.getOriginProductNo().equals(command.originProductNo())
                     && mapping.getProductVariantId() != null
-                    && !requestedVariantIds.contains(mapping.getProductVariantId())
                     && !requestedOptionIds.contains(mapping.getOptionId())) {
-                mappings.add(new SmartStoreStockMapping(productId, mapping.getProductVariantId(),
-                        mapping.getOriginProductNo(), mapping.getOptionId(), command.enabled()));
+                mappings.add(mapping.retiredCopy(command.enabled()));
             }
         }
         mappingPort.saveAll(mappings);
@@ -271,7 +267,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
                 first.getOriginProductNo(),
                 first.isEnabled(),
                 mappings.stream()
-                        .filter(mapping -> mapping.getProductVariantId() != null)
+                        .filter(mapping -> mapping.getProductVariantId() != null && !mapping.isRetired())
                         .map(mapping -> new VariantMapping(
                                 mapping.getProductVariantId(), mapping.getOptionId()))
                         .toList(),

@@ -154,13 +154,15 @@ class SmartStoreStockSyncTransactionService {
     private List<ProductOptionSnapshot> mappedOptions(Long productId, List<SmartStoreStockMapping> mappings) {
         Map<Long, ProductOptions.Variant> currentVariants = optionConfigurationService.get(productId, true)
                 .variants().stream().collect(Collectors.toMap(ProductOptions.Variant::id, Function.identity()));
-        Set<Long> mappedIds = mappings.stream().map(SmartStoreStockMapping::getProductVariantId)
+        Set<Long> mappedIds = mappings.stream().filter(mapping -> !mapping.isRetired())
+                .map(SmartStoreStockMapping::getProductVariantId)
                 .collect(Collectors.toSet());
         if (!mappedIds.containsAll(currentVariants.keySet())) {
             throw new IllegalStateException("상품 옵션이 변경되어 스마트스토어 옵션 매핑을 다시 저장해야 합니다.");
         }
         return mappings.stream().map(mapping -> {
-            ProductOptions.Variant variant = currentVariants.get(mapping.getProductVariantId());
+            ProductOptions.Variant variant = mapping.isRetired()
+                    ? null : currentVariants.get(mapping.getProductVariantId());
             boolean usable = variant != null && variant.active();
             return new ProductOptionSnapshot(mapping.getProductVariantId(), mapping.getOptionId(),
                     usable ? variant.quantity() : 0,

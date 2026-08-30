@@ -283,6 +283,52 @@ class ProductInventoryUseCaseIT {
                 .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
     }
 
+    @Test
+    @DisplayName("같은 조합의 연결을 바꾸면 이전 옵션은 0개로 재시도하고 현재 연결만 편집 응답에 표시한다")
+    void remapSmartStoreOption_preservesZeroStockUntilOptionIsReused() {
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 100L))));
+        LocalDateTime now = LocalDateTime.now(clock);
+        var initial = stockSyncTransactionService.claim(productId, now).orElseThrow();
+        stockSyncTransactionService.finish(productId, initial.generation(), initial.version(), true, null, now);
+
+        var saved = smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 101L))));
+        var changed = stockSyncTransactionService.claim(productId, now).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(saved.variants()).containsExactly(new VariantMapping(variantId, 101L));
+            softly.assertThat(smartStoreInventoryUseCase.getMapping(productId).orElseThrow().variants())
+                    .isEqualTo(saved.variants());
+            softly.assertThat(changed.command().options())
+                    .containsExactlyInAnyOrder(new OptionStock(100L, 0), new OptionStock(101L, 9));
+            softly.assertThat(mappingPort.findByOriginProductNoAndOptionId(123L, 100L).orElseThrow().getProductVariantId())
+                    .isEqualTo(variantId);
+        });
+        stockSyncTransactionService.finish(productId, changed.generation(), changed.version(), false, "연동 지연", now);
+        var retry = stockSyncTransactionService.claim(productId, now.plusMinutes(1)).orElseThrow();
+        assertThat(retry.command()).isEqualTo(changed.command());
+        stockSyncTransactionService.finish(productId, retry.generation(), retry.version(), true, null, now.plusMinutes(1));
+
+        variantStockService.restoreAll(List.of(new VariantAdjustment(variantId, 1)));
+        assertThat(stockSyncTransactionService.productSnapshot(productId).options())
+                .filteredOn(option -> option.optionId().equals(100L))
+                .singleElement().satisfies(option -> assertSoftly(softly -> {
+                    softly.assertThat(option.stockQuantity()).isZero();
+                    softly.assertThat(option.price()).isZero();
+                    softly.assertThat(option.usable()).isFalse();
+                }));
+        smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 102L))));
+        var reused = smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 100L))));
+        assertThat(reused.variants()).containsExactly(new VariantMapping(variantId, 100L));
+        assertThat(stockSyncTransactionService.claim(productId, now.plusMinutes(1)).orElseThrow().command().options())
+                .containsExactlyInAnyOrder(new OptionStock(100L, 10), new OptionStock(101L, 0), new OptionStock(102L, 0));
+    }
+
     private static List<VariantDefinition> variantsFrom(ProductOptions options) {
         return options.variants().stream().map(variant -> new VariantDefinition(
                 variant.selections().stream().map(selection -> new SelectionDefinition(

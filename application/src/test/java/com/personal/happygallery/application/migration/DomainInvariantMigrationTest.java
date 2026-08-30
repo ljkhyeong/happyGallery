@@ -492,6 +492,51 @@ class DomainInvariantMigrationTest {
                 .load();
     }
 
+    @Test
+    @DisplayName("스마트스토어 전환은 기존 연결과 요청을 보존하고 같은 조합의 과거 연결만 중복 허용한다")
+    void migrateSmartStoreMappings_preservesExistingRowsAndCurrentMappingUniqueness() {
+        flyway("164").migrate();
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("""
+                INSERT INTO products (id, name, type, price, status, specification, production_lead_days)
+                VALUES (50001, '연결 전환 상품', 'MADE_TO_ORDER', 10000, 'ACTIVE', '가죽 제품', 7)
+                """);
+        jdbc.update("""
+                INSERT INTO product_variants (id, product_id, combination_key, quantity)
+                VALUES (50002, 50001, 'DEFAULT', 5)
+                """);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (id, product_id, product_variant_id, origin_product_no, option_id)
+                VALUES (50003, 50001, 50002, 123, 100)
+                """);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_syncs (product_id, request_version, status, next_attempt_at)
+                VALUES (50001, 7, 'PENDING', '2026-08-31 12:00:00')
+                """);
+
+        flyway("166").migrate();
+        assertThat(jdbc.queryForMap("""
+                SELECT generation, request_version, status FROM smartstore_stock_syncs WHERE product_id = 50001
+                """)).containsEntry("generation", "legacy").containsEntry("request_version", 7L)
+                .containsEntry("status", "PENDING");
+        assertThat(jdbc.queryForObject("SELECT internal_target_key FROM smartstore_stock_mappings WHERE id = 50003",
+                Long.class)).isEqualTo(50002L);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id, retired)
+                VALUES (50001, 50002, 123, 101, TRUE), (50001, 50002, 123, 102, TRUE)
+                """);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM smartstore_stock_mappings WHERE product_id = 50001",
+                Long.class)).isEqualTo(3L);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id)
+                VALUES (50001, 50002, 123, 103)
+                """)).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id, retired)
+                VALUES (50001, 50002, 123, 100, TRUE)
+                """)).isInstanceOf(DataAccessException.class);
+    }
+
     private long constraintCount(JdbcTemplate jdbc, String table, String constraint) {
         return jdbc.queryForObject("""
                 SELECT COUNT(*)
