@@ -122,6 +122,12 @@ test("@payment 회원은 공개 쿠폰을 받고 주문에 쿠폰 한 장과 적
       await fulfillJson(route, {
         cartVersion,
         items: [{
+          cartItemId: 52,
+          productVariantId: null,
+          options: [],
+          basePrice: 20000,
+          variantPriceAdjustment: 0,
+          textOptionPriceAdjustment: 0,
           available: true,
           careInstructions: null,
           price: 20000,

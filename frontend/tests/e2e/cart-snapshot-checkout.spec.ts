@@ -68,6 +68,12 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
           ? {}
           : { cartVersion: refreshed ? refreshedVersion : firstVersion }),
         items: [{
+          cartItemId: 42,
+          productVariantId: null,
+          options: [],
+          basePrice: 12000,
+          variantPriceAdjustment: 0,
+          textOptionPriceAdjustment: 0,
           available: true,
           careInstructions: null,
           price: 12000,
@@ -207,6 +213,12 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
       await fulfillJson(route, {
         cartVersion,
         items: [{
+          cartItemId: 43,
+          productVariantId: null,
+          options: [],
+          basePrice: 12000,
+          variantPriceAdjustment: 0,
+          textOptionPriceAdjustment: 0,
           available: true,
           careInstructions: null,
           price: 12000,
@@ -260,7 +272,7 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
 
   await expect(page.getByRole("alert")).toContainText(
-    "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해 주세요.",
+    "요청을 완료할 수 없습니다. 안내된 조건을 확인하거나 잠시 후 다시 시도해 주세요.",
   );
   await expect(page.getByRole("alert")).not.toContainText(
     "장바구니 내용이 변경되어 최신 정보로 갱신했습니다.",
