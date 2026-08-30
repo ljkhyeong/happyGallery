@@ -305,6 +305,7 @@ function BookingCreateContent({
         returnHint: {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
+          returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
         },
         onZeroAmount: async (prep, requireCurrentCustomer) => {
           const result = await confirmPayment({

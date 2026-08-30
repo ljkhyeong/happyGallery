@@ -21,6 +21,7 @@ const PAYMENT_STATUS_TOKEN_PREFIX = "hg_payment_status_token:";
 export interface PaymentReturnHint {
   customerName?: string;
   customerPhone?: string;
+  returnPath?: string;
 }
 
 export interface PaymentConfirmRequest {
@@ -97,7 +98,8 @@ function isPaymentReturnHint(value: unknown): value is PaymentReturnHint {
   if (typeof value !== "object" || value === null) return false;
   const hint = value as Partial<PaymentReturnHint>;
   return (hint.customerName === undefined || typeof hint.customerName === "string")
-    && (hint.customerPhone === undefined || typeof hint.customerPhone === "string");
+    && (hint.customerPhone === undefined || typeof hint.customerPhone === "string")
+    && (hint.returnPath === undefined || typeof hint.returnPath === "string");
 }
 
 function isPaymentStatusToken(value: unknown): value is string {
@@ -218,7 +220,8 @@ export function consumePaymentReturnHint(
           expected,
           (left, right) =>
             left.customerName === right.customerName
-            && left.customerPhone === right.customerPhone,
+            && left.customerPhone === right.customerPhone
+            && left.returnPath === right.returnPath,
         )
       ) {
         return null;

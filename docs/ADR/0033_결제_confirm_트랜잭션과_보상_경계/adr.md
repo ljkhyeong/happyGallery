@@ -103,6 +103,10 @@ fulfillment의 `VerifiedGuestResolver`는 현재
   예약 결제수단은 PG 호출 전 표시용 스냅샷일 뿐이며, 승인·조회 응답의 `method`를 `confirmed_payment_method`에 저장해
   최종 예약 결제수단으로 사용한다.
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
+- 결제창 취소·실패의 화면 복귀 경로는 기존 고객 세션 귀속 `PaymentReturnHint.returnPath`에 보관한다. 실패 콜백의
+  `orderId`나 외부 query를 복귀 주소로 사용하지 않는다. 로그인 복귀에서 사용하는 내부 주소 확인을 재사용하고,
+  링크 표시와 클릭 시 고객 세션을 확인한다. 복귀는 화면 이동일 뿐 prepare·confirm 재시도나 결제 상태 변경이 아니다.
+  예약 시간·재고·약관 동의는 복원하지 않고 구매 화면에서 다시 확인한다. 성공 화면의 승인·대사·보상 환불 경로는 유지한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 해당 응답을 결제 시도에 귀속할 수 없으므로
   현재 processing token 소유자만 즉시 `RECONCILIATION_REQUIRED`로 전이한다. 동일 응답을 자동 재시도하지 않는다.
 - refund: `refunds.idempotency_key`에 환불 생성 시 UUID를 저장하고 최초 실행과 모든 재시도에서 재사용한다.

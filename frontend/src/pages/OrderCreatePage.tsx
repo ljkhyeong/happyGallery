@@ -175,7 +175,10 @@ function OrderCreateForm() {
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: normalizedName,
         customerPhone: phone || undefined,
-        returnHint: { customerName: normalizedName, customerPhone: phone },
+        returnHint: {
+          customerName: normalizedName, customerPhone: phone,
+          returnPath: `/orders/new${orderQuery ? `?${orderQuery}` : ""}`,
+        },
         onZeroAmount: user ? async (prep, requireCurrentCustomer) => {
           const result = await confirmPayment({
             paymentKey: null,

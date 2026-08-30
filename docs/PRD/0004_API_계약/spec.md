@@ -3639,13 +3639,14 @@ Content-Type: application/json
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
-  - 브라우저는 Toss `CARD` 통합 결제창을 열며 고객은 그 안에서 카드 또는 간편결제를 선택한다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
+  - 브라우저 기본 결제는 Toss `CARD` 통합창이며, 네이버페이·카카오페이를 선택하면 같은 SDK의 해당 간편결제 자체창을 연다. 이 선택은 prepare/confirm 요청 계약을 바꾸지 않는다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
   - PG 성공은 별도 트랜잭션으로 `APPROVED`에 저장하고, 이후 도메인 저장과 `CONFIRMED` 전이는 한 트랜잭션으로 처리한다.
   - 비회원 주문·예약 fulfillment는 내부 proof의 HMAC을 현재 또는 이전 게스트 토큰 키로 검증하고, proof의 context·orderId·정규화 전화번호가 현재 `PaymentAttempt` 및 저장 payload와 모두 일치할 때만 Guest와 도메인을 생성한다. 원 인증 코드가 prepare 뒤 만료되어도 이미 소비된 결제 귀속 증거는 해당 결제 시도에서 유효하다.
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
   - 결제 실패 화면은 provider query의 원문 `message`를 표시하지 않는다. 허용 목록에 있는 `code`만 고정된 한국어 안내로 변환하고, 화면 진입 직후 query를 브라우저 주소에서 제거한다.
+  - 결제창 인증 취소·실패 후 구매 화면 복귀는 기존 고객 세션 귀속 `hg_payment_return_hint.returnPath`를 사용한다. `orderId`가 없는 취소 콜백도 같은 경로로 복귀한다. 로그인 복귀와 같은 내부 주소 확인을 사용하며 고객 세션이 다르거나 저장 정보가 없으면 복귀 버튼을 표시하지 않는다. 화면 이동 시 해당 저장 정보만 소비하고 결제 준비·승인 API를 자동 호출하지 않는다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.

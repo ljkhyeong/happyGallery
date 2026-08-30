@@ -25,7 +25,10 @@ export function PassPurchasePage() {
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
-        returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
+        returnHint: {
+          customerName: user.name, customerPhone: user.phone ?? undefined,
+          returnPath: "/passes/purchase",
+        },
       });
     },
   });

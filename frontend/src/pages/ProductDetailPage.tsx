@@ -122,7 +122,10 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
-        returnHint: { customerName: user.name, customerPhone: user.phone ?? undefined },
+        returnHint: {
+          customerName: user.name, customerPhone: user.phone ?? undefined,
+          returnPath: `/products/${productId}`,
+        },
       });
     },
     onError: consent.handleSubmissionError,

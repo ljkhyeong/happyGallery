@@ -111,7 +111,7 @@ function CartContent() {
           : `장바구니 상품 ${availableItems.length}건`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
-        returnHint: { customerName: user.name },
+        returnHint: { customerName: user.name, returnPath: "/cart" },
         onZeroAmount: async (prep, requireCurrentCustomer) => {
           const result = await confirmPayment({
             paymentKey: null,
