@@ -9,6 +9,8 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductOptionType;
+import com.personal.happygallery.domain.product.ProductVariant;
+import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionGroupDefinition;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.OptionValueDefinition;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
@@ -17,6 +19,12 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
+import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
+import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -28,6 +36,8 @@ import org.springframework.http.MediaType;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,6 +66,12 @@ class ProductInventoryUseCaseIT {
     @Autowired InventoryService inventoryService;
     @Autowired ProductVariantStockService variantStockService;
     @Autowired ProductAdminUseCase productAdminUseCase;
+    @Autowired ProductOptionConfigurationService optionConfigurationService;
+    @Autowired ProductVariantRepository variantRepository;
+    @Autowired SmartStoreInventoryUseCase smartStoreInventoryUseCase;
+    @Autowired SmartStoreStockMappingPort mappingPort;
+    @Autowired SmartStoreStockSyncTransactionService stockSyncTransactionService;
+    @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
 
     @AfterEach
@@ -120,6 +136,103 @@ class ProductInventoryUseCaseIT {
             softly.assertThat(large.active()).isTrue();
             softly.assertThat(updated.quantity()).isEqualTo(14);
         });
+    }
+
+    @Test
+    @DisplayName("옵션 추가와 필수 전환 및 삭제 뒤 재저장해도 과거 조합이 편집 목록에 섞이지 않는다")
+    void updateOptionStructure_returnsOnlyCurrentVariants() {
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long defaultId = registered.options().variants().getFirst().id();
+        var red = List.of(new SelectionDefinition("color", "red"));
+        var optionalGroups = List.of(selectGroup("color", 0, false, "red"));
+        var optional = productAdminUseCase.update(productId, madeToOrderCommand(optionalGroups, List.of(
+                new VariantDefinition(List.of(), 0, 3, true),
+                new VariantDefinition(red, 1000, 4, false))));
+        var reloaded = optionConfigurationService.get(productId, true);
+        var resaved = productAdminUseCase.update(productId, madeToOrderCommand(optionalGroups, variantsFrom(reloaded)));
+        assertSoftly(softly -> {
+            softly.assertThat(optional.options().variants()).hasSize(2);
+            softly.assertThat(reloaded).isEqualTo(optional.options());
+            softly.assertThat(resaved.options()).isEqualTo(optional.options());
+            softly.assertThat(resaved.options().variants()).extracting(ProductOptions.Variant::id).doesNotContain(defaultId);
+            softly.assertThat(resaved.options().variants()).filteredOn(variant -> !variant.active()).hasSize(1);
+        });
+
+        var requiredGroups = List.of(selectGroup("color", 0, true, "red"));
+        productAdminUseCase.update(productId, madeToOrderCommand(requiredGroups,
+                List.of(new VariantDefinition(red, 1000, 4, false))));
+        var required = productAdminUseCase.update(productId, madeToOrderCommand(requiredGroups,
+                variantsFrom(optionConfigurationService.get(productId, true))));
+        assertThat(required.options().variants()).hasSize(1);
+
+        productAdminUseCase.update(productId, madeToOrderCommand(List.of(), List.of()));
+        var removed = productAdminUseCase.update(productId, madeToOrderCommand(List.of(),
+                variantsFrom(optionConfigurationService.get(productId, true))));
+        assertSoftly(softly -> {
+            softly.assertThat(removed.options().variants()).extracting(ProductOptions.Variant::id).containsExactly(defaultId);
+            softly.assertThat(variantRepository.findWithSelectionsByProductId(productId)).hasSize(3);
+        });
+    }
+
+    @Test
+    @DisplayName("현재 조합만 다시 매핑하고 과거 연결은 재고 0으로 보내며 원격 옵션 재사용 시 중복 전송하지 않는다")
+    void saveSmartStoreMapping_preservesRetiredOptionsForZeroStock() {
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long defaultId = registered.options().variants().getFirst().id();
+        smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(defaultId, 100L))));
+        variantRepository.saveAndFlush(new ProductVariant(productId, "legacy-variant:old", 10000L,
+                0, 2, false, List.of()));
+
+        var groups = List.of(selectGroup("color", 0, true, "red", "blue"));
+        var updated = productAdminUseCase.update(productId, madeToOrderCommand(groups, List.of(
+                new VariantDefinition(List.of(new SelectionDefinition("color", "red")), 1000, 4, true),
+                new VariantDefinition(List.of(new SelectionDefinition("color", "blue")), 2000, 3, false))));
+        var current = updated.options().variants();
+        Long redId = current.get(0).id();
+        Long blueId = current.get(1).id();
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(redId, 101L)))))
+                .isInstanceOf(IllegalArgumentException.class);
+        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
+                List.of(new VariantMapping(redId, 101L), new VariantMapping(blueId, 102L))));
+
+        var claimed = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
+        var preview = stockSyncTransactionService.productSnapshot(productId);
+        assertSoftly(softly -> {
+            softly.assertThat(claimed.configurationError()).isNull();
+            softly.assertThat(claimed.command().options()).containsExactlyInAnyOrder(
+                    new OptionStock(100L, 0), new OptionStock(101L, 4), new OptionStock(102L, 0));
+            softly.assertThat(preview.options()).filteredOn(option -> option.productVariantId().equals(defaultId))
+                    .allMatch(option -> option.stockQuantity() == 0 && !option.usable());
+        });
+
+        variantStockService.restoreAll(List.of(new VariantAdjustment(defaultId, 1)));
+        assertThat(stockSyncTransactionService.productSnapshot(productId).options())
+                .filteredOn(option -> option.productVariantId().equals(defaultId))
+                .allMatch(option -> option.stockQuantity() == 0);
+        var replaced = productAdminUseCase.update(productId,
+                madeToOrderCommand(List.of(selectGroup("color", 0, true, "blue", "green")), List.of(
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "blue")), 2000, 3, false),
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "green")), 1000, 2, true))));
+        Long greenId = replaced.options().variants().stream().filter(variant -> !variant.id().equals(blueId))
+                .findFirst().orElseThrow().id();
+        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
+                List.of(new VariantMapping(greenId, 100L), new VariantMapping(blueId, 102L))));
+        assertThat(mappingPort.findByProductIdOrderByProductVariantIdAsc(productId))
+                .extracting(SmartStoreStockMapping::getProductVariantId).containsExactlyInAnyOrder(redId, blueId, greenId);
+        assertThat(stockSyncTransactionService.productSnapshot(productId).options())
+                .extracting(option -> new OptionStock(option.optionId(), option.stockQuantity()))
+                .containsExactlyInAnyOrder(new OptionStock(100L, 2), new OptionStock(101L, 0), new OptionStock(102L, 0));
+    }
+
+    private static List<VariantDefinition> variantsFrom(ProductOptions options) {
+        return options.variants().stream().map(variant -> new VariantDefinition(
+                variant.selections().stream().map(selection -> new SelectionDefinition(
+                        selection.groupKey(), selection.valueKey())).toList(),
+                variant.priceAdjustment(), variant.quantity(), variant.active())).toList();
     }
 
     private static SaveProductCommand madeToOrderCommand(
