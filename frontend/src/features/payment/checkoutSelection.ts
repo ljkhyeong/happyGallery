@@ -1,4 +1,4 @@
-export type CheckoutMethod = "DEFAULT" | "NAVERPAY";
+export type CheckoutMethod = "DEFAULT" | "NAVERPAY" | "KAKAOPAY";
 
 export interface CheckoutSelection {
   method: CheckoutMethod;
@@ -7,18 +7,18 @@ export interface CheckoutSelection {
 
 export class CheckoutTermsError extends Error {
   constructor() {
-    super("네이버페이 결제에 필요한 약관에 동의해 주세요.");
+    super("간편결제에 필요한 약관에 동의해 주세요.");
   }
 }
 
 export function requireCheckoutTerms(selection?: CheckoutSelection): void {
-  if (selection?.method === "NAVERPAY" && !selection.termsAgreed) {
+  if (selection && selection.method !== "DEFAULT" && !selection.termsAgreed) {
     throw new CheckoutTermsError();
   }
 }
 
 export function tossCheckoutOptions(method: CheckoutMethod = "DEFAULT") {
-  return method === "NAVERPAY"
-    ? { card: { flowMode: "DIRECT" as const, easyPay: "NAVERPAY" as const }, windowTarget: "self" as const }
+  return method !== "DEFAULT"
+    ? { card: { flowMode: "DIRECT" as const, easyPay: method }, windowTarget: "self" as const }
     : {};
 }

@@ -39,7 +39,7 @@ async function openCheckout(page: Page, amount = 12000) {
         return json(route, { name: "해피갤러리", updatedAt: "2026-08-30T10:00:00", version: 1 });
       case "/api/v1/payments/prepare":
         prepares.push(route.request().postDataJSON());
-        return json(route, { orderId: "naverpay-test", amount, context: "ORDER", statusToken: "payment-status" });
+        return json(route, { orderId: "easy-pay-test", amount, context: "ORDER", statusToken: "payment-status" });
       case "/api/v1/payments/confirm":
         confirms.push(route.request().postDataJSON());
         return json(route, { domainId: 701, context: "ORDER", accessToken: null });
@@ -48,7 +48,7 @@ async function openCheckout(page: Page, amount = 12000) {
     }
   });
   await page.goto("/cart");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "naverpay-test-xsrf", url: page.url() }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "easy-pay-test-xsrf", url: page.url() }]);
   await page.getByRole("button", { name: "매장 수령" }).click();
   return { prepares, confirms };
 }
@@ -57,21 +57,36 @@ function requests(page: Page) {
   return page.evaluate(() => (window as unknown as { tossRequests: unknown[] }).tossRequests);
 }
 
-test("@payment 네이버페이는 약관 동의 전 준비 요청을 보내지 않고 동의 후 전용창을 연다", async ({ page }) => {
-  const { prepares } = await openCheckout(page);
-  await page.getByRole("radio", { name: "네이버페이", exact: true }).check();
-  await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("네이버페이 결제에 필요한 약관에 동의해 주세요.");
-  expect(prepares).toHaveLength(0);
-  expect(await requests(page)).toHaveLength(0);
-  await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
-  await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
-    method: "CARD", card: { flowMode: "DIRECT", easyPay: "NAVERPAY" }, windowTarget: "self",
-    amount: { currency: "KRW", value: 12000 }, orderId: "naverpay-test",
-  })]);
-  expect(prepares).toHaveLength(1);
-});
+for (const { method, label } of [
+  { method: "NAVERPAY", label: "네이버페이" },
+  { method: "KAKAOPAY", label: "카카오페이" },
+]) {
+  test(`@payment ${label}는 약관 동의 전 준비 요청을 보내지 않고 동의 후 전용창을 연다`, async ({ page }) => {
+    const { prepares } = await openCheckout(page);
+    await page.getByRole("radio", { name: label, exact: true }).check();
+    await page.getByRole("button", { name: "결제하기", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("간편결제에 필요한 약관에 동의해 주세요.");
+    expect(prepares).toHaveLength(0);
+    expect(await requests(page)).toHaveLength(0);
+    await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
+    await page.getByRole("button", { name: "결제하기", exact: true }).click();
+    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+      method: "CARD", card: { flowMode: "DIRECT", easyPay: method }, windowTarget: "self",
+      amount: { currency: "KRW", value: 12000 }, orderId: "easy-pay-test",
+    })]);
+    expect(prepares).toHaveLength(1);
+  });
+
+  test(`@payment ${label}를 선택해도 서버 결제금액이 0원이면 PG 없이 주문을 확정한다`, async ({ page }) => {
+    const { confirms } = await openCheckout(page, 0);
+    await page.getByRole("radio", { name: label, exact: true }).check();
+    await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
+    await page.getByRole("button", { name: "결제하기", exact: true }).click();
+    await expect.poll(() => confirms).toEqual([{ orderId: "easy-pay-test", amount: 0 }]);
+    await expect(page).toHaveURL(/\/my\/orders\/701$/);
+    expect(await requests(page)).toHaveLength(0);
+  });
+}
 
 test("@payment 기본 카드 결제는 별도 약관 입력 없이 기존 통합창을 연다", async ({ page }) => {
   await openCheckout(page);
@@ -82,12 +97,16 @@ test("@payment 기본 카드 결제는 별도 약관 입력 없이 기존 통합
   expect(request).not.toHaveProperty("card");
 });
 
-test("@payment 네이버페이를 선택해도 서버 결제금액이 0원이면 PG 없이 주문을 확정한다", async ({ page }) => {
-  const { confirms } = await openCheckout(page, 0);
+test("@payment 간편결제 수단을 바꾸면 약관 동의를 다시 받는다", async ({ page }) => {
+  const { prepares } = await openCheckout(page);
   await page.getByRole("radio", { name: "네이버페이", exact: true }).check();
-  await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
+  const terms = page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true });
+  await terms.check();
+  await page.getByRole("radio", { name: "카카오페이", exact: true }).check();
+  await expect(terms).not.toBeChecked();
+  await expect(page.getByText("카카오페이 결제창으로 이동합니다.", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => confirms).toEqual([{ orderId: "naverpay-test", amount: 0 }]);
-  await expect(page).toHaveURL(/\/my\/orders\/701$/);
+  await expect(page.getByRole("alert")).toContainText("약관에 동의해 주세요.");
+  expect(prepares).toHaveLength(0);
   expect(await requests(page)).toHaveLength(0);
 });

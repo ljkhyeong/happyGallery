@@ -1,6 +1,12 @@
 import { useId } from "react";
 import { Form } from "react-bootstrap";
-import type { CheckoutSelection } from "./checkoutSelection";
+import type { CheckoutMethod, CheckoutSelection } from "./checkoutSelection";
+
+const METHOD_LABELS: Record<CheckoutMethod, string> = {
+  DEFAULT: "카드·간편결제",
+  NAVERPAY: "네이버페이",
+  KAKAOPAY: "카카오페이",
+};
 
 interface Props {
   value: CheckoutSelection;
@@ -14,20 +20,17 @@ export function PaymentMethodFields({ value, onChange, disabled }: Props) {
     <fieldset className="mb-3" disabled={disabled}>
       <legend className="fs-6 fw-semibold">결제수단</legend>
       <div className="d-flex flex-wrap gap-3 mb-2">
-        <Form.Check
-          type="radio" id={`${id}-default`} name={`${id}-method`}
-          label="카드·간편결제" checked={value.method === "DEFAULT"}
-          onChange={() => onChange({ method: "DEFAULT", termsAgreed: false })}
-        />
-        <Form.Check
-          type="radio" id={`${id}-naverpay`} name={`${id}-method`}
-          label="네이버페이" checked={value.method === "NAVERPAY"}
-          onChange={() => onChange({ method: "NAVERPAY", termsAgreed: false })}
-        />
+        {Object.entries(METHOD_LABELS).map(([method, label]) => (
+          <Form.Check
+            key={method} type="radio" id={`${id}-${method}`} name={`${id}-method`}
+            label={label} checked={value.method === method}
+            onChange={() => onChange({ method: method as CheckoutMethod, termsAgreed: false })}
+          />
+        ))}
       </div>
-      {value.method === "NAVERPAY" ? (
+      {value.method !== "DEFAULT" ? (
         <>
-          <p className="small text-muted mb-2">네이버페이 결제창으로 이동합니다. 전액 할인 시 결제창은 열리지 않습니다.</p>
+          <p className="small text-muted mb-2">{METHOD_LABELS[value.method]} 결제창으로 이동합니다. 전액 할인 시 결제창은 열리지 않습니다.</p>
           <Form.Check
             id={`${id}-terms`} label="[필수] 토스페이먼츠 결제 약관에 동의합니다."
             checked={value.termsAgreed}

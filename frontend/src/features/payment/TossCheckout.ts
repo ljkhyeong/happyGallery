@@ -23,7 +23,7 @@ interface TossRequestPaymentArgs {
   failUrl: string;
   customerName?: string;
   customerMobilePhone?: string;
-  card?: { flowMode: "DIRECT"; easyPay: "NAVERPAY" };
+  card?: { flowMode: "DIRECT"; easyPay: Exclude<CheckoutMethod, "DEFAULT"> };
   windowTarget?: "self";
 }
 

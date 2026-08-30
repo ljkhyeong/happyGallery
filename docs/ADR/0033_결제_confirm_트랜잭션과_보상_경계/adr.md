@@ -1,7 +1,7 @@
 # ADR-0033: 결제 confirm 트랜잭션과 보상 경계
 
 **날짜**: 2026-07-12  
-**최종 갱신**: 2026-08-27
+**최종 갱신**: 2026-08-30
 **상태**: Accepted
 
 ---
@@ -96,8 +96,9 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 4. Toss 멱등키를 요청마다 고정한다
 
-- 브라우저 기본 선택은 Toss `CARD` 통합 결제창이다. 네이버페이를 선택하면 같은 SDK에 `card.flowMode=DIRECT`,
-  `card.easyPay=NAVERPAY`, `windowTarget=self`를 전달한다. 전용창의 토스 결제 약관 동의는 prepare 전에 확인한다.
+- 브라우저 기본 선택은 Toss `CARD` 통합 결제창이다. 네이버페이·카카오페이를 선택하면 같은 SDK에 `card.flowMode=DIRECT`,
+  선택한 `card.easyPay` 코드(`NAVERPAY` 또는 `KAKAOPAY`), `windowTarget=self`를 전달한다. 두 간편결제는 공통 선택 UI와
+  SDK 옵션 생성·약관 확인을 사용한다. 전용창의 토스 결제 약관 동의는 prepare 전에 확인하고, 결제수단 변경 시 초기화한다.
   선택값은 브라우저 진입 방식일 뿐 별도 PG나 서버 결제 상태를 추가하지 않으며, 기존 승인·부분환불·정산을 재사용한다. prepare payload의
   예약 결제수단은 PG 호출 전 표시용 스냅샷일 뿐이며, 승인·조회 응답의 `method`를 `confirmed_payment_method`에 저장해
   최종 예약 결제수단으로 사용한다.
