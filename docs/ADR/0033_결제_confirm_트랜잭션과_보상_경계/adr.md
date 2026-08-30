@@ -105,7 +105,10 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
 - 결제창 취소·실패의 화면 복귀 경로는 기존 고객 세션 귀속 `PaymentReturnHint.returnPath`에 보관한다. 실패 콜백의
   `orderId`나 외부 query를 복귀 주소로 사용하지 않는다. 로그인 복귀에서 사용하는 내부 주소 확인을 재사용하고,
-  링크 표시와 클릭 시 고객 세션을 확인한다. 복귀는 화면 이동일 뿐 prepare·confirm 재시도나 결제 상태 변경이 아니다.
+  링크 표시와 클릭 시 고객 세션을 확인한다. prepare에서 받은 결제 ID도 같은 hint에 보관해 복귀 전에 승인 전 결제를 종료한다.
+  종료 API는 confirm과 같은 행 잠금과 소유권 검증 아래 `PENDING -> CANCELED`, payload 제거와 혜택 예약 해제를 함께 커밋한다.
+  `CANCELED` 재요청은 성공하며 나머지 상태는 변경 없이 거절한다. 실패 화면은 종료 실패 시 조회 자격을 보존하고 현재 상태를 표시한다.
+  SDK 오류에도 같은 종료를 시도하며, 브라우저 자체 종료와 요청 실패는 기존 30분 만료 배치가 정리한다. prepare·confirm·환불은 자동 재요청하지 않는다.
   예약 시간·재고·약관 동의는 복원하지 않고 구매 화면에서 다시 확인한다. 성공 화면의 승인·대사·보상 환불 경로는 유지한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 해당 응답을 결제 시도에 귀속할 수 없으므로
   현재 processing token 소유자만 즉시 `RECONCILIATION_REQUIRED`로 전이한다. 동일 응답을 자동 재시도하지 않는다.

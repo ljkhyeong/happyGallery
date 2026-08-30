@@ -3646,7 +3646,7 @@ Content-Type: application/json
   - 이미 `CONFIRMED`인 결제를 같은 인증 주체·금액·paymentKey로 재호출하면 PG와 도메인 생성을 반복하지 않고 최초 `context`, `domainId`, `accessToken`을 그대로 반환한다.
   - 성공 화면은 URL의 동일한 `paymentKey`, `orderId`, `amount`를 유지하고 `PAYMENT_CONFIRM_IN_PROGRESS`, `PAYMENT_CONFIRM_RETRYABLE`, 네트워크 오류 또는 필수 인프라 일시 장애에만 명시적 재확인을 제공한다. `PAYMENT_FAILED`와 `PAYMENT_RECONCILIATION_REQUIRED`처럼 최종 또는 운영자 확인이 필요한 상태에는 재확인을 제공하지 않는다.
   - 결제 실패 화면은 provider query의 원문 `message`를 표시하지 않는다. 허용 목록에 있는 `code`만 고정된 한국어 안내로 변환하고, 화면 진입 직후 query를 브라우저 주소에서 제거한다.
-  - 결제창 인증 취소·실패 후 구매 화면 복귀는 기존 고객 세션 귀속 `hg_payment_return_hint.returnPath`를 사용한다. `orderId`가 없는 취소 콜백도 같은 경로로 복귀한다. 로그인 복귀와 같은 내부 주소 확인을 사용하며 고객 세션이 다르거나 저장 정보가 없으면 복귀 버튼을 표시하지 않는다. 화면 이동 시 해당 저장 정보만 소비하고 결제 준비·승인 API를 자동 호출하지 않는다.
+  - 결제창 인증 취소·실패 후 구매 화면 복귀는 고객 세션 귀속 `hg_payment_return_hint`의 `returnPath`, prepare에서 받은 `orderId`를 사용한다. 콜백에 주문번호가 없어도 저장된 ID로 결제 종료 후 복귀한다. 종료 실패 시 화면에 머물러 현재 상태를 조회하며 조회 자격은 보존한다. SDK가 오류를 반환해도 같은 종료를 시도한다. 로그인 복귀와 같은 내부 주소 확인을 사용하며 고객 세션이 다르거나 저장 정보가 없으면 복귀 버튼을 표시하지 않는다. 결제 준비·승인 API는 자동 호출하지 않는다.
   - PG 최종 거절은 `FAILED`, 타임아웃·서킷 오픈 같은 일시 실패는 `RETRYABLE`로 저장한다. `FAILED`로 종결된 결제의 동일 confirm 재호출은 PG를 다시 호출하지 않고 저장된 실패 사유의 `502 PAYMENT_FAILED`를 반환한다.
   - PG 승인 후 도메인 저장이 실패하면 `paymentAttemptId` 기반 보상 환불을 요청하고 기존 환불 자동·수동 복구 경로로 처리한다. amount=0 내부 승인 실패는 외부 결제가 없으므로 보상 환불을 만들지 않는다.
   - PG 승인 상태 또는 보상 환불 요청 저장까지 실패해 `PROCESSING`·`RETRYABLE`·`APPROVED`가 1분 이상 남으면, 서버 배치가 매분 최대 10건을 자동 재개한다. `PROCESSING/RETRYABLE`은 저장된 요청과 같은 `orderId` 멱등키로 PG confirm을 재확인하고, `APPROVED`는 PG 호출 없이 fulfillment를 재개한다. 마지막 복구 시각을 저장해 건별 1분 backoff와 후보 순환을 적용한다. 생성 후 14일이 지난 유료 미확정 PG 호출은 자동·사용자 재승인 모두 막고 `RECONCILIATION_REQUIRED`로 격리하며, PG를 호출하지 않는 0원 결제는 기간과 무관하게 내부 처리를 재개한다. 내부 복구는 저장 payload의 결제 주체를 사용하는 전용 명령으로만 인증 검증을 우회한다. 공개 confirm은 회원 세션 소유자 또는 비회원 `X-Payment-Status-Token`이 prepare 소유권과 일치해야 한다.
@@ -3688,6 +3688,21 @@ X-Payment-Status-Token: {prepareStatusToken}      # 비회원
 - PG 승인 시 저장한 영수증 URL이 있으면 `receiptUrl`을 반환한다. 결제 소유권 검증에 성공한 고객만 조회할 수 있으며 URL을 서버에서 재구성하지 않는다.
 - 실패 사유, `refundId`, PG 식별자, 재시도 횟수는 고객 응답에 포함하지 않는다.
 - 모든 응답은 `Cache-Control: no-store`로 반환한다.
+
+#### 승인 전 결제 종료
+
+```http
+POST /api/v1/payments/{orderId}/abandon
+Cookie: HG_SESSION={sessionToken}                 # 회원
+X-Payment-Status-Token: {prepareStatusToken}      # 비회원
+```
+
+- `operationId`: `abandonPayment`, 요청 본문 없음, 성공 `204 No Content`.
+- 결제 상태 조회와 같은 소유권 검증을 적용한다. 미존재·다른 소유자는 `404 NOT_FOUND`다.
+- confirm과 같은 결제 행 잠금 아래 `PENDING`만 `CANCELED`로 종료하고 payload 제거와 쿠폰·적립금 예약 해제를 한 트랜잭션으로 처리한다. PG 승인·환불은 호출하지 않는다.
+- 이미 `CANCELED`이면 `204`를 재응답한다. 나머지 상태는 `409 CONFLICT`로 변경 없이 거절한다.
+- 종료한 결제의 confirm은 기존 `410 PAYMENT_ATTEMPT_EXPIRED`, 상태 조회는 `EXPIRED`를 사용한다. 고객 화면은 만료·직접 종료를 함께 뜻하는 ‘결제 준비가 종료되었습니다’로 안내한다.
+- 브라우저 자체 종료·요청 실패 시 기존 30분 만료 배치를 유지한다. 비회원 조회 토큰은 보존하며 CSRF와 `Cache-Control: no-store`를 적용한다.
 
 #### 2.15.4 비회원 결제 상태 조회 권한 복구
 

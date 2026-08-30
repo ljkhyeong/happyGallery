@@ -16791,6 +16791,32 @@
         "tags" : [ "payment-query-controller" ]
       }
     },
+    "/api/v1/payments/{orderId}/abandon" : {
+      "post" : {
+        "operationId" : "abandonPayment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Payment-Status-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "payment-controller" ]
+      }
+    },
     "/api/v1/policies/current" : {
       "get" : {
         "operationId" : "getCurrentPolicyConsent",

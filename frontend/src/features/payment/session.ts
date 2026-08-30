@@ -22,6 +22,7 @@ export interface PaymentReturnHint {
   customerName?: string;
   customerPhone?: string;
   returnPath?: string;
+  orderId?: string;
 }
 
 export interface PaymentConfirmRequest {
@@ -99,7 +100,8 @@ function isPaymentReturnHint(value: unknown): value is PaymentReturnHint {
   const hint = value as Partial<PaymentReturnHint>;
   return (hint.customerName === undefined || typeof hint.customerName === "string")
     && (hint.customerPhone === undefined || typeof hint.customerPhone === "string")
-    && (hint.returnPath === undefined || typeof hint.returnPath === "string");
+    && (hint.returnPath === undefined || typeof hint.returnPath === "string")
+    && (hint.orderId === undefined || typeof hint.orderId === "string");
 }
 
 function isPaymentStatusToken(value: unknown): value is string {
@@ -221,7 +223,8 @@ export function consumePaymentReturnHint(
           (left, right) =>
             left.customerName === right.customerName
             && left.customerPhone === right.customerPhone
-            && left.returnPath === right.returnPath,
+            && left.returnPath === right.returnPath
+            && left.orderId === right.orderId,
         )
       ) {
         return null;

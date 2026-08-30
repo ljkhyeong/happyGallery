@@ -11,6 +11,7 @@ import com.personal.happygallery.adapter.in.web.monitoring.ClientMonitoringContr
 import com.personal.happygallery.adapter.in.web.notice.NoticeController;
 import com.personal.happygallery.adapter.in.web.order.OrderController;
 import com.personal.happygallery.adapter.in.web.payment.PaymentController;
+import com.personal.happygallery.application.payment.port.in.PaymentAbandonUseCase;
 import com.personal.happygallery.adapter.in.web.payment.PaymentQueryController;
 import com.personal.happygallery.adapter.in.web.product.ProductController;
 import com.personal.happygallery.adapter.in.web.product.ProductQnaController;
@@ -104,6 +105,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private OrderQueryUseCase orderQueryUseCase;
     private PaymentPrepareUseCase paymentPrepareUseCase;
     private PaymentConfirmUseCase paymentConfirmUseCase;
+    private PaymentAbandonUseCase paymentAbandonUseCase;
     private PaymentStatusQueryUseCase paymentStatusQueryUseCase;
     private PaymentStatusRecoveryUseCase paymentStatusRecoveryUseCase;
     private NoticeQueryUseCase noticeQueryUseCase;
@@ -130,6 +132,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         orderQueryUseCase = mock(OrderQueryUseCase.class);
         paymentPrepareUseCase = mock(PaymentPrepareUseCase.class);
         paymentConfirmUseCase = mock(PaymentConfirmUseCase.class);
+        paymentAbandonUseCase = mock(PaymentAbandonUseCase.class);
         paymentStatusQueryUseCase = mock(PaymentStatusQueryUseCase.class);
         paymentStatusRecoveryUseCase = mock(PaymentStatusRecoveryUseCase.class);
         noticeQueryUseCase = mock(NoticeQueryUseCase.class);
@@ -288,7 +291,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         rateLimitGuard, RestDocsFixtures.clock()),
                 new BookingVacancyAlertController(vacancyAlertUseCase),
                 new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
-                new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, rateLimitGuard),
+                new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, paymentAbandonUseCase, rateLimitGuard),
                 new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
                 new NoticeController(noticeQueryUseCase),
                 new WorkshopProfileController(workshopProfileUseCase),
@@ -761,6 +764,17 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("승인 전 결제 종료 API의 회원과 비회원 요청을 문서화한다")
+    void abandon_payment() throws Exception {
+        mockMvc.perform(post("/api/v1/payments/{orderId}/abandon", "member-payment")
+                        .with(customerUser()))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/v1/payments/{orderId}/abandon", "guest-payment")
+                        .header("X-Payment-Status-Token", "payment-status-token"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

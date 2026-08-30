@@ -1,4 +1,4 @@
-import { preparePayment } from "./api";
+import { abandonPayment, preparePayment } from "./api";
 import {
   removePaymentReturnHint,
   removePaymentStatusToken,
@@ -111,7 +111,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
     const returnHint = args.returnHint;
     if (returnHint) {
       storedReturnHint = runCustomerEffect(
-        () => storePaymentReturnHint(returnHint, customerSession),
+        () => storePaymentReturnHint({ ...returnHint, orderId: prep.orderId }, customerSession),
         (handle) => {
           if (handle) removePaymentReturnHint(handle);
         },
@@ -119,8 +119,8 @@ export async function executePaymentFlow<T extends PaymentPayload>(
     }
     const orderName = runCustomerEffect(() =>
       typeof args.orderName === "function" ? args.orderName(prep) : args.orderName);
-    await runCustomerStep(() =>
-      requestTossPayment({
+    try {
+      await runCustomerStep(() => requestTossPayment({
         checkoutMethod: args.checkoutSelection?.method,
         orderId: prep.orderId,
         amount: prep.amount,
@@ -129,6 +129,16 @@ export async function executePaymentFlow<T extends PaymentPayload>(
         customerName: args.customerName,
         customerMobilePhone: args.customerPhone,
       }, requireCurrentCustomer));
+    } catch (error) {
+      requireCurrentCustomer();
+      try {
+        await runCustomerStep(() => abandonPayment(prep.orderId, prep.statusToken));
+      } catch {
+        requireCurrentCustomer();
+        // 승인 진행·종료 응답 유실 시 조회 자격을 남기고 기존 오류를 표시한다.
+      }
+      throw error;
+    }
   } catch (error) {
     if (error instanceof CustomerSessionChangedError) {
       if (storedStatusToken) {

@@ -1,4 +1,5 @@
 import {
+  abandonPayment as requestPaymentAbandonment,
   confirmPayment as requestPaymentConfirmation,
   preparePayment as requestPaymentPreparation,
 } from "@/generated/api/payment";
@@ -41,6 +42,12 @@ export function fetchPaymentStatus(
   statusToken: string | null,
 ): Promise<PaymentStatusResponse> {
   return getPaymentStatus(orderId, {
+    headers: statusToken ? { "X-Payment-Status-Token": statusToken } : undefined,
+  });
+}
+
+export function abandonPayment(orderId: string, statusToken: string | null): Promise<void> {
+  return requestPaymentAbandonment(orderId, {
     headers: statusToken ? { "X-Payment-Status-Token": statusToken } : undefined,
   });
 }
