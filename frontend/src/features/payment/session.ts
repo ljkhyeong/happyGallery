@@ -26,7 +26,7 @@ export interface PaymentReturnHint {
 }
 
 export interface PaymentConfirmRequest {
-  paymentKey: string;
+  paymentKey: string | null;
   orderId: string;
   amount: number;
 }
@@ -86,13 +86,13 @@ function samePaymentSessionHandle<T>(
 function isPaymentConfirmRequest(value: unknown): value is PaymentConfirmRequest {
   if (typeof value !== "object" || value === null) return false;
   const request = value as Partial<PaymentConfirmRequest>;
-  return typeof request.paymentKey === "string"
-    && request.paymentKey.trim().length > 0
-    && typeof request.orderId === "string"
+  return typeof request.orderId === "string"
     && request.orderId.trim().length > 0
     && typeof request.amount === "number"
     && Number.isSafeInteger(request.amount)
-    && request.amount > 0;
+    && (request.amount === 0
+      ? request.paymentKey === null
+      : request.amount > 0 && typeof request.paymentKey === "string" && request.paymentKey.trim().length > 0);
 }
 
 function isPaymentReturnHint(value: unknown): value is PaymentReturnHint {

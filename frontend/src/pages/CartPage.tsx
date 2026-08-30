@@ -1,12 +1,12 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
-import { confirmPayment, executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import {
   FulfillmentForm,
@@ -25,7 +25,6 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
-import { queryKeys } from "@/shared/api";
 
 export function CartPage() {
   const {
@@ -48,9 +47,6 @@ export function CartPage() {
 }
 
 function CartContent() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
   const [rewardAmount, setRewardAmount] = useState(0);
@@ -112,24 +108,6 @@ function CartContent() {
         customerKey: `member_${user.id}`,
         customerName: user.name,
         returnHint: { customerName: user.name, returnPath: "/cart" },
-        onZeroAmount: async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.rewards }),
-          ]);
-          requireCurrentCustomer();
-          if (result.domainId == null) throw new Error("완료된 주문 번호를 확인할 수 없습니다.");
-          toast.show("쿠폰·적립금으로 주문이 완료되었습니다.", "success");
-          navigate(`/my/orders/${result.domainId}`);
-        },
       });
     },
     onError: (error) => {

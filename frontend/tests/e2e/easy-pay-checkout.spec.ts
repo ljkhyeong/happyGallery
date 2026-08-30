@@ -87,10 +87,70 @@ for (const { method, label } of [
     await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
     await page.getByRole("button", { name: "결제하기", exact: true }).click();
     await expect.poll(() => confirms).toEqual([{ orderId: "easy-pay-test", amount: 0 }]);
-    await expect(page).toHaveURL(/\/my\/orders\/701$/);
+    await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "내 주문 상세 보기" })).toHaveAttribute("href", "/my/orders/701");
     expect(await requests(page)).toHaveLength(0);
   });
 }
+
+test("@payment 0원 확정 응답이 유실되면 새 결제 준비 없이 기존 번호의 결과를 복구한다", async ({ page }) => {
+  const { prepares } = await openCheckout(page, 0);
+  const retries: unknown[] = [];
+  let statusReads = 0;
+  await page.route("**/api/v1/payments/confirm", async (route) => {
+    retries.push(route.request().postDataJSON());
+    await route.abort("failed");
+  });
+  await page.route("**/api/v1/payments/easy-pay-test", async (route) => {
+    statusReads += 1;
+    if (statusReads === 1) {
+      return route.fulfill({ status: 503, contentType: "application/json", body: '{"code":"SERVICE_UNAVAILABLE"}' });
+    }
+    return json(route, { orderId: "easy-pay-test", amount: 0, context: "ORDER", status: "COMPLETED",
+      domainId: 701, accessToken: null, accessRecoveryRequired: false, receiptUrl: null });
+  });
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "결제 상태 확인 필요" })).toBeVisible();
+  await page.goto("/cart");
+  await page.getByRole("button", { name: "매장 수령" }).click();
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
+  expect(prepares).toHaveLength(1);
+  expect(retries).toEqual(Array(2).fill({ orderId: "easy-pay-test", amount: 0 }));
+  await expect(page.getByRole("link", { name: "내 주문 상세 보기" })).toHaveAttribute("href", "/my/orders/701");
+  expect(await page.evaluate(() => sessionStorage.getItem("hg_payment_confirm_request"))).toBeNull();
+});
+
+test("@payment 0원 결제의 복구 정보를 저장하지 못하면 승인 전에 종료한다", async ({ page }) => {
+  const { confirms, abandoned } = await openCheckout(page, 0);
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === "hg_payment_confirm_request") throw new DOMException("저장소 차단", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("결제 복구 정보를 저장할 수 없습니다");
+  expect(confirms).toHaveLength(0);
+  expect(abandoned).toHaveLength(1);
+  await expect(page).toHaveURL(/\/cart$/);
+});
+
+test("@payment 이전 계정의 0원 확정 요청은 새 구매에 사용하지 않는다", async ({ page }) => {
+  const { prepares, confirms } = await openCheckout(page);
+  await page.evaluate(() => {
+    sessionStorage.setItem("hg_payment_confirm_request", JSON.stringify({
+      owner: { boundaryEpoch: "previous-owner", boundaryCustomerId: 700 },
+      value: { paymentKey: null, orderId: "previous-zero-order", amount: 0 },
+    }));
+  });
+  await page.getByRole("button", { name: "결제하기", exact: true }).click();
+  await expect.poll(() => requests(page)).toHaveLength(1);
+  expect(prepares).toHaveLength(1);
+  expect(confirms).toHaveLength(0);
+  await expect(page).toHaveURL(/\/cart$/);
+});
 
 test("@payment 기본 카드 결제는 별도 약관 입력 없이 기존 통합창을 연다", async ({ page }) => {
   await openCheckout(page);

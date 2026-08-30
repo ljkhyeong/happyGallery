@@ -1,27 +1,22 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Card, Form, Row, Col, Button } from "react-bootstrap";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
-  confirmPayment,
   executePaymentFlow,
   PaymentMethodFields,
   PaymentErrorAlert,
   useCheckoutSelection,
   type BookingPayload,
 } from "@/features/payment";
-import {
-  captureCustomerSession,
-  invalidateSlotAvailability,
-  queryKeys,
-} from "@/shared/api";
+import { queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ErrorAlert } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
@@ -106,8 +101,6 @@ function BookingCreateContent({
   onMemberAuthenticated,
   onMemberResumeHandled,
 }: BookingCreateContentProps) {
-  const toast = useToast();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
@@ -306,38 +299,6 @@ function BookingCreateContent({
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
           returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
-        },
-        onZeroAmount: async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.member.bookings.all,
-            }),
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.member.passes,
-            }),
-            invalidateSlotAvailability(queryClient),
-          ]);
-          requireCurrentCustomer();
-          toast.show("예약이 완료되었습니다!");
-          if (result.accessToken) {
-            const customerSession = captureCustomerSession();
-            requireCurrentCustomer();
-            navigate("/guest/bookings", {
-              state: {
-                bookingId: result.domainId,
-                token: result.accessToken,
-                customerSession,
-              },
-            });
-          } else {
-            navigate(`/my/bookings/${result.domainId}`);
-          }
         },
       });
     },

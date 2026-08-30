@@ -43,7 +43,7 @@ function canRetryConfirm(error: unknown): boolean {
       || error.code === "SERVICE_UNAVAILABLE";
   }
   return error instanceof TypeError
-    || (error instanceof Error && error.name === "AbortError");
+    || (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"));
 }
 
 function requiresPaymentReconciliation(error: unknown): boolean {
@@ -93,7 +93,7 @@ export function PaymentSuccessPage() {
     };
   });
   const confirmRequest = confirmSession?.request ?? null;
-  const paymentKey = confirmRequest?.paymentKey ?? "";
+  const paymentKey = confirmRequest?.paymentKey ?? null;
   const orderId = confirmRequest?.orderId ?? "";
   const amount = confirmRequest?.amount ?? 0;
 
@@ -196,6 +196,10 @@ export function PaymentSuccessPage() {
       }
       requireCurrentCustomer();
       setError(requestError);
+      if (requestError instanceof ApiError && confirmSession?.handle
+        && ["PAYMENT_ATTEMPT_EXPIRED", "PAYMENT_RESULT_RETENTION_EXPIRED", "NOT_FOUND"].includes(requestError.code)) {
+        removePaymentConfirmRequest(confirmSession.handle);
+      }
       try {
         await checkStatus();
       } catch (statusRequestError) {

@@ -1,8 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
@@ -12,10 +12,9 @@ import {
   PaymentMethodFields,
   PaymentErrorAlert,
   useCheckoutSelection,
-  confirmPayment,
   type OrderPayload,
 } from "@/features/payment";
-import { LoadingSpinner, useToast } from "@/shared/ui";
+import { LoadingSpinner } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
 import {
   FulfillmentForm,
@@ -35,7 +34,6 @@ import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFiel
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
-import { queryKeys } from "@/shared/api";
 
 type Step = "verify" | "items";
 
@@ -81,9 +79,6 @@ export function OrderCreatePage() {
 }
 
 function OrderCreateForm() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const [searchParams] = useSearchParams();
   const { user } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
@@ -179,23 +174,6 @@ function OrderCreateForm() {
           customerName: normalizedName, customerPhone: phone,
           returnPath: `/orders/new${orderQuery ? `?${orderQuery}` : ""}`,
         },
-        onZeroAmount: user ? async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.rewards }),
-          ]);
-          requireCurrentCustomer();
-          if (result.domainId == null) throw new Error("완료된 주문 번호를 확인할 수 없습니다.");
-          toast.show("쿠폰·적립금으로 주문이 완료되었습니다.", "success");
-          navigate(`/my/orders/${result.domainId}`);
-        } : undefined,
       });
     },
     onError: consent.handleSubmissionError,

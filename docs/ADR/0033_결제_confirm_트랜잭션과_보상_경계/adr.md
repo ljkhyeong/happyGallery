@@ -121,6 +121,13 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 5. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
 
+0원 주문과 8회권 사용 예약의 프론트엔드 확정도 공통 `/payments/success` 화면을 사용한다.
+화면별 confirm 콜백은 두지 않고, prepare 응답에서 받은 결제 번호와 `paymentKey=null`, `amount=0`을
+기존 고객 세션 귀속 저장소에 기록한 뒤 이동한다. 확정 응답 유실과 새로고침은 같은 요청을 재사용한다.
+미확인 0원 요청이 있으면 이후 구매 버튼도 새 prepare 대신 기존 결과 화면으로 연결한다.
+0원 요청을 URL에서 복원하지 않으며, 저장소를 사용할 수 없으면 승인 전에 기존 abandon API로 종료한다.
+다른 고객의 저장 요청은 사용하지 않고, 정리할 때도 소유자와 요청 값이 모두 일치한 항목만 제거한다.
+
 1. `PENDING/RETRYABLE -> PROCESSING` 선점과 새 processing token 저장
 2. DB 트랜잭션 밖에서 PG confirm
 3. 최종 PG 실패면 별도 트랜잭션으로 `FAILED`, 일시 실패면 `RETRYABLE`

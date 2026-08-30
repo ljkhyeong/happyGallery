@@ -3439,7 +3439,7 @@ GET /api/v1/products/{productId}/qna/{id}
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
 회원 경로는 현재 회원의 `phone`이 존재하고 `phoneVerified=true`여야 하며, 미등록 상태에서는 `422 PHONE_VERIFICATION_REQUIRED`를 반환한다.
-8회권 사용 예약처럼 amount가 0이면 응답된 `amount=0`을 보고 프론트가 PG 호출 없이 `confirm`을 직접 호출한다.
+8회권 사용 예약과 쿠폰·적립금 전액 결제처럼 amount가 0이면 프론트가 현재 고객 세션에 확정 요청을 저장하고 공통 `/payments/success` 화면에서 PG 없이 `confirm`한다. 응답 유실 시 기존 `orderId`로 상태를 조회·재확인하고 미확인 0원 요청이 있으면 새 prepare를 만들지 않는다. 저장소에 기록하지 못하면 승인 전에 기존 결제 종료 API를 호출한다. 서버 요청·응답 계약은 유료 결제와 같다.
 
 #### 2.15.1 결제 준비 (prepare)
 
