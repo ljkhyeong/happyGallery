@@ -52,7 +52,7 @@ async function openCheckout(page: Page, amount = 12000) {
     }
   });
   await page.goto("/cart");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "easy-pay-test-xsrf", url: page.url() }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "easy-pay-test-xsrf", url: new URL("/", page.url()).href }]);
   await page.getByRole("button", { name: "매장 수령" }).click();
   return { prepares, confirms, abandoned };
 }

@@ -1,4 +1,7 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { skipExternalFonts } from "./external-fonts";
+
+test.beforeEach(skipExternalFonts);
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -45,7 +48,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
     return json(route, []);
   });
   await page.goto(kind === "ORDER" ? "/orders/new?productId=42" : "/bookings/new");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-retry-xsrf", url: page.url() }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-retry-xsrf", url: new URL("/", page.url()).href }]);
   if (kind === "BOOKING") {
     await page.getByLabel("클래스").selectOption("42");
     await page.locator('[data-slot-id="77"]').click();

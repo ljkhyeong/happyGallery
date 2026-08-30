@@ -1,4 +1,7 @@
 import { expect, test, type Route } from "@playwright/test";
+import { skipExternalFonts } from "./external-fonts";
+
+test.beforeEach(skipExternalFonts);
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({

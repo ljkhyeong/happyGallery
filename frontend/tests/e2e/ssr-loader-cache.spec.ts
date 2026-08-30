@@ -30,6 +30,7 @@ function product(name: string) {
     price: 12000,
     imageUrl: null,
     available: true,
+    stockQuantity: 10,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

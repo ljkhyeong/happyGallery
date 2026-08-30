@@ -310,6 +310,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
     price: 12000,
     imageUrl: null,
     available: true,
+    stockQuantity: 10,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

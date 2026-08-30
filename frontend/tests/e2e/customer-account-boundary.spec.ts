@@ -47,6 +47,7 @@ function productFixture(name: string) {
     price: 30000,
     imageUrl: null,
     available: true,
+    stockQuantity: 10,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

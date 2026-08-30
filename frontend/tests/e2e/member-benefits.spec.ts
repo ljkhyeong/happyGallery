@@ -1,9 +1,13 @@
 import { expect, test, type Route } from "@playwright/test";
+import { skipExternalFonts } from "./external-fonts";
+
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+
+test.beforeEach(skipExternalFonts);
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -39,6 +43,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
     price: 20000,
     imageUrl: null,
     available: true,
+    stockQuantity: 5,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

@@ -517,6 +517,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     price: 12000,
     imageUrl: null,
     available: true,
+    stockQuantity: 10,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,
