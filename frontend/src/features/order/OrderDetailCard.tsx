@@ -5,6 +5,7 @@ import type { OrderDetailResponse } from "@/shared/types";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { OrderOptionList } from "./OrderOptionList";
 
 interface Props {
   order: OrderDetailResponse;
@@ -48,18 +49,7 @@ export function OrderDetailCard({ order }: Props) {
               <tr key={i}>
                 <td>
                   <div>{item.productName}</div>
-                  {item.options.length > 0 && (
-                    <div className="small text-muted mt-1">
-                      {item.options.map((option) => (
-                        <div key={`${option.type}-${option.groupName}`}>
-                          {option.groupName}: {option.value}
-                          {option.priceAdjustment > 0
-                            ? ` (+${formatKRW(option.priceAdjustment)})`
-                            : ""}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <OrderOptionList options={item.options} />
                   <div className="mt-2">
                     <ProductPurchaseTerms
                       productName={item.productName}

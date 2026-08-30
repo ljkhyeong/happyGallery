@@ -43,6 +43,7 @@ async function openOptionProduct(page: Page, quantity: number) {
     return json(route, []);
   });
   await page.goto("/products/80");
+  await expect(page.getByRole("button", { name: "로그인 후 구매하기", exact: true })).toBeVisible();
 }
 
 for (const { quantity, limit, name } of [
@@ -79,5 +80,64 @@ for (const { quantity, limit, name } of [
     await add.click();
     await expect(page.getByRole("spinbutton", { name: "색상: 블루 / 각인 문구: 문구 C 수량", exact: true })).toHaveValue("1");
     await expect(page.getByRole("button", { name: "로그인 후 구매하기", exact: true })).toBeEnabled();
+    if (quantity === 2) {
+      await page.getByRole("button", { name: "장바구니 담기", exact: true }).click();
+      await expect(page.getByText("장바구니에 추가되었습니다.", { exact: true })).toBeVisible();
+      await page.goto("/cart");
+      const cartRow = page.getByRole("row").filter({ hasText: "색상: 브라운" });
+      await expect(cartRow).toContainText("각인 문구: 문구 A (+₩1,000)");
+    }
   });
 }
+
+test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 확인하고 같은 내용으로 결제를 준비한다", async ({ page }) => {
+  await openOptionProduct(page, 2);
+  const prepared: unknown[] = [];
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "option-order-xsrf", url: page.url() }]);
+  await page.route("**/api/v1/bookings/phone-verifications", (route) => json(route, { verificationId: 1 }));
+  await page.route("**/api/v1/policies/current", (route) => json(route, {
+    terms: { version: "2026-07", documentPath: "/terms/2026-07" },
+    privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
+  }));
+  await page.route("**/api/v1/payments/prepare", async (route) => {
+    prepared.push(route.request().postDataJSON());
+    return json(route, { orderId: "option-order", amount: 27000, context: "ORDER", statusToken: "option-status" });
+  });
+  await page.evaluate(() => {
+    (window as unknown as { TossPayments: unknown }).TossPayments = () => ({
+      payment: () => ({ requestPayment: async () => undefined }),
+    });
+  });
+  const color = page.getByRole("combobox", { name: /색상/ });
+  const engraving = page.getByRole("textbox", { name: /각인 문구/ });
+  const add = page.getByRole("button", { name: "선택한 옵션 추가", exact: true });
+  await color.selectOption("brown");
+  await engraving.fill("<A> & B");
+  await add.click();
+  await color.selectOption("blue");
+  await engraving.fill("");
+  await add.click();
+  await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+
+  await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
+  await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
+  await page.getByLabel("인증코드", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "확인", exact: true }).click();
+  const brownItem = page.locator(".list-group-item").filter({ hasText: "색상: 브라운" });
+  await expect(brownItem.getByText("각인 문구: <A> & B (+₩1,000)", { exact: true })).toBeVisible();
+  await expect(brownItem).toContainText("₩13,000");
+  const blueItem = page.locator(".list-group-item").filter({ hasText: "색상: 블루" });
+  await expect(blueItem).toContainText("₩14,000");
+  await expect(blueItem).not.toContainText("각인 문구");
+  await page.getByLabel("주문자 이름", { exact: true }).fill("옵션 확인 고객");
+  await page.getByRole("button", { name: "매장 수령", exact: true }).click();
+  await page.getByRole("checkbox", { name: "주문제작 조건에 동의합니다.", exact: true }).check();
+  await page.getByRole("checkbox", { name: /이용약관/ }).check();
+  await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+  await expect.poll(() => prepared).toEqual([expect.objectContaining({ payload: expect.objectContaining({
+    items: [
+      { productId: 80, productVariantId: 801, textInputs: [{ groupKey: "engraving", value: "<A> & B" }], qty: 1 },
+      { productId: 80, productVariantId: 802, textInputs: [], qty: 1 },
+    ],
+  }) })]);
+});

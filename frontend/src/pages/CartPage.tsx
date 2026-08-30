@@ -15,6 +15,7 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import {
   isMadeToOrderConsentVersionMismatch,
@@ -258,18 +259,7 @@ function CartContent() {
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted">{formatKRW(item.price)}</div>
-                        {item.options.length > 0 && (
-                          <div className="small text-muted mt-1">
-                            {item.options.map((option) => (
-                              <div key={`${option.sortOrder}-${option.groupName}`}>
-                                {option.groupName}: {option.value}
-                                {option.priceAdjustment > 0
-                                  ? ` (+${formatKRW(option.priceAdjustment)})`
-                                  : ""}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <OrderOptionList options={item.options} />
                         {item.productType && (
                           <div className="mt-2">
                             <ProductPurchaseTerms

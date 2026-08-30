@@ -9,6 +9,7 @@ import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
 import type { ProductType } from "@/shared/types/product";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { OrderOptionList, type OrderOptionDisplay } from "./OrderOptionList";
 
 interface Props {
   items: OrderItemInput[];
@@ -46,6 +47,21 @@ function unitPrice(item: OrderItemInput, product: ProductDetailResponse) {
     )?.inputPriceAdjustment ?? 0);
   }, 0);
   return product.price + variantAdjustment + textAdjustment;
+}
+
+function selectedOptions(item: OrderItemInput, product: ProductDetailResponse): OrderOptionDisplay[] {
+  const variant = product.variants.find((candidate) => candidate.id === item.productVariantId);
+  return product.optionGroups.flatMap((group) => {
+    const selection = variant?.selections.find((candidate) => candidate.groupKey === group.key);
+    const value = group.type === "SELECT"
+      ? group.values.find((candidate) => candidate.key === selection?.valueKey)?.name
+      : item.textInputs?.find((input) => input.groupKey === group.key)?.value?.trim();
+    return value ? [{
+      groupName: group.name,
+      value,
+      priceAdjustment: group.type === "TEXT" ? group.inputPriceAdjustment ?? 0 : 0,
+    }] : [];
+  });
 }
 
 export function OrderItemsForm({
@@ -189,6 +205,7 @@ export function OrderItemsForm({
                     <Button size="sm" variant="outline-danger"
                       onClick={() => removeItem(itemKey(item))}>삭제</Button>
                   </div>
+                  {product && <OrderOptionList options={selectedOptions(item, product)} />}
                   {product && (
                     <ProductPurchaseTerms
                       productName={product.name}
