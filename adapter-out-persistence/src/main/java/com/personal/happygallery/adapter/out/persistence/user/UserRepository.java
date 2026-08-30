@@ -1,31 +1,40 @@
 package com.personal.happygallery.adapter.out.persistence.user;
 
-import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.domain.user.AuthProvider;
+import com.personal.happygallery.application.customer.port.out.UserReaderPort.LoginSnapshot;
 import com.personal.happygallery.domain.user.User;
-import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-public interface UserRepository extends JpaRepository<User, Long>, UserReaderPort, UserStorePort {
+import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
-    @Override Optional<User> findById(Long id);
-    @Override User save(User user);
+public interface UserRepository extends JpaRepository<User, Long> {
 
-    Optional<User> findByEmail(String email);
+    @Lock(PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") Long id);
 
-    /** 블라인드 인덱스로 회원 조회 */
     Optional<User> findByEmailHmac(String emailHmac);
 
-    boolean existsByEmail(String email);
+    @Query("""
+            SELECT new com.personal.happygallery.application.customer.port.out.UserReaderPort$LoginSnapshot(
+                u.id, u.passwordHash, u.withdrawnAt IS NULL
+            )
+            FROM User u
+            WHERE u.emailHmac = :emailHmac
+            """)
+    Optional<LoginSnapshot> findLoginSnapshotByEmailHmac(
+            @Param("emailHmac") String emailHmac);
+
+    @Lock(PESSIMISTIC_WRITE)
+    @Query("SELECT u FROM User u WHERE u.emailHmac = :emailHmac")
+    Optional<User> findByEmailHmacForUpdate(@Param("emailHmac") String emailHmac);
 
     boolean existsByEmailHmac(String emailHmac);
 
-    Optional<User> findByProviderAndProviderId(AuthProvider provider, String providerId);
+    boolean existsByPhoneHmac(String phoneHmac);
 
-    @Override
-    default List<User> findAllById(List<Long> ids) {
-        return findAllById((Iterable<Long>) ids);
-    }
+    boolean existsByPhoneHmacAndIdNot(String phoneHmac, Long excludedUserId);
 }

@@ -10,27 +10,31 @@ public interface BookingReaderPort {
 
     Optional<Booking> findById(Long id);
 
-    long count();
+    Optional<Booking> findByIdForUpdate(Long id);
+
+    Optional<Booking> findByIdAndAccessTokenForUpdate(Long id, String accessToken);
 
     Optional<Booking> findDetailByIdAndAccessToken(Long id, String accessToken);
 
-    List<Booking> findByUserIdWithDetails(Long userId);
+    List<Booking> findByUserIdWithDetails(Long userId, int limit);
+
+    List<Booking> findByUserIdWithDetailsAfter(
+            Long userId, LocalDateTime createdAt, Long id, int limit);
 
     Optional<Booking> findByIdAndUserIdWithDetails(Long id, Long userId);
 
-    List<Booking> findByGuestIdWithDetails(Long guestId);
+    List<Long> findBookedPassIdsBySlotId(Long slotId);
 
-    boolean existsBySlotIdAndGuestId(Long slotId, Long guestId);
+    List<Booking> findBookedBySlotIdForUpdate(Long slotId);
 
-    boolean existsBySlotIdAndUserId(Long slotId, Long userId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmac(Long slotId, String ownerPhoneHmac);
 
-    boolean existsBySlotIdAndGuestIdAndIdNot(Long slotId, Long guestId, Long excludeBookingId);
+    boolean existsBookedBySlotIdAndOwnerPhoneHmacAndIdNot(
+            Long slotId, String ownerPhoneHmac, Long excludeBookingId);
 
-    boolean existsBySlotIdAndUserIdAndIdNot(Long slotId, Long userId, Long excludeBookingId);
-
-    List<Booking> findFuturePassBookings(Long passId, BookingStatus status, LocalDateTime now);
-
-    List<Booking> findBookingsInRange(BookingStatus status, LocalDateTime start, LocalDateTime end);
+    List<Booking> findFutureBookedPassBookings(Long passId, LocalDateTime now);
 
     List<Booking> findAllInRange(LocalDateTime start, LocalDateTime end);
+
+    List<Booking> findByStatusInRange(LocalDateTime start, LocalDateTime end, BookingStatus status);
 }

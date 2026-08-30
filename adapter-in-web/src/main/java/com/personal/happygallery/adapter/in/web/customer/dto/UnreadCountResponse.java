@@ -1,3 +1,6 @@
 package com.personal.happygallery.adapter.in.web.customer.dto;
 
-public record UnreadCountResponse(long count) {}
+import io.swagger.v3.oas.annotations.media.Schema;
+
+public record UnreadCountResponse(
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long count) {}

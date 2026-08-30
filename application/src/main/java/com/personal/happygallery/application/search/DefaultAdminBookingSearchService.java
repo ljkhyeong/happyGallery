@@ -3,9 +3,12 @@ package com.personal.happygallery.application.search;
 import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
 import com.personal.happygallery.application.search.port.in.AdminBookingSearchUseCase;
 import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
+import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,14 +17,42 @@ import org.springframework.transaction.annotation.Transactional;
 class DefaultAdminBookingSearchService implements AdminBookingSearchUseCase {
 
     private final AdminBookingSearchPort searchPort;
+    private final FieldEncryptor fieldEncryptor;
 
-    DefaultAdminBookingSearchService(AdminBookingSearchPort searchPort) {
+    DefaultAdminBookingSearchService(AdminBookingSearchPort searchPort,
+                                     FieldEncryptor fieldEncryptor) {
         this.searchPort = searchPort;
+        this.fieldEncryptor = fieldEncryptor;
     }
 
     @Override
     public OffsetPage<AdminBookingSearchRow> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
                                                      String keyword, int page, int size) {
-        return AdminSearchHelper.search(searchPort, status, dateFrom, dateTo, keyword, page, size);
+        return AdminSearchHelper.search(
+                searchPort, status, dateFrom, dateTo, keyword, page, size, this::toResponse);
     }
+
+    private AdminBookingSearchRow toResponse(AdminBookingSearchResult result) {
+        return new AdminBookingSearchRow(
+                result.bookingId(),
+                result.bookingNumber(),
+                result.bookerType(),
+                fieldEncryptor.decrypt(result.bookerNameEnc()),
+                fieldEncryptor.decryptNullable(result.bookerPhoneEnc()),
+                result.className(),
+                result.startAt(),
+                result.endAt(),
+                result.status(),
+                result.source(),
+                result.participantCount(),
+                result.depositAmount(),
+                result.depositPaidAt(),
+                result.balanceAmount(),
+                result.balanceStatus(),
+                result.balancePaidAt(),
+                result.arrears(),
+                result.passBooking(),
+                result.createdAt().atOffset(ZoneOffset.UTC));
+    }
+
 }

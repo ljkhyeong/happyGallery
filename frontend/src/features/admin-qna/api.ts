@@ -1,33 +1,96 @@
-import { api } from "@/shared/api";
+import {
+  answerSmartStoreInquiry,
+  answerSmartStoreCustomerInquiry,
+  getSmartStoreInquiryAnswerTemplate,
+  listAdminProductQnaPage,
+  listSmartStoreInquiries,
+  listSmartStoreCustomerInquiries,
+  listUnansweredAdminProductQna,
+  replyProductQna,
+  type AdminQnaPageResponse,
+  type AdminQnaResponse,
+  type SmartStoreInquiryResponse,
+  type SmartStoreCustomerInquiryResponse,
+  type SmartStoreInquiryAnswerTemplateResponse,
+} from "@/generated/api/productQna";
+import { adminHeaders } from "@/shared/api";
 
-export interface AdminQnaResponse {
-  id: number;
-  productId: number;
-  userId: number;
-  authorName: string;
-  title: string;
-  content: string;
-  secret: boolean;
-  replyContent: string | null;
-  repliedAt: string | null;
-  createdAt: string;
+export type { AdminQnaResponse } from "@/generated/api/productQna";
+export type { SmartStoreInquiryResponse } from "@/generated/api/productQna";
+export type { SmartStoreCustomerInquiryResponse } from "@/generated/api/productQna";
+export type { SmartStoreInquiryAnswerTemplateResponse } from "@/generated/api/productQna";
+
+export function fetchSmartStoreInquiries(
+  token: string,
+  unansweredOnly: boolean,
+): Promise<SmartStoreInquiryResponse[]> {
+  return listSmartStoreInquiries({ unansweredOnly, limit: 100 }, {
+    headers: adminHeaders(token),
+  });
 }
 
-export function fetchAdminQna(productId: number, token: string): Promise<AdminQnaResponse[]> {
-  return api<AdminQnaResponse[]>("/admin/qna", {
-    params: { productId },
-    headers: { Authorization: `Bearer ${token}` },
+export function fetchSmartStoreAnswerTemplate(
+  token: string,
+): Promise<SmartStoreInquiryAnswerTemplateResponse> {
+  return getSmartStoreInquiryAnswerTemplate({
+    headers: adminHeaders(token),
+  });
+}
+
+export function answerChannelQna(
+  questionId: number,
+  content: string,
+  token: string,
+): Promise<void> {
+  return answerSmartStoreInquiry(questionId, { content }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function fetchSmartStoreCustomerInquiries(
+  token: string,
+  unansweredOnly: boolean,
+): Promise<SmartStoreCustomerInquiryResponse[]> {
+  return listSmartStoreCustomerInquiries({ unansweredOnly, limit: 100 }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function answerCustomerInquiry(
+  inquiryNo: number,
+  content: string,
+  token: string,
+): Promise<void> {
+  return answerSmartStoreCustomerInquiry(inquiryNo, { content }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function fetchAdminQnaPage(
+  productId: number,
+  token: string,
+  cursor?: string,
+): Promise<AdminQnaPageResponse> {
+  return listAdminProductQnaPage({ productId, cursor, size: 20 }, {
+    headers: adminHeaders(token),
+  });
+}
+
+export function fetchUnansweredAdminQna(
+  token: string,
+  cursor?: string,
+): Promise<AdminQnaPageResponse> {
+  return listUnansweredAdminProductQna({ cursor, size: 20 }, {
+    headers: adminHeaders(token),
   });
 }
 
 export function replyQna(
   qnaId: number,
   replyContent: string,
-  token: string
+  token: string,
 ): Promise<AdminQnaResponse> {
-  return api<AdminQnaResponse>(`/admin/qna/${qnaId}/reply`, {
-    method: "POST",
-    body: { replyContent },
-    headers: { Authorization: `Bearer ${token}` },
+  return replyProductQna(qnaId, { replyContent }, {
+    headers: adminHeaders(token),
   });
 }

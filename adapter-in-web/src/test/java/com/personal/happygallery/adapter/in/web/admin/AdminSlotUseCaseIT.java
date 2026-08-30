@@ -1,13 +1,16 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.AdminAuthFilter;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
-import org.junit.jupiter.api.DisplayName;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -17,9 +20,11 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -29,80 +34,102 @@ class AdminSlotUseCaseIT {
     private static final String ADMIN_KEY = "dev-admin-key";
 
     @Autowired WebApplicationContext context;
-    @Autowired AdminAuthFilter adminAuthFilter;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotReaderPort slotReaderPort;
+    @Autowired SlotStorePort slotStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
 
     MockMvc mockMvc;
     Long classId;
+    BookingClass bookingClass;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(adminAuthFilter)
+                .apply(springSecurity())
                 .build();
-        cleanupSupport.clearBookingData();
-        BookingClass cls = classStorePort.save(defaultBookingClass());
-        classId = cls.getId();
+        bookingClass = classStorePort.save(defaultBookingClass());
+        classId = bookingClass.getId();
     }
 
-    @DisplayName("관리자 슬롯 생성이 성공한다")
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingData();
+    }
+
+    @DisplayName("공개 슬롯 조회는 기본 운영시간의 예약 회차를 자동으로 준비한다")
     @Test
-    void createSlot_success() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+    void listAvailableSlots_materializesDefaultOpenCalendar() throws Exception {
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-03"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(15))
+                .andExpect(jsonPath("$[0].startAt").value("2026-03-03T10:00:00"))
+                .andExpect(jsonPath("$[14].startAt").value("2026-03-03T17:00:00"));
+    }
+
+    @DisplayName("기본 차단된 공휴일도 관리자가 날짜를 열면 예약할 수 있다")
+    @Test
+    void openPublicHoliday_enablesAutomaticSlots() throws Exception {
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(put("/api/v1/admin/slots/calendar/days/{date}", "2026-03-02")
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mode\":\"OPEN\",\"reason\":\"공휴일 특별 운영\"}"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(15));
+    }
+
+    @DisplayName("관리자가 닫은 시간과 수업 시간이 겹치는 회차는 공개하지 않는다")
+    @Test
+    void createTimeBlock_hidesOverlappingSessions() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/slots/calendar/time-blocks")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
+                                  "date": "2026-03-03",
+                                  "startTime": "12:00",
+                                  "endTime": "13:00",
+                                  "reason": "점심시간"
                                 }
-                                """.formatted(classId)))
+                                """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.classId").value(classId))
-                .andExpect(jsonPath("$.capacity").value(8))
-                .andExpect(jsonPath("$.isActive").value(true));
+                .andExpect(jsonPath("$.reason").value("점심시간"));
+
+        mockMvc.perform(get("/api/v1/slots")
+                        .param("classId", classId.toString())
+                        .param("date", "2026-03-03"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$[0].startAt").value("2026-03-03T10:00:00"))
+                .andExpect(jsonPath("$[1].startAt").value("2026-03-03T13:00:00"));
     }
 
     @DisplayName("관리자 슬롯 목록 조회는 비활성 슬롯을 포함해 시작 시각 내림차순으로 반환한다")
     @Test
     void listSlots_includingInactiveOrderedByStartAtDesc() throws Exception {
-        String firstResponse = mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
-                                }
-                                """.formatted(classId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        long firstSlotId = slotStorePort.save(
+                new Slot(bookingClass, LocalDateTime.of(2026, 3, 2, 10, 0))).getId();
+        long secondSlotId = slotStorePort.save(
+                new Slot(bookingClass, LocalDateTime.of(2026, 3, 3, 10, 0))).getId();
 
-        String secondResponse = mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00",
-                                  "endAt":   "2026-03-02T12:00:00"
-                                }
-                                """.formatted(classId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        long firstSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(firstResponse, "$.id")).longValue();
-        long secondSlotId = ((Number) com.jayway.jsonpath.JsonPath.read(secondResponse, "$.id")).longValue();
-
-        mockMvc.perform(patch("/admin/slots/{id}/deactivate", firstSlotId)
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/deactivate", firstSlotId)
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/admin/slots")
+        mockMvc.perform(get("/api/v1/admin/slots")
                         .header("X-Admin-Key", ADMIN_KEY)
                         .param("classId", classId.toString()))
                 .andExpect(status().isOk())
@@ -113,93 +140,34 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$[1].isActive").value(false));
     }
 
-    @DisplayName("관리자 슬롯 비활성화가 성공한다")
+    @DisplayName("관리자가 슬롯을 비활성화한 뒤 다시 활성화할 수 있다")
     @Test
-    void deactivateSlot_success() throws Exception {
-        // given — 슬롯 생성
-        String response = mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-02T10:00:00",
-                                  "endAt":   "2026-03-02T12:00:00"
-                                }
-                                """.formatted(classId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-
-        long slotId = ((Number) com.jayway.jsonpath.JsonPath.read(response, "$.id")).longValue();
+    void deactivateAndActivateSlot_success() throws Exception {
+        long slotId = slotStorePort.save(
+                new Slot(bookingClass, LocalDateTime.of(2026, 3, 2, 10, 0))).getId();
 
         // when — 비활성화
-        mockMvc.perform(patch("/admin/slots/{id}/deactivate", slotId)
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/deactivate", slotId)
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.isActive").value(false));
 
         // then — DB 상태 확인
         assertThat(slotReaderPort.findById(slotId))
-                .isPresent()
                 .hasValueSatisfying(slot -> assertThat(slot.isActive()).isFalse());
-    }
 
-    @DisplayName("존재하지 않는 클래스로 슬롯을 생성하면 실패한다")
-    @Test
-    void createSlot_notFoundClass() throws Exception {
-        mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": 99999,
-                                  "startAt": "2026-03-01T10:00:00",
-                                  "endAt":   "2026-03-01T12:00:00"
-                                }
-                                """))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
-    }
-
-    @DisplayName("동일 클래스에 같은 시작 시각 슬롯을 생성하면 실패한다")
-    @Test
-    void createSlot_duplicateStartAt() throws Exception {
-        String body = """
-                {
-                  "classId": %d,
-                  "startAt": "2026-03-03T10:00:00",
-                  "endAt":   "2026-03-03T12:00:00"
-                }
-                """.formatted(classId);
-
-        // 첫 번째 생성 — 성공
-        mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isCreated());
-
-        // 두 번째 동일 시간 — 실패
-        mockMvc.perform(post("/admin/slots")
-                        .header("X-Admin-Key", ADMIN_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        mockMvc.perform(patch("/api/v1/admin/slots/{id}/activate", slotId)
+                        .header("X-Admin-Key", ADMIN_KEY))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.adminActive").value(true))
+                .andExpect(jsonPath("$.isActive").value(true));
     }
 
     @DisplayName("관리자 키 없이 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithoutKey_returns401() throws Exception {
-        mockMvc.perform(post("/admin/slots")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-10T10:00:00",
-                                  "endAt":   "2026-03-10T12:00:00"
-                                }
-                                """.formatted(classId)))
+        mockMvc.perform(get("/api/v1/admin/slots")
+                        .param("classId", classId.toString()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
@@ -207,16 +175,9 @@ class AdminSlotUseCaseIT {
     @DisplayName("잘못된 관리자 키로 관리자 API를 호출하면 401을 반환한다")
     @Test
     void callAdminWithWrongKey_returns401() throws Exception {
-        mockMvc.perform(post("/admin/slots")
+        mockMvc.perform(get("/api/v1/admin/slots")
                         .header("X-Admin-Key", "wrong-key")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "classId": %d,
-                                  "startAt": "2026-03-11T10:00:00",
-                                  "endAt":   "2026-03-11T12:00:00"
-                                }
-                                """.formatted(classId)))
+                        .param("classId", classId.toString()))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }

@@ -1,13 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
-import { fetchMyBookings } from "@/features/my/api";
+import { Link } from "react-router";
+import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
+import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { queryKeys } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "SOONEST";
 const BOOKING_SORT_OPTIONS = [
@@ -18,24 +21,36 @@ const BOOKING_SORT_OPTIONS = [
 
 export function MyBookingsPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data: bookings, isLoading, error } = useQuery({
-    queryKey: ["my", "bookings"],
-    queryFn: fetchMyBookings,
+  const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
+    useMyListFilters({ defaultSort: DEFAULT_SORT });
+  const {
+    data: bookingsData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.bookings.history,
+    queryFn: ({ pageParam, signal }) => fetchMyBookingsPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
   });
-  const searchQuery = searchParams.get("q") ?? "";
-  const statusFilter = searchParams.get("status") ?? "ALL";
-  const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
-  const statuses = (bookings ?? []).map((booking) => booking.status);
+  const bookings = bookingsData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedBookings = bookingsData !== undefined;
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const statuses = bookings.map((booking) => booking.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
     ...buildStatusFilterOptions(statuses),
   ];
   const quickTabs = buildQuickStatusTabs(statuses);
-  const filteredBookings = (bookings ?? []).filter((booking) => {
+  const filteredBookings = bookings.filter((booking) => {
     const matchesStatus = statusFilter === "ALL" || booking.status === statusFilter;
-    const normalizedQuery = searchQuery.trim().toLowerCase();
     const matchesQuery =
       normalizedQuery === "" ||
       String(booking.bookingId).includes(normalizedQuery) ||
@@ -45,38 +60,20 @@ export function MyBookingsPage() {
   const sortedBookings = [...filteredBookings].sort((left, right) => {
     switch (sortValue) {
       case "LATEST":
-        return new Date(right.startAt).getTime() - new Date(left.startAt).getTime();
+        return parseApiDateTime(right.startAt) - parseApiDateTime(left.startAt);
       case "DEPOSIT_DESC":
         return right.depositAmount - left.depositAmount;
       case "SOONEST":
       default:
-        return new Date(left.startAt).getTime() - new Date(right.startAt).getTime();
+        return parseApiDateTime(left.startAt) - parseApiDateTime(right.startAt);
     }
   });
-  const upcomingCount = (bookings ?? []).filter((booking) =>
-    booking.status === "BOOKED" && new Date(booking.startAt).getTime() >= Date.now(),
+  const upcomingCount = bookings.filter((booking) =>
+    booking.status === "BOOKED" && parseApiDateTime(booking.startAt) >= Date.now(),
   ).length;
-  const finishedCount = (bookings ?? []).filter((booking) =>
+  const finishedCount = bookings.filter((booking) =>
     ["COMPLETED", "CANCELED", "NO_SHOW"].includes(booking.status),
   ).length;
-
-  function updateFilters(next: { q?: string; status?: string; sort?: string }) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = next.q ?? searchQuery;
-    const nextStatus = next.status ?? statusFilter;
-    const nextSort = next.sort ?? sortValue;
-
-    if (nextQuery.trim()) nextSearchParams.set("q", nextQuery.trim());
-    else nextSearchParams.delete("q");
-
-    if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
-    else nextSearchParams.delete("status");
-
-    if (nextSort !== DEFAULT_SORT) nextSearchParams.set("sort", nextSort);
-    else nextSearchParams.delete("sort");
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -100,9 +97,9 @@ export function MyBookingsPage() {
           <Link to="/my" className="text-decoration-none small">
             &larr; 내 정보
           </Link>
-          <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+          <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
             새 예약 만들기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Bookings</div>
         <h4 className="mb-2">전체 예약</h4>
@@ -111,17 +108,21 @@ export function MyBookingsPage() {
         </p>
       </div>
 
-      <ErrorAlert error={error} />
-      {bookings && bookings.length > 0 && (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching && !isFetchingNextPage}
+      />
+      {bookings.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">다가오는 예약 {upcomingCount}건</span>
-          <span className="my-summary-chip">종료/취소 {finishedCount}건</span>
+          <span className="my-summary-chip">불러온 예약 중 다가오는 예약 {upcomingCount}건</span>
+          <span className="my-summary-chip">불러온 예약 중 종료/취소 {finishedCount}건</span>
           <span className="my-summary-chip">
             현재 필터 {statusFilter === "ALL" ? "전체 상태" : getStatusLabel(statusFilter)}
           </span>
         </div>
       )}
-      {bookings && bookings.length > 0 && (
+      {bookings.length > 0 && (
         <MyListFilterBar
           idPrefix="my-bookings"
           searchLabel="예약 검색"
@@ -140,12 +141,12 @@ export function MyBookingsPage() {
           sortOptions={BOOKING_SORT_OPTIONS}
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedBookings.length} / ${bookings.length}건 표시 중`}
-          onReset={() => setSearchParams({}, { replace: true })}
+          resultText={`${sortedBookings.length}건 표시 중 · 불러온 예약 ${bookings.length}건`}
+          onReset={resetFilters}
         />
       )}
-      {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
-      {bookings && bookings.length > 0 && sortedBookings.length === 0 && (
+      {hasLoadedBookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
+      {bookings.length > 0 && sortedBookings.length === 0 && (
         <EmptyState message="필터 조건에 맞는 예약이 없습니다." />
       )}
       {sortedBookings.length > 0 && sortedBookings.map((booking) => (
@@ -159,7 +160,9 @@ export function MyBookingsPage() {
             <Row className="align-items-center g-2">
               <Col xs={12} md={5}>
                 <div className="fw-semibold small">{booking.className}</div>
-                <small className="text-muted-soft">{formatDateTime(booking.startAt)}</small>
+                <small className="text-muted-soft">
+                  {formatDateTime(booking.startAt)} · {booking.participantCount}명
+                </small>
               </Col>
               <Col xs={6} md={3}>
                 <StatusBadge status={booking.status} />
@@ -171,6 +174,18 @@ export function MyBookingsPage() {
           </Card.Body>
         </Card>
       ))}
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "예약 불러오는 중..." : "예약 더 보기"}
+          </Button>
+        </div>
+      )}
     </Container>
   );
 }

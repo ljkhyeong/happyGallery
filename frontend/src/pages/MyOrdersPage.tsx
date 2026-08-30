@@ -1,13 +1,16 @@
-import { useQuery } from "@tanstack/react-query";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link, useSearchParams } from "react-router-dom";
-import { fetchMyOrders } from "@/features/my/api";
+import { Link } from "react-router";
+import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
+import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { queryKeys } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -19,71 +22,67 @@ const ORDER_SORT_OPTIONS = [
 
 export function MyOrdersPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data: orders, isLoading, error } = useQuery({
-    queryKey: ["my", "orders"],
-    queryFn: fetchMyOrders,
+  const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
+    useMyListFilters({ defaultSort: DEFAULT_SORT });
+  const {
+    data: ordersData,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: queryKeys.member.orders.history,
+    queryFn: ({ pageParam, signal }) => fetchMyOrdersPage(pageParam, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     enabled: isAuthenticated,
   });
-  const searchQuery = searchParams.get("q") ?? "";
-  const statusFilter = searchParams.get("status") ?? "ALL";
-  const sortValue = searchParams.get("sort") ?? DEFAULT_SORT;
-  const statuses = (orders ?? []).map((order) => order.status);
+  const orders = ordersData?.pages.flatMap((page) => page.content) ?? [];
+  const hasLoadedOrders = ordersData !== undefined;
+  const normalizedQuery = searchQuery.trim();
+  const statuses = orders.map((order) => order.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
     ...buildStatusFilterOptions(statuses),
   ];
   const quickTabs = buildQuickStatusTabs(statuses);
-  const filteredOrders = (orders ?? []).filter((order) => {
+  const filteredOrders = orders.filter((order) => {
     const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
-    const normalizedQuery = searchQuery.trim();
     const matchesQuery = normalizedQuery === "" || String(order.orderId).includes(normalizedQuery);
     return matchesStatus && matchesQuery;
   });
   const sortedOrders = [...filteredOrders].sort((left, right) => {
     switch (sortValue) {
       case "OLDEST":
-        return new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+        return parseApiDateTime(left.createdAt) - parseApiDateTime(right.createdAt);
       case "AMOUNT_DESC":
         return right.totalAmount - left.totalAmount;
       case "AMOUNT_ASC":
         return left.totalAmount - right.totalAmount;
       case "LATEST":
       default:
-        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+        return parseApiDateTime(right.createdAt) - parseApiDateTime(left.createdAt);
     }
   });
-  const activeCount = (orders ?? []).filter((order) =>
+  const activeCount = orders.filter((order) =>
     ![
       "PICKED_UP",
       "DELIVERED",
       "REJECTED",
+      "CUSTOMER_CANCELED",
       "AUTO_REFUND_TIMEOUT",
       "PICKUP_EXPIRED",
+      "PICKUP_FORFEITED",
       "DELAY_REJECTED_CANCELED",
     ].includes(order.status),
   ).length;
-  const completedCount = (orders ?? []).filter((order) =>
+  const completedCount = orders.filter((order) =>
     ["PICKED_UP", "DELIVERED"].includes(order.status),
   ).length;
-
-  function updateFilters(next: { q?: string; status?: string; sort?: string }) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = next.q ?? searchQuery;
-    const nextStatus = next.status ?? statusFilter;
-    const nextSort = next.sort ?? sortValue;
-
-    if (nextQuery.trim()) nextSearchParams.set("q", nextQuery.trim());
-    else nextSearchParams.delete("q");
-
-    if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
-    else nextSearchParams.delete("status");
-
-    if (nextSort !== DEFAULT_SORT) nextSearchParams.set("sort", nextSort);
-    else nextSearchParams.delete("sort");
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
@@ -107,9 +106,9 @@ export function MyOrdersPage() {
           <Link to="/my" className="text-decoration-none small">
             &larr; 내 정보
           </Link>
-          <Button as={Link as any} to="/products" variant="outline-secondary" size="sm">
+          <LinkButton to="/products" variant="outline-secondary" size="sm">
             상품 보러가기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Orders</div>
         <h4 className="mb-2">전체 주문</h4>
@@ -118,17 +117,21 @@ export function MyOrdersPage() {
         </p>
       </div>
 
-      <ErrorAlert error={error} />
-      {orders && orders.length > 0 && (
+      <ErrorAlert
+        error={error}
+        onRetry={() => { void refetch(); }}
+        retrying={isFetching && !isFetchingNextPage}
+      />
+      {orders.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">진행 중 {activeCount}건</span>
-          <span className="my-summary-chip">완료 {completedCount}건</span>
+          <span className="my-summary-chip">불러온 주문 중 진행 중 {activeCount}건</span>
+          <span className="my-summary-chip">불러온 주문 중 완료 {completedCount}건</span>
           <span className="my-summary-chip">
             현재 필터 {statusFilter === "ALL" ? "전체 상태" : getStatusLabel(statusFilter)}
           </span>
         </div>
       )}
-      {orders && orders.length > 0 && (
+      {orders.length > 0 && (
         <MyListFilterBar
           idPrefix="my-orders"
           searchLabel="주문 번호 검색"
@@ -147,12 +150,12 @@ export function MyOrdersPage() {
           sortOptions={ORDER_SORT_OPTIONS}
           onSortChange={(value) => updateFilters({ sort: value })}
           defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedOrders.length} / ${orders.length}건 표시 중`}
-          onReset={() => setSearchParams({}, { replace: true })}
+          resultText={`${sortedOrders.length}건 표시 중 · 불러온 주문 ${orders.length}건`}
+          onReset={resetFilters}
         />
       )}
-      {orders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
-      {orders && orders.length > 0 && sortedOrders.length === 0 && (
+      {hasLoadedOrders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
+      {orders.length > 0 && sortedOrders.length === 0 && (
         <EmptyState message="필터 조건에 맞는 주문이 없습니다." />
       )}
       {sortedOrders.length > 0 && sortedOrders.map((order) => (
@@ -180,6 +183,18 @@ export function MyOrdersPage() {
             </Card.Body>
           </Card>
       ))}
+      {hasNextPage && (
+        <div className="d-grid mt-3">
+          <Button
+            type="button"
+            variant="outline-primary"
+            disabled={isFetchingNextPage}
+            onClick={() => { void fetchNextPage(); }}
+          >
+            {isFetchingNextPage ? "주문 불러오는 중..." : "주문 더 보기"}
+          </Button>
+        </div>
+      )}
     </Container>
   );
 }

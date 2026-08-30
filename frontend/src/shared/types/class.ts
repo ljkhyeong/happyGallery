@@ -1,16 +1,8 @@
-export interface ClassResponse {
-  id: number;
-  name: string;
-  category: string;
-  durationMin: number;
-  price: number;
-  bufferMin: number;
-}
-
-export interface CreateClassRequest {
-  name: string;
-  category: string;
-  durationMin: number;
-  price: number;
-  bufferMin: number;
-}
+export type {
+  CreateClassRequest,
+  UpdateClassRequest,
+} from "@/generated/api/adminCatalog";
+export type {
+  ClassResponse,
+  ClassResponseStatus as ClassStatus,
+} from "@/generated/api/booking";

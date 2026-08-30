@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.product;
 
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -9,7 +10,6 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import java.time.LocalDateTime;
 
 /**
@@ -51,21 +51,30 @@ public class Inventory {
      * @param quantity 초기 수량
      */
     public Inventory(Product product, int quantity) {
+        if (quantity < 0) {
+            throw new IllegalArgumentException("초기 재고 수량은 0 이상이어야 합니다.");
+        }
         this.product = product;
         this.quantity = quantity;
     }
 
     /**
      * 재고를 차감한다.
-     * 재고 부족 시 {@link com.personal.happygallery.domain.error.InventoryNotEnoughException}.
+     * 재고 부족 시 {@link InventoryNotEnoughException}.
      *
      * @param qty 차감 수량
      */
     public void deduct(int qty) {
+        requireSufficient(qty);
+        this.quantity -= qty;
+    }
+
+    /** 현재 수량으로 요청을 처리할 수 있는지 변경 없이 검증한다. */
+    public void requireSufficient(int qty) {
+        requirePositive(qty);
         if (this.quantity < qty) {
             throw new InventoryNotEnoughException();
         }
-        this.quantity -= qty;
     }
 
     /**
@@ -74,7 +83,14 @@ public class Inventory {
      * @param qty 복구 수량
      */
     public void restore(int qty) {
-        this.quantity += qty;
+        requirePositive(qty);
+        this.quantity = Math.addExact(this.quantity, qty);
+    }
+
+    private static void requirePositive(int qty) {
+        if (qty <= 0) {
+            throw new IllegalArgumentException("재고 변경 수량은 1 이상이어야 합니다.");
+        }
     }
 
     /** 재고가 1개 이상 남아 있으면 true. */

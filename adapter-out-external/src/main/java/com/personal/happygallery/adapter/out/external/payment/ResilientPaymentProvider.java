@@ -1,28 +1,22 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
+import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
+import com.personal.happygallery.application.payment.port.out.PaymentPort;
+import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiter;
-import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
-import jakarta.annotation.PreDestroy;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
+import org.springframework.core.NestedExceptionUtils;
 
 /**
  * 외부 PG 호출 보호용 데코레이터.
@@ -30,123 +24,125 @@ import org.springframework.stereotype.Component;
  * <p>서킷 브레이커 + 타임아웃을 외부 호출 경계에 적용해
  * 장애 전파(cascading failure)를 줄인다.
  */
-@Primary
-@Component
-public class ResilientPaymentProvider implements PaymentProvider {
+public class ResilientPaymentProvider implements PaymentPort {
 
     private static final Logger log = LoggerFactory.getLogger(ResilientPaymentProvider.class);
-    private static final AtomicInteger THREAD_SEQ = new AtomicInteger(0);
 
-    private final PaymentProvider delegate;
+    private final PaymentPort delegate;
     private final CircuitBreaker circuitBreaker;
     private final TimeLimiter timeLimiter;
-    private final ExecutorService executor;
-    private final long timeoutMillis;
+    private final Executor executor;
+    private final Duration timeout;
 
-    public ResilientPaymentProvider(
-            @Qualifier("paymentProviderDelegate") PaymentProvider delegate,
-            ExternalPaymentProperties properties,
-            MeterRegistry meterRegistry
-    ) {
-        ExternalPaymentProperties.CircuitBreaker cb = properties.circuitBreaker();
+    ResilientPaymentProvider(PaymentPort delegate,
+                             CircuitBreaker circuitBreaker,
+                             TimeLimiter timeLimiter,
+                             Executor executor,
+                             Duration timeout) {
         this.delegate = delegate;
-        this.timeoutMillis = properties.timeoutMillis();
-        this.circuitBreaker = CircuitBreaker.of("paymentProvider", CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(Duration.ofSeconds(cb.waitDurationOpenSeconds()))
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .build());
-        this.timeLimiter = TimeLimiter.of(TimeLimiterConfig.custom()
-                .timeoutDuration(Duration.ofMillis(this.timeoutMillis))
-                .cancelRunningFuture(true)
-                .build());
-        ExecutorService rawExecutor = Executors.newFixedThreadPool(
-                Math.max(2, cb.permittedCallsInHalfOpenState()),
-                runnable -> {
-                    Thread thread = new Thread(runnable);
-                    thread.setName("payment-timeout-" + THREAD_SEQ.incrementAndGet());
-                    thread.setDaemon(true);
-                    return thread;
-                });
-        this.executor = ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                rawExecutor,
-                "executor",
-                Tags.of("name", "paymentTimeoutExecutor"));
+        this.circuitBreaker = circuitBreaker;
+        this.timeLimiter = timeLimiter;
+        this.executor = executor;
+        this.timeout = timeout;
     }
 
     @Override
-    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount) {
+    public PaymentConfirmResult confirm(String paymentKey, String orderId, long amount, String idempotencyKey) {
         try {
-            return circuitBreaker.executeCallable(() -> executeConfirmWithTimeout(paymentKey, orderId, amount));
+            return circuitBreaker.executeCallable(
+                    () -> executeWithTimeout(
+                            () -> delegate.confirm(paymentKey, orderId, amount, idempotencyKey)));
         } catch (CallNotPermittedException e) {
             log.warn("PG 확정 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
-            return PaymentConfirmResult.failure("PG 장애로 결제 확정이 일시 차단되었습니다. 잠시 후 재시도해주세요.");
-        } catch (TimeoutException e) {
-            log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-            return PaymentConfirmResult.failure("PG 응답 지연으로 결제 확정에 실패했습니다.");
+            return PaymentConfirmResult.retryableFailure(
+                    "PG 장애로 결제 확정이 일시 차단되었습니다. 잠시 후 재시도해주세요.");
         } catch (Exception e) {
-            Throwable cause = rootCause(e);
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
-                log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-                return PaymentConfirmResult.failure("PG 응답 지연으로 결제 확정에 실패했습니다.");
+                log.warn("PG 확정 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
+                return PaymentConfirmResult.retryableFailure("PG 응답 지연으로 결제 확정에 실패했습니다.");
             }
-            log.error("PG 확정 호출 예외", cause);
-            return PaymentConfirmResult.failure(cause.getMessage() != null ? cause.getMessage() : "PG 호출 중 오류가 발생했습니다.");
+            if (cause instanceof RejectedExecutionException) {
+                log.warn("PG 확정 호출 대기열 포화");
+                return PaymentConfirmResult.retryableFailure("PG 호출 대기열이 가득 차 결제 확정을 재시도해야 합니다.");
+            }
+            log.error("PG 확정 호출 예외 [orderId={} type={}]",
+                    orderId, cause.getClass().getSimpleName());
+            return PaymentConfirmResult.retryableFailure("PG 호출 중 오류가 발생했습니다.");
         }
     }
 
     @Override
-    public RefundResult refund(String paymentKey, long amount) {
+    public RefundResult refund(String paymentKey, long amount, String idempotencyKey) {
         try {
-            return circuitBreaker.executeCallable(() -> executeRefundWithTimeout(paymentKey, amount));
+            return circuitBreaker.executeCallable(
+                    () -> executeWithTimeout(
+                            () -> delegate.refund(paymentKey, amount, idempotencyKey)));
         } catch (CallNotPermittedException e) {
             log.warn("PG 환불 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
-            return RefundResult.failure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
-        } catch (TimeoutException e) {
-            log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-            return RefundResult.failure("PG 응답 지연으로 환불 처리에 실패했습니다.");
+            return RefundResult.retryableFailure("PG 장애로 환불 처리가 일시 차단되었습니다. 잠시 후 재시도해주세요.");
         } catch (Exception e) {
-            Throwable cause = rootCause(e);
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
             if (cause instanceof TimeoutException) {
-                log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeoutMillis);
-                return RefundResult.failure("PG 응답 지연으로 환불 처리에 실패했습니다.");
+                log.warn("PG 환불 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
+                return RefundResult.reconciliationRequired("PG 응답 지연으로 환불 상태 확인이 필요합니다.");
             }
-            log.error("PG 환불 호출 예외", cause);
-            return RefundResult.failure(cause.getMessage() != null ? cause.getMessage() : "PG 호출 중 오류가 발생했습니다.");
+            if (cause instanceof RejectedExecutionException) {
+                log.warn("PG 환불 호출 대기열 포화");
+                return RefundResult.retryableFailure("PG 호출 대기열이 가득 차 환불을 재시도해야 합니다.");
+            }
+            log.error("PG 환불 호출 예외 [type={}]", cause.getClass().getSimpleName());
+            return RefundResult.reconciliationRequired("PG 호출 결과를 확인할 수 없습니다.");
         }
     }
 
-    private PaymentConfirmResult executeConfirmWithTimeout(String paymentKey, String orderId, long amount) throws Exception {
-        return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.confirm(paymentKey, orderId, amount), executor));
-    }
-
-    private RefundResult executeRefundWithTimeout(String paymentKey, long amount) throws Exception {
-        return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(() -> delegate.refund(paymentKey, amount), executor));
-    }
-
-    private Throwable rootCause(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null && current.getCause() != current) {
-            current = current.getCause();
-        }
-        return current;
-    }
-
-    @PreDestroy
-    void shutdown() {
-        executor.shutdown();
+    @Override
+    public PaymentLookupResult lookupByOrderId(String orderId) {
         try {
-            if (!executor.awaitTermination(2, TimeUnit.SECONDS)) {
-                executor.shutdownNow();
+            return circuitBreaker.executeCallable(
+                    () -> executeWithTimeout(() -> delegate.lookupByOrderId(orderId)));
+        } catch (CallNotPermittedException e) {
+            log.warn("PG 조회 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
+            return PaymentLookupResult.unavailable(orderId, "PG 장애로 결제 조회가 일시 차단되었습니다.");
+        } catch (Exception e) {
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+            if (cause instanceof TimeoutException) {
+                log.warn("PG 조회 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
+            } else if (cause instanceof RejectedExecutionException) {
+                log.warn("PG 조회 호출 대기열 포화");
+            } else {
+                log.error("PG 조회 호출 예외 [orderId={} type={}]",
+                        orderId, cause.getClass().getSimpleName());
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            executor.shutdownNow();
+            return PaymentLookupResult.unavailable(orderId, "PG 결제 조회 결과를 확인할 수 없습니다.");
         }
+    }
+
+    @Override
+    public RefundLookupResult lookupRefund(String paymentKey, long amount, String idempotencyKey) {
+        try {
+            return circuitBreaker.executeCallable(
+                    () -> executeWithTimeout(
+                            () -> delegate.lookupRefund(paymentKey, amount, idempotencyKey)));
+        } catch (CallNotPermittedException e) {
+            log.warn("PG 환불 조회 호출 차단 (circuit open) [state={}]", circuitBreaker.getState());
+            return RefundLookupResult.unavailable(paymentKey, "PG 장애로 환불 조회가 일시 차단되었습니다.");
+        } catch (Exception e) {
+            Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+            if (cause instanceof TimeoutException) {
+                log.warn("PG 환불 조회 호출 타임아웃 [timeoutMs={}]", timeout.toMillis());
+            } else if (cause instanceof RejectedExecutionException) {
+                log.warn("PG 환불 조회 호출 대기열 포화");
+            } else {
+                log.error("PG 환불 조회 호출 예외 [type={}]",
+                        cause.getClass().getSimpleName());
+            }
+            return RefundLookupResult.unavailable(paymentKey, "PG 환불 조회 결과를 확인할 수 없습니다.");
+        }
+    }
+
+    private <T> T executeWithTimeout(Supplier<T> operation) throws Exception {
+        return timeLimiter.executeFutureSupplier(
+                () -> CompletableFuture.supplyAsync(operation, executor));
     }
 }

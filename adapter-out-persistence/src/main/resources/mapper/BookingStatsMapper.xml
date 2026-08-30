@@ -6,14 +6,15 @@
 
     <select id="findSlotUtilization" resultType="com.personal.happygallery.application.dashboard.dto.SlotUtilization">
         SELECT
-            DATE(CONVERT_TZ(s.start_at, '+00:00', '+09:00')) AS date,
+            DATE(s.start_at)                                 AS date,
             c.name                                            AS className,
             SUM(s.capacity)                                   AS totalCapacity,
             SUM(s.booked_count)                               AS totalBooked,
             ROUND(SUM(s.booked_count) / NULLIF(SUM(s.capacity), 0), 4) AS utilizationRate
         FROM slots s
             JOIN classes c ON s.class_id = c.id
-        WHERE s.is_active = TRUE
+        WHERE s.admin_active = TRUE
+          AND s.buffer_block_count = 0
           AND s.start_at >= #{rangeFrom} AND s.start_at &lt; #{rangeTo}
         GROUP BY date, c.name
         ORDER BY date, c.name

@@ -1,12 +1,14 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.adapter;
 
-import com.personal.happygallery.application.search.dto.AdminBookingSearchRow;
-import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.AdminBookingSearchMapper;
+import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
+import com.personal.happygallery.application.search.port.out.AdminBookingSearchPort;
+import com.personal.happygallery.application.search.port.out.AdminBookingSearchResult;
+import com.personal.happygallery.domain.booking.BookingStatus;
+import com.personal.happygallery.domain.crypto.BlindIndexer;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,28 +19,41 @@ import org.springframework.stereotype.Component;
 @Component
 class MyBatisAdminBookingSearchAdapter implements AdminBookingSearchPort {
 
-    private final AdminBookingSearchMapper mapper;
+    private static final Pattern FORMATTED_BOOKING_ID = Pattern.compile(
+            "^BK-(\\d+)$", Pattern.CASE_INSENSITIVE);
 
-    MyBatisAdminBookingSearchAdapter(AdminBookingSearchMapper mapper) {
+    private final AdminBookingSearchMapper mapper;
+    private final BlindIndexer blindIndexer;
+
+    MyBatisAdminBookingSearchAdapter(AdminBookingSearchMapper mapper, BlindIndexer blindIndexer) {
         this.mapper = mapper;
+        this.blindIndexer = blindIndexer;
     }
 
     @Override
-    public List<AdminBookingSearchRow> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
-                                               String keyword, int offset, int size) {
+    public List<AdminBookingSearchResult> search(BookingStatus status, LocalDate dateFrom, LocalDate dateTo,
+                                                  String keyword, int offset, int size) {
+        AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_BOOKING_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.search(
                 status != null ? status.name() : null,
-                dateFrom != null ? dateFrom.atStartOfDay() : null,
-                dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
-                keyword, offset, size);
+                dateFrom != null ? SeoulDateTimeRangeConverter.toLocalStart(dateFrom) : null,
+                dateTo != null ? SeoulDateTimeRangeConverter.toLocalExclusiveEnd(dateTo) : null,
+                searchKeyword.keyword(), indexes.nameHmac(), indexes.phoneHmac(),
+                searchKeyword.exactId(), offset, size);
     }
 
     @Override
     public long count(BookingStatus status, LocalDate dateFrom, LocalDate dateTo, String keyword) {
+        AdminSearchKeyword searchKeyword = AdminSearchKeyword.parse(keyword, FORMATTED_BOOKING_ID);
+        AdminSearchIndexes indexes =
+                AdminSearchIndexes.from(searchKeyword.keyword(), blindIndexer);
         return mapper.count(
                 status != null ? status.name() : null,
-                dateFrom != null ? dateFrom.atStartOfDay() : null,
-                dateTo != null ? dateTo.plusDays(1).atStartOfDay() : null,
-                keyword);
+                dateFrom != null ? SeoulDateTimeRangeConverter.toLocalStart(dateFrom) : null,
+                dateTo != null ? SeoulDateTimeRangeConverter.toLocalExclusiveEnd(dateTo) : null,
+                searchKeyword.keyword(), indexes.nameHmac(), indexes.phoneHmac(),
+                searchKeyword.exactId());
     }
 }

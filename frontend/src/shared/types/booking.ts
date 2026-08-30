@@ -1,79 +1,21 @@
-export type BookingStatus = "BOOKED" | "CANCELED" | "NO_SHOW" | "COMPLETED";
-export type DepositPaymentMethod = "CARD" | "EASY_PAY";
+import type {
+  BookingCancelPolicyResponse,
+  BookingDetailResponse as GeneratedBookingDetailResponse,
+  BookingDetailResponseStatus,
+  CancelResponse as GeneratedCancelResponse,
+  MyBookingDetail,
+  RescheduleResponse as GeneratedRescheduleResponse,
+  SendVerificationRequest as GeneratedSendVerificationRequest,
+  SendVerificationResponse as GeneratedSendVerificationResponse,
+} from "@/generated/api/booking";
+import type { BookingPayload } from "@/generated/api/payment";
 
-export interface SendVerificationRequest {
-  phone: string;
-}
-
-export interface SendVerificationResponse {
-  verificationId: number;
-  phone: string;
-}
-
-export interface CreateGuestBookingRequest {
-  phone: string;
-  verificationCode: string;
-  name: string;
-  slotId: number;
-  depositAmount?: number;
-  paymentMethod?: DepositPaymentMethod;
-}
-
-export interface BookingResponse {
-  bookingId: number;
-  bookingNumber: string;
-  accessToken: string;
-  slotId: number;
-  status: BookingStatus;
-  depositAmount: number;
-  balanceAmount: number;
-  className: string;
-}
-
-export interface BookingDetailResponse {
-  bookingId: number;
-  bookingNumber: string;
-  slotId: number;
-  startAt: string;
-  endAt: string;
-  className: string;
-  status: BookingStatus;
-  depositAmount: number;
-  balanceAmount: number;
-  guestName: string;
-  guestPhone: string;
-}
-
-export interface MyBookingDetailResponse {
-  bookingId: number;
-  slotId: number;
-  startAt: string;
-  endAt: string;
-  className: string;
-  status: BookingStatus;
-  depositAmount: number;
-  balanceAmount: number;
-  balanceStatus: string;
-  passBooking: boolean;
-}
-
-export interface RescheduleRequest {
-  newSlotId: number;
-}
-
-export interface RescheduleResponse {
-  bookingId: number;
-  bookingNumber: string;
-  slotId: number;
-  startAt: string;
-  endAt: string;
-  className: string;
-  status: BookingStatus;
-}
-
-export interface CancelResponse {
-  bookingId: number;
-  status: BookingStatus;
-  refundable: boolean;
-  refundAmount: number;
-}
+export type BookingStatus = BookingDetailResponseStatus;
+export type DepositPaymentMethod = NonNullable<BookingPayload["paymentMethod"]>;
+export type BookingCancelPolicy = BookingCancelPolicyResponse;
+export type SendVerificationRequest = GeneratedSendVerificationRequest;
+export type SendVerificationResponse = GeneratedSendVerificationResponse;
+export type BookingDetailResponse = GeneratedBookingDetailResponse;
+export type MyBookingDetailResponse = MyBookingDetail;
+export type RescheduleResponse = GeneratedRescheduleResponse;
+export type CancelResponse = GeneratedCancelResponse;

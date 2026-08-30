@@ -18,7 +18,7 @@ public final class CategoryName {
         if (value == null) {
             return null;
         }
-        String normalized = normalize(value);
+        String normalized = value.strip().toUpperCase(Locale.ROOT);
         return normalized.isEmpty() ? null : normalized;
     }
 
@@ -28,9 +28,5 @@ public final class CategoryName {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "카테고리는 필수입니다.");
         }
         return normalized;
-    }
-
-    private static String normalize(String value) {
-        return value.trim().toUpperCase(Locale.ROOT);
     }
 }

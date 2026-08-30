@@ -3,6 +3,8 @@
 **날짜**: 2026-03-02
 **상태**: 승인됨
 
+**갱신**: 2026-08-27
+
 ---
 
 ## 맥락
@@ -29,22 +31,31 @@ class Inventory {
 `product_id`가 PK이자 FK인 DDL(V2) 구조를 그대로 반영.
 `@Version`은 잠재적 낙관적 락 전환을 위해 유지.
 
-### 2. 재고 차감 — 비관적 락 (`SELECT ... FOR UPDATE`)
+### 2. 재고 차감·복구 — productId 정렬 일괄 비관적 락
 
 ```java
 // InventoryRepository
 @Lock(PESSIMISTIC_WRITE)
-@Query("SELECT i FROM Inventory i WHERE i.productId = :productId")
-Optional<Inventory> findByProductIdWithLock(Long productId);
+@Query("SELECT i FROM Inventory i WHERE i.productId IN :productIds ORDER BY i.productId")
+List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 ```
 
 단일 작품 특성상 경합이 드물지만, 중복 판매 비용이 크므로 비관적 락 선택.
 `SlotRepository.findByIdWithLock()` 패턴 재사용.
 
-### 3. 정책 검증 — 기존 `InventoryPolicy` 재사용
+한 주문에 여러 상품이 있으면 `InventoryService`가 중복 productId의 수량을 합산하고 productId 오름차순으로
+모든 재고 row를 한 번에 잠근다. 상품별 잠금 조회 N회를 한 번의 `IN` 조회로 줄이면서 주문 간 잠금 순서를
+고정해 교착 가능성도 낮춘다. 주문 거절·자동환불의 재고 복구도 같은 일괄 잠금 경로를 사용한다.
 
-`InventoryPolicy.checkSufficient(available, requested)` 이미 구현됨.
-`Inventory.deduct()` 내부에서 호출 → 도메인 레이어에서 불변식 유지.
+주문제작 상품은 선택형 옵션 조합마다 `ProductVariant` SKU를 만들고 variant ID 오름차순으로 일괄 잠근다.
+선택형 옵션이 없는 주문제작 상품도 기본 variant 한 개를 사용한다. 기성품만 기존 `Inventory` 경로를 사용하며,
+주문·거절·자동 환불·교환·수동 재고 조정은 주문 항목의 상품 유형과 variant ID로 같은 재고 소유자를 선택한다.
+
+### 3. 정책 검증 — `Inventory` 불변식으로 응집
+
+`Inventory.requireSufficient(qty)`가 양수 요청과 현재 재고를 검증하고,
+`Inventory.deduct()`가 이 가드를 호출한 뒤 수량을 차감한다. 별도 정책 클래스 없이 재고를 소유한
+도메인 객체가 불변식을 유지한다.
 
 ### 4. 재고 복구 메서드 (`restore()`) 선제 추가
 
@@ -56,18 +67,44 @@ Optional<Inventory> findByProductIdWithLock(Long productId);
 | Method | Path | 설명 |
 |--------|------|------|
 | `POST` | `/admin/products` | 상품 등록 (name, type, price, quantity) → 201 |
-| `GET`  | `/admin/products` | ACTIVE 상품 목록 |
+| `GET`  | `/admin/products` | 판매 중지 포함 전체 상품 목록 |
+| `PATCH` | `/admin/products/{id}/status` | 판매 중지·재개 |
+| `POST` | `/admin/products/{id}/inventory-adjustments` | 사유를 포함한 재고 수동 증가·감소 |
+| `GET` | `/admin/products/{id}/inventory-adjustments` | 최근 재고 조정 이력 |
 | `GET`  | `/products/{id}` | 상품 상세 + `available` 필드 |
 
-`available: true/false` — `inventory.quantity > 0` 여부를 응답에 포함.
+`available: true/false` — `Product.status=ACTIVE`이고 `inventory.quantity > 0`일 때만 `true`다.
+
+직접 주문 prepare도 장바구니와 동일하게 `Product.status=ACTIVE`를 확인한다. 공개 목록에서 사라진 상품을
+오래된 화면이나 조작 요청으로 직접 지정해도 재고 유무와 무관하게 결제 대상으로 확정하지 않는다.
+
+관리자 수동 조정도 주문 차감·복구와 같은 `inventory` 행 비관적 잠금을 사용한다. 오프라인 판매·입고와
+온라인 결제가 동시에 실행되어도 수량 변경을 직렬화하며, 성공한 변경과 `inventory_adjustments` 이력을 같은
+트랜잭션에 저장한다. 이력에는 증가·감소 유형, 조정 수량, 변경 전후 수량, 사유, 관리자 ID/표시명, 처리 시각을
+보존한다. 감소 결과가 음수가 되면 기존 `InventoryNotEnoughException`으로 전체 트랜잭션을 롤백한다.
+`inventory.quantity >= 0`과 조정 이력의 양수 수량·전후 수량 계산도 DB `CHECK` 제약으로 보강한다.
+관리자 ID는 인증 방식에 따라 없을 수 있고 이력 자체가 계정 생명주기에 종속되면 안 되므로 FK를 걸지 않으며,
+대신 인증 당시 관리자명 또는 `local-api-key` 표시를 함께 스냅샷으로 보존한다.
+
+### 6. 장바구니 조회 — 행 식별자와 일괄 조회
+
+- `CartItem`은 `productId`, nullable `productVariantId`, 직접입력 옵션과 이를 정규화한 `lineKey`를 유지한다. 상품·재고 JPA 연관관계는 추가하지 않는다.
+- 같은 상품·SKU라도 직접입력 문구가 다르면 다른 장바구니 행이다. 수량 변경과 삭제는 상품 ID가 아니라 응답의 `cartItemId`를 사용해 정확한 행을 지정한다.
+- `GET /api/v1/me/cart`는 장바구니 행과 직접입력을 조회한 뒤 상품, 기성품 재고, 옵션 그룹·값과 SKU를 각각 `IN` 일괄 조회해 ID Map으로 조립한다. 옵션 수가 가변이므로 고정 projection JOIN을 확장하지 않는다.
+- 애플리케이션 서비스는 상품·SKU가 판매 중이고 해당 재고가 같은 SKU의 장바구니 합산 수량 이상일 때만 관련 항목을 구매 가능으로 표시한다. 기본가·조합 추가금·직접입력 추가금을 서버에서 다시 계산하며 구매 가능한 항목 합계만 포함한다.
+- 장바구니 추가·병합·수량 변경은 소유자 잠금 후 동일 SKU의 모든 행을 일괄 조회하고, 변경 결과가 현재 재고를 넘으면 `INVENTORY_NOT_ENOUGH`로 저장 전 거절한다. 직접입력 문구는 장바구니 행만 분리하고 SKU를 분리하지 않는다. 장바구니는 재고 예약이 아니므로 prepare·confirm의 잠금 재검증은 그대로 유지한다.
+- 장바구니 결제 prepare도 현재 행을 서버에서 해석해 `cart_items.id`와 수량, SKU·옵션·가격 스냅샷을 보존한다. confirm 성공 시 같은 행을 ID 오름차순으로 잠금 조회해 스냅샷 수량만 차감한다.
+- 조회 응답은 화면에 보인 항목·수량·가격·구매 가능 여부를 포함한 불투명 `cartVersion`을 반환한다. 현재 웹 클라이언트는 이를 결제 prepare의 `expectedCartVersion`으로 전달하고, 서버는 회원 소유자 잠금을 획득한 뒤 현재 projection에서 계산한 버전과 다르면 `409 CART_SNAPSHOT_CHANGED`로 거절한다. DB에 별도 버전 열을 두지 않아 상품·재고 표시 변화도 같은 스냅샷 경계에 포함한다.
+- 존재하지 않는 `cart_items` 행은 비관적 잠금으로 보호할 수 없으므로 추가·병합·수정·삭제·결제 차감은 항상 존재하는 `users` 소유자 행을 먼저 잠근다. 같은 회원의 모든 장바구니 변경은 이 잠금 뒤 자식 행을 조회·생성해 최초 동시 추가도 유일 제약 오류 없이 한 행에 합산한다.
+- prepare 뒤 항목을 삭제하고 같은 상품을 다시 담으면 새 행 ID가 생기므로 과거 결제로 제거하지 않는다. 수량 변경과 결제 차감은 같은 소유자 잠금과 장바구니 행 잠금 순서로 직렬화한다.
+- 항목별 개별 조회는 금지하고, 가변 옵션 조회 결과는 배치별 ID `Map`으로 한 번만 조립한다.
 
 ---
 
 ## 위험 포인트
 
-- **N+1 위험**: `GET /admin/products` 목록 조회 시 products 루프에서 inventory 개별 조회 발생.
-  → 상품 수가 적은 초기 운영에서는 허용. 상품 증가 시 JOIN 쿼리로 전환 필요.
-- **비관적 락 데드락**: 여러 상품을 순서 없이 잠글 경우 데드락 가능.
-  → §8.2 주문 생성 시 product_id 오름차순 정렬 후 lock 획득 권장.
+- **목록 조회 N+1 위험**: 상품·옵션·SKU·재고는 종류별 `IN` 조회를 사용한다. 신규 목록 조회도 항목별 개별 조회를 만들지 않는다.
+- **비관적 락 데드락**: 기성품은 product ID, 주문제작은 variant ID 오름차순으로 한 번에 잠근다. 신규 다건 재고 변경도 같은 일괄 차감·복구 서비스를 사용한다.
+- **운영 재고 추적 누락**: 온라인 주문 밖의 변경은 이유 없는 직접 DB 수정 대신 관리자 수동 조정 API와 이력을 사용한다.
 - **`restore()` 멱등성**: 환불 재시도 시 중복 복구 가능.
   → §8.2 환불 흐름에서 refund 상태 전이로 방어 필요.

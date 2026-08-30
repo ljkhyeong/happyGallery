@@ -1,16 +1,20 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.domain.booking.Slot;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 public record SlotResponse(
-        Long id,
-        Long classId,
-        LocalDateTime startAt,
-        LocalDateTime endAt,
-        int capacity,
-        int bookedCount,
-        boolean isActive
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long classId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int capacity,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int bookedCount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean adminActive,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean calendarActive,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean bufferBlocked,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean isActive
 ) {
     public static SlotResponse from(Slot slot) {
         return new SlotResponse(
@@ -20,6 +24,9 @@ public record SlotResponse(
                 slot.getEndAt(),
                 slot.getCapacity(),
                 slot.getBookedCount(),
+                slot.isAdminActive(),
+                slot.isCalendarActive(),
+                slot.isBufferBlocked(),
                 slot.isActive()
         );
     }

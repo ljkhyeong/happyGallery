@@ -1,13 +1,15 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
-import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.domain.error.DuplicateBookingException;
+import com.personal.happygallery.application.booking.port.out.BookingStorePort;
+import com.personal.happygallery.application.customer.MemberAccountGuard;
+import com.personal.happygallery.application.pass.PassCreditService;
 import com.personal.happygallery.domain.booking.Booking;
-import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.user.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,52 +21,66 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultMemberBookingService implements MemberBookingUseCase {
 
-    private final BookingReaderPort bookingReaderPort;
-    private final BookingSlotSupport creationSupport;
+    private final BookingStorePort bookingStorePort;
+    private final BookingCreationSupport creationSupport;
+    private final MemberAccountGuard memberAccountGuard;
+    private final PassCreditService passCreditService;
 
-    public DefaultMemberBookingService(BookingReaderPort bookingReaderPort,
-                                BookingSlotSupport creationSupport) {
-        this.bookingReaderPort = bookingReaderPort;
+    public DefaultMemberBookingService(BookingStorePort bookingStorePort,
+                                       BookingCreationSupport creationSupport,
+                                       MemberAccountGuard memberAccountGuard,
+                                       PassCreditService passCreditService) {
+        this.bookingStorePort = bookingStorePort;
         this.creationSupport = creationSupport;
+        this.memberAccountGuard = memberAccountGuard;
+        this.passCreditService = passCreditService;
     }
 
-    /**
-     * 회원 예약을 생성한다. {@code passId}가 있으면 8회권 결제, 없으면 예약금 결제.
-     * 예약금은 서버가 슬롯 클래스 가격의 10%로 직접 산출한다.
-     *
-     * @param userId        인증된 회원 ID
-     * @param slotId        예약 슬롯 ID
-     * @param paymentMethod 결제 수단 (passId가 null일 때)
-     * @param passId        8회권 ID (null이면 예약금 결제)
-     */
-    public Booking createMemberBooking(Long userId, Long slotId,
-                                        DepositPaymentMethod paymentMethod, Long passId) {
+    /** 결제 prepare 단계에서 확정한 예약금과 잔금으로 회원 예약을 생성한다. */
+    @Override
+    public Booking createMemberDepositBooking(Long userId, Long slotId,
+                                               DepositPaymentMethod paymentMethod,
+                                               long depositAmount, long balanceAmount) {
+        return createMemberDepositBooking(
+                userId, slotId, paymentMethod, depositAmount, balanceAmount, 1);
+    }
 
-        // 1. 슬롯 활성 여부 확인
-        Slot slot = creationSupport.loadActiveSlot(slotId);
-
-        // 2. 중복 예약 확인
-        if (bookingReaderPort.existsBySlotIdAndUserId(slotId, userId)) {
-            throw new DuplicateBookingException();
-        }
-
-        // 3. 비관적 락 + 정원 증가 + 버퍼 비활성화
-        creationSupport.lockSlotCapacity(slotId);
-
-        Booking booking;
-        if (passId != null) {
-            PassPurchase pass = creationSupport.requireUsablePass(passId, userId);
-            booking = Booking.forMemberPass(userId, slot, pass);
-            booking = creationSupport.save(booking);
-            creationSupport.deductPassCredit(passId, userId, booking.getId());
-            return creationSupport.complete(booking, slot);
-        } else {
-            creationSupport.requireValidDeposit(paymentMethod);
-            long depositAmount = DepositCalculator.of(slot);
-            long balanceAmount = slot.getBookingClass().getPrice() - depositAmount;
-            booking = Booking.forMemberDeposit(userId, slot, depositAmount, balanceAmount, paymentMethod);
-        }
-
+    @Override
+    public Booking createMemberDepositBooking(Long userId, Long slotId,
+                                               DepositPaymentMethod paymentMethod,
+                                               long depositAmount, long balanceAmount,
+                                               int participantCount) {
+        User user = requireBookableMember(userId);
+        Slot slot = creationSupport.reserveSlot(user.getPhoneHmac(), slotId, participantCount);
+        creationSupport.requireValidDeposit(paymentMethod);
+        Booking booking = Booking.forMemberDeposit(
+                user, slot, participantCount, depositAmount, balanceAmount, paymentMethod);
         return creationSupport.saveAndComplete(booking, slot);
+    }
+
+    /** 회원이 소유한 8회권 크레딧으로 예약을 생성한다. */
+    @Override
+    public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
+        return createMemberPassBooking(userId, slotId, passId, 1);
+    }
+
+    @Override
+    public Booking createMemberPassBooking(
+            Long userId, Long slotId, Long passId, int participantCount) {
+        User user = requireBookableMember(userId);
+        PassPurchase pass = passCreditService.requireOwnedForUpdate(passId, userId);
+        Slot slot = creationSupport.reserveSlot(user.getPhoneHmac(), slotId, participantCount);
+        Booking booking = bookingStorePort.save(
+                Booking.forMemberPass(user, slot, pass, participantCount));
+        passCreditService.deductCredit(pass, booking.getId());
+        return creationSupport.complete(booking, slot);
+    }
+
+    private User requireBookableMember(Long userId) {
+        User user = memberAccountGuard.requireActiveForUpdate(userId);
+        if (user.getPhoneHmac() == null) {
+            throw new PhoneVerificationRequiredException();
+        }
+        return user;
     }
 }

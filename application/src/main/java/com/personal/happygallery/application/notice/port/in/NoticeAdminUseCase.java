@@ -4,9 +4,11 @@ import com.personal.happygallery.domain.notice.Notice;
 
 public interface NoticeAdminUseCase {
 
+    Notice getForEdit(Long id);
+
     Notice create(String title, String content, boolean pinned);
 
-    Notice update(Long id, String title, String content, boolean pinned);
+    Notice update(Long id, long expectedVersion, String title, String content, boolean pinned);
 
-    void delete(Long id);
+    void delete(Long id, long expectedVersion);
 }

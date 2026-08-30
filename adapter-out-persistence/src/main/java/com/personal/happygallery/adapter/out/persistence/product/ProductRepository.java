@@ -5,49 +5,98 @@ import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
+import com.personal.happygallery.domain.product.ProductType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.query.EscapeCharacter;
 import org.springframework.data.repository.query.Param;
+import org.springframework.util.StringUtils;
 
 public interface ProductRepository extends JpaRepository<Product, Long>,
-        JpaSpecificationExecutor<Product>, ProductReaderPort, ProductStorePort {
+        ProductReaderPort,
+        ProductStorePort {
+
+    @Override
+    <S extends Product> S save(S product);
 
     @Override Optional<Product> findById(Long id);
-    @Override Product save(Product product);
+
+    @Override
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select product from Product product where product.id = :id")
+    Optional<Product> findByIdWithLock(@Param("id") Long id);
+
+    Optional<Product> findByIdAndStatus(Long id, ProductStatus status);
+
+    @Override
+    default Optional<Product> findActiveById(Long id) {
+        return findByIdAndStatus(id, ProductStatus.ACTIVE);
+    }
 
     /** ACTIVE 상품 목록 — 최신 등록순 */
     List<Product> findByStatusOrderByCreatedAtDesc(ProductStatus status);
 
+    @Override
+    default List<Product> findActiveProductsByCreatedAtDesc() {
+        return findByStatusOrderByCreatedAtDesc(ProductStatus.ACTIVE);
+    }
+
+    List<Product> findAllByOrderByCreatedAtDesc();
+
+    @Override
+    default List<Product> findAllProductsByCreatedAtDesc() {
+        return findAllByOrderByCreatedAtDesc();
+    }
+
     /** ACTIVE 상품의 카테고리 목록 (distinct, non-null). */
     @Override
-    @Query("SELECT DISTINCT p.category FROM Product p WHERE p.status = :status AND p.category IS NOT NULL ORDER BY p.category")
-    List<String> findDistinctCategoriesByStatus(@Param("status") ProductStatus status);
+    @Query("""
+            SELECT DISTINCT p.category FROM Product p
+            WHERE p.status = com.personal.happygallery.domain.product.ProductStatus.ACTIVE
+              AND p.category IS NOT NULL
+            ORDER BY p.category
+            """)
+    List<String> findDistinctActiveCategories();
 
     /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
     @Override
     default List<Product> findActiveByFilter(ProductFilter filter) {
-        Specification<Product> spec = andIfPresent(
-                ProductSpecifications.isActive(),
-                ProductSpecifications.hasType(filter.type()));
-        spec = andIfPresent(spec, ProductSpecifications.hasCategory(filter.category()));
-        spec = andIfPresent(spec, ProductSpecifications.nameContains(filter.keyword()));
-
         Sort sort = switch (filter.sort()) {
             case PRICE_ASC -> Sort.by("price").ascending();
             case PRICE_DESC -> Sort.by("price").descending();
             case NEWEST -> Sort.by("createdAt").descending();
         };
 
-        return findAll(spec, sort);
+        return findActiveByConditions(
+                filter.type(),
+                filter.category(),
+                toLikePattern(filter.keyword()),
+                sort);
     }
 
-    private static Specification<Product> andIfPresent(Specification<Product> spec,
-                                                       Specification<Product> optionalSpec) {
-        return optionalSpec == null ? spec : spec.and(optionalSpec);
+    @Query("""
+            SELECT p FROM Product p
+            WHERE p.status = com.personal.happygallery.domain.product.ProductStatus.ACTIVE
+              AND (:type IS NULL OR p.type = :type)
+              AND (:category IS NULL OR p.category = :category)
+              AND (:keywordPattern IS NULL OR p.name LIKE :keywordPattern ESCAPE '!')
+            """)
+    List<Product> findActiveByConditions(
+            @Param("type") ProductType type,
+            @Param("category") String category,
+            @Param("keywordPattern") String keywordPattern,
+            Sort sort);
+
+    private static String toLikePattern(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return null;
+        }
+
+        String escaped = EscapeCharacter.of('!').escape(keyword);
+        return "%" + escaped + "%";
     }
 }

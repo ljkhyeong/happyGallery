@@ -1,6 +1,7 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
+import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
@@ -9,6 +10,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -46,7 +48,9 @@ public final class TestFixtures {
     }
 
     public static Guest guest(String name, String phone) {
-        return new Guest(name, TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
+        return new Guest(
+                TEST_FIELD_ENCRYPTOR.encrypt(name), TEST_BLIND_INDEXER.index(name),
+                TEST_FIELD_ENCRYPTOR.encrypt(phone), TEST_BLIND_INDEXER.index(phone));
     }
 
     public static Booking booking(Guest guest,
@@ -59,19 +63,24 @@ public final class TestFixtures {
     }
 
     public static PassPurchase passPurchase(Long userId, LocalDateTime expiresAt, long totalPrice) {
-        return PassPurchase.forMember(userId, expiresAt, totalPrice);
+        return PassPurchase.forMember(
+                userId,
+                expiresAt.minusDays(90),
+                expiresAt,
+                totalPrice,
+                PassPlan.REGULAR_CRAFT_8);
     }
 
     public static Product readyStockProduct(String name, long price) {
         return new Product(name, ProductType.READY_STOCK, price);
     }
 
-    public static Product madeToOrderProduct(String name, long price) {
-        return new Product(name, ProductType.MADE_TO_ORDER, price);
-    }
-
     public static Inventory inventory(Product product, int quantity) {
         return new Inventory(product, quantity);
+    }
+
+    public static PolicyAcceptance acceptedPolicies() {
+        return new PolicyAcceptance("2026-08-08-v1", true, "2026-08-11-v2", true);
     }
 
     /** 32자 hex access token (테스트용). */

@@ -1,24 +1,32 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
+import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
+import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.BookingStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
@@ -38,20 +46,28 @@ class BookingRescheduleUseCaseIT {
     @Autowired PhoneVerificationReaderPort phoneVerificationReaderPort;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
-    @Autowired DefaultSlotManagementService slotManagementService;
-    @Autowired SlotBookingSupport slotBookingSupport;
+    @Autowired SlotManagementUseCase slotManagementUseCase;
+    @Autowired SlotCapacitySupport slotCapacitySupport;
+    @Autowired MemberBookingUseCase memberBookingUseCase;
+    @Autowired UserStorePort userStorePort;
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired ObjectMapper objectMapper;
 
     BookingClass cls;
     BookingTestHelper helper;
 
     @BeforeEach
     void setUp() {
-        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort);
-        cleanupSupport.clearBookingWithPassAndRefundData();
+        helper = new BookingTestHelper(mockMvc, phoneVerificationReaderPort, objectMapper);
 
         cls = classStorePort.save(defaultBookingClass());
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearBookingWithPassAndRefundData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -70,22 +86,20 @@ class BookingRescheduleUseCaseIT {
         }
 
         // 초기 예약 생성 (slots[0])
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01011110000", slots[0].getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01011110000", slots[0].getId(), 3);
 
         // 5번 연속 변경 (slots[1] → slots[2] → ... → slots[5])
         for (int i = 1; i <= 5; i++) {
-            mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+                    mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                             .header("X-Access-Token", booking.accessToken())
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                      "newSlotId": %d
-                                    }
-                                    """.formatted(slots[i].getId())))
+                            .content(rescheduleRequest(slots[i].getId())))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.bookingId").value(booking.bookingId()))
                     .andExpect(jsonPath("$.slotId").value(slots[i].getId()))
-                    .andExpect(jsonPath("$.status").value("BOOKED"));
+                    .andExpect(jsonPath("$.status").value("BOOKED"))
+                    .andExpect(jsonPath("$.participantCount").value(3));
         }
 
         // Proof: bookings 1건 유지 + 예약금 그대로 (재결제 없음)
@@ -97,10 +111,12 @@ class BookingRescheduleUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(slots[5].getId());
             softly.assertThat(savedBooking.getStatus().name()).isEqualTo("BOOKED");
-            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5000L);
+            softly.assertThat(savedBooking.getParticipantCount()).isEqualTo(3);
+            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(15_000L);
+            softly.assertThat(savedBooking.getBalanceAmount()).isEqualTo(135_000L);
             softly.assertThat(bookingStateProbe.bookingCount()).isEqualTo(1L);
             softly.assertThat(historyCount).isEqualTo(6L);
-            softly.assertThat(finalSlotBookedCount).isEqualTo(1);
+            softly.assertThat(finalSlotBookedCount).isEqualTo(3);
         });
 
         // 슬롯 정원 상태 확인: 나머지는 0
@@ -122,17 +138,13 @@ class BookingRescheduleUseCaseIT {
         Slot nearSlot = slotStorePort.save(slot(cls, soonStart, soonStart.plusHours(2)));
         Slot targetSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01022220001", nearSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(targetSlot.getId())))
-                .andExpect(status().isUnprocessableEntity())
+                        .content(rescheduleRequest(targetSlot.getId())))
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("CHANGE_NOT_ALLOWED"));
     }
 
@@ -145,18 +157,47 @@ class BookingRescheduleUseCaseIT {
     void reschedule_sameSlot_returns400() throws Exception {
         Slot slot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01033330001", slot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(slot.getId())))
+                        .content(rescheduleRequest(slot.getId())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @DisplayName("다른 클래스 슬롯이 가득 차도 클래스 불일치를 먼저 검증하고 400을 반환한다")
+    @Test
+    void reschedule_differentClass_returns400WithoutChangingBooking() throws Exception {
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        BookingClass otherClass = classStorePort.save(
+                new BookingClass("레진 클래스", "RESIN", 90, 80_000L, 20));
+        Slot otherClassSlot = slotStorePort.save(
+                slot(otherClass, FUTURE.plusHours(4), FUTURE.plusMinutes(330)));
+        for (int i = 0; i < 8; i++) {
+            reserveCapacityInTx(otherClassSlot.getId());
+        }
+        BookingTestHelper.CreatedBooking booking =
+                helper.createVerifiedCardBooking("01033330002", fromSlot.getId());
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
+                        .header("X-Access-Token", booking.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rescheduleRequest(otherClassSlot.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        var savedBooking = bookingStateProbe.getBooking(booking.bookingId());
+        assertSoftly(softly -> {
+            softly.assertThat(savedBooking.getBookingClass().getId()).isEqualTo(cls.getId());
+            softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(fromSlot.getId());
+            softly.assertThat(savedBooking.getDepositAmount()).isEqualTo(5_000L);
+            softly.assertThat(savedBooking.getBalanceAmount()).isEqualTo(45_000L);
+            softly.assertThat(bookingStateProbe.getSlot(fromSlot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.getSlot(otherClassSlot.getId()).getBookedCount()).isEqualTo(8);
+            softly.assertThat(bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId())).isEqualTo(1L);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -168,18 +209,14 @@ class BookingRescheduleUseCaseIT {
     void reschedule_slotNotAvailable_returns409() throws Exception {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot inactiveSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
-        slotManagementService.deactivateSlot(inactiveSlot.getId());
+        slotManagementUseCase.deactivateSlot(inactiveSlot.getId());
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01044440001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(inactiveSlot.getId())))
+                        .content(rescheduleRequest(inactiveSlot.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SLOT_NOT_AVAILABLE"));
     }
@@ -196,21 +233,47 @@ class BookingRescheduleUseCaseIT {
 
         // fullSlot을 8명으로 채운다 (서비스 직접 호출)
         for (int i = 0; i < 8; i++) {
-            confirmBookingInTx(fullSlot.getId());
+            reserveCapacityInTx(fullSlot.getId());
         }
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01055550001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", booking.accessToken())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(fullSlot.getId())))
+                        .content(rescheduleRequest(fullSlot.getId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAPACITY_EXCEEDED"));
+    }
+
+    @DisplayName("비회원 예약을 같은 전화번호 회원의 활성 예약 슬롯으로 변경하면 거절한다")
+    @Test
+    void reschedule_samePhoneMemberBookingSlot_returns409() throws Exception {
+        String phone = "01055550002";
+        Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
+        Slot targetSlot = slotStorePort.save(
+                slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
+        BookingTestHelper.CreatedBooking guestBooking =
+                helper.createVerifiedCardBooking(phone, fromSlot.getId());
+        User member = new User(
+                "reschedule-owner@test.local", "password-hash", "회원 예약자", phone);
+        member.markPhoneVerified();
+        member = userStorePort.save(member);
+        memberBookingUseCase.createMemberDepositBooking(
+                member.getId(), targetSlot.getId(), DepositPaymentMethod.CARD,
+                5_000L, 45_000L);
+
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", guestBooking.bookingId())
+                        .header("X-Access-Token", guestBooking.accessToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rescheduleRequest(targetSlot.getId())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_BOOKING"));
+
+        assertSoftly(softly -> {
+            softly.assertThat(bookingStateProbe.getSlot(fromSlot.getId()).getBookedCount()).isEqualTo(1);
+            softly.assertThat(bookingStateProbe.getSlot(targetSlot.getId()).getBookedCount()).isEqualTo(1);
+        });
     }
 
     // -----------------------------------------------------------------------
@@ -223,23 +286,23 @@ class BookingRescheduleUseCaseIT {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot toSlot = slotStorePort.save(slot(cls, FUTURE.plusHours(4), FUTURE.plusHours(6)));
 
-        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId(), 5000L);
+        BookingTestHelper.CreatedBooking booking = helper.createVerifiedCardBooking("01066660001", fromSlot.getId());
 
-        mockMvc.perform(patch("/bookings/{id}/reschedule", booking.bookingId())
+        mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", booking.bookingId())
                         .header("X-Access-Token", "invalid-token")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "newSlotId": %d
-                                }
-                                """.formatted(toSlot.getId())))
+                        .content(rescheduleRequest(toSlot.getId())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
-    private void confirmBookingInTx(Long slotId) {
+    private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotBookingSupport.confirmBooking(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+    }
+
+    private String rescheduleRequest(Long newSlotId) throws Exception {
+        return objectMapper.writeValueAsString(new RescheduleRequest(newSlotId));
     }
 
 }

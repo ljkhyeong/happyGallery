@@ -1,54 +1,89 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Table, Button, Form, Row, Col } from "react-bootstrap";
-import type { AdminOrderResponse } from "@/shared/types";
-import { fetchOrders } from "./api";
+import { useState, useEffect } from "react";
+import { Alert, Table, Button, Form, Row, Col, Modal } from "react-bootstrap";
+import { X } from "lucide-react";
+import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
+import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { useOrderMutations } from "./useOrderMutations";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
+import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 interface Props {
   adminKey: string;
   onAuthError: () => void;
+  initialStatus?: string;
+  focusOrderId?: number;
+  focusOrderStatus?: OrderStatus;
 }
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "전체" },
   { value: "PAID_APPROVAL_PENDING", label: "승인 대기" },
-  { value: "APPROVED_FULFILLMENT_PENDING", label: "이행 대기" },
+  { value: "APPROVED_FULFILLMENT_PENDING", label: "배송·수령 준비 대기" },
   { value: "IN_PRODUCTION", label: "제작 중" },
-  { value: "DELAY_REQUESTED", label: "지연 요청" },
-  { value: "DELAY_REJECTED_CANCELED", label: "지연 거절 취소" },
+  { value: "DELAY_CONSENT_PENDING", label: "제작 지연 고객 답변 대기" },
+  { value: "DELAY_ACCEPTED", label: "고객이 제작 지연에 동의" },
+  { value: "DELAY_REJECTED_CANCELED", label: "고객 거절로 취소" },
   { value: "SHIPPING_PREPARING", label: "배송 준비" },
   { value: "SHIPPED", label: "배송 중" },
   { value: "DELIVERED", label: "배송 완료" },
-  { value: "PICKUP_READY", label: "픽업 대기" },
-  { value: "PICKED_UP", label: "픽업 완료" },
+  { value: "PICKUP_READY", label: "매장 수령 대기" },
+  { value: "PICKED_UP", label: "매장 수령 완료" },
   { value: "COMPLETED", label: "완료" },
   { value: "REJECTED", label: "거절" },
+  { value: "CUSTOMER_CANCELED", label: "고객 취소" },
   { value: "AUTO_REFUND_TIMEOUT", label: "자동 환불" },
-  { value: "PICKUP_EXPIRED", label: "픽업 만료" },
+  { value: "PICKUP_EXPIRED", label: "미수령 환불 처리" },
+  { value: "PICKUP_FORFEITED", label: "미수령 종료(환불 없음)" },
 ];
 
-export function OrderListSection({ adminKey, onAuthError }: Props) {
-  const [statusFilter, setStatusFilter] = useState("");
+export function OrderListSection({
+  adminKey,
+  onAuthError,
+  initialStatus = "",
+  focusOrderId,
+  focusOrderStatus,
+}: Props) {
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
+  const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
+  const [showExpireConfirmation, setShowExpireConfirmation] = useState(false);
+  const [focusedOrder, setFocusedOrder] = useState(
+    focusOrderId != null && focusOrderStatus
+      ? { id: focusOrderId, status: focusOrderStatus }
+      : null,
+  );
   const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(false);
 
-  const resetPagination = useCallback(() => {
+  function resetPagination() {
     setAllOrders([]);
     setCursor(undefined);
     setHasMore(false);
-  }, []);
+  }
 
-  const mutations = useOrderMutations({ adminKey, onAuthError, onInvalidate: resetPagination });
+  const mutations = useOrderMutations({
+    adminKey,
+    onAuthError,
+    onInvalidate: () => {
+      resetPagination();
+      setFocusedOrder(null);
+    },
+  });
 
-  const { data: page, isLoading, error, isFetching } = useQuery({
+  const focusedFulfillment = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "orders", focusedOrder?.id, "fulfillment"],
+    queryFn: () => fetchOrderFulfillment(adminKey, focusedOrder!.id),
+    enabled: focusedOrder != null,
+  });
+
+  const { data: page, isLoading, error, isFetching, refetch } = useAdminQuery(onAuthError, {
     queryKey: ["admin", "orders", statusFilter, cursor],
     queryFn: () => fetchOrders(adminKey, statusFilter || undefined, cursor),
   });
@@ -60,12 +95,48 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
     }
   }, [page, cursor]);
 
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) onAuthError();
-  }, [error, onAuthError]);
-
   return (
     <div>
+      {focusedOrder && (
+        <section className="mb-4 border-bottom pb-3" aria-labelledby="focused-order-title">
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div className="d-flex align-items-center gap-2">
+              <h6 id="focused-order-title" className="mb-0">검색한 주문 #{focusedOrder.id}</h6>
+              <StatusBadge status={focusedOrder.status} audience="admin" />
+            </div>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              aria-label="검색한 주문 닫기"
+              title="닫기"
+              onClick={() => setFocusedOrder(null)}
+            >
+              <X size={14} aria-hidden="true" />
+            </Button>
+          </div>
+          {focusedFulfillment.isLoading && <LoadingSpinner />}
+          {focusedFulfillment.error && <ErrorAlert error={focusedFulfillment.error} />}
+          {focusedFulfillment.data && (
+            <>
+              <div className="mb-3">
+                <OrderActionCell
+                  orderId={focusedOrder.id}
+                  status={focusedOrder.status}
+                  fulfillmentType={focusedFulfillment.data.type}
+                  mutations={mutations}
+                />
+              </div>
+              <OrderFulfillmentDetails fulfillment={focusedFulfillment.data} />
+              <OrderHistoryPanel
+                orderId={focusedOrder.id}
+                adminKey={adminKey}
+                onAuthError={onAuthError}
+              />
+            </>
+          )}
+        </section>
+      )}
+
       <Row className="g-2 mb-3 align-items-end">
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-order-status-filter">
@@ -80,37 +151,77 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
         <Col xs="auto">
           <Button size="sm" variant="outline-secondary"
             disabled={mutations.expire.isPending}
-            onClick={() => mutations.expire.mutate()}>
-            {mutations.expire.isPending ? "처리 중..." : "픽업 만료 배치"}
+            onClick={() => setShowExpireConfirmation(true)}>
+            {mutations.expire.isPending ? "처리 중..." : "수령 기한 지난 주문 미수령 처리"}
           </Button>
         </Col>
       </Row>
 
       {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
-      {!isLoading && allOrders.length === 0 && <EmptyState message="해당 조건의 주문이 없습니다." />}
+      {error && !(error instanceof ApiError && error.status === 401) && (
+        <ErrorAlert
+          error={error}
+          onRetry={() => { void refetch(); }}
+          retrying={isFetching}
+        />
+      )}
+      {!isLoading && !error && page && allOrders.length === 0 && (
+        <EmptyState message="해당 조건의 주문이 없습니다." />
+      )}
 
       {allOrders.length > 0 && (
         <>
           <Table responsive hover size="sm">
             <thead>
               <tr>
-                <th>주문번호</th><th>상태</th><th>금액</th><th>결제일</th><th>생성일</th><th>액션</th><th></th>
+                <th>주문번호</th><th>상품</th><th>상태</th><th>수령</th><th>금액</th><th>결제일</th><th>생성일</th><th>처리</th><th></th>
               </tr>
             </thead>
             <tbody>
               {allOrders.map((o) => (
                 <tr key={o.orderId}>
                   <td>{o.orderNumber}</td>
-                  <td><StatusBadge status={o.status} /></td>
+                  <td>
+                    {o.items.map((item) => (
+                      <div key={`${item.productId}-${item.productVariantId ?? 0}`} className="mb-2">
+                        <small>{item.productName} x {item.qty}</small>
+                        {item.options.map((option) => (
+                          <div key={`${option.type}-${option.groupName}`} className="small text-muted">
+                            {option.groupName}: {option.value}
+                          </div>
+                        ))}
+                        <ProductPurchaseTerms
+                          productName={item.productName}
+                          type={item.productType}
+                          specification={item.specification}
+                          careInstructions={item.careInstructions}
+                          productionLeadDays={item.productionLeadDays}
+                          compact
+                          showCustomizationInquiry={false}
+                          showLegacySnapshotNotice
+                        />
+                      </div>
+                    ))}
+                  </td>
+                  <td><StatusBadge status={o.status} audience="admin" /></td>
+                  <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "매장 수령" : "-"}</td>
                   <td>{formatKRW(o.totalAmount)}</td>
                   <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                   <td><small>{formatDateTime(o.createdAt)}</small></td>
-                  <td><OrderActionCell orderId={o.orderId} status={o.status} mutations={mutations} /></td>
+                  <td><OrderActionCell orderId={o.orderId} status={o.status}
+                    fulfillmentType={o.fulfillmentType} mutations={mutations} /></td>
                   <td>
                     <Button size="sm" variant="link"
+                      aria-expanded={fulfillmentOrderId === o.orderId}
+                      aria-controls={`order-fulfillment-${o.orderId}`}
+                      onClick={() => setFulfillmentOrderId(fulfillmentOrderId === o.orderId ? null : o.orderId)}>
+                      {fulfillmentOrderId === o.orderId ? "배송·수령 정보 닫기" : "배송·수령 정보"}
+                    </Button>
+                    <Button size="sm" variant="link"
+                      aria-expanded={historyOrderId === o.orderId}
+                      aria-controls={`order-history-${o.orderId}`}
                       onClick={() => setHistoryOrderId(historyOrderId === o.orderId ? null : o.orderId)}>
-                      {historyOrderId === o.orderId ? "닫기" : "이력"}
+                      {historyOrderId === o.orderId ? "주문 처리 이력 닫기" : "주문 처리 이력"}
                     </Button>
                   </td>
                 </tr>
@@ -130,8 +241,63 @@ export function OrderListSection({ adminKey, onAuthError }: Props) {
       )}
 
       {historyOrderId != null && (
-        <OrderHistoryPanel orderId={historyOrderId} adminKey={adminKey} />
+        <div id={`order-history-${historyOrderId}`}>
+          <OrderHistoryPanel
+            orderId={historyOrderId}
+            adminKey={adminKey}
+            onAuthError={onAuthError}
+          />
+        </div>
       )}
+
+      {fulfillmentOrderId != null && (
+        <div id={`order-fulfillment-${fulfillmentOrderId}`}>
+          <OrderFulfillmentPanel
+            orderId={fulfillmentOrderId}
+            adminKey={adminKey}
+            onAuthError={onAuthError}
+          />
+        </div>
+      )}
+
+      <Modal
+        show={showExpireConfirmation}
+        aria-labelledby="expire-pickup-orders-title"
+        onHide={() => !mutations.expire.isPending && setShowExpireConfirmation(false)}
+        centered
+      >
+        <Modal.Header closeButton={!mutations.expire.isPending}>
+          <Modal.Title id="expire-pickup-orders-title" className="fs-6">
+            수령 기한 지난 주문 처리 확인
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="warning" className="mb-0 small">
+            모든 주문을 환불 없이 미수령 상태로 종료합니다. 기성품은 다시 판매할 수 있도록
+            재고만 복구하고 주문제작 재고는 변경하지 않습니다. 고객 응대 후 환불이 필요한
+            주문은 미수령 처리 뒤 개별 주문의 관리자 예외 환불을 사용해 주세요.
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={mutations.expire.isPending}
+            onClick={() => setShowExpireConfirmation(false)}
+          >
+            닫기
+          </Button>
+          <Button
+            variant="danger"
+            disabled={mutations.expire.isPending}
+            onClick={() => {
+              setShowExpireConfirmation(false);
+              mutations.expire.mutate();
+            }}
+          >
+            미수령 처리 실행
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {mutations.lastError && !(mutations.lastError instanceof ApiError && mutations.lastError.status === 401) && (
         <ErrorAlert error={mutations.lastError} />

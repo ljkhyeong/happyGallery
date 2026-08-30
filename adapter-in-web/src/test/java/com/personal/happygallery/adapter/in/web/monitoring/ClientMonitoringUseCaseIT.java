@@ -1,9 +1,12 @@
 package com.personal.happygallery.adapter.in.web.monitoring;
 
-import com.personal.happygallery.adapter.in.web.CustomerAuthFilter;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
+import com.personal.happygallery.support.CustomerTestHelper;
+import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,10 +14,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -22,22 +27,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ClientMonitoringUseCaseIT {
 
     @Autowired WebApplicationContext context;
-    @Autowired CustomerAuthFilter customerAuthFilter;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
+    @Autowired TestCleanupSupport cleanupSupport;
+    @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired ObjectMapper objectMapper;
 
     MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(springSessionRepositoryFilter, customerAuthFilter)
+                .addFilters(springSessionRepositoryFilter)
+                .apply(springSecurity())
                 .build();
+    }
+
+    @AfterEach
+    void tearDown() {
+        cleanupSupport.clearUsers();
     }
 
     @DisplayName("비회원도 client monitoring 이벤트를 전송할 수 있다")
     @Test
     void guest_canSendClientMonitoringEvent() throws Exception {
         mockMvc.perform(post("/api/v1/monitoring/client-events")
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -53,22 +67,11 @@ class ClientMonitoringUseCaseIT {
     @DisplayName("회원 세션이 있어도 client monitoring 이벤트를 전송할 수 있다")
     @Test
     void member_canSendClientMonitoringEvent() throws Exception {
-        MvcResult signup = mockMvc.perform(post("/api/v1/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "email": "monitor@example.com",
-                                  "password": "password123",
-                                  "name": "모니터",
-                                  "phone": "01012341234"
-                                }
-                                """))
-                .andExpect(status().isCreated())
-                .andReturn();
-
-        Cookie sessionCookie = signup.getResponse().getCookie("HG_SESSION");
+        Cookie sessionCookie = new CustomerTestHelper(mockMvc, objectMapper, phoneVerificationReader)
+                .signupAndGetSessionCookie("monitor@example.com", "01012341234");
 
         mockMvc.perform(post("/api/v1/monitoring/client-events")
+                        .with(csrf())
                         .cookie(sessionCookie)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

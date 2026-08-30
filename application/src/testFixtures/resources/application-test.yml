@@ -2,6 +2,12 @@ spring:
   config:
     activate:
       on-profile: test
+  session:
+    data:
+      redis:
+        # Testcontainers 컨텍스트 종료 중 cleanup 작업이 닫힌 Redis 연결을 참조하지 않게 한다.
+        # 세션 TTL/키스페이스 이벤트는 유지하고, 테스트 대상이 아닌 보정 스케줄러만 비활성화한다.
+        cleanup-cron: "-"
 
 app:
   admin:
@@ -9,16 +15,18 @@ app:
     enable-api-key-auth: true
   guest-token:
     hmac-secret: "test-hmac-secret-key-at-least-32-bytes-long-for-security"
-    expiry-hours: 168
+    access-expiry: 720h
   rate-limit:
     enabled: false
   field-encryption:
+    active-key-id: v1
     encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   external:
-    kakao:
-      api-key: "test-kakao-api-key"
-      sender-key: "test-kakao-sender-key"
+    alimtalk:
+      app-key: "test-alimtalk-app-key"
+      secret-key: "test-alimtalk-secret-key"
+      sender-key: "test-alimtalk-sender-key"
     sms:
       api-key: "test-sms-api-key"
       api-secret: "test-sms-api-secret"

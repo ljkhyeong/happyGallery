@@ -39,11 +39,14 @@ public class NotificationLog {
     @Column(name = "fail_reason", length = 500)
     private String failReason;
 
+    @Column(name = "provider_request_id", length = 100)
+    private String providerRequestId;
+
+    @Column(name = "provider_recipient_seq")
+    private Long providerRecipientSeq;
+
     @Column(name = "sent_at", nullable = false)
     private LocalDateTime sentAt;
-
-    @Column(name = "read_at")
-    private LocalDateTime readAt;
 
     protected NotificationLog() {}
 
@@ -77,14 +80,38 @@ public class NotificationLog {
         return log;
     }
 
-    public void markRead(LocalDateTime readAt) {
-        if (this.readAt == null) {
-            this.readAt = readAt;
-        }
+    public static NotificationLog requested(
+            Long guestId,
+            Long userId,
+            NotificationChannel channel,
+            NotificationEventType eventType,
+            String providerRequestId,
+            Long providerRecipientSeq,
+            LocalDateTime requestedAt) {
+        NotificationLog log = new NotificationLog();
+        log.guestId = guestId;
+        log.userId = userId;
+        log.channel = channel;
+        log.eventType = eventType;
+        log.status = "REQUESTED";
+        log.providerRequestId = providerRequestId;
+        log.providerRecipientSeq = providerRecipientSeq;
+        log.sentAt = requestedAt;
+        return log;
     }
 
-    public boolean isRead() {
-        return readAt != null;
+    public void markDelivered(LocalDateTime deliveredAt) {
+        status = "SUCCESS";
+        failReason = null;
+        sentAt = deliveredAt;
+    }
+
+    public void markFailed(String reason, LocalDateTime failedAt) {
+        status = "FAILED";
+        failReason = reason == null || reason.length() <= 500
+                ? reason
+                : reason.substring(0, 500);
+        sentAt = failedAt;
     }
 
     public Long getId() { return id; }
@@ -94,6 +121,7 @@ public class NotificationLog {
     public NotificationEventType getEventType() { return eventType; }
     public String getStatus() { return status; }
     public String getFailReason() { return failReason; }
+    public String getProviderRequestId() { return providerRequestId; }
+    public Long getProviderRecipientSeq() { return providerRecipientSeq; }
     public LocalDateTime getSentAt() { return sentAt; }
-    public LocalDateTime getReadAt() { return readAt; }
 }

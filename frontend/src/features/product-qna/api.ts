@@ -1,17 +1,61 @@
-import { api } from "@/shared/api";
-import type { ProductQnaListItem, ProductQnaDetail, CreateQnaRequest } from "@/shared/types";
+import {
+  createProductQna,
+  getMyProductQna,
+  getPublicProductQna,
+  listMyProductQnaPage,
+  listProductQnaPage,
+  type CreateQnaRequest,
+  type MyProductQnaPageResponse,
+  type ProductQnaDetail,
+  type ProductQnaPageResponse,
+  type QnaCreatedResponse,
+} from "@/generated/api/productQna";
 
-export function fetchProductQna(productId: number): Promise<ProductQnaListItem[]> {
-  return api<ProductQnaListItem[]>(`/products/${productId}/qna`);
+export const PRODUCT_QNA_PAGE_SIZE = 20;
+
+export function fetchProductQnaPage(
+  productId: number,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ProductQnaPageResponse> {
+  return listProductQnaPage(
+    productId,
+    { cursor, size: PRODUCT_QNA_PAGE_SIZE },
+    { signal },
+  );
 }
 
-export function createQna(productId: number, body: CreateQnaRequest): Promise<{ id: number }> {
-  return api(`/me/products/${productId}/qna`, { method: "POST", body });
+export function createQna(
+  productId: number,
+  body: CreateQnaRequest,
+): Promise<QnaCreatedResponse> {
+  return createProductQna(productId, body);
 }
 
-export function verifyQnaPassword(productId: number, qnaId: number, password: string): Promise<ProductQnaDetail> {
-  return api<ProductQnaDetail>(`/products/${productId}/qna/${qnaId}/verify`, {
-    method: "POST",
-    body: { password },
-  });
+export function fetchMyProductQnaPage(
+  productId: number,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<MyProductQnaPageResponse> {
+  return listMyProductQnaPage(
+    productId,
+    { cursor, size: PRODUCT_QNA_PAGE_SIZE },
+    { signal },
+  );
+}
+
+export function fetchProductQnaDetail(
+  productId: number,
+  qnaId: number,
+  signal?: AbortSignal,
+): Promise<ProductQnaDetail> {
+  return getPublicProductQna(productId, qnaId, { signal });
+}
+
+export function fetchMyProductQnaDetail(
+  productId: number,
+  qnaId: number,
+  signal?: AbortSignal,
+): Promise<ProductQnaDetail> {
+  return getMyProductQna(productId, qnaId, { signal });
 }

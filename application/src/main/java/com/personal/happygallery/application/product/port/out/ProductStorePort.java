@@ -7,5 +7,5 @@ import com.personal.happygallery.domain.product.Product;
  */
 public interface ProductStorePort {
 
-    Product save(Product product);
+    <S extends Product> S save(S product);
 }

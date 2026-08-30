@@ -2,9 +2,8 @@ package com.personal.happygallery.application.payment.context.pass;
 
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.AuthContext;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedPassPayload;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -29,16 +28,22 @@ public class PassFulfiller implements PaymentFulfiller {
     }
 
     @Override
+    public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        if (!(payload instanceof PreparedPassPayload pp)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "8회권 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
+        }
+        if (pp.userId() == null || pp.totalPrice() != attempt.getAmount() || pp.totalPrice() <= 0L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 8회권 금액이 결제 금액과 일치하지 않습니다.");
+        }
+    }
+
+    @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
-        if (!(payload instanceof PassPayload pp)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 결제 payload가 아닙니다.");
-        }
-        if (!auth.isMember() || pp.userId() == null || !pp.userId().equals(auth.userId())) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 구매는 회원 인증이 필요합니다.");
-        }
-        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(auth.userId());
-        purchase.recordPaymentKey(paymentKey);
+    public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        PreparedPassPayload pp = (PreparedPassPayload) payload;
+        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice());
+        purchase.recordPaymentKey(attempt.getConfirmedPaymentKey());
         return new FulfillResult(purchase.getId(), null);
     }
 }

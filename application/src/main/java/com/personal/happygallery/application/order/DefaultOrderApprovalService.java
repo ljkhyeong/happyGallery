@@ -1,16 +1,17 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
-import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
-import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.product.ProductType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,8 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 주문 승인/거절 서비스.
  *
  * <ul>
- *   <li>{@link #approve(Long)} — 관리자 승인 → {@link com.personal.happygallery.domain.order.OrderStatus#APPROVED_FULFILLMENT_PENDING}</li>
- *   <li>{@link #reject(Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
+ *   <li>{@link #approve(Long, Long)} — 관리자 승인 → {@link com.personal.happygallery.domain.order.OrderStatus#APPROVED_FULFILLMENT_PENDING}</li>
+ *   <li>{@link #reject(Long, Long)} — 관리자 거절 → 재고 복구 → PG 환불 → {@link com.personal.happygallery.domain.order.OrderStatus#REJECTED}</li>
  * </ul>
  *
  * <p>이미 환불된 주문에 대한 승인/거절 시도는
@@ -37,58 +38,51 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     private final OrderReaderPort orderReader;
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
-    private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderRefundSupport orderRefundSupport;
+    private final OrderNotificationSupport orderNotificationSupport;
 
     public DefaultOrderApprovalService(OrderReaderPort orderReader,
                                 OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
-                                FulfillmentPort fulfillmentPort,
                                 OrderHistoryPort orderHistoryPort,
-                                OrderRefundSupport orderRefundSupport) {
+                                OrderRefundSupport orderRefundSupport,
+                                OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
-        this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderRefundSupport = orderRefundSupport;
+        this.orderNotificationSupport = orderNotificationSupport;
     }
 
     /**
      * 주문을 승인한다. 이미 환불된 주문은 409.
      *
      * <p>주문 내 상품 중 {@link ProductType#MADE_TO_ORDER}가 하나라도 있으면
-     * {@link Order#approveAsProduction()}을 호출하여 {@link OrderStatus#IN_PRODUCTION}으로 전이하고
-     * Fulfillment 레코드를 생성한다. 그 외에는 {@link OrderStatus#APPROVED_FULFILLMENT_PENDING}으로 전이한다.
+     * {@link Order#approveAsProduction()}을 호출하여 {@link OrderStatus#IN_PRODUCTION}으로 전이한다.
+     * Fulfillment는 고객 선택을 고정하기 위해 결제 confirm에서 이미 생성된다.
      *
      * @param orderId 주문 ID
      * @return 승인된 주문
      */
-    @OptimisticLockRetryable
-    public Order approve(Long orderId) {
-        return approve(orderId, null);
-    }
-
+    @Override
     @OptimisticLockRetryable
     public Order approve(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
 
-        boolean isMadeToOrder = isMadeToOrderOrder(order);
+        boolean isMadeToOrder = orderItemPort.existsMadeToOrderItem(order);
         if (isMadeToOrder) {
             order.approveAsProduction();
-            fulfillmentPort.save(Fulfillment.shipping(order.getId()));
         } else {
             order.approve();
         }
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
-        return orderStore.save(order);
-    }
-
-    private boolean isMadeToOrderOrder(Order order) {
-        return orderItemPort.existsByOrderAndProductType(order, ProductType.MADE_TO_ORDER);
+        Order saved = orderStore.save(order);
+        orderNotificationSupport.notifyCustomer(saved, NotificationEventType.ORDER_APPROVED);
+        return saved;
     }
 
     /**
@@ -101,24 +95,20 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
      * </ol>
      *
      * @param orderId 주문 ID
-     * @return 거절된 주문
+     * @return 거절된 주문과 생성된 환불 요청
      */
+    @Override
     @OptimisticLockRetryable
-    public Order reject(Long orderId) {
-        return reject(orderId, null);
-    }
-
-    @OptimisticLockRetryable
-    public Order reject(Long orderId, Long adminId) {
+    public RejectResult reject(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         order.reject();
 
-        orderRefundSupport.refundOrder(order);
+        Refund refund = orderRefundSupport.refundOrder(order);
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
-        return orderStore.save(order);
+        return new RejectResult(orderStore.save(order), refund);
     }
 
 }

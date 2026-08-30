@@ -1,27 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
-import { sendVerification } from "./api";
+import {
+  sendVerification,
+  type PhoneVerificationPurpose,
+} from "./api";
 import { ErrorAlert } from "@/shared/ui";
 import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
+  purpose: PhoneVerificationPurpose;
   onVerified: (phone: string, code: string) => void;
+  onReset?: () => void;
   title?: string;
   description?: string;
   initialPhone?: string;
   lockPhone?: boolean;
   confirmLabel?: string;
+  confirming?: boolean;
+  confirmDisabled?: boolean;
 }
 
 export function PhoneVerificationStep({
+  purpose,
   onVerified,
+  onReset,
   title = "1. 휴대폰 인증",
   description,
   initialPhone = "",
   lockPhone = false,
   confirmLabel = "확인",
+  confirming = false,
+  confirmDisabled = false,
 }: Props) {
+  const fieldId = useId();
   const [phone, setPhone] = useState(normalizePhone(initialPhone));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
@@ -32,7 +44,12 @@ export function PhoneVerificationStep({
   }, [initialPhone]);
 
   const sendMutation = useMutation({
-    mutationFn: () => sendVerification({ phone }),
+    mutationFn: () => sendVerification({ phone, purpose }),
+    onMutate: () => {
+      setCode("");
+      setSent(false);
+      onReset?.();
+    },
     onSuccess: () => {
       setSent(true);
     },
@@ -40,33 +57,45 @@ export function PhoneVerificationStep({
 
   const phoneValid = isValidPhone(phone);
   const showPhoneError = touched && phone.length > 0 && !phoneValid;
+  const normalizedCode = code.trim();
+  const phoneErrorId = `${fieldId}-phone-error`;
 
   return (
-    <div>
+    <div aria-busy={sendMutation.isPending || confirming}>
       <h6 className="mb-3">{title}</h6>
       {description && <p className="text-muted-soft small mb-3">{description}</p>}
       <ErrorAlert error={sendMutation.error} />
 
       <Row className="g-2 align-items-end mb-3">
         <Col xs={12} sm={8}>
-          <Form.Group controlId="verification-phone">
+          <Form.Group controlId={`${fieldId}-phone`}>
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
               value={phone}
               onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              onPaste={(event) => {
+                const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
+                if (pastedPhone.length <= 11) {
+                  event.preventDefault();
+                  setPhone(pastedPhone);
+                }
+              }}
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
               maxLength={11}
-              disabled={sent || lockPhone}
+              disabled={sent || lockPhone || sendMutation.isPending}
               isInvalid={showPhoneError}
+              aria-invalid={showPhoneError}
+              aria-describedby={showPhoneError ? phoneErrorId : undefined}
             />
-            <Form.Control.Feedback type="invalid">
-              010으로 시작하는 10~11자리 번호를 입력하세요.
+            <Form.Control.Feedback id={phoneErrorId} type="invalid">
+              01로 시작하는 10~11자리 번호를 입력하세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={12} sm={4}>
           <Button
+            type="button"
             variant="outline-primary"
             className="w-100"
             disabled={!phoneValid || sendMutation.isPending}
@@ -81,23 +110,26 @@ export function PhoneVerificationStep({
         <>
           <Row className="g-2 align-items-end">
             <Col xs={12} sm={8}>
-              <Form.Group controlId="verification-code">
+              <Form.Group controlId={`${fieldId}-code`}>
                 <Form.Label>인증코드</Form.Label>
                 <Form.Control
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="인증코드 입력"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                 />
               </Form.Group>
             </Col>
             <Col xs={12} sm={4}>
               <Button
+                type="button"
                 variant="primary"
                 className="w-100"
-                disabled={!code.trim()}
-                onClick={() => onVerified(phone, code.trim())}
+                disabled={!normalizedCode || confirming || confirmDisabled}
+                onClick={() => onVerified(phone, normalizedCode)}
               >
-                {confirmLabel}
+                {confirming ? "확인 중..." : confirmLabel}
               </Button>
             </Col>
           </Row>

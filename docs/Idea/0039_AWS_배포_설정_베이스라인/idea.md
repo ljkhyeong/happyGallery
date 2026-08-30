@@ -1,5 +1,9 @@
 # Idea 0039: AWS 배포 설정 정리
 
+**상태**: 역사 기록 — ADR-0037로 대체 (2026-07-18)
+
+> 이 문서는 폐기된 AWS 배포 설정을 보존한다. 현재 운영 목표는 [ADR-0037](../../ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다.
+
 ## 배경
 
 운영 배포를 준비하면서 ECR, ECS, S3, CloudFront, GitHub Actions OIDC 설정이 대화와 개별 문서에 흩어지기 시작했다.
@@ -477,7 +481,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `REDIS_HOST` | Redis endpoint |
 | `REDIS_PORT` | Redis 포트 |
 | `MANAGEMENT_PORT=8080` | 초기 ALB 헬스 체크 단순화를 위해 actuator를 앱 포트와 동일하게 맞춤 |
-| `RATE_LIMIT_TRUST_FORWARDED=true` | ALB/CloudFront 뒤 실제 IP 기준 처리율 제한 유지 |
+| `FORWARD_HEADERS_STRATEGY=native` | 통제된 프록시가 정규화한 실제 IP를 Servlet `remoteAddr`에 반영 |
 | `SENTRY_ENVIRONMENT=production` | 백엔드 Sentry 환경값 |
 | `SENTRY_RELEASE` | 백엔드 배포 버전/commit 추적 |
 | `PASS_TOTAL_PRICE=240000` | 8회권 결제 금액. 운영 가격 변경 시 명시 주입 |
@@ -498,6 +502,8 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 |------|------|
 | `GOOGLE_OAUTH_CLIENT_ID` | Google 로그인 |
 | `GOOGLE_OAUTH_CLIENT_SECRET` | Google 로그인 |
+| `NAVER_OAUTH_CLIENT_ID` | Naver 로그인 |
+| `NAVER_OAUTH_CLIENT_SECRET` | Naver 로그인 |
 | `KAKAO_API_KEY` | 카카오 알림톡 |
 | `KAKAO_SENDER_KEY` | 카카오 알림톡 |
 | `SMS_API_KEY` | SMS 발송 |
@@ -520,6 +526,11 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
 | `GOOGLE_OAUTH_MAX_CONNECTIONS` | `10` |
 | `GOOGLE_OAUTH_KEEP_ALIVE_MILLIS` | `30000` |
+| `NAVER_OAUTH_TIMEOUT_MILLIS` | `5000` |
+| `NAVER_OAUTH_CONNECT_TIMEOUT_MILLIS` | `2000` |
+| `NAVER_OAUTH_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `NAVER_OAUTH_MAX_CONNECTIONS` | `10` |
+| `NAVER_OAUTH_KEEP_ALIVE_MILLIS` | `30000` |
 | `KAKAO_TIMEOUT_MILLIS` | `5000` |
 | `KAKAO_CONNECT_TIMEOUT_MILLIS` | `2000` |
 | `KAKAO_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
@@ -531,9 +542,10 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 | `SMS_MAX_CONNECTIONS` | `20` |
 | `SMS_KEEP_ALIVE_MILLIS` | `30000` |
 | `TOSS_BASE_URL` | `https://api.tosspayments.com` |
-| `TOSS_TIMEOUT_MILLIS` | `5000` |
-| `TOSS_CONNECT_TIMEOUT_MILLIS` | `2000` |
-| `TOSS_ACQUIRE_TIMEOUT_MILLIS` | `1000` |
+| `PAYMENT_TIMEOUT_MILLIS` | `5000` |
+| `TOSS_TIMEOUT_MILLIS` | `3000` |
+| `TOSS_CONNECT_TIMEOUT_MILLIS` | `1000` |
+| `TOSS_ACQUIRE_TIMEOUT_MILLIS` | `500` |
 | `TOSS_MAX_CONNECTIONS` | `10` |
 | `TOSS_KEEP_ALIVE_MILLIS` | `30000` |
 
@@ -737,7 +749,7 @@ jdbc:mysql://<RDS_ENDPOINT>:3306/happygallery?useSSL=false&allowPublicKeyRetriev
 - `GUEST_TOKEN_HMAC_SECRET`
 - `app.field-encryption.encrypt-key`
 - `app.field-encryption.hmac-key`
-- `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`
+- `KAKAO_*`, `SMS_*`, `GOOGLE_OAUTH_*`, `NAVER_OAUTH_*`
 - `TOSS_SECRET_KEY`
 - 백엔드 `SENTRY_DSN`
 

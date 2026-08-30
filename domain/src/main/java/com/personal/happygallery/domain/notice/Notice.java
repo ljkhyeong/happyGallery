@@ -1,11 +1,13 @@
 package com.personal.happygallery.domain.notice;
 
+import com.personal.happygallery.domain.content.ContentTextPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,7 +18,7 @@ public class Notice {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = ContentTextPolicy.MAX_TITLE_LENGTH)
     private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -25,8 +27,12 @@ public class Notice {
     @Column(nullable = false)
     private boolean pinned;
 
-    @Column(name = "view_count", nullable = false)
+    @Column(name = "view_count", nullable = false, updatable = false)
     private int viewCount;
+
+    @Version
+    @Column(nullable = false)
+    private long version;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -34,19 +40,15 @@ public class Notice {
     protected Notice() {}
 
     public Notice(String title, String content, boolean pinned) {
-        this.title = title;
-        this.content = content;
+        this.title = ContentTextPolicy.requireTitle(title, "공지 제목");
+        this.content = ContentTextPolicy.requireBody(content, "공지 내용");
         this.pinned = pinned;
         this.viewCount = 0;
     }
 
-    public void incrementViewCount() {
-        this.viewCount++;
-    }
-
     public void update(String title, String content, boolean pinned) {
-        this.title = title;
-        this.content = content;
+        this.title = ContentTextPolicy.requireTitle(title, "공지 제목");
+        this.content = ContentTextPolicy.requireBody(content, "공지 내용");
         this.pinned = pinned;
     }
 
@@ -55,5 +57,6 @@ public class Notice {
     public String getContent() { return content; }
     public boolean isPinned() { return pinned; }
     public int getViewCount() { return viewCount; }
+    public long getVersion() { return version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

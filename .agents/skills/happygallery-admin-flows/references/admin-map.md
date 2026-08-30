@@ -3,7 +3,8 @@
 ## Likely code locations
 
 - `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/admin/`
-- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/config/SecurityConfig.java`
+- `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/admin/`
 - `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/`
 - `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/`
 - `application/src/main/java/com/personal/happygallery/application/batch/`
@@ -15,10 +16,12 @@
 
 ## High-value tests
 
-- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/AdminAuthFilterTest.java`
 - `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/RateLimitFilterTest.java`
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/SecurityBoundaryUseCaseIT.java`
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/AdminLoginUseCaseIT.java`
+- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/AdminSetupControllerTest.java`
+- `application/src/test/java/com/personal/happygallery/application/admin/DefaultAdminSetupServiceTest.java`
 - `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/AdminSlotUseCaseIT.java`
-- `adapter-in-web/src/test/java/com/personal/happygallery/adapter/in/web/admin/LocalRefundFailureControllerTest.java`
 
 ## Doc sync checklist
 

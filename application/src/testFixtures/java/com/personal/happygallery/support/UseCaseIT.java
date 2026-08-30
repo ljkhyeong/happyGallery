@@ -1,10 +1,12 @@
 package com.personal.happygallery.support;
 
+import com.personal.happygallery.application.batch.BatchScheduler;
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -26,5 +28,6 @@ import java.lang.annotation.Target;
 @ActiveProfiles("test")
 @AutoConfigureMockMvc(addFilters = false)
 @Import(TestcontainersConfig.class)
+@MockitoBean(types = BatchScheduler.class)
 public @interface UseCaseIT {
 }

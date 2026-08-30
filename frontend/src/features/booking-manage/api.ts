@@ -1,8 +1,18 @@
-import { api } from "@/shared/api";
-import type { BookingDetailResponse, RescheduleResponse, CancelResponse } from "@/shared/types";
+import {
+  cancelGuestBooking,
+  getGuestBooking,
+  listAvailableSlots,
+  reduceGuestBookingParticipants,
+  rescheduleGuestBooking,
+  type BookingDetailResponse,
+  type CancelResponse,
+  type PublicSlotResponse,
+  type ReduceBookingParticipantsResponse,
+  type RescheduleResponse,
+} from "@/generated/api/booking";
 
 export function fetchBooking(bookingId: number, token: string): Promise<BookingDetailResponse> {
-  return api<BookingDetailResponse>(`/bookings/${bookingId}`, {
+  return getGuestBooking(bookingId, {
     headers: { "X-Access-Token": token },
   });
 }
@@ -12,16 +22,30 @@ export function rescheduleBooking(
   newSlotId: number,
   token: string,
 ): Promise<RescheduleResponse> {
-  return api<RescheduleResponse>(`/bookings/${bookingId}/reschedule`, {
-    method: "PATCH",
+  return rescheduleGuestBooking(bookingId, { newSlotId }, {
     headers: { "X-Access-Token": token },
-    body: { newSlotId },
   });
 }
 
+export function fetchRescheduleSlots(
+  classId: number,
+  date: string,
+): Promise<PublicSlotResponse[]> {
+  return listAvailableSlots({ classId, date });
+}
+
 export function cancelBooking(bookingId: number, token: string): Promise<CancelResponse> {
-  return api<CancelResponse>(`/bookings/${bookingId}`, {
-    method: "DELETE",
+  return cancelGuestBooking(bookingId, {
+    headers: { "X-Access-Token": token },
+  });
+}
+
+export function reduceBookingParticipants(
+  bookingId: number,
+  participantCount: number,
+  token: string,
+): Promise<ReduceBookingParticipantsResponse> {
+  return reduceGuestBookingParticipants(bookingId, { participantCount }, {
     headers: { "X-Access-Token": token },
   });
 }

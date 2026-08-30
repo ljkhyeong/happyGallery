@@ -8,5 +8,9 @@ import java.util.List;
  */
 public interface ClassQueryUseCase {
 
+    List<BookingClass> listActive();
+
+    BookingClass getActive(Long id);
+
     List<BookingClass> listAll();
 }

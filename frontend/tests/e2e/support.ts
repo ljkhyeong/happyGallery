@@ -1,4 +1,34 @@
 import { expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
+import type {
+  AdminBookingResponse,
+  ListBookingsStatus,
+} from "../../src/generated/api/adminBooking";
+import type {
+  BookingDetailResponse,
+  ClassResponse,
+  MyBookingDetail,
+  PublicSlotResponse,
+  SendVerificationRequestPurpose,
+} from "../../src/generated/api/booking";
+import type {
+  CreateProductRequest,
+  ProductResponse,
+} from "../../src/generated/api/adminCatalog";
+import type { LoginRequest, LoginResponse } from "../../src/generated/api/adminAuth";
+import type {
+  AdminOrderListItemResponse,
+  AdminOrderPageResponse,
+  ListOrdersStatus,
+} from "../../src/generated/api/adminOrder";
+import type {
+  FailedRefundPageResponse,
+  FailedRefundResponse,
+} from "../../src/generated/api/adminOperations";
+import type {
+  CustomerUserResponse,
+  SignupRequest,
+} from "../../src/generated/api/customerAuth";
+import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
@@ -6,88 +36,26 @@ const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const CUSTOMER_SESSION_COOKIE = "HG_SESSION";
+const CSRF_COOKIE_NAME = "XSRF-TOKEN";
+const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
 const FRONTEND_ORIGIN = "http://127.0.0.1:3000";
 
 let cachedAdminToken: string | null = null;
 
-export interface BookingClass {
-  id: number;
-  name: string;
-  category: string;
-  durationMin: number;
-}
+export type CustomerFixtureCredentials = Pick<
+  SignupRequest,
+  "email" | "password" | "name" | "phone"
+>;
 
-export interface AdminProduct {
-  id: number;
-  name: string;
-  type: string;
-  price: number;
-  quantity: number;
-  available: boolean;
-}
+type CustomerFixtureOverrides = Partial<CustomerFixtureCredentials>;
 
-export interface AdminSlot {
-  id: number;
-  classId: number;
-  startAt: string;
-  endAt: string;
-  capacity: number;
-  bookedCount: number;
-  isActive: boolean;
-}
+type AdminProductFixtureInput = Pick<
+  CreateProductRequest,
+  "name" | "price" | "quantity"
+> & Partial<Pick<CreateProductRequest, "type">>;
 
-export interface AdminBooking {
-  bookingId: number;
-  bookingNumber: string;
-  bookerType: "GUEST" | "MEMBER";
-  bookerName: string;
-  bookerPhone: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-  status: string;
-  depositAmount: number;
-  balanceAmount: number;
-  passBooking: boolean;
-}
-
-export interface AdminOrder {
-  orderId: number;
-  orderNumber: string;
-  status: string;
-  totalAmount: number;
-  paidAt: string | null;
-  approvalDeadlineAt: string | null;
-  createdAt: string;
-}
-
-export interface AdminFailedRefund {
-  refundId: number;
-  bookingId: number | null;
-  orderId: number | null;
-  amount: number;
-  failReason: string;
-  createdAt: string;
-}
-
-interface CursorPage<T> {
-  content: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
-}
-
-export interface CustomerCredentials {
-  email: string;
-  password: string;
-  name: string;
-  phone: string;
-}
-
-interface SignupOverrides {
-  email?: string;
-  password?: string;
-  name?: string;
-  phone?: string;
+interface DevVerificationCodeFixtureResponse {
+  code: string;
 }
 
 interface ApiOptions {
@@ -95,27 +63,20 @@ interface ApiOptions {
   query?: Record<string, number | string | undefined>;
 }
 
-interface TossPaymentRequest {
+interface TossPaymentStubRequest {
   amount: { value: number };
   orderId: string;
   successUrl: string;
 }
 
-interface BrowserGlobalWithToss {
+interface BrowserGlobalWithTossStub {
   location: { assign(url: string): void };
   TossPayments?: (clientKey: string) => {
     payment(opts: { customerKey: string }): {
-      requestPayment(opts: TossPaymentRequest): Promise<void>;
+      requestPayment(opts: TossPaymentStubRequest): Promise<void>;
     };
   };
 }
-
-const timeFormatter = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Seoul",
-  hour12: true,
-});
 
 export function makeUniqueLabel(prefix: string): string {
   const stamp = `${Date.now()}${Math.floor(Math.random() * 1000)}`.slice(-9);
@@ -132,6 +93,20 @@ export function makeEmail(seed: string): string {
   return `${normalized}${Date.now().toString().slice(-6)}@example.com`;
 }
 
+async function expectMyPageEmail(page: Page, email: string) {
+  await expect(
+    page.locator(".my-dashboard-hero").getByText(email, { exact: true }),
+  ).toBeVisible();
+}
+
+async function expectCustomerSessionBoundary(page: Page, customerId: number) {
+  await expect.poll(() => page.evaluate(() => {
+    const rawBoundary = localStorage.getItem("hg_customer_session_boundary");
+    if (!rawBoundary) return null;
+    return (JSON.parse(rawBoundary) as { customerId?: number }).customerId ?? null;
+  })).toBe(customerId);
+}
+
 export function plusDays(days: number, hour: number, minute: number, durationMin: number) {
   const start = new Date();
   start.setDate(start.getDate() + days);
@@ -143,33 +118,24 @@ export function plusDays(days: number, hour: number, minute: number, durationMin
   return { start, end };
 }
 
-export async function findUniqueSlotWindow(
+export async function findAvailableBookingSlot(
   request: APIRequestContext,
   classId: number,
-  days: number,
-  hour: number,
-  minute: number,
-  durationMin: number,
-) {
-  const existingSlots = await fetchAdminSlots(request, classId);
-  const occupiedStarts = new Set(existingSlots.map((slot) => slot.startAt.slice(0, 16)));
-
-  const start = new Date();
-  start.setDate(start.getDate() + days);
-  start.setHours(hour, minute, 0, 0);
-
-  let attempts = 0;
-  while (occupiedStarts.has(toDateTimeLocalInput(start))) {
-    start.setMinutes(start.getMinutes() + 1);
-    attempts += 1;
-    if (attempts > 180) {
-      throw new Error(`Could not find a unique slot window for class=${classId}`);
+  startDayOffset: number,
+  excludedSlotIds: ReadonlySet<number> = new Set(),
+): Promise<PublicSlotResponse> {
+  for (let dayOffset = startDayOffset; dayOffset < 14; dayOffset += 1) {
+    const date = new Date();
+    date.setDate(date.getDate() + dayOffset);
+    const slots = await apiGet<PublicSlotResponse[]>(request, "/slots", {
+      query: { classId, date: toDateInput(date) },
+    });
+    const available = slots.find((slot) => !excludedSlotIds.has(slot.id));
+    if (available) {
+      return available;
     }
   }
-
-  const end = new Date(start);
-  end.setMinutes(end.getMinutes() + durationMin);
-  return { start, end };
+  throw new Error(`Could not find an available calendar slot for class=${classId}`);
 }
 
 export function toDateInput(date: Date): string {
@@ -182,16 +148,6 @@ export function toDateInput(date: Date): string {
 
 export function toDateTimeLocalInput(date: Date): string {
   return `${toDateInput(date)}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
-export function formatTimeTokenForUi(iso: string): string {
-  const parts = timeFormatter.formatToParts(new Date(iso));
-  const hour = parts.find((part) => part.type === "hour")?.value;
-  const minute = parts.find((part) => part.type === "minute")?.value;
-  if (!hour || !minute) {
-    throw new Error(`Could not format UI time token for ${iso}`);
-  }
-  return `${hour}:${minute}`;
 }
 
 export function extractFirstNumber(text: string, label: string): number {
@@ -213,10 +169,10 @@ export function extractAccessToken(text: string): string {
 
 export async function installTossPaymentStub(page: Page) {
   const install = () => {
-    const browserGlobal = globalThis as unknown as BrowserGlobalWithToss;
+    const browserGlobal = globalThis as unknown as BrowserGlobalWithTossStub;
     browserGlobal.TossPayments = () => ({
       payment: () => ({
-        requestPayment: async (opts: TossPaymentRequest) => {
+        requestPayment: async (opts: TossPaymentStubRequest) => {
           const separator = opts.successUrl.includes("?") ? "&" : "?";
           const url = `${opts.successUrl}${separator}paymentKey=e2e-${encodeURIComponent(opts.orderId)}&orderId=${encodeURIComponent(opts.orderId)}&amount=${opts.amount.value}`;
           browserGlobal.location.assign(url);
@@ -229,22 +185,34 @@ export async function installTossPaymentStub(page: Page) {
   await page.evaluate(install);
 }
 
-export async function readRouterState<T>(page: Page): Promise<T | null> {
-  return page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      history?: { state?: { usr?: unknown } };
-    };
-    return (browserGlobal.history?.state?.usr ?? null) as T | null;
-  });
+export async function readGuestOrderLookupCredentials(page: Page) {
+  return {
+    orderId: Number(await page.getByLabel("주문 번호").inputValue()),
+    token: await page.getByLabel("조회 코드").inputValue(),
+  };
+}
+
+export async function readGuestBookingLookupCredentials(page: Page) {
+  return {
+    bookingId: Number(await page.getByLabel("예약 번호").inputValue()),
+    token: await page.getByLabel("조회 코드").inputValue(),
+  };
 }
 
 export async function loginAdmin(page: Page) {
   if (!cachedAdminToken) {
+    const request: LoginRequest = {
+      username: ADMIN_USERNAME,
+      password: ADMIN_PASSWORD,
+    };
     const response = await page.request.post(`${BACKEND_BASE_URL}/admin/auth/login`, {
-      data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
+      data: request,
     });
     expect(response.ok(), "Admin login API should succeed").toBeTruthy();
-    const body = (await response.json()) as { token: string };
+    const body = (await response.json()) as LoginResponse;
+    if (!body.token) {
+      throw new Error("Admin login response did not include a token");
+    }
     cachedAdminToken = body.token;
   }
 
@@ -259,47 +227,85 @@ export async function loginAdmin(page: Page) {
   await expect(page.getByRole("heading", { name: "관리자" })).toBeVisible();
 }
 
-async function fetchVerificationCode(page: Page, phone: string): Promise<string> {
+export async function openAdminView(page: Page, name: string) {
+  await page.getByRole("button", { name, exact: true }).click();
+}
+
+async function fetchVerificationCode(
+  page: Page,
+  phone: string,
+  purpose: SendVerificationRequestPurpose,
+): Promise<string> {
   const res = await page.request.get(
-    `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}`,
+    `${BACKEND_BASE_URL}/admin/dev/phone-verifications/latest?phone=${phone}&purpose=${purpose}`,
     { headers: { "X-Admin-Key": ADMIN_KEY } },
   );
   expect(res.ok(), "Dev phone-verification lookup should succeed").toBeTruthy();
-  const body = (await res.json()) as { code: string };
+  const body = (await res.json()) as DevVerificationCodeFixtureResponse;
   return body.code;
 }
 
 export async function signupCustomer(
   page: Page,
   prefix: string,
-  overrides: SignupOverrides = {},
-): Promise<CustomerCredentials> {
+  overrides: CustomerFixtureOverrides = {},
+): Promise<CustomerFixtureCredentials> {
   const label = makeUniqueLabel(prefix);
-  const credentials: CustomerCredentials = {
+  const credentials: CustomerFixtureCredentials = {
     email: overrides.email ?? makeEmail(label),
     password: overrides.password ?? "password123",
     name: overrides.name ?? label,
-    phone: overrides.phone ?? makePhoneNumber(label),
+    phone: (overrides.phone ?? makePhoneNumber(label)).replace(/\D/g, ""),
   };
 
+  const csrfHeaders = await issueCustomerCsrfHeaders(page);
+  const verificationResponse = await page.request.post(
+    `${BACKEND_BASE_URL}/bookings/phone-verifications`,
+    {
+      data: { phone: credentials.phone, purpose: "SIGNUP" },
+      headers: csrfHeaders,
+    },
+  );
+  expect(verificationResponse.ok(), "Phone verification send API should succeed").toBeTruthy();
+  const verificationCode = await fetchVerificationCode(page, credentials.phone, "SIGNUP");
+  const policyResponse = await page.request.get(`${BACKEND_BASE_URL}/policies/current`);
+  expect(policyResponse.ok(), "Current policy API should succeed").toBeTruthy();
+  const policy = (await policyResponse.json()) as CurrentPolicyConsentResponse;
+  const signupRequest: SignupRequest = {
+    ...credentials,
+    verificationCode,
+    policyAcceptance: {
+      termsVersion: policy.terms.version,
+      termsAccepted: true,
+      privacyVersion: policy.privacy.version,
+      privacyAccepted: true,
+    },
+  };
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/signup`, {
-    data: credentials,
+    data: signupRequest,
+    headers: csrfHeaders,
   });
   expect(response.ok(), "Customer signup API should succeed").toBeTruthy();
+  const customer = (await response.json()) as CustomerUserResponse;
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
-  await expect(page.getByText(credentials.email)).toBeVisible();
+  await expectMyPageEmail(page, credentials.email);
+  await expectCustomerSessionBoundary(page, customer.id);
   return credentials;
 }
 
-export async function loginCustomer(page: Page, credentials: CustomerCredentials) {
+export async function loginCustomer(page: Page, credentials: CustomerFixtureCredentials) {
+  const csrfHeaders = await issueCustomerCsrfHeaders(page);
   const response = await page.request.post(`${BACKEND_BASE_URL}/auth/login`, {
     data: { email: credentials.email, password: credentials.password },
+    headers: csrfHeaders,
   });
   expect(response.ok(), "Customer login API should succeed").toBeTruthy();
+  const customer = (await response.json()) as CustomerUserResponse;
   await setCustomerSessionFromResponse(page, response.headers()["set-cookie"]);
   await page.goto("/my");
-  await expect(page.getByText(credentials.email)).toBeVisible();
+  await expectMyPageEmail(page, credentials.email);
+  await expectCustomerSessionBoundary(page, customer.id);
 }
 
 export async function logoutCustomer(page: Page) {
@@ -309,11 +315,15 @@ export async function logoutCustomer(page: Page) {
   }
 }
 
-export async function completePhoneVerification(page: Page, phone: string) {
+export async function completePhoneVerification(
+  page: Page,
+  phone: string,
+  purpose: SendVerificationRequestPurpose = "GUEST_ORDER",
+) {
   await page.getByLabel("휴대폰 번호").fill(phone);
   await page.getByRole("button", { name: "인증코드 발송" }).click();
   await expect(page.getByLabel("인증코드")).toBeVisible();
-  const code = await fetchVerificationCode(page, phone);
+  const code = await fetchVerificationCode(page, phone, purpose);
   await page.getByLabel("인증코드").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
 }
@@ -322,20 +332,28 @@ export async function completeLockedPhoneVerification(
   root: Page | Locator,
   page: Page,
   phone: string,
+  purpose: SendVerificationRequestPurpose,
   confirmLabel = "확인",
 ) {
   await root.getByRole("button", { name: "인증코드 발송" }).click();
   await expect(root.getByLabel("인증코드")).toBeVisible();
-  const code = await fetchVerificationCode(page, phone);
+  const code = await fetchVerificationCode(page, phone, purpose);
   await root.getByLabel("인증코드").fill(code);
   await root.getByRole("button", { name: confirmLabel }).click();
 }
 
 export async function completeGuestAuthGate(page: Page, phone: string, name: string) {
   await page.locator(".nav-link").filter({ hasText: "비회원" }).first().click();
-  await completePhoneVerification(page, phone);
+  await completePhoneVerification(page, phone, "GUEST_BOOKING");
   await page.locator("#gate-guest-name").fill(name);
+  await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "비회원으로 진행" }).click();
+}
+
+export async function acceptCurrentPolicies(page: Page) {
+  await page.getByRole("checkbox", {
+    name: /이용약관.*개인정보처리방침/,
+  }).check();
 }
 
 async function setCustomerSessionFromResponse(page: Page, setCookieHeader?: string) {
@@ -354,8 +372,20 @@ async function setCustomerSessionFromResponse(page: Page, setCookieHeader?: stri
   ]);
 }
 
+async function issueCustomerCsrfHeaders(page: Page): Promise<Record<string, string>> {
+  const response = await page.request.get(`${BACKEND_BASE_URL}/auth/csrf`);
+  expect(response.ok(), "CSRF token API should succeed").toBeTruthy();
+
+  const csrfCookie = (await page.context().cookies(BACKEND_BASE_URL))
+    .find((cookie) => cookie.name === CSRF_COOKIE_NAME);
+  if (!csrfCookie) {
+    throw new Error("Could not find XSRF-TOKEN cookie from CSRF response");
+  }
+  return { [CSRF_HEADER_NAME]: csrfCookie.value };
+}
+
 export function adminCard(page: Page, title: string): Locator {
-  return page.locator(".card").filter({ hasText: title }).first();
+  return page.locator(".admin-workspace-panel, .card").filter({ hasText: title }).first();
 }
 
 export async function apiGet<T>(
@@ -410,19 +440,40 @@ export async function apiDelete(
   expect(response.ok(), `DELETE ${url} should succeed`).toBeTruthy();
 }
 
-export async function fetchClasses(request: APIRequestContext): Promise<BookingClass[]> {
-  return apiGet<BookingClass[]>(request, "/classes");
+export async function fetchClasses(request: APIRequestContext): Promise<ClassResponse[]> {
+  return apiGet<ClassResponse[]>(request, "/classes");
 }
 
-export async function fetchAdminProducts(request: APIRequestContext): Promise<AdminProduct[]> {
-  return apiGet<AdminProduct[]>(request, "/admin/products", { admin: true });
+export async function fetchGuestBookingSlot(
+  request: APIRequestContext,
+  bookingId: number,
+  token: string,
+): Promise<Pick<BookingDetailResponse, "slotId">> {
+  const response = await request.get(`${BACKEND_BASE_URL}/bookings/${bookingId}`, {
+    headers: { "X-Access-Token": token },
+  });
+  expect(response.ok(), "Guest booking lookup API should succeed").toBeTruthy();
+  return (await response.json()) as Pick<BookingDetailResponse, "slotId">;
+}
+
+export async function fetchMyBookingSlot(
+  page: Page,
+  bookingId: number,
+): Promise<Pick<MyBookingDetail, "slotId">> {
+  const response = await page.request.get(`${BACKEND_BASE_URL}/me/bookings/${bookingId}`);
+  expect(response.ok(), "Member booking lookup API should succeed").toBeTruthy();
+  return (await response.json()) as Pick<MyBookingDetail, "slotId">;
+}
+
+export async function fetchAdminProducts(request: APIRequestContext): Promise<ProductResponse[]> {
+  return apiGet<ProductResponse[]>(request, "/admin/products", { admin: true });
 }
 
 export async function createAdminProduct(
   request: APIRequestContext,
-  body: { name: string; type?: string; price: number; quantity: number },
-): Promise<AdminProduct> {
-  const product = await apiPost<AdminProduct>(
+  body: AdminProductFixtureInput,
+): Promise<ProductResponse> {
+  const product = await apiPost<ProductResponse>(
     request,
     "/admin/products",
     {
@@ -439,36 +490,12 @@ export async function createAdminProduct(
   return product;
 }
 
-export async function fetchAdminSlots(request: APIRequestContext, classId: number): Promise<AdminSlot[]> {
-  return apiGet<AdminSlot[]>(request, "/admin/slots", { admin: true, query: { classId } });
-}
-
-export async function createAdminSlot(
-  request: APIRequestContext,
-  body: { classId: number; startAt: Date; endAt: Date },
-): Promise<AdminSlot> {
-  const slot = await apiPost<AdminSlot>(
-    request,
-    "/admin/slots",
-    {
-      classId: body.classId,
-      startAt: toDateTimeLocalInput(body.startAt),
-      endAt: toDateTimeLocalInput(body.endAt),
-    },
-    { admin: true },
-  );
-  if (!slot) {
-    throw new Error("Admin slot create response was empty");
-  }
-  return slot;
-}
-
 export async function fetchAdminBookings(
   request: APIRequestContext,
   date: string,
-  status?: string,
-): Promise<AdminBooking[]> {
-  return apiGet<AdminBooking[]>(request, "/admin/bookings", {
+  status?: ListBookingsStatus,
+): Promise<AdminBookingResponse[]> {
+  return apiGet<AdminBookingResponse[]>(request, "/admin/bookings", {
     admin: true,
     query: { date, status },
   });
@@ -476,17 +503,22 @@ export async function fetchAdminBookings(
 
 export async function fetchAdminOrders(
   request: APIRequestContext,
-  status?: string,
-): Promise<AdminOrder[]> {
-  const page = await apiGet<CursorPage<AdminOrder>>(request, "/admin/orders", {
+  status?: ListOrdersStatus,
+): Promise<AdminOrderListItemResponse[]> {
+  const page = await apiGet<AdminOrderPageResponse>(request, "/admin/orders", {
     admin: true,
     query: { status },
   });
   return page.content;
 }
 
-export async function fetchFailedRefunds(request: APIRequestContext): Promise<AdminFailedRefund[]> {
-  return apiGet<AdminFailedRefund[]>(request, "/admin/refunds/failed", { admin: true });
+export async function fetchFailedRefunds(request: APIRequestContext): Promise<FailedRefundResponse[]> {
+  const page = await apiGet<FailedRefundPageResponse>(
+    request,
+    "/admin/refunds/failed",
+    { admin: true },
+  );
+  return page.content;
 }
 
 export async function armNextRefundFailure(
@@ -503,7 +535,7 @@ export async function clearNextRefundFailure(request: APIRequestContext): Promis
 export async function waitForProduct(
   request: APIRequestContext,
   name: string,
-): Promise<AdminProduct> {
+): Promise<ProductResponse> {
   await expect.poll(async () => {
     const products = await fetchAdminProducts(request);
     return products.some((product) => product.name === name);
@@ -517,36 +549,18 @@ export async function waitForProduct(
   return product;
 }
 
-export async function waitForSlot(
-  request: APIRequestContext,
-  classId: number,
-  startAtPrefix: string,
-): Promise<AdminSlot> {
-  await expect.poll(async () => {
-    const slots = await fetchAdminSlots(request, classId);
-    return slots.some((slot) => slot.startAt.startsWith(startAtPrefix));
-  }).toBeTruthy();
-
-  const slots = await fetchAdminSlots(request, classId);
-  const slot = slots.find((item) => item.startAt.startsWith(startAtPrefix));
-  if (!slot) {
-    throw new Error(`Could not find slot for class=${classId}, start=${startAtPrefix}`);
-  }
-  return slot;
-}
-
 export async function waitForBookingByPhone(
   request: APIRequestContext,
   date: string,
   phone: string,
-): Promise<AdminBooking> {
+): Promise<AdminBookingResponse> {
   await expect.poll(async () => {
     const bookings = await fetchAdminBookings(request, date);
-    return bookings.some((booking) => booking.bookerPhone === phone);
+    return bookings.some((booking) => booking.customerSummary.phone === phone);
   }).toBeTruthy();
 
   const bookings = await fetchAdminBookings(request, date);
-  const booking = bookings.find((item) => item.bookerPhone === phone);
+  const booking = bookings.find((item) => item.customerSummary.phone === phone);
   if (!booking) {
     throw new Error(`Could not find booking for phone: ${phone}`);
   }
@@ -556,8 +570,8 @@ export async function waitForBookingByPhone(
 export async function waitForOrder(
   request: APIRequestContext,
   orderId: number,
-  status?: string,
-): Promise<AdminOrder> {
+  status?: ListOrdersStatus,
+): Promise<AdminOrderListItemResponse> {
   await expect.poll(async () => {
     const orders = await fetchAdminOrders(request, status);
     return orders.some((order) => order.orderId === orderId);
@@ -574,7 +588,7 @@ export async function waitForOrder(
 export async function waitForFailedRefundByOrderId(
   request: APIRequestContext,
   orderId: number,
-): Promise<AdminFailedRefund> {
+): Promise<FailedRefundResponse> {
   await expect.poll(async () => {
     const refunds = await fetchFailedRefunds(request);
     return refunds.some((refund) => refund.orderId === orderId);

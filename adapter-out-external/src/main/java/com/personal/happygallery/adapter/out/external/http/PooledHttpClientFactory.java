@@ -10,16 +10,15 @@ import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuil
 import org.apache.hc.core5.util.TimeValue;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.stereotype.Component;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 
 @Component
 public class PooledHttpClientFactory {
 
     public CloseableHttpClient create(HttpPoolProperties props) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
-                .setConnectTimeout(Timeout.ofMilliseconds(props.connectTimeoutMillis()))
-                .setSocketTimeout(Timeout.ofMilliseconds(props.timeoutMillis()))
-                .setTimeToLive(TimeValue.ofMilliseconds(props.keepAliveMillis()))
+                .setConnectTimeout(Timeout.of(props.connectTimeout()))
+                .setSocketTimeout(Timeout.of(props.timeout()))
+                .setTimeToLive(TimeValue.of(props.keepAlive()))
                 .build();
 
         PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
@@ -29,8 +28,8 @@ public class PooledHttpClientFactory {
                 .build();
 
         RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectionRequestTimeout(Timeout.ofMilliseconds(props.acquireTimeoutMillis()))
-                .setResponseTimeout(Timeout.ofMilliseconds(props.timeoutMillis()))
+                .setConnectionRequestTimeout(Timeout.of(props.acquireTimeout()))
+                .setResponseTimeout(Timeout.of(props.timeout()))
                 .build();
 
         return HttpClients.custom()
@@ -39,17 +38,13 @@ public class PooledHttpClientFactory {
                 .setKeepAliveStrategy((response, context) -> {
                     TimeValue keepAlive = DefaultConnectionKeepAliveStrategy.INSTANCE
                             .getKeepAliveDuration(response, context);
-                    if (keepAlive != null && keepAlive.toMilliseconds() > 0) {
+                    if (TimeValue.isPositive(keepAlive)) {
                         return keepAlive;
                     }
-                    return TimeValue.ofMilliseconds(props.keepAliveMillis());
+                    return TimeValue.of(props.keepAlive());
                 })
                 .evictExpiredConnections()
-                .evictIdleConnections(TimeValue.ofMilliseconds(props.keepAliveMillis()))
+                .evictIdleConnections(TimeValue.of(props.keepAlive()))
                 .build();
-    }
-
-    public HttpComponentsClientHttpRequestFactory requestFactory(CloseableHttpClient httpClient) {
-        return new HttpComponentsClientHttpRequestFactory(httpClient);
     }
 }

@@ -1,0 +1,696 @@
+// ── Sunlit atelier direction ───────────────────────────
+:root {
+  --hg-surface: #FFFDF8;
+  --hg-surface-alt: #F1EBDD;
+  --hg-surface-dim: #E8E0D2;
+  --hg-ink-soft: #776E64;
+  --hg-ink-soft-on-alt: #6F665C;
+  --hg-shadow-soft: 0 18px 54px rgba(61, 48, 36, 0.1);
+  --hg-accent: #B96545;
+  --hg-accent-deep: #8F4934;
+  --hg-dark: #2A2622;
+  --hg-leaf: #52634F;
+  --hg-brass: #C59B5F;
+  --hg-mint: #DCE8E1;
+  --hg-olive: #56675D;
+  --hg-resin-pink: #D4A0AA;
+  --hg-burgundy: #713E4A;
+  --hg-border: #DDD5C8;
+  --hg-transition: 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  background:
+    linear-gradient(rgba(42, 38, 34, 0.018) 1px, transparent 1px),
+    #F7F3EA;
+  background-size: 100% 32px;
+}
+
+::selection {
+  color: #FFFDF8;
+  background: var(--hg-accent);
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  &:focus-visible {
+    outline: 3px solid rgba(185, 101, 69, 0.3);
+    outline-offset: 3px;
+  }
+}
+
+.page-container {
+  max-width: 1180px;
+  padding-block: clamp(2.75rem, 6vw, 5.5rem);
+}
+
+.app-utility-bar {
+  background: var(--hg-leaf);
+}
+
+.app-utility-copy,
+.app-utility-link {
+  font-family: inherit;
+  color: rgba(255, 253, 248, 0.78);
+  letter-spacing: 0.02em;
+}
+
+.app-navbar {
+  background: rgba(255, 253, 248, 0.96);
+  border-bottom-color: rgba(92, 75, 59, 0.16) !important;
+}
+
+.app-navbar .container,
+.app-utility-bar .container,
+.app-footer .container {
+  max-width: 1180px !important;
+}
+
+.app-brand-mark {
+  font-family: "Cormorant Garamond", "Gowun Batang", Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.app-brand-subtitle {
+  color: var(--hg-ink-soft);
+  font-family: inherit;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.11em;
+}
+
+.app-nav-link {
+  color: var(--hg-dark);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+
+  &::after {
+    height: 1px;
+    background: var(--hg-accent);
+  }
+
+  &:hover,
+  &:focus-visible,
+  &.active {
+    color: var(--hg-accent-deep);
+  }
+}
+
+.app-signup-link {
+  border-radius: 999px;
+  background: var(--hg-dark);
+  padding-inline: 1.2rem !important;
+
+  &:hover,
+  &:focus-visible,
+  &.active {
+    background: var(--hg-accent-deep);
+  }
+}
+
+.app-footer {
+  padding-block: 2.25rem !important;
+  color: rgba(255, 253, 248, 0.6);
+  background: var(--hg-dark);
+  border-top: 0;
+}
+
+.app-footer-brand {
+  margin-bottom: 0.25rem;
+  color: #FFFDF8;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+
+.store-hero {
+  min-height: clamp(560px, calc(100svh - 118px), 760px);
+  display: flex;
+  align-items: center;
+  padding: 0;
+  color: var(--hg-dark);
+  background-image:
+    linear-gradient(90deg, rgba(247, 243, 234, 0.98) 0%, rgba(247, 243, 234, 0.92) 30%, rgba(247, 243, 234, 0.3) 58%, rgba(247, 243, 234, 0) 75%),
+    var(--hg-hero-image);
+  background-position: center;
+  background-size: cover;
+  isolation: isolate;
+
+  &::before {
+    display: none;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 84px;
+    background: linear-gradient(to top, rgba(42, 38, 34, 0.12), transparent);
+    pointer-events: none;
+  }
+}
+
+.store-hero-inner {
+  width: 100%;
+  max-width: 1180px;
+}
+
+.store-hero-content {
+  width: min(100%, 620px);
+  padding-block: 4rem;
+}
+
+.store-hero-badge,
+.store-section-kicker,
+.store-feature-kicker,
+.store-purchase-kicker,
+.store-detail-kicker,
+.product-card-kicker,
+.legacy-order-step-label {
+  margin-bottom: 1rem;
+  padding: 0;
+  border: 0;
+  color: var(--hg-accent-deep);
+  background: transparent !important;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+}
+
+.store-hero-title {
+  margin-bottom: 1.5rem;
+  color: var(--hg-dark);
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 5.75rem;
+  font-weight: 400;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+.store-hero-copy {
+  max-width: 30rem;
+  margin-bottom: 2.25rem;
+  color: #5E554C;
+  font-family: inherit;
+  font-size: 1.125rem;
+  line-height: 1.85;
+  white-space: pre-line;
+}
+
+.store-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.35rem;
+}
+
+.store-hero-text-link {
+  position: relative;
+  padding-block: 0.4rem;
+  color: var(--hg-dark);
+  font-weight: 650;
+  text-decoration: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 1px;
+    background: var(--hg-dark);
+    transform-origin: right;
+    transition: transform var(--hg-transition);
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    transform: scaleX(0.45);
+  }
+}
+
+.store-section-header {
+  margin-bottom: 2.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-section-title,
+.lookup-panel-title {
+  margin-bottom: 0.55rem;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 2.55rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+.store-section-desc {
+  margin-bottom: 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.9375rem;
+}
+
+.store-section-link {
+  color: var(--hg-dark);
+  font-size: 0.8rem;
+  letter-spacing: 0;
+  text-transform: none;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-accent-deep);
+  }
+}
+
+.product-card {
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--hg-border);
+  border-radius: 0;
+  box-shadow: none;
+
+  &::after {
+    top: -1px;
+    bottom: auto;
+    height: 2px;
+    background: var(--hg-accent);
+  }
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--hg-accent);
+    box-shadow: none;
+    transform: translateY(-3px);
+  }
+
+  .card-body {
+    padding-inline: 0 !important;
+    padding-block: 1.5rem 0.75rem !important;
+  }
+}
+
+.product-card-name {
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.product-card-price,
+.my-stat-value,
+.store-detail-price,
+.store-purchase-total-value {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+.product-card-cta,
+.store-feature-cta {
+  color: var(--hg-accent-deep);
+  font-family: inherit;
+}
+
+.workshop-visit-info {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.7fr) minmax(18rem, 1.3fr) auto;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: start;
+}
+
+.workshop-visit-info.is-compact {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-left: 3px solid var(--hg-accent);
+  background: var(--hg-surface-alt);
+
+  .workshop-visit-name {
+    font-size: 1rem;
+  }
+}
+
+.workshop-visit-name {
+  margin: 0;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 2.25rem;
+  font-weight: 400;
+}
+
+.workshop-visit-introduction {
+  margin: 1rem 0 0;
+  color: var(--hg-ink-soft);
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.workshop-visit-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.45rem 1rem;
+
+  dt {
+    color: var(--hg-ink-soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    white-space: pre-line;
+  }
+
+  a {
+    color: inherit;
+  }
+}
+
+.workshop-map-link {
+  color: var(--hg-accent-deep);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-footer-contact {
+  margin-bottom: 0.25rem;
+  color: var(--hg-ink-soft);
+}
+
+.app-footer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 1fr) auto;
+  gap: 2rem;
+  align-items: start;
+}
+
+.app-footer-introduction {
+  max-width: 36rem;
+  margin: 0;
+  color: rgba(255, 253, 248, 0.68);
+  line-height: 1.75;
+}
+
+.app-footer-business {
+  display: grid;
+  gap: 0.35rem;
+  color: rgba(255, 253, 248, 0.68);
+
+  strong {
+    color: #FFFDF8;
+  }
+}
+
+.app-footer-contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0.25rem 0 0;
+  color: rgba(255, 253, 248, 0.68);
+}
+
+.app-footer a {
+  color: inherit;
+  text-underline-offset: 0.2em;
+}
+
+.app-footer a:hover,
+.app-footer a:focus-visible {
+  color: #FFFDF8;
+}
+
+.app-footer-links {
+  display: grid;
+  gap: 0.55rem;
+  white-space: nowrap;
+}
+
+.app-footer-copyright {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 253, 248, 0.14);
+  color: rgba(255, 253, 248, 0.45);
+}
+
+.legal-page-header {
+  margin-bottom: 3rem;
+
+  h1 {
+    margin-bottom: 0.75rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 2.5rem;
+    letter-spacing: 0;
+  }
+
+  p:last-child {
+    margin: 0;
+    color: var(--hg-ink-soft);
+  }
+}
+
+.legal-page-lead {
+  margin-bottom: 2.5rem;
+  color: var(--hg-dark);
+  font-size: 1.05rem;
+  line-height: 1.85;
+  white-space: pre-line;
+}
+
+.legal-page section {
+  padding-block: 1.75rem;
+  border-top: 1px solid var(--hg-border);
+
+  h2 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    letter-spacing: 0;
+  }
+
+  p,
+  li {
+    line-height: 1.8;
+  }
+
+  p:last-child,
+  ul:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.business-info-list {
+  margin: 0;
+  border-top: 1px solid var(--hg-border);
+}
+
+.business-info-list > div {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: 1rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--hg-border);
+
+  dt {
+    color: var(--hg-ink-soft);
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.admin-image-preview {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+
+  img {
+    width: 5rem;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border: 1px solid var(--hg-border);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .workshop-visit-info {
+    grid-template-columns: 1fr;
+  }
+
+  .app-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .app-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .business-info-list > div {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+}
+
+.lookup-panel {
+  padding: clamp(2rem, 4vw, 3rem);
+  background: #E8DED0;
+  border: 0;
+  border-radius: 0.5rem 0.5rem 3rem 0.5rem;
+}
+
+.lookup-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.list-group-item {
+  background: transparent;
+  border-color: var(--hg-border);
+}
+
+.store-list-header {
+  padding: 0 0 1.5rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-list-title,
+.store-detail-title {
+  font-family: "Gowun Batang", Georgia, serif;
+  font-weight: 400;
+}
+
+.store-feature-card,
+.lookup-panel,
+.store-detail-card,
+.store-purchase-card,
+.legacy-order-banner,
+.store-list-header,
+.auth-hero-card,
+.auth-form-card,
+.my-gate-card,
+.my-dashboard-hero,
+.my-stat-card,
+.my-claim-card,
+.my-list-card,
+.my-action-card,
+.my-filter-card {
+  border-color: var(--hg-border);
+}
+
+.store-purchase-card,
+.purchase-panel {
+  border-color: var(--hg-dark);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .app-navbar .navbar-collapse {
+    padding-block: 1rem 1.25rem;
+    border-top: 1px solid var(--hg-border);
+  }
+
+  .app-navbar .navbar-nav {
+    align-items: stretch !important;
+  }
+
+  .app-signup-link {
+    margin-top: 0.5rem;
+  }
+
+  .store-hero {
+    min-height: 680px;
+    align-items: end;
+    background-image:
+      linear-gradient(0deg, rgba(247, 243, 234, 0.98) 0%, rgba(247, 243, 234, 0.92) 45%, rgba(247, 243, 234, 0.18) 78%),
+      var(--hg-hero-image);
+    background-position: 62% center;
+  }
+
+  .store-hero-content {
+    padding-block: 15rem 3rem;
+  }
+
+  .store-hero-title {
+    font-size: 3.65rem;
+  }
+
+}
+
+@media (max-width: 575.98px) {
+  .store-hero-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .store-section-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .admin-dashboard-columns,
+  .admin-dashboard-detail-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-metric-grid > div,
+  .admin-metric-grid > div:nth-child(3n) {
+    border-right: 1px solid var(--hg-border);
+  }
+
+  .admin-metric-grid > div:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .admin-revenue-row {
+    grid-template-columns: 2.75rem minmax(5rem, 1fr) minmax(5.75rem, auto);
+    gap: 0.4rem;
+  }
+}
+.booking-class-detail {
+  border-top: 1px solid var(--bs-border-color);
+  padding-top: 1rem;
+
+  img {
+    display: block;
+    width: 100%;
+    max-height: 280px;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    object-fit: cover;
+  }
+
+  p,
+  span {
+    white-space: pre-line;
+  }
+}

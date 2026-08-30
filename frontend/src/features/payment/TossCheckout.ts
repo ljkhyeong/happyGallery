@@ -63,15 +63,20 @@ export interface RequestTossPaymentArgs {
   failPath?: string;
 }
 
-export async function requestTossPayment(args: RequestTossPaymentArgs): Promise<void> {
+export async function requestTossPayment(
+  args: RequestTossPaymentArgs,
+  requireAllowed: () => void = () => undefined,
+): Promise<void> {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
   if (!clientKey) {
     throw new Error("VITE_TOSS_CLIENT_KEY 환경 변수가 설정되지 않았습니다.");
   }
   const TossPaymentsCtorFn = await loadTossSdk();
+  requireAllowed();
   const tossPayments = TossPaymentsCtorFn(clientKey);
   const customerKey = args.customerKey ?? generateAnonymousCustomerKey();
   const payment = tossPayments.payment({ customerKey });
+  requireAllowed();
   await payment.requestPayment({
     method: "CARD",
     amount: { currency: "KRW", value: args.amount },

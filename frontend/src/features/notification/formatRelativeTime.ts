@@ -1,7 +1,14 @@
+import { parseApiDateTime } from "@/shared/lib";
+
+const relativeDateFormatter = new Intl.DateTimeFormat("ko-KR", {
+  month: "short",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
+
 export function formatRelativeTime(isoString: string): string {
-  const date = new Date(isoString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
+  const timestamp = parseApiDateTime(isoString);
+  const diffMs = Date.now() - timestamp;
   const diffMin = Math.floor(diffMs / 60_000);
 
   if (diffMin < 1) return "방금 전";
@@ -13,5 +20,5 @@ export function formatRelativeTime(isoString: string): string {
   const diffDays = Math.floor(diffHours / 24);
   if (diffDays < 7) return `${diffDays}일 전`;
 
-  return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+  return relativeDateFormatter.format(timestamp);
 }

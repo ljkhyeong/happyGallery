@@ -1,5 +1,9 @@
 package com.personal.happygallery.domain.booking;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+
 /**
  * 예약금 산출 — 클래스 가격의 10%.
  *
@@ -8,13 +12,38 @@ package com.personal.happygallery.domain.booking;
  */
 public final class DepositCalculator {
 
-    private static final int DEPOSIT_PERCENT = 10;
-
     private DepositCalculator() {}
 
     /** 슬롯의 클래스 가격 기준 10% 예약금. */
     public static long of(Slot slot) {
-        long classPrice = slot.getBookingClass().getPrice();
-        return classPrice * DEPOSIT_PERCENT / 100;
+        return calculate(slot, 1).depositAmount();
     }
+
+    /** 예약 인원 전체의 예약금과 잔금을 overflow 검출 산술로 계산한다. */
+    public static BookingAmounts calculate(Slot slot, int participantCount) {
+        return calculate(slot.getBookingClass().getPrice(), participantCount);
+    }
+
+    /** 클래스 가격 스냅샷 기준 예약금과 잔금을 overflow 검출 산술로 계산한다. */
+    public static BookingAmounts calculate(long classPrice, int participantCount) {
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        try {
+            long totalAmount = Math.multiplyExact(classPrice, participantCount);
+            PaymentAmountPolicy.requireValid(totalAmount);
+            long depositAmount = totalAmount / 10;
+            if (depositAmount < 1L) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "일반 예약금은 1원 이상이어야 합니다.");
+            }
+            return new BookingAmounts(
+                    depositAmount,
+                    Math.subtractExact(totalAmount, depositAmount));
+        } catch (ArithmeticException e) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT,
+                    "예약 금액이 허용 범위를 초과했습니다.");
+        }
+    }
+
+    public record BookingAmounts(long depositAmount, long balanceAmount) {}
 }

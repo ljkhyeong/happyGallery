@@ -8,15 +8,22 @@ spring:
     password: ${DB_PASSWORD:password}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+
 app:
   admin:
     api-key: dev-admin-key
     enable-api-key-auth: true
-  session:
-    secure-cookie: false
   field-encryption:
+    active-key-id: v1
     encrypt-key: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     hmac-key: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+  guest-token:
+    hmac-secret: "local-guest-token-hmac-secret-at-least-32-bytes"
 
 management:
   server:
@@ -30,4 +37,4 @@ logging:
     root: DEBUG
     com.personal.happygallery: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.orm.jdbc.bind: WARN

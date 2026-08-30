@@ -1,6 +1,9 @@
 package com.personal.happygallery.application.shared.page;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.nio.charset.StandardCharsets;
+import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
@@ -25,15 +28,19 @@ public final class CursorUtils {
     }
 
     public static CursorParam decode(String cursor) {
-        String raw = new String(
-                Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-        int sep = raw.lastIndexOf(SEPARATOR);
-        if (sep < 0) {
-            throw new IllegalArgumentException("Invalid cursor format");
+        try {
+            String raw = new String(
+                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+            int sep = raw.lastIndexOf(SEPARATOR);
+            if (sep < 0) {
+                throw new IllegalArgumentException("Invalid cursor format");
+            }
+            LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
+            Long id = Long.valueOf(raw.substring(sep + 1));
+            return new CursorParam(timestamp, id);
+        } catch (DateTimeException | IllegalArgumentException exception) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
         }
-        LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
-        Long id = Long.valueOf(raw.substring(sep + 1));
-        return new CursorParam(timestamp, id);
     }
 
     public record CursorParam(LocalDateTime timestamp, Long id) {}

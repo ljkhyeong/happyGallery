@@ -2,11 +2,14 @@ package com.personal.happygallery.application.order.port.out;
 
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
-import com.personal.happygallery.domain.product.ProductType;
+import java.util.Collection;
 import java.util.List;
 
 public interface OrderItemPort {
-    OrderItem save(OrderItem item);
+    <S extends OrderItem> S save(S item);
+    <S extends OrderItem> List<S> saveAll(Iterable<S> items);
     List<OrderItem> findByOrder(Order order);
-    boolean existsByOrderAndProductType(Order order, ProductType type);
+    List<OrderItem> findByOrderIdIn(Collection<Long> orderIds);
+    List<OrderItem> findByIdIn(Collection<Long> ids);
+    boolean existsMadeToOrderItem(Order order);
 }

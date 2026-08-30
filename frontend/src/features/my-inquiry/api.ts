@@ -1,14 +1,23 @@
-import { api } from "@/shared/api";
-import type { InquiryResponse, CreateInquiryRequest } from "@/shared/types";
+import {
+  createMyInquiry,
+  listMyInquiries as requestRecentMyInquiries,
+  listMyInquiriesPage,
+  type CreateInquiryRequest,
+  type InquiryResponse,
+  type MyInquiryPageResponse,
+} from "@/generated/api/customerStore";
 
-export function fetchMyInquiries(): Promise<InquiryResponse[]> {
-  return api<InquiryResponse[]>("/me/inquiries");
+export function fetchRecentMyInquiries(signal?: AbortSignal): Promise<InquiryResponse[]> {
+  return requestRecentMyInquiries({ signal });
 }
 
-export function fetchMyInquiry(id: number): Promise<InquiryResponse> {
-  return api<InquiryResponse>(`/me/inquiries/${id}`);
+export function fetchMyInquiriesPage(
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<MyInquiryPageResponse> {
+  return listMyInquiriesPage({ cursor, size: 20 }, { signal });
 }
 
 export function createInquiry(body: CreateInquiryRequest): Promise<InquiryResponse> {
-  return api<InquiryResponse>("/me/inquiries", { method: "POST", body });
+  return createMyInquiry(body);
 }

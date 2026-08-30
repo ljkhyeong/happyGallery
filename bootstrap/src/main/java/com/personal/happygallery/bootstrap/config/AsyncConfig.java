@@ -1,17 +1,22 @@
 package com.personal.happygallery.bootstrap.config;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Tags;
-import io.micrometer.core.instrument.binder.jvm.ExecutorServiceMetrics;
+import io.sentry.spring7.SentryTaskDecorator;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
+import org.springframework.core.task.support.CompositeTaskDecorator;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -22,61 +27,89 @@ public class AsyncConfig implements AsyncConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncConfig.class);
 
-    @Bean
-    public Executor notificationExecutor(MeterRegistry meterRegistry) {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("notify-");
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(30);
-        executor.setTaskDecorator(runnable -> {
-            Map<String, String> ctx = MDC.getCopyOfContextMap();
-            return () -> {
-                if (ctx != null) MDC.setContextMap(ctx);
-                try { runnable.run(); }
-                finally { MDC.clear(); }
-            };
-        });
-        executor.initialize();
-        ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                executor.getThreadPoolExecutor(),
-                "executor",
-                Tags.of("name", "notificationExecutor"));
-        return executor;
+    @Bean(name = "asyncContextTaskDecorator", defaultCandidate = false)
+    public TaskDecorator asyncContextTaskDecorator() {
+        return new CompositeTaskDecorator(List.of(
+                new SentryTaskDecorator(),
+                mdcTaskDecorator()));
     }
 
     @Bean
-    public Executor refundExecutor(MeterRegistry meterRegistry) {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(100);
-        executor.setThreadNamePrefix("refund-");
-        executor.setWaitForTasksToCompleteOnShutdown(true);
-        executor.setAwaitTerminationSeconds(30);
-        executor.setTaskDecorator(runnable -> {
-            Map<String, String> ctx = MDC.getCopyOfContextMap();
+    public ThreadPoolTaskExecutor notificationExecutor(
+            ThreadPoolTaskExecutorBuilder builder,
+            @Qualifier("asyncContextTaskDecorator") TaskDecorator taskDecorator,
+            MeterRegistry meterRegistry) {
+        return buildExecutor(builder, taskDecorator, meterRegistry, "notification", "notify-");
+    }
+
+    @Bean
+    public ThreadPoolTaskExecutor refundExecutor(
+            ThreadPoolTaskExecutorBuilder builder,
+            @Qualifier("asyncContextTaskDecorator") TaskDecorator taskDecorator,
+            MeterRegistry meterRegistry) {
+        return buildExecutor(builder, taskDecorator, meterRegistry, "refund", "refund-");
+    }
+
+    private ThreadPoolTaskExecutor buildExecutor(
+            ThreadPoolTaskExecutorBuilder builder,
+            TaskDecorator taskDecorator,
+            MeterRegistry meterRegistry,
+            String executorName,
+            String threadNamePrefix) {
+        return builder
+                .threadNamePrefix(threadNamePrefix)
+                .taskDecorator(taskDecorator)
+                .additionalCustomizers(executor -> executor.setRejectedExecutionHandler(
+                        durableSignalRejectionHandler(meterRegistry, executorName)))
+                .build();
+    }
+
+    private RejectedExecutionHandler durableSignalRejectionHandler(
+            MeterRegistry meterRegistry,
+            String executorName) {
+        Counter rejected = Counter.builder("happygallery.async.executor.rejected")
+                .description("커밋 후 후속 처리 실행 신호가 executor 포화 또는 종료로 거절된 횟수")
+                .tag("executor", executorName)
+                .register(meterRegistry);
+        return (task, executor) -> {
+            rejected.increment();
+            log.warn("[Async] 후속 처리 실행 신호 거절 "
+                            + "[executor={} active={} queued={} shutdown={}]",
+                    executorName,
+                    executor.getActiveCount(),
+                    executor.getQueue().size(),
+                    executor.isShutdown());
+        };
+    }
+
+    private TaskDecorator mdcTaskDecorator() {
+        return runnable -> {
+            Map<String, String> callerContext = MDC.getCopyOfContextMap();
             return () -> {
-                if (ctx != null) MDC.setContextMap(ctx);
-                try { runnable.run(); }
-                finally { MDC.clear(); }
+                Map<String, String> workerContext = MDC.getCopyOfContextMap();
+                if (callerContext == null) {
+                    MDC.clear();
+                } else {
+                    MDC.setContextMap(callerContext);
+                }
+                try {
+                    runnable.run();
+                } finally {
+                    if (workerContext == null) {
+                        MDC.clear();
+                    } else {
+                        MDC.setContextMap(workerContext);
+                    }
+                }
             };
-        });
-        executor.initialize();
-        ExecutorServiceMetrics.monitor(
-                meterRegistry,
-                executor.getThreadPoolExecutor(),
-                "executor",
-                Tags.of("name", "refundExecutor"));
-        return executor;
+        };
     }
 
     @Override
     public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
         return (Throwable ex, Method method, Object... params) ->
-                log.error("[Async] 비동기 작업 실패 — {}.{}()", method.getDeclaringClass().getSimpleName(), method.getName(), ex);
+                log.error("[Async] 비동기 작업 실패 — {}.{}() [type={}]",
+                        method.getDeclaringClass().getSimpleName(), method.getName(),
+                        ex.getClass().getSimpleName(), ex);
     }
 }

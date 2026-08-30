@@ -6,12 +6,16 @@ import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
+import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
 import com.personal.happygallery.domain.order.OrderStatus;
-import java.time.LocalDate;
+import com.personal.happygallery.domain.order.ShippingCarrier;
+import java.time.Clock;
+import java.time.LocalDateTime;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,29 +34,40 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
+    private final OrderNotificationSupport orderNotificationSupport;
+    private final ReviewNotificationPublisher reviewNotificationPublisher;
+    private final OrderRewardAccrualService rewardAccrualService;
+    private final Clock clock;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
                                        OrderStorePort orderStore,
                                        FulfillmentPort fulfillmentPort,
-                                       OrderHistoryPort orderHistoryPort) {
+                                       OrderHistoryPort orderHistoryPort,
+                                       OrderNotificationSupport orderNotificationSupport,
+                                       ReviewNotificationPublisher reviewNotificationPublisher,
+                                       OrderRewardAccrualService rewardAccrualService,
+                                       Clock clock) {
         this.orderReader = orderReader;
         this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
+        this.orderNotificationSupport = orderNotificationSupport;
+        this.reviewNotificationPublisher = reviewNotificationPublisher;
+        this.rewardAccrualService = rewardAccrualService;
+        this.clock = clock;
     }
 
     /**
      * 배송 준비 시작. APPROVED_FULFILLMENT_PENDING → SHIPPING_PREPARING.
-     * Fulfillment가 SHIPPING 타입이어야 한다 (없으면 새로 생성).
+     * 결제 confirm에서 생성된 Fulfillment가 SHIPPING 타입이어야 한다.
      */
+    @Override
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markShippingPreparing();
-
-        Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId)
-                .orElseGet(() -> Fulfillment.shipping(orderId));
-        fulfillmentPort.save(fulfillment);
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PREPARE_SHIPPING, adminId, null));
@@ -64,32 +79,62 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     /**
      * 배송 출발. SHIPPING_PREPARING → SHIPPED.
      */
+    @Override
     @OptimisticLockRetryable
-    public ShippingResult markShipped(Long orderId, Long adminId) {
+    public ShippingResult markShipped(
+            Long orderId, String carrier, String trackingNumber, Long adminId) {
+        return markShipped(
+                orderId,
+                ShippingCarrier.fromDisplayName(carrier).orElse(null),
+                carrier,
+                trackingNumber,
+                adminId);
+    }
+
+    @Override
+    @OptimisticLockRetryable
+    public ShippingResult markShipped(
+            Long orderId,
+            ShippingCarrier carrierCode,
+            String carrier,
+            String trackingNumber,
+            Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markShipped();
+        if (carrierCode != null) {
+            fulfillment.recordShipment(carrierCode, trackingNumber, LocalDateTime.now(clock));
+        } else {
+            fulfillment.recordShipment(carrier, trackingNumber);
+        }
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
+        fulfillmentPort.save(fulfillment);
         orderStore.save(order);
+        orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_SHIPPED);
 
-        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 
     /**
      * 배송 완료. SHIPPED → DELIVERED.
      */
+    @Override
     @OptimisticLockRetryable
     public ShippingResult markDelivered(Long orderId, Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
+        fulfillment.requireShippingType();
         order.markDelivered();
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
         orderStore.save(order);
+        rewardAccrualService.accrueForCompletion(order);
+        reviewNotificationPublisher.requestForOrder(order.getUserId(), order.getId());
 
-        Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         return ShippingResult.of(order, fulfillment);
     }
 }

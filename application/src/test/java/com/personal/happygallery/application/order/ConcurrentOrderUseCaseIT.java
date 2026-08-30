@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
@@ -7,6 +8,7 @@ import com.personal.happygallery.application.product.port.out.InventoryStorePort
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -41,15 +43,16 @@ class ConcurrentOrderUseCaseIT {
     @Autowired InventoryReaderPort inventoryReaderPort;
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
-        cleanup();
         orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
+                userStorePort, orderService);
     }
 
     @AfterEach
@@ -59,6 +62,7 @@ class ConcurrentOrderUseCaseIT {
 
     private void cleanup() {
         cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
@@ -69,6 +73,7 @@ class ConcurrentOrderUseCaseIT {
     @Test
     void concurrentOrder_quantity1_onlyOneSucceeds() throws InterruptedException {
         Product product = orderHelper.createReadyStockProduct("단일 작품(동시성)", 50000L, 1);
+        User member = orderHelper.createMemberOwner();
 
         int threadCount = 5;
         ExecutorService exec = Executors.newFixedThreadPool(threadCount);
@@ -80,8 +85,9 @@ class ConcurrentOrderUseCaseIT {
             exec.submit(() -> {
                 try {
                     startLatch.await();
-                    orderService.createPaidOrder(null,
-                            List.of(new OrderService.OrderItemRequest(product.getId(), 1, 50000L)));
+                    orderService.createMemberOrder(member.getId(),
+                            List.of(new OrderService.OrderItemRequest(
+                                    product.getId(), product.getName(), 1, 50000L)));
                     successes.incrementAndGet();
                 } catch (InventoryNotEnoughException e) {
                     failures.incrementAndGet();

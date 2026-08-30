@@ -1,12 +1,10 @@
 package com.personal.happygallery.application.batch;
 
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -33,7 +31,7 @@ public final class BatchExecutor {
      */
     public static <T> BatchResult execute(List<T> candidates,
                                           Function<T, Object> idExtractor,
-                                          Function<T, Boolean> processor,
+                                          Predicate<T> processor,
                                           String label) {
         int processed = 0;
         Map<String, Integer> failureReasons = new LinkedHashMap<>();
@@ -41,15 +39,16 @@ public final class BatchExecutor {
         for (T candidate : candidates) {
             Object id = idExtractor.apply(candidate);
             try {
-                if (processor.apply(candidate)) {
+                if (processor.test(candidate)) {
                     log.info("{} 처리 [id={}]", label, id);
                     processed++;
                 }
             } catch (ObjectOptimisticLockingFailureException e) {
-                log.info("{} 충돌로 스킵 [id={}]", label, id);
+                log.info("{} 충돌로 스킵 [id={}]", label, id, e);
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             } catch (Exception e) {
-                log.warn("{} 실패 [id={}]", label, id, e);
+                log.warn("{} 실패 [id={} type={}]",
+                        label, id, e.getClass().getSimpleName(), e);
                 failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
             }
         }
@@ -58,40 +57,32 @@ public final class BatchExecutor {
     }
 
     /**
-     * 페이지네이션 배치 실행기.
+     * ID 키셋 기반 배치 실행기.
      *
-     * <p>처리 후 상태가 변경되어 결과셋에서 빠지는 mutation 배치용이다.
-     * 매 반복마다 첫 페이지를 조회하여 빈 페이지가 나올 때까지 처리한다.
-     * 한 페이지에서 성공 건수가 0이면 무한 루프 방지를 위해 종료한다.
+     * <p>성공 여부와 무관하게 마지막 조회 ID 이후로 이동한다. 앞 페이지의 실패 항목이
+     * 조회 결과에 계속 남더라도 뒤쪽 후보가 굶지 않으며, 다음 스케줄 실행에서 실패 항목을 재시도한다.
+     * 조회 함수는 반드시 ID 오름차순으로 결과를 반환해야 한다.
      *
-     * @param pageFetcher 첫 페이지 조회 함수 (항상 page 0, 고정 크기)
-     * @param idExtractor 로그용 ID 추출 함수
+     * @param pageFetcher 마지막 조회 ID 이후의 다음 페이지 조회 함수
+     * @param idExtractor 커서와 로그에 사용할 ID 추출 함수
      * @param processor   건별 처리 함수 (true=성공, false=스킵)
      * @param label       로그 라벨
      */
-    public static <T> BatchResult executePaginated(Supplier<List<T>> pageFetcher,
-                                                    Function<T, Object> idExtractor,
-                                                    Function<T, Boolean> processor,
-                                                    String label) {
+    public static <T> BatchResult executeByIdCursor(Function<Long, List<T>> pageFetcher,
+                                                     Function<T, Long> idExtractor,
+                                                     Predicate<T> processor,
+                                                     String label) {
         BatchResult total = BatchResult.successOnly(0);
-        Set<Object> seenIds = new HashSet<>();
-        List<T> page;
-        while (!(page = pageFetcher.get()).isEmpty()) {
-            List<T> fresh = page.stream()
-                    .filter(item -> seenIds.add(idExtractor.apply(item)))
-                    .toList();
+        long afterId = 0L;
+        while (true) {
+            List<T> page = pageFetcher.apply(afterId);
+            if (page.isEmpty()) {
+                return total;
+            }
 
-            if (fresh.isEmpty()) {
-                log.warn("{} 남은 항목이 모두 처리 완료 — 루프 종료", label);
-                break;
-            }
-            BatchResult pageResult = execute(fresh, idExtractor, processor, label);
+            BatchResult pageResult = execute(page, idExtractor::apply, processor, label);
             total = total.merge(pageResult);
-            if (pageResult.successCount() == 0) {
-                log.warn("{} 페이지 진행 없음 — 루프 종료 (failureCount={})", label, pageResult.failureCount());
-                break;
-            }
+            afterId = idExtractor.apply(page.getLast());
         }
-        return total;
     }
 }

@@ -1,56 +1,75 @@
 package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.Slot;
-import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface SlotRepository extends JpaRepository<Slot, Long>, SlotReaderPort, SlotStorePort {
 
+    @Override
+    <S extends Slot> S save(S slot);
+
+    @Override
+    <S extends Slot> List<S> saveAll(Iterable<S> slots);
+
     @Override Optional<Slot> findById(Long id);
-    @Override Slot save(Slot slot);
+    @Override List<Slot> findAllById(Iterable<Long> ids);
 
-    /** 중복 슬롯 검사 — (class_id, start_at) UNIQUE 제약 반영 */
-    boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
+                s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
+                s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
+                s.bookingClass.bufferMin, s.bookingClass.price,
+                s.bookingClass.category, s.bookingClass.passEligible
+            )
+            FROM Slot s
+            WHERE s.id = :id
+            """)
+    Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(@Param("id") Long id);
 
-    /** 관리자 슬롯 목록 조회 — 활성 슬롯만 */
-    List<Slot> findByBookingClassIdAndIsActiveTrue(Long classId);
+    @Override
+    @Query("""
+            SELECT new com.personal.happygallery.application.booking.port.out.SlotSchedulingSnapshot(
+                s.id, s.bookingClass.id, s.startAt, s.endAt, s.bookingClass.status,
+                s.adminActive, s.calendarActive, s.bufferBlockCount, s.capacity, s.bookedCount,
+                s.bookingClass.bufferMin, s.bookingClass.price,
+                s.bookingClass.category, s.bookingClass.passEligible
+            )
+            FROM Slot s
+            WHERE s.id IN :ids
+            """)
+    List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(@Param("ids") Iterable<Long> ids);
+
+    @Override
+    @Query(value = """
+            SELECT COUNT(*)
+            FROM slots candidate
+            JOIN classes booking_class ON booking_class.id = candidate.class_id
+            WHERE candidate.class_id = :classId
+              AND candidate.id <> :sourceSlotId
+              AND candidate.booked_count > 0
+              AND candidate.start_at < :sourceEndWithBuffer
+              AND TIMESTAMPADD(MINUTE, booking_class.buffer_min, candidate.end_at) > :sourceStartAt
+            """, nativeQuery = true)
+    long countBookedConflicts(
+            @Param("classId") Long classId,
+            @Param("sourceSlotId") Long sourceSlotId,
+            @Param("sourceStartAt") LocalDateTime sourceStartAt,
+            @Param("sourceEndWithBuffer") LocalDateTime sourceEndWithBuffer);
 
     /** 관리자 슬롯 전체 조회 — 활성/비활성 포함, 시작 시각 내림차순 */
-    List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
+    @Override List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    /** 공개 슬롯 조회 — classId + 날짜 기준, 활성 & 잔여 정원 있는 슬롯만 */
-    @Query("SELECT s FROM Slot s " +
-           "WHERE s.bookingClass.id = :classId " +
-           "AND s.startAt >= :dayStart AND s.startAt < :dayEnd " +
-           "AND s.isActive = true " +
-           "AND s.bookedCount < s.capacity " +
-           "ORDER BY s.startAt")
-    List<Slot> findAvailableByClassAndDate(@Param("classId") Long classId,
-                                           @Param("dayStart") LocalDateTime dayStart,
-                                           @Param("dayEnd") LocalDateTime dayEnd);
+    @Override
+    List<Slot> findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(
+            Long classId, LocalDateTime rangeStart, LocalDateTime rangeEnd);
 
-    /** 비관적 쓰기 락 — 정원 강제용. 반드시 트랜잭션 안에서 호출해야 한다. */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM Slot s WHERE s.id = :id")
-    Optional<Slot> findByIdWithLock(@Param("id") Long id);
-
-    /**
-     * 버퍼 범위 내 활성 슬롯 조회.
-     * 범위: {@code start_at in [windowStart, windowEnd)} — 시작 포함, 끝 미포함.
-     */
-    @Query("SELECT s FROM Slot s " +
-           "WHERE s.bookingClass.id = :classId " +
-           "AND s.startAt >= :windowStart AND s.startAt < :windowEnd " +
-           "AND s.isActive = true")
-    List<Slot> findActiveInBufferWindow(@Param("classId") Long classId,
-                                        @Param("windowStart") LocalDateTime windowStart,
-                                        @Param("windowEnd") LocalDateTime windowEnd);
 }

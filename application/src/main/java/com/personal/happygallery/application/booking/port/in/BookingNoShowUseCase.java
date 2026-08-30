@@ -9,5 +9,5 @@ import com.personal.happygallery.domain.booking.Booking;
  */
 public interface BookingNoShowUseCase {
 
-    Booking markNoShow(Long bookingId);
+    Booking markNoShow(Long bookingId, Long adminId);
 }

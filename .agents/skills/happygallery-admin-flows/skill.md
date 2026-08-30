@@ -13,18 +13,21 @@ description: Repository-specific workflow for backend admin work in the happyGal
   - `docs/ADR/0016_API_버전_전략/adr.md`
   - `docs/ADR/0017_Filter_처리율_제한/adr.md`
   - `docs/ADR/0023_관리자_회원_인증_세션_기준선/adr.md`
-  - `docs/ADR/0008_결제_제공자_추상화/adr.md`
-  - `docs/ADR/0010_이용권_구매_만료_결정/adr.md`
-  - `docs/ADR/0011_이용권_사용_소모_환불_결정/adr.md`
-  - `docs/ADR/0013_주문_승인_모델/adr.md`
-  - `docs/ADR/0014_예약_제작_주문_결정/adr.md`
+- Read the booking, order, pass, product, or payment ADR only when the admin endpoint changes that domain behavior.
+
+## Implementation judgment
+
+- Keep controller validation and DTO conversion thin; keep operator workflow and domain decisions in the owning application/domain service.
+- Prefer explicit auth-source and endpoint behavior over helpers that hide 401, 404, audit, or rate-limit semantics.
+- Reuse high-value auth, setup, filter, and endpoint contract tests; do not add a test for every trivial mapping.
 
 ## Non-negotiable invariants
 
-- Preserve `RequestIdFilter -> RateLimitFilter -> AdminAuthFilter` ordering where applicable.
+- Preserve `RequestIdFilter -> RateLimitFilter -> admin SecurityFilterChain` ordering, with `AdminAuthenticationFilter` before `AnonymousAuthenticationFilter` inside the chain.
 - Keep admin endpoint paths and response DTO contracts aligned with the PRD.
-- Preserve Redis-backed Bearer session behavior, admin identity propagation, and 401 handling.
-- Treat legacy `X-Admin-Id` compatibility and persisted admin history fields consistently where older flows still depend on them, but do not treat the header as the primary runtime contract.
+- Preserve Redis-backed Bearer session behavior, `AdminPrincipal` propagation through `SecurityContext`, and 401 handling.
+- Keep `Authorization: Bearer` as the primary contract. `X-Admin-Key` is an explicitly enabled local/test fallback, not an admin identity header.
+- Keep one-time setup guarded by configuration, an empty admin table, and a constant-time token check; return 404 when setup is unavailable.
 - Do not weaken admin protection or accidentally expose broader public routes.
 - If the change only touches admin UI components or pages under `frontend/`, use `happygallery-frontend-flows` instead.
 - When a change is domain-specific and not about admin concerns, prefer the narrower booking/order/pass/product/payment skill.
@@ -32,8 +35,8 @@ description: Repository-specific workflow for backend admin work in the happyGal
 
 ## Verification workflow
 
-- Filter or auth changes: `./gradlew :adapter-in-web:test --tests "*AdminAuthFilterTest" --tests "*RateLimitFilterTest"`
-- Admin integration endpoint changes: `./gradlew --no-daemon :application:useCaseTest --tests "*Admin*"`
-- Broad admin confidence: `./gradlew --no-daemon :application:useCaseTest`
+- Filter or auth changes: `./gradlew :adapter-in-web:test --tests "*SecurityBoundaryUseCaseIT" --tests "*AdminLoginUseCaseIT" --tests "*RateLimitFilterTest"`
+- Setup changes: target `AdminSetupControllerTest` and `DefaultAdminSetupServiceTest` in their owning modules.
+- Admin endpoint changes: target the affected `:adapter-in-web:test --tests "*Admin...*"`; add application tests only when its service changed.
 
 Read `references/admin-map.md` for main files, tests, and doc sync notes.

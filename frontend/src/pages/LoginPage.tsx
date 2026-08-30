@@ -1,17 +1,20 @@
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { api } from "@/shared/api";
-import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
+import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
+import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
+import { ErrorAlert } from "@/shared/ui";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
 export function LoginPage() {
   const { login } = useCustomerAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const returnTo = searchParams.get("redirect") ?? (location.state as { from?: string } | null)?.from ?? "/";
+  const returnTo = resolveSafeReturnTo(
+    searchParams.get("redirect") ?? (location.state as { from?: string } | null)?.from,
+  );
   const claimIntent = searchParams.get("claim") === "1" || returnTo.includes("claim=1");
   const signupHref = buildAuthPageHref("/signup", {
     redirectTo: returnTo,
@@ -21,19 +24,21 @@ export function LoginPage() {
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    if (!isPasswordWithinByteLimit(password)) return;
+    setError(null);
     setSubmitting(true);
-    const ok = await login(email, password);
-    setSubmitting(false);
-    if (ok) {
+    try {
+      await login(email, password);
       navigate(returnTo);
-    } else {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -44,7 +49,7 @@ export function LoginPage() {
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
               <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "Guest Claim Login" : "Member Login"}
+                {claimIntent ? "비회원 이력 가져오기" : "회원 로그인"}
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
@@ -53,13 +58,13 @@ export function LoginPage() {
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
-                  ? "로그인 후 `/my`로 이동하면 비회원 이력 가져오기 모달이 바로 열립니다."
-                  : "회원은 `/my`에서 주문, 예약, 8회권을 추가 인증 없이 바로 확인할 수 있습니다."}
+                  ? "로그인 후 내 정보에서 비회원 이력 가져오기를 바로 이어서 진행합니다."
+                  : "회원은 내 정보에서 주문, 예약, 8회권을 추가 인증 없이 바로 확인할 수 있습니다."}
               </p>
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">주문, 예약, 8회권을 한 화면에서 관리</div>
-                <div className="auth-benefit-item">같은 번호의 비회원 이력 claim</div>
-                <div className="auth-benefit-item">필요 시 `/guest/**` 조회 경로도 계속 사용 가능</div>
+                <div className="auth-benefit-item">같은 번호의 비회원 이력 가져오기</div>
+                <div className="auth-benefit-item">기존 비회원 주문과 예약도 계속 조회 가능</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
                 <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>
@@ -72,7 +77,7 @@ export function LoginPage() {
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
               <h3 className="mb-3">로그인</h3>
-              {error && <Alert variant="danger">{error}</Alert>}
+              <ErrorAlert error={error} />
               {claimIntent && (
                 <Alert variant="info">
                   로그인 후 <strong>내 정보</strong>에서 비회원 주문과 예약을 바로 가져올 수 있습니다.
@@ -80,7 +85,7 @@ export function LoginPage() {
               )}
               {!claimIntent && (
                 <p className="text-muted-soft small mb-4">
-                  지금 로그인하면 최근 주문 상태, 예약 상세, 8회권 잔여 횟수를 `/my`에서 바로 이어서 볼 수 있습니다.
+                  지금 로그인하면 최근 주문 상태, 예약 상세, 8회권 잔여 횟수를 내 정보에서 바로 이어서 볼 수 있습니다.
                 </p>
               )}
               <Form onSubmit={handleSubmit}>
@@ -95,16 +100,30 @@ export function LoginPage() {
                   />
                 </Form.Group>
                 <Form.Group className="mb-3" controlId="password">
-                  <Form.Label>비밀번호</Form.Label>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <Form.Label>비밀번호</Form.Label>
+                    <Link
+                      to="/forgot-password"
+                      state={{ email }}
+                      className="auth-inline-link small mb-2"
+                    >
+                      비밀번호 재설정
+                    </Link>
+                  </div>
                   <Form.Control
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
+                    maxLength={72}
                   />
                 </Form.Group>
-                <Button type="submit" className="w-100" disabled={submitting}>
+                <Button
+                  type="submit"
+                  className="w-100"
+                  disabled={submitting || !isPasswordWithinByteLimit(password)}
+                >
                   {submitting ? "로그인 중..." : "로그인"}
                 </Button>
               </Form>
@@ -113,25 +132,7 @@ export function LoginPage() {
                 <span className="px-3 text-muted-soft small">또는</span>
                 <hr className="flex-grow-1" />
               </div>
-              <Button
-                variant="outline-dark"
-                className="w-100"
-                onClick={async () => {
-                  sessionStorage.setItem(SESSION_KEYS.socialLoginReturnTo, returnTo);
-                  const redirectUri = window.location.origin + "/auth/callback/google";
-                  try {
-                    const data = await api<{ url: string; state: string }>(
-                      `/auth/social/google/url?redirectUri=${encodeURIComponent(redirectUri)}`,
-                    );
-                    sessionStorage.setItem(SESSION_KEYS.googleOauthState, data.state);
-                    window.location.href = data.url;
-                  } catch {
-                    setError("Google 로그인 준비에 실패했습니다.");
-                  }
-                }}
-              >
-                Google로 로그인
-              </Button>
+              <SocialLoginButtons action="로그인" returnTo={returnTo} />
               <div className="auth-footer-link mt-4">
                 계정이 없으신가요? <Link to={signupHref}>회원가입</Link>
               </div>

@@ -1,12 +1,17 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
+import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
+import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
+import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Optional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,65 +19,284 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class NotificationOutboxTransactionService {
 
+    private static final int MAX_BACKOFF_EXPONENT = 5;
+    private static final String REMINDER_NO_LONGER_ELIGIBLE = "REMINDER_NO_LONGER_ELIGIBLE";
+    private static final String REVIEW_NO_LONGER_RELEVANT = "REVIEW_NO_LONGER_RELEVANT";
+
     private final NotificationOutboxPort outboxPort;
+    private final NotificationLogStorePort notificationLogStore;
+    private final NotificationReminderEligibility reminderEligibility;
+    private final ReviewNotificationEligibility reviewEligibility;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
-    NotificationOutboxTransactionService(NotificationOutboxPort outboxPort, Clock clock) {
+    NotificationOutboxTransactionService(NotificationOutboxPort outboxPort,
+                                         NotificationLogStorePort notificationLogStore,
+                                         NotificationReminderEligibility reminderEligibility,
+                                         ReviewNotificationEligibility reviewEligibility,
+                                         ApplicationEventPublisher eventPublisher,
+                                         Clock clock) {
         this.outboxPort = outboxPort;
+        this.notificationLogStore = notificationLogStore;
+        this.reminderEligibility = reminderEligibility;
+        this.reviewEligibility = reviewEligibility;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public List<Long> reserveDispatchableIds(int limit, int processingTimeoutMinutes) {
+    public Optional<NotificationOutboxReservation> reserveNextDispatchable(int processingTimeoutMinutes) {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime staleBefore = now.minusMinutes(processingTimeoutMinutes);
-        List<NotificationOutbox> outboxes = outboxPort.findDispatchable(now, staleBefore, limit);
-        for (NotificationOutbox outbox : outboxes) {
-            outbox.markProcessing(now);
-        }
-        return outboxes.stream()
-                .map(NotificationOutbox::getId)
-                .toList();
+        return outboxPort.findDispatchable(now, staleBefore, 1).stream()
+                .findFirst()
+                .map(outbox -> new NotificationOutboxReservation(
+                        outbox.getId(), reserve(outbox, now, staleBefore)));
     }
 
-    @Transactional(readOnly = true)
-    public NotificationOutboxDeliveryRequest loadRequest(Long outboxId) {
-        NotificationOutbox outbox = findOutbox(outboxId);
-        return new NotificationOutboxDeliveryRequest(
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<NotificationDeliveryResultReservation> reserveNextDeliveryResult(
+            int processingTimeoutMinutes) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime staleBefore = now.minusMinutes(processingTimeoutMinutes);
+        return outboxPort.findDeliveryResultCheckable(now, staleBefore, 1).stream()
+                .findFirst()
+                .map(outbox -> new NotificationDeliveryResultReservation(
+                        outbox.getId(),
+                        reserveDeliveryResult(outbox, now, staleBefore),
+                        outbox.getRecipientType(),
+                        outbox.getGuestId(),
+                        outbox.getUserId(),
+                        outbox.getEventType(),
+                        outbox.getIdempotencyKey(),
+                        outbox.getProviderChannel(),
+                        outbox.getProviderRequestId(),
+                        outbox.getProviderRecipientSeq()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public NotificationOutboxDeliveryPreparation prepareDelivery(
+            Long outboxId, String processingToken) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        if (!outbox.isProcessingOwnedBy(processingToken)) {
+            return NotificationOutboxDeliveryPreparation.stale();
+        }
+
+        LocalDateTime now = LocalDateTime.now(clock);
+        NotificationReminderRecipient recipient;
+        if (outbox.getEventType().isTimeSensitiveReminder()) {
+            var eligibleRecipient = reminderEligibility.findEligibleRecipient(outbox, now);
+            if (eligibleRecipient.isEmpty()) {
+                return outbox.markObsolete(processingToken, now, REMINDER_NO_LONGER_ELIGIBLE)
+                        ? NotificationOutboxDeliveryPreparation.obsolete()
+                        : NotificationOutboxDeliveryPreparation.stale();
+            }
+            recipient = eligibleRecipient.get();
+        } else if (outbox.getEventType().requiresReviewRelevanceCheck()) {
+            var eligibleRecipient = reviewEligibility.findEligibleRecipient(outbox);
+            if (eligibleRecipient.isEmpty()) {
+                return outbox.markObsolete(processingToken, now, REVIEW_NO_LONGER_RELEVANT)
+                        ? NotificationOutboxDeliveryPreparation.obsolete()
+                        : NotificationOutboxDeliveryPreparation.stale();
+            }
+            recipient = eligibleRecipient.get();
+        } else {
+            recipient = new NotificationReminderRecipient(outbox.getGuestId(), outbox.getUserId());
+        }
+
+        boolean prepared = outbox.refreshRecipient(
+                processingToken,
+                recipient.recipientType(),
+                recipient.guestId(),
+                recipient.userId(),
+                now);
+        if (!prepared) {
+            return NotificationOutboxDeliveryPreparation.stale();
+        }
+        return NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
                 outbox.getId(),
                 outbox.getRecipientType(),
                 outbox.getGuestId(),
                 outbox.getUserId(),
-                outbox.getEventType());
+                outbox.getEventType(),
+                outbox.getAggregateType(),
+                outbox.getAggregateId(),
+                outbox.getIdempotencyKey()));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markSent(Long outboxId) {
-        NotificationOutbox outbox = findOutbox(outboxId);
-        outbox.markSent(LocalDateTime.now(clock));
+    public boolean markSent(Long outboxId, String processingToken) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.markSent(processingToken, LocalDateTime.now(clock));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markDeliveryFailed(Long outboxId, String reason, int maxAttempts) {
-        NotificationOutbox outbox = findOutbox(outboxId);
+    public boolean markSentWithAuditFailure(Long outboxId, String processingToken, String reason) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.markSentWithAuditFailure(processingToken, LocalDateTime.now(clock), reason);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markDeliveryPending(
+            Long outboxId,
+            String processingToken,
+            NotificationChannel channel,
+            String providerRequestId,
+            Long providerRecipientSeq,
+            String auditError) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.markDeliveryPending(
+                processingToken,
+                channel,
+                providerRequestId,
+                providerRecipientSeq,
+                LocalDateTime.now(clock).plusSeconds(30),
+                auditError);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean rescheduleDeliveryResult(
+            Long outboxId, String processingToken, String reason) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
+        return outbox.rescheduleDeliveryCheck(
+                processingToken, LocalDateTime.now(clock).plusSeconds(30), reason);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markProviderDelivered(
+            NotificationDeliveryResultReservation reservation) {
+        NotificationOutbox outbox = findOutboxForUpdate(reservation.outboxId());
+        if (!outbox.isProcessingOwnedBy(reservation.processingToken())) {
+            return false;
+        }
+        var auditLog = notificationLogStore.findRequestedForUpdate(
+                reservation.providerChannel(),
+                reservation.providerRequestId(),
+                reservation.providerRecipientSeq());
+        if (auditLog.isEmpty()) {
+            return outbox.markSentWithAuditFailure(
+                    reservation.processingToken(),
+                    LocalDateTime.now(clock),
+                    "FINAL_DELIVERY_AUDIT_LOG_MISSING");
+        }
+        auditLog.get().markDelivered(LocalDateTime.now(clock));
+        return outbox.markSent(reservation.processingToken(), LocalDateTime.now(clock));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markProviderFailedAudit(
+            NotificationDeliveryResultReservation reservation, String reason) {
+        NotificationOutbox outbox = findOutboxForUpdate(reservation.outboxId());
+        if (!outbox.isProcessingOwnedBy(reservation.processingToken())) {
+            return false;
+        }
+        notificationLogStore.findRequestedForUpdate(
+                        reservation.providerChannel(),
+                        reservation.providerRequestId(),
+                        reservation.providerRecipientSeq())
+                .ifPresent(audit -> audit.markFailed(reason, LocalDateTime.now(clock)));
+        return true;
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markDeliveryFailed(Long outboxId, String processingToken, String reason, int maxAttempts) {
+        NotificationOutbox outbox = findOutboxForUpdate(outboxId);
         LocalDateTime now = LocalDateTime.now(clock);
-        outbox.markDeliveryFailed(reason, nextAttemptAt(outbox, now), now, maxAttempts);
+        boolean accepted = outbox.markDeliveryFailed(
+                processingToken, reason, nextAttemptAt(outbox, now), now, maxAttempts);
+        if (accepted && outbox.getStatus() == NotificationOutboxStatus.FAILED) {
+            eventPublisher.publishEvent(new NotificationOutboxFailedEvent(outbox.getId()));
+        }
+        return accepted;
     }
 
-    private NotificationOutbox findOutbox(Long outboxId) {
-        return outboxPort.findById(outboxId)
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean markPermanentFailure(Long outboxId, String processingToken, String reason) {
+        return markDeliveryFailed(outboxId, processingToken, reason, 1);
+    }
+
+    private String reserve(NotificationOutbox outbox,
+                           LocalDateTime now,
+                           LocalDateTime staleBefore) {
+        if (outbox.getStatus() == NotificationOutboxStatus.PROCESSING) {
+            return outbox.reclaimProcessing(now, staleBefore);
+        }
+        return outbox.markProcessing(now);
+    }
+
+    private String reserveDeliveryResult(
+            NotificationOutbox outbox, LocalDateTime now, LocalDateTime staleBefore) {
+        if (outbox.getStatus() == NotificationOutboxStatus.DELIVERY_CHECKING) {
+            return outbox.reclaimDeliveryChecking(now, staleBefore);
+        }
+        return outbox.markDeliveryChecking(now);
+    }
+
+    private NotificationOutbox findOutboxForUpdate(Long outboxId) {
+        return outboxPort.findByIdForUpdate(outboxId)
                 .orElseThrow(() -> new IllegalStateException("알림 outbox 미존재: " + outboxId));
     }
 
     private LocalDateTime nextAttemptAt(NotificationOutbox outbox, LocalDateTime now) {
-        int nextAttempt = outbox.getAttemptCount() + 1;
-        long delayMinutes = Math.min(60L, 1L << Math.min(nextAttempt - 1, 5));
+        int backoffExponent = Math.clamp((long) outbox.getAttemptCount(), 0, MAX_BACKOFF_EXPONENT);
+        long delayMinutes = 1L << backoffExponent;
         return now.plusMinutes(delayMinutes);
     }
 }
+
+record NotificationOutboxReservation(Long outboxId, String processingToken) {}
+
+record NotificationDeliveryResultReservation(
+        Long outboxId,
+        String processingToken,
+        NotificationRecipientType recipientType,
+        Long guestId,
+        Long userId,
+        NotificationEventType eventType,
+        String idempotencyKey,
+        NotificationChannel providerChannel,
+        String providerRequestId,
+        Long providerRecipientSeq
+) {}
 
 record NotificationOutboxDeliveryRequest(Long outboxId,
                                          NotificationRecipientType recipientType,
                                          Long guestId,
                                          Long userId,
-                                         NotificationEventType eventType) {}
+                                         NotificationEventType eventType,
+                                         String aggregateType,
+                                         Long aggregateId,
+                                         String idempotencyKey) {}
+
+record NotificationOutboxDeliveryPreparation(NotificationOutboxPreparationStatus status,
+                                             NotificationOutboxDeliveryRequest delivery) {
+
+    NotificationOutboxDeliveryPreparation {
+        if ((status == NotificationOutboxPreparationStatus.READY) != (delivery != null)) {
+            throw new IllegalArgumentException("발송 준비 완료 상태에만 delivery가 있어야 합니다.");
+        }
+    }
+
+    static NotificationOutboxDeliveryPreparation ready(NotificationOutboxDeliveryRequest delivery) {
+        return new NotificationOutboxDeliveryPreparation(
+                NotificationOutboxPreparationStatus.READY, delivery);
+    }
+
+    static NotificationOutboxDeliveryPreparation obsolete() {
+        return new NotificationOutboxDeliveryPreparation(
+                NotificationOutboxPreparationStatus.OBSOLETE, null);
+    }
+
+    static NotificationOutboxDeliveryPreparation stale() {
+        return new NotificationOutboxDeliveryPreparation(
+                NotificationOutboxPreparationStatus.STALE, null);
+    }
+}
+
+enum NotificationOutboxPreparationStatus {
+    READY,
+    OBSOLETE,
+    STALE
+}
+
+record NotificationOutboxFailedEvent(Long outboxId) {}

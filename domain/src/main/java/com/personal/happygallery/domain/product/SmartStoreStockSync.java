@@ -1,0 +1,138 @@
+package com.personal.happygallery.domain.product;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "smartstore_stock_syncs")
+public class SmartStoreStockSync {
+
+    public static final int MAX_ATTEMPTS = 10;
+
+    @Id
+    @Column(name = "product_id")
+    private Long productId;
+
+    @Column(name = "request_version", nullable = false)
+    private long requestVersion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private SmartStoreStockSyncStatus status;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount;
+
+    @Column(name = "next_attempt_at", nullable = false)
+    private LocalDateTime nextAttemptAt;
+
+    @Column(name = "processing_started_at")
+    private LocalDateTime processingStartedAt;
+
+    @Column(name = "last_error", length = 500)
+    private String lastError;
+
+    @Column(name = "synced_at")
+    private LocalDateTime syncedAt;
+
+    @Version
+    @Column(name = "row_version", nullable = false)
+    private long rowVersion;
+
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    private LocalDateTime updatedAt;
+
+    protected SmartStoreStockSync() {}
+
+    public SmartStoreStockSync(Long productId, LocalDateTime now) {
+        if (productId == null || now == null) {
+            throw new IllegalArgumentException("스마트스토어 재고 동기화 대상과 요청 시각은 필수입니다.");
+        }
+        this.productId = productId;
+        this.requestVersion = 1;
+        this.status = SmartStoreStockSyncStatus.PENDING;
+        this.nextAttemptAt = now;
+    }
+
+    public void request(LocalDateTime now) {
+        requestVersion = Math.addExact(requestVersion, 1);
+        status = SmartStoreStockSyncStatus.PENDING;
+        attemptCount = 0;
+        nextAttemptAt = now;
+        processingStartedAt = null;
+        lastError = null;
+    }
+
+    public long claim(LocalDateTime now, LocalDateTime staleBefore) {
+        boolean staleProcessing = status == SmartStoreStockSyncStatus.PROCESSING
+                && processingStartedAt != null
+                && !processingStartedAt.isAfter(staleBefore);
+        if (status != SmartStoreStockSyncStatus.PENDING && !staleProcessing) {
+            throw new IllegalStateException("대기 중인 스마트스토어 재고만 선점할 수 있습니다.");
+        }
+        status = SmartStoreStockSyncStatus.PROCESSING;
+        processingStartedAt = now;
+        return requestVersion;
+    }
+
+    public void complete(long claimedVersion, LocalDateTime now) {
+        if (requestVersion == claimedVersion) {
+            status = SmartStoreStockSyncStatus.SYNCED;
+            attemptCount = 0;
+            lastError = null;
+            syncedAt = now;
+            processingStartedAt = null;
+            return;
+        }
+        status = SmartStoreStockSyncStatus.PENDING;
+        nextAttemptAt = now;
+        processingStartedAt = null;
+    }
+
+    public void fail(long claimedVersion, String reason, LocalDateTime now) {
+        if (requestVersion != claimedVersion) {
+            status = SmartStoreStockSyncStatus.PENDING;
+            nextAttemptAt = now;
+            processingStartedAt = null;
+            return;
+        }
+        attemptCount++;
+        lastError = trim(reason);
+        if (attemptCount >= MAX_ATTEMPTS) {
+            status = SmartStoreStockSyncStatus.FAILED;
+            processingStartedAt = null;
+            return;
+        }
+        status = SmartStoreStockSyncStatus.PENDING;
+        nextAttemptAt = now.plusMinutes(Math.min(30, 1L << Math.min(attemptCount - 1, 5)));
+        processingStartedAt = null;
+    }
+
+    private static String trim(String reason) {
+        if (reason == null) {
+            return null;
+        }
+        return reason.length() <= 500 ? reason : reason.substring(0, 500);
+    }
+
+    public Long getProductId() { return productId; }
+    public long getRequestVersion() { return requestVersion; }
+    public SmartStoreStockSyncStatus getStatus() { return status; }
+    public int getAttemptCount() { return attemptCount; }
+    public LocalDateTime getNextAttemptAt() { return nextAttemptAt; }
+    public LocalDateTime getProcessingStartedAt() { return processingStartedAt; }
+    public String getLastError() { return lastError; }
+    public LocalDateTime getSyncedAt() { return syncedAt; }
+    public long getRowVersion() { return rowVersion; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+}

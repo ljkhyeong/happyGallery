@@ -1,11 +1,26 @@
-import { useEffect, useState } from "react";
-import { Card, Badge, Button, Form } from "react-bootstrap";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchAdminNotices, createNotice, updateNotice, deleteNotice } from "./api";
-import type { NoticeListItem } from "@/shared/types";
-import { ApiError } from "@/shared/api";
+import { useRef, useState } from "react";
+import { Alert, Card, Badge, Button, Form } from "react-bootstrap";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  fetchAdminNotice,
+  fetchAdminNotices,
+  createNotice,
+  updateNotice,
+  deleteNotice,
+  type NoticeDetailResponse,
+  type NoticeListResponse,
+} from "./api";
+import { ApiError, queryKeys } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import {
+  CONTENT_BODY_MAX_LENGTH,
+  CONTENT_TITLE_MAX_LENGTH,
+  contentLengthLabel,
+} from "@/shared/validation/contentText";
 
 interface Props {
   adminKey: string;
@@ -16,122 +31,256 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
 
-  const { data: notices, isLoading, error } = useQuery({
-    queryKey: ["admin", "notices"],
+  const { data: notices, isLoading, error } = useAdminQuery(onAuthError, {
+    queryKey: queryKeys.admin.notices,
     queryFn: () => fetchAdminNotices(adminKey),
   });
 
+  const invalidateSavedNotices = () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.notices.all }),
+    ]);
+  };
+
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
+  const [actionError, setActionError] = useState<Error | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [conflict, setConflict] = useState<NoticeDetailResponse | null>(null);
+  const editRequestId = useRef(0);
 
   const resetForm = () => {
+    editRequestId.current += 1;
     setShowForm(false);
     setEditId(null);
+    setEditVersion(null);
     setTitle("");
     setContent("");
     setPinned(false);
+    setActionError(null);
+    setEditLoading(false);
+    setConflict(null);
   };
 
-  const createMutation = useMutation({
+  const hydrateEditForm = (notice: NoticeDetailResponse) => {
+    setEditVersion(notice.version);
+    setTitle(notice.title);
+    setContent(notice.content);
+    setPinned(notice.pinned);
+  };
+
+  const createMutation = useAdminMutation(onAuthError, {
     mutationFn: () => createNotice({ title, content, pinned }, adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 등록되었습니다.");
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
     },
+    onError: setActionError,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: () => updateNotice(editId!, { title, content, pinned }, adminKey),
+  const updateMutation = useAdminMutation(onAuthError, {
+    mutationFn: () => updateNotice(
+      editId!,
+      { expectedVersion: editVersion!, title, content, pinned },
+      adminKey,
+    ),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 수정되었습니다.");
       resetForm();
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
+    },
+    onError: async (error) => {
+      if (!(error instanceof ApiError) || error.status !== 409 || editId === null) {
+        setActionError(error);
+        return;
+      }
+
+      const requestId = editRequestId.current;
+      setEditLoading(true);
+      try {
+        const latest = await fetchAdminNotice(editId, adminKey);
+        if (requestId !== editRequestId.current) return;
+        setConflict(latest);
+        setActionError(null);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
+      } catch (refreshError) {
+        if (requestId !== editRequestId.current) return;
+        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
+        setActionError(
+          refreshError instanceof Error
+            ? refreshError
+            : new Error("최신 공지사항을 불러오지 못했습니다."),
+        );
+      } finally {
+        if (requestId === editRequestId.current) setEditLoading(false);
+      }
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: number) => deleteNotice(id, adminKey),
+  const deleteMutation = useAdminMutation(onAuthError, {
+    mutationFn: ({ id, version }: Pick<NoticeListResponse, "id" | "version">) =>
+      deleteNotice(id, version, adminKey),
+    onMutate: () => setActionError(null),
     onSuccess: () => {
       toast.show("공지사항이 삭제되었습니다.");
-      queryClient.invalidateQueries({ queryKey: ["admin", "notices"] });
+      invalidateSavedNotices();
+    },
+    onError: (error) => {
+      setActionError(error);
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
+      }
     },
   });
 
-  const startEdit = (n: NoticeListItem) => {
-    setEditId(n.id);
-    setTitle(n.title);
-    setPinned(n.pinned);
+  const startEdit = async (notice: NoticeListResponse) => {
+    const requestId = ++editRequestId.current;
+    setEditId(notice.id);
+    setEditVersion(null);
+    setTitle(notice.title);
     setContent("");
+    setPinned(notice.pinned);
+    setActionError(null);
+    setConflict(null);
     setShowForm(true);
+    setEditLoading(true);
+
+    try {
+      const detail = await fetchAdminNotice(notice.id, adminKey);
+      if (requestId !== editRequestId.current) return;
+      hydrateEditForm(detail);
+    } catch (editError) {
+      if (requestId !== editRequestId.current) return;
+      if (isAdminSessionUnauthorized(editError)) onAuthError();
+      setActionError(
+        editError instanceof Error
+          ? editError
+          : new Error("공지사항을 불러오지 못했습니다."),
+      );
+    } finally {
+      if (requestId === editRequestId.current) setEditLoading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId) {
+    if (editId !== null && editVersion !== null) {
       updateMutation.mutate();
-    } else {
+    } else if (editId === null) {
       createMutation.mutate();
     }
   };
 
-  useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      onAuthError();
-    }
-  }, [error, onAuthError]);
-
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">공지사항 관리</h5>
+      <div className="d-flex justify-content-end mb-3">
         <Button size="sm" variant="outline-primary" onClick={() => { resetForm(); setShowForm(!showForm); }}>
           {showForm ? "취소" : "새 공지 작성"}
         </Button>
       </div>
 
+      <ErrorAlert error={actionError} />
+
       {showForm && (
         <Card className="mb-3">
           <Card.Body>
+            {editLoading && <LoadingSpinner text="공지사항 불러오는 중..." />}
+            {conflict && (
+              <Alert variant="warning">
+                <p className="mb-2">
+                  다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다.
+                </p>
+                <div className="d-flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline-dark"
+                    onClick={() => {
+                      setEditVersion(conflict.version);
+                      setConflict(null);
+                      toast.show("내 입력 내용은 그대로 유지했습니다. 다른 관리자의 변경 내용을 확인한 뒤 다시 저장해 주세요.");
+                    }}
+                  >
+                    내 초안 유지
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline-secondary"
+                    onClick={() => {
+                      hydrateEditForm(conflict);
+                      setConflict(null);
+                    }}
+                  >
+                    다른 관리자가 저장한 내용 불러오기
+                  </Button>
+                </div>
+              </Alert>
+            )}
             <Form onSubmit={handleSubmit}>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2" controlId="admin-notice-title">
+                <Form.Label>제목</Form.Label>
                 <Form.Control
                   size="sm"
                   placeholder="제목"
+                  maxLength={CONTENT_TITLE_MAX_LENGTH}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  disabled={editLoading}
                   required
+                  aria-describedby="admin-notice-title-count"
                 />
+                <Form.Text id="admin-notice-title-count" className="text-muted d-block text-end">
+                  {contentLengthLabel(title, CONTENT_TITLE_MAX_LENGTH)}
+                </Form.Text>
               </Form.Group>
-              <Form.Group className="mb-2">
+              <Form.Group className="mb-2" controlId="admin-notice-content">
+                <Form.Label>내용</Form.Label>
                 <Form.Control
                   as="textarea"
                   rows={4}
                   size="sm"
                   placeholder="내용"
+                  maxLength={CONTENT_BODY_MAX_LENGTH}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
+                  disabled={editLoading}
                   required
+                  aria-describedby="admin-notice-content-count"
                 />
+                <Form.Text id="admin-notice-content-count" className="text-muted d-block text-end">
+                  {contentLengthLabel(content, CONTENT_BODY_MAX_LENGTH)}
+                </Form.Text>
               </Form.Group>
               <Form.Check
                 type="checkbox"
                 label="상단 고정"
                 checked={pinned}
                 onChange={(e) => setPinned(e.target.checked)}
+                disabled={editLoading}
                 className="mb-2"
               />
               <Button
                 type="submit"
                 size="sm"
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={
+                  editLoading
+                  || conflict !== null
+                  || (editId !== null && editVersion === null)
+                  || createMutation.isPending
+                  || updateMutation.isPending
+                }
               >
-                {editId ? "수정" : "등록"}
+                {editId !== null ? "수정" : "등록"}
               </Button>
-              <ErrorAlert error={createMutation.error || updateMutation.error} />
             </Form>
           </Card.Body>
         </Card>
@@ -153,13 +302,22 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                 <span className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
                   조회 {n.viewCount} | {formatDateTime(n.createdAt)}
                 </span>
-                <Button size="sm" variant="outline-secondary" onClick={() => startEdit(n)}>
+                <Button
+                  size="sm"
+                  variant="outline-secondary"
+                  onClick={() => void startEdit(n)}
+                  disabled={editLoading}
+                >
                   수정
                 </Button>
                 <Button
                   size="sm"
                   variant="outline-danger"
-                  onClick={() => { if (confirm("삭제하시겠습니까?")) deleteMutation.mutate(n.id); }}
+                  onClick={() => {
+                    if (confirm("삭제하시겠습니까?")) {
+                      deleteMutation.mutate({ id: n.id, version: n.version });
+                    }
+                  }}
                   disabled={deleteMutation.isPending}
                 >
                   삭제

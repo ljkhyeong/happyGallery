@@ -16,6 +16,10 @@ public record CursorPage<T>(
         boolean hasMore
 ) {
 
+    public CursorPage {
+        content = List.copyOf(content);
+    }
+
     /**
      * size + 1개를 조회한 결과로부터 CursorPage를 생성한다.
      *
@@ -27,9 +31,9 @@ public record CursorPage<T>(
                                        Function<T, String> cursorExtractor) {
         if (fetchedItems.size() > size) {
             List<T> content = fetchedItems.subList(0, size);
-            String nextCursor = cursorExtractor.apply(content.get(content.size() - 1));
-            return new CursorPage<>(List.copyOf(content), nextCursor, true);
+            String nextCursor = cursorExtractor.apply(content.getLast());
+            return new CursorPage<>(content, nextCursor, true);
         }
-        return new CursorPage<>(List.copyOf(fetchedItems), null, false);
+        return new CursorPage<>(fetchedItems, null, false);
     }
 }

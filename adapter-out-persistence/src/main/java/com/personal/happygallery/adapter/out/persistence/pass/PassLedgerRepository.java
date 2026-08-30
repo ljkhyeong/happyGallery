@@ -6,9 +6,12 @@ import com.personal.happygallery.domain.pass.PassLedger;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface PassLedgerRepository extends JpaRepository<PassLedger, Long>, PassLedgerReaderPort, PassLedgerStorePort {
+public interface PassLedgerRepository extends JpaRepository<PassLedger, Long>,
+        PassLedgerReaderPort,
+        PassLedgerStorePort {
 
-    @Override PassLedger save(PassLedger ledger);
+    @Override
+    <S extends PassLedger> S save(S ledger);
 
-    List<PassLedger> findByPassPurchaseId(Long passPurchaseId);
+    @Override List<PassLedger> findByPassPurchaseId(Long passPurchaseId);
 }

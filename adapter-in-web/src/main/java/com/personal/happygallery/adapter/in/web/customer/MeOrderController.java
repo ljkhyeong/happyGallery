@@ -2,12 +2,18 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderSummary;
+import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderPageResponse;
 import com.personal.happygallery.adapter.in.web.order.dto.OrderDetailResponse;
-import com.personal.happygallery.adapter.in.web.resolver.CustomerUserId;
+import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -26,13 +32,29 @@ public class MeOrderController {
     }
 
     @GetMapping
-    public List<MyOrderSummary> myOrders(@CustomerUserId Long userId) {
-        return MyOrderSummary.fromAll(orderQueryUseCase.listMyOrders(userId));
+    @Operation(operationId = "listMyOrders")
+    public List<MyOrderSummary> myOrders(@AuthenticationPrincipal CustomerPrincipal customer) {
+        return MyOrderSummary.fromAll(orderQueryUseCase.listMyOrders(customer.userId()));
+    }
+
+    @GetMapping("/page")
+    @Operation(operationId = "listMyOrdersPage")
+    public MyOrderPageResponse myOrdersPage(
+            @AuthenticationPrincipal CustomerPrincipal customer,
+            @RequestParam(required = false) String cursor,
+            @Parameter(schema = @Schema(
+                    type = "integer", format = "int32", defaultValue = "20",
+                    minimum = "1", maximum = "100"))
+            @RequestParam(defaultValue = "20") int size) {
+        return MyOrderPageResponse.from(
+                orderQueryUseCase.listMyOrders(customer.userId(), cursor, size));
     }
 
     @GetMapping("/{id}")
-    public OrderDetailResponse myOrder(@PathVariable Long id, @CustomerUserId Long userId) {
-        OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, userId);
+    @Operation(operationId = "getMyOrder")
+    public OrderDetailResponse myOrder(@PathVariable Long id,
+                                       @AuthenticationPrincipal CustomerPrincipal customer) {
+        OrderQueryUseCase.OrderDetail detail = orderQueryUseCase.findMyOrder(id, customer.userId());
         return OrderDetailResponse.from(detail);
     }
 }

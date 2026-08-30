@@ -2,10 +2,9 @@ package com.personal.happygallery.bootstrap.logging;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import com.fasterxml.jackson.core.JsonGenerator;
+import java.io.IOException;
 import net.logstash.logback.composite.AbstractFieldJsonProvider;
 import net.logstash.logback.composite.JsonWritingUtils;
-
-import java.io.IOException;
 
 /**
  * LogstashEncoder용 커스텀 message provider.
@@ -23,7 +22,7 @@ public class MaskingMessageJsonProvider extends AbstractFieldJsonProvider<ILoggi
 
     @Override
     public void writeTo(JsonGenerator generator, ILoggingEvent event) throws IOException {
-        String masked = MaskingPatternLayout.maskSensitive(event.getFormattedMessage());
+        String masked = SensitiveLogMasker.mask(event.getFormattedMessage());
         JsonWritingUtils.writeStringField(generator, getFieldName(), masked);
     }
 }

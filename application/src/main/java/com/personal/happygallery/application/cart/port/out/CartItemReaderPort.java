@@ -1,12 +1,21 @@
 package com.personal.happygallery.application.cart.port.out;
 
 import com.personal.happygallery.domain.cart.CartItem;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface CartItemReaderPort {
 
-    List<CartItem> findByUserId(Long userId);
-
     Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);
+
+    Optional<CartItem> findByUserIdAndProductIdForUpdate(Long userId, Long productId);
+
+    Optional<CartItem> findByUserIdAndIdForUpdate(Long userId, Long cartItemId);
+
+    List<CartItem> findAllWithTextInputsByUserId(Long userId);
+
+    List<CartItem> findAllByUserIdAndProductIdInForUpdate(Long userId, Collection<Long> productIds);
+
+    List<CartItem> findAllByUserIdAndIdInOrderByIdAsc(Long userId, Collection<Long> cartItemIds);
 }

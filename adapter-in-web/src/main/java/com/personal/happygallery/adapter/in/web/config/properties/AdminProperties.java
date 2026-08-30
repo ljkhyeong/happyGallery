@@ -9,5 +9,6 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "app.admin")
 public record AdminProperties(
         @NotNull @DefaultValue("") String apiKey,
-        @DefaultValue("false") boolean enableApiKeyAuth
+        @DefaultValue("false") boolean enableApiKeyAuth,
+        @DefaultValue("false") boolean requireMfaEnrollment
 ) {}

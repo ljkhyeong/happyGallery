@@ -1,27 +1,75 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Container, Card, Button, Badge } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
-import { cancelBooking, fetchBooking, rescheduleBooking } from "@/features/booking-manage/api";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { useState } from "react";
+import { skipToken, useQuery } from "@tanstack/react-query";
+import { Container, Card, Badge } from "react-bootstrap";
+import { useLocation, useSearchParams } from "react-router";
+import {
+  cancelBooking,
+  fetchBooking,
+  reduceBookingParticipants,
+  rescheduleBooking,
+} from "@/features/booking-manage/api";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
+import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
-import type { BookingDetailResponse } from "@/shared/types";
+import { customerRefundPollingInterval } from "@/shared/lib";
+import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
+import {
+  isCurrentCustomerSessionState,
+  runForCurrentCustomer,
+  type CustomerSessionOwnedState,
+} from "@/shared/api";
 
-interface LocationState {
+interface LocationState extends CustomerSessionOwnedState {
   bookingId?: number;
   token?: string;
 }
 
+interface BookingLookup {
+  credentials: {
+    bookingId: number;
+    token: string;
+  };
+  requestId: string;
+}
+
 export function BookingManagePage() {
+  const { sessionVersion } = useCustomerAuth();
+  return <BookingManageContent key={sessionVersion} />;
+}
+
+function BookingManageContent() {
   const location = useLocation();
-  const navState = location.state as LocationState | null;
-  const [booking, setBooking] = useState<BookingDetailResponse | null>(null);
-  const [currentToken, setCurrentToken] = useState("");
+  const [searchParams] = useSearchParams();
+  const navState = isCurrentCustomerSessionState(location.state)
+    ? location.state as LocationState
+    : null;
+  const [initialCredentials] = useState(() => {
+    const queryBookingId = Number(searchParams.get("bookingId"));
+    const bookingId = navState?.bookingId
+      ?? (Number.isSafeInteger(queryBookingId) && queryBookingId > 0 ? queryBookingId : undefined);
+    const token = navState?.token
+      ?? loadGuestRecordRecovery()?.value.accessToken
+      ?? "";
+    return { bookingId, token: token.trim() };
+  });
+  const [lookup, setLookup] = useState<BookingLookup | null>(() =>
+    initialCredentials.bookingId && initialCredentials.token
+      ? {
+          credentials: {
+            bookingId: initialCredentials.bookingId,
+            token: initialCredentials.token,
+          },
+          requestId: crypto.randomUUID(),
+        }
+      : null,
+  );
   const claimLoginHref = buildAuthPageHref("/login", {
     redirectTo: "/my?claim=1",
     claim: true,
@@ -31,80 +79,88 @@ export function BookingManagePage() {
     claim: true,
   });
 
-  const lookup = useMutation({
-    mutationFn: ({ bookingId, token }: { bookingId: number; token: string }) =>
-      fetchBooking(bookingId, token),
-    onSuccess: (data, variables) => {
-      setBooking(data);
-      setCurrentToken(variables.token);
-    },
-    onError: () => {
-      setBooking(null);
-      setCurrentToken("");
-    },
+  const {
+    data: booking,
+    error,
+    isFetching,
+    refetch: refetchBooking,
+  } = useQuery({
+    queryKey: ["guest", "booking", lookup?.credentials.bookingId, lookup?.requestId],
+    queryFn: lookup
+      ? () => runForCurrentCustomer(
+          () => fetchBooking(
+            lookup.credentials.bookingId,
+            lookup.credentials.token,
+          ),
+        )
+      : skipToken,
+    gcTime: 0,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
 
-  const handleLookup = useCallback(
-    (bookingId: number, token: string) => lookup.mutate({ bookingId, token }),
-    [lookup],
-  );
-
-  const autoLookupDone = useRef(false);
-  useEffect(() => {
-    if (!autoLookupDone.current && navState?.bookingId && navState?.token) {
-      autoLookupDone.current = true;
-      lookup.mutate({ bookingId: navState.bookingId, token: navState.token });
+  function handleLookup(bookingId: number, token: string) {
+    if (
+      lookup?.credentials.bookingId === bookingId &&
+      lookup.credentials.token === token
+    ) {
+      void refetchBooking();
+      return;
     }
-  }, [navState, lookup]);
+    setLookup({
+      credentials: { bookingId, token },
+      requestId: crypto.randomUUID(),
+    });
+  }
 
-  const refetch = useCallback(() => {
-    if (booking && currentToken) {
-      lookup.mutate({ bookingId: booking.bookingId, token: currentToken });
-    }
-  }, [booking, currentToken, lookup]);
+  async function refreshBooking() {
+    await refetchBooking();
+  }
 
   const isBooked = booking?.status === "BOOKED";
+  const currentToken = lookup?.credentials.token ?? "";
 
   return (
     <Container className="page-container">
       <Card className="legacy-order-banner mb-4 border-0">
         <Card.Body className="p-4">
-          <Badge bg="light" text="dark" className="mb-2">Guest Lookup</Badge>
+          <Badge bg="light" text="dark" className="mb-2">비회원 예약 관리</Badge>
           <h4 className="mb-2">비회원 예약 조회</h4>
           <p className="text-muted-soft mb-3">
-            이 경로는 이미 완료한 비회원 예약을 조회, 변경, 취소하는 보조 경로입니다.
+            완료한 비회원 예약을 조회하고, 가능한 예약은 변경하거나 취소할 수 있습니다.
             회원은 <strong>내 정보</strong>에서 예약 목록과 상세를 바로 확인하고 더 자연스럽게 이어갈 수 있습니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
-            <Button as={Link as any} to="/my" variant="dark" size="sm">
+            <LinkButton to="/my" variant="dark" size="sm">
               회원 내 정보
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimLoginHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_booking_lookup", "login")}
             >
               로그인하고 가져오기
-            </Button>
-            <Button
-              as={Link as any}
+            </LinkButton>
+            <LinkButton
               to={claimSignupHref}
               variant="outline-secondary"
               size="sm"
               onClick={() => trackGuestMemberCta("guest_booking_lookup", "signup")}
             >
               회원가입
-            </Button>
-            <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+            </LinkButton>
+            <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
               새 예약 만들기
-            </Button>
+            </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
-            <div className="guest-route-note-title">Guest route policy</div>
+            <div className="guest-route-note-title">조회 안내</div>
             <div className="small text-muted-soft">
-              비회원 예약은 토큰으로 바로 관리할 수 있고, 회원 전환 후에는 `/my`에서 같은 번호 기준 claim으로 이어서 볼 수 있습니다.
+              비회원 예약은 조회 코드로 관리할 수 있고, 회원가입 후에는 같은 번호의 이력을 내 정보로 가져올 수 있습니다.
             </div>
           </div>
         </Card.Body>
@@ -112,20 +168,22 @@ export function BookingManagePage() {
 
       <Card className="mb-4">
         <Card.Body>
-          <div className="legacy-order-step-label mb-2">예약 ID + 토큰 입력</div>
+          <div className="legacy-order-step-label mb-2">예약 번호와 조회 코드 입력</div>
           <p className="text-muted-soft small mb-3">
-            조회가 끝나면 같은 화면에서 슬롯 변경과 취소까지 이어서 진행할 수 있습니다.
+            조회가 끝나면 같은 화면에서 예약 날짜·시간 변경과 취소까지 이어서 진행할 수 있습니다.
           </p>
           <BookingLookupForm
             onLookup={handleLookup}
-            isLoading={lookup.isPending}
-            initialBookingId={navState?.bookingId ? String(navState.bookingId) : undefined}
-            initialToken={navState?.token}
+            isLoading={isFetching}
+            initialBookingId={initialCredentials.bookingId
+              ? String(initialCredentials.bookingId)
+              : undefined}
+            initialToken={initialCredentials.token || undefined}
           />
         </Card.Body>
       </Card>
 
-      <ErrorAlert error={lookup.error} />
+      <ErrorAlert error={booking ? null : error} />
 
       {booking && (
         <>
@@ -136,12 +194,38 @@ export function BookingManagePage() {
               <Card.Header>예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">
-                  새 슬롯 ID를 입력하면 동일한 비회원 토큰으로 예약 시간을 다시 잡을 수 있습니다.
+                  같은 클래스의 예약 가능한 날짜와 시간으로 변경할 수 있습니다.
                 </p>
                 <RescheduleForm
+                  classId={booking.classId}
+                  className={booking.className}
                   currentSlotId={booking.slotId}
+                  currentStartAt={booking.startAt}
+                  participantCount={booking.participantCount}
                   onReschedule={(newSlotId) => rescheduleBooking(booking.bookingId, newSlotId, currentToken)}
-                  onSuccess={refetch}
+                  onSuccess={refreshBooking}
+                />
+              </Card.Body>
+            </Card>
+          )}
+
+          {isBooked && booking.participantCount > 1 && (
+            <Card className="mt-3 my-action-card border-0">
+              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Body>
+                <p className="text-muted-soft small mb-3">
+                  취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
+                </p>
+                <ReduceParticipantsForm
+                  participantCount={booking.participantCount}
+                  depositAmount={booking.depositAmount}
+                  cancelPolicy={booking.cancelPolicy}
+                  onReduce={(participantCount) => reduceBookingParticipants(
+                    booking.bookingId,
+                    participantCount,
+                    currentToken,
+                  )}
+                  onSuccess={refreshBooking}
                 />
               </Card.Body>
             </Card>
@@ -156,7 +240,9 @@ export function BookingManagePage() {
                 </p>
                 <CancelButton
                   onCancel={() => cancelBooking(booking.bookingId, currentToken)}
-                  onSuccess={refetch}
+                  onSuccess={refreshBooking}
+                  cancelPolicy={booking.cancelPolicy}
+                  depositAmount={booking.depositAmount}
                 />
               </Card.Body>
             </Card>

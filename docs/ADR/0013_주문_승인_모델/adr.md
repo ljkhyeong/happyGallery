@@ -23,17 +23,30 @@
 PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
     ├─ 관리자 승인 → APPROVED_FULFILLMENT_PENDING
     ├─ 관리자 거절 → REJECTED
+    ├─ 고객 취소 → CUSTOMER_CANCELED
     └─ 24h 초과 배치 → AUTO_REFUND_TIMEOUT
 ```
 
-이미 환불된 상태(REJECTED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED, DELAY_REJECTED_CANCELED)에서
+고객 취소는 제작·이행 시작 전인 `PAID_APPROVAL_PENDING`에서만 허용한다. 회원은 세션의 본인 주문,
+비회원은 주문 접근 토큰으로 소유권을 확인한다. 관리자 거절 의미인 `REJECTED`를 재사용하지 않는다.
+
+이미 환불된 상태(REJECTED, CUSTOMER_CANCELED, AUTO_REFUND_TIMEOUT, PICKUP_EXPIRED, DELAY_REJECTED_CANCELED)에서
 승인/거절 재시도 → `AlreadyRefundedException` (409).
-이 가드는 기존 `OrderStatus.requireApprovable()`을 재사용한다.
+이 가드는 `OrderStatus.requireApprovalPending()`에서 적용한다.
+
+신규 픽업 미수령은 상품 유형과 관계없이 `PICKUP_FORFEITED`로 종결한다. 관리자가 예외 환불한
+미수령 주문과 이미 자동 환불된 과거 기성품 이력만 `PICKUP_EXPIRED`로 유지한다.
+`PICKUP_FORFEITED` 승인/거절 재시도는 `ALREADY_REFUNDED`가 아니라 승인 대기 상태가 아닌 요청으로 거절한다.
 
 ### 2. 환불·재고 복구 순서
 
-거절/자동환불 시 반드시 **재고 복구 → 환불 기록 생성 → PG 환불 호출** 순으로 처리한다.
-PG 호출 실패 시 환불 레코드가 FAILED로 남아 운영자 재처리 대상이 된다.
+거절/고객 취소/자동환불 트랜잭션에서는 **상태·이력 기록, 재고 복구, 환불 요청 생성**을
+한 트랜잭션으로 처리하고,
+커밋 이후 PG 환불을 호출한다. 명시적 거절은 `FAILED`, 일시 실패와 결과 불명은 자동 복구 가능한 상태로 남는다.
+
+픽업 만료는 자동 환불하지 않는다. 기성품 주문은 재고만 복구하고, 주문제작 상품이 하나라도 포함된
+주문은 재고도 복구하지 않은 채 모두 `PICKUP_FORFEITED`로 종결한다. 관리자가 예외 환불하면
+만료 때의 재고 처리를 반복하지 않고 환불 요청만 생성한 뒤 `PICKUP_EXPIRED`로 전이한다.
 
 ### 3. 서비스 분리
 
@@ -67,13 +80,45 @@ PG 호출 실패 시 환불 레코드가 FAILED로 남아 운영자 재처리 �
 
 주문 환불은 기존 `Refund` 엔티티(refunds 테이블)에 `orderId` 필드를 통해 기록한다.
 별도 엔티티 없이 `Refund.forOrder(orderId, amount, paymentKey)` 팩토리로 기록한다.
+픽업 만료 자체는 환불 이력을 만들지 않는다. `PICKUP_FORFEITED`는 상품 유형과 관계없는 미환불
+미수령 종료, `PICKUP_EXPIRED`는 관리자 예외 환불 또는 정책 변경 전 자동 환불된 과거 이력을 나타낸다.
 
-### 7. 승인 이력에 관리자 식별자 기록
+### 7. 주문 처리 이력에 관리자 식별자 기록
 
-관리자 승인/거절 및 제작 완료 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
-`AdminAuthFilter`가 Bearer 세션에서 검증한 `adminUserId`를 request attribute로 전달하고,
-주문 컨트롤러는 이 값을 이력에 기록한다.
-API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`)은 null 이력을 허용한다.
+관리자 승인/거절, 제작, 픽업, 배송 이력은 `order_approvals.decided_by_admin_id`를 함께 저장한다.
+`AdminAuthenticationFilter`가 Bearer 세션을 검증해 `AdminPrincipal`과 `SecurityContext`를 구성하고,
+주문 컨트롤러는 `@AuthenticationPrincipal AdminPrincipal`의 `auditActorId()`를 이력에 전달한다.
+Bearer 세션은 검증된 관리자 ID를 반환하고, 사람 계정을 나타내지 않는 로컬 API key와
+배치 자동환불(`AUTO_REFUND`)과 픽업 만료(`PICKUP_FORFEITED`)는 null 이력을 허용한다.
+관리자 미수령 예외 환불(`PICKUP_EXPIRED`)은 Bearer 세션이면 관리자 ID를 기록한다.
+
+### 8. 픽업 마감 알림의 연관 데이터는 일괄 조회한다
+
+픽업 마감 임박 fulfillment와 주문 수신자를 projection JOIN으로 한 번에 조회한다.
+같은 수신자가 여러 주문을 가질 수 있으므로 수신자 단위 최근 발송 이력으로 후보를 제거하지 않는다.
+각 주문은 수신자와 무관한 `PICKUP_DEADLINE_REMINDER + ORDER + orderId` outbox 멱등키로 한 번만 저장한다.
+따라서 비회원 주문이 회원에게 귀속돼도 동일 주문 알림을 새 요청으로 만들지 않으며,
+알림 outbox 저장과 dispatch는 건별 실패 격리·재시도 경계를 유지한다.
+dispatch 준비 트랜잭션에서는 주문이 `PICKUP_READY`이고 픽업 마감이 `(now, now+2h]`인지와 현재 회원/비회원 소유자를
+주문·fulfillment JOIN 한 번으로 조회한다. 대기 중 비회원 주문이 회원에게 귀속됐으면 outbox 수신자를 현재 회원으로 갱신하고,
+준비 커밋 뒤 그 회원에게 발송해 채널 로그와 `SENT` 알림함 소유자도 일치시킨다.
+그사이 픽업 완료·만료·상태 변경 또는 마감 경과가 발생하면 sender를 호출하지 않고 outbox를 `OBSOLETE`로 종결한다.
+
+### 9. 고객이 선택한 이행 방식을 승인 이후에도 유지한다
+
+- 주문 confirm 시 `SHIPPING` 또는 `PICKUP` fulfillment를 주문과 같은 트랜잭션에 저장한다.
+- 관리자는 `SHIPPING` 주문에만 배송 준비를, `PICKUP` 주문에만 픽업 준비를 시작할 수 있다. 반대 흐름은 주문 상태를 바꾸기 전에 거절한다.
+- 픽업 마감은 주입된 `Clock` 기준 현재보다 이후인 값만 받는다. 만료 배치는 이후 실제 시간이 경과한 fulfillment만 처리한다.
+
+### 10. 결제 시점 표시·금액 스냅샷을 주문에 유지한다
+
+- `order_items.product_name`과 `unit_price`는 prepare에서 확정한 상품 표시와 단가를 저장한다. 상품명이 바뀌어도 과거 주문에는 결제 당시 이름을 보여준다.
+- 배송 주문은 서버 설정 `app.order.shipping-fee`를 결제 금액에 한 번 더하고 `orders.shipping_fee`에 저장한다. 픽업 주문의 배송비는 항상 0원이다.
+- 주문 거절·고객 취소·자동 환불·지연 거절의 전액 환불은 배송비가 포함된 `order.totalAmount`를 사용한다.
+- 배송 출발 시 `carrier_code`, `carrier`, `tracking_number`를 함께 받아 fulfillment에 저장하고 고객·관리자 상세에 같은 운송 정보를 반환한다. 신규 관리자 화면은 지원 택배사를 선택하게 하되 기존 자유 문자열 `carrier` 계약은 호환을 위해 유지한다.
+- 외부 배송조회 등록은 출고 트랜잭션 밖의 매분 배치가 처리한다. 처리 중 중단된 작업은 5분 뒤 회수하며 지수 지연으로 최대 10회 재시도한다.
+- 외부 배송 상태와 진행 이력은 서명 검증을 통과한 웹훅으로 갱신한다. 택배사 `DELIVERED`는 배송조회 상태만 완료하며, 적립과 후기 요청을 수반하는 주문 `DELIVERED`는 관리자가 별도로 확정한다.
+- 현재 배송비 정책은 주문 금액과 무관한 고정액이며 `GET /api/v1/orders/policy`로 공개한다. 무료 배송 임계값은 두지 않는다.
 
 ---
 
@@ -82,7 +127,8 @@ API Key 폴백 경로와 배치 자동환불(`AUTO_REFUND`)은 null 이력을 �
 | 항목 | 내용 |
 |------|------|
 | 멱등성 | 상태 가드 + 낙관적 락 + 제한 재시도로 이중 처리 가능성을 낮춘다. 재시도 소진 시 해당 건은 실패 집계에 남기고 다음 건으로 진행 |
-| PG 환불 실패 | FAILED 레코드 적체 알림 없음 (ADR-0008 동일 이슈). §11에서 알림 연동 |
-| 배치 단위 트랜잭션 | `autoRefundExpired()`는 목록 조회 후 건별 `REQUIRES_NEW` 트랜잭션으로 처리한다. 추후 건수 증가 시 페이지네이션 검토 필요 |
+| PG 환불 미완료 | 자동 복구와 관리자 조치 필요 목록으로 추적. PG 실행기 대기열 포화·거절은 별도 알림 |
+| 배치 단위 트랜잭션 | 자동 환불은 `BatchExecutor.executeByIdCursor`로 제한된 ID 윈도우를 반복 조회하고 건별 `REQUIRES_NEW` 트랜잭션으로 처리한다. |
+| 픽업 알림 조회량 | 후보 주문 조회에서 같은 이벤트·주문 aggregate의 기존 outbox를 `NOT EXISTS`로 제외하고, outbox 처리는 건별 격리를 유지 |
 | 승인 기한 경과 후 관리자 승인 | 배치 미실행 상태에서 기한 경과 주문도 관리자가 승인 가능 (의도된 여유). 배치 실행 후에는 409 차단 |
-| 관리자 식별자 null 허용 | Bearer 세션 경로는 adminId가 기록되지만, API Key 폴백과 배치 이력은 null일 수 있음 |
+| 관리자 식별자 null 허용 | Bearer 세션 경로는 adminId가 기록되지만, API Key 폴백과 자동환불·픽업 만료 배치 이력은 null일 수 있음 |

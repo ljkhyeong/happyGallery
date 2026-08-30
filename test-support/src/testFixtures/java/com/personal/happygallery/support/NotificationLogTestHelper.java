@@ -1,0 +1,23 @@
+package com.personal.happygallery.support;
+
+import com.personal.happygallery.domain.notification.NotificationLog;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static org.awaitility.Awaitility.await;
+
+public final class NotificationLogTestHelper {
+
+    private static final long TIMEOUT_MILLIS = 2_000L;
+    private static final long POLL_INTERVAL_MILLIS = 25L;
+
+    private NotificationLogTestHelper() {
+    }
+
+    public static List<NotificationLog> awaitLogCount(NotificationLogProbe notificationLogProbe, int expectedCount) {
+        return await()
+                .atMost(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
+                .pollInterval(POLL_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
+                .until(notificationLogProbe::all, logs -> logs.size() == expectedCount);
+    }
+}

@@ -46,33 +46,37 @@
 
 ---
 
-## 결정 4 — 버퍼 슬롯 재활성화 안 함
+## 결정 4 — 마지막 예약 반납 시 버퍼 슬롯 자동 재활성화
 
-**선택**: 변경 후 기존 슬롯의 `booked_count`가 0이 되어도 버퍼로 deactivate된 슬롯은 inactive 유지.
+**선택**: 기존 슬롯의 인원 점유 `booked_count`가 양수에서 0이 되면 그 슬롯과 수업·정리 구간이 겹치는 회차의 차단을 자동 해제한다.
 
 **이유**:
-- spec: "예약이 잡힌 경우에만 다음 시작 슬롯을 자동 비활성화" → 비활성화는 단방향
-- 재활성화 로직은 "어떤 예약이 버퍼를 유발했는지" 역추적이 필요 → 복잡성 증가
-- 관리자 수동 재활성화로 충분
+- 예약이 사라졌는데 운영자가 별도로 슬롯을 복구해야 하는 흐름은 불필요한 운영 부담이다.
+- `buffer_block_count`로 원인 수를 보존하면 여러 슬롯의 버퍼가 겹쳐도 아직 남은 차단을 지울 필요가 없다.
+- 관리자 비활성 상태는 `admin_active`로 분리해 자동 버퍼 해제와 무관하게 유지할 수 있다.
 
-**위험**: 불필요하게 비활성화된 슬롯이 관리자 수동 복구 없이 예약 불가로 남을 수 있음.
+**결과**:
+- 같은 슬롯의 첫 인원 점유(`0 → 양수`)만 버퍼 차단 수를 증가시키고 마지막 인원 반납(`양수 → 0`)만 감소시킨다.
+- 실제 활성 상태는 `admin_active && buffer_block_count == 0`이다.
+- 예약이 잡힌 뒤 버퍼 범위에 생성한 슬롯은 생성 시 기존 원인 예약 수만큼 차단 수를 초기화한다.
 
 ---
 
-## 결정 5 — 슬롯 락 순서: new 먼저, old 나중
+## 결정 5 — 동일 클래스 안에서만 슬롯 변경
 
-**선택**: `confirmBooking(newSlotId)` → `findByIdWithLock(oldSlotId)` 순서 고정.
+**선택**: 새 슬롯이 현재 예약과 같은 클래스인지 aggregate가 검증한다. 변경 트랜잭션은 관련 클래스 행을
+잠근 뒤 예약의 `participantCount`를 그대로 사용해
+`SlotCapacitySupport.reserveCapacity(newSlotId, participantCount)` →
+`releaseCapacity(oldSlotId, participantCount)`를 실행한다.
 
-**이유**: `confirmBooking`은 이미 구현된 API. 변경을 최소화.
+**이유**:
+- 예약금과 잔금은 예약 생성 당시 클래스 가격의 스냅샷이므로, 다른 클래스 슬롯으로 바꾸면 재결제 없이 가격 계약이 달라질 수 있다.
+- 고객 화면은 예약 상세의 `classId`로 같은 클래스의 공개 예약 가능 슬롯만 조회한다.
+- 새 슬롯 정원을 먼저 확보한 뒤 기존 슬롯을 반납하는 업무 순서를 유지한다.
 
-**알려진 위험 (deadlock)**:
-- 트랜잭션 1: A→B 변경 (new=B 락 → old=A 락)
-- 트랜잭션 2: B→A 변경 (new=A 락 → old=B 락)
-- 두 트랜잭션이 동시에 실행되면 deadlock 이론적 가능
-
-**완화책**: 실운영 슬롯은 시간 순서로 배치되어 swap 변경은 발생 가능성 낮음.
-발생 시 DB lock wait timeout → 트랜잭션 롤백으로 자동 복구.
-근본 해결: 슬롯 ID 오름차순으로 락 획득 — §5.3 이후 리팩토링 시 적용 권장.
+**잠금 순서**: 8회권 예약 변경은 `pass_purchases → class → slots(PK ASC)`, 일반 예약 변경은
+`class → slots(PK ASC)`이다. 여러 클래스의 미래 예약을 취소하는 8회권 전체 환불은 기존처럼 클래스 행을
+PK 오름차순으로 잠근다.
 
 ---
 
@@ -96,5 +100,5 @@
 
 | 메서드 | 위치 | 설명 |
 |--------|------|------|
-| `Slot.decrementBookedCount()` | `Slot.java` | 반납 시 booked_count-- (비관적 락 후 호출) |
+| `Slot.decrementBookedCount(participantCount)` | `Slot.java` | 반납 시 booked_count에서 예약 인원 차감 (비관적 락 후 호출) |
 | `Booking.reschedule(Slot)` | `Booking.java` | slot_id 변경, status BOOKED 유지 |

@@ -3,6 +3,8 @@ package com.personal.happygallery.application.customer.port.in;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.order.Order;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -25,10 +27,10 @@ public interface GuestClaimUseCase {
         }
     }
 
-    record ClaimOrderSummary(Long orderId, String status, long totalAmount, LocalDateTime createdAt) {
+    record ClaimOrderSummary(Long orderId, String status, long totalAmount, OffsetDateTime createdAt) {
         public static ClaimOrderSummary from(Order order) {
             return new ClaimOrderSummary(order.getId(), order.getStatus().name(),
-                    order.getTotalAmount(), order.getCreatedAt());
+                    order.getTotalAmount(), order.getCreatedAt().atOffset(ZoneOffset.UTC));
         }
     }
 

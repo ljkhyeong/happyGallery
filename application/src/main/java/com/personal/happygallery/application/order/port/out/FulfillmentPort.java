@@ -2,15 +2,17 @@ package com.personal.happygallery.application.order.port.out;
 
 import com.personal.happygallery.domain.order.Fulfillment;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 
 public interface FulfillmentPort {
-    Fulfillment save(Fulfillment fulfillment);
+    <S extends Fulfillment> S save(S fulfillment);
     Optional<Fulfillment> findByOrderId(Long orderId);
-    List<Fulfillment> findAll();
-    List<Fulfillment> findExpiredPickups(LocalDateTime now);
-    List<Fulfillment> findExpiredPickups(LocalDateTime now, Pageable pageable);
-    List<Fulfillment> findPickupsApproachingDeadline(LocalDateTime from, LocalDateTime to);
+    Optional<Fulfillment> findByIdForUpdate(Long id);
+    List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
+    List<Long> findTrackingRegistrationCandidateIds(
+            LocalDateTime now, LocalDateTime processingStaleBefore, int limit);
+    List<Fulfillment> findExpiredPickupsAfterId(LocalDateTime now, Long afterId, int limit);
+    List<PickupReminderTarget> findPickupReminderTargets(LocalDateTime from, LocalDateTime to);
 }

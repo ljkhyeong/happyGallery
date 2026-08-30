@@ -6,7 +6,9 @@ import com.personal.happygallery.adapter.in.web.admin.dto.CreateNoticeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.UpdateNoticeRequest;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeDetailResponse;
 import com.personal.happygallery.adapter.in.web.notice.dto.NoticeListResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.PositiveOrZero;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -16,11 +18,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/notices", "/admin/notices"})
+@RequestMapping("/api/v1/admin/notices")
 public class AdminNoticeController {
 
     private final NoticeAdminUseCase noticeAdminUseCase;
@@ -33,13 +36,21 @@ public class AdminNoticeController {
     }
 
     @GetMapping
+    @Operation(operationId = "listAdminNotices")
     public List<NoticeListResponse> list() {
         return noticeQueryUseCase.listAll().stream()
                 .map(NoticeListResponse::from)
                 .toList();
     }
 
+    @GetMapping("/{id}")
+    @Operation(operationId = "getAdminNotice")
+    public NoticeDetailResponse get(@PathVariable Long id) {
+        return NoticeDetailResponse.from(noticeAdminUseCase.getForEdit(id));
+    }
+
     @PostMapping
+    @Operation(operationId = "createAdminNotice")
     @ResponseStatus(HttpStatus.CREATED)
     public NoticeDetailResponse create(@RequestBody @Valid CreateNoticeRequest request) {
         return NoticeDetailResponse.from(
@@ -47,15 +58,24 @@ public class AdminNoticeController {
     }
 
     @PutMapping("/{id}")
+    @Operation(operationId = "updateAdminNotice")
     public NoticeDetailResponse update(@PathVariable Long id,
                                        @RequestBody @Valid UpdateNoticeRequest request) {
         return NoticeDetailResponse.from(
-                noticeAdminUseCase.update(id, request.title(), request.content(), request.pinned()));
+                noticeAdminUseCase.update(
+                        id,
+                        request.expectedVersion(),
+                        request.title(),
+                        request.content(),
+                        request.pinned()));
     }
 
     @DeleteMapping("/{id}")
+    @Operation(operationId = "deleteAdminNotice")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable Long id) {
-        noticeAdminUseCase.delete(id);
+    public void delete(
+            @PathVariable Long id,
+            @RequestParam @PositiveOrZero long expectedVersion) {
+        noticeAdminUseCase.delete(id, expectedVersion);
     }
 }

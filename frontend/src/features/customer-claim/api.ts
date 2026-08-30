@@ -1,45 +1,22 @@
-import { api } from "@/shared/api";
+import {
+  claimGuestRecords as requestGuestClaim,
+  previewGuestClaims,
+  verifyPhoneAndPreviewGuestClaims,
+  type GuestClaimPreviewResponse,
+  type GuestClaimResultResponse,
+} from "@/generated/api/customerStore";
 
-export interface ClaimOrderSummary {
-  orderId: number;
-  status: string;
-  totalAmount: number;
-  createdAt: string;
-}
-
-export interface ClaimBookingSummary {
-  bookingId: number;
-  status: string;
-  className: string;
-  startAt: string;
-  endAt: string;
-}
-
-export interface GuestClaimPreview {
-  phoneVerified: boolean;
-  orders: ClaimOrderSummary[];
-  bookings: ClaimBookingSummary[];
-}
-
-export interface GuestClaimResult {
-  claimedOrderCount: number;
-  claimedBookingCount: number;
-}
+export type GuestClaimPreview = GuestClaimPreviewResponse;
+export type GuestClaimResult = GuestClaimResultResponse;
 
 export function getGuestClaimPreview() {
-  return api<GuestClaimPreview>("/me/guest-claims/preview");
+  return previewGuestClaims();
 }
 
 export function verifyGuestClaimPhone(verificationCode: string) {
-  return api<GuestClaimPreview>("/me/guest-claims/verify", {
-    method: "POST",
-    body: { verificationCode },
-  });
+  return verifyPhoneAndPreviewGuestClaims({ verificationCode });
 }
 
 export function claimGuestRecords(orderIds: number[], bookingIds: number[]) {
-  return api<GuestClaimResult>("/me/guest-claims", {
-    method: "POST",
-    body: { orderIds, bookingIds },
-  });
+  return requestGuestClaim({ orderIds, bookingIds });
 }

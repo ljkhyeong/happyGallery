@@ -11,8 +11,8 @@ import com.personal.happygallery.application.dashboard.dto.StatusCount;
 import com.personal.happygallery.application.dashboard.dto.TopProduct;
 import com.personal.happygallery.application.dashboard.dto.TopProductSort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
-import com.personal.happygallery.application.dashboard.port.out.BookingStatsQueryPort;
-import com.personal.happygallery.application.dashboard.port.out.SalesStatsQueryPort;
+import com.personal.happygallery.application.dashboard.port.out.BookingAnalyticsPort;
+import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.LocalDate;
@@ -28,42 +28,42 @@ public class DefaultDashboardQueryService implements DashboardQueryUseCase {
     private static final int MAX_RANGE_DAYS = 365;
     private static final int MAX_LIMIT = 100;
 
-    private final SalesStatsQueryPort salesStatsQueryPort;
-    private final BookingStatsQueryPort bookingStatsQueryPort;
+    private final SalesAnalyticsPort salesAnalytics;
+    private final BookingAnalyticsPort bookingAnalytics;
 
-    public DefaultDashboardQueryService(SalesStatsQueryPort salesStatsQueryPort,
-                                        BookingStatsQueryPort bookingStatsQueryPort) {
-        this.salesStatsQueryPort = salesStatsQueryPort;
-        this.bookingStatsQueryPort = bookingStatsQueryPort;
+    public DefaultDashboardQueryService(SalesAnalyticsPort salesAnalytics,
+                                        BookingAnalyticsPort bookingAnalytics) {
+        this.salesAnalytics = salesAnalytics;
+        this.bookingAnalytics = bookingAnalytics;
     }
 
     @Override
     public DashboardOverview getOverview(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return salesStatsQueryPort.findOverview(from, to);
+        return salesAnalytics.findOverview(from, to);
     }
 
     @Override
     public List<PeriodSalesSummary> getSalesSummary(LocalDate from, LocalDate to, Granularity granularity) {
         validateRange(from, to);
-        return salesStatsQueryPort.findSalesSummary(from, to, granularity);
+        return salesAnalytics.findSalesSummary(from, to, granularity);
     }
 
     @Override
     public RevenueBreakdown getRevenueBreakdown(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return salesStatsQueryPort.findRevenueBreakdown(from, to);
+        return salesAnalytics.findRevenueBreakdown(from, to);
     }
 
     @Override
     public List<StatusCount> getOrderStatusDistribution() {
-        return salesStatsQueryPort.findOrderStatusDistribution();
+        return salesAnalytics.findOrderStatusDistribution();
     }
 
     @Override
     public RefundStats getRefundStats(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return salesStatsQueryPort.findRefundStats(from, to);
+        return salesAnalytics.findRefundStats(from, to);
     }
 
     @Override
@@ -73,19 +73,19 @@ public class DefaultDashboardQueryService implements DashboardQueryUseCase {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "limit은 1~" + MAX_LIMIT + " 범위여야 합니다.");
         }
-        return salesStatsQueryPort.findTopProducts(from, to, limit, sort);
+        return salesAnalytics.findTopProducts(from, to, limit, sort);
     }
 
     @Override
     public List<DailyRevenue> getDailyRevenueSeries(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return salesStatsQueryPort.findDailyRevenueSeries(from, to);
+        return salesAnalytics.findDailyRevenueSeries(from, to);
     }
 
     @Override
     public List<SlotUtilization> getSlotUtilization(LocalDate from, LocalDate to) {
         validateRange(from, to);
-        return bookingStatsQueryPort.findSlotUtilization(from, to);
+        return bookingAnalytics.findSlotUtilization(from, to);
     }
 
     private void validateRange(LocalDate from, LocalDate to) {

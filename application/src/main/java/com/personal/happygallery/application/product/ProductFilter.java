@@ -2,6 +2,7 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.product.ProductType;
+import java.util.Objects;
 
 /**
  * 상품 목록 필터 조건.
@@ -21,9 +22,7 @@ public record ProductFilter(
 ) {
     public ProductFilter {
         category = CategoryName.optional(category);
-        if (sort == null) {
-            sort = ProductSortOrder.NEWEST;
-        }
+        sort = Objects.requireNonNullElse(sort, ProductSortOrder.NEWEST);
     }
 
     public enum ProductSortOrder {
@@ -38,10 +37,6 @@ public record ProductFilter(
                 default -> NEWEST;
             };
         }
-    }
-
-    public static ProductFilter defaults() {
-        return new ProductFilter(null, null, null, ProductSortOrder.NEWEST);
     }
 
     /** 모든 필터가 기본값(미필터 + 최신순)인지 확인한다. */

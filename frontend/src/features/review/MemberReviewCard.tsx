@@ -1,0 +1,149 @@
+import { useState } from "react";
+import { Alert, Button, Card } from "react-bootstrap";
+import { Link } from "react-router";
+import type { MemberReviewResponse } from "./api";
+import { ErrorAlert } from "@/shared/ui";
+import { ReviewDate, ReviewStars, ReviewStatusBadge } from "./ReviewDisplay";
+import { ReviewForm } from "./ReviewForm";
+import { ReviewImageUploader } from "./ReviewImageUploader";
+import { ReviewOfficialReply } from "./ReviewOfficialReply";
+import { ReviewTrustBadges } from "./ReviewTrustBadges";
+import { isReviewContentChangedError } from "./reviewMutationConflict";
+import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
+import { useDeleteReview, useUpdateReview } from "./useReviewMutations";
+
+export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
+  const [editing, setEditing] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const updateMutation = useUpdateReview(() => setEditing(false));
+  const rememberEditingTrigger = useReviewFormTriggerFocus(editing);
+  const deleteMutation = useDeleteReview();
+  const revisionConflict = isReviewContentChangedError(updateMutation.error);
+  const targetHref = review.targetType === "PRODUCT"
+    ? `/products/${review.targetId}`
+    : `/classes/${review.targetId}`;
+
+  return (
+    <Card className="review-card member-review-card">
+      <Card.Body>
+        <div className="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <div className="d-flex flex-wrap align-items-center gap-2 mb-2">
+              <ReviewStatusBadge status={review.status} />
+              <ReviewStars rating={review.rating} />
+              <ReviewTrustBadges
+                verifiedTransaction={review.verifiedTransaction}
+                edited={review.edited}
+              />
+            </div>
+            <Link to={targetHref} className="fw-semibold text-decoration-none">
+              {review.targetName}
+            </Link>
+            <div className="text-muted-soft small mt-1">
+              {review.targetType === "PRODUCT" ? "상품" : "클래스"} · <ReviewDate value={review.createdAt} />
+            </div>
+          </div>
+          {!editing && !confirmingDelete && (
+            <div className="d-flex gap-2">
+              <Button
+                id={`member-review-edit-${review.id}`}
+                type="button"
+                size="sm"
+                variant="outline-dark"
+                onClick={(event) => {
+                  rememberEditingTrigger(event.currentTarget);
+                  setEditing(true);
+                }}
+              >
+                수정
+              </Button>
+              <Button type="button" size="sm" variant="outline-danger" onClick={() => setConfirmingDelete(true)}>
+                삭제
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {review.status === "HIDDEN" && (
+          <Alert variant="warning" className="small">
+            <strong className="d-block mb-1">공방에서 비공개 처리한 후기입니다.</strong>
+            {review.hiddenReason && <span>사유: {review.hiddenReason}</span>}
+            <span className="d-block mt-1">내용을 수정해도 자동으로 다시 공개되지 않습니다.</span>
+          </Alert>
+        )}
+
+        {editing ? (
+          <>
+            {revisionConflict && (
+              <Alert variant="warning" className="small">
+                다른 화면에서 후기가 변경되었습니다. 최신 별점과 내용을 다시 확인한 뒤 저장해 주세요.
+              </Alert>
+            )}
+            <ReviewForm
+              initialRating={review.rating}
+              initialContent={review.content}
+              submitLabel="수정 저장"
+              autoFocusFirstInput
+              pending={updateMutation.isPending}
+              error={revisionConflict ? undefined : updateMutation.error}
+              hiddenNotice={review.status === "HIDDEN"}
+              onCancel={() => {
+                updateMutation.reset();
+                setEditing(false);
+              }}
+              onSubmit={(value) => updateMutation.mutate({
+                reviewId: review.id,
+                expectedContentRevision: review.contentRevision,
+                ...value,
+              })}
+            />
+          </>
+        ) : (
+          review.content
+            ? <p className="review-content mb-0">{review.content}</p>
+            : <p className="text-muted-soft small mb-0">작성한 내용 없이 별점만 남긴 후기입니다.</p>
+        )}
+
+        {!editing && !confirmingDelete && (
+          <>
+            <ReviewImageUploader review={review} />
+            <ReviewOfficialReply reply={review.officialReply} />
+          </>
+        )}
+
+        {confirmingDelete && (
+          <Alert variant="danger" className="mb-0">
+            <p className="mb-2">이 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
+            <p className="small mb-2">
+              비공개 처리 이력이 없는 후기는 완료 내역에서 다시 작성할 수 있지만, 공방에서 비공개 처리한 이력이 있는 후기는 삭제해도 같은 이용 건으로 다시 작성할 수 없습니다.
+            </p>
+            <div className="d-flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(review)}
+              >
+                {deleteMutation.isPending ? "삭제 중..." : "삭제"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline-secondary"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  deleteMutation.reset();
+                  setConfirmingDelete(false);
+                }}
+              >
+                취소
+              </Button>
+            </div>
+            <div className="mt-2"><ErrorAlert error={deleteMutation.error} /></div>
+          </Alert>
+        )}
+      </Card.Body>
+    </Card>
+  );
+}

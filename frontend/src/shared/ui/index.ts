@@ -5,3 +5,4 @@ export { ErrorBoundary } from "./ErrorBoundary";
 export { EmptyState } from "./EmptyState";
 export { StatusBadge, getStatusLabel } from "./StatusBadge";
 export { ToastProvider, useToast } from "./ToastContainer";
+export { LinkButton } from "./LinkButton";

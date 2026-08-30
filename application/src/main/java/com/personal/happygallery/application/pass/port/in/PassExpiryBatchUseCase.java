@@ -1,8 +1,6 @@
 package com.personal.happygallery.application.pass.port.in;
 
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.domain.pass.PassPurchase;
-import java.util.List;
 
 /**
  * 8회권 만료 배치 유스케이스.
@@ -12,8 +10,6 @@ import java.util.List;
 public interface PassExpiryBatchUseCase {
 
     BatchResult expireAll();
-
-    List<PassPurchase> findExpiringWithin7Days();
 
     BatchResult sendExpiryNotifications();
 }

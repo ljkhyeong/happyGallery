@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: happygallery
+resources:
+  - namespace.yaml
+  - storage-class.yaml
+  - app-media-pvc.yaml
+  - app-config.yaml
+  - mysql.yaml
+  - redis.yaml
+  - app.yaml
+  - frontend.yaml
+  - prometheus.yaml
+  - alertmanager.yaml
+  - grafana.yaml
+  - ingress.yaml
+  - network-policy.yaml
+configMapGenerator:
+  - name: prometheus-alerts
+    files:
+      - alerts.yml=prometheus-alerts.generated.yml
+  - name: grafana-dashboards
+    files:
+      - system.json=grafana-system.generated.json
+      - funnel.json=grafana-funnel.generated.json
+generatorOptions:
+  disableNameSuffixHash: true

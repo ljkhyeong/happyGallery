@@ -1,0 +1,3 @@
+ALTER TABLE users
+    MODIFY COLUMN email_enc VARCHAR(512) NULL,
+    MODIFY COLUMN email_hmac CHAR(64) NULL;
