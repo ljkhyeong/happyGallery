@@ -234,3 +234,36 @@ test("@payment SDK가 현재 화면에서 취소 오류를 반환하면 승인 �
   expect(prepares).toHaveLength(1);
   expect(confirms).toHaveLength(0);
 });
+
+test("@payment 회원 주문·예약·8회권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
+  await openCheckout(page);
+  const receiptUrl = "https://dashboard.tosspayments.com/receipt/member-history";
+  await page.route("**/api/v1/me/orders/701", (route) => json(route, {
+    orderId: 701, orderNumber: "ORD-00000701", status: "COMPLETED", totalAmount: 12000,
+    productAmount: 12000, shippingFee: 0, couponDiscountAmount: 0, rewardUsedAmount: 0,
+    pgPaidAmount: 12000, rewardEarnBase: 12000, issuedCouponId: null,
+    paidAt: "2026-08-30T10:00:00", approvalDeadlineAt: null, items: [], fulfillment: null, refund: null, receiptUrl,
+  }));
+  await page.route("**/api/v1/me/bookings/702", (route) => json(route, {
+    bookingId: 702, classId: 7, slotId: 70, status: "CANCELED", className: "영수증 클래스",
+    startAt: "2026-08-30T10:00:00", endAt: "2026-08-30T12:00:00", participantCount: 1,
+    depositAmount: 5000, balanceAmount: 45000, balanceStatus: "UNPAID", passBooking: false,
+    cancelPolicy: { cancellable: false, refundable: false, deadlineAt: null, passCreditRestorable: false },
+    refund: null, receiptUrl,
+  }));
+  await page.route("**/api/v1/me/passes/page**", (route) => json(route, {
+    content: [true, false].map((hasReceipt, index) => ({
+      passId: 703 + index, planCode: "REGULAR_CRAFT_8", planName: "정규 공예 8회권",
+      purchasedAt: "2026-08-30T10:00:00", expiresAt: "2099-12-31T23:59:59",
+      totalCredits: 8, remainingCredits: 8, totalPrice: 240000, refund: null,
+      receiptUrl: hasReceipt ? receiptUrl : null,
+    })), hasMore: false, nextCursor: null,
+  }));
+  for (const path of ["/my/orders/701", "/my/bookings/702", "/my/passes"]) {
+    await page.goto(path);
+    const receipt = page.getByRole("link", { name: "결제 영수증 보기", exact: true });
+    await expect(receipt).toHaveCount(1);
+    await expect(receipt).toHaveAttribute("href", receiptUrl);
+    await expect(receipt).toHaveAttribute("target", "_blank");
+  }
+});

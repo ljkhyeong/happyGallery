@@ -14,6 +14,7 @@ import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/sh
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 import { OrderReviewsSection } from "@/features/review/OrderReviewsSection";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 
 export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,6 +90,7 @@ export function MyOrderDetailPage() {
       {error && <ErrorAlert error={error} />}
       <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
       <OrderDetailCard order={order} />
+      {order.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={order.receiptUrl} /></div>}
       <OrderCustomerActionPanel
         status={order.status}
         pending={cancelMutation.isPending || delayMutation.isPending}

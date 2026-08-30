@@ -8,6 +8,7 @@ import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticip
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
   cancelMyBooking,
   fetchMyBooking,
@@ -86,6 +87,7 @@ export function MyBookingDetailPage() {
       </div>
 
       <MyBookingDetailCard booking={booking} />
+      {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
 
       {error && <ErrorAlert error={error} />}
 

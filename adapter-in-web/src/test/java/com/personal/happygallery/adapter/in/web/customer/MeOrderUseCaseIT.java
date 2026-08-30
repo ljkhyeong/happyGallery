@@ -24,6 +24,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -48,6 +49,7 @@ class MeOrderUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
     @Autowired PhoneVerificationReaderPort phoneVerificationReader;
+    @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -103,7 +105,7 @@ class MeOrderUseCaseIT {
                 .andExpect(jsonPath("$.hasMore").value(false));
     }
 
-    @DisplayName("회원 주문 상세를 조회한다")
+    @DisplayName("회원 주문 상세는 현재 소유자에게만 비회원 결제 이력의 영수증까지 제공한다")
     @Test
     void getMyOrderDetail() throws Exception {
         Long orderId = createShippingOrder(new ShippingAddress(
@@ -112,6 +114,11 @@ class MeOrderUseCaseIT {
                 "27352",
                 "충북 충주시 계명대로 161",
                 "1층"));
+        String receiptUrl = "https://dashboard.tosspayments.com/receipt/member-order";
+        jdbcTemplate.update("""
+                UPDATE payment_attempt SET confirmed_receipt_url = ?, owner_user_id = NULL
+                WHERE context = 'ORDER' AND fulfilled_domain_id = ?
+                """, receiptUrl, orderId);
 
         mockMvc.perform(get("/api/v1/me/orders/{id}", orderId)
                         .cookie(sessionCookie))
@@ -120,10 +127,14 @@ class MeOrderUseCaseIT {
                 .andExpect(jsonPath("$.orderNumber").value("ORD-%08d".formatted(orderId)))
                 .andExpect(jsonPath("$.status").value("PAID_APPROVAL_PENDING"))
                 .andExpect(jsonPath("$.totalAmount").value(29000))
+                .andExpect(jsonPath("$.receiptUrl").value(receiptUrl))
                 .andExpect(jsonPath("$.fulfillment.shippingAddress.recipientName").value("주문회원"))
                 .andExpect(jsonPath("$.fulfillment.shippingAddress.phone").value("01033334444"))
                 .andExpect(jsonPath("$.fulfillment.shippingAddress.addressLine1")
                         .value("충북 충주시 계명대로 161"));
+        Cookie otherSession = customerHelper.signupAndGetSessionCookie("other-order@test.com", "010-3333-5555");
+        mockMvc.perform(get("/api/v1/me/orders/{id}", orderId).cookie(otherSession))
+                .andExpect(status().isNotFound());
     }
 
     @DisplayName("인증 없이 회원 주문 목록을 조회하면 401을 반환한다")

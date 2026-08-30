@@ -18,14 +18,16 @@ public record MyPassSummary(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int remainingCredits,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long totalPrice,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
-        RefundProgressResponse refund) {
+        RefundProgressResponse refund,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String receiptUrl) {
     public static MyPassSummary from(PassView view) {
         PassPurchase p = view.pass();
         return new MyPassSummary(
                 p.getId(), p.getPlan(), p.getPlan().getDisplayName(),
                 p.getPurchasedAt(), p.getExpiresAt(),
                 p.getTotalCredits(), p.getRemainingCredits(), p.getTotalPrice(),
-                view.refund() == null ? null : RefundProgressResponse.from(view.refund()));
+                view.refund() == null ? null : RefundProgressResponse.from(view.refund()), view.receiptUrl());
     }
 
     public static List<MyPassSummary> fromAll(List<PassView> passes) {

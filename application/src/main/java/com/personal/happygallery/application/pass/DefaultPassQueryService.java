@@ -3,6 +3,8 @@ package com.personal.happygallery.application.pass;
 import com.personal.happygallery.application.pass.port.in.PassQueryUseCase;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.payment.PaymentReceiptQuery;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -24,11 +26,14 @@ public class DefaultPassQueryService implements PassQueryUseCase {
 
     private final PassPurchaseReaderPort passPurchaseReader;
     private final RefundPort refundPort;
+    private final PaymentReceiptQuery receiptQuery;
 
     public DefaultPassQueryService(PassPurchaseReaderPort passPurchaseReader,
-                                   RefundPort refundPort) {
+                                   RefundPort refundPort,
+                                   PaymentReceiptQuery receiptQuery) {
         this.passPurchaseReader = passPurchaseReader;
         this.refundPort = refundPort;
+        this.receiptQuery = receiptQuery;
     }
 
     /** 회원 — 자기 8회권 목록 조회 */
@@ -67,8 +72,9 @@ public class DefaultPassQueryService implements PassQueryUseCase {
         Map<Long, Refund> refundsByPassId = refundPort.findByPassPurchaseIdIn(passIds)
                 .stream()
                 .collect(toMap(Refund::getPassPurchaseId, Function.identity()));
+        Map<Long, String> receiptsByPassId = receiptQuery.findReceipts(PaymentContext.PASS, passIds);
         return passes.stream()
-                .map(pass -> new PassView(pass, refundsByPassId.get(pass.getId())))
+                .map(pass -> new PassView(pass, refundsByPassId.get(pass.getId()), receiptsByPassId.get(pass.getId())))
                 .toList();
     }
 
@@ -78,6 +84,7 @@ public class DefaultPassQueryService implements PassQueryUseCase {
         PassPurchase pass = passPurchaseReader.findById(id)
                 .filter(p -> Objects.equals(p.getUserId(), userId))
                 .orElseThrow(NotFoundException.supplier("8회권"));
-        return new PassView(pass, refundPort.findByPassPurchaseId(id).orElse(null));
+        return new PassView(pass, refundPort.findByPassPurchaseId(id).orElse(null),
+                receiptQuery.findReceipt(PaymentContext.PASS, id));
     }
 }

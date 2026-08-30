@@ -22,7 +22,8 @@ public interface OrderQueryUseCase {
             Fulfillment fulfillment,
             ShippingAddress shippingAddress,
             List<ShipmentTrackingEvent> trackingEvents,
-            Refund refund
+            Refund refund,
+            String receiptUrl
     ) {
         public OrderDetail {
             items = List.copyOf(items);

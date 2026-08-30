@@ -446,6 +446,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `review_evidence_snapshots(retention_until, id)` 종결 후기 분쟁 증거 보존 만료 조회
 - `review_evidence_snapshot_images(snapshot_id, sort_order)`, `review_evidence_snapshot_images(image_url)` 후기 분쟁 증거 사진 순서와 미디어 참조 조회
 - `payment_attempt(order_id_external)` UNIQUE
+- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·8회권 목록의 영수증 조회 (`V161`)
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회

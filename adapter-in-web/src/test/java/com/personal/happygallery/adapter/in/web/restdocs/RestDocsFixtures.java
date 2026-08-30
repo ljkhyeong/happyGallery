@@ -169,7 +169,8 @@ final class RestDocsFixtures {
 
     static OrderQueryUseCase.OrderDetail orderDetail() {
         return new OrderQueryUseCase.OrderDetail(
-                order(), List.of(orderItem()), fulfillment(), null, List.of(), null);
+                order(), List.of(orderItem()), fulfillment(), null, List.of(), null,
+                "https://dashboard.tosspayments.com/receipt/order");
     }
 
     static Refund bookingRefund() {

@@ -194,7 +194,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(slotQueryUseCase.listUpcoming(any(), anyInt(), anyBoolean())).thenReturn(List.of(slot));
         when(guestBookingUseCase.sendVerificationCode(any(), any())).thenReturn(phoneVerification);
         when(bookingQueryUseCase.getBookingByToken(eq(100L), any()))
-                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
+                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null, null));
         when(guestPersonalDataProtector.decryptPhone(any(Guest.class))).thenReturn("01012345678");
         when(guestPersonalDataProtector.decryptName(any(Guest.class))).thenReturn("홍길동");
         when(bookingRescheduleUseCase.rescheduleBooking(eq(100L), any(), eq(42L)))

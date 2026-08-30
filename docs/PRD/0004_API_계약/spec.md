@@ -2992,6 +2992,8 @@ Cookie: HG_SESSION={sessionToken}
 
 회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
+회원 주문 상세·예약 상세와 8회권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 8회권 목록은 영수증을 일괄 조회한다.
+
 회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
 
 ```json

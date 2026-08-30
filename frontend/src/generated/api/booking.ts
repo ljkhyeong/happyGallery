@@ -244,6 +244,8 @@ export interface MyBookingDetail {
   /** @minimum 1 */
   participantCount: number;
   passBooking: boolean;
+  /** @nullable */
+  receiptUrl: string | null;
   refund: RefundProgressResponse | null;
   slotId: number;
   startAt: string;

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -45,6 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @UseCaseIT
 class MeBookingUseCaseIT {
+    @Autowired JdbcTemplate jdbcTemplate;
 
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
@@ -152,15 +154,21 @@ class MeBookingUseCaseIT {
                 .andExpect(jsonPath("$.hasMore").value(false));
     }
 
-    @DisplayName("회원 예약 상세를 조회한다")
+    @DisplayName("회원 예약 상세는 저장된 예약금 영수증을 함께 조회한다")
     @Test
     void getMyBookingDetail() throws Exception {
         Long bookingId = createBooking(slotId);
+        String receiptUrl = "https://dashboard.tosspayments.com/receipt/member-booking";
+        jdbcTemplate.update("""
+                UPDATE payment_attempt SET confirmed_receipt_url = ?
+                WHERE context = 'BOOKING' AND fulfilled_domain_id = ?
+                """, receiptUrl, bookingId);
 
         mockMvc.perform(get("/api/v1/me/bookings/{id}", bookingId)
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bookingId").value(bookingId))
+                .andExpect(jsonPath("$.receiptUrl").value(receiptUrl))
                 .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.status").value("BOOKED"))
                 .andExpect(jsonPath("$.className").value("향수 클래스"))

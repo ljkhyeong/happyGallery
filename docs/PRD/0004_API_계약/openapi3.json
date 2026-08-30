@@ -4076,6 +4076,9 @@
           "passBooking" : {
             "type" : "boolean"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4096,7 +4099,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "balanceAmount", "balanceStatus", "bookingId", "cancelPolicy", "classId", "className", "depositAmount", "endAt", "participantCount", "passBooking", "refund", "slotId", "startAt", "status" ],
+        "required" : [ "balanceAmount", "balanceStatus", "bookingId", "cancelPolicy", "classId", "className", "depositAmount", "endAt", "participantCount", "passBooking", "receiptUrl", "refund", "slotId", "startAt", "status" ],
         "type" : "object"
       },
       "MyBookingPageResponse" : {
@@ -4309,6 +4312,9 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4329,7 +4335,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "expiresAt", "passId", "planCode", "planName", "purchasedAt", "refund", "remainingCredits", "totalCredits", "totalPrice" ],
+        "required" : [ "expiresAt", "passId", "planCode", "planName", "purchasedAt", "receiptUrl", "refund", "remainingCredits", "totalCredits", "totalPrice" ],
         "type" : "object"
       },
       "MyProductQnaListItem" : {
@@ -4778,6 +4784,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4806,7 +4815,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
+        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "receiptUrl", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
         "type" : "object"
       },
       "OrderItemRef" : {

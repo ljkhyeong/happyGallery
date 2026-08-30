@@ -76,7 +76,7 @@ public class MeBookingController {
     public MyBookingDetail myBooking(@PathVariable Long id,
                                      @AuthenticationPrincipal CustomerPrincipal customer) {
         BookingQueryUseCase.BookingDetail detail = bookingQueryUseCase.findMyBooking(id, customer.userId());
-        return MyBookingDetail.from(detail.booking(), detail.refund(), clock);
+        return MyBookingDetail.from(detail, clock);
     }
 
     @PatchMapping("/{id}/reschedule")

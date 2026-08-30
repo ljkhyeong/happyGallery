@@ -946,6 +946,7 @@ test("@smoke 후기 작성 폼은 첫 입력으로 이동하고 취소 후 작�
         }],
         orderId: 83,
         orderNumber: "HG-REVIEW-FOCUS-83",
+        receiptUrl: null,
         paidAt: "2026-08-09T10:00:00",
         pgPaidAmount: 12000,
         productAmount: 12000,

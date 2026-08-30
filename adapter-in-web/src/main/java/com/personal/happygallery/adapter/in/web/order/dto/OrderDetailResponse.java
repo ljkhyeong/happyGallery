@@ -50,7 +50,9 @@ public record OrderDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         FulfillmentDto fulfillment,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
-        RefundProgressResponse refund
+        RefundProgressResponse refund,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+        String receiptUrl
 ) {
     public record ItemDto(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
@@ -221,7 +223,8 @@ public record OrderDetailResponse(
                         ? FulfillmentDto.from(
                                 detail.fulfillment(), detail.shippingAddress(), detail.trackingEvents())
                         : null,
-                detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null
+                detail.refund() != null ? RefundProgressResponse.from(detail.refund()) : null,
+                detail.receiptUrl()
         );
     }
 }
