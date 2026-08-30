@@ -44,14 +44,14 @@ tasks.withType(Test).configureEach {
 dependencies {
 	api project(":domain")
 	api 'com.fasterxml.jackson.core:jackson-annotations'
-	implementation 'com.drewnoakes:metadata-extractor:2.20.0'
+	implementation 'com.drewnoakes:metadata-extractor:2.21.0'
 	implementation 'com.github.usingsky:KoreanLunarCalendar:0.4.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'io.micrometer:micrometer-core'
-	implementation 'org.springframework.retry:spring-retry:2.0.12'
+	implementation 'org.springframework.retry:spring-retry:2.0.13'
 	implementation 'org.springframework:spring-aop'
 	implementation 'org.springframework:spring-tx'
 	implementation 'org.springframework:spring-orm'
@@ -82,9 +82,9 @@ dependencies {
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers'
 	testImplementation 'org.awaitility:awaitility'
-	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
-	testImplementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
-	testImplementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.5.0'
+	testImplementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.4.0'
+	testImplementation 'io.github.resilience4j:resilience4j-timelimiter:2.4.0'
 	testImplementation project(":adapter-out-persistence")
 	testImplementation project(":adapter-out-external")
 	testImplementation project(":adapter-in-web")
