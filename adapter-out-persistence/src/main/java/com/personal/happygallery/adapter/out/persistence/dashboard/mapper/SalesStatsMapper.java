@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.dashboard.mapper;
 
 import com.personal.happygallery.application.dashboard.dto.DashboardOverview;
+import com.personal.happygallery.application.dashboard.dto.DailyRevenue;
 import com.personal.happygallery.application.dashboard.dto.PeriodSalesSummary;
 import com.personal.happygallery.application.dashboard.dto.RefundStats;
 import com.personal.happygallery.application.dashboard.dto.RevenueBreakdown;
@@ -16,6 +17,8 @@ public interface SalesStatsMapper {
 
     DashboardOverview findOverview(@Param("todayFrom") LocalDateTime todayFrom,
                                   @Param("todayTo") LocalDateTime todayTo,
+                                  @Param("todayCreatedFrom") LocalDateTime todayCreatedFrom,
+                                  @Param("todayCreatedTo") LocalDateTime todayCreatedTo,
                                   @Param("rangeFrom") LocalDateTime rangeFrom,
                                   @Param("rangeTo") LocalDateTime rangeTo);
 
@@ -35,4 +38,7 @@ public interface SalesStatsMapper {
                                      @Param("rangeTo") LocalDateTime rangeTo,
                                      @Param("limit") int limit,
                                      @Param("sort") String sort);
+
+    List<DailyRevenue> findDailyRevenue(@Param("rangeFrom") LocalDateTime rangeFrom,
+                                        @Param("rangeTo") LocalDateTime rangeTo);
 }

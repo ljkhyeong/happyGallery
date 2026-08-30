@@ -1,0 +1,196 @@
+package com.personal.happygallery.application.order.port.out;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+public interface SmartStoreOrderProvider {
+
+    boolean isEnabled();
+
+    ChangePage fetchChanges(ChangeCursor cursor, LocalDateTime changedTo);
+
+    List<ProductOrderDetail> fetchDetails(List<String> productOrderIds);
+
+    default void confirm(String productOrderId) {
+        confirmAll(List.of(productOrderId)).requireSuccess(productOrderId);
+    }
+
+    OperationResult confirmAll(List<String> productOrderIds);
+
+    default void dispatch(DispatchCommand command) {
+        dispatchAll(List.of(command)).requireSuccess(command.productOrderId());
+    }
+
+    OperationResult dispatchAll(List<DispatchCommand> commands);
+
+    void delay(DelayCommand command);
+
+    void approveCancel(String productOrderId);
+
+    void approveReturn(String productOrderId);
+
+    void rejectReturn(String productOrderId);
+
+    void holdReturn(ReturnHoldCommand command);
+
+    void releaseReturnHold(String productOrderId);
+
+    void requestSellerReturn(SellerReturnCommand command);
+
+    void dispatchExchange(ExchangeDispatchCommand command);
+
+    void completeExchangeCollect(String productOrderId);
+
+    void rejectExchange(ExchangeRejectCommand command);
+
+    void holdExchange(ExchangeHoldCommand command);
+
+    void releaseExchangeHold(String productOrderId);
+
+    void requestSellerCancel(SellerCancelCommand command);
+
+    record ChangeCursor(LocalDateTime changedFrom, String moreSequence) {}
+
+    record ChangePage(List<ProductOrderChange> changes, ChangeCursor nextCursor) {
+        public ChangePage {
+            changes = List.copyOf(changes);
+        }
+    }
+
+    record ProductOrderChange(
+            String productOrderId,
+            String lastChangedType,
+            LocalDateTime lastChangedAt
+    ) {}
+
+    record ProductOrderDetail(
+            String productOrderId,
+            String orderId,
+            Long originProductNo,
+            Long itemNo,
+            String productName,
+            String productOption,
+            DeliveryInfo deliveryInfo,
+            String productOrderStatus,
+            String placeOrderStatus,
+            String claimType,
+            String claimStatus,
+            ClaimDetail claimDetail,
+            int initialQuantity,
+            int remainQuantity,
+            LocalDateTime paymentDate,
+            LocalDateTime shippingDueDate,
+            String expectedDeliveryMethod,
+            String deliveryCompany,
+            String trackingNumber,
+            Long unitPrice,
+            Long paymentAmount,
+            Long paymentCommission,
+            Long saleCommission,
+            Long channelCommission,
+            Long expectedSettlementAmount
+    ) {}
+
+    record ClaimDetail(
+            String claimId,
+            String claimType,
+            String claimStatus,
+            String reason,
+            String detailedReason,
+            Integer requestQuantity,
+            LocalDateTime requestedAt,
+            String collectStatus,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Long claimDeliveryFeeDemandAmount,
+            String holdbackStatus,
+            List<String> imageUrls
+    ) {
+        public ClaimDetail {
+            imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
+        }
+    }
+
+    record DeliveryInfo(
+            String recipientName,
+            String phone,
+            String postalCode,
+            String addressLine1,
+            String addressLine2,
+            String shippingMemo
+    ) {}
+
+    record DispatchCommand(
+            String productOrderId,
+            String deliveryMethod,
+            String deliveryCompanyCode,
+            String trackingNumber,
+            LocalDateTime dispatchDate
+    ) {}
+
+    record DelayCommand(
+            String productOrderId,
+            LocalDateTime dispatchDueDate,
+            String reasonCode,
+            String detailedReason
+    ) {}
+
+    record ExchangeDispatchCommand(
+            String productOrderId,
+            String deliveryMethod,
+            String deliveryCompanyCode,
+            String trackingNumber
+    ) {}
+
+    record ExchangeRejectCommand(String productOrderId, String reason) {}
+
+    record ExchangeHoldCommand(
+            String productOrderId,
+            String holdbackClassType,
+            String detailedReason,
+            Long extraExchangeFeeAmount
+    ) {}
+
+    record ReturnHoldCommand(
+            String productOrderId,
+            String holdbackClassType,
+            String detailedReason,
+            Long extraReturnFeeAmount
+    ) {}
+
+    record SellerReturnCommand(
+            String productOrderId,
+            String returnReason,
+            String collectDeliveryMethod,
+            String collectDeliveryCompany,
+            String collectTrackingNumber,
+            Integer returnQuantity
+    ) {}
+
+    record SellerCancelCommand(
+            String productOrderId,
+            String reason,
+            String detailedReason,
+            Integer quantity
+    ) {}
+
+    record OperationResult(List<String> successProductOrderIds, List<OperationFailure> failures) {
+        public OperationResult {
+            successProductOrderIds = successProductOrderIds == null
+                    ? List.of() : List.copyOf(successProductOrderIds);
+            failures = failures == null ? List.of() : List.copyOf(failures);
+        }
+
+        public void requireSuccess(String productOrderId) {
+            failures.stream()
+                    .filter(failure -> productOrderId.equals(failure.productOrderId()))
+                    .findFirst()
+                    .ifPresent(failure -> {
+                        throw new IllegalStateException(
+                                "스마트스토어 주문 처리 실패: " + failure.message());
+                    });
+        }
+    }
+
+    record OperationFailure(String productOrderId, String code, String message) {}
+}

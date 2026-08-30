@@ -8,8 +8,8 @@ description: Repository-specific fallback workflow for general happyGallery back
 ## Session bootstrap
 
 - Read `HANDOFF.md` at repository root before changing code.
-- If `HANDOFF.md` disagrees with the implementation, update it immediately to match the code.
-- Use `docs/PRD/0001_기준_스펙/spec.md` as the product source of truth for API contracts, state transitions, time boundaries, and policy behavior.
+- Treat `HANDOFF.md` only as active transfer state. Use code, PRD, ADR, and API contract docs for durable facts.
+- Use PRD-0001 for behavior/policy and PRD-0004 for HTTP request/response contracts.
 - Read only the ADRs that touch the change. Common ones are under `docs/ADR/`.
 
 ## Respect module boundaries
@@ -23,19 +23,29 @@ description: Repository-specific fallback workflow for general happyGallery back
 
 ## Change workflow
 
-1. Map the request to the spec and, if needed, the matching ADR.
-2. Pick the narrowest module and layer that can own the change.
-3. If the schema changes, add a Flyway script under `bootstrap/src/main/resources/db/migration` with the existing `V{n}__description.sql` pattern.
-4. Keep secrets in environment variables, never in tracked config.
-5. After code changes, update the affected documents in the repository, not just the implementation.
+1. Map the request to current code, PRD, API contract, and relevant ADR.
+2. Search for the same pattern and change all occurrences that share the same reason.
+3. Pick the narrowest owning module and layer.
+4. For schema changes, check SQL and Java migrations before selecting the next version.
+5. Keep secrets in environment variables.
+6. Update only docs whose maintained behavior, contract, or durable decision changed.
 
 ## Verification workflow
 
 - Choose the smallest valid Gradle command first.
+- Use targeted `:application:test` or `:adapter-in-web:test` for ordinary unit, adapter, filter, and controller changes.
 - Use `./gradlew :application:policyTest` for policy and domain-rule changes.
 - Use `./gradlew --no-daemon :application:useCaseTest` for Spring context, Flyway, Testcontainers, DB, transaction, or external integration flows.
+- Use `./gradlew --no-daemon :adapter-in-web:restDocsTest` when an exposed HTTP contract changes.
 - Use `./gradlew test` or `./gradlew build` only for broader stability checks.
 - Keep every modified test method annotated with `@DisplayName` using a Korean sentence.
 - Follow ADR-0027: add only high-value use case, domain policy, or serialization tests; do not pad coverage with low-value framework or mapping tests.
 
 Read `references/test-and-doc-matrix.md` when you need the exact test selection rules or document update checklist.
+## Engineering judgment
+
+- Search the implementation and analogous patterns with `rg` before choosing a design.
+- Optimize for domain consistency and failure boundaries, then explicit flow, readability, and reuse.
+- Validate once at the owning boundary: HTTP shape in DTOs, invariants in domain methods, and auth/ownership/cross-aggregate/server-confirmed money in application services.
+- Prevent N+1 reads with a projection, fetch join, or bulk query. Build maps only when correlation, duplicate aggregation, or deduplication requires them.
+- Use streams for pure transformations and explicit loops for mutation, branching, partial failure, or transaction effects.

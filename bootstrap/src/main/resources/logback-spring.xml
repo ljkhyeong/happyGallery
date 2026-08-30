@@ -15,7 +15,7 @@
                     <threadName/>
                     <provider class="com.personal.happygallery.bootstrap.logging.MaskingMessageJsonProvider"/>
                     <mdc/>
-                    <stackTrace/>
+                    <provider class="com.personal.happygallery.bootstrap.logging.MaskingStackTraceJsonProvider"/>
                     <pattern>
                         <pattern>{"service":"${APP_NAME}"}</pattern>
                     </pattern>

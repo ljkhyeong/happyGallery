@@ -1,5 +1,23 @@
 import { normalizePhone } from "@/shared/validation/phone";
 
+const SAFE_RETURN_TO_BASE = "https://happygallery.local";
+
+export function resolveSafeReturnTo(value: string | null | undefined): string {
+  if (!value?.startsWith("/") || value.startsWith("//")) {
+    return "/";
+  }
+
+  try {
+    const url = new URL(value, SAFE_RETURN_TO_BASE);
+    if (url.origin !== SAFE_RETURN_TO_BASE) {
+      return "/";
+    }
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
 interface BuildAuthPageHrefOptions {
   redirectTo?: string;
   claim?: boolean;
@@ -13,8 +31,9 @@ export function buildAuthPageHref(
 ) {
   const searchParams = new URLSearchParams();
 
-  if (options.redirectTo && options.redirectTo !== "/") {
-    searchParams.set("redirect", options.redirectTo);
+  const redirectTo = resolveSafeReturnTo(options.redirectTo);
+  if (redirectTo !== "/") {
+    searchParams.set("redirect", redirectTo);
   }
 
   if (options.claim) {

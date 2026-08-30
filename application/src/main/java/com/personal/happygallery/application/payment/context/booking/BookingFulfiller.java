@@ -1,18 +1,21 @@
 package com.personal.happygallery.application.payment.context.booking;
 
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
-import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.CreateGuestBookingCommand;
+import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.CreatePaymentGuestBookingCommand;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase.GuestBookingResult;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.payment.context.PaymentFulfiller;
-import com.personal.happygallery.application.payment.port.in.AuthContext;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedBookingPayload;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +25,14 @@ public class BookingFulfiller implements PaymentFulfiller {
 
     private final GuestBookingUseCase guestBookingUseCase;
     private final MemberBookingUseCase memberBookingUseCase;
+    private final Clock clock;
 
     public BookingFulfiller(GuestBookingUseCase guestBookingUseCase,
-                            MemberBookingUseCase memberBookingUseCase) {
+                            MemberBookingUseCase memberBookingUseCase,
+                            Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.memberBookingUseCase = memberBookingUseCase;
+        this.clock = clock;
     }
 
     @Override
@@ -35,26 +41,62 @@ public class BookingFulfiller implements PaymentFulfiller {
     }
 
     @Override
-    @Transactional(propagation = Propagation.MANDATORY)
-    public FulfillResult fulfill(PaymentAttempt attempt, PaymentPayload payload, AuthContext auth, String paymentKey) {
-        if (!(payload instanceof BookingPayload bp)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 결제 payload가 아닙니다.");
+    public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        if (!(payload instanceof PreparedBookingPayload bp)) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "예약 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
-
-        if (auth.isMember()) {
-            if (bp.userId() == null || !bp.userId().equals(auth.userId())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "회원 정보가 인증과 일치하지 않습니다.");
+        int participantCount = bp.effectiveParticipantCount();
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        if (bp.passId() != null) {
+            if (bp.userId() == null || attempt.getAmount() != 0L
+                    || bp.depositAmount() != 0L || bp.balanceAmount() != 0L
+                    || participantCount != 1) {
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 예약 금액 정보가 올바르지 않습니다.");
             }
-            Booking booking = memberBookingUseCase.createMemberBooking(
-                    auth.userId(), bp.slotId(), bp.paymentMethod(), bp.passId());
-            booking.recordPaymentKey(paymentKey);
+            return;
+        }
+        if (bp.depositAmount() != attempt.getAmount() || bp.depositAmount() < 0L || bp.balanceAmount() < 0L) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 예약 금액이 결제 금액과 일치하지 않습니다.");
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
+        PreparedBookingPayload bp = (PreparedBookingPayload) payload;
+        int participantCount = bp.effectiveParticipantCount();
+        DepositPaymentMethod paymentMethod = confirmedPaymentMethod(attempt, bp);
+
+        if (bp.userId() != null) {
+            Booking booking = bp.passId() != null
+                    ? memberBookingUseCase.createMemberPassBooking(
+                            bp.userId(), bp.slotId(), bp.passId(), participantCount)
+                    : memberBookingUseCase.createMemberDepositBooking(
+                            bp.userId(), bp.slotId(), paymentMethod,
+                            bp.depositAmount(), bp.balanceAmount(), participantCount);
+            booking.recordPaymentConfirmation(attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
             return new FulfillResult(booking.getId(), null);
         }
 
-        GuestBookingResult result = guestBookingUseCase.createGuestBooking(
-                new CreateGuestBookingCommand(bp.phone(), bp.verificationCode(), bp.name(),
-                        bp.slotId(), bp.paymentMethod()));
-        result.booking().recordPaymentKey(paymentKey);
+        GuestBookingResult result = guestBookingUseCase.createPaymentGuestBooking(
+                new CreatePaymentGuestBookingCommand(
+                        attempt.getOrderIdExternal(), bp.phone(), bp.guestVerificationProof(), bp.name(),
+                        bp.slotId(), paymentMethod, bp.depositAmount(), bp.balanceAmount(),
+                        participantCount));
+        result.booking().recordPaymentConfirmation(
+                attempt.getConfirmedPaymentKey(), LocalDateTime.now(clock));
         return new FulfillResult(result.booking().getId(), result.rawAccessToken());
+    }
+
+    private DepositPaymentMethod confirmedPaymentMethod(
+            PaymentAttempt attempt, PreparedBookingPayload payload) {
+        return switch (attempt.getConfirmedPaymentMethod()) {
+            case "CARD", "카드" -> DepositPaymentMethod.CARD;
+            case "EASY_PAY", "간편결제" -> DepositPaymentMethod.EASY_PAY;
+            case null -> payload.paymentMethod();
+            default -> throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "지원하지 않는 예약 결제수단입니다.");
+        };
     }
 }

@@ -1,5 +1,5 @@
-export interface CursorPage<T> {
+import type { AdminOrderPageResponse } from "@/generated/api/adminOrder";
+
+export type CursorPage<T> = Omit<AdminOrderPageResponse, "content"> & {
   content: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
-}
+};

@@ -1,12 +1,10 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
+import com.personal.happygallery.application.notification.port.out.TrackedNotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.adapter.out.external.notification.dto.SmsRequest;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -14,20 +12,13 @@ import org.springframework.web.client.RestClient;
  * prod 프로필에서 {@link NotificationResilienceConfig}가
  * {@link ResilientNotificationSender}로 감싸 등록한다.
  */
-public class RealSmsSender implements NotificationSender {
+public class RealSmsSender implements TrackedNotificationSenderPort {
 
-    private static final Logger log = LoggerFactory.getLogger(RealSmsSender.class);
-
-    private final SmsNotificationProperties properties;
-    private final RestClient restClient;
-    private final SmsMessageCatalog messageCatalog;
+    private final NhnSmsClient smsClient;
 
     public RealSmsSender(SmsNotificationProperties properties,
-                         RestClient smsRestClient,
-                         SmsMessageCatalog messageCatalog) {
-        this.properties = properties;
-        this.restClient = smsRestClient;
-        this.messageCatalog = messageCatalog;
+                         RestClient smsRestClient) {
+        this.smsClient = new NhnSmsClient(properties, smsRestClient);
     }
 
     @Override
@@ -36,30 +27,27 @@ public class RealSmsSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
-        try {
-            String message = messageCatalog.render(recipientName, eventType);
-            var request = new SmsRequest(
-                    message, properties.senderNumber(),
-                    List.of(new SmsRequest.Recipient(phone)));
+    public NotificationSendResult send(String idempotencyKey,
+                                       String phone,
+                                       String recipientName,
+                                       NotificationEventType eventType) {
+        return smsClient.send(
+                idempotencyKey,
+                phone,
+                SmsMessageCatalog.render(recipientName, eventType),
+                eventType.name());
+    }
 
-            var response = restClient.post()
-                    .uri("/sms/v3.0/appKeys/{apiKey}/sender/sms", properties.apiKey())
-                    .body(request)
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (req, resp) -> {
-                        log.warn("[SMS] HTTP {} phone={} event={}", resp.getStatusCode(), phone, eventType);
-                    })
-                    .toBodilessEntity();
-
-            boolean success = response.getStatusCode().is2xxSuccessful();
-            if (success) {
-                log.info("[SMS] 발송 성공 phone={} event={}", phone, eventType);
-            }
-            return success;
-        } catch (Exception e) {
-            log.warn("[SMS] 발송 예외 phone={} event={}", phone, eventType, e);
-            return false;
-        }
+    @Override
+    public NotificationSendOutcome sendTracked(
+            String idempotencyKey,
+            String phone,
+            String recipientName,
+            NotificationEventType eventType) {
+        return smsClient.sendTracked(
+                idempotencyKey,
+                phone,
+                SmsMessageCatalog.render(recipientName, eventType),
+                eventType.name());
     }
 }

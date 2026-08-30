@@ -33,6 +33,7 @@ class TestcontainersConfig {
     @ServiceConnection(name = "redis")
     GenericContainer<?> redisContainer() {
         return new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                .withCommand("redis-server", "--notify-keyspace-events", "Egx")
                 .withExposedPorts(6379);
     }
 }

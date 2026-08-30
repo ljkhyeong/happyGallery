@@ -1,9 +1,89 @@
 server:
   shutdown: graceful
+  servlet:
+    session:
+      cookie:
+        name: HG_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_SECURE_COOKIE:true}
 
 spring:
   application:
     name: happygallery
+  mail:
+    host: ${EMAIL_VERIFICATION_SMTP_HOST:}
+    port: ${EMAIL_VERIFICATION_SMTP_PORT:587}
+    username: ${EMAIL_VERIFICATION_SMTP_USERNAME:}
+    password: ${EMAIL_VERIFICATION_SMTP_PASSWORD:}
+    protocol: smtp
+    default-encoding: UTF-8
+    ssl:
+      enabled: ${EMAIL_VERIFICATION_SSL_ENABLED:false}
+      verify-hostname: true
+    properties:
+      "[mail.smtp.auth]": true
+      "[mail.smtp.connectiontimeout]": ${EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS:1000}
+      "[mail.smtp.timeout]": ${EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS:2000}
+      "[mail.smtp.writetimeout]": ${EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS:2000}
+      "[mail.smtp.starttls.enable]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
+      "[mail.smtp.starttls.required]": ${EMAIL_VERIFICATION_STARTTLS_ENABLED:true}
+      "[mail.smtp.ssl.checkserveridentity]": true
+  jackson:
+    factory:
+      constraints:
+        read:
+          max-document-length: 2097152
+          max-token-count: 50000
+          max-string-length: 1048576
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            provider: google
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID:local-google-client}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:local-google-secret}
+            authorization-grant-type: authorization_code
+            redirect-uri: ${GOOGLE_OAUTH_REDIRECT_URI:http://localhost:3000/api/v1/auth/social/callback/google}
+            scope:
+              - openid
+              - profile
+              - email
+          naver:
+            provider: naver
+            client-id: ${NAVER_OAUTH_CLIENT_ID:local-naver-client}
+            client-secret: ${NAVER_OAUTH_CLIENT_SECRET:local-naver-secret}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: ${NAVER_OAUTH_REDIRECT_URI:http://localhost:3000/api/v1/auth/social/callback/naver}
+          kakao:
+            provider: kakao
+            client-id: ${KAKAO_OAUTH_CLIENT_ID:local-kakao-client}
+            client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:local-kakao-secret}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:http://localhost:3000/api/v1/auth/social/callback/kakao}
+            scope:
+              - profile_nickname
+              - account_email
+        provider:
+          naver:
+            authorization-uri: https://nid.naver.com/oauth2.0/authorize
+            token-uri: https://nid.naver.com/oauth2.0/token
+            user-info-uri: https://openapi.naver.com/v1/nid/me
+            user-info-authentication-method: header
+            user-name-attribute: id
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-info-authentication-method: header
+            user-name-attribute: id
   datasource:
     hikari:
       # DB 풀 대기는 느린 요청으로 이어지기 전에 빠르게 실패시킨다.
@@ -11,6 +91,8 @@ spring:
       # DB wait_timeout(초)보다 짧게 유지한다.
       # 기본값: DB 600초(10분) 기준 540초(9분).
       max-lifetime: ${DB_HIKARI_MAX_LIFETIME_MS:540000}
+      # 유휴 커넥션은 max-lifetime보다 먼저 정리해 Hikari 설정 역전 경고를 피한다.
+      idle-timeout: ${DB_HIKARI_IDLE_TIMEOUT_MS:300000}
       # REQUIRES_NEW가 포함된 작업은 스레드당 커넥션 2개를 점유할 수 있다.
       # Hikari 권장식: T_n * (C_m - 1) + 1
       # 현재 기본값(T_n=4, C_m=2) 기준 최소 5이므로 여유를 두어 12로 설정한다.
@@ -35,91 +117,252 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+      timeout: ${REDIS_COMMAND_TIMEOUT:1s}
+      repositories:
+        enabled: false
   session:
-    store-type: redis
     timeout: 7d
-    redis:
-      namespace: hg:session
-      flush-mode: on_save
+    data:
+      redis:
+        repository-type: indexed
+        namespace: hg:session
+        flush-mode: on-save
   transaction:
     default-timeout: ${TX_DEFAULT_TIMEOUT:10s}
+  task:
+    execution:
+      pool:
+        core-size: ${ASYNC_EXECUTOR_CORE_SIZE:2}
+        max-size: ${ASYNC_EXECUTOR_MAX_SIZE:4}
+        queue-capacity: ${ASYNC_EXECUTOR_QUEUE_CAPACITY:100}
+      shutdown:
+        await-termination: true
+        await-termination-period: 30s
+    scheduling:
+      pool:
+        size: ${BATCH_SCHEDULER_POOL_SIZE:4}
+      thread-name-prefix: batch-
+      shutdown:
+        await-termination: false
+
+mybatis:
+  mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
 
 app:
+  runtime-mode: ${HAPPYGALLERY_RUNTIME_MODE:development}
+  policy-consent:
+    terms-version: ${TERMS_POLICY_VERSION:2026-08-08-v1}
+    privacy-version: ${PRIVACY_POLICY_VERSION:2026-08-11-v2}
+  field-encryption:
+    active-key-id: ${FIELD_ENCRYPTION_KEY_ID:v1}
+    encrypt-key: ${ENCRYPT_KEY:}
+    hmac-key: ${HMAC_KEY:}
+    previous-encrypt-keys: ${PREVIOUS_ENCRYPT_KEYS:}
+    previous-hmac-keys: ${PREVIOUS_HMAC_KEYS:}
+  key-rotation:
+    enabled: ${KEY_ROTATION_ENABLED:false}
+    source-key-id: ${KEY_ROTATION_SOURCE_KEY_ID:}
   admin:
     api-key: ${ADMIN_API_KEY:}
     enable-api-key-auth: ${ADMIN_ENABLE_API_KEY_AUTH:false}
+    require-mfa-enrollment: ${ADMIN_REQUIRE_MFA_ENROLLMENT:false}
     setup:
       token: ${ADMIN_SETUP_TOKEN:}
-  batch:
-    scheduler:
-      pool-size: ${BATCH_SCHEDULER_POOL_SIZE:4}
   external:
-    kakao:
-      api-key: ${KAKAO_API_KEY:}
-      sender-key: ${KAKAO_SENDER_KEY:}
-      base-url: ${KAKAO_BASE_URL:https://bizapi.kakao.com}
-      timeout-millis: ${KAKAO_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${KAKAO_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${KAKAO_ACQUIRE_TIMEOUT_MILLIS:1000}
-      max-connections: ${KAKAO_MAX_CONNECTIONS:20}
-      keep-alive-millis: ${KAKAO_KEEP_ALIVE_MILLIS:30000}
+    notification:
+      # transport 단계 합(기본 3.5초)이 끝난 뒤에만 바깥 TimeLimiter가 동작한다.
+      timeout: ${NOTIFICATION_TIMEOUT_MILLIS:5000}ms
+      alimtalk-thread-pool:
+        pool-size: ${ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:5}
+      sms-thread-pool:
+        pool-size: ${SMS_NOTIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY:5}
+      phone-verification-thread-pool:
+        pool-size: ${PHONE_VERIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY:10}
+      email-verification-thread-pool:
+        pool-size: ${EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE:2}
+        queue-capacity: ${EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY:10}
+      circuit-breaker:
+        failure-rate-threshold: ${NOTIFICATION_CB_FAILURE_RATE_THRESHOLD:50}
+        sliding-window-size: ${NOTIFICATION_CB_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${NOTIFICATION_CB_MINIMUM_CALLS:10}
+        wait-duration-open: ${NOTIFICATION_CB_WAIT_OPEN_SECONDS:30}s
+        permitted-calls-in-half-open-state: ${NOTIFICATION_CB_HALF_OPEN_CALLS:3}
+    alimtalk:
+      app-key: ${ALIMTALK_APP_KEY:}
+      secret-key: ${ALIMTALK_SECRET_KEY:}
+      sender-key: ${ALIMTALK_SENDER_KEY:}
+      base-url: ${ALIMTALK_BASE_URL:https://kakaotalk-bizmessage.api.nhncloudservice.com}
+      timeout: ${ALIMTALK_TIMEOUT_MILLIS:2000}ms
+      connect-timeout: ${ALIMTALK_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${ALIMTALK_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${ALIMTALK_MAX_CONNECTIONS:20}
+      keep-alive: ${ALIMTALK_KEEP_ALIVE_MILLIS:30000}ms
     sms:
       api-key: ${SMS_API_KEY:}
       api-secret: ${SMS_API_SECRET:}
       sender-number: ${SMS_SENDER_NUMBER:}
-      base-url: ${SMS_BASE_URL:https://api-sms.cloud.toast.com}
-      timeout-millis: ${SMS_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${SMS_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${SMS_ACQUIRE_TIMEOUT_MILLIS:1000}
+      base-url: ${SMS_BASE_URL:https://sms.api.nhncloudservice.com}
+      timeout: ${SMS_TIMEOUT_MILLIS:2000}ms
+      connect-timeout: ${SMS_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${SMS_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${SMS_MAX_CONNECTIONS:20}
-      keep-alive-millis: ${SMS_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${SMS_KEEP_ALIVE_MILLIS:30000}ms
+    email-verification:
+      from: ${EMAIL_VERIFICATION_FROM:}
+      subject: ${EMAIL_VERIFICATION_SUBJECT:[해피갤러리] 이메일 인증번호}
+      timeout: ${EMAIL_VERIFICATION_TIMEOUT_MILLIS:7000}ms
     google-oauth:
-      client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
-      client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET:}
-      timeout-millis: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}
-      connect-timeout-millis: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}
-      acquire-timeout-millis: ${GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}
+      timeout: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms
+      acquire-timeout: ${GOOGLE_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}ms
       max-connections: ${GOOGLE_OAUTH_MAX_CONNECTIONS:10}
-      keep-alive-millis: ${GOOGLE_OAUTH_KEEP_ALIVE_MILLIS:30000}
+      keep-alive: ${GOOGLE_OAUTH_KEEP_ALIVE_MILLIS:30000}ms
+    naver-oauth:
+      timeout: ${NAVER_OAUTH_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${NAVER_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms
+      acquire-timeout: ${NAVER_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}ms
+      max-connections: ${NAVER_OAUTH_MAX_CONNECTIONS:10}
+      keep-alive: ${NAVER_OAUTH_KEEP_ALIVE_MILLIS:30000}ms
+    kakao-oauth:
+      timeout: ${KAKAO_OAUTH_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${KAKAO_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms
+      acquire-timeout: ${KAKAO_OAUTH_ACQUIRE_TIMEOUT_MILLIS:1000}ms
+      max-connections: ${KAKAO_OAUTH_MAX_CONNECTIONS:10}
+      keep-alive: ${KAKAO_OAUTH_KEEP_ALIVE_MILLIS:30000}ms
+    delivery-tracking:
+      enabled: ${DELIVERY_TRACKING_ENABLED:false}
+      api-key: ${DELIVERY_API_KEY:}
+      secret-key: ${DELIVERY_API_SECRET_KEY:}
+      webhook-endpoint-id: ${DELIVERY_WEBHOOK_ENDPOINT_ID:}
+      webhook-secret: ${DELIVERY_WEBHOOK_SECRET:}
+      base-url: ${DELIVERY_API_BASE_URL:https://api.deliveryapi.co.kr}
+      timeout: ${DELIVERY_API_TIMEOUT_MILLIS:3000}ms
+      connect-timeout: ${DELIVERY_API_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${DELIVERY_API_MAX_CONNECTIONS:10}
+      keep-alive: ${DELIVERY_API_KEEP_ALIVE_MILLIS:30000}ms
+    road-address:
+      enabled: ${ROAD_ADDRESS_ENABLED:false}
+      confirmation-key: ${ROAD_ADDRESS_CONFIRMATION_KEY:}
+      base-url: ${ROAD_ADDRESS_BASE_URL:https://business.juso.go.kr}
+      timeout: ${ROAD_ADDRESS_TIMEOUT_MILLIS:3000}ms
+      connect-timeout: ${ROAD_ADDRESS_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${ROAD_ADDRESS_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${ROAD_ADDRESS_MAX_CONNECTIONS:10}
+      keep-alive: ${ROAD_ADDRESS_KEEP_ALIVE_MILLIS:30000}ms
+    public-holiday:
+      enabled: ${PUBLIC_HOLIDAY_ENABLED:false}
+      service-key: ${PUBLIC_HOLIDAY_SERVICE_KEY:}
+      base-url: ${PUBLIC_HOLIDAY_BASE_URL:https://apis.data.go.kr}
+      timeout: ${PUBLIC_HOLIDAY_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${PUBLIC_HOLIDAY_MAX_CONNECTIONS:5}
+      keep-alive: ${PUBLIC_HOLIDAY_KEEP_ALIVE_MILLIS:30000}ms
+    smartstore:
+      enabled: ${SMARTSTORE_ENABLED:false}
+      client-id: ${SMARTSTORE_CLIENT_ID:}
+      client-secret: ${SMARTSTORE_CLIENT_SECRET:}
+      account-type: ${SMARTSTORE_ACCOUNT_TYPE:SELF}
+      account-id: ${SMARTSTORE_ACCOUNT_ID:}
+      base-url: ${SMARTSTORE_BASE_URL:https://api.commerce.naver.com}
+      timeout: ${SMARTSTORE_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${SMARTSTORE_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${SMARTSTORE_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${SMARTSTORE_MAX_CONNECTIONS:5}
+      keep-alive: ${SMARTSTORE_KEEP_ALIVE_MILLIS:30000}ms
     payment:
       # SI 운영 기본값: 외부 호출은 짧은 타임아웃 + 서킷 브레이커로 보호
-      timeout-millis: ${PAYMENT_TIMEOUT_MILLIS:3000}
+      timeout: ${PAYMENT_TIMEOUT_MILLIS:5000}ms
+      thread-pool:
+        pool-size: ${PAYMENT_EXECUTOR_POOL_SIZE:4}
+        queue-capacity: ${PAYMENT_EXECUTOR_QUEUE_CAPACITY:20}
       circuit-breaker:
         failure-rate-threshold: ${PAYMENT_CB_FAILURE_RATE_THRESHOLD:50}
         sliding-window-size: ${PAYMENT_CB_SLIDING_WINDOW_SIZE:20}
         minimum-number-of-calls: ${PAYMENT_CB_MINIMUM_CALLS:10}
-        wait-duration-open-seconds: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}
+        wait-duration-open: ${PAYMENT_CB_WAIT_OPEN_SECONDS:30}s
         permitted-calls-in-half-open-state: ${PAYMENT_CB_HALF_OPEN_CALLS:3}
       toss:
         # prod 프로필에서만 실제 키 주입. FakePaymentProvider는 !prod 프로필에서만 등록된다.
         secret-key: ${TOSS_SECRET_KEY:}
         base-url: ${TOSS_BASE_URL:https://api.tosspayments.com}
-        timeout-millis: ${TOSS_TIMEOUT_MILLIS:5000}
-        connect-timeout-millis: ${TOSS_CONNECT_TIMEOUT_MILLIS:2000}
-        acquire-timeout-millis: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:1000}
+        timeout: ${TOSS_TIMEOUT_MILLIS:3000}ms
+        connect-timeout: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}ms
+        acquire-timeout: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}ms
         max-connections: ${TOSS_MAX_CONNECTIONS:10}
-        keep-alive-millis: ${TOSS_KEEP_ALIVE_MILLIS:30000}
+        keep-alive: ${TOSS_KEEP_ALIVE_MILLIS:30000}ms
+      toss-settlement:
+        timeout: ${TOSS_SETTLEMENT_TIMEOUT_SECONDS:60}s
+        connect-timeout: ${TOSS_CONNECT_TIMEOUT_MILLIS:1000}ms
+        acquire-timeout: ${TOSS_ACQUIRE_TIMEOUT_MILLIS:500}ms
+        max-connections: ${TOSS_SETTLEMENT_MAX_CONNECTIONS:2}
+        keep-alive: ${TOSS_KEEP_ALIVE_MILLIS:30000}ms
   guest-token:
     hmac-secret: ${GUEST_TOKEN_HMAC_SECRET:}
-    expiry-hours: ${GUEST_TOKEN_EXPIRY_HOURS:168}
+    previous-hmac-secret: ${GUEST_TOKEN_PREVIOUS_HMAC_SECRET:}
+    access-expiry: ${GUEST_TOKEN_EXPIRY_HOURS:720}h
+    recovery-expiry: ${GUEST_TOKEN_RECOVERY_EXPIRY_HOURS:24}h
+  media:
+    storage-path: ${MEDIA_STORAGE_PATH:./data/media}
+    review-image-processing:
+      max-concurrent-decodes: ${REVIEW_IMAGE_MAX_CONCURRENT_DECODES:2}
+  payment:
+    require-complete-business-profile: false
+  order:
+    shipping-fee: ${ORDER_SHIPPING_FEE:0}
   pass:
     total-price: ${PASS_TOTAL_PRICE:240000}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
-    trust-forwarded-headers: ${RATE_LIMIT_TRUST_FORWARDED:false}
-    phone-verification-per-second: 10
-    booking-create-per-minute: 30
-    pass-purchase-per-minute: 20
-    customer-login-per-minute: 10
-    customer-signup-per-minute: 5
-    admin-login-per-minute: 5
-    admin-setup-per-minute: 5
-    admin-api-per-minute: 120
-    social-login-per-minute: 10
+    key-prefix: ${RATE_LIMIT_KEY_PREFIX:happygallery:rate}
+    ip:
+      default-api: { capacity: 300, window: 1m }
+      phone-verification: { capacity: 5, window: 1m }
+      email-verification: { capacity: 5, window: 1m }
+      customer-login: { capacity: 10, window: 1m }
+      customer-signup: { capacity: 5, window: 1m }
+      admin-login: { capacity: 5, window: 1m }
+      admin-setup: { capacity: 5, window: 1m }
+      admin-api: { capacity: 120, window: 1m }
+      social-login: { capacity: 10, window: 1m }
+      payment-prepare: { capacity: 30, window: 1m }
+      payment-confirm: { capacity: 60, window: 1m }
+      guest-claim-verify: { capacity: 10, window: 1m }
+      guest-record-recovery: { capacity: 10, window: 1m }
+      client-monitoring: { capacity: 60, window: 1m }
+      review-report: { capacity: 10, window: 10m }
+      review-image-upload: { capacity: 20, window: 10m }
+      order-customer-action: { capacity: 30, window: 1m }
+    subject:
+      customer-login: { capacity: 10, window: 10m }
+      phone-verification: { capacity: 3, window: 10m }
+      phone-verification-attempt: { capacity: 5, window: 10m }
+      email-verification: { capacity: 3, window: 10m }
+      email-verification-attempt: { capacity: 5, window: 10m }
+      payment-confirm: { capacity: 20, window: 1m }
+      guest-claim-verify: { capacity: 5, window: 1m }
+      guest-record-recovery: { capacity: 5, window: 10m }
+      pass-refund: { capacity: 3, window: 10m }
+      review-mutation: { capacity: 20, window: 10m }
+      review-helpful: { capacity: 60, window: 1m }
+      review-report: { capacity: 10, window: 10m }
+      review-image-upload: { capacity: 20, window: 10m }
+      admin-mfa-recovery: { capacity: 5, window: 10m }
 
 management:
   server:
     port: ${MANAGEMENT_PORT:8081}
+  health:
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:

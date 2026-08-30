@@ -31,28 +31,63 @@ public class Slot {
     private LocalDateTime endAt;
 
     @Column(nullable = false)
-    private int capacity = SlotCapacity.MAX;
+    private int capacity = SlotCapacity.DEFAULT;
 
     @Column(name = "booked_count", nullable = false)
     private int bookedCount = 0;
 
-    @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
+    @Column(name = "admin_active", nullable = false)
+    private boolean adminActive = true;
+
+    @Column(name = "calendar_active", nullable = false)
+    private boolean calendarActive = true;
+
+    @Column(name = "buffer_block_count", nullable = false)
+    private int bufferBlockCount = 0;
 
     protected Slot() {}
+
+    public Slot(BookingClass bookingClass, LocalDateTime startAt) {
+        this(bookingClass, startAt, startAt.plusMinutes(bookingClass.getDurationMin()));
+    }
 
     public Slot(BookingClass bookingClass, LocalDateTime startAt, LocalDateTime endAt) {
         this.bookingClass = bookingClass;
         this.startAt = startAt;
         this.endAt = endAt;
-        this.capacity = SlotCapacity.MAX;
+        this.capacity = bookingClass.getCapacity();
         this.bookedCount = 0;
-        this.isActive = true;
+        this.adminActive = true;
+        this.calendarActive = true;
+        this.bufferBlockCount = 0;
     }
 
-    /** 운영자 또는 버퍼 정책에 의해 슬롯을 비활성화한다. */
+    /** 운영자가 슬롯을 비활성화한다. 버퍼 차단 해제와 무관하게 유지된다. */
     public void deactivate() {
-        this.isActive = false;
+        this.adminActive = false;
+    }
+
+    /** 운영자가 슬롯을 다시 활성화한다. 예약 버퍼 차단 상태는 유지된다. */
+    public void activate() {
+        this.adminActive = true;
+    }
+
+    /** 기본 운영시간과 날짜·시간 차단 정책을 현재 슬롯에 반영한다. */
+    public void applyCalendarAvailability(boolean active) {
+        this.calendarActive = active;
+    }
+
+    /** 다른 슬롯의 예약으로 인해 이 슬롯을 막는 버퍼가 하나 추가된다. */
+    public void incrementBufferBlockCount() {
+        this.bufferBlockCount++;
+    }
+
+    /** 원인 슬롯의 마지막 예약이 사라져 버퍼 차단 하나를 해제한다. */
+    public void decrementBufferBlockCount() {
+        if (this.bufferBlockCount <= 0) {
+            throw new IllegalStateException("buffer_block_count는 0 이하로 감소할 수 없습니다.");
+        }
+        this.bufferBlockCount--;
     }
 
     /**
@@ -60,8 +95,13 @@ public class Slot {
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
     public void incrementBookedCount() {
-        SlotCapacity.checkAvailable(this.bookedCount);
-        this.bookedCount++;
+        incrementBookedCount(1);
+    }
+
+    /** 예약 인원만큼 점유 인원을 추가한다. */
+    public void incrementBookedCount(int participantCount) {
+        SlotCapacity.checkAvailable(this.capacity, this.bookedCount, participantCount);
+        this.bookedCount += participantCount;
     }
 
     /**
@@ -70,10 +110,16 @@ public class Slot {
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
     public void decrementBookedCount() {
-        if (this.bookedCount <= 0) {
-            throw new IllegalStateException("booked_count는 0 이하로 감소할 수 없습니다.");
+        decrementBookedCount(1);
+    }
+
+    /** 취소·변경하는 예약의 인원만큼 점유 인원을 반납한다. */
+    public void decrementBookedCount(int participantCount) {
+        SlotCapacity.requireValidParticipantCount(participantCount);
+        if (this.bookedCount < participantCount) {
+            throw new IllegalStateException("booked_count는 반납할 예약 인원보다 작을 수 없습니다.");
         }
-        this.bookedCount--;
+        this.bookedCount -= participantCount;
     }
 
     public Long getId() { return id; }
@@ -82,5 +128,12 @@ public class Slot {
     public LocalDateTime getEndAt() { return endAt; }
     public int getCapacity() { return capacity; }
     public int getBookedCount() { return bookedCount; }
-    public boolean isActive() { return isActive; }
+    public boolean isAdminActive() { return adminActive; }
+    public boolean isCalendarActive() { return calendarActive; }
+    public boolean isBufferBlocked() { return bufferBlockCount > 0; }
+    public boolean isActive() { return adminActive && calendarActive && bufferBlockCount == 0; }
+    public boolean hasBookings() { return bookedCount > 0; }
+    public boolean isReservableAt(LocalDateTime now) {
+        return bookingClass.isActive() && isActive() && startAt.isAfter(now);
+    }
 }

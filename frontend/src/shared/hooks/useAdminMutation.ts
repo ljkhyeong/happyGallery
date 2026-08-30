@@ -1,10 +1,11 @@
 import { useMutation, type UseMutationOptions } from "@tanstack/react-query";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "./adminSessionUnauthorized";
 
 /**
- * Admin mutation 래퍼 — 401 응답 시 `onAuthError`를 자동 호출한다.
+ * 관리자 세션 자체가 무효한 경우에만 `onAuthError`를 호출한다.
  *
- * 호출자의 `onError`가 있으면 401 체크 후 함께 실행한다.
+ * `INVALID_CREDENTIALS`는 현재 비밀번호나 MFA 코드 입력 오류에도 사용되므로
+ * HTTP 상태만 보고 로그인 상태를 제거하면 안 된다.
  */
 export function useAdminMutation<TData = unknown, TVariables = void, TContext = unknown>(
   onAuthError: () => void,
@@ -15,7 +16,9 @@ export function useAdminMutation<TData = unknown, TVariables = void, TContext = 
     ...rest,
     onError: (...args) => {
       const [err] = args;
-      if (err instanceof ApiError && err.status === 401) onAuthError();
+      if (isAdminSessionUnauthorized(err)) {
+        onAuthError();
+      }
       userOnError?.(...args);
     },
   });

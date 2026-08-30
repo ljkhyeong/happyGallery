@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Form, Button, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchProducts } from "@/features/product/api";
@@ -6,15 +6,54 @@ import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import type { OrderItemInput, ProductDetailResponse } from "@/shared/types";
+import type { ProductType } from "@/shared/types/product";
+import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
+import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 
 interface Props {
   items: OrderItemInput[];
   onChange: (items: OrderItemInput[]) => void;
+  onItemAmountChange: (amount: number) => void;
+  onProductTypesChange: (types: ProductType[]) => void;
 }
 
-const MAX_QTY = 99;
+function getProductTypes(
+  items: OrderItemInput[],
+  productsById: Map<number, ProductDetailResponse>,
+): ProductType[] {
+  return Array.from(new Set(
+    items
+      .map((item) => productsById.get(item.productId)?.type)
+      .filter((type): type is ProductType => type !== undefined),
+  ));
+}
 
-export function OrderItemsForm({ items, onChange }: Props) {
+function itemKey(item: OrderItemInput) {
+  return `${item.productId}:${item.productVariantId ?? 0}:${(item.textInputs ?? [])
+    .map((input) => `${input.groupKey}=${input.value ?? ""}`)
+    .sort()
+    .join("|")}`;
+}
+
+function unitPrice(item: OrderItemInput, product: ProductDetailResponse) {
+  const variantAdjustment = product.variants.find(
+    (variant) => variant.id === item.productVariantId,
+  )?.priceAdjustment ?? 0;
+  const textAdjustment = (item.textInputs ?? []).reduce((sum, input) => {
+    if (!input.value?.trim()) return sum;
+    return sum + (product.optionGroups.find(
+      (group) => group.key === input.groupKey,
+    )?.inputPriceAdjustment ?? 0);
+  }, 0);
+  return product.price + variantAdjustment + textAdjustment;
+}
+
+export function OrderItemsForm({
+  items,
+  onChange,
+  onItemAmountChange,
+  onProductTypesChange,
+}: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [qty, setQty] = useState("1");
 
@@ -24,37 +63,68 @@ export function OrderItemsForm({ items, onChange }: Props) {
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
-  const productMap = new Map<number, ProductDetailResponse>(
-    products?.map((p) => [p.id, p]) ?? [],
-  );
+  const productMap = useMemo(() => new Map<number, ProductDetailResponse>(
+    products?.map((product) => [product.id, product]) ?? [],
+  ), [products]);
 
   const qtyNum = Number(qty);
-  const qtyValid = Number.isInteger(qtyNum) && qtyNum >= 1 && qtyNum <= MAX_QTY;
+  const qtyValid = Number.isInteger(qtyNum)
+    && qtyNum >= 1
+    && qtyNum <= MAX_PRODUCT_QUANTITY;
+
+  const updateItems = (nextItems: OrderItemInput[]) => {
+    onChange(nextItems);
+    onProductTypesChange(getProductTypes(nextItems, productMap));
+  };
 
   const addItem = () => {
     const pid = Number(selectedId);
     if (pid > 0 && qtyValid) {
-      const existing = items.find((i) => i.productId === pid);
+      const product = productMap.get(pid);
+      if (!product || product.optionGroups.length > 0) return;
+      const nextItem: OrderItemInput = {
+        productId: pid,
+        productVariantId: product.type === "MADE_TO_ORDER"
+          ? (product.variants[0]?.id ?? null)
+          : null,
+        textInputs: [],
+        qty: qtyNum,
+      };
+      const key = itemKey(nextItem);
+      const existing = items.find((item) => itemKey(item) === key);
       if (existing) {
-        const newQty = Math.min(existing.qty + qtyNum, MAX_QTY);
-        onChange(items.map((i) => (i.productId === pid ? { ...i, qty: newQty } : i)));
+        const newQty = Math.min(existing.qty + qtyNum, MAX_PRODUCT_QUANTITY);
+        updateItems(items.map((item) => itemKey(item) === key ? { ...item, qty: newQty } : item));
       } else {
-        onChange([...items, { productId: pid, qty: qtyNum }]);
+        updateItems([...items, nextItem]);
       }
       setQty("1");
     }
   };
 
-  const removeItem = (productId: number) => {
-    onChange(items.filter((i) => i.productId !== productId));
+  const removeItem = (key: string) => {
+    updateItems(items.filter((item) => itemKey(item) !== key));
   };
 
   const totalAmount = items.reduce((sum, item) => {
     const product = productMap.get(item.productId);
-    return sum + (product ? product.price * item.qty : 0);
+    return sum + (product ? unitPrice(item, product) * item.qty : 0);
   }, 0);
+  const selectedProductTypes = useMemo(
+    () => getProductTypes(items, productMap),
+    [items, productMap],
+  );
 
-  if (isLoading) return <LoadingSpinner text="상품 로딩..." />;
+  useEffect(() => {
+    onItemAmountChange(totalAmount);
+  }, [onItemAmountChange, totalAmount]);
+
+  useEffect(() => {
+    if (!products) return;
+    onProductTypesChange(selectedProductTypes);
+  }, [onProductTypesChange, products, selectedProductTypes]);
+
+  if (isLoading) return <LoadingSpinner text="상품을 불러오는 중입니다..." />;
   if (error) return <ErrorAlert error={error} />;
 
   return (
@@ -65,7 +135,7 @@ export function OrderItemsForm({ items, onChange }: Props) {
             <Form.Label>상품</Form.Label>
             <Form.Select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               <option value="">선택하세요</option>
-              {products?.filter((p) => p.available).map((p) => (
+              {products?.filter((p) => p.available && p.optionGroups.length === 0).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} ({formatKRW(p.price)})
                 </option>
@@ -79,13 +149,17 @@ export function OrderItemsForm({ items, onChange }: Props) {
             <Form.Control
               type="number"
               min={1}
-              max={MAX_QTY}
+              max={MAX_PRODUCT_QUANTITY}
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               isInvalid={qty !== "" && qty !== "1" && !qtyValid}
+              aria-invalid={qty !== "" && qty !== "1" && !qtyValid}
+              aria-describedby={
+                qty !== "" && qty !== "1" && !qtyValid ? "order-item-qty-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
-              1~{MAX_QTY} 사이의 수량을 입력해 주세요.
+            <Form.Control.Feedback id="order-item-qty-error" type="invalid">
+              1~{MAX_PRODUCT_QUANTITY} 사이의 수량을 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
@@ -101,19 +175,30 @@ export function OrderItemsForm({ items, onChange }: Props) {
             {items.map((item) => {
               const product = productMap.get(item.productId);
               return (
-                <ListGroup.Item key={item.productId}
-                  className="d-flex justify-content-between align-items-center">
-                  <span>
-                    {product?.name ?? `상품 #${item.productId}`}
-                    <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
-                    {product && (
-                      <small className="text-muted-soft ms-2">
-                        {formatKRW(product.price * item.qty)}
-                      </small>
-                    )}
-                  </span>
-                  <Button size="sm" variant="outline-danger"
-                    onClick={() => removeItem(item.productId)}>삭제</Button>
+                <ListGroup.Item key={itemKey(item)}>
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span>
+                      {product?.name ?? `상품 #${item.productId}`}
+                      <Badge bg="secondary" className="ms-2">x{item.qty}</Badge>
+                      {product && (
+                        <small className="text-muted-soft ms-2">
+                          {formatKRW(unitPrice(item, product) * item.qty)}
+                        </small>
+                      )}
+                    </span>
+                    <Button size="sm" variant="outline-danger"
+                      onClick={() => removeItem(itemKey(item))}>삭제</Button>
+                  </div>
+                  {product && (
+                    <ProductPurchaseTerms
+                      productName={product.name}
+                      type={product.type}
+                      specification={product.specification}
+                      careInstructions={product.careInstructions}
+                      productionLeadDays={product.productionLeadDays}
+                      compact
+                    />
+                  )}
                 </ListGroup.Item>
               );
             })}

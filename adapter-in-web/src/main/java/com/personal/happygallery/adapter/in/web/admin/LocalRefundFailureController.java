@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @Profile("local")
 @RestController
-@RequestMapping({"/api/v1/admin/dev/payment/refunds", "/admin/dev/payment/refunds"})
+@RequestMapping("/api/v1/admin/dev/payment/refunds")
 public class LocalRefundFailureController {
 
     static final String DEFAULT_REASON = "로컬 smoke 강제 환불 실패";
@@ -33,7 +33,7 @@ public class LocalRefundFailureController {
     public ArmRefundFailureResponse failNext(@RequestBody(required = false) @Valid FailNextRefundRequest request) {
         String reason = DEFAULT_REASON;
         if (request != null && StringUtils.hasText(request.reason())) {
-            reason = request.reason().trim();
+            reason = request.reason().strip();
         }
 
         devRefundFailure.armNextFailure(reason);

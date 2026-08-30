@@ -1,14 +1,19 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.application.batch.BatchResult;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record BatchResponse(
-        int successCount,
-        int failureCount,
-        Map<String, Integer> failureReasons
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int successCount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int failureCount,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Map<String, Integer> failureReasons
 ) {
+
+    public BatchResponse {
+        failureReasons = Map.copyOf(failureReasons);
+    }
 
     private static final Map<String, String> REASON_LABELS = Map.ofEntries(
             Map.entry("ObjectOptimisticLockingFailureException", "CONFLICT"),

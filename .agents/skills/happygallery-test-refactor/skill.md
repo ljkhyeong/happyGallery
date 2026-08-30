@@ -8,7 +8,8 @@ description: Repository-specific workflow for test-only refactors in the happyGa
 ## Scope rules
 
 - Treat this skill as refactoring only unless the user explicitly asks for behavior changes.
-- Prefer extracting shared fixtures, builders, and assertion helpers over rewriting scenarios.
+- Preserve behavioral contracts and high-value evidence, not every assertion shape.
+- Extract fixtures/builders/assertions only when stable semantic duplication obscures scenarios; keep local setup when a helper adds indirection.
 - Keep tests readable at the scenario level; do not hide critical business rules inside opaque helpers.
 - Preserve `@DisplayName` on every test method and write it as a Korean sentence.
 - Keep ADR-0027 in force: preserve high-value use case, policy, and serialization coverage, but do not add low-value tests or helper indirection just to increase test count.
@@ -16,15 +17,13 @@ description: Repository-specific workflow for test-only refactors in the happyGa
 
 ## Main targets in this repository
 
-- `application/src/test/java/com/personal/happygallery/application/order/`
-- `application/src/test/java/com/personal/happygallery/application/booking/`
-- `application/src/test/java/com/personal/happygallery/application/pass/`
-- `application/src/testFixtures/java/com/personal/happygallery/support/`
+- Discover every consumer with `rg`. Common roots are `application/src/test`, `application/src/testFixtures`, and `adapter-in-web/src/test`.
+- Keep helpers separated by domain or web-contract concern.
 
 ## Verification workflow
 
 - Small policy-test-only cleanup: `./gradlew :application:policyTest`
-- Integration-test helper or fixture refactor: `./gradlew --no-daemon :application:useCaseTest`
+- Start with affected classes using `--tests`; widen shared fixture changes to `:application:useCaseTest` only when consumers justify it.
 - Only use `./gradlew test` or `./gradlew build` when the refactor spans many areas.
 
 Read `references/test-refactor-checklist.md` for duplication heuristics and the current repo-specific refactor target from HANDOFF.

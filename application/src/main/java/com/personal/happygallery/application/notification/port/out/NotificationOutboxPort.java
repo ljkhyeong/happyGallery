@@ -7,13 +7,32 @@ import java.util.Optional;
 
 public interface NotificationOutboxPort {
 
-    NotificationOutbox save(NotificationOutbox outbox);
-
-    boolean existsByIdempotencyKey(String idempotencyKey);
+    <S extends NotificationOutbox> S save(S outbox);
 
     Optional<NotificationOutbox> findById(Long id);
 
+    Optional<NotificationOutbox> findByIdForUpdate(Long id);
+
+    Optional<NotificationOutbox> findByIdempotencyKeyForUpdate(String idempotencyKey);
+
     List<NotificationOutbox> findDispatchable(LocalDateTime now, LocalDateTime staleBefore, int limit);
 
-    List<NotificationOutbox> findAll();
+    List<NotificationOutbox> findDeliveryResultCheckable(
+            LocalDateTime now, LocalDateTime staleBefore, int limit);
+
+    List<NotificationOutbox> findFailed(int limit);
+
+    List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset);
+
+    List<NotificationOutbox> findSentByGuestId(Long guestId, int limit, int offset);
+
+    long countUnreadSentByUserId(Long userId);
+
+    long countUnreadSentByGuestId(Long guestId);
+
+    void markAllSentReadByUserId(Long userId, LocalDateTime readAt);
+
+    void markAllSentReadByGuestId(Long guestId, LocalDateTime readAt);
+
+    List<NotificationOutboxBacklogSummary> summarizeUnresolvedBacklog();
 }

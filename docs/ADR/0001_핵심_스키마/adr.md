@@ -31,12 +31,14 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 
 **낙관적 락 컬럼**
 - `inventory.version`, `bookings.version` — `BIGINT DEFAULT 0`
-- 단일 작품 중복 판매, 예약 동시 변경 방지용. JPA `@Version`과 매핑 예정.
+- 단일 작품 중복 판매, 예약 동시 변경 방지용이며 현재 JPA `@Version`과 매핑한다.
 
 **`refunds` 이중 FK**
 - `order_id`, `booking_id` 모두 nullable FK로 설계.
 - spec.md는 `order_id`만 명시하지만, 예약금 환불(booking deposit refund)도 동일 테이블에서 추적이 필요해 `booking_id`를 선제적으로 추가.
-- 둘 중 하나는 반드시 non-null — 애플리케이션 레벨에서 강제.
+- 둘 중 정확히 하나만 non-null이어야 한다. V2 당시에는 애플리케이션에서만 강제했지만
+  현재는 `V41__harden_payment_confirm_boundary.sql`의 `chk_refunds_exactly_one_source`
+  제약으로 DB에서도 강제한다.
 
 **`slots` 복합 UNIQUE**
 - `(class_id, start_at)` UNIQUE 제약 — 같은 클래스의 동일 시간 슬롯 중복 생성 방지.
@@ -71,9 +73,10 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 - 낙관적 락 컬럼이 스키마 레벨에서 확보되어 동시성 구현 준비 완료.
 
 **부정 / 후속 작업**
-- `refunds`의 "둘 중 하나 non-null" 규칙이 DB 제약이 아닌 애플리케이션 로직에만 의존.
-- `made_to_order_spec`, 비회원 인증 토큰 테이블 등은 별도 마이그레이션으로 추가 예정.
-- `slots.booked_count` 갱신 경로: `confirmBooking()` 단일 트랜잭션 안에서 `SELECT FOR UPDATE` → `incrementBookedCount()` → save 순서로 확정 (→ ADR-0003).
+- V2 이후 추가된 제약과 인덱스는 각 후속 Flyway 마이그레이션을 기준으로 본다.
+- 후속 구현에서는 별도 `made_to_order_spec` 테이블 없이 `products.type=MADE_TO_ORDER`와 주문 상태로 제작 흐름을 표현했다. 비회원 접근 토큰도 별도 테이블이 아니라 `orders.access_token`, `bookings.access_token`에 SHA-256 해시로 저장한다.
+- `slots.booked_count` 갱신 경로: `SlotCapacitySupport.reserveCapacity()`를 호출하는 단일 트랜잭션 안에서
+  `SELECT FOR UPDATE` → `incrementBookedCount()` → save 순서로 확정 (→ ADR-0003).
 
 ---
 

@@ -1,60 +1,68 @@
 package com.personal.happygallery.application.payment;
 
-import tools.jackson.databind.ObjectMapper;
-import com.personal.happygallery.application.payment.context.PaymentPreparer;
+import com.personal.happygallery.application.customer.port.out.PhoneVerificationAttemptGuard;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 public class DefaultPaymentPrepareService implements PaymentPrepareUseCase {
 
-    private final Map<PaymentContext, PaymentPreparer> preparers;
-    private final PaymentAttemptStorePort attemptStore;
-    private final ObjectMapper objectMapper;
+    private final PublicPaymentAvailabilityGuard paymentAvailabilityGuard;
+    private final PhoneVerificationAttemptGuard phoneVerificationAttemptGuard;
+    private final PaymentPrepareTransactionService transactionService;
 
-    public DefaultPaymentPrepareService(List<PaymentPreparer> preparers,
-                                        PaymentAttemptStorePort attemptStore,
-                                        ObjectMapper objectMapper) {
-        this.preparers = new EnumMap<>(PaymentContext.class);
-        for (PaymentPreparer preparer : preparers) {
-            this.preparers.put(preparer.context(), preparer);
-        }
-        this.attemptStore = attemptStore;
-        this.objectMapper = objectMapper;
+    public DefaultPaymentPrepareService(
+            PublicPaymentAvailabilityGuard paymentAvailabilityGuard,
+            PhoneVerificationAttemptGuard phoneVerificationAttemptGuard,
+            PaymentPrepareTransactionService transactionService
+    ) {
+        this.paymentAvailabilityGuard = paymentAvailabilityGuard;
+        this.phoneVerificationAttemptGuard = phoneVerificationAttemptGuard;
+        this.transactionService = transactionService;
     }
 
     @Override
+    @Transactional(propagation = Propagation.NEVER)
     public PrepareResult prepare(PrepareCommand command) {
-        PaymentPreparer preparer = preparers.get(command.context());
-        if (preparer == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지원하지 않는 결제 컨텍스트입니다.");
+        requireValidGuestOrderActor(command);
+        paymentAvailabilityGuard.requireAvailable();
+        String guestPhone = guestPhone(command);
+        if (guestPhone != null) {
+            phoneVerificationAttemptGuard.check(KoreanPhoneNumber.required(guestPhone));
         }
-
-        long amount = preparer.calculateAmount(command.payload(), command.auth());
-        if (amount < 0) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "결제 금액은 0 이상이어야 합니다.");
-        }
-
-        String orderIdExternal = UUID.randomUUID().toString();
-        String payloadJson = serialize(command.payload());
-        PaymentAttempt attempt = PaymentAttempt.start(orderIdExternal, command.context(), amount, payloadJson);
-        attemptStore.save(attempt);
-
-        return new PrepareResult(orderIdExternal, amount, command.context());
+        return transactionService.prepare(command);
     }
 
-    private String serialize(Object payload) {
-        return objectMapper.writeValueAsString(payload);
+    private void requireValidGuestOrderActor(PrepareCommand command) {
+        if (!command.auth().isMember()
+                && command.context() == PaymentContext.ORDER
+                && command.payload() instanceof OrderPayload order
+                && order.userId() != null) {
+            throw new HappyGalleryException(
+                    ErrorCode.INVALID_INPUT, "비회원 주문은 회원 정보를 지정할 수 없습니다.");
+        }
+    }
+
+    private String guestPhone(PrepareCommand command) {
+        if (command.auth().isMember()) {
+            return null;
+        }
+        if (command.context() == PaymentContext.ORDER
+                && command.payload() instanceof OrderPayload order) {
+            return order.phone();
+        }
+        if (command.context() == PaymentContext.BOOKING
+                && command.payload() instanceof BookingPayload booking) {
+            return booking.phone();
+        }
+        return null;
     }
 }

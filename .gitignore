@@ -28,6 +28,7 @@ Thumbs.db
 ## Environment
 .env
 .env.*
+!/.env.example
 
 ## CLAUDE
 .claude/
@@ -36,3 +37,9 @@ memory/
 ## CODEX
 .gradle-codex/
 .codex/
+/.seo-cache/
+/output/
+
+## Local persistent data
+/data/
+/bootstrap/data/

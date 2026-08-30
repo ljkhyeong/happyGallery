@@ -1,7 +1,7 @@
 # Alertmanager 알림 라우팅 검토
 
 **날짜**: 2026-03-20
-**상태**: 구현 반영 후 후속 확장 메모
+**상태**: k3s generic webhook 1차 구현 완료, 채널별 확장은 후속
 
 ---
 
@@ -14,12 +14,7 @@
 - `docker-compose.yml`의 Prometheus / Alertmanager / Grafana 서비스
 - `monitoring/alertmanager.yml`
 
-즉, Prometheus는 alert rule 평가와 Alertmanager 전달까지는 가능하지만, 현재는 외부 운영 채널 receiver를 아직 붙이지 않았다.
-
-- Slack / webhook / email 같은 receiver 정의
-
-결과적으로 현재 alert는 로컬 Alertmanager까지는 전달되지만,
-실제 운영 채널로 push되지는 않는다.
+Docker Compose의 로컬 Alertmanager는 no-op receiver를 유지한다. k3s 운영 구성에는 private Alertmanager를 추가하고 저장소 밖 Kubernetes Secret의 HTTPS generic webhook URL로 모든 critical/warning alert를 전달한다. Prometheus도 `alertmanager:9093`을 활성 대상으로 사용하며 rollout 검증에서 연결을 확인한다.
 
 ---
 
@@ -73,6 +68,5 @@ Alertmanager 기본 구성은 이미 들어갔고, 이제는 실제 receiver와 
 
 ## 나중에 할 일
 
-- receiver 연결 시 `README.md`, `HANDOFF.md`, 운영 문서의 observability 섹션도 같이 갱신
-- Slack/webhook receiver 선택 기준 정리
-- `critical` rule부터 먼저 연결하고 `warning`은 점진적으로 추가
+- 실제 운영 채널에 맞춰 Slack 전용 포맷이나 별도 critical/warning endpoint가 필요하면 receiver를 분리한다.
+- 외부 uptime 감시는 같은 노트북 밖에서 별도로 구성한다.

@@ -6,14 +6,23 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 /**
- * 서울 시간대 날짜 경계를 UTC {@link LocalDateTime} 반개구간으로 변환한다.
+ * 서울 날짜를 DB 열의 저장 기준에 맞는 {@link LocalDateTime} 반개구간으로 변환한다.
  *
- * <p>DB에는 UTC 기준 시각이 저장되고, 화면/API는 {@link Clocks#SEOUL} 기준 날짜를 입력받는 조회에 사용한다.
- * 이 변환으로 {@code [start, end)} 범위를 유지하면서 WHERE 절의 sargable 조건을 맞춘다.
+ * <p>DB 기본값으로 생성되는 {@code created_at}은 UTC이고, 슬롯과 애플리케이션이 기록하는 업무 시각은
+ * 서울 현지시각이다. 열의 저장 기준을 호출부가 명시적으로 선택하면서 {@code [start, end)}와
+ * sargable 조건을 유지한다.
  */
 public final class SeoulDateTimeRangeConverter {
 
     private SeoulDateTimeRangeConverter() {}
+
+    public static LocalDateTime toLocalStart(LocalDate seoulDate) {
+        return seoulDate.atStartOfDay();
+    }
+
+    public static LocalDateTime toLocalExclusiveEnd(LocalDate seoulDate) {
+        return seoulDate.plusDays(1).atStartOfDay();
+    }
 
     /** 서울 시간대 날짜의 자정(00:00)을 UTC LocalDateTime으로 변환 */
     public static LocalDateTime toUtcStart(LocalDate seoulDate) {

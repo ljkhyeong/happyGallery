@@ -10,11 +10,17 @@ public enum ErrorCode {
     // 400 Bad Request — 입력 검증 실패
     INVALID_INPUT(400, "잘못된 입력값입니다."),
     PHONE_VERIFICATION_FAILED(400, "휴대폰 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."),
+    EMAIL_VERIFICATION_FAILED(400, "이메일 인증에 실패했습니다. 코드를 확인하거나 재발송하세요."),
+    PASSWORD_RESET_FAILED(400, "비밀번호 재설정 정보가 올바르지 않습니다."),
 
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
     INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
     SOCIAL_LOGIN_FAILED(401, "소셜 로그인에 실패했습니다. 다시 시도해주세요."),
+
+    // 403 Forbidden — 인증되었지만 권한 부족
+    FORBIDDEN(403, "요청한 작업을 수행할 권한이 없습니다."),
+    REAUTHENTICATION_REQUIRED(403, "보호된 계정 정보를 변경하려면 본인 확인이 필요합니다."),
 
     // 429 Too Many Requests — 처리율 제한 초과
     TOO_MANY_REQUESTS(429, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
@@ -22,15 +28,42 @@ public enum ErrorCode {
     // 404 Not Found — 리소스 미존재
     NOT_FOUND(404, "요청한 리소스를 찾을 수 없습니다."),
 
+    // 405 Method Not Allowed — 경로는 존재하지만 HTTP 메서드가 허용되지 않음
+    METHOD_NOT_ALLOWED(405, "허용되지 않은 요청 방식입니다."),
+
+    // 406 Not Acceptable — 요청한 응답 미디어 타입을 제공할 수 없음
+    NOT_ACCEPTABLE(406, "요청한 응답 형식을 제공할 수 없습니다."),
+
     // 409 Conflict — 상태 충돌
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
+    PHONE_ALREADY_IN_USE(409, "이미 다른 회원이 사용 중인 휴대폰 번호입니다."),
+    LOCAL_PASSWORD_NOT_SET(409, "이메일 로그인 비밀번호가 없습니다. 휴대폰 인증으로 비밀번호를 설정해주세요."),
+    SOCIAL_ACCOUNT_LINK_REQUIRED(409, "같은 이메일로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요."),
+    SOCIAL_ACCOUNT_ALREADY_LINKED(409, "이 소셜 계정은 이미 다른 회원에 연결되어 있습니다."),
+    SOCIAL_PROVIDER_ALREADY_LINKED(409, "해당 제공자의 다른 소셜 계정이 이미 연결되어 있습니다."),
+    LAST_LOGIN_METHOD_REQUIRED(409, "로그인 수단을 하나 이상 유지해야 합니다."),
     ALREADY_REFUNDED(409, "이미 환불된 건입니다."),
     INVENTORY_NOT_ENOUGH(409, "재고가 부족합니다."),
     CAPACITY_EXCEEDED(409, "슬롯 정원이 초과되었습니다."),
     DUPLICATE_BOOKING(409, "이미 예약된 슬롯입니다."),
     SLOT_NOT_AVAILABLE(409, "예약할 수 없는 슬롯입니다."),
     BOOKING_CONFLICT(409, "동시 변경 요청이 감지되었습니다. 잠시 후 다시 시도해주세요."),
+    CART_SNAPSHOT_CHANGED(409, "장바구니가 변경되었습니다. 최신 장바구니를 확인한 뒤 다시 결제해 주세요."),
+    PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
+    PAYMENT_RECONCILIATION_REQUIRED(409, "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요."),
+    COUPON_TERMS_IMMUTABLE(409, "이미 발급된 쿠폰의 이름·할인 조건·유효기간은 변경할 수 없습니다."),
+    REVIEW_ALREADY_EXISTS(409, "해당 주문 품목 또는 예약에 이미 후기를 작성했습니다."),
+    REVIEW_RECREATION_BLOCKED(409, "운영 정책으로 숨김 처리된 이력이 있어 같은 거래에 후기를 다시 작성할 수 없습니다."),
+    REVIEW_REPORT_ALREADY_EXISTS(409, "이미 신고한 후기입니다."),
+    REVIEW_CONTENT_CHANGED(409, "불러온 뒤 후기 내용이나 사진이 변경되었습니다. 최신 내용을 다시 확인해 주세요."),
     CONFLICT(409, "처리 중 충돌이 감지되었습니다. 잠시 후 다시 시도해주세요."),
+
+    // 410 Gone — 유효기간이 끝난 리소스
+    PAYMENT_ATTEMPT_EXPIRED(410, "결제 준비 시간이 만료되었습니다. 결제를 다시 시작해주세요."),
+    PAYMENT_RESULT_RETENTION_EXPIRED(410, "결제 결과 재조회 기간이 만료되었습니다."),
+
+    // 415 Unsupported Media Type — 요청 본문 미디어 타입을 처리할 수 없음
+    UNSUPPORTED_MEDIA_TYPE(415, "지원하지 않는 요청 형식입니다."),
 
     // 422 Unprocessable — 비즈니스 규칙 위반
     REFUND_NOT_ALLOWED(422, "환불 가능 기간이 지났습니다."),
@@ -38,13 +71,33 @@ public enum ErrorCode {
     CHANGE_NOT_ALLOWED(422, "변경 가능 시간이 지났습니다."),
     PASS_EXPIRED(422, "이용권이 만료되었습니다."),
     PASS_CREDIT_INSUFFICIENT(422, "이용권 잔여 횟수가 부족합니다."),
+    REWARD_BALANCE_INSUFFICIENT(422, "사용 가능한 적립금이 부족합니다."),
+    PASS_NOT_APPLICABLE(422, "선택한 클래스에는 이 이용권을 사용할 수 없습니다."),
+    CLASS_INACTIVE(422, "현재 운영하지 않는 클래스입니다."),
+    PHONE_VERIFICATION_REQUIRED(422, "휴대폰 인증을 완료한 뒤 다시 시도해주세요."),
+    POLICY_CONSENT_REQUIRED(422, "현재 이용약관과 개인정보처리방침에 동의해주세요."),
+    ACCOUNT_WITHDRAWAL_BLOCKED(
+            422,
+            "처리가 끝나지 않은 결제 시도·주문·주문 클레임·예약·예약 취소 후속 작업·환불 또는 "
+                    + "적립금 예약·부채나 사용 가능한 8회권이 있어 탈퇴할 수 없습니다."),
+    PASSWORD_UNCHANGED(422, "현재 비밀번호와 다른 새 비밀번호를 입력해주세요."),
     PAYMENT_METHOD_NOT_ALLOWED(422, "예약금은 카드 또는 간편결제만 허용됩니다. 계좌이체는 사용할 수 없습니다."),
+    REVIEW_NOT_ALLOWED(422, "완료된 주문 품목 또는 예약에만 후기를 작성할 수 있습니다."),
+    REVIEW_DELETED(422, "삭제된 후기는 변경할 수 없습니다."),
+    REVIEW_INTERACTION_NOT_ALLOWED(422, "공개 중인 후기에만 이 작업을 수행할 수 있습니다."),
+    REVIEW_SELF_INTERACTION_NOT_ALLOWED(422, "본인이 작성한 후기에는 이 작업을 수행할 수 없습니다."),
+    REVIEW_IMAGE_LIMIT_EXCEEDED(422, "후기 사진은 최대 5장까지 등록할 수 있습니다."),
+    REVIEW_REPORT_DECISION_NOT_ALLOWED(422, "처리 대기 중인 신고만 결정할 수 있습니다."),
 
     // 500 Internal Server Error — 서버 오류
     INTERNAL_ERROR(500, "서버 내부 오류가 발생했습니다."),
 
     // 502 Bad Gateway — 외부 PG/서비스 호출 실패
-    PAYMENT_FAILED(502, "결제 확정에 실패했습니다.");
+    PAYMENT_FAILED(502, "결제 확정에 실패했습니다."),
+
+    // 503 Service Unavailable — 필수 인프라 일시 장애
+    PAYMENT_CONFIRM_RETRYABLE(503, "결제 처리 결과를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요."),
+    SERVICE_UNAVAILABLE(503, "요청을 일시적으로 처리할 수 없습니다. 잠시 후 다시 시도해주세요.");
 
     public final int httpStatus;
     public final String message;

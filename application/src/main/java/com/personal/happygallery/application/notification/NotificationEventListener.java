@@ -1,13 +1,18 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
 class NotificationEventListener {
+
+    private static final Logger log = LoggerFactory.getLogger(NotificationEventListener.class);
 
     private final NotificationOutboxService outboxService;
     private final NotificationOutboxDispatcher outboxDispatcher;
@@ -20,22 +25,19 @@ class NotificationEventListener {
 
     @EventListener
     public void handle(NotificationRequestedEvent event) {
-        if (outboxService.enqueue(event)) {
-            dispatchAfterCommit();
-        }
+        outboxService.enqueue(event);
     }
 
-    private void dispatchAfterCommit() {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            outboxDispatcher.dispatchAsync();
-            return;
+    @Async("notificationExecutor")
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void dispatchAfterCommit(NotificationOutboxEnqueuedEvent event) {
+        try {
+            outboxDispatcher.dispatchPending();
+        } catch (Exception e) {
+            log.warn("[알림 outbox] 비동기 dispatch 실패 [type={}]",
+                    e.getClass().getSimpleName(), e);
         }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                outboxDispatcher.dispatchAsync();
-            }
-        });
     }
 }
+
+record NotificationOutboxEnqueuedEvent() {}

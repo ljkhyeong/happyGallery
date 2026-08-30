@@ -1,29 +1,53 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminPassResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.AdminPassPageResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
+import com.personal.happygallery.adapter.in.web.payment.dto.PassRefundResponse;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassRefundUseCase;
-import com.personal.happygallery.adapter.in.web.admin.dto.BatchResponse;
-import com.personal.happygallery.adapter.in.web.admin.dto.PassRefundResponse;
+import com.personal.happygallery.application.search.port.in.AdminPassQueryUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping({"/api/v1/admin/passes", "/admin/passes"})
+@RequestMapping("/api/v1/admin/passes")
 public class AdminPassController {
 
     private final PassExpiryBatchUseCase passExpiryBatchUseCase;
     private final PassRefundUseCase passRefundUseCase;
+    private final AdminPassQueryUseCase adminPassQueryUseCase;
 
     public AdminPassController(PassExpiryBatchUseCase passExpiryBatchUseCase,
-                               PassRefundUseCase passRefundUseCase) {
+                               PassRefundUseCase passRefundUseCase,
+                               AdminPassQueryUseCase adminPassQueryUseCase) {
         this.passExpiryBatchUseCase = passExpiryBatchUseCase;
         this.passRefundUseCase = passRefundUseCase;
+        this.adminPassQueryUseCase = adminPassQueryUseCase;
     }
 
-    /** 만료 배치 수동 트리거 — 스케줄러 미구현 시 운영자가 직접 호출 */
+    @GetMapping("/search")
+    @Operation(operationId = "searchAdminPasses")
+    public AdminPassPageResponse searchPasses(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return AdminPassPageResponse.from(adminPassQueryUseCase.search(keyword, page, size));
+    }
+
+    @GetMapping("/{passId}")
+    @Operation(operationId = "getAdminPass")
+    public AdminPassResponse getPass(@PathVariable Long passId) {
+        return AdminPassResponse.from(adminPassQueryUseCase.get(passId));
+    }
+
+    /** 만료 배치 수동 트리거. 정기 스케줄 외에 운영자가 즉시 실행할 때 사용한다. */
     @PostMapping("/expire")
     public BatchResponse triggerExpiry() {
         BatchResult result = passExpiryBatchUseCase.expireAll();

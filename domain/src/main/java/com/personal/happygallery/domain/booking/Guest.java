@@ -17,8 +17,11 @@ public class Guest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
-    private String name;
+    @Column(name = "name_enc", nullable = false, length = 1024)
+    private String nameEnc;
+
+    @Column(name = "name_hmac", nullable = false, length = 64)
+    private String nameHmac;
 
     @Column(name = "phone_enc", nullable = false)
     private String phoneEnc;
@@ -34,8 +37,9 @@ public class Guest {
 
     protected Guest() {}
 
-    public Guest(String name, String phoneEnc, String phoneHmac) {
-        this.name = name;
+    public Guest(String nameEnc, String nameHmac, String phoneEnc, String phoneHmac) {
+        this.nameEnc = nameEnc;
+        this.nameHmac = nameHmac;
         this.phoneEnc = phoneEnc;
         this.phoneHmac = phoneHmac;
         this.phoneVerified = false;
@@ -47,7 +51,8 @@ public class Guest {
     }
 
     public Long getId() { return id; }
-    public String getName() { return name; }
+    public String getNameEnc() { return nameEnc; }
+    public String getNameHmac() { return nameHmac; }
     public String getPhoneEnc() { return phoneEnc; }
     public String getPhoneHmac() { return phoneHmac; }
     public boolean isPhoneVerified() { return phoneVerified; }

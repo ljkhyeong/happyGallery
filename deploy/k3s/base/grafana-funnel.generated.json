@@ -1,0 +1,87 @@
+{
+  "uid": "happygallery-funnel",
+  "title": "happyGallery — Product Funnel",
+  "tags": ["happygallery", "funnel"],
+  "timezone": "Asia/Seoul",
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Client Funnel Events (5m rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(happygallery_funnel_client_event_total{application=\"happygallery\"}[5m])",
+          "legendFormat": "{{event_type}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Client Event Totals",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "expr": "happygallery_funnel_client_event_total{application=\"happygallery\"}",
+          "legendFormat": "{{event_type}}"
+        }
+      ],
+      "options": { "graphMode": "none", "textMode": "value_and_name" }
+    },
+    {
+      "id": 3,
+      "title": "Guest Claim Completed (5m rate)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "rate(happygallery_funnel_guest_claim_completed_total{application=\"happygallery\"}[5m])",
+          "legendFormat": "claims/sec"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Guest Claim Completed (cumulative)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "happygallery_funnel_guest_claim_completed_total{application=\"happygallery\"}",
+          "legendFormat": "total claims"
+        }
+      ],
+      "options": { "graphMode": "area" }
+    },
+    {
+      "id": 5,
+      "title": "Conversion: Guest Hub View -> Claim",
+      "description": "guest_lookup_hub_viewed 대비 guest_claim_completed 비율",
+      "type": "gauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "happygallery_funnel_guest_claim_completed_total / (happygallery_funnel_client_event_total{event_type=\"guest_lookup_hub_viewed\"} > 0)",
+          "legendFormat": "conversion"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+    {
+      "id": 6,
+      "title": "Member CTA Click Rate (5m)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "targets": [
+        {
+          "expr": "rate(happygallery_funnel_client_event_total{event_type=~\".*member_cta.*|.*signup.*|.*claim.*\"}[5m])",
+          "legendFormat": "{{event_type}}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

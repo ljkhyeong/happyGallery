@@ -4,5 +4,5 @@ import com.personal.happygallery.domain.qna.ProductQna;
 
 public interface ProductQnaStorePort {
 
-    ProductQna save(ProductQna qna);
+    <S extends ProductQna> S save(S qna);
 }

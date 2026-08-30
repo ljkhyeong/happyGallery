@@ -1,15 +1,14 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class NotificationOutboxDispatcher {
@@ -17,72 +16,162 @@ public class NotificationOutboxDispatcher {
     private static final Logger log = LoggerFactory.getLogger(NotificationOutboxDispatcher.class);
     private static final int DISPATCH_LIMIT = 50;
     private static final int MAX_ATTEMPTS = 5;
-    private static final int PROCESSING_TIMEOUT_MINUTES = 10;
-    private static final String ALL_CHANNELS_FAILED = "ALL_CHANNELS_FAILED";
+    private static final int PROCESSING_TIMEOUT_MINUTES = 1;
+    private static final String TRANSIENT_DELIVERY_FAILURE = "TRANSIENT_DELIVERY_FAILURE";
+    private static final String PERMANENT_DELIVERY_FAILURE = "PERMANENT_DELIVERY_FAILURE";
+    private static final String DELIVERY_RESULT_UNKNOWN = "DELIVERY_RESULT_UNKNOWN";
+    private static final String DELIVERY_FAILED = "DELIVERY_FAILED";
+    private static final String AUDIT_LOG_PERSISTENCE_FAILED = "AUDIT_LOG_PERSISTENCE_FAILED";
+    private static final String DISPATCH_EXCEPTION = "DISPATCH_EXCEPTION";
 
     private final NotificationOutboxTransactionService transactionService;
     private final NotificationService notificationService;
-    private final Executor notificationExecutor;
 
     public NotificationOutboxDispatcher(NotificationOutboxTransactionService transactionService,
-                                        NotificationService notificationService,
-                                        @Qualifier("notificationExecutor") Executor notificationExecutor) {
+                                        NotificationService notificationService) {
         this.transactionService = transactionService;
         this.notificationService = notificationService;
-        this.notificationExecutor = notificationExecutor;
     }
 
-    public void dispatchAsync() {
-        notificationExecutor.execute(() -> {
-            try {
-                dispatchPending();
-            } catch (Exception e) {
-                log.warn("[알림 outbox] 비동기 dispatch 실패", e);
-            }
-        });
-    }
-
+    @Transactional(propagation = Propagation.NEVER)
     public BatchResult dispatchPending() {
-        assertNoActiveTransaction();
-        List<Long> outboxIds = transactionService.reserveDispatchableIds(
-                DISPATCH_LIMIT, PROCESSING_TIMEOUT_MINUTES);
         int successCount = 0;
         Map<String, Integer> failureReasons = new LinkedHashMap<>();
 
-        for (Long outboxId : outboxIds) {
+        for (int dispatchCount = 0; dispatchCount < DISPATCH_LIMIT; dispatchCount++) {
+            var reservation = transactionService.reserveNextDispatchable(PROCESSING_TIMEOUT_MINUTES);
+            if (reservation.isEmpty()) {
+                break;
+            }
+            NotificationOutboxReservation claimed = reservation.get();
             try {
-                if (dispatchReserved(outboxId)) {
-                    successCount++;
-                } else {
-                    failureReasons.merge(ALL_CHANNELS_FAILED, 1, Integer::sum);
+                switch (dispatchReserved(claimed)) {
+                    case SENT -> successCount++;
+                    case FAILED -> failureReasons.merge(DELIVERY_FAILED, 1, Integer::sum);
+                    case DELIVERY_PENDING -> log.info(
+                            "[알림 outbox] 최종 수신 결과 대기 [outboxId={}]", claimed.outboxId());
+                    case OBSOLETE -> log.info(
+                            "[알림 outbox] 현재 상태와 맞지 않는 알림 종결 [outboxId={}]",
+                            claimed.outboxId());
+                    case STALE -> log.info("[알림 outbox] 오래된 실행 결과 무시 [outboxId={}]",
+                            claimed.outboxId());
                 }
             } catch (Exception e) {
-                log.warn("[알림 outbox] dispatch 실패 [outboxId={}]", outboxId, e);
-                failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+                log.warn("[알림 outbox] dispatch 실패 [outboxId={} type={}]",
+                        claimed.outboxId(), e.getClass().getSimpleName());
+                if (recordDispatchException(claimed, e)) {
+                    failureReasons.merge(e.getClass().getSimpleName(), 1, Integer::sum);
+                }
             }
         }
 
         return BatchResult.of(successCount, failureReasons);
     }
 
-    private boolean dispatchReserved(Long outboxId) {
-        NotificationOutboxDeliveryRequest request = transactionService.loadRequest(outboxId);
-        boolean sent = switch (request.recipientType()) {
-            case GUEST -> notificationService.sendByGuestId(request.guestId(), request.eventType());
-            case USER -> notificationService.sendByUserId(request.userId(), request.eventType());
-        };
-
-        if (sent) {
-            transactionService.markSent(outboxId);
-            return true;
+    private DispatchOutcome dispatchReserved(NotificationOutboxReservation reservation) {
+        var preparation = transactionService.prepareDelivery(
+                reservation.outboxId(), reservation.processingToken());
+        switch (preparation.status()) {
+            case OBSOLETE -> {
+                return DispatchOutcome.OBSOLETE;
+            }
+            case STALE -> {
+                return DispatchOutcome.STALE;
+            }
+            case READY -> {
+                // 아래 외부 발송은 prepareDelivery 트랜잭션 커밋 뒤 실행한다.
+            }
         }
-        transactionService.markDeliveryFailed(outboxId, ALL_CHANNELS_FAILED, MAX_ATTEMPTS);
-        return false;
+        NotificationOutboxDeliveryRequest delivery = preparation.delivery();
+        NotificationDeliveryAttempt attempt;
+        try {
+            attempt = switch (delivery.recipientType()) {
+                case GUEST -> notificationService.sendByGuestIdWithOutcome(
+                        delivery.guestId(), delivery.eventType(), delivery.idempotencyKey(), null);
+                case USER -> notificationService.sendByUserIdWithOutcome(
+                        delivery.userId(), delivery.eventType(), delivery.idempotencyKey(), null);
+            };
+        } catch (NotificationAuditPersistenceException exception) {
+            return switch (exception.deliveryResult()) {
+                case SUCCESS -> transactionService.markSentWithAuditFailure(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                AUDIT_LOG_PERSISTENCE_FAILED)
+                        ? DispatchOutcome.SENT
+                        : DispatchOutcome.STALE;
+                case DELIVERY_UNKNOWN -> transactionService.markPermanentFailure(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                DELIVERY_RESULT_UNKNOWN + ":" + AUDIT_LOG_PERSISTENCE_FAILED)
+                        ? DispatchOutcome.FAILED
+                        : DispatchOutcome.STALE;
+                case ACCEPTED, TRANSIENT_FAILURE, PERMANENT_FAILURE -> transactionService.markDeliveryFailed(
+                                reservation.outboxId(),
+                                reservation.processingToken(),
+                                TRANSIENT_DELIVERY_FAILURE + ":" + AUDIT_LOG_PERSISTENCE_FAILED,
+                                MAX_ATTEMPTS)
+                        ? DispatchOutcome.FAILED
+                        : DispatchOutcome.STALE;
+            };
+        }
+
+        return switch (attempt.result()) {
+            case ACCEPTED -> transactionService.markDeliveryPending(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    attempt.channel(),
+                    attempt.providerRequestId(),
+                    attempt.providerRecipientSeq(),
+                    null)
+                    ? DispatchOutcome.DELIVERY_PENDING
+                    : DispatchOutcome.STALE;
+            case SUCCESS -> transactionService.markSent(
+                    reservation.outboxId(), reservation.processingToken())
+                    ? DispatchOutcome.SENT
+                    : DispatchOutcome.STALE;
+            case TRANSIENT_FAILURE -> transactionService.markDeliveryFailed(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    TRANSIENT_DELIVERY_FAILURE,
+                    MAX_ATTEMPTS)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+            case PERMANENT_FAILURE -> transactionService.markPermanentFailure(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    PERMANENT_DELIVERY_FAILURE)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+            case DELIVERY_UNKNOWN -> transactionService.markPermanentFailure(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    DELIVERY_RESULT_UNKNOWN)
+                    ? DispatchOutcome.FAILED
+                    : DispatchOutcome.STALE;
+        };
     }
 
-    private void assertNoActiveTransaction() {
-        if (TransactionSynchronizationManager.isActualTransactionActive()) {
-            throw new IllegalStateException("알림 outbox dispatch는 트랜잭션 밖에서 실행해야 합니다.");
+    private boolean recordDispatchException(NotificationOutboxReservation reservation,
+                                            Exception dispatchFailure) {
+        try {
+            return transactionService.markDeliveryFailed(
+                    reservation.outboxId(),
+                    reservation.processingToken(),
+                    DISPATCH_EXCEPTION + ":" + dispatchFailure.getClass().getSimpleName(),
+                    MAX_ATTEMPTS);
+        } catch (Exception recordingFailure) {
+            dispatchFailure.addSuppressed(recordingFailure);
+            log.error("[알림 outbox] dispatch 실패 기록 불가 [outboxId={} type={}]",
+                    reservation.outboxId(), recordingFailure.getClass().getSimpleName(), recordingFailure);
+            return false;
         }
+    }
+
+    private enum DispatchOutcome {
+        SENT,
+        DELIVERY_PENDING,
+        FAILED,
+        OBSOLETE,
+        STALE
     }
 }

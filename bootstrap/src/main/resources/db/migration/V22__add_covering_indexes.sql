@@ -12,7 +12,7 @@ CREATE INDEX idx_orders_status_created ON orders (status, created_at DESC);
 -- 가장 빈번한 공개 API — 인덱스 없이 풀스캔
 CREATE INDEX idx_slots_class_active_start ON slots (class_id, is_active, start_at);
 
--- 8회권 만료 배치 (findByExpiresAtBeforeAndRemainingCreditsGreaterThan)
+-- 8회권 만료 배치 (findByExpiresAtLessThanEqualAndRemainingCreditsGreaterThan)
 -- 기존 idx_pass_purchases_expires는 (expires_at) 단일
 -- remaining_credits 필터를 Index Condition Pushdown으로 처리
 CREATE INDEX idx_pass_purchases_expires_credits ON pass_purchases (expires_at, remaining_credits);

@@ -62,7 +62,7 @@ export function MyListFilterBar({
     <Card className="my-filter-card border-0 mb-3">
       <Card.Body className="p-3">
         {!!quickTabs?.length && !!activeTabValue && !!onTabChange && (
-          <div className="my-quick-tabs mb-3" role="tablist" aria-label={`${idPrefix}-quick-tabs`}>
+          <div className="my-quick-tabs mb-3" role="group" aria-label="상태별 보기">
             {quickTabs.map((tab) => {
               const isActive = tab.value === activeTabValue;
               return (
@@ -73,6 +73,7 @@ export function MyListFilterBar({
                   variant={isActive ? "dark" : "outline-secondary"}
                   className="my-quick-tab"
                   onClick={() => onTabChange(tab.value)}
+                  aria-pressed={isActive}
                 >
                   <span>{tab.label}</span>
                   <Badge bg={isActive ? "light" : "secondary"} text={isActive ? "dark" : "light"}>

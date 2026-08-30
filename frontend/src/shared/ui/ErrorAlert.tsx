@@ -1,33 +1,46 @@
-import { Alert } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
+import { Alert, Button } from "react-bootstrap";
+import { ApiError, CustomerSessionChangedError } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
 
 interface Props {
-  error: Error | null;
+  error: unknown;
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
-export function ErrorAlert({ error }: Props) {
-  if (!error) return null;
+export function ErrorAlert({ error, onRetry, retrying = false }: Props) {
+  if (!error || error instanceof CustomerSessionChangedError) return null;
 
   let message: string;
 
   if (error instanceof ApiError) {
-    if (error.status >= 500) {
-      message = "서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-    } else {
-      message = getUserMessage(error.code) ?? error.message;
-    }
-  } else if (error.name === "AbortError") {
+    message = getUserMessage(error.code)
+      ?? (error.status >= 500
+        ? "서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
+        : "요청을 완료할 수 없습니다. 화면의 안내를 확인해 주세요.");
+  } else if (error instanceof Error && error.name === "AbortError") {
     message = "요청 시간이 초과되었습니다. 네트워크 상태를 확인하고 다시 시도해 주세요.";
   } else if (error instanceof TypeError && error.message === "Failed to fetch") {
-    message = "서버에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.";
+    message = "서비스에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.";
   } else {
-    message = "알 수 없는 오류가 발생했습니다.";
+    message = "요청 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
   }
 
   return (
-    <Alert variant="danger" className="mb-3">
-      {message}
+    <Alert variant="danger" className="mb-3" role="alert">
+      <div>{message}</div>
+      {onRetry && (
+        <Button
+          type="button"
+          variant="outline-danger"
+          size="sm"
+          className="mt-2"
+          disabled={retrying}
+          onClick={onRetry}
+        >
+          {retrying ? "다시 확인 중..." : "다시 시도"}
+        </Button>
+      )}
     </Alert>
   );
 }

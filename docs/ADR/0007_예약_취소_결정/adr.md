@@ -20,7 +20,7 @@
 
 **이유**: 예약자 관점에서 취소 자체는 항상 가능해야 한다. "환불 불가"와 "취소 불가"는 별개다. 운영 정책도 강제 취소 차단보다 자연 취소 허용 + 환불 불가 기록이 더 합리적.
 
-**위험**: 취소 후 환불이 안 된다는 사실을 응답(`refundable: false`)으로만 전달 — 고객 UI에서 반드시 명확하게 안내해야 함.
+**대응**: 회원·비회원 공통 취소 확인창이 서버 응답의 `deadlineAt`, `refundable`, 크레딧 복구 여부와 예약금 스냅샷을 사용해 예상 반환 내용을 먼저 보여준다. 환불 불가 취소는 최종 버튼에도 환불 없이 예약만 취소된다고 표시한다.
 
 ---
 
@@ -30,35 +30,38 @@
 
 **이유**: 스키마가 이미 준비되어 있음. 추가 마이그레이션 불필요.
 
-**위험**: `Refund` 엔티티가 `order_id`, `pg_ref`, `fail_reason` 등 현재 사용하지 않는 컬럼을 포함 — PG 연동 구현 시 동일 엔티티를 확장 사용 예정.
+**당시 위험**: `Refund` 엔티티가 `order_id`, 원결제 식별자, `fail_reason` 등 미사용 컬럼을 포함했다. 후속 PG 연동에서 Toss `paymentKey`와 환불 `transactionKey`로 의미를 구체화했다.
 
 ---
 
 ## 결정 3: 취소 시 슬롯 booked_count 반납 (reschedule과 동일 패턴)
 
-**결정**: `slotRepository.findByIdWithLock()` → `slot.decrementBookedCount()` → 저장.
+**결정**: `SlotCapacitySupport.releaseCapacity(slotId, participantCount)`가 클래스와 수업·정리 충돌 범위 슬롯을
+같은 잠금 순서로 읽고 `slot.decrementBookedCount(participantCount)`를 수행한다. 마지막 예약 인원이 빠져
+`booked_count`가 양수에서 0이 될 때만 버퍼 차단 수를 줄인다.
 
-**이유**: reschedule(§5.3)과 동일한 비관적 락 패턴. 동시 취소 시 count 언더플로우 방지.
+**이유**: reschedule(§5.3)과 동일한 비관적 락 패턴이다. 다인 예약 인원만큼 정확히 반납하고,
+동시 취소 시 count 언더플로우와 버퍼의 조기 재활성화를 함께 방지한다.
 
 ---
 
-## 결정 4: CancelResult 내부 record로 (booking, refundable) 반환
+## 결정 4: CancelResult 내부 record로 (booking, refundable, refund) 반환
 
-**결정**: `BookingCancelService.CancelResult` 내부 record를 사용해 두 값을 함께 반환.
+**결정**: `BookingCancelUseCase.CancelResult` 내부 record로 취소된 예약, 정책상 보상 가능 여부, 생성된 환불 요청을 함께 반환한다. `refund`는 예약금 PG 환불을 요청했을 때만 존재하며, 8회권 크레딧 복구 또는 환불 불가 취소에서는 `null`이다.
 
 **대안**: boolean을 필드로 Booking에 추가, 또는 별도 DTO.
 
-**이유**: 서비스 레이어에서 컨트롤러로 취소 결과와 환불 여부를 함께 전달해야 하는데, Booking 엔티티를 오염시키지 않는 가장 단순한 방법.
+**이유**: 서비스 레이어에서 컨트롤러로 로컬 취소 결과와 비동기 PG 환불 요청 상태를 함께 전달해야 하는데, Booking 엔티티에 환불 실행 상태를 복제하지 않는 가장 단순한 방법이다.
 
 ---
 
-## 결정 5: API — DELETE /bookings/{bookingId}?token=xxx
+## 결정 5: API — DELETE /bookings/{bookingId} + X-Access-Token
 
-**결정**: `DELETE` 메서드를 쓰고, `access_token`은 쿼리 파라미터로 받는다.
+**결정**: `DELETE` 메서드를 쓰고, 비회원 `access_token`은 `X-Access-Token` 헤더로 받는다.
 
 **대안**: `PATCH /bookings/{bookingId}/cancel` with body.
 
-**이유**: `DELETE`가 취소(자원 소멸)의 의미에 더 부합한다. 토큰을 본문이 아닌 쿼리 파라미터로 받아 GET 조회 패턴과 일관성을 유지했다. 응답 본문에 취소 결과를 담아 `200`을 반환한 이유는 환불 가능 여부를 함께 전달하기 위해서다.
+**이유**: `DELETE`가 취소(자원 소멸)의 의미에 더 부합한다. 조회·변경·취소가 같은 헤더 인증 계약을 사용한다. 응답 본문에 `refundable`, `refundAmount`, nullable `refund`를 담아 로컬 취소 결과와 PG 환불 요청 접수를 구분한다.
 
 ---
 
@@ -68,6 +71,34 @@
 
 **대안**: REJECTED 또는 NOT_REFUNDABLE 상태로 기록.
 
-**이유**: `RefundStatus`에는 REQUESTED / SUCCEEDED / FAILED만 존재. "환불 불가"는 이력 기록 대상이 아닌 정책 결과 — `booking_history`의 CANCELED 이력과 응답의 `refundable: false`로 충분히 추적 가능.
+**이유**: `RefundStatus`는 실제 PG 환불 요청의 실행 상태를 나타낸다. "환불 불가"는 실행 상태가 아니라 정책 결과이므로 `booking_history`의 CANCELED 이력과 응답의 `refundable: false`로 충분히 추적 가능하다.
 
 **위험**: 감사 목적으로 "환불 불가 사유"를 별도 기록해야 할 수 있음 — 운영 요건 확인 후 추가 고려.
+
+---
+
+## 결정 7: 운영자 취소는 고객 마감과 분리하고 감사 주체를 저장한다
+
+**결정**: `POST /api/v1/admin/bookings/{bookingId}/cancel`은 `BOOKED` 예약을 운영자 사정으로 취소한다. 고객의 환불·크레딧 복구 마감을 적용하지 않고 예약금 전액 환불 또는 유효한 8회권 크레딧 복구를 시작한다. `booking_history`에는 `actor=ADMIN`, Bearer 세션의 `admin_user_id`, 입력 사유를 저장한다.
+
+**이유**: 공방 사정 취소의 비용을 고객에게 전가하면 안 되며, 운영자가 수행한 상태 변경은 시스템·고객 작업과 구분해 추적해야 한다.
+
+**정산 경계**: PG로 결제한 예약금만 자동 환불한다. 전화·네이버톡톡·카카오톡·방문 접수에서
+현금·계좌이체로 받은 예약금은 PG 거래가 없으므로 `MANUAL_COMPENSATION` 작업에 실제 반환액을 남긴다.
+입금 전 수기 예약은 예약금이 0원이어서 환불이나 후속 작업을 만들지 않는다. 이미 현장에서 받은 잔금과
+만료되어 복구할 수 없는 8회권도 외부 수납·이용권 정책까지 자동으로 되돌릴 수 없으므로 수동 정산 대상으로 구분한다.
+
+**일괄 취소**: 회차 취소는 같은 개별 정책을 재사용하되 먼저 슬롯을 관리자 비활성화해야 한다. 대상 8회권 ID를 스칼라로 조회해 오름차순 잠금한 다음 클래스·슬롯을 잠그고, 마지막에 `BOOKED` 예약 행을 `FOR UPDATE`로 다시 읽어 오래된 대상 스냅샷과 교착 위험을 함께 줄인다.
+
+---
+
+## 결정 8: 자동 처리할 수 없는 보상은 영속 후속 작업으로 남긴다
+
+**결정**: 운영자 취소 시 이미 수납한 현장 잔금은 `BALANCE_SETTLEMENT`, 오프라인에서 받은 예약금과
+만료로 복구할 수 없는 8회권은 `MANUAL_COMPENSATION` 작업을 `booking_cancellation_tasks`에 저장한다.
+조회 응답은 잔금 정산액과 수동 반환·보상액을 분리한다. 오프라인 예약금은 반환액을, 만료 8회권은
+금액 0원과 보상 유형을 제공한다. 예약·작업 유형별 한 건만 허용하고 관리자가 `PENDING` 목록에서 완료한다.
+
+**이유**: 취소 응답의 boolean은 요청이 끝난 뒤 사라져 재시작·교대 근무에서 놓칠 수 있다. 실제 정산 의무를 DB 상태로 남기면 오늘 할 일과 예약 화면이 같은 기준을 조회하고 처리자·완료 시각을 감사할 수 있다.
+
+**멱등성**: 완료는 작업 행을 잠근 뒤 `PENDING -> COMPLETED`로 한 번만 전이한다. 이미 완료된 요청은 오류 대신 `changed=false`와 기존 완료 결과를 반환한다.

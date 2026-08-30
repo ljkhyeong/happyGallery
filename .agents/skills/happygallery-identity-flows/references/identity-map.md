@@ -26,6 +26,6 @@
 ## Doc sync checklist
 
 - Customer and guest behavior: `docs/PRD/0001_기준_스펙/spec.md`
-- Auth, signup, Google OAuth, verification, and claim API contracts: `docs/PRD/0004_API_계약/spec.md`
+- Auth, signup, Google/Naver OAuth, verification, and claim API contracts: `docs/PRD/0004_API_계약/spec.md`
 - Guest token and admin/member auth decisions: matching ADRs listed in `SKILL.md`
 - Active Phase 2/3 status: `HANDOFF.md` and `plan.md`

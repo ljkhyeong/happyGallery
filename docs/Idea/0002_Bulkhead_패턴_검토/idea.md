@@ -1,7 +1,7 @@
 # Bulkhead(격벽) 패턴 도입 검토 메모
 
 **날짜**: 2026-03-06  
-**상태**: Backlog (추후 검토)
+**상태**: 채택 완료 (역사 기록)
 
 ---
 
@@ -33,15 +33,15 @@ Resilience4j를 사용해 외부 연동 경로를 격리한다.
 
 ---
 
-## 적용 후보
+## 적용 범위
 
-1. 결제/환불 호출 (`PaymentProvider`)
-2. 알림 채널 호출 (`NotificationSender`)
+1. 결제/환불 호출 (`PaymentPort`)
+2. 알림 채널 호출 (`NotificationSenderPort`)
 3. 관리자 재시도 API (`/admin/refunds/{id}/retry`)
 
 ---
 
-## 적용 트리거
+## 당시 적용 트리거
 
 아래 중 하나라도 충족 시 도입을 시작한다.
 
@@ -53,5 +53,11 @@ Resilience4j를 사용해 외부 연동 경로를 격리한다.
 
 ## 현재 결론
 
-지금은 Fake 어댑터 기반이라 즉시 도입 우선순위가 낮다.  
-실제 외부 연동을 붙일 때 운영 안정성을 위해 이 항목을 먼저 다시 검토한다.
+Toss 결제·환불과 NHN 알림 연동에 전용 제한 실행기, Timeout과 CircuitBreaker를
+적용했다. 실행기는 bounded `ArrayBlockingQueue`와 `AbortPolicy`를 사용해 외부 호출
+대기가 요청 처리 스레드로 번지지 않게 한다. 현재 구조는
+[ADR-0020](../../ADR/0020_결제_제공자_CircuitBreaker/adr.md)과
+[ADR-0025](../../ADR/0025_환불_PG_비동기_실행_경계/adr.md)을 기준으로 본다.
+
+남은 일은 실제 운영 지표에 맞춘 큐·타임아웃·실패율 임계치 조정이며, 패턴 도입 자체는
+더 이상 Backlog가 아니다.

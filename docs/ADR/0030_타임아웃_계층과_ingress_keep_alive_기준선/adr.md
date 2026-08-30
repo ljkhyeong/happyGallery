@@ -1,6 +1,7 @@
 # ADR-0030: 타임아웃 계층과 ingress keep-alive 운영 기준
 
 **날짜**: 2026-03-29  
+**최종 갱신**: 2026-08-08
 **상태**: Accepted
 
 ---
@@ -26,25 +27,30 @@
 현재 기본 순서:
 
 - frontend: 35초
-- ingress `proxy_read_timeout`: 30초
+- ingress -> app 응답 헤더 대기: 30초
 - transaction timeout: 10초
 - JPA query timeout: 5초
 - MySQL lock wait: 3초
 - DB/Hikari acquire: 2초
 
+Hikari 커넥션 수명은 기본 `idle timeout 5분 < max lifetime 9분 < DB wait_timeout 10분` 순서로 둔다.
+유휴 커넥션 정리 시간이 최대 수명보다 길어져 Hikari가 설정을 비활성화하는 역전은 허용하지 않는다.
+
 즉, 프론트가 가장 늦게 포기하고 DB와 풀 획득이 가장 먼저 포기한다.
 
 ### 3. keep-alive는 호출하는 쪽이 먼저 정리하고, 받는 쪽이 더 오래 유지한다
 
-- `client -> ingress`: keepalive 15초
-- `ingress -> app`: upstream keep-alive 활성화
+- `ingress -> app`: upstream keep-alive 활성화, idle connection 15초
+- 브라우저와 ingress 사이 연결 수명은 k3s Traefik entrypoint의 정적 설정을 따르며 애플리케이션 Ingress manifest가 임의로 덮어쓰지 않는다.
 
 세부 숫자는 조정할 수 있지만, 호출하는 쪽이 먼저 연결을 정리한다는 원칙은 유지한다.
 
 ### 4. 외부 HTTP 호출도 같은 계층 원칙 안에 둔다
 
-- 외부 HTTP는 `pool acquire 1s < connect 2s < read 5s`
+- OAuth 외부 HTTP는 `pool acquire 1s < connect 2s < read 5s`
+- Toss는 `acquire 0.5s + connect 1s + response 3s < payment TimeLimiter 5s`를 유지하고 역전된 설정은 기동을 거부한다.
 - 서비스별 연결 풀과 세부 설정은 `ADR-0029`에서 관리한다.
+- 애플리케이션 소유 외부 호출·CircuitBreaker·게스트 토큰 시간 설정은 `Duration`으로 바인딩해 계층 비교와 라이브러리 전달까지 단위를 보존한다. 기존 단위 접미사 환경 변수는 `application.yml`에서 명시 단위를 붙여 호환한다.
 
 ---
 
@@ -67,6 +73,7 @@
 - `docs/ADR/0015_Observability_로깅과_비즈니스_예외/adr.md`
 - `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
 - `docs/ADR/0029_외부_HTTP_클라이언트_풀링_기준선/adr.md`
+- `deploy/k3s/base/ingress.yaml`
 - `bootstrap/src/main/resources/application.yml`
 - `bootstrap/src/main/resources/application-local.yml`
 - `README.md`

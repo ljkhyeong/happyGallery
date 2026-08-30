@@ -9,16 +9,22 @@ public interface SlotReaderPort {
 
     Optional<Slot> findById(Long id);
 
-    /** 비관적 쓰기 락 — 정원 강제용 */
-    Optional<Slot> findByIdWithLock(Long id);
+    List<Slot> findAllById(Iterable<Long> ids);
 
-    boolean existsByBookingClassIdAndStartAt(Long classId, LocalDateTime startAt);
+    Optional<SlotSchedulingSnapshot> findSchedulingSnapshotById(Long id);
 
-    List<Slot> findByBookingClassIdAndIsActiveTrue(Long classId);
+    List<SlotSchedulingSnapshot> findSchedulingSnapshotsByIdIn(Iterable<Long> ids);
+
+    /** 수업 시간과 뒤쪽 정리 버퍼가 겹치는 예약된 다른 슬롯이 있는지 확인한다. */
+    long countBookedConflicts(
+            Long classId,
+            Long sourceSlotId,
+            LocalDateTime sourceStartAt,
+            LocalDateTime sourceEndWithBuffer);
 
     List<Slot> findByBookingClassIdOrderByStartAtDesc(Long classId);
 
-    List<Slot> findAvailableByClassAndDate(Long classId, LocalDateTime dayStart, LocalDateTime dayEnd);
+    List<Slot> findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(
+            Long classId, LocalDateTime rangeStart, LocalDateTime rangeEnd);
 
-    List<Slot> findActiveInBufferWindow(Long classId, LocalDateTime windowStart, LocalDateTime windowEnd);
 }

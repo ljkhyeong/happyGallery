@@ -6,8 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface BookingHistoryRepository extends JpaRepository<BookingHistory, Long>, BookingHistoryPort {
 
-    @Override BookingHistory save(BookingHistory history);
+    @Override
+    <S extends BookingHistory> S save(S history);
 
     /** 특정 예약의 이력 건수 — Proof 테스트용 */
+    @Override
     long countByBookingId(Long bookingId);
 }

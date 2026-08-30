@@ -2,6 +2,7 @@
 
 **날짜**: 2026-03-20  
 **상태**: Accepted
+**갱신**: 2026-08-02
 
 ---
 
@@ -31,18 +32,33 @@
 - 테스트 전용 관리자 API key
 - rate limit 비활성화
 - 로그 레벨 조정
+- Spring Session Redis cleanup cron 비활성화(`spring.session.data.redis.cleanup-cron: "-"`)
 
 이런 공통 설정은 테스트 클래스마다 `@TestPropertySource`로 흩뿌리지 않는다.
+
+Redis cleanup cron은 인덱스 보정용 백그라운드 작업이며, 세션 TTL과 키스페이스 만료 이벤트는 이 설정과 무관하게 유지된다.
+짧게 살았다 종료되는 Testcontainers 컨텍스트에서는 cleanup scheduler가 Redis 연결 팩토리 종료와 경합해 오류 로그를 남길 수 있으므로, `test` 프로필에서만 Spring Session이 지원하는 비활성 값 `-`를 사용한다.
 
 ### 4. 필터 검증은 필요할 때만 수동으로 `MockMvc`를 조립한다
 
 - `@AutoConfigureMockMvc(addFilters = true)`처럼 컨텍스트 캐시에 영향을 주는 방식은 기본값으로 두지 않는다.
 - 필요한 필터만 `MockMvcBuilders.webAppContextSetup(...).addFilters(...)`로 붙인다.
 
-### 5. `adapter-in-web` 테스트는 `application`의 test fixtures를 재사용한다
+### 5. 공통 fixture는 의존 대상에 따라 소유 모듈을 나눈다
 
-- 공통 테스트 인프라는 `application/src/testFixtures/**`에 둔다.
-- `adapter-in-web`는 `testFixtures(project(":application"))`를 사용해 같은 설정을 재사용한다.
+- 애플리케이션 포트와 도메인 타입만 사용하는 fixture, `@UseCaseIT`, Testcontainers 설정은
+  `application/src/testFixtures/**`에 둔다.
+- 웹 DTO, `MockMvc`, 영속성 repository를 사용하는 요청 helper, 상태 probe, DB 정리 지원은
+  `test-support/src/testFixtures/**`에 둔다.
+- `application`과 `adapter-in-web` 테스트는 필요한 두 test fixtures variant를 함께 사용한다.
+- `test-support`는 테스트 classpath 전용 보조 모듈이며 운영 산출물에는 포함하지 않는다.
+
+### 6. DB 정리는 테스트가 사용하는 도메인 범위로 제한한다
+
+- 테스트 클래스는 Repository를 나열해 직접 삭제하지 않고 `TestCleanupSupport`의 도메인별 정리 메서드를 호출한다.
+- DB 정리는 `@AfterEach`에서 테스트가 사용한 범위만 한 번 실행한다. `@BeforeEach`는 fixture, mock, `MockMvc` 설정에만 사용한다.
+- 테스트 중간의 데이터 삭제는 알림 건수 기준점처럼 시나리오 의미가 있는 경우에만 명시적으로 남긴다.
+- 모든 `@UseCaseIT` 실행 후 전체 테이블을 일괄 삭제하는 전역 정리는 사용하지 않는다.
 
 ---
 
@@ -69,6 +85,9 @@
 - `application/src/testFixtures/java/com/personal/happygallery/support/UseCaseIT.java`
 - `application/src/testFixtures/java/com/personal/happygallery/support/TestcontainersConfig.java`
 - `application/src/testFixtures/resources/application-test.yml`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/TestCleanupSupport.java`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/*TestHelper.java`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/*StateProbe.java`
 - `adapter-in-web/src/test/java/**`
 
 ---

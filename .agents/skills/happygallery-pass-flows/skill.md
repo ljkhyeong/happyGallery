@@ -20,6 +20,7 @@ description: Repository-specific workflow for pass purchase, pass credit, expiry
 - Keep pass purchase member-only; do not reintroduce guest-owned pass flows or guest pass endpoints.
 - In the Toss prepare/confirm flow, create the paid pass only after payment confirm and use server-side `PASS_TOTAL_PRICE` for the amount.
 - Keep remaining-credit updates and ledger entries consistent.
+- Keep ownership verification, credit mutation, and ledger persistence in one transaction.
 - Keep refund behavior aligned with remaining credits and automatic cancellation of future pass bookings.
 - Do not accidentally turn booking cancel/no-show flows into double-consumption or double-refund paths.
 - When adding or updating tests, follow ADR-0027 and keep only high-value pass, booking-cancel, or contract checks.
@@ -27,7 +28,6 @@ description: Repository-specific workflow for pass purchase, pass credit, expiry
 ## Verification workflow
 
 - Pure pass calculation or time-boundary changes: `./gradlew :application:policyTest`
-- Pass use case changes: `./gradlew --no-daemon :application:useCaseTest --tests "*Pass*"`
-- Pass changes that affect booking cancellation or no-show behavior: `./gradlew --no-daemon :application:useCaseTest --tests "*Pass*" --tests "*Booking*"`
+- Target `PassPurchaseUseCaseIT`, `PassCreditUsageUseCaseIT`, or `PassExpiryNotificationUseCaseIT`; add booking cancellation/no-show tests only when that boundary changed.
 
 Read `references/pass-map.md` for the main files, tests, and document sync checklist.

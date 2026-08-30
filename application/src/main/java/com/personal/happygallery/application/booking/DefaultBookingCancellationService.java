@@ -4,7 +4,6 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
-import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -28,28 +27,33 @@ class DefaultBookingCancellationService implements BookingCancellationService {
 
     private final BookingReaderPort bookingReader;
     private final BookingStorePort bookingStore;
-    private final BookingSlotSupport slotSupport;
+    private final SlotCapacitySupport slotCapacitySupport;
     private final BookingSupport bookingSupport;
     private final Clock clock;
 
     DefaultBookingCancellationService(BookingReaderPort bookingReader,
                                       BookingStorePort bookingStore,
-                                      BookingSlotSupport slotSupport,
+                                      SlotCapacitySupport slotCapacitySupport,
                                       BookingSupport bookingSupport,
                                       Clock clock) {
         this.bookingReader = bookingReader;
         this.bookingStore = bookingStore;
-        this.slotSupport = slotSupport;
+        this.slotCapacitySupport = slotCapacitySupport;
         this.bookingSupport = bookingSupport;
         this.clock = clock;
     }
 
     @Override
     public int cancelLinkedBookings(Long passId) {
-        List<Booking> futureBookings = bookingReader.findFuturePassBookings(
-                passId, BookingStatus.BOOKED, LocalDateTime.now(clock));
+        List<Booking> futureBookings = bookingReader.findFutureBookedPassBookings(
+                passId, LocalDateTime.now(clock));
+        slotCapacitySupport.lockClassesForSlots(futureBookings.stream()
+                .map(booking -> booking.getSlot().getId())
+                .toList());
 
-        futureBookings.forEach(booking -> cancelOne(booking, passId));
+        for (Booking booking : futureBookings) {
+            cancelOne(booking, passId);
+        }
 
         return futureBookings.size();
     }
@@ -57,10 +61,11 @@ class DefaultBookingCancellationService implements BookingCancellationService {
     private void cancelOne(Booking booking, Long passId) {
         booking.cancel();
 
-        Slot slot = slotSupport.releaseSlotCapacity(booking.getSlot().getId());
+        Slot slot = slotCapacitySupport.releaseCapacity(
+                booking.getSlot().getId(), booking.getParticipantCount());
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED,
-                slot, null, "ADMIN", null);
+                slot, null, "SYSTEM", null, "8회권 전체 환불 연동 취소");
 
         bookingStore.save(booking);
         log.info("Pass환불 연동 취소 [passId={}, bookingId={}]", passId, booking.getId());

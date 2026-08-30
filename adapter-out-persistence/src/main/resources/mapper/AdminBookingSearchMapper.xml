@@ -6,27 +6,32 @@
 
     <!-- search / count 공유 WHERE 프래그먼트 -->
     <sql id="searchConditions">
-        <where>
-            <if test="status != null">
-                AND b.status = #{status}
-            </if>
-            <if test="dateFrom != null">
-                AND s.start_at &gt;= #{dateFrom}
-            </if>
-            <if test="dateTo != null">
-                AND s.start_at &lt; #{dateTo}
-            </if>
-        </where>
+        <if test="status != null">
+            AND b.status = #{status}
+        </if>
+        <if test="dateFrom != null">
+            AND s.start_at &gt;= #{dateFrom}
+        </if>
+        <if test="dateTo != null">
+            AND s.start_at &lt; #{dateTo}
+        </if>
     </sql>
 
     <sql id="keywordConditions">
-        <if test="keyword != null and keyword != ''">
-            AND (
-                CAST(b.id AS CHAR) LIKE CONCAT('%', #{keyword}, '%')
-                OR u.name LIKE CONCAT('%', #{keyword}, '%')
-                OR g.name LIKE CONCAT('%', #{keyword}, '%')
-            )
-        </if>
+        <choose>
+            <when test="exactId != null">
+                AND b.id = #{exactId}
+            </when>
+            <when test="keyword != null and keyword != ''">
+                AND (
+                    (#{nameHmac} IS NOT NULL
+                        AND (u.name_hmac = #{nameHmac} OR g.name_hmac = #{nameHmac}))
+                    OR
+                    (#{phoneHmac} IS NOT NULL
+                        AND (u.phone_hmac = #{phoneHmac} OR g.phone_hmac = #{phoneHmac}))
+                )
+            </when>
+        </choose>
     </sql>
 
     <!--
@@ -35,19 +40,25 @@
         외부 쿼리에서 실제 데이터를 JOIN으로 가져온다.
         예약은 날짜 필터가 slots.start_at 기준이므로 날짜 조건 존재 시 slots JOIN 포함.
     -->
-    <select id="search" resultType="com.personal.happygallery.application.search.dto.AdminBookingSearchRow">
+    <select id="search" resultType="com.personal.happygallery.application.search.port.out.AdminBookingSearchResult">
         SELECT
             b.id                                                              AS bookingId,
             CONCAT('BK-', LPAD(b.id, 8, '0'))                                AS bookingNumber,
             CASE WHEN b.user_id IS NOT NULL THEN 'MEMBER' ELSE 'GUEST' END   AS bookerType,
-            COALESCE(u.name, g.name, '(알 수 없음)')                           AS bookerName,
-            COALESCE(u.phone, g.phone, '')                                    AS bookerPhone,
+            COALESCE(u.name_enc, g.name_enc)                                  AS bookerNameEnc,
+            COALESCE(u.phone_enc, g.phone_enc)                                AS bookerPhoneEnc,
             c.name                                                            AS className,
             s.start_at                                                        AS startAt,
             s.end_at                                                          AS endAt,
             b.status                                                          AS status,
+            b.source                                                          AS source,
+            b.participant_count                                               AS participantCount,
             b.deposit_amount                                                  AS depositAmount,
+            b.deposit_paid_at                                                 AS depositPaidAt,
             b.balance_amount                                                  AS balanceAmount,
+            b.balance_status                                                  AS balanceStatus,
+            b.balance_paid_at                                                 AS balancePaidAt,
+            b.arrears_flag                                                    AS arrears,
             CASE WHEN b.pass_purchase_id IS NOT NULL THEN TRUE ELSE FALSE END AS passBooking,
             b.created_at                                                      AS createdAt
         FROM bookings b
@@ -61,16 +72,18 @@
                 LEFT JOIN users u ON b.user_id = u.id
                 LEFT JOIN guests g ON b.guest_id = g.id
             </if>
-            <include refid="searchConditions"/>
-            <include refid="keywordConditions"/>
-            ORDER BY b.created_at DESC
+            <where>
+                <include refid="searchConditions"/>
+                <include refid="keywordConditions"/>
+            </where>
+            ORDER BY b.created_at DESC, b.id DESC
             LIMIT #{size} OFFSET #{offset}
         ) sub ON b.id = sub.id
         JOIN slots s ON b.slot_id = s.id
         JOIN classes c ON b.class_id = c.id
         LEFT JOIN users u ON b.user_id = u.id
         LEFT JOIN guests g ON b.guest_id = g.id
-        ORDER BY b.created_at DESC
+        ORDER BY b.created_at DESC, b.id DESC
     </select>
 
     <select id="count" resultType="long">
@@ -83,8 +96,10 @@
             LEFT JOIN users u ON b.user_id = u.id
             LEFT JOIN guests g ON b.guest_id = g.id
         </if>
-        <include refid="searchConditions"/>
-        <include refid="keywordConditions"/>
+        <where>
+            <include refid="searchConditions"/>
+            <include refid="keywordConditions"/>
+        </where>
     </select>
 
 </mapper>

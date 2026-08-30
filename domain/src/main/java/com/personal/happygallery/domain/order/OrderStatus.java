@@ -10,11 +10,13 @@ public enum OrderStatus {
 	PAID_APPROVAL_PENDING,
 	APPROVED_FULFILLMENT_PENDING,
 	REJECTED,
+	CUSTOMER_CANCELED,
 	AUTO_REFUND_TIMEOUT,
 
 	// 제작 및 지연
 	IN_PRODUCTION,
-	DELAY_REQUESTED,
+	DELAY_CONSENT_PENDING,
+	DELAY_ACCEPTED,
 	DELAY_REJECTED_CANCELED,
 
 	// 이행: 배송
@@ -26,19 +28,10 @@ public enum OrderStatus {
 	PICKUP_READY,
 	PICKED_UP,
 	PICKUP_EXPIRED,
+	PICKUP_FORFEITED,
 
 	// 최종 상태
 	COMPLETED;
-
-	/** 승인 가능한 상태인지 확인한다. 이미 환불된 경우 {@link AlreadyRefundedException}을 던진다. */
-	public void requireApprovable() {
-		if (this == REJECTED
-				|| this == AUTO_REFUND_TIMEOUT
-				|| this == PICKUP_EXPIRED
-				|| this == DELAY_REJECTED_CANCELED) {
-			throw new AlreadyRefundedException();
-		}
-	}
 
 	/**
 	 * 관리자 승인/거절이 가능한 승인 대기 상태인지 확인한다.
@@ -46,20 +39,51 @@ public enum OrderStatus {
 	 * 그 외 승인 대기 외 상태는 {@code 400 INVALID_INPUT}을 던진다.
 	 */
 	public void requireApprovalPending() {
-		requireApprovable();
+		requireNotAlreadyRefunded();
 		if (this != PAID_APPROVAL_PENDING) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 처리할 수 있습니다.");
 		}
 	}
 
+	/** 배송 또는 픽업이 완료되어 사후 클레임을 접수할 수 있는지 확인한다. */
+	public void requireClaimable() {
+		if (this != DELIVERED && this != PICKED_UP && this != COMPLETED) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "배송 또는 픽업이 완료된 주문만 클레임을 접수할 수 있습니다.");
+		}
+	}
+
+	/** 배송 또는 픽업이 완료되어 상품 후기를 작성할 수 있는지 확인한다. */
+	public void requireReviewable() {
+		if (!isReviewable()) {
+			throw new HappyGalleryException(
+					ErrorCode.REVIEW_NOT_ALLOWED,
+					"배송 또는 픽업이 완료된 주문 품목에만 후기를 작성할 수 있습니다.");
+		}
+	}
+
+	/** 배송 또는 픽업이 완료되어 상품 후기 작성 기회가 생긴 상태인지 반환한다. */
+	public boolean isReviewable() {
+		return this == DELIVERED || this == PICKED_UP || this == COMPLETED;
+	}
+
 	/**
 	 * 환불/취소 가능한 상태인지 확인한다.
-	 * 제작 중({@link #IN_PRODUCTION}) 또는 지연 요청({@link #DELAY_REQUESTED}) 상태는
+	 * 제작 중({@link #IN_PRODUCTION}) 또는 지연 수락({@link #DELAY_ACCEPTED}) 상태는
 	 * {@link ProductionRefundNotAllowedException}(422)을 던진다.
 	 */
 	public void requireCancellable() {
-		if (this == IN_PRODUCTION || this == DELAY_REQUESTED) {
+		if (this == IN_PRODUCTION || this == DELAY_CONSENT_PENDING || this == DELAY_ACCEPTED) {
 			throw new ProductionRefundNotAllowedException();
+		}
+	}
+
+	/** 고객이 결제 승인 전 주문을 직접 취소할 수 있는지 확인한다. */
+	public void requireCustomerCancellationAllowed() {
+		requireNotAlreadyRefunded();
+		if (this != PAID_APPROVAL_PENDING) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "승인 대기 상태의 주문만 고객이 취소할 수 있습니다.");
 		}
 	}
 
@@ -70,24 +94,49 @@ public enum OrderStatus {
 		}
 	}
 
-	/** {@link #DELAY_REQUESTED} 상태인지 확인한다. */
-	public void requireDelayRequested() {
-		if (this != DELAY_REQUESTED) {
-			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지연 요청 상태에서만 가능합니다.");
+	/** 승인 전 기성품 주문에 지연을 제안할 수 있는지 확인한다. */
+	public void requireReadyStockDelayProposable() {
+		if (this != PAID_APPROVAL_PENDING) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "승인 대기 상태의 기성품 주문만 지연을 제안할 수 있습니다.");
 		}
 	}
 
-	/** 고객이 제작 지연을 거절해 취소할 수 있는 상태인지 확인한다. */
-	public void requireDelayRejectionCancelable() {
+	/** 제작 중인 주문제작 또는 혼합 주문에 지연을 제안할 수 있는지 확인한다. */
+	public void requireProductionDelayProposable() {
 		if (this != IN_PRODUCTION) {
-			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중 상태에서만 지연 거절 취소가 가능합니다.");
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "제작 중 상태의 주문제작 주문만 지연을 제안할 수 있습니다.");
 		}
 	}
 
-	/** {@link #IN_PRODUCTION} 또는 {@link #DELAY_REQUESTED} 상태인지 확인한다. */
+	/** {@link #DELAY_ACCEPTED} 상태인지 확인한다. */
+	public void requireDelayAccepted() {
+		if (this != DELAY_ACCEPTED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "지연 수락 상태에서만 가능합니다.");
+		}
+	}
+
+	/** {@link #DELAY_CONSENT_PENDING} 상태인지 확인한다. */
+	public void requireDelayConsentPending() {
+		if (this != DELAY_CONSENT_PENDING) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "지연 동의 대기 상태에서만 응답할 수 있습니다.");
+		}
+	}
+
+	/** 고객이 주문 이행 지연을 거절해 취소할 수 있는 상태인지 확인한다. */
+	public void requireDelayRejectionCancelable() {
+		if (this != DELAY_CONSENT_PENDING) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "지연 동의 대기 상태에서만 지연 거절 취소가 가능합니다.");
+		}
+	}
+
+	/** {@link #IN_PRODUCTION} 또는 {@link #DELAY_ACCEPTED} 상태인지 확인한다. */
 	public void requireProductionCompletable() {
-		if (this != IN_PRODUCTION && this != DELAY_REQUESTED) {
-			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중이거나 지연 요청 상태에서만 완료할 수 있습니다.");
+		if (this != IN_PRODUCTION && this != DELAY_ACCEPTED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중이거나 지연 수락 상태에서만 완료할 수 있습니다.");
 		}
 	}
 
@@ -105,11 +154,23 @@ public enum OrderStatus {
 		}
 	}
 
+	/** 관리자가 미수령 종료 주문을 예외 환불할 수 있는지 확인한다. */
+	public void requireMissedPickupRefundable() {
+		requireNotAlreadyRefunded();
+		if (this != PICKUP_FORFEITED) {
+			throw new HappyGalleryException(
+					ErrorCode.INVALID_INPUT, "미수령으로 종료된 주문만 관리자 환불할 수 있습니다.");
+		}
+	}
+
 	/** expectedShipDate 갱신이 허용되는 상태인지 확인한다 (제작 중/지연/배송 준비). */
 	public void requireExpectedShipDateWritable() {
-		if (this != IN_PRODUCTION && this != DELAY_REQUESTED && this != SHIPPING_PREPARING) {
+		if (this != IN_PRODUCTION
+				&& this != DELAY_CONSENT_PENDING
+				&& this != DELAY_ACCEPTED
+				&& this != SHIPPING_PREPARING) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
-					"제작 중, 지연 요청, 배송 준비 상태에서만 출고일을 설정할 수 있습니다.");
+					"제작 중, 지연 응답 대기, 지연 수락, 배송 준비 상태에서만 출고일을 설정할 수 있습니다.");
 		}
 	}
 
@@ -131,6 +192,20 @@ public enum OrderStatus {
 	public void requireShipped() {
 		if (this != SHIPPED) {
 			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 중 상태에서만 가능합니다.");
+		}
+	}
+
+	private void requireNotAlreadyRefunded() {
+		boolean alreadyRefunded = switch (this) {
+			case REJECTED, CUSTOMER_CANCELED, AUTO_REFUND_TIMEOUT,
+					DELAY_REJECTED_CANCELED, PICKUP_EXPIRED -> true;
+			case PAID_APPROVAL_PENDING, APPROVED_FULFILLMENT_PENDING,
+					IN_PRODUCTION, DELAY_CONSENT_PENDING, DELAY_ACCEPTED,
+					SHIPPING_PREPARING, SHIPPED, DELIVERED,
+					PICKUP_READY, PICKED_UP, PICKUP_FORFEITED, COMPLETED -> false;
+		};
+		if (alreadyRefunded) {
+			throw new AlreadyRefundedException();
 		}
 	}
 }

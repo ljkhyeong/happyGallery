@@ -1,13 +1,25 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.product.InventoryService;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderOptionSnapshot;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
+import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.order.FulfillmentPolicy;
+import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.MadeToOrderConsent;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.product.ProductType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,22 +39,31 @@ public class OrderService {
 
     private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
-    private final InventoryService inventoryService;
+    private final FulfillmentPort fulfillmentPort;
+    private final OrderStockService orderStockService;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
+    private final ShippingAddressProtector shippingAddressProtector;
+    private final MemberAccountGuard memberAccountGuard;
     private final Clock clock;
 
     public OrderService(OrderStorePort orderStore,
                         OrderItemPort orderItemPort,
-                        InventoryService inventoryService,
+                        FulfillmentPort fulfillmentPort,
+                        OrderStockService orderStockService,
                         ApplicationEventPublisher eventPublisher,
                         GuestTokenService guestTokenService,
+                        ShippingAddressProtector shippingAddressProtector,
+                        MemberAccountGuard memberAccountGuard,
                         Clock clock) {
         this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
-        this.inventoryService = inventoryService;
+        this.fulfillmentPort = fulfillmentPort;
+        this.orderStockService = orderStockService;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
+        this.shippingAddressProtector = shippingAddressProtector;
+        this.memberAccountGuard = memberAccountGuard;
         this.clock = clock;
     }
 
@@ -59,20 +80,40 @@ public class OrderService {
      * @param items   주문 상품 목록
      * @return 생성된 주문
      */
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress) {
+        return createPaidOrder(guestId, items, fulfillmentType, shippingAddress, 0L);
+    }
+
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress,
+                                               long shippingFee) {
+        return createPaidOrder(
+                guestId, items, fulfillmentType, shippingAddress, shippingFee, null);
+    }
+
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
+                                               FulfillmentType fulfillmentType,
+                                               ShippingAddress shippingAddress,
+                                               long shippingFee,
+                                               MadeToOrderConsent madeToOrderConsent) {
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+        long totalAmount = OrderAmountCalculator.addShippingFee(
+                productAmount(items), shippingFee);
+        requireMatchingShippingFee(fulfillmentType, shippingFee);
 
         GuestTokenService.IssuedToken issued = guestTokenService.issue();
         String rawToken = issued.rawToken();
         String tokenHash = issued.tokenHash();
         Order order = orderStore.save(
-                Order.forGuest(guestId, tokenHash, totalAmount, paidAt, paidAt.plusHours(24)));
+                Order.forGuest(
+                        guestId, tokenHash, totalAmount, shippingFee,
+                        paidAt, paidAt.plusHours(24), madeToOrderConsent));
 
-        for (OrderItemRequest item : items) {
-            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
-            inventoryService.deduct(item.productId(), item.qty());
-        }
+        saveItemsAndDeductInventory(order, items);
+        saveFulfillment(order, fulfillmentType, shippingAddress);
 
         eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                 guestId,
@@ -86,22 +127,218 @@ public class OrderService {
     /**
      * 회원 주문 생성. guest 대신 user_id를 설정한다. accessToken 없음.
      */
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress) {
+        return createMemberOrder(userId, items, fulfillmentType, shippingAddress, 0L);
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   long shippingFee) {
+        return createMemberOrder(
+                userId, items, fulfillmentType, shippingAddress, shippingFee, null);
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   long shippingFee,
+                                   MadeToOrderConsent madeToOrderConsent) {
+        return createMemberOrder(
+                userId, items, fulfillmentType, shippingAddress, madeToOrderConsent,
+                OrderPricingSnapshot.fullPrice(productAmount(items), shippingFee));
+    }
+
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
+                                   FulfillmentType fulfillmentType,
+                                   ShippingAddress shippingAddress,
+                                   MadeToOrderConsent madeToOrderConsent,
+                                   OrderPricingSnapshot pricing) {
+        memberAccountGuard.requireActiveForUpdate(userId);
         LocalDateTime paidAt = LocalDateTime.now(clock);
-        long totalAmount = items.stream().mapToLong(i -> (long) i.qty() * i.unitPrice()).sum();
+        requirePricingMatchesItems(items, pricing);
+        requireMatchingShippingFee(fulfillmentType, pricing.shippingFee());
 
         Order order = orderStore.save(
-                Order.forMember(userId, totalAmount, paidAt, paidAt.plusHours(24)));
+                Order.forMember(
+                        userId, pricing,
+                        paidAt, paidAt.plusHours(24), madeToOrderConsent));
 
-        for (OrderItemRequest item : items) {
-            orderItemPort.save(new OrderItem(order, item.productId(), item.qty(), item.unitPrice()));
-            inventoryService.deduct(item.productId(), item.qty());
-        }
+        saveItemsAndDeductInventory(order, items);
+        saveFulfillment(order, fulfillmentType, shippingAddress);
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
+                userId,
+                NotificationEventType.ORDER_PAID,
+                "ORDER",
+                order.getId()));
 
         return order;
     }
 
-    public record OrderItemRequest(Long productId, int qty, long unitPrice) {}
+    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
+    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
+        return createPaidOrder(guestId, items, FulfillmentType.PICKUP, null);
+    }
+
+    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
+    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
+        return createMemberOrder(userId, items, FulfillmentType.PICKUP, null);
+    }
+
+    private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
+        orderStockService.deductAll(items.stream()
+                .map(item -> new StockAdjustment(
+                        item.productId(), item.productVariantId(), item.qty()))
+                .toList());
+        orderItemPort.saveAll(items.stream()
+                .map(item -> new OrderItem(
+                        order,
+                        item.productId(),
+                        item.productVariantId(),
+                        item.productName(),
+                        item.productType(),
+                        item.qty(),
+                        item.unitPrice(),
+                        item.basePrice(),
+                        item.variantPriceAdjustment(),
+                        item.textOptionPriceAdjustment(),
+                        item.optionSnapshots(),
+                        item.specification(),
+                        item.careInstructions(),
+                        item.productionLeadDays(),
+                        item.pricing()))
+                .toList());
+    }
+
+    private static long productAmount(List<OrderItemRequest> items) {
+        long total = 0L;
+        for (OrderItemRequest item : items) {
+            total = OrderAmountCalculator.addLine(total, item.qty(), item.unitPrice());
+        }
+        return total;
+    }
+
+    private static void requirePricingMatchesItems(
+            List<OrderItemRequest> items, OrderPricingSnapshot pricing) {
+        long productAmount = productAmount(items);
+        long couponDiscount = 0L;
+        long rewardUsed = 0L;
+        long netPaid = 0L;
+        for (OrderItemRequest item : items) {
+            couponDiscount = Math.addExact(
+                    couponDiscount, item.pricing().couponDiscountAmount());
+            rewardUsed = Math.addExact(rewardUsed, item.pricing().rewardUsedAmount());
+            netPaid = Math.addExact(netPaid, item.pricing().netPaidAmount());
+        }
+        if (pricing.productAmount() != productAmount
+                || pricing.couponDiscountAmount() != couponDiscount
+                || pricing.rewardUsedAmount() != rewardUsed
+                || pricing.rewardEarnBase() != netPaid) {
+            throw new IllegalArgumentException("주문 가격과 품목별 혜택 배분이 일치하지 않습니다.");
+        }
+    }
+
+    private static void requireMatchingShippingFee(FulfillmentType fulfillmentType, long shippingFee) {
+        if (fulfillmentType != FulfillmentType.SHIPPING && shippingFee != 0L) {
+            throw new IllegalArgumentException("픽업 주문에는 배송비를 적용할 수 없습니다.");
+        }
+    }
+
+    private void saveFulfillment(Order order,
+                                 FulfillmentType fulfillmentType,
+                                 ShippingAddress shippingAddress) {
+        FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
+        Fulfillment fulfillment = switch (fulfillmentType) {
+            case PICKUP -> Fulfillment.pickup(order.getId());
+            case SHIPPING -> Fulfillment.shipping(
+                    order.getId(), shippingAddressProtector.encrypt(shippingAddress));
+        };
+        fulfillmentPort.save(fulfillment);
+    }
+
+    public record OrderItemRequest(
+            Long productId,
+            Long productVariantId,
+            String productName,
+            ProductType productType,
+            int qty,
+            long unitPrice,
+            long basePrice,
+            long variantPriceAdjustment,
+            long textOptionPriceAdjustment,
+            List<OrderOptionSnapshot> optionSnapshots,
+            String specification,
+            String careInstructions,
+            Integer productionLeadDays,
+            OrderItemPricing pricing
+    ) {
+        public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
+            this(productId, null, productName, ProductType.READY_STOCK,
+                    qty, unitPrice, unitPrice, 0L, 0L, List.of(), null, null, null,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays
+        ) {
+            this(productId, null, productName,
+                    productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
+                    qty, unitPrice, unitPrice, 0L, 0L, List.of(),
+                    specification, careInstructions, productionLeadDays,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                ProductType productType,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays
+        ) {
+            this(productId, null, productName, productType, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(),
+                    specification, careInstructions, productionLeadDays,
+                    OrderItemPricing.fullPrice(qty, unitPrice));
+        }
+
+        public OrderItemRequest(
+                Long productId,
+                String productName,
+                ProductType productType,
+                int qty,
+                long unitPrice,
+                String specification,
+                String careInstructions,
+                Integer productionLeadDays,
+                OrderItemPricing pricing
+        ) {
+            this(productId, null, productName, productType, qty, unitPrice,
+                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
+                    productionLeadDays, pricing);
+        }
+
+        public OrderItemRequest {
+            if (productType == null) {
+                throw new IllegalArgumentException("신규 주문 상품의 상품 유형은 필수입니다.");
+            }
+            if (pricing == null) {
+                throw new IllegalArgumentException("주문 품목 가격 스냅샷은 필수입니다.");
+            }
+            optionSnapshots = List.copyOf(optionSnapshots);
+        }
+    }
 
     public record OrderCreationResult(Order order, String rawAccessToken) {}
 }

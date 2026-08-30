@@ -19,13 +19,24 @@ tasks.register('policyTest', Test) {
 	useJUnitPlatform { includeTags 'policy' }
 }
 
+// ArchUnit이 전체 클래스 그래프를 읽기 전에 통합 테스트가 쌓아 둔 힙을 분리한다.
+// check/build 검증 범위는 그대로 유지하면서 policy 스위트만 별도 테스트 JVM에서 실행한다.
+tasks.named('test') {
+	useJUnitPlatform { excludeTags 'policy' }
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('policyTest')
+}
+
 // 테스트 로깅
 tasks.withType(Test).configureEach {
 	useJUnitPlatform()
+	maxHeapSize = '1g'
 
 	testLogging {
 		events "passed", "skipped", "failed"
-		exceptionFormat "full"
+		exceptionFormat = "full"
 		showStandardStreams = false
 	}
 }
@@ -33,12 +44,13 @@ tasks.withType(Test).configureEach {
 dependencies {
 	api project(":domain")
 	api 'com.fasterxml.jackson.core:jackson-annotations'
-	api 'org.springframework.data:spring-data-commons'
+	implementation 'com.drewnoakes:metadata-extractor:2.20.0'
+	implementation 'com.github.usingsky:KoreanLunarCalendar:0.4.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter'
 	implementation 'org.springframework.boot:spring-boot-starter-json'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'io.micrometer:micrometer-core'
 	implementation 'org.springframework.retry:spring-retry:2.0.12'
 	implementation 'org.springframework:spring-aop'
 	implementation 'org.springframework:spring-tx'
@@ -46,21 +58,15 @@ dependencies {
 	implementation 'org.springframework.security:spring-security-crypto'
 	implementation 'org.aspectj:aspectjweaver'
 
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-	// test fixtures — 타 모듈 테스트가 consume 하는 공용 테스트 인프라 (support/**)
+	// application/domain 타입만 사용하는 공용 테스트 fixture
 	testFixturesApi project(":domain")
-	testFixturesApi project(":adapter-out-persistence")
-	testFixturesApi project(":adapter-in-web")
 	testFixturesApi 'org.springframework.boot:spring-boot-starter-test'
-	testFixturesApi 'org.springframework.boot:spring-boot-starter-data-jpa'
 	testFixturesApi 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testFixturesApi 'org.springframework.boot:spring-boot-testcontainers'
 	testFixturesApi 'org.testcontainers:testcontainers-mysql'
 	testFixturesApi 'org.testcontainers:testcontainers'
-	testFixturesApi 'org.awaitility:awaitility'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
@@ -68,15 +74,21 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	testImplementation 'org.springframework.boot:spring-boot-starter-mail'
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testImplementation 'org.testcontainers:testcontainers'
 	testImplementation 'org.awaitility:awaitility'
-	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.0'
+	testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.2'
+	testImplementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
+	testImplementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
 	testImplementation project(":adapter-out-persistence")
 	testImplementation project(":adapter-out-external")
 	testImplementation project(":adapter-in-web")
+	testImplementation testFixtures(project(":test-support"))
 	// bootstrap 의 @SpringBootApplication / Flyway / config 클래스가 @SpringBootTest 컨텍스트 부팅에 필요
 	testImplementation project(":bootstrap")
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

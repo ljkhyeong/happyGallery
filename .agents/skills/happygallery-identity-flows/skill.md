@@ -1,6 +1,6 @@
 ---
 name: happygallery-identity-flows
-description: Repository-specific workflow for customer identity, signup/login, Google social login, phone verification, SMS verification ownership, guest history claim, PhoneVerification, VerifiedGuestResolver, PhoneOwnershipVerificationUseCase, LocalPhoneVerificationController, and customer authentication changes in the happyGallery repo. Use when the request mentions 회원가입, 로그인, 휴대폰 인증, SMS 인증, phone verification, phone ownership, guest claim, 비회원 이력 가져오기, Google OAuth, SocialAuth, CustomerAuth, VerifiedGuestResolver, or PhoneOwnershipVerificationUseCase. Read HANDOFF.md first, preserve phone ownership guarantees and local-only verification helpers, run the smallest valid identity-related test scope, and update affected docs.
+description: Repository-specific workflow for customer identity, signup/login, Google/Naver social login, phone verification, planned SMS ownership verification, guest history claim, PhoneVerification, VerifiedGuestResolver, LocalPhoneVerificationController, and customer authentication changes in happyGallery. Use for 회원가입, 로그인, 휴대폰/SMS 인증, phone ownership, guest claim, OAuth state, SocialAuth, CustomerAuth, or the planned PhoneOwnershipVerificationUseCase. Read HANDOFF.md first and distinguish implemented behavior from plan.md.
 ---
 
 # happyGallery Identity Flows
@@ -14,6 +14,15 @@ description: Repository-specific workflow for customer identity, signup/login, G
   - `docs/ADR/0005_비회원_예약_구현_결정/adr.md`
   - `docs/ADR/0023_관리자_회원_인증_세션_기준선/adr.md`
   - `docs/ADR/0024_비회원_토큰_강화/adr.md`
+  - `docs/ADR/0035_다중_소셜_계정_모델/adr.md`
+  - `docs/ADR/0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md`
+
+## Current and planned boundaries
+
+- Google and Naver login, provider-specific session `state`, and `user_social_accounts` are implemented.
+- Current signup stores the normalized/encrypted submitted phone with `phoneVerified=false`; dedicated member phone ownership verification remains planned.
+- `VerifiedGuestResolver` consumes guest verification and upserts guest history. Do not reuse it for member signup ownership.
+- Real verification-code SMS delivery through a dedicated `PhoneVerificationSender` remains planned; general notification SMS does not make it complete.
 
 ## Scope vs `happygallery-member-flows`
 
@@ -23,7 +32,7 @@ description: Repository-specific workflow for customer identity, signup/login, G
 
 ## Non-negotiable invariants
 
-- Do not store or trust a member phone number at signup without ownership verification once Phase 3 is implemented.
+- Do not mark a member phone as verified until dedicated ownership verification succeeds.
 - Do not reuse `VerifiedGuestResolver` for signup ownership if it would also upsert guest history; use a dedicated ownership verification use case.
 - Keep local/dev verification helpers under `local` profile only.
 - Keep verification codes out of production API responses.
@@ -37,13 +46,13 @@ description: Repository-specific workflow for customer identity, signup/login, G
 - Phone verification domain object: `domain/src/main/java/com/personal/happygallery/domain/booking/PhoneVerification.java`
 - Phone verification persistence: `adapter-out-persistence/src/main/java/com/personal/happygallery/adapter/out/persistence/booking/PhoneVerificationRepository.java`
 - Auth and local verification HTTP APIs: `adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/`
-- Google OAuth adapters and properties: `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/oauth/`
+- Google/Naver OAuth adapters and properties: `adapter-out-external/src/main/java/com/personal/happygallery/adapter/out/external/oauth/`
 - Frontend auth and verification UI: `frontend/src/features/customer-auth/`, `frontend/src/features/booking-create/`, and claim-related frontend modules
 
 ## Verification workflow
 
 - Customer auth web changes: `./gradlew :adapter-in-web:test --tests "*CustomerAuth*" --tests "*RateLimit*"`
-- Guest claim or phone verification use case changes: `./gradlew --no-daemon :application:useCaseTest --tests "*GuestClaim*" --tests "*GuestBooking*" --tests "*CustomerAuth*"`
+- Guest claim HTTP flow: target `CustomerGuestClaimUseCaseIT` in `:adapter-in-web:test`; guest booking verification: target `GuestBookingUseCaseIT` in `:application:useCaseTest`.
 - Frontend auth or phone verification UI changes: `cd frontend && npm run build`; use Playwright for multi-step auth/claim flows when needed.
 - Broad identity confidence: combine the smallest backend identity test scope with `cd frontend && npm run build` when frontend behavior changes.
 

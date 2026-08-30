@@ -9,7 +9,7 @@ import com.personal.happygallery.application.dashboard.dto.RevenueBreakdown;
 import com.personal.happygallery.application.dashboard.dto.StatusCount;
 import com.personal.happygallery.application.dashboard.dto.TopProduct;
 import com.personal.happygallery.application.dashboard.dto.TopProductSort;
-import com.personal.happygallery.application.dashboard.port.out.SalesStatsQueryPort;
+import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.adapter.out.persistence.time.SeoulDateTimeRangeConverter;
 import com.personal.happygallery.adapter.out.persistence.dashboard.mapper.SalesStatsMapper;
 import java.time.Clock;
@@ -18,11 +18,11 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 /**
- * 서울 시간대 날짜 범위를 UTC {@link LocalDateTime}으로 변환한 뒤 MyBatis 매퍼에 전달한다.
+ * 서울 현지시각 업무 열과 UTC DB 기본시각 열을 구분해 MyBatis 매퍼에 전달한다.
  * WHERE 절에서 인덱스를 탈 수 있도록 sargable 조건을 보장한다.
  */
 @Component
-class MyBatisSalesStatsAdapter implements SalesStatsQueryPort {
+class MyBatisSalesStatsAdapter implements SalesAnalyticsPort {
 
     private final Clock clock;
     private final SalesStatsMapper salesStatsMapper;
@@ -36,25 +36,27 @@ class MyBatisSalesStatsAdapter implements SalesStatsQueryPort {
     public DashboardOverview findOverview(LocalDate from, LocalDate to) {
         LocalDate todayInSeoul = LocalDate.now(clock);
         return salesStatsMapper.findOverview(
+                SeoulDateTimeRangeConverter.toLocalStart(todayInSeoul),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(todayInSeoul),
                 SeoulDateTimeRangeConverter.toUtcStart(todayInSeoul),
                 SeoulDateTimeRangeConverter.toUtcExclusiveEnd(todayInSeoul),
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to));
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }
 
     @Override
     public List<PeriodSalesSummary> findSalesSummary(LocalDate from, LocalDate to, Granularity granularity) {
         return salesStatsMapper.findSalesSummary(
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to),
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to),
                 granularity.name());
     }
 
     @Override
     public RevenueBreakdown findRevenueBreakdown(LocalDate from, LocalDate to) {
         return salesStatsMapper.findRevenueBreakdown(
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to));
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }
 
     @Override
@@ -65,27 +67,23 @@ class MyBatisSalesStatsAdapter implements SalesStatsQueryPort {
     @Override
     public RefundStats findRefundStats(LocalDate from, LocalDate to) {
         return salesStatsMapper.findRefundStats(
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to));
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }
 
     @Override
     public List<TopProduct> findTopProducts(LocalDate from, LocalDate to, int limit, TopProductSort sort) {
         return salesStatsMapper.findTopProducts(
-                SeoulDateTimeRangeConverter.toUtcStart(from),
-                SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to),
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to),
                 limit,
                 sort.name());
     }
 
     @Override
     public List<DailyRevenue> findDailyRevenueSeries(LocalDate from, LocalDate to) {
-        return salesStatsMapper.findSalesSummary(
-                        SeoulDateTimeRangeConverter.toUtcStart(from),
-                        SeoulDateTimeRangeConverter.toUtcExclusiveEnd(to),
-                        Granularity.DAILY.name())
-                .stream()
-                .map(s -> new DailyRevenue(LocalDate.parse(s.periodLabel()), s.totalRevenue()))
-                .toList();
+        return salesStatsMapper.findDailyRevenue(
+                SeoulDateTimeRangeConverter.toLocalStart(from),
+                SeoulDateTimeRangeConverter.toLocalExclusiveEnd(to));
     }
 }

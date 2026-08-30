@@ -20,51 +20,58 @@ class DefaultPassCreditService implements PassCreditService {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final PassPurchaseStorePort passPurchaseStore;
     private final PassLedgerStorePort passLedgerStore;
+    private final PassExpirationSupport expirationSupport;
     private final Clock clock;
 
     DefaultPassCreditService(PassPurchaseReaderPort passPurchaseReader,
                              PassPurchaseStorePort passPurchaseStore,
                              PassLedgerStorePort passLedgerStore,
+                             PassExpirationSupport expirationSupport,
                              Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
         this.passPurchaseStore = passPurchaseStore;
         this.passLedgerStore = passLedgerStore;
+        this.expirationSupport = expirationSupport;
         this.clock = clock;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public PassPurchase requireUsable(Long passId, Long ownerUserId) {
-        PassPurchase pass = passPurchaseReader.findById(passId)
-                .orElseThrow(NotFoundException.supplier("8회권"));
+    public PassPurchase requireOwnedForUpdate(Long passId, Long ownerUserId) {
+        PassPurchase pass = requireForUpdate(passId);
 
-        if (ownerUserId != null && !Objects.equals(pass.getUserId(), ownerUserId)) {
+        if (ownerUserId == null || !Objects.equals(pass.getUserId(), ownerUserId)) {
             throw new NotFoundException("8회권");
         }
-
-        LocalDateTime usedAt = LocalDateTime.now(clock);
-        pass.requireUsable(usedAt);
         return pass;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public PassPurchase deductCredit(Long passId, Long ownerUserId, Long bookingId) {
-        PassPurchase pass = requireUsable(passId, ownerUserId);
+    public PassPurchase deductCredit(PassPurchase pass, Long bookingId) {
+        pass.useCredit(LocalDateTime.now(clock));
         passLedgerStore.save(new PassLedger(pass, PassLedgerType.USE, 1, bookingId));
-        pass.useCredit();
         passPurchaseStore.save(pass);
         return pass;
     }
 
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public void restoreCredit(Long passId, Long bookingId) {
-        PassPurchase pass = passPurchaseReader.findById(passId)
+    public PassPurchase requireForUpdate(Long passId) {
+        return passPurchaseReader.findByIdForUpdate(passId)
                 .orElseThrow(NotFoundException.supplier("8회권"));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean restoreCredit(PassPurchase pass, Long bookingId) {
+        if (expirationSupport.expireIfReached(pass).isPresent()) {
+            return false;
+        }
         passLedgerStore.save(
                 new PassLedger(pass, PassLedgerType.REFUND, 1, bookingId));
         pass.refundCredit();
         passPurchaseStore.save(pass);
+        return true;
     }
 }

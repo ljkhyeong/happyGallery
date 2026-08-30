@@ -1,81 +1,140 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Form, Button, Row, Col } from "react-bootstrap";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge, Button, Form, ListGroup } from "react-bootstrap";
+import { fetchRescheduleSlots } from "./api";
+import {
+  invalidateSlotAvailability,
+  queryKeys,
+  runForCurrentCustomer,
+} from "@/shared/api";
+import { formatDateTime } from "@/shared/lib";
+import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
 interface Props {
+  classId: number;
+  className?: string;
   currentSlotId: number;
+  currentStartAt: string;
+  participantCount: number;
   onReschedule: (newSlotId: number) => Promise<unknown>;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   successMessage?: string;
 }
 
 export function RescheduleForm({
+  classId,
+  className,
   currentSlotId,
+  currentStartAt,
+  participantCount,
   onReschedule,
   onSuccess,
   successMessage = "예약이 변경되었습니다.",
 }: Props) {
   const toast = useToast();
-  const [newSlotId, setNewSlotId] = useState("");
-  const [touched, setTouched] = useState(false);
+  const queryClient = useQueryClient();
+  const [date, setDate] = useState(currentStartAt.slice(0, 10));
+  const [selectedSlotId, setSelectedSlotId] = useState<number | null>(null);
 
-  const mutation = useMutation({
-    mutationFn: () => onReschedule(Number(newSlotId)),
-    onSuccess: () => {
-      toast.show(successMessage);
-      setNewSlotId("");
-      setTouched(false);
-      onSuccess();
-    },
+  useEffect(() => {
+    setDate(currentStartAt.slice(0, 10));
+    setSelectedSlotId(null);
+  }, [classId, currentSlotId, currentStartAt]);
+
+  const {
+    data: slots,
+    isLoading: slotsLoading,
+    error: slotsError,
+  } = useQuery({
+    queryKey: queryKeys.slotAvailability.reschedule.byClassAndDate(classId, date),
+    queryFn: () => fetchRescheduleSlots(classId, date),
+    enabled: date.length > 0,
   });
 
-  const slotNum = Number(newSlotId);
-  const isEmpty = !(slotNum > 0);
-  const isSameSlot = slotNum === currentSlotId;
-  const valid = !isEmpty && !isSameSlot;
+  const applySuccess = async (requireCurrent: () => void) => {
+    requireCurrent();
+    await invalidateSlotAvailability(queryClient);
+    requireCurrent();
+    await onSuccess();
+    requireCurrent();
+    toast.show(successMessage);
+    setSelectedSlotId(null);
+  };
 
-  const showError = touched && newSlotId !== "";
-  let feedback = "";
-  if (showError && isEmpty) feedback = "유효한 슬롯 ID를 입력해 주세요.";
-  else if (showError && isSameSlot) feedback = "현재와 다른 슬롯을 선택해 주세요.";
+  const mutation = useMutation({
+    mutationFn: (newSlotId: number) => runForCurrentCustomer(
+      () => onReschedule(newSlotId),
+      (_, requireCurrent) => applySuccess(requireCurrent),
+    ),
+  });
+
+  const availableSlots = slots?.filter(
+    (slot) => slot.id !== currentSlotId && slot.remainingCapacity >= participantCount,
+  ) ?? [];
+  const selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId);
 
   return (
     <Form
-      onSubmit={(e) => {
-        e.preventDefault();
-        setTouched(true);
-        if (valid) mutation.mutate();
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (selectedSlot) mutation.mutate(selectedSlot.id);
       }}
     >
+      <Form.Group controlId={`booking-reschedule-date-${currentSlotId}`} className="mb-3">
+        <Form.Label>변경할 날짜</Form.Label>
+        <Form.Control
+          type="date"
+          value={date}
+          min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+          onChange={(event) => {
+            setDate(event.target.value);
+            setSelectedSlotId(null);
+          }}
+        />
+        <Form.Text className="text-muted">
+          현재 예약 {participantCount}명이 모두 이동할 수 있는 시간만 표시됩니다.
+        </Form.Text>
+      </Form.Group>
+
+      <ErrorAlert error={slotsError} />
       <ErrorAlert error={mutation.error} />
-      <Row className="g-2 align-items-end">
-        <Col xs={12} sm={8}>
-          <Form.Group controlId="booking-reschedule-slot-id">
-            <Form.Label>새 슬롯 ID</Form.Label>
-            <Form.Control
-              type="number"
-              min={1}
-              value={newSlotId}
-              onChange={(e) => setNewSlotId(e.target.value)}
-              onBlur={() => setTouched(true)}
-              placeholder="변경할 슬롯 ID"
-              isInvalid={!!feedback}
-            />
-            <Form.Control.Feedback type="invalid">
-              {feedback}
-            </Form.Control.Feedback>
-            <Form.Text className="text-muted">
-              현재 슬롯: #{currentSlotId}
-            </Form.Text>
-          </Form.Group>
-        </Col>
-        <Col xs={12} sm={4}>
-          <Button type="submit" variant="warning" className="w-100" disabled={!valid || mutation.isPending}>
-            {mutation.isPending ? "변경 중..." : "예약 변경"}
-          </Button>
-        </Col>
-      </Row>
+      {slotsLoading && <LoadingSpinner text="예약 가능한 시간 조회 중..." />}
+      {!slotsLoading && slots && availableSlots.length === 0 && (
+        <div className="mb-3">
+          <EmptyState message="선택한 날짜에 변경 가능한 시간이 없습니다." />
+          {className && <WorkshopInquiryLink className={className} desiredDate={date} />}
+        </div>
+      )}
+
+      {availableSlots.length > 0 && (
+        <ListGroup className="mb-3">
+          {availableSlots.map((slot) => (
+            <ListGroup.Item
+              key={slot.id}
+              data-slot-id={slot.id}
+              action
+              type="button"
+              active={selectedSlotId === slot.id}
+              onClick={() => setSelectedSlotId(slot.id)}
+              className="d-flex justify-content-between align-items-center gap-3"
+            >
+              <span>{formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}</span>
+              <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">
+                {slot.remainingCapacity}명 예약 가능
+              </Badge>
+            </ListGroup.Item>
+          ))}
+        </ListGroup>
+      )}
+
+      <Button
+        type="submit"
+        variant="warning"
+        disabled={!selectedSlot || mutation.isPending}
+      >
+        {mutation.isPending ? "변경 중..." : "선택한 시간으로 변경"}
+      </Button>
     </Form>
   );
 }

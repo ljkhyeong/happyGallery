@@ -14,6 +14,12 @@ description: Repository-specific workflow for product catalog, product status, i
   - `docs/ADR/0013_주문_승인_모델/adr.md`
   - `docs/ADR/0014_예약_제작_주문_결정/adr.md`
 
+## Implementation judgment
+
+- Keep product/inventory creation, deduction, and restoration as explicit named operations.
+- Aggregate duplicate quantities once, load inventories with repository-defined deterministic lock order, and keep `Inventory.deduct`/`restore` visible.
+- Use a projection for read models that need selected joined fields; use an ID map only to correlate unordered results.
+
 ## Non-negotiable invariants
 
 - Keep product creation and inventory creation coordinated through the intended service boundary.
@@ -27,7 +33,6 @@ description: Repository-specific workflow for product catalog, product status, i
 ## Verification workflow
 
 - Product or inventory rule changes: `./gradlew :application:policyTest`
-- Product/inventory use case changes: `./gradlew --no-daemon :application:useCaseTest --tests "*ProductInventory*" --tests "*Order*"`
-- Broad product confidence: `./gradlew --no-daemon :application:useCaseTest`
+- Start with `ProductInventoryUseCaseIT`; add `ConcurrentOrderUseCaseIT` or `OrderApprovalUseCaseIT` only when inventory/order coordination changed.
 
 Read `references/product-map.md` for main files, tests, and doc sync notes.

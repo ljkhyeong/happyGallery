@@ -1,0 +1,14 @@
+[Unit]
+Description=Run happyGallery recovery backup every six hours
+
+[Timer]
+OnCalendar=*-*-* 00:30:00 Asia/Seoul
+OnCalendar=*-*-* 06:30:00 Asia/Seoul
+OnCalendar=*-*-* 12:30:00 Asia/Seoul
+OnCalendar=*-*-* 18:30:00 Asia/Seoul
+AccuracySec=1m
+Persistent=true
+Unit=happygallery-backup.service
+
+[Install]
+WantedBy=timers.target

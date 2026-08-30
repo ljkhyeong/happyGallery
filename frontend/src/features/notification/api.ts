@@ -1,20 +1,22 @@
-import { api } from "@/shared/api";
-import type { NotificationResponse, UnreadCountResponse } from "@/shared/types/notification";
+import {
+  getMyUnreadNotificationCount,
+  listMyNotifications,
+  markAllMyNotificationsAsRead,
+  markMyNotificationAsRead,
+} from "@/generated/api/notification";
 
 export function fetchNotifications(page: number, size: number = 20) {
-  return api<NotificationResponse[]>("/me/notifications", {
-    params: { page, size },
-  });
+  return listMyNotifications({ page, size });
 }
 
 export function fetchUnreadCount() {
-  return api<UnreadCountResponse>("/me/notifications/unread-count");
+  return getMyUnreadNotificationCount();
 }
 
 export function markAsRead(id: number) {
-  return api<void>(`/me/notifications/${id}/read`, { method: "PATCH" });
+  return markMyNotificationAsRead(id);
 }
 
 export function markAllAsRead() {
-  return api<void>("/me/notifications/read-all", { method: "PATCH" });
+  return markAllMyNotificationsAsRead();
 }

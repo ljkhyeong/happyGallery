@@ -1,0 +1,72 @@
+version: 2
+
+updates:
+  - package-ecosystem: gradle
+    directory: /
+    target-branch: codexReview
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: Asia/Seoul
+    groups:
+      gradle-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: codexReview
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:15"
+      timezone: Asia/Seoul
+    groups:
+      frontend-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: codexReview
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: Asia/Seoul
+    groups:
+      actions-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /deploy/k3s/images
+    target-branch: codexReview
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:45"
+      timezone: Asia/Seoul
+    groups:
+      container-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: codexReview
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Asia/Seoul
+    groups:
+      local-container-minor-and-patch:
+        update-types:
+          - minor
+          - patch

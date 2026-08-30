@@ -8,4 +8,8 @@ public interface FieldEncryptor {
     String encrypt(String plaintext);
 
     String decrypt(String encrypted);
+
+    default String decryptNullable(String encrypted) {
+        return encrypted == null ? null : decrypt(encrypted);
+    }
 }

@@ -1,19 +1,20 @@
 # Idea-0005: Guest Token — Signed Short-lived Token 전환
 
-> **구현 완료** — HMAC-SHA256 서명 + 만료(7일) 토큰 발급·검증 전환 완료. 레거시 토큰 듀얼 모드 폴백 지원. ADR-0024 갱신 대상.
+> **구현 완료** — HMAC-SHA256 서명 + 만료(30일) 토큰 발급·검증 전환 완료. 서비스 공개 전 서명 없는 토큰 호환 경로를 제거했으며, 만료·분실은 휴대폰 소유 확인 기반 복구로 처리한다. 현재 기준은 ADR-0024를 따른다.
 
 ## 배경
-ADR-0024에서 단기 조치(SHA-256 해시 저장)는 완료했지만, 전달 방식·만료·브라우저 저장 측면은 아직 개선 여지가 있다.
+이 문서는 DB에 SHA-256 해시만 저장하던 초기 비회원 토큰을 만료 가능한 서명 토큰으로
+전환하기 전에 작성한 검토 기록이다.
 
-## 현재 vs 목표
+## 전환 전 vs 현재
 
-| 항목 | 현재 (단기 완료) | 목표 |
+| 항목 | 전환 전 | 현재 |
 |------|------------------|------|
-| 전달 방식 | `X-Access-Token` 헤더 (쿼리 파라미터 폐지 완료) | 유지 또는 `Authorization: Bearer` 전환 |
-| 만료 | 없음 | 생성 후 7일 (또는 슬롯 종료 후 24시간) |
-| 토큰 형식 | opaque 32자 hex (DB에 SHA-256 해시 저장) | signed JWT (HMAC-SHA256) with expiry claim |
-| 갱신 | 없음 | refresh 없음 (단발성 guest 조작) |
-| 브라우저 저장 | 성공 화면에서 1회 표시 + 복사 버튼, 조회 페이지 자동 연결 | httpOnly cookie 또는 sessionStorage |
+| 전달 방식 | `X-Access-Token` 헤더 | `X-Access-Token` 헤더 유지 |
+| 만료 | 없음 | 생성 후 30일 |
+| 토큰 형식 | opaque 32자 hex, DB에는 SHA-256 해시 저장 | HMAC-SHA256 서명과 만료 시각을 포함한 opaque 토큰, DB에는 해시 저장 |
+| 갱신 | 없음 | refresh 없이 휴대폰 소유 확인으로 재발급 |
+| 브라우저 저장 | 성공 화면에서 1회 표시·복사 | 소유자 경계가 있는 `sessionStorage`와 휴대폰 소유 확인 복구 |
 
 ## 고려사항
 1. JWT를 쓰면 DB 조회 없이 서명 검증만으로 유효성 확인 가능
@@ -28,14 +29,14 @@ ADR-0024에서 단기 조치(SHA-256 해시 저장)는 완료했지만, 전달 �
 - 만료 시각을 토큰에 내장하되, 취소 상태는 DB에서 확인
 - 프론트엔드에서 sessionStorage에 저장, 성공 화면에서 자동 세팅
 
-## 영향
-- 프론트엔드 전수 수정 필요 (API 계약 breaking change)
-- 기존 발급 토큰 호환 정책 필요 (점진 전환 또는 일괄 무효화)
+## 당시 영향
+- 프론트엔드 API 계약과 저장 방식을 함께 전환해야 했다.
+- 서비스 공개 전이므로 서명 없는 기존 토큰 호환 경로는 두지 않았다.
 
 ## 이미 완료된 항목
 - `X-Access-Token` 헤더 전환 (T1-T3)
 - SHA-256 해시 저장 + V18 backfill (T1-T2, T1-T5)
 - 프론트엔드 성공 화면 1회 표시 + 복사 + 자동 연결 (T1-T4)
 - HMAC-SHA256 서명 + 만료 타임스탬프 토큰 발급 (`AccessTokenSigner`, `GuestTokenService`)
-- 레거시 토큰(32자 hex) 듀얼 모드 폴백 검증
-- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, `expiry-hours: 168`)
+- 서명 없는 토큰 거절과 휴대폰 소유 확인 기반 복구
+- `GuestTokenProperties` 설정 (`app.guest-token.hmac-secret`, 현재 키 `access-expiry: 720h`; 기존 `expiry-hours` 표기는 Duration 전환으로 대체됨)

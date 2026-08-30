@@ -1,5 +1,8 @@
 package com.personal.happygallery.domain.inquiry;
 
+import com.personal.happygallery.domain.content.ContentTextPolicy;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -19,7 +22,7 @@ public class Inquiry {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false, length = 200)
+    @Column(nullable = false, length = ContentTextPolicy.MAX_TITLE_LENGTH)
     private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -41,15 +44,15 @@ public class Inquiry {
 
     public Inquiry(Long userId, String title, String content) {
         this.userId = userId;
-        this.title = title;
-        this.content = content;
+        this.title = ContentTextPolicy.requireTitle(title, "문의 제목");
+        this.content = ContentTextPolicy.requireBody(content, "문의 내용");
     }
 
     public void reply(String replyContent, Long adminId, LocalDateTime repliedAt) {
         if (this.replyContent != null) {
-            throw new IllegalStateException("이미 답변이 등록된 문의입니다.");
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "이미 답변이 등록된 문의입니다.");
         }
-        this.replyContent = replyContent;
+        this.replyContent = ContentTextPolicy.requireBody(replyContent, "문의 답변");
         this.repliedBy = adminId;
         this.repliedAt = repliedAt;
     }

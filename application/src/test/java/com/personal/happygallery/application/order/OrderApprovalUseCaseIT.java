@@ -1,8 +1,12 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationService;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
+import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
 import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchUseCase;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
@@ -16,15 +20,19 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
@@ -46,17 +54,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @UseCaseIT
 class OrderApprovalUseCaseIT {
 
+    private static final long ADMIN_ID = 1L;
+
     @Autowired MockMvc mockMvc;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
     @Autowired InventoryReaderPort inventoryReaderPort;
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
+    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired RefundPort refundPort;
     @Autowired OrderApprovalUseCase orderApprovalService;
+    @Autowired AdminOrderQueryUseCase adminOrderQueryUseCase;
     @Autowired OrderAutoRefundBatchUseCase orderAutoRefundBatchService;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     @Autowired Clock clock;
     @MockitoBean NotificationService notificationService;
@@ -64,9 +77,11 @@ class OrderApprovalUseCaseIT {
 
     @BeforeEach
     void setUp() {
-        cleanup();
+        SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
+                AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
         orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort, orderService, clock);
+                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
+                userStorePort, orderService, clock);
     }
 
     @AfterEach
@@ -75,19 +90,47 @@ class OrderApprovalUseCaseIT {
     }
 
     private void cleanup() {
+        SecurityContextHolder.clearContext();
         cleanupSupport.clearOrderData();
+        cleanupSupport.clearUsers();
     }
 
     // -----------------------------------------------------------------------
     // Proof: 승인 → APPROVED_FULFILLMENT_PENDING
     // -----------------------------------------------------------------------
 
+    @DisplayName("관리자 주문 커서 조회는 전체와 상태 필터의 두 번째 페이지를 반환한다")
+    @Test
+    void listOrders_secondCursorPage_returnsOrders() {
+        orderHelper.createReadyStockPaidOrder("커서 상품 1", 10_000L);
+        orderHelper.createReadyStockPaidOrder("커서 상품 2", 20_000L);
+        orderHelper.createReadyStockPaidOrder("커서 상품 3", 30_000L);
+
+        var firstPage = adminOrderQueryUseCase.listOrders(null, null, 1);
+        var secondPage = adminOrderQueryUseCase.listOrders(null, firstPage.nextCursor(), 1);
+        var firstStatusPage = adminOrderQueryUseCase.listOrders(
+                OrderStatus.PAID_APPROVAL_PENDING, null, 1);
+        var secondStatusPage = adminOrderQueryUseCase.listOrders(
+                OrderStatus.PAID_APPROVAL_PENDING, firstStatusPage.nextCursor(), 1);
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstPage.hasMore()).isTrue();
+            softly.assertThat(firstPage.content().getFirst().items())
+                    .singleElement()
+                    .satisfies(item -> softly.assertThat(item.productName())
+                            .isIn("커서 상품 1", "커서 상품 2", "커서 상품 3"));
+            softly.assertThat(secondPage.content()).hasSize(1);
+            softly.assertThat(firstStatusPage.hasMore()).isTrue();
+            softly.assertThat(secondStatusPage.content()).hasSize(1);
+        });
+    }
+
     @DisplayName("주문 승인 시 APPROVED_FULFILLMENT_PENDING 상태로 전이된다")
     @Test
     void approve_transitionsToApprovedFulfillmentPending() throws Exception {
         Order order = orderHelper.createReadyStockPaidOrder("테스트 상품", 50000L).order();
 
-        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/approve", order.getId()))
                 .andExpect(status().isOk());
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -96,6 +139,9 @@ class OrderApprovalUseCaseIT {
             softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
                     .extracting("decision")
                     .containsExactly(OrderApprovalDecision.APPROVE);
+            softly.assertThat(notificationOutboxRepository.findAll())
+                    .extracting("eventType")
+                    .contains(NotificationEventType.ORDER_APPROVED);
         });
     }
 
@@ -112,11 +158,20 @@ class OrderApprovalUseCaseIT {
         // 재고 차감 확인
         assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(0);
 
-        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", order.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(order.getId()))
+                .andExpect(jsonPath("$.orderStatus").value("REJECTED"))
+                .andExpect(jsonPath("$.refund.refundId").isNumber())
+                .andExpect(jsonPath("$.refund.status").value("REQUESTED"));
 
         Order updated = orderStateProbe.getOrder(order.getId());
         var refunds = orderStateProbe.refunds();
+        var refund = refunds.getFirst();
+        mockMvc.perform(get("/api/v1/admin/refunds/{id}", refund.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundId").value(refund.getId()))
+                .andExpect(jsonPath("$.amount").value(30000));
         assertSoftly(softly -> {
             softly.assertThat(updated.getStatus()).isEqualTo(OrderStatus.REJECTED);
             softly.assertThat(orderStateProbe.orderApprovalHistory(order.getId()))
@@ -124,7 +179,7 @@ class OrderApprovalUseCaseIT {
                     .containsExactly(OrderApprovalDecision.REJECT);
             softly.assertThat(orderStateProbe.getInventoryByProductId(fixture.product().getId()).getQuantity()).isEqualTo(1);
             softly.assertThat(refunds).hasSize(1);
-            softly.assertThat(refunds.get(0).getOrderId()).isEqualTo(order.getId());
+            softly.assertThat(refund.getOrderId()).isEqualTo(order.getId());
         });
     }
 
@@ -133,9 +188,9 @@ class OrderApprovalUseCaseIT {
     void approve_twice_keepsSingleTransitionAndHistory() {
         Order order = orderHelper.createReadyStockPaidOrder("중복 승인 테스트 상품", 50000L).order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId(), ADMIN_ID))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
@@ -153,9 +208,9 @@ class OrderApprovalUseCaseIT {
     void reject_twice_keepsSingleTransitionAndHistory() {
         Order order = orderHelper.createReadyStockPaidOrder("중복 거절 테스트 상품", 30000L).order();
 
-        orderApprovalService.reject(order.getId());
+        orderApprovalService.reject(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId(), ADMIN_ID))
                 .isInstanceOf(AlreadyRefundedException.class);
 
         Order updated = orderStateProbe.getOrder(order.getId());
@@ -174,9 +229,9 @@ class OrderApprovalUseCaseIT {
         OrderTestHelper.OrderFixture fixture = orderHelper.createReadyStockPaidOrder("승인 후 거절 테스트 상품", 40000L);
         Order order = fixture.order();
 
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
-        assertThatThrownBy(() -> orderApprovalService.reject(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.reject(order.getId(), ADMIN_ID))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("승인 대기 상태의 주문만 처리할 수 있습니다.");
 
@@ -225,23 +280,8 @@ class OrderApprovalUseCaseIT {
         orderAutoRefundBatchService.autoRefundExpired();
 
         // 승인 시도 → AlreadyRefundedException (409)
-        assertThatThrownBy(() -> orderApprovalService.approve(order.getId()))
+        assertThatThrownBy(() -> orderApprovalService.approve(order.getId(), ADMIN_ID))
                 .isInstanceOf(AlreadyRefundedException.class);
-    }
-
-    // -----------------------------------------------------------------------
-    // Proof: 자동환불 이후 승인 HTTP 요청 → 409 응답
-    // -----------------------------------------------------------------------
-
-    @DisplayName("자동환불된 주문을 승인하면 409를 반환한다")
-    @Test
-    void approve_afterAutoRefund_returns409() throws Exception {
-        Order order = orderHelper.createExpiredReadyStockPendingOrder("HTTP 409 상품", 70000L).order();
-
-        orderAutoRefundBatchService.autoRefundExpired();
-
-        mockMvc.perform(post("/admin/orders/{id}/approve", order.getId()))
-                .andExpect(status().isConflict());
     }
 
     // -----------------------------------------------------------------------
@@ -254,7 +294,7 @@ class OrderApprovalUseCaseIT {
         Order order = orderHelper.createExpiredMadeToOrderPendingOrder("제작중 자동환불 제외 상품", 80000L).order();
 
         // MADE_TO_ORDER 승인 → IN_PRODUCTION
-        orderApprovalService.approve(order.getId());
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
 
         BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
 
@@ -278,30 +318,8 @@ class OrderApprovalUseCaseIT {
 
         orderAutoRefundBatchService.autoRefundExpired();
 
-        mockMvc.perform(post("/admin/orders/{id}/reject", order.getId()))
+        mockMvc.perform(post("/api/v1/admin/orders/{id}/reject", order.getId()))
                 .andExpect(status().isConflict());
-    }
-
-    @DisplayName("자동환불 알림이 실패해도 환불 처리는 롤백되지 않는다")
-    @Test
-    void autoRefund_notificationFailure_doesNotRollbackRefund() {
-        Order order1 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품1", 45000L).order();
-        Order order2 = orderHelper.createExpiredReadyStockPendingOrder("알림실패 상품2", 55000L).order();
-
-        // NotificationService가 @MockitoBean이므로 알림은 no-op.
-        // @TransactionalEventListener(AFTER_COMMIT) + @Async 구조상
-        // 알림 실패는 원래 트랜잭션에 영향을 줄 수 없다.
-
-        BatchResult result = orderAutoRefundBatchService.autoRefundExpired();
-
-        Order updated1 = orderStateProbe.getOrder(order1.getId());
-        Order updated2 = orderStateProbe.getOrder(order2.getId());
-        assertSoftly(softly -> {
-            softly.assertThat(result.successCount()).isEqualTo(2);
-            softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(updated1.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
-            softly.assertThat(updated2.getStatus()).isEqualTo(OrderStatus.AUTO_REFUND_TIMEOUT);
-        });
     }
 
     // -----------------------------------------------------------------------
@@ -315,15 +333,20 @@ class OrderApprovalUseCaseIT {
 
         // 주문 환불 FAILED 직접 생성 (booking 없는 refund)
         var refund = Refund.forOrder(order.getId(), 90000L, "payment-key");
-        refund.markFailed("PG 점검중");
+        LocalDateTime now = LocalDateTime.now(clock);
+        String processingToken = refund.startProcessing(now, now.minusMinutes(1));
+        refund.markFailed(processingToken, "PG 점검중");
         refundPort.save(refund);
 
-        mockMvc.perform(get("/admin/refunds/failed"))
+        mockMvc.perform(get("/api/v1/admin/refunds/failed"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].refundId").value(refund.getId()))
-                .andExpect(jsonPath("$[0].bookingId", nullValue()))
-                .andExpect(jsonPath("$[0].orderId").value(order.getId()))
-                .andExpect(jsonPath("$[0].amount").value(90000))
-                .andExpect(jsonPath("$[0].failReason").value("PG 점검중"));
+                .andExpect(jsonPath("$.content[0].refundId").value(refund.getId()))
+                .andExpect(jsonPath("$.content[0].bookingId", nullValue()))
+                .andExpect(jsonPath("$.content[0].orderId").value(order.getId()))
+                .andExpect(jsonPath("$.content[0].orderClaimId", nullValue()))
+                .andExpect(jsonPath("$.content[0].amount").value(90000))
+                .andExpect(jsonPath("$.content[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.content[0].attemptCount").value(1))
+                .andExpect(jsonPath("$.content[0].failReason").value("PG 점검중"));
     }
 }

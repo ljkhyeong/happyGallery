@@ -1,16 +1,18 @@
 # HttpClient에서 RestClient로 전환하는 방안 검토
 
+**상태**: 채택 완료 (전환 전 검토의 역사 기록)
+
 ## 배경
 
-외부 알림 API 호출(`KakaoAlimtalkSender`, `RealSmsSender`)은 당시 `java.net.http.HttpClient`를 사용 중이었다.
+외부 알림 API 호출은 전환 전 `java.net.http.HttpClient`를 사용했다.
 JDK 표준 라이브러리라 Spring 의존이 없다는 장점은 있다. 하지만 현재 외부 연동 모듈은 이미 `@Component`, `@Profile` 등 Spring에 전면 의존하고 있어 JDK 표준만 고집할 실익은 작다.
 
-## 현재 문제
+## 전환 전 문제
 
 - JSON 요청 바디를 text block으로 수동 조립 → 오타·이스케이프 누락 위험.
 - 응답 상태 코드 200-299 범위 체크를 매번 직접 작성.
 - `HttpClient` 인스턴스를 생성자에서 직접 빌드 → timeout 설정이 각 Sender에 흩어짐.
-- 외부 API 호출 단위 테스트 시 `HttpClient` 목킹이 까다로움 (현재는 `NotificationSender` 인터페이스 수준에서만 테스트).
+- 외부 API 호출 단위 테스트 시 `HttpClient` 목킹이 까다로움 (현재는 `NotificationSenderPort` 인터페이스 수준에서만 테스트).
 
 ## 제안: Spring `RestClient` 전환
 
@@ -18,7 +20,7 @@ Spring 6.1+ (Boot 3.2+)에서 도입된 `RestClient`는 `RestTemplate`의 fluent
 
 ### 기대 효과
 
-| 항목 | HttpClient (현재) | RestClient (전환 후) |
+| 항목 | HttpClient (전환 전) | RestClient (현재) |
 |------|-------------------|---------------------|
 | JSON 직렬화 | 수동 text block | `.body(dto)` → Jackson 자동 |
 | 에러 핸들링 | `response.statusCode()` 수동 체크 | `.onStatus()` 선언적 핸들러 |
@@ -27,18 +29,21 @@ Spring 6.1+ (Boot 3.2+)에서 도입된 `RestClient`는 `RestTemplate`의 fluent
 | 테스트 | 인터페이스 수준 목킹만 가능 | `MockRestServiceServer` 사용 가능 |
 | Spring 통합 | 별도 | interceptor, message converter 공유 |
 
-### 전환 범위
+### 적용 범위
 
-- `KakaoAlimtalkSender` — `HttpClient` → `RestClient`
+- `NhnAlimtalkSender` — `HttpClient` → `RestClient`
 - `RealSmsSender` — `HttpClient` → `RestClient`
-- 공통 `RestClient` 빈을 `NotificationConfig` 등에서 빌드하고 각 Sender에 주입하는 구조 고려.
+- `NotificationRestClientConfig`가 `PooledHttpClientFactory`로 연결 풀과 timeout을 구성하고
+  각 sender에 전용 `RestClient`를 주입한다.
 
 ### 주의사항
 
 - `WebClient`(리액티브)는 프로젝트가 동기 서블릿 기반이므로 과하다. `RestClient`가 더 맞다.
 - payment 영역의 `ResilientPaymentProvider`는 이미 별도 resilience 레이어가 있으므로 notification과는 독립적으로 판단.
-- 전환 시 기존 대체 발송 순서(KAKAO→SMS)와 `NotificationSender` 인터페이스 계약은 바꾸지 않는다.
+- 전환 시 기존 대체 발송 순서(KAKAO→SMS)와 `NotificationSenderPort` 인터페이스 계약은 바꾸지 않는다.
 
 ## 상태
 
-구현 완료. `KakaoAlimtalkSender`와 `RealSmsSender`를 `RestClient` 기반으로 전환했다. JSON 수동 조립을 DTO 자동 직렬화로 교체했고, timeout을 `NotificationRestClientConfig`에서 중앙 관리한다.
+구현 완료. `NhnAlimtalkSender`와 `RealSmsSender`를 `RestClient` 기반으로 전환했다. JSON 수동 조립을
+DTO 자동 직렬화로 교체했고, 연결 풀과 timeout을 `NotificationRestClientConfig`에서 중앙 관리한다.
+현재 메인 소스에는 `java.net.http.HttpClient` 기반 외부 호출이 남아 있지 않다.

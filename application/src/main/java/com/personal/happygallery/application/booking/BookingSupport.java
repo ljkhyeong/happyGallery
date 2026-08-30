@@ -2,7 +2,6 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.application.customer.GuestPhoneProtector;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
@@ -24,18 +23,15 @@ class BookingSupport {
     private final BookingHistoryPort bookingHistoryPort;
     private final ApplicationEventPublisher eventPublisher;
     private final GuestTokenService guestTokenService;
-    private final GuestPhoneProtector guestPhoneProtector;
 
     BookingSupport(BookingReaderPort bookingReaderPort,
                    BookingHistoryPort bookingHistoryPort,
                    ApplicationEventPublisher eventPublisher,
-                   GuestTokenService guestTokenService,
-                   GuestPhoneProtector guestPhoneProtector) {
+                   GuestTokenService guestTokenService) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingHistoryPort = bookingHistoryPort;
         this.eventPublisher = eventPublisher;
         this.guestTokenService = guestTokenService;
-        this.guestPhoneProtector = guestPhoneProtector;
     }
 
     Booking findByToken(Long bookingId, String rawAccessToken) {
@@ -50,18 +46,36 @@ class BookingSupport {
                 .orElseThrow(NotFoundException.supplier("예약"));
     }
 
-    @Transactional(propagation = Propagation.MANDATORY)
-    void recordHistory(Booking booking, BookingHistoryAction action,
-                       Slot oldSlot, Slot newSlot, String actor, String reason) {
-        bookingHistoryPort.save(
-                new BookingHistory(booking, action, oldSlot, newSlot, actor, reason));
+    Booking findById(Long bookingId) {
+        return bookingReaderPort.findById(bookingId)
+                .orElseThrow(NotFoundException.supplier("예약"));
     }
 
-    /** booking 의 guest/member 를 자동 판별하여 알림을 발송한다. */
+    Booking findByTokenForUpdate(Long bookingId, String rawAccessToken) {
+        String tokenHash = guestTokenService.resolveTokenHash(rawAccessToken);
+        return bookingReaderPort.findByIdAndAccessTokenForUpdate(bookingId, tokenHash)
+                .orElseThrow(NotFoundException.supplier("예약"));
+    }
+
+    Booking findByIdAndUserIdForUpdate(Long bookingId, Long userId) {
+        return bookingReaderPort.findByIdForUpdate(bookingId)
+                .filter(booking -> Objects.equals(booking.getUserId(), userId))
+                .orElseThrow(NotFoundException.supplier("예약"));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    void recordHistory(Booking booking, BookingHistoryAction action,
+                       Slot oldSlot, Slot newSlot, String actor, Long adminUserId, String reason) {
+        bookingHistoryPort.save(
+                new BookingHistory(booking, action, oldSlot, newSlot, actor, adminUserId, reason));
+    }
+
+    /** 예약 트랜잭션 안에서 guest/member 알림 요청을 outbox 이벤트로 발행한다. */
+    @Transactional(propagation = Propagation.MANDATORY)
     void notifyBooker(Booking booking, NotificationEventType eventType) {
         if (booking.getUserId() != null) {
             eventPublisher.publishEvent(bookerEventForUser(booking, eventType));
-        } else if (booking.getGuest() != null) {
+        } else {
             eventPublisher.publishEvent(bookerEventForGuest(booking, eventType));
         }
     }
@@ -75,16 +89,10 @@ class BookingSupport {
 
     private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forGuestWithContact(
-                    booking.getGuest().getId(),
-                    guestPhoneProtector.decrypt(booking.getGuest()),
-                    booking.getGuest().getName(),
-                    eventType);
+            return NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType);
         }
-        return NotificationRequestedEvent.forGuestWithContact(
+        return NotificationRequestedEvent.forGuest(
                 booking.getGuest().getId(),
-                guestPhoneProtector.decrypt(booking.getGuest()),
-                booking.getGuest().getName(),
                 eventType,
                 "BOOKING",
                 booking.getId());

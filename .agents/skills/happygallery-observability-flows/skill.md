@@ -30,11 +30,13 @@ description: Repository-specific workflow for observability, runtime monitoring,
 - Keep `[client-monitoring]` event names and `happygallery.funnel.*` metric contracts aligned with the docs.
 - Do not silently break `/actuator/prometheus`, dashboard JSON expectations, or alert rule labels.
 - Preserve backend/frontend Sentry tagging patterns where `requestId` can be attached.
-- Treat observability config as long-lived operational contract: update README, HANDOFF, ADR, or Idea notes together when behavior changes.
+- Keep Sentry PII disabled and preserve log masking for secrets and personal data.
+- Verify the actuator port from the active profile: common management is 8081 and local is 8080.
+- Update affected durable docs; do not use `HANDOFF.md` as a monitoring status page.
 
 ## Verification workflow
 
-- Backend-only tracing or metric code changes: `./gradlew --no-daemon :application:useCaseTest --tests "*Monitoring*" --tests "*RequestId*"`
+- Backend request/error/metric changes: target `RequestIdFilterUseCaseIT`, `ClientMonitoringUseCaseIT`, and `GlobalExceptionHandlerTest` in `:adapter-in-web:test` as applicable.
 - Monitoring config or compose wiring changes: `docker compose config`
 - Frontend-only telemetry or Sentry wiring changes: `cd frontend && npm run build`
 - Broad observability confidence touching backend and frontend: combine the smallest relevant backend test with `cd frontend && npm run build`

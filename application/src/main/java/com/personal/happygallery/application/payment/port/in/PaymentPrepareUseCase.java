@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
  *
  * <p>amount 산출은 context별 preparer가 수행하며, 클라이언트가 금액을 전송하더라도
  * 서버 산출값만 저장된다 (변조 방어).
+ * 비회원 주문·예약은 같은 트랜잭션에서 휴대폰 인증 코드를 소비하고 결제 시도 귀속 증거만 저장한다.
  */
 public interface PaymentPrepareUseCase {
 
@@ -20,7 +21,7 @@ public interface PaymentPrepareUseCase {
     /**
      * prepare 결과. amount가 0이면 PG 호출 없이 바로 {@link PaymentConfirmUseCase}를 호출해도 된다 (8회권 사용 예약 등).
      */
-    record PrepareResult(String orderId, long amount, PaymentContext context) {}
+    record PrepareResult(String orderId, long amount, PaymentContext context, String statusToken) {}
 
     PrepareResult prepare(PrepareCommand command);
 }

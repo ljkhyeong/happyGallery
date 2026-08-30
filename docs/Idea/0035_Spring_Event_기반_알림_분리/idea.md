@@ -34,7 +34,7 @@
 |-----------|------------|------|
 | `OrderService.createPaidOrder()` | ORDER_PAID | 주문 생성 후 |
 | `OrderRefundSupport.refundOrder()` | ORDER_REFUNDED | PG 환불 성공 후 |
-| `BookingSlotSupport.saveAndComplete()` | BOOKING_CONFIRMED | 예약 생성 후 |
+| `BookingCreationSupport.saveAndComplete()` | BOOKING_CONFIRMED | 예약 생성 후 |
 | `DefaultBookingRescheduleService` | BOOKING_RESCHEDULED | 변경 후 |
 | `DefaultBookingCancelService` | BOOKING_CANCELED, DEPOSIT_REFUNDED | 취소 후 |
 | 배치 3종 (픽업/예약/이용권) | REMINDER 계열 | 스케줄 기반, 이벤트 대상 아님 |

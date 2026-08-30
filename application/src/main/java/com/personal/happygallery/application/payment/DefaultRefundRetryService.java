@@ -2,13 +2,15 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.payment.RefundStatus;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 환불 실패 재시도 — 운영자 수동 트리거 */
+/** 조치 필요 환불 재처리 — 운영자 수동 트리거 */
 @Service
 public class DefaultRefundRetryService implements RefundRetryUseCase {
 
@@ -21,14 +23,27 @@ public class DefaultRefundRetryService implements RefundRetryUseCase {
         this.refundExecutionService = refundExecutionService;
     }
 
-    /** FAILED 상태인 특정 환불을 재시도한다. */
-    public void retry(Long refundId) {
-        refundExecutionService.retryRefund(refundId);
+    /** 조치 필요 상태인 특정 환불을 재처리한다. */
+    @Override
+    public Refund retry(Long refundId) {
+        return refundExecutionService.retryRefund(refundId);
     }
 
-    /** FAILED 상태인 환불 목록 조회 */
+    /** 실패·재시도 대기·상태 확인 필요 환불 목록 조회 */
+    @Override
     @Transactional(readOnly = true)
-    public List<Refund> listFailed() {
-        return refundPort.findByStatus(RefundStatus.FAILED);
+    public CursorPage<Refund> listFailed(String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        int fetchSize = pageSize + 1;
+        List<Refund> refunds;
+        if (cursor == null) {
+            refunds = refundPort.findActionRequired(fetchSize);
+        } else {
+            var cursorParam = CursorUtils.decode(cursor);
+            refunds = refundPort.findActionRequiredAfter(
+                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
+        }
+        return CursorPage.of(refunds, pageSize,
+                refund -> CursorUtils.encode(refund.getCreatedAt(), refund.getId()));
     }
 }

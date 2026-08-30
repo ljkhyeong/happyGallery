@@ -1,36 +1,51 @@
-import { Link, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Card, Container } from "react-bootstrap";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import { Link, useParams } from "react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, Container } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
+import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyBookingDetailCard } from "@/features/my-booking/MyBookingDetailCard";
-import { cancelMyBooking, fetchMyBooking, rescheduleMyBooking } from "@/features/my-booking/api";
+import {
+  cancelMyBooking,
+  fetchMyBooking,
+  reduceMyBookingParticipants,
+  rescheduleMyBooking,
+} from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
+import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { NotFoundPage } from "@/pages/NotFoundPage";
+import { queryKeys } from "@/shared/api";
+import { BookingReviewSection } from "@/features/review/BookingReviewSection";
 
 export function MyBookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
+  const validBookingId = isPositiveSafeIntegerString(id);
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const queryClient = useQueryClient();
 
   const {
     data: booking,
     isLoading,
     error,
-    refetch,
   } = useQuery({
-    queryKey: ["my", "bookings", bookingId],
+    queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => fetchMyBooking(bookingId),
-    enabled: isAuthenticated && bookingId > 0,
+    enabled: isAuthenticated && validBookingId,
+    refetchInterval: ({ state }) =>
+      customerRefundPollingInterval(
+        state.data?.refund?.status,
+        state.dataUpdateCount + state.fetchFailureCount,
+      ),
   });
+
+  if (!validBookingId) return <NotFoundPage />;
 
   if (authLoading || isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (error) {
-    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
   if (!isAuthenticated) {
@@ -44,6 +59,10 @@ export function MyBookingDetailPage() {
     );
   }
 
+  if (error && !booking) {
+    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
+  }
+
   if (!booking) return null;
 
   const isBooked = booking.status === "BOOKED";
@@ -55,9 +74,9 @@ export function MyBookingDetailPage() {
           <Link to="/my/bookings" className="text-decoration-none small">
             &larr; 내 예약
           </Link>
-          <Button as={Link as any} to="/bookings/new" variant="outline-secondary" size="sm">
+          <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
             새 예약 만들기
-          </Button>
+          </LinkButton>
         </div>
         <div className="my-section-kicker mb-2">My Booking</div>
         <h4 className="mb-2">예약 상세</h4>
@@ -68,20 +87,56 @@ export function MyBookingDetailPage() {
 
       <MyBookingDetailCard booking={booking} />
 
+      {error && <ErrorAlert error={error} />}
+
+      <BookingReviewSection
+        bookingId={booking.bookingId}
+        className={booking.className}
+      />
+
       {isBooked && (
         <Card className="mt-4 border-0 my-action-card">
           <Card.Header>예약 변경</Card.Header>
           <Card.Body>
             <p className="text-muted-soft small">
-              가능한 다른 슬롯으로 즉시 변경합니다. 변경 후에는 현재 예약 상세가 새 슬롯 기준으로 갱신됩니다.
+              예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
             </p>
             <RescheduleForm
+              classId={booking.classId}
+              className={booking.className}
               currentSlotId={booking.slotId}
-              onReschedule={(newSlotId) => rescheduleMyBooking(booking.bookingId, newSlotId)}
-              onSuccess={() => {
-                void refetch();
-              }}
+              currentStartAt={booking.startAt}
+              participantCount={booking.participantCount}
+              onReschedule={(newSlotId) =>
+                rescheduleMyBooking(booking.bookingId, newSlotId)}
+              onSuccess={() =>
+                queryClient.invalidateQueries({
+                  queryKey: queryKeys.member.bookings.all,
+                })}
               successMessage="회원 예약이 변경되었습니다."
+            />
+          </Card.Body>
+        </Card>
+      )}
+
+      {isBooked && booking.participantCount > 1 && (
+        <Card className="mt-3 border-0 my-action-card">
+          <Card.Header>예약 인원 변경</Card.Header>
+          <Card.Body>
+            <p className="text-muted-soft small">
+              취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
+            </p>
+            <ReduceParticipantsForm
+              participantCount={booking.participantCount}
+              depositAmount={booking.depositAmount}
+              cancelPolicy={booking.cancelPolicy}
+              passBooking={booking.passBooking}
+              onReduce={(participantCount) =>
+                reduceMyBookingParticipants(booking.bookingId, participantCount)}
+              onSuccess={() =>
+                queryClient.invalidateQueries({
+                  queryKey: queryKeys.member.bookings.all,
+                })}
             />
           </Card.Body>
         </Card>
@@ -91,9 +146,12 @@ export function MyBookingDetailPage() {
         <div className="mt-3">
           <CancelButton
             onCancel={() => cancelMyBooking(booking.bookingId)}
-            onSuccess={() => {
-              void refetch();
-            }}
+            onSuccess={() =>
+              queryClient.invalidateQueries({
+                queryKey: queryKeys.member.bookings.all,
+              })}
+            cancelPolicy={booking.cancelPolicy}
+            depositAmount={booking.depositAmount}
           />
         </div>
       )}

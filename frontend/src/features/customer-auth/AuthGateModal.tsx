@@ -1,8 +1,13 @@
 import { useState } from "react";
-import { Modal, Button, Form, Alert, Nav } from "react-bootstrap";
-import { useCustomerAuth } from "./useCustomerAuth";
+import { Modal, Button, Form, Nav } from "react-bootstrap";
+import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
+import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { ErrorAlert } from "@/shared/ui";
+import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
+import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type AuthPath = "login" | "signup" | "guest";
 
@@ -10,16 +15,17 @@ interface GuestInfo {
   phone: string;
   verificationCode: string;
   name: string;
+  policyAcceptance: PolicyAcceptance;
 }
 
 interface Props {
   show: boolean;
   onClose: () => void;
-  onMemberConfirm: () => void;
+  onMemberAuthenticated: (member: CustomerUser) => void;
   onGuestConfirm: (info: GuestInfo) => void;
 }
 
-export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }: Props) {
+export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestConfirm }: Props) {
   const { isAuthenticated, login, signup, user } = useCustomerAuth();
   const [tab, setTab] = useState<AuthPath>("login");
 
@@ -27,8 +33,10 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [password, setPassword] = useState("");
   const [signupName, setSignupName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
-  const [error, setError] = useState("");
+  const [signupVerificationCode, setSignupVerificationCode] = useState("");
+  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
+  const policyConsent = usePolicyAcceptance();
 
   // guest step
   const [guestVerified, setGuestVerified] = useState(false);
@@ -36,13 +44,19 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
   const [guestCode, setGuestCode] = useState("");
   const [guestName, setGuestName] = useState("");
   const [guestNameTouched, setGuestNameTouched] = useState(false);
+  const normalizedGuestName = guestName.trim();
 
   // If already authenticated, confirm directly
   if (isAuthenticated && show) {
     return (
-      <Modal show={show} onHide={onClose} centered>
+      <Modal
+        show={show}
+        aria-labelledby="auth-member-confirm-title"
+        onHide={onClose}
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>확인</Modal.Title>
+          <Modal.Title id="auth-member-confirm-title">확인</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p className="mb-0">
@@ -51,7 +65,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onClose}>취소</Button>
-          <Button variant="primary" onClick={onMemberConfirm}>확인</Button>
+          <Button variant="primary" onClick={() => onMemberAuthenticated(user!)}>확인</Button>
         </Modal.Footer>
       </Modal>
     );
@@ -59,40 +73,64 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    if (!isPasswordWithinByteLimit(password)) return;
+    setError(null);
     setSubmitting(true);
-    const ok = await login(email, password);
-    setSubmitting(false);
-    if (ok) {
-      onMemberConfirm();
-    } else {
-      setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    try {
+      const member = await login(email, password);
+      onMemberAuthenticated(member);
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
+    if (!policyConsent.acceptance || !isPasswordWithinByteLimit(password)) {
+      return;
+    }
+    setError(null);
     setSubmitting(true);
-    const ok = await signup(email, password, signupName, signupPhone);
-    setSubmitting(false);
-    if (ok) {
-      onMemberConfirm();
-    } else {
-      setError("회원가입에 실패했습니다. 이미 등록된 이메일일 수 있습니다.");
+    try {
+      const member = await signup(
+        email,
+        password,
+        signupName,
+        signupPhone,
+        signupVerificationCode,
+        policyConsent.acceptance,
+      );
+      onMemberAuthenticated(member);
+    } catch (requestError) {
+      setError(requestError);
+    } finally {
+      setSubmitting(false);
     }
   }
 
   function handleGuestSubmit() {
-    if (guestName.trim()) {
-      onGuestConfirm({ phone: guestPhone, verificationCode: guestCode, name: guestName.trim() });
+    if (normalizedGuestName && policyConsent.acceptance) {
+      onGuestConfirm({
+        phone: guestPhone,
+        verificationCode: guestCode,
+        name: normalizedGuestName,
+        policyAcceptance: policyConsent.acceptance,
+      });
     }
   }
 
   return (
-    <Modal show={show} onHide={onClose} centered size="sm">
+    <Modal
+      show={show}
+      aria-labelledby="auth-gate-title"
+      onHide={onClose}
+      centered
+      size="sm"
+    >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">진행 방식 선택</Modal.Title>
+        <Modal.Title id="auth-gate-title" className="fs-6">진행 방식 선택</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Nav variant="tabs" className="mb-3">
@@ -107,7 +145,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
           </Nav.Item>
         </Nav>
 
-        {error && <Alert variant="danger" className="small">{error}</Alert>}
+        <ErrorAlert error={error} />
 
         {tab === "login" && (
           <Form onSubmit={handleLogin}>
@@ -123,10 +161,16 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               <Form.Control
                 type="password" size="sm" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
+                maxLength={72}
               />
             </Form.Group>
-            <Button type="submit" className="w-100" size="sm" disabled={submitting}>
-              {submitting ? "로그인 중..." : "로그인하고 진행"}
+            <Button
+              type="submit"
+              className="w-100"
+              size="sm"
+              disabled={submitting || !isPasswordWithinByteLimit(password)}
+            >
+              {submitting ? "로그인 중..." : "로그인 후 내용 확인"}
             </Button>
           </Form>
         )}
@@ -145,6 +189,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
               <Form.Control
                 type="password" size="sm" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
+                maxLength={72}
               />
             </Form.Group>
             <Form.Group className="mb-2" controlId="gate-signup-name">
@@ -154,16 +199,39 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                 onChange={(e) => setSignupName(e.target.value)} required
               />
             </Form.Group>
-            <Form.Group className="mb-3" controlId="gate-signup-phone">
-              <Form.Label className="small">전화번호</Form.Label>
-              <Form.Control
-                size="sm" value={signupPhone}
-                onChange={(e) => setSignupPhone(normalizePhone(e.target.value))}
-                placeholder="01012345678" maxLength={11} required
+            <div className="mb-3">
+              <PhoneVerificationStep
+                purpose="SIGNUP"
+                title="휴대폰 소유 확인"
+                initialPhone={signupPhone}
+                confirmLabel="인증코드 적용"
+                onVerified={(phone, code) => {
+                  setSignupPhone(normalizePhone(phone));
+                  setSignupVerificationCode(code);
+                }}
+                onReset={() => setSignupVerificationCode("")}
               />
-            </Form.Group>
-            <Button type="submit" className="w-100" size="sm" disabled={submitting}>
-              {submitting ? "가입 중..." : "가입하고 진행"}
+            </div>
+            <PolicyConsentFields
+              id="gate-signup-policy-consent"
+              policy={policyConsent.policyQuery.data}
+              checked={policyConsent.accepted}
+              onChange={policyConsent.setAccepted}
+              isLoading={policyConsent.policyQuery.isLoading}
+              error={policyConsent.policyQuery.error}
+            />
+            <Button
+              type="submit"
+              className="w-100"
+              size="sm"
+              disabled={
+                !signupVerificationCode
+                || !policyConsent.ready
+                || !isPasswordWithinByteLimit(password)
+                || submitting
+              }
+            >
+              {submitting ? "가입 중..." : "가입 후 내용 확인"}
             </Button>
           </Form>
         )}
@@ -172,6 +240,7 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
           <div>
             {!guestVerified ? (
               <PhoneVerificationStep
+                purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {
                   setGuestPhone(p);
                   setGuestCode(c);
@@ -187,15 +256,29 @@ export function AuthGateModal({ show, onClose, onMemberConfirm, onGuestConfirm }
                     onChange={(e) => setGuestName(e.target.value)}
                     onBlur={() => setGuestNameTouched(true)}
                     placeholder="이름"
-                    isInvalid={guestNameTouched && !guestName.trim()}
+                    isInvalid={guestNameTouched && !normalizedGuestName}
+                    aria-invalid={guestNameTouched && !normalizedGuestName}
+                    aria-describedby={
+                      guestNameTouched && !normalizedGuestName
+                        ? "gate-guest-name-error"
+                        : undefined
+                    }
                   />
-                  <Form.Control.Feedback type="invalid">
+                  <Form.Control.Feedback id="gate-guest-name-error" type="invalid">
                     이름을 입력해 주세요.
                   </Form.Control.Feedback>
                 </Form.Group>
+                <PolicyConsentFields
+                  id="gate-guest-policy-consent"
+                  policy={policyConsent.policyQuery.data}
+                  checked={policyConsent.accepted}
+                  onChange={policyConsent.setAccepted}
+                  isLoading={policyConsent.policyQuery.isLoading}
+                  error={policyConsent.policyQuery.error}
+                />
                 <Button
                   variant="primary" className="w-100" size="sm"
-                  disabled={!guestName.trim()}
+                  disabled={!normalizedGuestName || !policyConsent.ready}
                   onClick={handleGuestSubmit}
                 >
                   비회원으로 진행

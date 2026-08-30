@@ -1,15 +1,15 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
+import com.personal.happygallery.application.notification.port.out.TrackedNotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.timelimiter.TimeLimiter;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeoutException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.time.Duration;
+import java.util.concurrent.Executor;
 
 /**
  * 알림 발송 어댑터에 서킷 브레이커 + 타임아웃을 씌우는 데코레이터.
@@ -18,30 +18,22 @@ import org.slf4j.LoggerFactory;
  * 부분 장애가 누적될 때 호출 스레드를 fail-fast로 회수하려면 CircuitBreaker가 필요하다.
  * TimeLimiter는 PG 보호와 동일한 이중 안전장치 의미.
  *
- * <p>장애 상황(차단/타임아웃/예외)에서는 {@code false}를 반환해
- * {@link com.personal.happygallery.application.notification.NotificationService}의
- * 채널 fallback 체인이 그대로 동작하도록 한다.
+ * <p>호출 전 차단과 대기열 거절은 재시도 가능한 실패로, 호출 시작 뒤 타임아웃과
+ * 예상하지 못한 예외는 실제 발송 여부를 알 수 없는 결과로 구분한다.
  */
-public class ResilientNotificationSender implements NotificationSender {
+public class ResilientNotificationSender implements TrackedNotificationSenderPort {
 
-    private static final Logger log = LoggerFactory.getLogger(ResilientNotificationSender.class);
+    private final NotificationSenderPort delegate;
+    private final ResilientNotificationCall resilientCall;
 
-    private final NotificationSender delegate;
-    private final CircuitBreaker circuitBreaker;
-    private final TimeLimiter timeLimiter;
-    private final ExecutorService executor;
-    private final long timeoutMillis;
-
-    public ResilientNotificationSender(NotificationSender delegate,
+    public ResilientNotificationSender(NotificationSenderPort delegate,
                                        CircuitBreaker circuitBreaker,
                                        TimeLimiter timeLimiter,
-                                       ExecutorService executor,
-                                       long timeoutMillis) {
+                                       Executor executor,
+                                       Duration timeout) {
         this.delegate = delegate;
-        this.circuitBreaker = circuitBreaker;
-        this.timeLimiter = timeLimiter;
-        this.executor = executor;
-        this.timeoutMillis = timeoutMillis;
+        this.resilientCall = new ResilientNotificationCall(
+                circuitBreaker, timeLimiter, executor, timeout);
     }
 
     @Override
@@ -50,37 +42,27 @@ public class ResilientNotificationSender implements NotificationSender {
     }
 
     @Override
-    public boolean send(String phone, String recipientName, NotificationEventType eventType) {
-        try {
-            return circuitBreaker.executeCallable(() -> sendWithTimeout(phone, recipientName, eventType));
-        } catch (CallNotPermittedException e) {
-            log.warn("[{}] 발송 차단 (circuit open) event={}", channel(), eventType);
-            return false;
-        } catch (TimeoutException e) {
-            log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
-            return false;
-        } catch (Exception e) {
-            Throwable cause = rootCause(e);
-            if (cause instanceof TimeoutException) {
-                log.warn("[{}] 발송 타임아웃 [timeoutMs={} event={}]", channel(), timeoutMillis, eventType);
-                return false;
-            }
-            log.warn("[{}] 발송 예외 event={}", channel(), eventType, cause);
-            return false;
-        }
+    public NotificationSendResult send(String idempotencyKey,
+                                       String phone,
+                                       String recipientName,
+                                       NotificationEventType eventType) {
+        return sendTracked(idempotencyKey, phone, recipientName, eventType).result();
     }
 
-    private boolean sendWithTimeout(String phone, String recipientName, NotificationEventType eventType) throws Exception {
-        return timeLimiter.executeFutureSupplier(
-                () -> CompletableFuture.supplyAsync(
-                        () -> delegate.send(phone, recipientName, eventType), executor));
-    }
-
-    private Throwable rootCause(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null && current.getCause() != current) {
-            current = current.getCause();
-        }
-        return current;
+    @Override
+    public NotificationSendOutcome sendTracked(
+            String idempotencyKey,
+            String phone,
+            String recipientName,
+            NotificationEventType eventType) {
+        return resilientCall.execute(
+                channel(),
+                eventType.name(),
+                () -> delegate instanceof TrackedNotificationSenderPort tracked
+                        ? tracked.sendTracked(idempotencyKey, phone, recipientName, eventType)
+                        : NotificationSendOutcome.immediate(
+                                delegate.send(idempotencyKey, phone, recipientName, eventType)),
+                NotificationSendOutcome.immediate(NotificationSendResult.TRANSIENT_FAILURE),
+                NotificationSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN));
     }
 }

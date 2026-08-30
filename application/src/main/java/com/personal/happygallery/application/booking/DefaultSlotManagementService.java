@@ -1,15 +1,11 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
-import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
-import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.application.booking.port.out.SlotLockPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
-import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import java.time.LocalDateTime;
+import com.personal.happygallery.domain.error.NotFoundException;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,35 +13,37 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class DefaultSlotManagementService implements SlotManagementUseCase {
 
-    private final ClassReaderPort classReaderPort;
-    private final SlotReaderPort slotReaderPort;
+    private final SlotLockPort slotLockPort;
     private final SlotStorePort slotStorePort;
+    private final BookingVacancyAlertPublisher vacancyAlertPublisher;
 
-    public DefaultSlotManagementService(ClassReaderPort classReaderPort,
-                                  SlotReaderPort slotReaderPort,
-                                  SlotStorePort slotStorePort) {
-        this.classReaderPort = classReaderPort;
-        this.slotReaderPort = slotReaderPort;
+    public DefaultSlotManagementService(SlotLockPort slotLockPort,
+                                        SlotStorePort slotStorePort,
+                                        BookingVacancyAlertPublisher vacancyAlertPublisher) {
+        this.slotLockPort = slotLockPort;
         this.slotStorePort = slotStorePort;
-    }
-
-    /** 슬롯을 생성한다. */
-    public Slot createSlot(Long classId, LocalDateTime startAt, LocalDateTime endAt) {
-        BookingClass bookingClass = classReaderPort.findById(classId)
-                .orElseThrow(NotFoundException.supplier("클래스"));
-
-        if (slotReaderPort.existsByBookingClassIdAndStartAt(classId, startAt)) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미 동일 시간에 슬롯이 존재합니다.");
-        }
-
-        return slotStorePort.save(new Slot(bookingClass, startAt, endAt));
+        this.vacancyAlertPublisher = vacancyAlertPublisher;
     }
 
     /** 슬롯을 비활성화한다. */
+    @Override
     public Slot deactivateSlot(Long slotId) {
-        Slot slot = slotReaderPort.findById(slotId)
+        Slot slot = slotLockPort.lockAllById(List.of(slotId)).stream()
+                .findFirst()
                 .orElseThrow(NotFoundException.supplier("슬롯"));
         slot.deactivate();
         return slotStorePort.save(slot);
+    }
+
+    /** 슬롯의 관리자 활성 상태를 복구한다. 버퍼 차단 수는 변경하지 않는다. */
+    @Override
+    public Slot activateSlot(Long slotId) {
+        Slot slot = slotLockPort.lockAllById(List.of(slotId)).stream()
+                .findFirst()
+                .orElseThrow(NotFoundException.supplier("슬롯"));
+        slot.activate();
+        Slot saved = slotStorePort.save(slot);
+        vacancyAlertPublisher.notifyWaitingIfAvailable(saved);
+        return saved;
     }
 }

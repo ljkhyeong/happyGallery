@@ -1,5 +1,6 @@
 package com.personal.happygallery.policy;
 
+import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.category.CategoryName;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import org.junit.jupiter.api.DisplayName;
@@ -34,5 +35,14 @@ class CategoryNamePolicyTest {
         assertThatThrownBy(() -> CategoryName.required("   "))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("카테고리");
+    }
+
+    @DisplayName("클래스 기본 생성자는 카테고리 오류를 시간과 버퍼 오류보다 먼저 반환한다")
+    @Test
+    void bookingClassConstructor_whenSeveralInputsInvalid_reportsCategoryFirst() {
+        assertThatThrownBy(() -> new BookingClass(
+                "복합 오류 클래스", "   ", 0, BookingClass.MIN_PRICE, -1))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessage("카테고리는 필수입니다.");
     }
 }

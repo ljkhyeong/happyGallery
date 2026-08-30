@@ -4,17 +4,19 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 
 public interface OrderReaderPort {
     Optional<Order> findById(Long id);
-    List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline);
-    List<Order> findByStatusAndApprovalDeadlineAtBefore(OrderStatus status, LocalDateTime deadline, Pageable pageable);
-    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId);
-    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status);
-    List<Order> findAllByOrderByCreatedAtDesc();
-
+    Optional<Order> findByIdForUpdate(Long id);
+    List<Order> findByIdIn(Collection<Long> ids);
+    List<Order> findPaidApprovalPendingBeforeAfterId(
+            LocalDateTime deadline, Long afterId, int limit);
+    OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
+    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId, int limit);
+    List<Order> findByUserIdOrderByCreatedAtDescAfterCursor(
+            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
     /** 커서 기반 전체 주문 조회 — 첫 페이지 */
     List<Order> findAllOrderByCreatedAtDesc(int limit);
 

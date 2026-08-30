@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { Toast, ToastContainer as BsToastContainer } from "react-bootstrap";
 
 type Variant = "success" | "danger" | "warning" | "info";
@@ -29,12 +29,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => [...prev, { id, message, variant }]);
   }, []);
 
-  const remove = useCallback((id: number) => {
+  function remove(id: number) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  }
+  const contextValue = useMemo(() => ({ show }), [show]);
 
   return (
-    <ToastContext value={{ show }}>
+    <ToastContext value={contextValue}>
       {children}
       <BsToastContainer position="top-end" className="p-3" style={{ zIndex: 1080 }}>
         {toasts.map((t) => (

@@ -1,14 +1,18 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingClassStatus;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerification;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -16,14 +20,18 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
-import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.qna.ProductQna;
-import com.personal.happygallery.domain.user.AuthProvider;
+import com.personal.happygallery.domain.review.ReviewStatus;
+import com.personal.happygallery.domain.review.ReviewTargetType;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.User;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,20 +46,26 @@ final class RestDocsFixtures {
     private RestDocsFixtures() {
     }
 
-    static ProductQueryUseCase.ProductWithInventory productWithInventory() {
+    static Clock clock() {
+        return Clock.fixed(NOW.atZone(Clocks.SEOUL).toInstant(), Clocks.SEOUL);
+    }
+
+    static ProductQueryUseCase.ProductView productWithInventory() {
+        return productWithInventory(ProductStatus.ACTIVE);
+    }
+
+    static ProductQueryUseCase.ProductView productWithInventory(ProductStatus status) {
         Product product = mock(Product.class);
         when(product.getId()).thenReturn(1L);
         when(product.getName()).thenReturn("시그니처 캔들");
         when(product.getType()).thenReturn(ProductType.READY_STOCK);
         when(product.getCategory()).thenReturn("CANDLE");
         when(product.getPrice()).thenReturn(39000L);
-        when(product.getStatus()).thenReturn(ProductStatus.ACTIVE);
+        when(product.getStatus()).thenReturn(status);
 
-        Inventory inventory = mock(Inventory.class);
-        when(inventory.isAvailable()).thenReturn(true);
-        when(inventory.getQuantity()).thenReturn(12);
-
-        return new ProductQueryUseCase.ProductWithInventory(product, inventory);
+        return new ProductQueryUseCase.ProductView(
+                product, 12L, true,
+                ProductOptions.EMPTY);
     }
 
     static BookingClass bookingClass() {
@@ -62,6 +76,11 @@ final class RestDocsFixtures {
         when(bookingClass.getDurationMin()).thenReturn(120);
         when(bookingClass.getPrice()).thenReturn(50000L);
         when(bookingClass.getBufferMin()).thenReturn(30);
+        when(bookingClass.isPassEligible()).thenReturn(false);
+        when(bookingClass.getDescription()).thenReturn("향을 조합해 나만의 향수를 만듭니다.");
+        when(bookingClass.getPreparationInfo()).thenReturn("편한 복장");
+        when(bookingClass.getTargetAudience()).thenReturn("향수 만들기가 처음인 분");
+        when(bookingClass.getStatus()).thenReturn(BookingClassStatus.ACTIVE);
         return bookingClass;
     }
 
@@ -77,6 +96,8 @@ final class RestDocsFixtures {
         when(slot.getEndAt()).thenReturn(LocalDateTime.of(2026, 5, 7, 21, 0));
         when(slot.getCapacity()).thenReturn(8);
         when(slot.getBookedCount()).thenReturn(2);
+        when(slot.isAdminActive()).thenReturn(true);
+        when(slot.isBufferBlocked()).thenReturn(false);
         when(slot.isActive()).thenReturn(true);
         return slot;
     }
@@ -85,18 +106,26 @@ final class RestDocsFixtures {
         BookingClass bookingClass = bookingClass();
         Slot slot = slot(bookingClass);
         Guest guest = mock(Guest.class);
-        when(guest.getName()).thenReturn("홍길동");
 
         Booking booking = mock(Booking.class);
         when(booking.getId()).thenReturn(100L);
         when(booking.getSlot()).thenReturn(slot);
         when(booking.getBookingClass()).thenReturn(bookingClass);
         when(booking.getStatus()).thenReturn(BookingStatus.BOOKED);
-        when(booking.getDepositAmount()).thenReturn(5000L);
-        when(booking.getBalanceAmount()).thenReturn(45000L);
+        when(booking.getParticipantCount()).thenReturn(3);
+        when(booking.getDepositAmount()).thenReturn(15000L);
+        when(booking.getBalanceAmount()).thenReturn(135000L);
         when(booking.getBalanceStatus()).thenReturn(BalanceStatus.UNPAID);
         when(booking.isPassBooking()).thenReturn(false);
         when(booking.getGuest()).thenReturn(guest);
+        return booking;
+    }
+
+    static Booking reducedBooking() {
+        Booking booking = booking();
+        when(booking.getParticipantCount()).thenReturn(2);
+        when(booking.getDepositAmount()).thenReturn(10_000L);
+        when(booking.getBalanceAmount()).thenReturn(90_000L);
         return booking;
     }
 
@@ -121,6 +150,8 @@ final class RestDocsFixtures {
     static OrderItem orderItem() {
         OrderItem item = mock(OrderItem.class);
         when(item.getProductId()).thenReturn(1L);
+        when(item.getProductName()).thenReturn("시그니처 캔들");
+        when(item.getProductType()).thenReturn(ProductType.READY_STOCK);
         when(item.getQty()).thenReturn(1);
         when(item.getUnitPrice()).thenReturn(39000L);
         return item;
@@ -131,16 +162,63 @@ final class RestDocsFixtures {
         when(fulfillment.getType()).thenReturn(FulfillmentType.PICKUP);
         when(fulfillment.getExpectedShipDate()).thenReturn(LocalDate.of(2026, 5, 8));
         when(fulfillment.getPickupDeadlineAt()).thenReturn(NOW.plusDays(3));
+        when(fulfillment.getCarrier()).thenReturn("CJ대한통운");
+        when(fulfillment.getTrackingNumber()).thenReturn("1234567890");
         return fulfillment;
     }
 
     static OrderQueryUseCase.OrderDetail orderDetail() {
-        return new OrderQueryUseCase.OrderDetail(order(), List.of(orderItem()), fulfillment());
+        return new OrderQueryUseCase.OrderDetail(
+                order(), List.of(orderItem()), fulfillment(), null, List.of(), null);
+    }
+
+    static Refund bookingRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(900L);
+        when(refund.getBookingId()).thenReturn(100L);
+        when(refund.getAmount()).thenReturn(15000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(15000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
+        when(refund.getUpdatedAt()).thenReturn(NOW);
+        return refund;
+    }
+
+    static Refund partialBookingRefund() {
+        Refund refund = bookingRefund();
+        when(refund.getId()).thenReturn(903L);
+        when(refund.getAmount()).thenReturn(5_000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(5_000L);
+        return refund;
+    }
+
+    static Refund orderRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(901L);
+        when(refund.getOrderId()).thenReturn(200L);
+        when(refund.getAmount()).thenReturn(39000L);
+        when(refund.getCustomerRefundAmount()).thenReturn(39000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.REQUESTED);
+        when(refund.getUpdatedAt()).thenReturn(NOW);
+        return refund;
+    }
+
+    static Refund failedOrderClaimRefund() {
+        Refund refund = mock(Refund.class);
+        when(refund.getId()).thenReturn(902L);
+        when(refund.getOrderId()).thenReturn(200L);
+        when(refund.getOrderClaimId()).thenReturn(201L);
+        when(refund.getAmount()).thenReturn(19000L);
+        when(refund.getStatus()).thenReturn(RefundStatus.FAILED);
+        when(refund.getAttemptCount()).thenReturn(1);
+        when(refund.getFailReason()).thenReturn("PG 환불 거절");
+        when(refund.getCreatedAt()).thenReturn(NOW);
+        return refund;
     }
 
     static PassPurchase passPurchase() {
         PassPurchase pass = mock(PassPurchase.class);
         when(pass.getId()).thenReturn(300L);
+        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_8);
         when(pass.getPurchasedAt()).thenReturn(NOW.minusDays(1));
         when(pass.getExpiresAt()).thenReturn(NOW.plusDays(89));
         when(pass.getTotalCredits()).thenReturn(8);
@@ -156,7 +234,6 @@ final class RestDocsFixtures {
         when(user.getName()).thenReturn("회원");
         when(user.getPhone()).thenReturn("01012345678");
         when(user.isPhoneVerified()).thenReturn(true);
-        when(user.getProvider()).thenReturn(AuthProvider.LOCAL);
         return user;
     }
 
@@ -195,5 +272,96 @@ final class RestDocsFixtures {
         when(inquiry.getRepliedAt()).thenReturn(NOW.plusHours(2));
         when(inquiry.getCreatedAt()).thenReturn(NOW);
         return inquiry;
+    }
+
+    static ReviewUseCase.ReviewItem productReviewItem() {
+        LocalDateTime createdAt = NOW.minusDays(1);
+        return new ReviewUseCase.ReviewItem(
+                31L,
+                RestDocsTestSupport.CUSTOMER_USER_ID,
+                "홍길동",
+                ReviewTargetType.PRODUCT,
+                201L,
+                1L,
+                "시그니처 캔들",
+                5,
+                "마감이 깔끔하고 선물하기 좋았습니다.",
+                ReviewStatus.PUBLISHED,
+                1L,
+                0L,
+                null,
+                null,
+                null,
+                createdAt,
+                createdAt,
+                null,
+                false,
+                true,
+                new ReviewUseCase.OfficialReplyItem(
+                        "소중한 후기 감사합니다.",
+                        RestDocsTestSupport.ADMIN_USER_ID,
+                        NOW.minusHours(12),
+                        null),
+                3L,
+                List.of(new ReviewUseCase.ReviewImageItem(
+                        51L,
+                        "/api/v1/media/images/review-candle.webp",
+                        0,
+                        NOW.minusHours(20))));
+    }
+
+    static ReviewUseCase.ReviewItem classReviewItem() {
+        return new ReviewUseCase.ReviewItem(
+                32L,
+                RestDocsTestSupport.CUSTOMER_USER_ID,
+                "홍길동",
+                ReviewTargetType.CLASS,
+                100L,
+                1L,
+                "향수 원데이",
+                4,
+                "설명이 친절해서 즐겁게 참여했습니다.",
+                ReviewStatus.PUBLISHED,
+                2L,
+                0L,
+                null,
+                null,
+                null,
+                NOW.minusHours(12),
+                NOW.minusHours(10),
+                NOW.minusHours(10),
+                true,
+                true,
+                null,
+                1L,
+                List.of());
+    }
+
+    static ReviewUseCase.ReviewItem hiddenProductReviewItem() {
+        ReviewUseCase.ReviewItem published = productReviewItem();
+        return new ReviewUseCase.ReviewItem(
+                published.id(),
+                published.userId(),
+                published.authorName(),
+                published.targetType(),
+                published.sourceId(),
+                published.targetId(),
+                published.targetName(),
+                published.rating(),
+                published.content(),
+                ReviewStatus.HIDDEN,
+                published.contentRevision(),
+                published.version() + 1L,
+                "운영 정책 위반 내용",
+                NOW,
+                RestDocsTestSupport.ADMIN_USER_ID,
+                published.createdAt(),
+                NOW,
+                published.editedAt(),
+                published.edited(),
+                published.verifiedTransaction(),
+                published.officialReply(),
+                published.helpfulCount(),
+                published.images());
     }
 }

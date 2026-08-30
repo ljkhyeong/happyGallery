@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  acceptCurrentPolicies,
   adminCard,
   armNextRefundFailure,
   clearNextRefundFailure,
@@ -9,8 +10,9 @@ import {
   loginAdmin,
   makePhoneNumber,
   makeUniqueLabel,
+  openAdminView,
   plusDays,
-  readRouterState,
+  readGuestOrderLookupCredentials,
   toDateTimeLocalInput,
   waitForFailedRefundByOrderId,
   waitForFailedRefundGone,
@@ -22,6 +24,7 @@ test("P8-1 @admin 상품 등록 후 관리자 목록에서 확인할 수 있다"
   const productName = makeUniqueLabel("P8-상품");
 
   await loginAdmin(page);
+  await openAdminView(page, "상품");
 
   const createCard = adminCard(page, "상품 등록");
   await createCard.getByLabel("상품명").fill(productName);
@@ -34,7 +37,7 @@ test("P8-1 @admin 상품 등록 후 관리자 목록에서 확인할 수 있다"
   expect(product.available).toBe(true);
 
   const listCard = adminCard(page, "상품 목록");
-  await expect(listCard.locator("tbody tr").filter({ hasText: productName })).toContainText("판매 가능");
+  await expect(listCard.locator("tbody tr").filter({ hasText: productName })).toContainText("판매 중");
 });
 
 test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준비, 픽업 완료까지 진행할 수 있다", async ({ page, request }) => {
@@ -51,7 +54,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
 
   await page.goto(`/products/${product.id}`);
   await page.getByRole("spinbutton", { name: "수량" }).fill("2");
-  await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+  await page.getByRole("link", { name: /비회원 주문하기/ }).click();
 
   await expect(page).toHaveURL(new RegExp(`/orders/new\\?productId=${product.id}&qty=2$`));
   await expect(page.getByText("상품 상세에서 선택한 상품과 수량을 미리 담아두었습니다.")).toBeVisible();
@@ -61,50 +64,60 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   const prefilledItem = page.locator(".list-group-item").filter({ hasText: productName }).first();
   await expect(prefilledItem).toBeVisible();
   await expect(prefilledItem).toContainText("x2");
+  await page.getByRole("button", { name: "매장 수령" }).click();
+  await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
-  const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
-  const orderId = guestOrderState?.orderId;
+  await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
+  const guestOrderState = await readGuestOrderLookupCredentials(page);
+  const orderId = guestOrderState.orderId;
   if (!orderId) {
     throw new Error("Guest order id should be kept in router state");
   }
-  expect(guestOrderState?.token, "Guest order token should be kept in router state").toBeTruthy();
+  expect(guestOrderState.token, "Guest order token should be prefilled").toBeTruthy();
   const approvalPendingOrder = await waitForOrder(request, orderId, "PAID_APPROVAL_PENDING");
 
   await loginAdmin(page);
+  await openAdminView(page, "현황·검색");
+  const searchCard = adminCard(page, "주문·예약 검색");
+  await searchCard.getByRole("button", { name: "주문", exact: true }).click();
+  await searchCard.getByLabel("주문·예약 번호 또는 고객명").fill(approvalPendingOrder.orderNumber);
+  await searchCard.getByRole("button", { name: "검색", exact: true }).click();
+  const searchRow = searchCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
+  await expect(searchRow).toBeVisible();
+  await searchRow.getByRole("link", { name: "주문 열기" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`view=orders.*orderId=${orderId}`));
   const orderCard = adminCard(page, "주문 목록");
-  await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
-  let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
-  await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "승인" }).click();
+  await expect(orderCard.getByRole("heading", { name: `검색한 주문 #${orderId}` })).toBeVisible();
+  await orderCard.getByRole("button", { name: "승인", exact: true }).first().click();
 
   await waitForOrder(request, orderId, "APPROVED_FULFILLMENT_PENDING");
   await orderCard.getByLabel("상태").selectOption("APPROVED_FULFILLMENT_PENDING");
-  row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
+  let row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(row).toBeVisible();
   await row.locator('input[type="datetime-local"]').fill(toDateTimeLocalInput(plusDays(7, 18, 0, 30).start));
-  await row.getByRole("button", { name: "픽업 준비" }).click();
+  await row.getByRole("button", { name: "매장 수령 준비 완료" }).click();
 
   await waitForOrder(request, orderId, "PICKUP_READY");
   await orderCard.getByLabel("상태").selectOption("PICKUP_READY");
   row = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
   await expect(row).toBeVisible();
-  await row.getByRole("button", { name: "픽업 완료" }).click();
+  await row.getByRole("button", { name: "매장 수령 완료로 표시" }).click();
 
   await waitForOrder(request, orderId, "PICKED_UP");
 
   await page.goto("/guest/orders");
-  await page.getByLabel("주문 ID").fill(String(orderId));
-  await page.getByLabel("인증 토큰").fill(guestOrderState!.token);
+  await page.getByLabel("주문 번호").fill(String(orderId));
+  await page.getByLabel("조회 코드").fill(guestOrderState.token);
   await page.getByRole("button", { name: "조회" }).click();
 
   await expect(page.locator(".badge-status").filter({ hasText: "수령 완료" }).first()).toBeVisible();
-  await expect(page.getByText("이행 정보")).toBeVisible();
+  await expect(page.getByText("배송·수령 정보")).toBeVisible();
 });
 
-test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재시도해 복구할 수 있다", async ({ page, request }) => {
+test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처리해 복구할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
 
   const productName = makeUniqueLabel("P8-환불상품");
@@ -128,12 +141,14 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재시
     await page.getByLabel("상품").selectOption(String(product.id));
     await page.getByLabel("수량").fill("1");
     await page.getByRole("button", { name: "추가" }).click();
+    await page.getByRole("button", { name: "매장 수령" }).click();
+    await acceptCurrentPolicies(page);
     await page.getByRole("button", { name: "결제 진행하기" }).click();
 
     await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-    await page.getByRole("button", { name: "비회원 주문 확인하기" }).click();
-    const guestOrderState = await readRouterState<{ orderId: number; token: string }>(page);
-    const orderId = guestOrderState?.orderId;
+    await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
+    const guestOrderState = await readGuestOrderLookupCredentials(page);
+    const orderId = guestOrderState.orderId;
     if (!orderId) {
       throw new Error("Guest order id should be kept in router state");
     }
@@ -142,24 +157,34 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재시
     await armNextRefundFailure(request, failureReason);
 
     await loginAdmin(page);
+    await openAdminView(page, "주문");
     const orderCard = adminCard(page, "주문 목록");
     await orderCard.getByLabel("상태").selectOption("PAID_APPROVAL_PENDING");
     const orderRow = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
     await expect(orderRow).toBeVisible();
     await orderRow.getByRole("button", { name: "거절" }).click();
+    const rejectDialog = page.getByRole("dialog", { name: "주문 거절 영향 확인" });
+    await expect(rejectDialog).toBeVisible();
+    await rejectDialog.getByRole("button", { name: "거절 및 환불 요청" }).click();
 
     await waitForOrder(request, orderId, "REJECTED");
     const failedRefund = await waitForFailedRefundByOrderId(request, orderId);
     expect(failedRefund.failReason).toContain(failureReason);
 
-    await page.reload();
-    const refundCard = adminCard(page, "환불 실패 목록");
-    const refundRow = refundCard.locator("tbody tr").filter({ hasText: failureReason }).first();
+    await openAdminView(page, "오늘 할 일");
+    const refundCard = adminCard(page, "환불 확인 필요");
+    const refundRow = refundCard.locator("tbody tr").filter({ hasText: `주문 ${orderId}` }).first();
     await expect(refundRow).toBeVisible();
-    await refundRow.getByRole("button", { name: "재시도" }).click();
+    await expect(refundRow).toContainText("직접 확인 필요");
+    await refundRow.getByText("기술 상세").click();
+    await expect(refundRow).toContainText(failureReason);
+    await refundRow.getByRole("button", { name: "환불 다시 요청" }).click();
+    const retryDialog = page.getByRole("dialog", { name: "환불 처리 다시 확인" });
+    await expect(retryDialog).toBeVisible();
+    await retryDialog.getByRole("button", { name: "기존 환불 다시 요청" }).click();
 
     await waitForFailedRefundGone(request, failedRefund.refundId);
-    await expect(refundCard.locator("tbody tr").filter({ hasText: failureReason })).toHaveCount(0);
+    await expect(refundCard.locator("tbody tr").filter({ hasText: `주문 ${orderId}` })).toHaveCount(0);
   } finally {
     await clearNextRefundFailure(request);
   }

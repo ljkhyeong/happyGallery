@@ -2,13 +2,28 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, codexReview]
 
 concurrency:
   group: ci-${{ github.head_ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
   backend:
     name: Backend Build & Test
     runs-on: ubuntu-latest
@@ -16,17 +31,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: true
 
       - name: Build & Test
         run: ./gradlew build
+
+      - name: Upload application jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-jar
+          path: bootstrap/build/libs/happygallery-app.jar
+          retention-days: 1
 
       - name: Upload test reports
         if: failure()
@@ -50,8 +74,160 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install & Build
+      - name: Install, audit, lint, verify generated API client & build
         working-directory: frontend
         run: |
           npm ci
+          npm run audit:dependencies
+          npm run test:unit
+          npm run lint
+          npm run api:check
           npm run build
+
+      - name: Validate deployment manifests and CSP
+        env:
+          REQUIRE_FRONTEND_DIST: "1"
+        run: ./deploy/k3s/scripts/validate.sh
+
+  e2e-smoke:
+    name: Browser Smoke E2E
+    runs-on: ubuntu-latest
+    needs: backend
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: happygallery
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_USER: happygallery
+          MYSQL_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpass --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Download application jar
+        uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: bootstrap/build/libs
+
+      - name: Install frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start local backend
+        env:
+          SPRING_PROFILES_ACTIVE: local
+          DB_URL: jdbc:mysql://127.0.0.1:3306/happygallery?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+          DB_USERNAME: happygallery
+          DB_PASSWORD: password
+          REDIS_HOST: 127.0.0.1
+          MANAGEMENT_PORT: "8080"
+          RATE_LIMIT_ENABLED: "false"
+          ALIMTALK_APP_KEY: e2e-alimtalk-app-key
+          ALIMTALK_SECRET_KEY: e2e-alimtalk-secret-key
+          ALIMTALK_SENDER_KEY: e2e-alimtalk-sender-key
+          SMS_API_KEY: e2e-sms-api-key
+          SMS_API_SECRET: e2e-sms-api-secret
+          SMS_SENDER_NUMBER: "01000000000"
+        run: |
+          APP_JAR=bootstrap/build/libs/happygallery-app.jar
+          test -f "$APP_JAR"
+          nohup java -jar "$APP_JAR" >/tmp/happygallery-e2e-app.log 2>&1 &
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent http://127.0.0.1:8080/actuator/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/happygallery-e2e-app.log
+          exit 1
+
+      - name: Run smoke browser paths
+        working-directory: frontend
+        env:
+          CI: "true"
+          PLAYWRIGHT_BACKEND_URL: http://127.0.0.1:8080/api/v1
+          VITE_API_TARGET: http://127.0.0.1:8080
+        run: npm run e2e
+
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-smoke-diagnostics
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            /tmp/happygallery-e2e-app.log
+          retention-days: 7
+
+  container-security:
+    name: Container Security
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download application jar
+        uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: bootstrap/build/libs
+
+      - name: Build release images
+        run: |
+          APP_JAR=bootstrap/build/libs/happygallery-app.jar
+          test -f "$APP_JAR"
+          docker build --build-arg "APP_JAR=$APP_JAR" -f deploy/k3s/images/Dockerfile.app -t happygallery-app:ci .
+          docker build --build-arg "VITE_TOSS_CLIENT_KEY=test_ck_ci" -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:ci .
+
+      - name: Scan backend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: happygallery-app:ci
+          format: table
+          exit-code: "1"
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      - name: Scan frontend image
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: happygallery-frontend:ci
+          format: table
+          exit-code: "1"
+          vuln-type: os,library
+          severity: HIGH,CRITICAL

@@ -1,13 +1,26 @@
 import * as Sentry from "@sentry/react";
 import { ApiError } from "@/shared/api/error";
+import {
+  captureCustomerSession,
+  publishCustomerSessionExpired,
+  requireCurrentCustomerSession,
+} from "@/shared/api/customerSession";
+import { sanitizeTelemetryPath } from "@/shared/lib/sentryUrl";
 import type { ErrorResponse } from "@/shared/types/error";
+import { waitForPromiseWithSignal } from "./abort";
 
 const BASE_URL = "/api/v1";
 const REQUEST_TIMEOUT_MS = 35_000;
+const CSRF_COOKIE_NAME = "XSRF-TOKEN";
+const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
+
+let csrfTokenRequest: Promise<string> | undefined;
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   params?: Record<string, string | number | undefined>;
+  rawBody?: BodyInit | null;
 }
 
 function buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
@@ -22,31 +35,102 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
   return url.toString();
 }
 
-export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, params, headers: customHeaders, ...rest } = options;
+function readCookie(name: string): string | undefined {
+  const prefix = `${encodeURIComponent(name)}=`;
+  const cookie = document.cookie
+    .split(";")
+    .map((value) => value.trim())
+    .find((value) => value.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : undefined;
+}
 
-  const headers: Record<string, string> = {
-    ...Object.fromEntries(Object.entries(customHeaders ?? {}).map(([k, v]) => [k, String(v)])),
-  };
+async function getCsrfToken(signal: AbortSignal): Promise<string> {
+  const cookieToken = readCookie(CSRF_COOKIE_NAME);
+  if (cookieToken) return cookieToken;
 
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+  if (!csrfTokenRequest) {
+    csrfTokenRequest = fetch(buildUrl("/auth/csrf"), {
+      cache: "no-store",
+      credentials: "include",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`CSRF token request failed: ${response.status}`);
+        }
+        await response.json();
+        const issuedToken = readCookie(CSRF_COOKIE_NAME);
+        if (!issuedToken) {
+          throw new Error("CSRF token cookie was not issued");
+        }
+        return issuedToken;
+      })
+      .finally(() => {
+        csrfTokenRequest = undefined;
+      });
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  return waitForPromiseWithSignal(csrfTokenRequest, signal);
+}
+
+function requiresCsrf(path: string, method: string | undefined): boolean {
+  const normalizedMethod = (method ?? "GET").toUpperCase();
+  const adminRequest = path === "/admin" || path.startsWith("/admin/");
+  return !adminRequest && !SAFE_METHODS.has(normalizedMethod);
+}
+
+function requiresCustomerSession(path: string): boolean {
+  return path === "/me" || path.startsWith("/me/");
+}
+
+function serializeBody(body: unknown, rawBody: BodyInit | null | undefined): BodyInit | null | undefined {
+  if (rawBody !== undefined) return rawBody;
+  if (body === undefined || body instanceof FormData) return body;
+  return JSON.stringify(body);
+}
+
+export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const customerSessionSnapshot = requiresCustomerSession(path)
+    ? captureCustomerSession()
+    : undefined;
+  const {
+    body,
+    params,
+    rawBody,
+    headers: customHeaders,
+    signal: externalSignal,
+    ...rest
+  } = options;
+  const headers = new Headers(customHeaders);
+  const multipartBody = body instanceof FormData;
+
+  if (body !== undefined && !multipartBody) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+  const signal = externalSignal
+    ? AbortSignal.any([timeoutSignal, externalSignal])
+    : timeoutSignal;
 
   let response: Response;
   try {
+    if (requiresCsrf(path, rest.method)) {
+      headers.set(CSRF_HEADER_NAME, await getCsrfToken(signal));
+    }
+
     response = await fetch(buildUrl(path, params), {
       ...rest,
       headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-      credentials: 'include',
+      body: serializeBody(body, rawBody),
+      signal,
+      credentials: "include",
     });
-  } finally {
-    clearTimeout(timeoutId);
+  } catch (error) {
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    throw error;
   }
 
   if (!response.ok) {
@@ -65,17 +149,54 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     if (response.status >= 500) {
       Sentry.withScope((scope) => {
         if (error.requestId) scope.setTag("requestId", error.requestId);
-        scope.setTag("api.path", path);
+        scope.setTag(
+          "api.path",
+          sanitizeTelemetryPath(path, window.location.origin),
+        );
         scope.setTag("api.status", response.status);
         Sentry.captureException(error);
       });
     }
+    if (
+      response.status === 401
+      && error.code === "UNAUTHORIZED"
+      && customerSessionSnapshot !== undefined
+    ) {
+      publishCustomerSessionExpired(customerSessionSnapshot);
+    }
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
     throw error;
   }
 
+  if (customerSessionSnapshot) {
+    requireCurrentCustomerSession(customerSessionSnapshot);
+  }
   if (response.status === 204 || response.headers.get("content-length") === "0") {
     return undefined as T;
   }
 
-  return (await response.json()) as T;
+  const responseContentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (responseContentType.startsWith("image/")) {
+    const blob = await response.blob();
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    return blob as T;
+  }
+
+  let responseBody: T;
+  try {
+    responseBody = (await response.json()) as T;
+  } catch (error) {
+    if (customerSessionSnapshot) {
+      requireCurrentCustomerSession(customerSessionSnapshot);
+    }
+    throw error;
+  }
+  if (customerSessionSnapshot) {
+    requireCurrentCustomerSession(customerSessionSnapshot);
+  }
+  return responseBody;
 }

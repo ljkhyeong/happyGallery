@@ -3,12 +3,14 @@
 **날짜**: 2026-03-06  
 **상태**: Accepted
 
+**갱신**: 2026-08-08
+
 ---
 
 ## 컨텍스트
 
-주문 거절/자동환불/예약 취소 흐름에서 환불 호출이 실패하면 `refunds`에 `FAILED` 이력을 남겨
-운영자가 재시도할 수 있어야 한다.
+주문 거절/자동환불/예약 취소 흐름에서 환불 호출이 실패하거나 결과를 알 수 없더라도
+`refunds`에 상태를 남겨 자동 복구하거나 운영자가 재처리할 수 있어야 한다.
 
 외부 PG 환불 호출은 네트워크 지연과 타임아웃 가능성이 있으므로 예약/주문/8회권 상태 변경을 수행하는
 부모 트랜잭션 안에서 실행하면 안 된다. `NOT_SUPPORTED`로 트랜잭션을 suspend하는 방식도 부모
@@ -19,18 +21,44 @@
 ## 결정 사항
 
 - 환불 실행/이력 저장 로직을 `RefundExecutionService`로 분리한다.
-- 환불 요청 레코드 생성은 호출 유스케이스의 부모 트랜잭션에 참여한다.
+- 환불 요청 레코드 생성은 `Propagation.MANDATORY`로 호출 유스케이스의 부모 트랜잭션에 참여한다.
   - `requestOrderRefund(orderId, amount, paymentKey)`
   - `requestBookingRefund(bookingId, amount)`
   - `requestPassRefund(passPurchaseId, amount, paymentKey)`
-- `RefundExecutionService`는 부모 트랜잭션이 커밋된 뒤 `refundExecutor`에서 PG 환불 API를 호출한다.
-- PG 환불 API 호출 전 입력 조회와 호출 후 결과 업데이트만 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
+  - `requestPaymentAttemptRefund(paymentAttemptId, amount, paymentKey)`
+- `RefundExecutionService`는 환불 요청을 저장한 뒤 `RefundExecutionRequestedEvent`를 발행한다.
+- `RefundExecutionEventListener`는 `@TransactionalEventListener(AFTER_COMMIT)`과
+  `@Async("refundExecutor")`로 부모 트랜잭션 커밋 뒤 PG 환불 실행을 시작한다.
+- `RefundDispatcher`는 `Propagation.NEVER`로 실행되어 PG 환불 API를 활성 DB 트랜잭션 밖에서만 호출한다.
+- PG 환불 API 호출 전 비관적 잠금으로 실행권을 선점하고, 호출 후 선점 토큰이 일치하는 결과만 저장한다. 선점과 결과 업데이트는 각각 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
   단, 원결제 `paymentKey`가 없어 PG 호출 자체가 불가능한 경우에는 입력 조회 트랜잭션 안에서 즉시 `FAILED`로 저장한다.
 - 부모 트랜잭션이 롤백되면 환불 요청 레코드와 PG 환불 호출도 발생하지 않는다.
-- PG 호출 실패는 커밋된 환불 요청 레코드를 `FAILED`로 갱신해 운영자 재시도 대상으로 남긴다.
-- 재시도 호출이 이미 트랜잭션 안에서 발생하면 커밋 이후 실행으로 예약하고, 트랜잭션이 없으면 즉시 실행한다.
-- `Refund`는 `bookingId`/`orderId`/`passPurchaseId`를 모두 id-only 참조로 저장한다. 환불 이력은 재시도·운영 추적용 레코드이며,
+- 환불 상태는 `REQUESTED -> PROCESSING -> SUCCEEDED | FAILED | RETRYABLE | RECONCILIATION_REQUIRED`로 관리한다.
+  - `FAILED`: PG가 명시적으로 거절했거나 `paymentKey`가 없어 자동 재처리가 의미 없음
+  - `RETRYABLE`: 큐 거절·서킷 오픈·명시적 일시 오류처럼 PG 호출을 안전하게 다시 실행할 수 있음
+  - `RECONCILIATION_REQUIRED`: 타임아웃·통신 단절처럼 PG 반영 여부를 알 수 없음
+- `RECONCILIATION_REQUIRED`는 취소 API를 곧바로 다시 호출하지 않는다. 다음 선점은
+  `PaymentPort.lookupRefund(paymentKey, amount, idempotencyKey)`로 Toss 결제 상태와 취소 내역을 먼저 조회한다.
+  - 취소 요청의 `cancelReason`에 환불 멱등키를 포함한다. 같은 결제에서 같은 금액의 부분 취소가 여러 건 존재해도 해당 멱등키의 취소만 현재 환불 결과로 인정한다.
+  - 취소 사유 멱등키와 요청 금액이 일치하고 취소가 `DONE`이며 `transactionKey`가 있고 결제 상태가 `CANCELED` 또는 `PARTIAL_CANCELED`이면 `SUCCEEDED`로 확정한다.
+  - 해당 멱등키의 취소가 없고 결제 상태가 미취소로 명확하면 `NOT_REFUNDED`로 판단해 `RETRYABLE`로 돌린다. 다음 실행부터 최초 멱등키로 취소 API를 호출한다.
+  - 식별자·금액·상태가 모순되거나 취소 거래 식별자가 없으면 `REVIEW_REQUIRED`, 조회 통신 실패는 `UNAVAILABLE`로 보고 `RECONCILIATION_REQUIRED`를 유지한다.
+  - 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`를 다시 검증한 뒤에만 성공 결과를 저장한다.
+- 취소·거절·8회권 환불과 관리자 미수령 예외 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
+- 고객은 기존 소유권 검증을 통과한 예약·주문 목록·상세에서 환불 `amount`, `status`만 확인하며 실패 사유·시도 횟수를 노출하지 않는다. 회원 8회권 환불 접수 응답은 후속 상태 조회를 위해 `refundId`를 반환한다.
+- 운영자는 시작 응답의 `refundId`와 `GET /api/v1/admin/refunds/{refundId}`로 전체 상태를 조회한다. 수동 재시도 응답도 PG 호출 후 실제 저장 상태를 반환한다.
+- 프론트 고객 상세는 `REQUESTED`, `PROCESSING`을 짧게 폴링하고 자동 복구 대상인 `RETRYABLE`, `RECONCILIATION_REQUIRED`는 간격을 늘려 추적한다. 관리자 시작 화면은 `REQUESTED`, `PROCESSING`만 추적하고 조치 필요 상태는 결과 기반 알림과 실패 목록으로 전환한다.
+- `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 복구한다. 복구 호출도 최초 멱등키를 재사용한다.
+- 복구 선점 시 `last_recovery_at`을 갱신하고 이 값이 없거나 가장 오래된 후보부터 조회한다. 반복 실패하는 앞 10건도 다음 주기에는 뒤로 이동하므로 신규·후순위 환불이 영구히 굶지 않는다.
+- 복구 배치의 항목 성공은 dispatcher 호출 완료가 아니라 저장된 환불 상태가 `SUCCEEDED`에 도달한 경우만 뜻한다. 다른 실행이 이미 선점한 `PROCESSING`은 스킵하고, PG 시도 뒤 `FAILED`·`RETRYABLE`·`RECONCILIATION_REQUIRED`로 끝난 항목은 부분 실패로 집계한다.
+- 운영자 재시도는 `Propagation.NEVER` 경계에서 즉시 실행해 HTTP 응답 전에 성공 또는 재실패 상태를 확정한다.
+- `Refund`는 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나를 id-only 참조로 저장한다. 주문 클레임은 원주문과 클레임 ID를 함께 보존한다. 환불 이력은 재시도·운영 추적용 레코드이며,
   예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
+- 환불 생성 시 UUID 멱등키를 저장하고 최초 PG 호출과 모든 재시도에서 동일하게 사용한다.
+- 환불 거래 식별자 `refund_transaction_key`와 요청 식별자 `idempotency_key`는 각각 DB UNIQUE로 보장한다.
+- `PaymentPort` 성공 결과와 `Refund.markSucceeded`는 공백이 아닌 `refund_transaction_key`를 각각 입구와 최종 상태 전이에서 검증한다. 외부 구현이 잘못된 성공 결과를 반환하면 성공 저장 대신 `RECONCILIATION_REQUIRED`로 격리한다.
+- 예약·직접 주문·주문 클레임·8회권·결제 시도 보상 source는 각각 한 환불 요청만 가진다. 직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 보장한다. 재시도는 새 행이 아니라 기존 환불 행과 멱등키를 사용한다.
+- 부분·분할 환불을 도입할 때는 source UNIQUE와 환불 금액 모델을 함께 재설계한다.
 
 ---
 
@@ -40,22 +68,33 @@
 |------|------|
 | 장점 | 외부 PG 호출 중 부모 트랜잭션과 그 커넥션을 점유하지 않는다 |
 | 장점 | 부모 트랜잭션 롤백 시 로컬 상태와 맞지 않는 외부 환불 호출이 발생하지 않는다 |
-| 장점 | PG 실패는 커밋된 환불 요청 이력에 `FAILED`로 남아 재시도 가능하다 |
+| 장점 | 실행 이벤트 유실이나 인스턴스 중단 뒤에도 커밋된 환불 요청을 자동 복구한다 |
+| 장점 | 명시적 실패와 결과 불명을 구분해 성공한 환불을 실패로 오판하지 않는다 |
+| 장점 | 타임아웃 뒤 PG 조회로 실제 취소 결과를 화해한 다음에만 취소 재호출 여부를 결정한다 |
 | 장점 | 운영자 재시도 API(`/api/v1/admin/refunds/failed`, `/retry`) 신뢰성이 올라간다 |
 | 단점 | 환불 요청 API 응답 시점에는 실제 PG 결과가 아직 `REQUESTED`일 수 있다 |
-| 대응 | 고객/운영자 알림과 실패 목록은 PG 결과 업데이트 이후 상태를 기준으로 처리한다 |
+| 대응 | 결과 기반 알림, 소유권이 검증된 고객 상세, 관리자 상태 조회·실패 목록으로 실제 PG 상태를 확인한다 |
 
 ---
 
 ## 구현 반영
 
-- `application/payment/RefundExecutionService`는 커밋 이후 PG 호출 스케줄링과 PG 호출을 담당
+- `application/payment/RefundExecutionService`는 환불 요청 저장과 실행 이벤트 발행을 담당
+- `application/payment/RefundExecutionEventListener`는 커밋 후 `refundExecutor` 실행을 담당
+- `application/payment/RefundDispatcher`는 트랜잭션 밖 PG 호출과 결과 반영 흐름을 담당
 - `application/payment/RefundTransactionService`는 `REQUIRES_NEW`가 필요한 PG 실행 준비·재시도 검증·결과 업데이트를 어노테이션 트랜잭션으로 담당
-- 응답 반환용 단순 조회인 `find`는 호출 중인 트랜잭션이 있으면 참여하는 `readOnly` 기본 전파를 사용
-- `paymentKey` 누락처럼 PG 호출 전 확정 가능한 실패는 `prepareRefundCall` 안에서 조회와 `FAILED` 저장을 한 트랜잭션으로 처리
+- `paymentKey` 누락처럼 PG 호출 전 확정 가능한 실패는 `claimRefundCall` 안에서 조회와 `FAILED` 저장을 한 트랜잭션으로 처리
+- `DefaultRefundRecoveryService`와 `BatchScheduler`는 미완료 환불을 주기적으로 복구
+- 상태별 미완료 건수와 처리 기준 시각(`REQUESTED=created_at`, `PROCESSING=processing_at`, `RETRYABLE/RECONCILIATION_REQUIRED=next_attempt_at`, `FAILED=updated_at`)을 DB에서 집계한다. 미래 재시도 시각의 age는 0으로 두고 실제 처리 지연과 운영자 조치 필요 backlog만 Prometheus 경보로 감시
+- `DefaultRefundQueryService`와 `AdminRefundController`는 관리자 환불 단건 상태 조회를 담당
+- 예약·주문 상세 응답은 소유권 검증 후 고객용 `amount`, `status`만 투영
+- 프론트 고객 상세와 관리자 환불 시작 화면은 `REQUESTED`, `PROCESSING` 동안 상태를 재조회
+- `V43__harden_refund_recovery.sql`은 선점 토큰, 시도 횟수, 다음 시각, 낙관적 잠금 컬럼과 복구 인덱스를 추가
+- `V89__harden_refund_identity_and_recovery.sql`은 환불 거래 식별자 UNIQUE와 복구 후보 순환 시각·인덱스를 추가
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
 - `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임
+- PG 승인 후 도메인 생성 실패 보상 → `RefundExecutionService` 위임
 - 부모 롤백 시 PG 호출/환불 이력 미생성 보장 테스트 추가:
   - `RefundExecutionServiceUseCaseIT`
 - 커밋 이후 별도 executor에서 PG 호출 실행 보장 테스트 추가:

@@ -11,22 +11,32 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface InventoryRepository extends JpaRepository<Inventory, Long>, InventoryReaderPort, InventoryStorePort {
+public interface InventoryRepository extends JpaRepository<Inventory, Long>,
+        InventoryReaderPort,
+        InventoryStorePort {
 
-    @Override Inventory save(Inventory inventory);
+    @Override
+    <S extends Inventory> S save(S inventory);
+
+    @Override
+    <S extends Inventory> List<S> saveAll(Iterable<S> inventories);
 
     /** productId로 재고 조회 (읽기용) */
-    Optional<Inventory> findByProductId(Long productId);
+    @Override Optional<Inventory> findByProductId(Long productId);
 
     /** 상품 ID 목록으로 재고 일괄 조회 */
-    List<Inventory> findByProductIdIn(List<Long> productIds);
+    @Override List<Inventory> findByProductIdIn(List<Long> productIds);
 
     /**
-     * 비관적 쓰기 락 — 재고 차감용. 반드시 트랜잭션 안에서 호출해야 한다.
+     * 비관적 쓰기 락 — 재고 차감/복구용. 반드시 트랜잭션 안에서 호출해야 한다.
      *
-     * <p>단일 작품 중복 판매 방지를 위해 {@code SELECT ... FOR UPDATE}로 row를 잠근다.
+     * <p>여러 상품은 productId 오름차순으로 한 번에 잠가 교착 위험과 반복 조회를 줄인다.
      */
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT i FROM Inventory i WHERE i.productId = :productId")
-    Optional<Inventory> findByProductIdWithLock(@Param("productId") Long productId);
+    @Query("SELECT i FROM Inventory i WHERE i.productId IN :productIds ORDER BY i.productId")
+    List<Inventory> findByProductIdInWithLock(@Param("productIds") List<Long> productIds);
+
+    @Override
+    void deleteById(Long inventoryId);
 }

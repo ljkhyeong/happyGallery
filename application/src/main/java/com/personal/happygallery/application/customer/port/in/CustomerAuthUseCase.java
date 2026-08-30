@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.customer.port.in;
 
+import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.user.User;
 import java.util.Optional;
 
@@ -11,7 +12,12 @@ import java.util.Optional;
  */
 public interface CustomerAuthUseCase {
 
-    record SignupCommand(String email, String rawPassword, String name, String phone) {}
+    record SignupCommand(String email,
+                         String rawPassword,
+                         String name,
+                         String phone,
+                         String verificationCode,
+                         PolicyAcceptance policyAcceptance) {}
 
     record LoginCommand(String email, String rawPassword) {}
 

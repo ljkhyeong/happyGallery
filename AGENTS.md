@@ -32,9 +32,11 @@
 - `adapter-in-web/`: 컨트롤러, 필터, resolver, 웹 전용 properties
 - `adapter-out-persistence/`: JPA repository, MyBatis mapper/adapter
 - `adapter-out-external/`: 결제, 알림, OAuth, Redis 세션, HTTP pool
-- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, `java-test-fixtures` 기반 공용 test support
+- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, application/domain 전용 공용 test fixture
+- `test-support/`: 웹 DTO와 영속성 repository에 의존하는 통합 테스트 fixture. 테스트 classpath에서만 사용
 - `domain/`: 엔티티, 정책 enum, 도메인 예외, 핵심 규칙
-- 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyPolicyTest`로 강제)
+- `frontend/src/generated/api/`: OpenAPI에서 생성한 TypeScript API client와 DTO, 수동 편집 금지
+- 운영 코드 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyPolicyTest`로 강제)
 
 ## 빌드, 테스트, 개발 명령어
 - 모든 명령은 저장소 루트 + Gradle Wrapper 기준
@@ -44,18 +46,27 @@
   - `./gradlew :bootstrap:bootRun`
   - `./gradlew :application:useCaseTest`
   - `./gradlew :application:policyTest`
+  - `./gradlew --no-daemon :adapter-in-web:openapi3`
+  - `cd frontend && npm run api:generate`
+  - `cd frontend && npm run api:check`
+  - `cd frontend && npm run lint`
+  - `cd frontend && npm run audit:dependencies`
   - `docker compose up -d`
 - Testcontainers 계열은 기본적으로 `./gradlew --no-daemon ...`
 - Gradle JVM, 원격 GitHub/git, Docker, Playwright는 필요 시 바로 권한 상승 실행
 - 기본 프로필은 `local`, 헬스 체크는 `http://localhost:8080/actuator/health`
 
 ## 코딩 스타일 및 테스트 기준
-- Java 21, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
+- Java 25, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
 - 클래스 `UpperCamelCase`, 메서드/필드 `lowerCamelCase`, DTO는 `Request`/`Response`
 - 컨트롤러는 검증/변환, 흐름은 서비스, 정책은 도메인에 둔다
 - 리팩토링할 때는 수정 대상 주변만 보지 말고 `rg`로 동일/유사 패턴이 코드베이스에 더 있는지 먼저 확인한다.
 - 동일한 리팩토링 이유가 성립하는 중복 패턴은 한 번에 같이 정리한다. 의도적으로 남겨야 하면 왜 남겼는지 답변이나 문서에 명시한다.
 - import로 충분한 타입은 FQCN(`@org...`, `@jakarta...`)으로 본문에 직접 쓰지 않는다. 어노테이션도 일반 import를 사용하고, FQCN 표기는 이름 충돌을 피할 수 없는 예외적인 경우에만 허용한다.
+- application port 메서드를 adapter에서 명시적으로 재선언하거나 구현하면 `@Override`를 붙인다. adapter 전용 신규 쿼리에는 붙이지 않는다.
+- Controller/웹 DTO 계약을 바꾸면 REST Docs, `docs/PRD/0004_API_계약/openapi3.json`, 생성 TypeScript client를 같은 커밋에서 갱신한다.
+- OpenAPI 연동 엔드포인트는 고유하고 안정적인 `operationId`, 필수값, nullable, enum을 명세에 표현한다.
+- `frontend/src/generated/api/`는 직접 편집하지 않는다. 연동된 서버 DTO는 생성 타입을 사용하고 화면 전용 form/view model만 수동 타입으로 둔다.
 - 테스트는 JUnit 5
 - 정책 테스트는 `*PolicyTest`, 통합 흐름은 `@UseCaseIT` / `*UseCaseIT`
 - 모든 테스트 메서드에 `@DisplayName` 한글 문장 사용
@@ -91,6 +102,7 @@
 - 커밋 메시지는 `Feat:`, `Refactor:`, `Fix:`, `Test:`, `Docs:`, `Chore:`
 - 커밋 메시지 prefix 뒤 본문은 특별한 이유가 없으면 한글로, 변경 내용을 드러내는 구체적인 내용으로 작성
 - 커밋은 한 변경 의도에 집중해 작게 유지
+- 작업을 마치면 변경을 의도별로 분류해 커밋까지 완료하고 작업트리를 깨끗하게 정리한다. 원격 푸시는 사용자가 요청한 경우에만 수행한다.
 - 작업 브랜치는 `codex/work-*`
 - 기본 흐름: `codex/work-*` → `codexReview` Draft PR → `codexReview` merge → `main` PR → `main` merge
 - PR 제목/본문은 특별한 이유가 없으면 한글

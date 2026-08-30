@@ -3,7 +3,6 @@ package com.personal.happygallery.application.notice.port.out;
 import com.personal.happygallery.domain.notice.Notice;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.Pageable;
 
 public interface NoticeReaderPort {
 
@@ -11,5 +10,5 @@ public interface NoticeReaderPort {
 
     List<Notice> findAllByOrderByPinnedDescCreatedAtDesc();
 
-    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(Pageable pageable);
+    List<Notice> findAllByOrderByPinnedDescCreatedAtDesc(int limit);
 }

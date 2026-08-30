@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Stack } from "react-bootstrap";
 import { claimGuestRecords, getGuestClaimPreview, verifyGuestClaimPhone } from "./api";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
-import { queryClient } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
@@ -27,13 +27,14 @@ export function GuestClaimModal({
   monitoringSource,
 }: Props) {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const openTrackedRef = useRef(false);
   const [previewOverride, setPreviewOverride] = useState<Awaited<ReturnType<typeof getGuestClaimPreview>> | null>(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState<number[]>([]);
   const [selectedBookingIds, setSelectedBookingIds] = useState<number[]>([]);
 
   const previewQuery = useQuery({
-    queryKey: ["my", "guest-claims", "preview"],
+    queryKey: queryKeys.member.guestClaimPreview,
     queryFn: getGuestClaimPreview,
     enabled: show && phoneVerified,
   });
@@ -55,27 +56,35 @@ export function GuestClaimModal({
   }, [preview]);
 
   const verifyMutation = useMutation({
-    mutationFn: (verificationCode: string) => verifyGuestClaimPhone(verificationCode),
-    onSuccess: async (data) => {
-      setPreviewOverride(data);
-      await onPhoneVerified();
-    },
+    mutationFn: (verificationCode: string) =>
+      runForCurrentCustomer(
+        () => verifyGuestClaimPhone(verificationCode),
+        async (data, requireCurrent) => {
+          setPreviewOverride(data);
+          await onPhoneVerified();
+          requireCurrent();
+        },
+      ),
   });
 
   const claimMutation = useMutation({
-    mutationFn: () => claimGuestRecords(selectedOrderIds, selectedBookingIds),
-    onSuccess: async (data) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["my", "orders"] }),
-        queryClient.invalidateQueries({ queryKey: ["my", "bookings"] }),
-        queryClient.invalidateQueries({ queryKey: ["my", "guest-claims", "preview"] }),
-        onPhoneVerified(),
-      ]);
-      toast.show(
-        `비회원 이력을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건`,
-      );
-      onClose();
-    },
+    mutationFn: () =>
+      runForCurrentCustomer(
+        () => claimGuestRecords(selectedOrderIds, selectedBookingIds),
+        async (data, requireCurrent) => {
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.member.bookings.all }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.member.guestClaimPreview }),
+            onPhoneVerified(),
+          ]);
+          requireCurrent();
+          toast.show(
+            `비회원 이력을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건`,
+          );
+          onClose();
+        },
+      ),
   });
 
   function toggle(selected: number[], id: number, setter: (value: number[]) => void) {
@@ -111,9 +120,14 @@ export function GuestClaimModal({
   }, [monitoringSource, needsPhoneVerification, show]);
 
   return (
-    <Modal show={show} onHide={onClose} centered>
+    <Modal
+      show={show}
+      aria-labelledby="guest-claim-title"
+      onHide={onClose}
+      centered
+    >
       <Modal.Header closeButton>
-        <Modal.Title className="fs-6">비회원 이력 가져오기</Modal.Title>
+        <Modal.Title id="guest-claim-title" className="fs-6">비회원 이력 가져오기</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted-soft small mb-3">
@@ -123,6 +137,7 @@ export function GuestClaimModal({
 
         {needsPhoneVerification ? (
           <PhoneVerificationStep
+            purpose="GUEST_CLAIM"
             title="휴대폰 재인증"
             description="회원 조회는 로그인으로 가능하지만, 기존 비회원 이력을 가져오려면 같은 번호인지 한 번 더 확인합니다."
             initialPhone={normalizePhone(phone)}
@@ -168,7 +183,7 @@ export function GuestClaimModal({
                             <div className="small">
                               <div className="fw-semibold">주문 #{order.orderId}</div>
                               <div className="text-muted-soft">
-                                {order.status} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
+                                {getStatusLabel(order.status)} · {formatKRW(order.totalAmount)} · {formatDateTime(order.createdAt)}
                               </div>
                             </div>
                           }
@@ -200,7 +215,7 @@ export function GuestClaimModal({
                                 {booking.className} #{booking.bookingId}
                               </div>
                               <div className="text-muted-soft">
-                                {booking.status} · {formatDateTime(booking.startAt)}
+                                {getStatusLabel(booking.status)} · {formatDateTime(booking.startAt)}
                               </div>
                             </div>
                           }

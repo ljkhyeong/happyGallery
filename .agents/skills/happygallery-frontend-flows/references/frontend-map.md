@@ -50,6 +50,10 @@
   Toss return routes and confirm result handling.
 - `frontend/src/features/monitoring/api.ts`
   Best-effort client event telemetry for guest/member conversion flows.
+- `frontend/src/features/refund/RefundProgressAlert.tsx`
+  Customer-safe refund progress rendering for booking and order details.
+- `frontend/src/features/admin-refund/useAdminRefundPolling.ts`
+  Admin polling for refund requests initiated from order and pass actions.
 
 ## Stable frontend conventions
 
@@ -58,6 +62,7 @@
 - Show request failures through `ErrorAlert` unless the interaction is toast-only.
 - Use shared toast helpers for success and short-lived feedback.
 - Keep page-level layout in page components and detailed form logic in feature components.
+- Do not present an asynchronous refund request as completed. Poll `REQUESTED` and `PROCESSING` quickly, back off for stuck or auto-recoverable states, and use the server `Refund` projection as the source of truth.
 - Preserve the Pretendard plus Bootstrap styling direction already in `frontend/src/styles`.
 
 ## Admin UI rules
@@ -88,7 +93,7 @@
 - `/my/passes`
 - `/my/inquiries`
 - `/my/inquiries/new`
-- `/auth/callback/google`
+- `/auth/callback/:provider`
 - `/login`
 - `/signup`
 - `/admin`

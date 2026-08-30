@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,7 +17,6 @@ import org.springframework.stereotype.Service;
  * 각 주문에 대해 재고를 복구하고 PG 환불을 호출한 뒤
  * 상태를 {@link OrderStatus#AUTO_REFUND_TIMEOUT}으로 전이한다.
  *
- * <p>{@code @Scheduled} 연결은 §10에서 수행한다. 현재는 서비스만 구현됨.
  */
 @Service
 public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchUseCase {
@@ -47,12 +45,13 @@ public class DefaultOrderAutoRefundBatchService implements OrderAutoRefundBatchU
      */
     private static final int PAGE_SIZE = 100;
 
+    @Override
     public BatchResult autoRefundExpired() {
         LocalDateTime now = LocalDateTime.now(clock);
 
-        return BatchExecutor.executePaginated(
-                () -> orderReader.findByStatusAndApprovalDeadlineAtBefore(
-                        OrderStatus.PAID_APPROVAL_PENDING, now, PageRequest.ofSize(PAGE_SIZE)),
+        return BatchExecutor.executeByIdCursor(
+                afterId -> orderReader.findPaidApprovalPendingBeforeAfterId(
+                        now, afterId, PAGE_SIZE),
                 Order::getId,
                 order -> orderAutoRefundProcessor.process(order.getId(), now),
                 "주문 자동환불");

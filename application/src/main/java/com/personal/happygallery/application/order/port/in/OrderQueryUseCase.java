@@ -1,8 +1,12 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.order.ShipmentTrackingEvent;
 import java.util.List;
 
 /**
@@ -12,13 +16,23 @@ import java.util.List;
  */
 public interface OrderQueryUseCase {
 
-    record OrderDetail(Order order, List<OrderItem> items, Fulfillment fulfillment) {
+    record OrderDetail(
+            Order order,
+            List<OrderItem> items,
+            Fulfillment fulfillment,
+            ShippingAddress shippingAddress,
+            List<ShipmentTrackingEvent> trackingEvents,
+            Refund refund
+    ) {
         public OrderDetail {
             items = List.copyOf(items);
+            trackingEvents = List.copyOf(trackingEvents);
         }
     }
 
     List<Order> listMyOrders(Long userId);
+
+    CursorPage<Order> listMyOrders(Long userId, String cursor, int size);
 
     OrderDetail findMyOrder(Long id, Long userId);
 

@@ -2,48 +2,35 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.notification.port.out.NotificationLogReaderPort;
+import com.personal.happygallery.application.notification.NotificationOutboxService;
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
-import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.PickupReminderTarget;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
-import com.personal.happygallery.domain.order.Fulfillment;
-import com.personal.happygallery.domain.order.Order;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 /**
  * 픽업 마감 2시간 전 알림 배치 서비스 (PRD §3.3).
  *
  * <p>매시간 실행되며, {@code pickup_deadline_at}이 now~now+2h 범위인
- * {@code PICKUP_READY} 주문에 알림을 발송한다. 24시간 내 중복 발송을 방지한다.
+ * {@code PICKUP_READY} 주문에 알림을 발송한다. 주문 ID 기반 outbox 멱등키로 중복을 방지한다.
  */
 @Service
 public class DefaultPickupDeadlineReminderBatchService implements PickupDeadlineReminderBatchUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(DefaultPickupDeadlineReminderBatchService.class);
-
     private final FulfillmentPort fulfillmentPort;
-    private final OrderReaderPort orderReaderPort;
-    private final ApplicationEventPublisher eventPublisher;
-    private final NotificationLogReaderPort notificationLogReader;
+    private final NotificationOutboxService notificationOutboxService;
     private final Clock clock;
 
     public DefaultPickupDeadlineReminderBatchService(FulfillmentPort fulfillmentPort,
-                                                      OrderReaderPort orderReaderPort,
-                                                      ApplicationEventPublisher eventPublisher,
-                                                      NotificationLogReaderPort notificationLogReader,
+                                                      NotificationOutboxService notificationOutboxService,
                                                       Clock clock) {
         this.fulfillmentPort = fulfillmentPort;
-        this.orderReaderPort = orderReaderPort;
-        this.eventPublisher = eventPublisher;
-        this.notificationLogReader = notificationLogReader;
+        this.notificationOutboxService = notificationOutboxService;
         this.clock = clock;
     }
 
@@ -51,42 +38,23 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
     public BatchResult sendPickupDeadlineReminders() {
         LocalDateTime now = LocalDateTime.now(clock);
         LocalDateTime twoHoursLater = now.plusHours(2);
-        List<Fulfillment> candidates = fulfillmentPort.findPickupsApproachingDeadline(now, twoHoursLater);
+        List<PickupReminderTarget> candidates = fulfillmentPort.findPickupReminderTargets(now, twoHoursLater);
 
         return BatchExecutor.execute(candidates,
-                Fulfillment::getOrderId,
-                f -> processReminder(f, now),
+                PickupReminderTarget::orderId,
+                this::processReminder,
                 "픽업 마감 알림");
     }
 
-    private boolean processReminder(Fulfillment fulfillment, LocalDateTime now) {
-        Long orderId = fulfillment.getOrderId();
-        Order order = orderReaderPort.findById(orderId)
-                .orElseThrow(() -> new IllegalStateException("주문 미존재: " + orderId));
-
-        LocalDateTime deduplicationStart = now.minusHours(24);
+    private boolean processReminder(PickupReminderTarget target) {
+        Long orderId = target.orderId();
         NotificationEventType eventType = NotificationEventType.PICKUP_DEADLINE_REMINDER;
 
-        if (order.getUserId() != null) {
-            if (notificationLogReader.existsSentUserNotification(
-                    order.getUserId(), eventType, deduplicationStart, now)) {
-                log.info("픽업 마감 알림 중복 스킵 [orderId={} userId={}]", orderId, order.getUserId());
-                return false;
-            }
-            eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                    order.getUserId(), eventType, "ORDER", orderId));
-        } else if (order.getGuestId() != null) {
-            if (notificationLogReader.existsSentNotification(
-                    order.getGuestId(), eventType, deduplicationStart, now)) {
-                log.info("픽업 마감 알림 중복 스킵 [orderId={} guestId={}]", orderId, order.getGuestId());
-                return false;
-            }
-            eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                    order.getGuestId(), eventType, "ORDER", orderId));
-        } else {
-            log.warn("픽업 마감 알림 대상 없음 [orderId={}]", orderId);
-            return false;
-        }
-        return true;
+        NotificationRequestedEvent event = target.userId() != null
+                ? NotificationRequestedEvent.forUserOncePerAggregate(
+                        target.userId(), eventType, "ORDER", orderId)
+                : NotificationRequestedEvent.forGuestOncePerAggregate(
+                        target.guestId(), eventType, "ORDER", orderId);
+        return notificationOutboxService.enqueue(event);
     }
 }

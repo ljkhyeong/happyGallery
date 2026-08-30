@@ -1,45 +1,80 @@
 # Deploy Map
 
-## Main files
+## Source-of-truth files
 
-- `.github/workflows/deploy.yml`
-- `Dockerfile.deploy`
-- `bootstrap/build.gradle`
-- `frontend/package.json`
-- `README.md`
-- `HANDOFF.md`
-- `docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md`
-- `docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md`
-- `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`
+- Target topology and invariants: `docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md`
+- Current state and local commands: `README.md`
+- Local integration stack: `docker-compose.yml`, `nginx/nginx.conf`
+- Container builds: `Dockerfile`, `Dockerfile.deploy`
+- Application runtime configuration: `bootstrap/src/main/resources/application.yml`, `bootstrap/src/main/resources/application-prod.yml`
+- Graceful shutdown and HTTP limits: ADR-0025 and ADR-0030
+- Forwarded-header and rate-limit behavior: ADR-0017 and ADR-0028
+- Protected data and key requirements: ADR-0036
 
-## GitHub Actions variables and secrets
+AWS Idea-0028, Idea-0029 and Idea-0039 are historical records. There is no current production deploy workflow or Kubernetes manifest. Recheck with `rg --files` before making deployment assumptions.
 
-- Secrets: `AWS_ROLE_TO_ASSUME`, `VITE_SENTRY_DSN`, `VITE_TOSS_CLIENT_KEY`
-- Variables: `ECR_REPOSITORY`, `ECS_CLUSTER`, `ECS_SERVICE`, `S3_BUCKET`, `CLOUDFRONT_DISTRIBUTION_ID`
-- Frontend build env is injected from GitHub Actions secrets for Sentry and Toss.
+## Target topology
+
+```text
+client
+  -> DNS / router / firewall
+  -> single-node k3s Ingress (TLS)
+       -> frontend static content and SPA fallback
+       -> /api/* -> Spring Boot Service -> internal MySQL and Redis Services
+```
+
+Docker Compose remains a development and recovery-diagnosis tool. Its `local` profile, default credentials, and host-published MySQL/Redis/app ports are not a production baseline.
+
+## Kubernetes artifacts still required
+
+- Namespace and resource naming convention
+- Frontend, app, MySQL, and Redis Deployments or StatefulSets and Services
+- Ingress, certificate issuer/certificate, DNS and router/firewall procedure
+- PVC/storage class selection and disk-capacity alerts
+- Secret creation, rotation, recovery-key storage, and access restrictions
+- Immutable image build, local registry or k3s import, rollout, and rollback procedure
+- MySQL backup schedule, off-device retention, integrity check, and restore drill
+- Startup/readiness/liveness probes and termination grace
+- Monitoring access and alert delivery without publishing management ports
 
 ## Runtime environment variables to remember
 
-- Database: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`
-- Redis/Valkey: `REDIS_HOST`, `REDIS_PORT`, `SPRING_DATA_REDIS_SSL_ENABLED=true`
-- App health: `MANAGEMENT_PORT=8080`
+- Profile and network: `SPRING_PROFILES_ACTIVE=prod`, `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`
+- Protected data: `ENCRYPT_KEY`, `HMAC_KEY`; preserve recoverable copies outside the laptop
 - Admin bootstrap: `ADMIN_SETUP_TOKEN` only during first setup
-- Payment: `TOSS_SECRET_KEY`, `PASS_TOTAL_PRICE`, and optional `TOSS_*` HTTP tuning (`TOSS_BASE_URL`, `TOSS_TIMEOUT_MILLIS`, `TOSS_CONNECT_TIMEOUT_MILLIS`, `TOSS_ACQUIRE_TIMEOUT_MILLIS`, `TOSS_MAX_CONNECTIONS`, `TOSS_KEEP_ALIVE_MILLIS`)
-- Notification: Kakao/SMS keys and sender values
+- Payment: `TOSS_SECRET_KEY`, `VITE_TOSS_CLIENT_KEY`, `PASS_TOTAL_PRICE`, and optional `TOSS_*` HTTP tuning
+- OAuth and notifications: Google/Naver, Kakao/SMS credentials and sender values
+- Observability: Sentry, Grafana and alert delivery values
+- Rate limiting: keep forwarded-header trust aligned with the controlled ingress chain
+
+Do not place production values in Git, images, Compose defaults, or plain Kubernetes manifests. Kubernetes Secret data is only encoded unless an additional encryption mechanism is configured.
+
+## Pre-deployment checklist
+
+1. Confirm the laptop architecture, free disk, memory, power and network state.
+2. Confirm the exact Git commit, immutable image tag/digest, image delivery method, and previous rollback image.
+3. Validate manifests and confirm no secret values are committed or rendered into logs.
+4. Confirm a recent off-device backup, backup integrity, and recovery access to encryption/HMAC keys.
+5. Confirm node readiness, PVC binding, probes, termination grace, Services, Ingress and certificate state.
+6. Confirm only ingress HTTP/HTTPS is externally reachable and the app/data/management ports are private.
+7. Apply the rollout, wait for readiness, inspect events/logs, then smoke test SPA routes and API JSON responses.
+8. Verify the real client IP and HTTPS scheme through ingress, session cookies, CSRF, rate limits, monitoring and rollback readiness.
 
 ## Common troubleshooting order
 
-1. Check whether the new image/task definition actually reached ECS.
-2. Check stopped task reason and application logs before changing ALB/CloudFront.
-3. If target group says timeout, distinguish app startup failure from ALB-to-task connectivity and health endpoint latency.
-4. If CloudFront returns 504, verify origin protocol policy and ALB listener ports.
-5. If CloudFront returns S3 `AccessDenied`, verify S3 objects, default root object, OAC, and bucket policy.
-6. If API returns HTML/index instead of JSON, remove global error masking and use API-excluding SPA rewrite behavior.
-7. For DB/Redis timeout, verify actual task ENI security group, target service security group, VPC/subnet, and NACLs.
+1. Check host power, disk, memory, network and k3s service/node health.
+2. Check Deployment/StatefulSet rollout status, pod events, probe failures and application logs.
+3. Check whether the expected image digest reached k3s and whether the pod architecture matches the laptop.
+4. For ingress failures, separate DNS/router/firewall, certificate, Ingress rule, Service endpoint and pod-readiness problems.
+5. If API returns HTML, fix SPA fallback so `/api/*` errors remain JSON.
+6. For incorrect client IP or redirect scheme, inspect each trusted proxy hop and ingress header overwrite behavior before changing the app.
+7. For MySQL/Redis failures, inspect Service endpoints, credentials, MySQL PVC state and disk capacity. Redis recreation invalidates sessions and resets rate-limit counters.
+8. If a rollout fails after Flyway starts, evaluate schema compatibility and backup restore before application rollback.
 
 ## Doc sync checklist
 
-- Architecture or deployment flow: `README.md` and `docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md`
-- CloudFront/S3/ALB topology: `docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md`
-- CI/CD workflow behavior: `docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md`
-- Current production state and known issues: `HANDOFF.md`
+- Durable topology or operational invariant: ADR-0037, or a new ADR when the decision changes
+- Current implementation and operator entrypoint: `README.md`
+- Reverse proxy and forwarded-header contract: ADR-0017 and ADR-0028
+- Active unfinished work only: `HANDOFF.md`; do not duplicate durable deployment guidance there
+- Historical AWS context: preserve Idea-0028, Idea-0029, and Idea-0039 as history rather than rewriting them

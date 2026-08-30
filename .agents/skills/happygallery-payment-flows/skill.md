@@ -15,17 +15,27 @@ description: Repository-specific workflow for payment provider integration, Toss
   - `docs/ADR/0009_예약금_결제_정책/adr.md`
   - `docs/ADR/0018_환불_이력_트랜잭션_분리/adr.md`
   - `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
+  - `docs/ADR/0025_정상_종료와_Executor_정리_정책/adr.md`
   - `docs/ADR/0029_외부_HTTP_클라이언트_풀링_기준선/adr.md`
   - `docs/ADR/0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md`
+  - `docs/ADR/0033_결제_confirm_트랜잭션과_보상_경계/adr.md`
 
 ## Current payment direction
 
 - The runtime PG is Toss Payments directly, not PortOne.
 - Use a prepare/confirm flow: server creates the order id and amount, frontend completes Toss checkout, backend confirms with `paymentKey`, `orderId`, and `amount`.
 - Persist prepare state in `PaymentAttempt` with `PaymentContext` and `PaymentAttemptStatus`.
+- Claim confirm with a short transaction, call the PG outside DB transactions, then persist approval and fulfillment in short transactions.
 - Keep amount tamper checks in `PaymentAttempt.requireConfirmable(expectedAmount)` or the equivalent domain guard.
 - Store confirmed Toss `paymentKey` on the final order, booking, or pass purchase record.
 - Do not keep old direct-create endpoints as aliases when the payment contract changes; backend and frontend should switch together. Treat documented exceptions such as `POST /api/v1/me/cart/checkout` as migration gaps to close, not as the new default.
+
+## Implementation judgment
+
+- Keep prepare, claim, PG call, approval/fulfillment, and compensation visibly separated.
+- Prepare owns external shape and server price resolution; claim owns persisted payload, authenticated actor, and amount invariants; fulfillment consumes the validated snapshot.
+- Let `PaymentAttempt` and `Refund` own transitions. Keep external calls outside DB transactions through declarative propagation and dedicated dispatchers.
+- Let `PaymentResilienceConfig` own CircuitBreaker, TimeLimiter, bounded executor, metrics, and lifecycle.
 
 ## Non-negotiable invariants
 
@@ -33,8 +43,15 @@ description: Repository-specific workflow for payment provider integration, Toss
 - Booking deposit is class price 10%, calculated server-side.
 - Pass purchase amount uses `PASS_TOTAL_PRICE` defaulting to 240000 unless the spec changes.
 - Preserve circuit-breaker and timeout protection around external payment calls, including confirm and refund.
+- Confirm timeout remains retryable with the same `orderId`; refund timeout is result-unknown and enters `RECONCILIATION_REQUIRED`.
 - Keep refund records durable even when PG calls fail.
+- Reuse the prepare `orderId` as confirm idempotency key and each persisted refund idempotency key for every retry.
+- If PG confirm succeeds but fulfillment fails, create a `payment_attempt_id` compensation refund through the existing recovery/admin flow.
 - Do not let PG failures roll back booking cancellation or order rejection flows that must complete locally.
+- Treat `Refund.status` as the single source of truth. Do not copy asynchronous PG state onto booking, order, or pass aggregates.
+- A cancel, reject, or pass-refund response with `REQUESTED` means the local transition and refund request were committed, not that PG refund completed.
+- Expose customer progress only through an ownership-checked booking or order detail projection (`amount`, `status`). Keep `refundId`, failure reasons, and retry metadata admin-only.
+- For admin flows, return `refundId` from the initiating action and query `GET /api/v1/admin/refunds/{refundId}`. Poll only `REQUESTED` and `PROCESSING`; hand action-required states to notifications and the failed-refund workflow. Customer detail may continue auto-recoverable states at a slower interval.
 - Keep `FakePaymentProvider` out of `prod`; prod should use Toss-backed provider.
 - Keep Toss secret values in environment variables, not tracked config.
 - Prefer this skill over order, booking, or pass skills when the main change is the payment boundary itself.
@@ -53,8 +70,8 @@ description: Repository-specific workflow for payment provider integration, Toss
 ## Verification workflow
 
 - Pure payment domain guard/state changes: `./gradlew :application:policyTest`
-- Payment provider boundary changes: `./gradlew :application:test --tests "*PaymentProvider*" --tests "*Toss*" --tests "*CircuitBreaker*"`
-- Payment use case, Flyway, or transaction changes: `./gradlew --no-daemon :application:useCaseTest --tests "*Payment*" --tests "*Order*" --tests "*Booking*" --tests "*Pass*"`
+- Payment provider boundary: target `ResilientPaymentProviderTest` and `TossPaymentsProviderTest`.
+- Payment use case/transaction: start with `PaymentPrepareUseCaseTest` or `PaymentConfirmUseCaseIT`, then add the affected order, booking, pass, or refund class.
 - Payment web contract changes: `./gradlew :adapter-in-web:test --tests "*Payment*"`
 - Frontend checkout changes: `cd frontend && npm run build`; use Playwright for a full checkout browser path when available.
 - Broad payment confidence: combine the smallest relevant backend command with `cd frontend && npm run build` when the user-visible checkout changes.

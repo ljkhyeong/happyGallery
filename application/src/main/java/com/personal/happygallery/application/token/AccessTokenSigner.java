@@ -1,7 +1,9 @@
 package com.personal.happygallery.application.token;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
@@ -15,7 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
  * <p>토큰 형식: {@code base64url(nonce:expiryEpochSeconds).base64url(signature)}
  * <ul>
  *   <li>nonce: 16바이트 랜덤 hex (32자)</li>
- *   <li>DB에는 nonce의 SHA-256 해시를 저장하여 기존 컬럼과 호환</li>
+ *   <li>DB에는 서명 토큰 전체의 SHA-256 해시만 저장</li>
  * </ul>
  */
 public final class AccessTokenSigner {
@@ -43,9 +45,9 @@ public final class AccessTokenSigner {
         String encodedPayload = URL_ENCODER.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         String signature = computeHmac(encodedPayload, hmacSecret);
         String token = encodedPayload + "." + signature;
-        String nonceHash = AccessTokenHasher.hash(nonce);
+        String tokenHash = AccessTokenHasher.hash(token);
 
-        return new SignedToken(token, nonceHash);
+        return new SignedToken(token, tokenHash);
     }
 
     /**
@@ -54,6 +56,9 @@ public final class AccessTokenSigner {
      * @throws InvalidTokenException 서명 불일치, 만료, 형식 오류 시
      */
     public static TokenClaims verify(String token, String hmacSecret, Instant now) {
+        if (token == null) {
+            throw new InvalidTokenException("잘못된 토큰 형식");
+        }
         int dotIndex = token.indexOf('.');
         if (dotIndex < 0) {
             throw new InvalidTokenException("잘못된 토큰 형식");
@@ -62,30 +67,34 @@ public final class AccessTokenSigner {
         String signature = token.substring(dotIndex + 1);
 
         String expectedSignature = computeHmac(encodedPayload, hmacSecret);
-        if (!constantTimeEquals(signature, expectedSignature)) {
+        if (!MessageDigest.isEqual(
+                signature.getBytes(StandardCharsets.UTF_8),
+                expectedSignature.getBytes(StandardCharsets.UTF_8))) {
             throw new InvalidTokenException("토큰 서명 불일치");
         }
 
-        String payload = new String(URL_DECODER.decode(encodedPayload), StandardCharsets.UTF_8);
-        int colonIndex = payload.indexOf(':');
-        if (colonIndex < 0) {
-            throw new InvalidTokenException("잘못된 토큰 페이로드");
-        }
-        String nonce = payload.substring(0, colonIndex);
-        long epochSeconds = Long.parseLong(payload.substring(colonIndex + 1));
-        Instant expiry = Instant.ofEpochSecond(epochSeconds);
+        TokenClaims claims = parseClaims(encodedPayload);
 
-        if (now.isAfter(expiry)) {
+        if (!now.isBefore(claims.expiry())) {
             throw new InvalidTokenException("토큰 만료");
         }
 
-        String nonceHash = AccessTokenHasher.hash(nonce);
-        return new TokenClaims(nonce, nonceHash, expiry);
+        return claims;
     }
 
-    /** 토큰이 서명된 형식인지 (`.` 구분자 포함) 판별한다. */
-    public static boolean isSigned(String token) {
-        return token != null && token.indexOf('.') > 0;
+    private static TokenClaims parseClaims(String encodedPayload) {
+        try {
+            String payload = new String(URL_DECODER.decode(encodedPayload), StandardCharsets.UTF_8);
+            int colonIndex = payload.indexOf(':');
+            if (colonIndex < 0) {
+                throw new InvalidTokenException("잘못된 토큰 페이로드");
+            }
+            String nonce = payload.substring(0, colonIndex);
+            long epochSeconds = Long.parseLong(payload.substring(colonIndex + 1));
+            return new TokenClaims(nonce, Instant.ofEpochSecond(epochSeconds));
+        } catch (IllegalArgumentException | DateTimeException exception) {
+            throw new InvalidTokenException("잘못된 토큰 페이로드");
+        }
     }
 
     private static String computeHmac(String data, String hmacSecret) {
@@ -100,18 +109,7 @@ public final class AccessTokenSigner {
         }
     }
 
-    private static boolean constantTimeEquals(String a, String b) {
-        byte[] aBytes = a.getBytes(StandardCharsets.UTF_8);
-        byte[] bBytes = b.getBytes(StandardCharsets.UTF_8);
-        if (aBytes.length != bBytes.length) return false;
-        int result = 0;
-        for (int i = 0; i < aBytes.length; i++) {
-            result |= aBytes[i] ^ bBytes[i];
-        }
-        return result == 0;
-    }
+    public record SignedToken(String rawToken, String tokenHash) {}
 
-    public record SignedToken(String rawToken, String nonceHash) {}
-
-    public record TokenClaims(String nonce, String nonceHash, Instant expiry) {}
+    public record TokenClaims(String nonce, Instant expiry) {}
 }

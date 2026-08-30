@@ -13,14 +13,18 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
   const [token, setToken] = useState(initialToken ?? "");
   const [touched, setTouched] = useState({ bookingId: false, token: false });
 
-  const valid = Number(bookingId) > 0 && token.trim().length > 0;
+  const parsedBookingId = Number(bookingId);
+  const normalizedToken = token.trim();
+  const validBookingId = Number.isSafeInteger(parsedBookingId) && parsedBookingId > 0;
+  const valid = validBookingId && normalizedToken.length > 0;
 
   return (
     <Form
+      aria-busy={isLoading}
       onSubmit={(e) => {
         e.preventDefault();
         setTouched({ bookingId: true, token: true });
-        if (valid) onLookup(Number(bookingId), token.trim());
+        if (valid) onLookup(parsedBookingId, normalizedToken);
       }}
     >
       <Row className="g-2 align-items-end">
@@ -33,26 +37,34 @@ export function BookingLookupForm({ onLookup, isLoading, initialBookingId, initi
               value={bookingId}
               onChange={(e) => setBookingId(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, bookingId: true }))}
-              placeholder="예약 ID"
-              isInvalid={touched.bookingId && !(Number(bookingId) > 0)}
+              placeholder="예약 번호"
+              isInvalid={touched.bookingId && !validBookingId}
+              aria-invalid={touched.bookingId && !validBookingId}
+              aria-describedby={
+                touched.bookingId && !validBookingId ? "booking-lookup-id-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
+            <Form.Control.Feedback id="booking-lookup-id-error" type="invalid">
               유효한 예약 번호를 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>
         <Col xs={12} sm={5}>
           <Form.Group controlId="booking-lookup-token">
-            <Form.Label>인증 토큰</Form.Label>
+            <Form.Label>조회 코드</Form.Label>
             <Form.Control
               value={token}
               onChange={(e) => setToken(e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, token: true }))}
-              placeholder="예약 시 발급된 토큰"
-              isInvalid={touched.token && !token.trim()}
+              placeholder="예약 시 발급된 조회 코드"
+              isInvalid={touched.token && !normalizedToken}
+              aria-invalid={touched.token && !normalizedToken}
+              aria-describedby={
+                touched.token && !normalizedToken ? "booking-lookup-token-error" : undefined
+              }
             />
-            <Form.Control.Feedback type="invalid">
-              인증 토큰을 입력해 주세요.
+            <Form.Control.Feedback id="booking-lookup-token-error" type="invalid">
+              조회 코드를 입력해 주세요.
             </Form.Control.Feedback>
           </Form.Group>
         </Col>

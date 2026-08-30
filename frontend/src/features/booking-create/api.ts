@@ -1,22 +1,24 @@
-import { api } from "@/shared/api";
-import type {
-  ClassResponse,
-  PublicSlotResponse,
-  SendVerificationRequest,
-  SendVerificationResponse,
-} from "@/shared/types";
+import {
+  listPublicClasses,
+  listUpcomingSlots,
+  sendGuestBookingVerification as requestVerification,
+  type ClassResponse,
+  type PublicSlotResponse,
+  type SendVerificationRequest,
+  type SendVerificationRequestPurpose,
+  type SendVerificationResponse,
+} from "@/generated/api/booking";
+
+export type PhoneVerificationPurpose = SendVerificationRequestPurpose;
 
 export function fetchClasses(): Promise<ClassResponse[]> {
-  return api<ClassResponse[]>("/classes");
+  return listPublicClasses();
 }
 
-export function fetchAvailableSlots(classId: number, date: string): Promise<PublicSlotResponse[]> {
-  return api<PublicSlotResponse[]>("/slots", { params: { classId, date } });
+export function fetchUpcomingSlots(classId: number, days = 14): Promise<PublicSlotResponse[]> {
+  return listUpcomingSlots({ classId, days, includeFull: true });
 }
 
 export function sendVerification(body: SendVerificationRequest): Promise<SendVerificationResponse> {
-  return api<SendVerificationResponse>("/bookings/phone-verifications", {
-    method: "POST",
-    body,
-  });
+  return requestVerification(body);
 }
