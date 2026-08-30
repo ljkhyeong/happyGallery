@@ -47,14 +47,7 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
     queryFn: () => fetchSmartStoreAnswerTemplate(token),
     enabled: inquiryType === "product",
   });
-  const isLoading = inquiryType === "product" ? productQuery.isLoading : customerQuery.isLoading;
-  const error = inquiryType === "product" ? productQuery.error : customerQuery.error;
-  const empty = inquiryType === "product"
-    ? !productQuery.data?.length
-    : !customerQuery.data?.length;
-
-  if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorAlert error={error} />;
+  const activeQuery = inquiryType === "product" ? productQuery : customerQuery;
 
   return <>
     <div className="d-flex gap-2 mb-3">
@@ -78,9 +71,13 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
       onChange={(event) => setUnansweredOnly(event.target.checked)}
     />
     {inquiryType === "product" && templateQuery.error && (
-      <ErrorAlert error={templateQuery.error} />
+      <ErrorAlert error={templateQuery.error}
+        onRetry={() => { void templateQuery.refetch(); }} retrying={templateQuery.isFetching} />
     )}
-    {empty ? (
+    {activeQuery.isLoading && <LoadingSpinner />}
+    <ErrorAlert error={activeQuery.error}
+      onRetry={() => { void activeQuery.refetch(); }} retrying={activeQuery.isFetching} />
+    {activeQuery.data && (activeQuery.data.length === 0 ? (
       <EmptyState message={unansweredOnly
         ? "답변을 기다리는 스마트스토어 문의가 없습니다."
         : "최근 스마트스토어 문의가 없습니다."} />
@@ -92,7 +89,7 @@ export function SmartStoreInquirySection({ token, onAuthError }: Props) {
       : customerQuery.data?.map((inquiry) => (
         <SmartStoreCustomerInquiryCard key={inquiry.inquiryNo} inquiry={inquiry}
           token={token} onAuthError={onAuthError} />
-      ))}
+      )))}
   </>;
 }
 
@@ -187,6 +184,7 @@ function InquiryAnswerForm({
       placeholder="스마트스토어에 등록할 답변" />
     {template && (
       <Button className="mt-2" type="button" size="sm" variant="outline-secondary"
+        disabled={pending}
         onClick={() => onContent(template.content)}>
         {template.subject} 적용
       </Button>
@@ -216,11 +214,13 @@ function SmartStoreInquiryCard({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [content, setContent] = useState("");
+  const [editing, setEditing] = useState(false);
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => answerChannelQna(inquiry.questionId, content, token),
     onSuccess: async () => {
       setContent("");
-      toast.show("스마트스토어 상품 문의에 답변했습니다.");
+      setEditing(false);
+      toast.show("스마트스토어 상품 문의 답변을 저장했습니다.");
       await queryClient.invalidateQueries({ queryKey });
     },
   });
@@ -237,12 +237,20 @@ function SmartStoreInquiryCard({
         {inquiry.maskedWriterId} · {formatDateTime(inquiry.createdAt)} · 채널 상품 {inquiry.channelProductId}
       </div>
       <div className="small bg-light rounded p-2">{inquiry.question}</div>
-      {inquiry.answer ? (
+      {inquiry.answered && !editing ? (
         <div className="small rounded p-2 mt-2" style={{ background: "#f0f4ff" }}>
           <strong>답변:</strong> {inquiry.answer}
+          <Button type="button" size="sm" variant="outline-secondary" className="ms-2"
+            onClick={() => {
+              setContent(inquiry.answer ?? "");
+              mutation.reset();
+              setEditing(true);
+            }}>답변 수정</Button>
         </div>
       ) : (
         <InquiryAnswerForm content={content} pending={mutation.isPending} error={mutation.error}
+          submitLabel={editing ? "수정 저장" : "답변 등록"}
+          onCancel={editing ? () => { setEditing(false); mutation.reset(); } : undefined}
           template={template} onContent={setContent} onSubmit={() => mutation.mutate()} />
       )}
     </Card.Body>
