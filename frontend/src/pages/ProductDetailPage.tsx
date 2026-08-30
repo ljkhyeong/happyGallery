@@ -38,10 +38,11 @@ import {
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
-import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
+import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { saveGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import {
@@ -102,9 +103,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
         }))
         : [{
           productId,
-          productVariantId: product?.type === "MADE_TO_ORDER"
-            ? (product.variants[0]?.id ?? null)
-            : null,
+          productVariantId: product ? productSelectionView(product, {}).productVariantId : null,
           textInputs: [],
           qty,
         }];
@@ -146,8 +145,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
           ? purchaseLines.map((line) => ({
             productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
           }))
-          : [{ productId, productVariantId: product.type === "MADE_TO_ORDER"
-            ? (product.variants[0]?.id ?? null) : null, textInputs: [], qty }];
+          : [{ productId, productVariantId: productSelectionView(product, {}).productVariantId, textInputs: [], qty }];
         const fingerprint = JSON.stringify(items);
         if (cartRequestRef.current?.fingerprint !== fingerprint) {
           cartRequestRef.current = { fingerprint, idempotencyKey: crypto.randomUUID() };
@@ -188,22 +186,18 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   const selectedQuantity = hasConfiguredOptions
     ? purchaseLines.reduce((sum, line) => sum + line.qty, 0)
     : qty;
-  const defaultSelection = productSelectionView(product, {
-    productVariantId: product.type === "MADE_TO_ORDER" ? product.variants[0]?.id : null,
-  });
+  const defaultSelection = productSelectionView(product, {});
+  const defaultQuantityLimit = productQuantityLimit(product, defaultSelection.productVariantId);
   const itemAmount = hasConfiguredOptions
     ? purchaseLines.reduce((sum, line, index) => sum + selectionViews[index]!.unitPrice * line.qty, 0)
     : defaultSelection.unitPrice * qty;
   const selectedQuantities = sumQuantitiesByVariant(purchaseLines);
   const canBuy = product.available
     && selectedQuantity >= 1
-    && (hasConfiguredOptions || selectedQuantity <= MAX_PRODUCT_QUANTITY)
+    && (hasConfiguredOptions || selectedQuantity <= defaultQuantityLimit)
     && (hasConfiguredOptions || defaultSelection.configurationValid)
     && selectionViews.every((view) => view.configurationValid)
-    && [...selectedQuantities].every(([variantId, quantity]) => quantity <= Math.min(
-      MAX_PRODUCT_QUANTITY,
-      product.variants.find((variant) => variant.id === variantId)?.quantity ?? 0,
-    ));
+    && [...selectedQuantities].every(([variantId, quantity]) => quantity <= productQuantityLimit(product, variantId));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
   const memberRedirectPath = `/products/${productId}`;
@@ -324,25 +318,28 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                         id="product-qty"
                         type="number"
                         min={1}
-                        max={MAX_PRODUCT_QUANTITY}
+                        max={Math.max(1, defaultQuantityLimit)}
                         value={qty}
                         onChange={(e) => {
                           const v = Number(e.target.value);
-                          if (Number.isInteger(v) && v >= 1 && v <= MAX_PRODUCT_QUANTITY) setQty(v);
+                          if (Number.isInteger(v) && v >= 1 && (v < qty || v <= defaultQuantityLimit)) setQty(v);
                         }}
                         className="text-center store-purchase-qty-input"
                       />
                       <Button
                         variant="outline-dark"
                         size="sm"
-                        disabled={qty >= MAX_PRODUCT_QUANTITY}
-                        onClick={() => setQty((q) => Math.min(MAX_PRODUCT_QUANTITY, q + 1))}
+                        disabled={qty >= defaultQuantityLimit}
+                        onClick={() => setQty((q) => Math.min(defaultQuantityLimit, q + 1))}
                         aria-label="수량 증가"
                         className="store-purchase-qty-btn"
                       >
                         +
                       </Button>
                     </div>
+                    {qty > defaultQuantityLimit && product.available && (
+                      <Form.Text className="text-danger">현재 {defaultQuantityLimit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.</Form.Text>
+                    )}
                   </div>
                 )}
               </section>
@@ -461,11 +458,14 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                         className="w-100 text-muted-soft store-purchase-guest-link"
                         disabled={!canBuy}
                         onClick={() => {
-                          sessionStorage.setItem("hg_guest_order_draft", JSON.stringify({
-                            productId,
-                            items: purchaseLines,
-                          }));
-                          navigate(`/orders/new?productId=${productId}&draft=options`);
+                          const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
+                            productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+                          })));
+                          if (!draftId) {
+                            toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
+                            return;
+                          }
+                          navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
                         }}
                       >
                         비회원 주문하기 →
@@ -473,8 +473,11 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                     ) : (
                       <LinkButton
                         to={guestFallbackPath}
+                        aria-disabled={!canBuy}
+                        tabIndex={canBuy ? undefined : -1}
+                        onClick={(event) => { if (!canBuy) event.preventDefault(); }}
                         variant="link"
-                        className="w-100 text-muted-soft store-purchase-guest-link"
+                        className={`w-100 text-muted-soft store-purchase-guest-link${canBuy ? "" : " disabled"}`}
                       >
                         비회원 주문하기 →
                       </LinkButton>

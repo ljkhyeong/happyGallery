@@ -6,8 +6,14 @@ interface ProductSelection {
   textInputs?: readonly ProductTextInputRequest[];
 }
 
+export function selectedProductVariant(product: ProductDetailResponse, variantId?: number | null) {
+  return product.variants.find((candidate) => variantId != null
+    ? candidate.id === variantId
+    : product.optionGroups.length === 0 && candidate.selections.length === 0 && candidate.active);
+}
+
 export function productSelectionView(product: ProductDetailResponse, selection: ProductSelection) {
-  const variant = product.variants.find((candidate) => candidate.id === selection.productVariantId);
+  const variant = selectedProductVariant(product, selection.productVariantId);
   const inputs = selection.textInputs ?? [];
   let configurationValid = product.type === "MADE_TO_ORDER"
     ? Boolean(variant?.active)
@@ -38,6 +44,7 @@ export function productSelectionView(product: ProductDetailResponse, selection: 
   const variantPriceAdjustment = variant?.priceAdjustment ?? 0;
   const textOptionPriceAdjustment = options.reduce((sum, option) => sum + option.priceAdjustment, 0);
   return {
+    productVariantId: variant?.id ?? selection.productVariantId ?? null,
     options,
     label: options.map((option) => `${option.groupName}: ${option.value}`).join(" / ") || "기본 조합",
     variantPriceAdjustment, textOptionPriceAdjustment,

@@ -1,14 +1,17 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
+import { skipExternalFonts } from "./external-fonts";
 
 test.afterEach(clearSsrUpstreamFixtures);
+
+test.beforeEach(skipExternalFonts);
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
 }
 
-async function openOptionProduct(page: Page, quantity: number, { member = false, readyStock = false } = {}) {
+async function openOptionProduct(page: Page, quantity: number, { member = false, readyStock = false, defaultVariant = false } = {}) {
   const product: ProductDetailResponse = {
     id: 80, name: "각인 키링", type: "MADE_TO_ORDER", price: 10000, available: true,
     description: null, category: null, imageUrl: null, specification: "가죽 키링",
@@ -31,6 +34,9 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
     product.type = "READY_STOCK";
     product.optionGroups = [];
     product.variants = [];
+  } else if (defaultVariant) {
+    product.optionGroups = [];
+    product.variants = [{ id: 801, active: true, quantity, priceAdjustment: 2000, selections: [] }];
   }
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/80", product));
   await page.route("**/api/v1/**", async (route) => {
@@ -57,6 +63,130 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
   await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeVisible();
   return product;
 }
+
+async function mockGuestCheckout(page: Page) {
+  const prepared: unknown[] = [];
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-order-xsrf", url: new URL("/", page.url()).href }]);
+  await page.route("**/api/v1/bookings/phone-verifications", (route) => json(route, { verificationId: 1 }));
+  await page.route("**/api/v1/policies/current", (route) => json(route, {
+    terms: { version: "2026-07", documentPath: "/terms/2026-07" },
+    privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
+  }));
+  await page.route("**/api/v1/payments/prepare", async (route) => {
+    prepared.push(route.request().postDataJSON());
+    return json(route, { code: "INVALID_INPUT", message: "요청 확인용 응답" }, 400);
+  });
+  return prepared;
+}
+
+async function completeGuestOrderForm(page: Page, madeToOrder = true) {
+  await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
+  await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
+  await expect(page.getByLabel("인증코드", { exact: true })).toBeVisible();
+  await page.getByLabel("인증코드", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "확인", exact: true }).click();
+  await page.getByLabel("주문자 이름", { exact: true }).fill("주문 확인 고객");
+  await page.getByRole("button", { name: "매장 수령", exact: true }).click();
+  if (madeToOrder) await page.getByRole("checkbox", { name: "주문제작 조건에 동의합니다.", exact: true }).check();
+  await page.getByRole("checkbox", { name: /이용약관/ }).check();
+}
+
+for (const readyStock of [false, true]) {
+  test(`@payment 옵션 없는 ${readyStock ? "기성품" : "주문제작 상품"}은 상세와 주문서의 가격·재고 한도가 일치한다`, async ({ page }) => {
+    await openOptionProduct(page, 2, { readyStock, defaultVariant: !readyStock });
+    const prepared = await mockGuestCheckout(page);
+    const quantity = page.getByRole("spinbutton", { name: "수량", exact: true });
+    await expect(quantity).toHaveAttribute("max", "2");
+    await quantity.fill("2");
+    await expect(page.getByRole("button", { name: "수량 증가", exact: true })).toBeDisabled();
+    await quantity.fill("3");
+    await expect(quantity).toHaveValue("2");
+    const total = readyStock ? "₩20,000" : "₩24,000";
+    await expect(page.locator(".store-purchase-summary")).toContainText(total);
+    await page.getByRole("link", { name: /비회원 주문하기/ }).click();
+    await completeGuestOrderForm(page, !readyStock);
+    const row = page.locator(".list-group-item");
+    await expect(row).toContainText(total);
+    await expect(row.getByRole("spinbutton")).toHaveAttribute("max", "2");
+    await page.getByLabel("상품", { exact: true }).selectOption("80");
+    await expect(page.getByText("추가 가능 수량: 0개")).toBeVisible();
+    await expect(page.getByRole("button", { name: "추가", exact: true })).toBeDisabled();
+    await row.getByRole("spinbutton").fill("1");
+    await expect(page.getByText("추가 가능 수량: 1개")).toBeVisible();
+    await page.getByRole("button", { name: "추가", exact: true }).click();
+    await expect(row).toHaveCount(1);
+    await page.getByRole("button", { name: "결제 진행하기", exact: true }).click();
+    await expect.poll(() => prepared).toEqual([expect.objectContaining({ payload: expect.objectContaining({
+      items: [{ productId: 80, productVariantId: readyStock ? null : 801, textInputs: [], qty: 2 }],
+    }) })]);
+  });
+}
+
+for (const changed of ["재고 감소", "옵션 삭제", "판매 중지"] as const) {
+  test(`@payment 비회원 주문서는 ${changed} 시 결제를 막고 조정 방법을 안내한다`, async ({ page }) => {
+    const product = await openOptionProduct(page, 2);
+    const prepared = await mockGuestCheckout(page);
+    await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+    for (const text of ["첫 각인", "둘째 각인"]) {
+      await page.getByRole("textbox", { name: /각인 문구/ }).fill(text);
+      await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+    }
+    if (changed === "재고 감소") product.variants[0]!.quantity = 1;
+    if (changed === "옵션 삭제") product.variants = product.variants.filter((variant) => variant.id !== 801);
+    if (changed === "판매 중지") product.available = false;
+    await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+    await completeGuestOrderForm(page);
+    const checkout = page.getByRole("button", { name: "결제 진행하기", exact: true });
+    await expect(checkout).toBeDisabled();
+    expect(prepared).toHaveLength(0);
+    if (changed === "재고 감소") {
+      await expect(page.getByText(/같은 상품·옵션 조합은 합계 1개까지/)).toHaveCount(2);
+      await page.locator(".list-group-item").filter({ hasText: "둘째 각인" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await expect(checkout).toBeEnabled();
+      const quantity = page.locator(".list-group-item").getByRole("spinbutton");
+      await quantity.fill("2");
+      await expect(quantity).toHaveValue("1");
+    } else if (changed === "옵션 삭제") {
+      await expect(page.getByRole("link", { name: "옵션 다시 선택", exact: true })).toHaveCount(2);
+    } else {
+      await expect(page.getByText("현재 구매할 수 없는 상품입니다. 이 항목을 삭제해 주세요.", { exact: true })).toHaveCount(2);
+    }
+  });
+}
+
+test("@payment 옵션 주문 초안은 주문서별로 복원하고 누락되거나 다른 세션이면 재선택을 안내한다", async ({ page }) => {
+  await openOptionProduct(page, 2);
+  await mockGuestCheckout(page);
+  const urls: string[] = [];
+  for (const text of ["첫 주문 각인", "둘째 주문 각인"]) {
+    await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeVisible();
+    await page.getByRole("combobox", { name: /색상/ }).selectOption("brown");
+    await page.getByRole("textbox", { name: /각인 문구/ }).fill(text);
+    await page.getByRole("button", { name: "선택한 옵션 추가", exact: true }).click();
+    await expect(page.locator(".store-option-form tbody tr")).toContainText(text);
+    await page.getByRole("button", { name: /비회원 주문하기/ }).click();
+    await expect(page).toHaveURL(/draftId=/);
+    urls.push(page.url());
+    await page.goBack();
+  }
+  expect(urls[0]).not.toBe(urls[1]);
+  await page.goto(urls[0]!);
+  await completeGuestOrderForm(page);
+  await expect(page.locator(".list-group-item")).toContainText("첫 주문 각인");
+  await expect(page.locator(".list-group-item")).not.toContainText("둘째 주문 각인");
+  await page.evaluate(() => {
+    const key = `hg_guest_order_draft:${new URL(location.href).searchParams.get("draftId")}`;
+    const draft = JSON.parse(sessionStorage.getItem(key)!);
+    draft.owner.boundaryEpoch = "different-customer-session";
+    sessionStorage.setItem(key, JSON.stringify(draft));
+  });
+  await page.reload();
+  await expect(page.getByText(/선택한 옵션 정보를 불러올 수 없습니다/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "상품 다시 선택", exact: true })).toHaveAttribute("href", "/products/80");
+  await expect(page.getByRole("button", { name: "결제 진행하기", exact: true })).toHaveCount(0);
+  await page.goto("/orders/new?productId=80&draft=options");
+  await expect(page.getByText(/선택한 옵션 정보를 불러올 수 없습니다/)).toBeVisible();
+});
 
 for (const { quantity, limit, name } of [
   { quantity: 2, limit: 2, name: "재고" },
@@ -105,7 +235,7 @@ for (const { quantity, limit, name } of [
 test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 확인하고 같은 내용으로 결제를 준비한다", async ({ page }) => {
   await openOptionProduct(page, 2);
   const prepared: unknown[] = [];
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "option-order-xsrf", url: page.url() }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "option-order-xsrf", url: new URL("/", page.url()).href }]);
   await page.route("**/api/v1/bookings/phone-verifications", (route) => json(route, { verificationId: 1 }));
   await page.route("**/api/v1/policies/current", (route) => json(route, {
     terms: { version: "2026-07", documentPath: "/terms/2026-07" },
@@ -224,7 +354,7 @@ for (const { stock, quantity, name, message } of [
 
 test("@payment 회원 다건 담기는 한 요청을 보내고 응답 실패 뒤 같은 멱등키로 재시도한다", async ({ page }) => {
   await openOptionProduct(page, 5, { member: true });
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "cart-batch-xsrf", url: page.url() }]);
+  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "cart-batch-xsrf", url: new URL("/", page.url()).href }]);
   const requests: Array<{ idempotencyKey: string; items: unknown[] }> = [];
   await page.route("**/api/v1/me/cart/merge", async (route) => {
     requests.push(route.request().postDataJSON());

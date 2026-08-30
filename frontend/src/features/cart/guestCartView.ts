@@ -1,7 +1,7 @@
 import type { CartItemResponse } from "@/generated/api/customerStore";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { GuestCartItem } from "./useGuestCart";
-import { cartQuantities, cartQuantityLimit, cartSkuKey } from "./cartStock";
+import { productQuantities, productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
 import { productSelectionView } from "@/features/product/productSelectionView";
 
 export type CartItemIdentifier = number | string;
@@ -18,7 +18,7 @@ export function projectGuestCartItems(
   products: ProductDetailResponse[],
 ): CartItemView[] {
   const productsById = new Map(products.map((product) => [product.id, product]));
-  const quantitiesBySku = cartQuantities(items);
+  const quantitiesBySku = productQuantities(items);
 
   return items.map((item) => {
     const product = productsById.get(item.productId);
@@ -26,8 +26,8 @@ export function projectGuestCartItems(
 
     const { variantPriceAdjustment, textOptionPriceAdjustment, options, unitPrice: price,
       configurationValid } = productSelectionView(product, item);
-    const skuQuantity = quantitiesBySku.get(cartSkuKey(item)) ?? item.qty;
-    const limit = cartQuantityLimit(product, item.productVariantId);
+    const skuQuantity = quantitiesBySku.get(productSkuKey(item)) ?? item.qty;
+    const limit = productQuantityLimit(product, item.productVariantId);
     const available = product.available && configurationValid && skuQuantity <= limit;
 
     return {

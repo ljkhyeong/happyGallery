@@ -6,8 +6,8 @@ import type {
 } from "@/generated/api/product";
 import type { OrderTextInput } from "@/generated/api/payment";
 import { formatKRW } from "@/shared/lib";
-import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { sumQuantitiesByVariant } from "./purchaseQuantity";
+import { productQuantityLimit } from "./purchaseStock";
 import { productOptionLineKey } from "./optionLineKey";
 import { productSelectionView } from "./productSelectionView";
 
@@ -53,7 +53,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
     (variant) => variant.active && matchesVariant(variant, selectedValues),
   );
   const remainingQuantity = selectedVariant
-    ? Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, selectedVariant.quantity)
+    ? Math.max(0, productQuantityLimit(product, selectedVariant.id)
       - (selectedQuantities.get(selectedVariant.id) ?? 0))
     : 0;
   const requiredComplete = selectGroups.every(
@@ -153,8 +153,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
           <tbody>
             {lines.map((line) => {
               const view = productSelectionView(product, line);
-              const variantQuantity = product.variants.find((variant) => variant.id === line.productVariantId)?.quantity ?? 0;
-              const maximumLineQuantity = Math.max(0, Math.min(MAX_PRODUCT_QUANTITY, variantQuantity)
+              const maximumLineQuantity = Math.max(0, productQuantityLimit(product, line.productVariantId)
                 - (selectedQuantities.get(line.productVariantId) ?? 0) + line.qty);
               return (
                 <tr key={line.key}>

@@ -5,7 +5,7 @@ import type { ProductTextInputRequest } from "@/generated/api/customerStore";
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import { captureCustomerSession, requireCurrentCustomerSession } from "@/shared/api";
-import { cartQuantities, cartQuantityLimit, cartSkuKey } from "./cartStock";
+import { productQuantities, productQuantityLimit, productSkuKey } from "@/features/product/purchaseStock";
 
 const STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -192,13 +192,13 @@ function persistGuestCartItemsWhileLocked(items: GuestCartItem[]) {
 }
 
 function requireStock(items: GuestCartItem[], changed: readonly CartAddition[], products: ProductDetailResponse[]) {
-  const quantities = cartQuantities(items);
+  const quantities = productQuantities(items);
   const productsById = new Map(products.map((product) => [product.id, product]));
-  for (const item of new Map(changed.map((item) => [cartSkuKey(item), item])).values()) {
-    const quantity = quantities.get(cartSkuKey(item)) ?? 0;
+  for (const item of new Map(changed.map((item) => [productSkuKey(item), item])).values()) {
+    const quantity = quantities.get(productSkuKey(item)) ?? 0;
     requireCartQuantity(quantity);
     const product = productsById.get(item.productId)!;
-    const limit = cartQuantityLimit(product, item.productVariantId);
+    const limit = productQuantityLimit(product, item.productVariantId);
     if (quantity > limit) {
       throw new CartQuantityError(`${product.name}의 같은 옵션 조합은 합계 ${limit}개까지 담을 수 있습니다.`);
     }

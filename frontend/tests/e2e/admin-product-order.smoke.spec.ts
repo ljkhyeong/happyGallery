@@ -63,7 +63,7 @@ test("P8-4 @smoke @payment @admin 주문 생성 후 관리자 승인, 픽업 준
   await page.getByLabel("주문자 이름").fill(ordererName);
   const prefilledItem = page.locator(".list-group-item").filter({ hasText: productName }).first();
   await expect(prefilledItem).toBeVisible();
-  await expect(prefilledItem).toContainText("x2");
+  await expect(prefilledItem.getByRole("spinbutton")).toHaveValue("2");
   await page.getByRole("button", { name: "매장 수령" }).click();
   await acceptCurrentPolicies(page);
   await page.getByRole("button", { name: "결제 진행하기" }).click();
