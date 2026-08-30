@@ -3,6 +3,8 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.payment.PaymentReceiptQuery;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -19,13 +21,16 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     private final BookingSupport bookingSupport;
     private final BookingReaderPort bookingReaderPort;
     private final RefundPort refundPort;
+    private final PaymentReceiptQuery receiptQuery;
 
     public DefaultBookingQueryService(BookingSupport bookingSupport,
                                       BookingReaderPort bookingReaderPort,
-                                      RefundPort refundPort) {
+                                      RefundPort refundPort,
+                                      PaymentReceiptQuery receiptQuery) {
         this.bookingSupport = bookingSupport;
         this.bookingReaderPort = bookingReaderPort;
         this.refundPort = refundPort;
+        this.receiptQuery = receiptQuery;
     }
 
     /**
@@ -73,6 +78,7 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     private BookingDetail detail(Booking booking) {
         return new BookingDetail(
                 booking,
-                refundPort.findLatestByBookingId(booking.getId()).orElse(null));
+                refundPort.findLatestByBookingId(booking.getId()).orElse(null),
+                receiptQuery.findReceipt(PaymentContext.BOOKING, booking.getId()));
     }
 }

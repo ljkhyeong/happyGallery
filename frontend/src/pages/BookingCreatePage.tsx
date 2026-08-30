@@ -1,24 +1,22 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Card, Form, Row, Col, Button } from "react-bootstrap";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
 import {
-  confirmPayment,
   executePaymentFlow,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   type BookingPayload,
 } from "@/features/payment";
-import {
-  captureCustomerSession,
-  invalidateSlotAvailability,
-  queryKeys,
-} from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, useToast } from "@/shared/ui";
+import { ErrorAlert } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
@@ -103,8 +101,6 @@ function BookingCreateContent({
   onMemberAuthenticated,
   onMemberResumeHandled,
 }: BookingCreateContentProps) {
-  const toast = useToast();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, user } = useCustomerAuth();
@@ -128,6 +124,7 @@ function BookingCreateContent({
     () => resumeDraft?.paymentPath ?? "deposit",
   );
   const paymentMethod: DepositPaymentMethod = "CARD";
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const [participantCount, setParticipantCount] = useState(
     () => resumeDraft?.participantCount ?? 1,
   );
@@ -136,6 +133,10 @@ function BookingCreateContent({
     () => resumeDraft?.passFallbackAccepted ?? false,
   );
   const [showGate, setShowGate] = useState(false);
+  const [guestVerificationReset, setGuestVerificationReset] = useState({ version: 0, message: "" });
+  const resetGuestVerification = (message: string) => setGuestVerificationReset((previous) => ({
+    version: previous.version + 1, message,
+  }));
 
   useEffect(() => {
     if (matchingResume === null) {
@@ -291,8 +292,12 @@ function BookingCreateContent({
             };
 
       await executePaymentFlow({
+        checkoutSelection: paymentPath === "deposit" ? checkoutSelection : undefined,
         context: "BOOKING",
         payload,
+        onPrepared: guest ? () => resetGuestVerification(
+          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+        ) : undefined,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: member ? `member_${member.id}` : undefined,
         customerName: guest?.name ?? member?.name,
@@ -300,40 +305,14 @@ function BookingCreateContent({
         returnHint: {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
-        },
-        onZeroAmount: async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.member.bookings.all,
-            }),
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.member.passes,
-            }),
-            invalidateSlotAvailability(queryClient),
-          ]);
-          requireCurrentCustomer();
-          toast.show("예약이 완료되었습니다!");
-          if (result.accessToken) {
-            const customerSession = captureCustomerSession();
-            requireCurrentCustomer();
-            navigate("/guest/bookings", {
-              state: {
-                bookingId: result.domainId,
-                token: result.accessToken,
-                customerSession,
-              },
-            });
-          } else {
-            navigate(`/my/bookings/${result.domainId}`);
-          }
+          returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
         },
       });
+    },
+    onError: (error, actor) => {
+      if (actor?.guest && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
+        resetGuestVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+      }
     },
   });
 
@@ -448,7 +427,6 @@ function BookingCreateContent({
               <Row className="g-2 mb-3">
                 <Col xs={12}>
                   <p className="small text-muted mb-0">
-                    토스 결제창에서 카드 또는 네이버페이·카카오페이 등 간편결제를 선택할 수 있습니다.
                     결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
                   </p>
                 </Col>
@@ -505,7 +483,10 @@ function BookingCreateContent({
         </Card>
       )}
 
-      <ErrorAlert error={startPayment.error} />
+      {paymentPath === "deposit" && (
+        <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={startPayment.isPending} />
+      )}
+      <PaymentErrorAlert error={startPayment.error} />
 
       {matchingResume !== null && (
         <Alert variant="info" role="status">
@@ -539,6 +520,7 @@ function BookingCreateContent({
 
       <AuthGateModal
         show={showGate}
+        guestVerificationReset={guestVerificationReset}
         onClose={() => {
           onMemberResumeHandled();
           setShowGate(false);

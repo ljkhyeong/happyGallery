@@ -31,7 +31,7 @@ class NaverCommerceInquiryProviderTest {
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 
     @Test
-    @DisplayName("상품 문의와 답변 템플릿을 조회하고 답변 본문을 공식 필드명으로 전송한다")
+    @DisplayName("상품 문의는 미답변 조건의 요청 페이지만 조회하고 템플릿과 답변 계약을 유지한다")
     void findAndAnswer_usesOfficialContract() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -45,8 +45,11 @@ class NaverCommerceInquiryProviderTest {
                         """, MediaType.APPLICATION_JSON));
         server.expect(requestTo(containsString("/external/v1/contents/qnas")))
                 .andExpect(method(HttpMethod.GET))
-                .andExpect(queryParam("page", "1"))
-                .andExpect(queryParam("size", "100"))
+                .andExpect(queryParam("page", "3"))
+                .andExpect(queryParam("size", "50"))
+                .andExpect(queryParam("answered", "false"))
+                .andExpect(queryParam("fromDate", "2026-08-01T00:00:00+09:00"))
+                .andExpect(queryParam("toDate", "2026-08-29T12:00:00+09:00"))
                 .andRespond(withSuccess("""
                         {
                           "contents":[{
@@ -59,12 +62,12 @@ class NaverCommerceInquiryProviderTest {
                             "maskedWriterId":"cust***",
                             "questionId":456
                           }],
-                          "page":1,
-                          "size":100,
-                          "totalElements":1,
-                          "totalPages":1,
-                          "first":true,
-                          "last":true
+                          "page":3,
+                          "size":50,
+                          "totalElements":301,
+                          "totalPages":7,
+                          "first":false,
+                          "last":false
                         }
                         """, MediaType.APPLICATION_JSON));
         server.expect(requestTo(
@@ -87,12 +90,15 @@ class NaverCommerceInquiryProviderTest {
 
         var inquiries = provider.findProductInquiries(
                 LocalDateTime.of(2026, 8, 1, 0, 0),
-                LocalDateTime.of(2026, 8, 29, 12, 0));
+                LocalDateTime.of(2026, 8, 29, 12, 0), true, 2, 50);
         var template = provider.findProductInquiryAnswerTemplate();
         provider.answerProductInquiry(456L, "원하시는 문구로 가능합니다.");
 
         server.verify();
-        assertThat(inquiries).singleElement().satisfies(inquiry -> {
+        assertThat(inquiries.page()).isEqualTo(2);
+        assertThat(inquiries.totalCount()).isEqualTo(301);
+        assertThat(inquiries.totalPages()).isEqualTo(7);
+        assertThat(inquiries.content()).singleElement().satisfies(inquiry -> {
             assertThat(inquiry.questionId()).isEqualTo(456L);
             assertThat(inquiry.answered()).isFalse();
             assertThat(inquiry.question()).isEqualTo("각인 가능한가요?");
@@ -118,6 +124,8 @@ class NaverCommerceInquiryProviderTest {
                 .andExpect(queryParam("startSearchDate", "2026-08-01"))
                 .andExpect(queryParam("endSearchDate", "2026-08-29"))
                 .andExpect(queryParam("answered", "false"))
+                .andExpect(queryParam("page", "2"))
+                .andExpect(queryParam("size", "50"))
                 .andRespond(withSuccess("""
                         {
                           "content":[{
@@ -134,7 +142,7 @@ class NaverCommerceInquiryProviderTest {
                             "customerId":"cust***",
                             "customerName":"홍*동"
                           }],
-                          "totalPages":1
+                          "totalElements":101,"totalPages":3
                         }
                         """, MediaType.APPLICATION_JSON));
         server.expect(requestTo(
@@ -144,14 +152,54 @@ class NaverCommerceInquiryProviderTest {
                 .andRespond(withSuccess());
 
         var inquiries = provider.findCustomerInquiries(
-                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 29), true, 100);
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 29), true, 1, 50);
         provider.answerCustomerInquiry(789L, "오늘 출고 예정입니다.");
 
         server.verify();
-        assertThat(inquiries).singleElement().satisfies(inquiry -> {
+        assertThat(inquiries.page()).isEqualTo(1);
+        assertThat(inquiries.totalCount()).isEqualTo(101);
+        assertThat(inquiries.content()).singleElement().satisfies(inquiry -> {
             assertThat(inquiry.inquiryNo()).isEqualTo(789L);
+            assertThat(inquiry.answerContentId()).isNull();
             assertThat(inquiry.orderId()).isEqualTo("order-1");
             assertThat(inquiry.channelProductId()).isEqualTo("123");
         });
+    }
+
+    @Test
+    @DisplayName("기존 고객 문의 답변번호를 조회하고 해당 답변만 수정한다")
+    void updateCustomerInquiryAnswer_usesAnswerContentId() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceInquiryProvider provider = new NaverCommerceInquiryProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        server.expect(requestTo("https://api.commerce.naver.com/external/v1/oauth2/token"))
+                .andRespond(withSuccess("""
+                        {"access_token":"access-token","expires_in":10800,"token_type":"Bearer"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/external/v1/pay-user/inquiries")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("""
+                        {"content":[{
+                          "inquiryNo":789,"answerContentId":456,"answered":true,
+                          "inquiryContent":"배송 문의","answerContent":"오늘 출고 예정입니다.",
+                          "inquiryRegistrationDateTime":"2026-08-29T11:00:00+09:00"
+                        }],"totalElements":1,"totalPages":1}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v1/pay-merchant/inquiries/789/answer/456"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().json("{\"answerComment\":\"내일 출고 예정입니다.\"}"))
+                .andRespond(withSuccess());
+
+        var inquiries = provider.findCustomerInquiries(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 29), false, 0, 100);
+        assertThat(inquiries.content()).singleElement().satisfies(inquiry -> {
+            assertThat(inquiry.answerContentId()).isEqualTo(456L);
+            provider.updateCustomerInquiryAnswer(inquiry.inquiryNo(), inquiry.answerContentId(),
+                    "내일 출고 예정입니다.");
+        });
+        server.verify();
     }
 }

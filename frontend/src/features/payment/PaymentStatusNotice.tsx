@@ -85,7 +85,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
     case "EXPIRED":
       return (
         <Alert variant="secondary" className="mb-0">
-          <Alert.Heading className="fs-5">결제 준비 시간이 만료되었습니다</Alert.Heading>
+          <Alert.Heading className="fs-5">결제 준비가 종료되었습니다</Alert.Heading>
           <p className="mb-0">승인된 결제가 없습니다. {contextCopy.restartLocation}에서 다시 시작해 주세요.</p>
         </Alert>
       );

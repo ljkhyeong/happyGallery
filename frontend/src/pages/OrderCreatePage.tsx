@@ -1,18 +1,22 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
 import { OrderItemsForm } from "@/features/order/OrderItemsForm";
+import { useOrderItems } from "@/features/order/useOrderItems";
+import { readGuestOrderDraft, saveGuestOrderDraft, writeGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   executePaymentFlow,
-  confirmPayment,
+  PaymentMethodFields,
+  PaymentErrorAlert,
+  useCheckoutSelection,
   type OrderPayload,
 } from "@/features/payment";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { LoadingSpinner } from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
 import {
   FulfillmentForm,
@@ -26,72 +30,86 @@ import {
   isMadeToOrderConsentVersionMismatch,
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
-import type { ProductType } from "@/shared/types/product";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
-import { queryKeys } from "@/shared/api";
+import { ApiError } from "@/shared/api";
 
 type Step = "verify" | "items";
 
-function readOptionDraft(productId: number): OrderItemInput[] | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem("hg_guest_order_draft");
-    if (!raw) return null;
-    const draft = JSON.parse(raw) as {
-      productId?: unknown;
-      items?: Array<{
-        productVariantId?: unknown;
-        textInputs?: unknown;
-        qty?: unknown;
-      }>;
-    };
-    if (draft.productId !== productId || !Array.isArray(draft.items)) return null;
-    const items = draft.items.flatMap((item): OrderItemInput[] => (
-      Number.isSafeInteger(item.productVariantId)
-      && Number.isSafeInteger(item.qty)
-      && Number(item.qty) >= 1
-      && Array.isArray(item.textInputs)
-        ? [{
-          productId,
-          productVariantId: Number(item.productVariantId),
-          textInputs: item.textInputs as OrderItemInput["textInputs"],
-          qty: Number(item.qty),
-        }]
-        : []
-    ));
-    return items.length === draft.items.length ? items : null;
-  } catch {
-    return null;
-  }
-}
-
 export function OrderCreatePage() {
   const { isLoading, sessionVersion } = useCustomerAuth();
+  const [searchParams] = useSearchParams();
+  const requestedProductId = Number(searchParams.get("productId"));
+  const productId = Number.isSafeInteger(requestedProductId) && requestedProductId > 0 ? requestedProductId : null;
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
-  return <OrderCreateForm key={sessionVersion} />;
+  const key = `${sessionVersion}:${searchParams}`;
+  if (!searchParams.has("draftId") && searchParams.get("draft") !== "options") {
+    return <NewOrderDraft key={key} productId={productId} searchParams={searchParams} />;
+  }
+  return <OrderCreateForm key={key} productId={productId} />;
 }
 
-function OrderCreateForm() {
+function NewOrderDraft({ productId, searchParams }: { productId: number | null; searchParams: URLSearchParams }) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const toast = useToast();
+  const [saveFailed, setSaveFailed] = useState(false);
+  const savedDraftId = useRef<string | null>(null);
+  useEffect(() => {
+    const requestedQty = Number(searchParams.get("qty") ?? "1");
+    const qty = Number.isInteger(requestedQty) && requestedQty >= 1
+      ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY) : 1;
+    const items = productId ? [{ productId, productVariantId: null, textInputs: [], qty }] : [];
+    const draftId = savedDraftId.current ?? saveGuestOrderDraft(productId, items);
+    if (!draftId) {
+      setSaveFailed(true);
+      return;
+    }
+    savedDraftId.current = draftId;
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("draftId", draftId);
+    void navigate(`/orders/new?${nextParams}`, { replace: true });
+  }, [navigate, productId, searchParams]);
+
+  return <Container className="page-container" style={{ maxWidth: 640 }}>
+    {saveFailed ? <Alert variant="warning">
+      주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.
+      <Button variant="link" onClick={() => void navigate(0)}>다시 시도</Button>
+    </Alert> : <LoadingSpinner text="주문서를 준비하는 중입니다..." />}
+  </Container>;
+}
+
+function OrderCreateForm({ productId }: { productId: number | null }) {
   const [searchParams] = useSearchParams();
+  const draftId = searchParams.get("draftId");
+  const hasPrefilledItem = productId !== null;
+  const [draft] = useState(() => readGuestOrderDraft(draftId, productId));
+  const draftMissing = draft === null;
   const { user } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
-  const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
+  const [manualEntryConfirmed, setManualEntryConfirmed] = useState((draft?.value.items.length ?? 0) > 0);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [verificationReset, setVerificationReset] = useState({ version: 0, message: "" });
+  const resetVerification = (message: string) => {
+    setCode("");
+    setVerificationReset((previous) => ({ version: previous.version + 1, message }));
+  };
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
-  const [items, setItems] = useState<OrderItemInput[]>([]);
-  const [selectedProductTypes, setSelectedProductTypes] = useState<ProductType[] | null>(null);
-  const [itemAmount, setItemAmount] = useState(0);
+  const [items, setItems] = useState<OrderItemInput[]>(draft?.value.items ?? []);
+  const [draftSaveFailed, setDraftSaveFailed] = useState(false);
+  const updateItems = (nextItems: OrderItemInput[]) => {
+    setItems(nextItems);
+    setDraftSaveFailed(!draft || !draftId || !writeGuestOrderDraft(draftId, {
+      ...draft, value: { ...draft.value, items: nextItems },
+    }));
+  };
+  const orderItems = useOrderItems(items);
+  const { itemAmount } = orderItems;
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
   const [rewardAmount, setRewardAmount] = useState(0);
   const [fulfillment, setFulfillment] = useFulfillmentSelection(
@@ -99,53 +117,22 @@ function OrderCreateForm() {
     user?.phone ?? phone,
   );
   const normalizedName = name.trim();
-  const productTypesReady = selectedProductTypes !== null;
-  const requiresMadeToOrderConsent = selectedProductTypes?.includes("MADE_TO_ORDER") ?? false;
+  const requiresMadeToOrderConsent = orderItems.productTypes.includes("MADE_TO_ORDER");
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
   const guestPolicyConsent = usePolicyAcceptance();
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
 
-  const prefilledProductId = Number(searchParams.get("productId"));
-  const requestedQty = Number(searchParams.get("qty") ?? "1");
-  const orderDraftType = searchParams.get("draft");
-  const hasPrefilledItem = Number.isSafeInteger(prefilledProductId) && prefilledProductId > 0;
-  const normalizedPrefilledQty = Number.isInteger(requestedQty) && requestedQty >= 1
-    ? Math.min(requestedQty, MAX_PRODUCT_QUANTITY)
-    : 1;
   const shouldShowManualEntryGate = !user && !hasPrefilledItem && !manualEntryConfirmed;
   const orderQuery = searchParams.toString();
   const loginHref = buildAuthPageHref("/login", {
     redirectTo: `/orders/new${orderQuery ? `?${orderQuery}` : ""}`,
   });
 
-  useEffect(() => {
-    setSelectedProductTypes(null);
-    if (hasPrefilledItem) {
-      const optionDraft = orderDraftType === "options"
-        ? readOptionDraft(prefilledProductId)
-        : null;
-      setItems(optionDraft ?? [{
-        productId: prefilledProductId,
-        productVariantId: null,
-        textInputs: [],
-        qty: normalizedPrefilledQty,
-      }]);
-      setManualEntryConfirmed(true);
-      return;
-    }
-    setItems([]);
-  }, [hasPrefilledItem, normalizedPrefilledQty, orderDraftType, prefilledProductId]);
-
-  useEffect(() => {
-    if (!user) return;
-    setStep("items");
-    setName((current) => current || user.name);
-  }, [user]);
-
   const mutation = useMutation({
     mutationFn: async () => {
       const payload: OrderPayload = user
         ? {
-            type: "ORDER", userId: user.id, name: normalizedName || user.name, items,
+            type: "ORDER", userId: user.id, name: normalizedName || user.name, items: orderItems.items,
             cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
@@ -154,7 +141,7 @@ function OrderCreateForm() {
             ...fulfillmentPayload(fulfillment),
           }
         : {
-            type: "ORDER", phone, verificationCode: code, name: normalizedName, items,
+            type: "ORDER", phone, verificationCode: code, name: normalizedName, items: orderItems.items,
             cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
@@ -162,37 +149,43 @@ function OrderCreateForm() {
             ...fulfillmentPayload(fulfillment),
           };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
+        onPrepared: !user ? () => resetVerification(
+          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+        ) : undefined,
         orderName: items.length === 1 && items[0]
           ? `상품 주문 (${items[0].qty}개)`
           : `상품 주문 ${items.length}건`,
         customerKey: user ? `member_${user.id}` : undefined,
         customerName: normalizedName,
         customerPhone: phone || undefined,
-        returnHint: { customerName: normalizedName, customerPhone: phone },
-        onZeroAmount: user ? async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.rewards }),
-          ]);
-          requireCurrentCustomer();
-          if (result.domainId == null) throw new Error("완료된 주문 번호를 확인할 수 없습니다.");
-          toast.show("쿠폰·적립금으로 주문이 완료되었습니다.", "success");
-          navigate(`/my/orders/${result.domainId}`);
-        } : undefined,
+        returnHint: {
+          customerName: normalizedName, customerPhone: phone,
+          returnPath: `/orders/new${orderQuery ? `?${orderQuery}` : ""}`,
+        },
       });
     },
-    onError: consent.handleSubmissionError,
+    onError: (error) => {
+      consent.handleSubmissionError(error);
+      if (!user && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
+        resetVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+      }
+    },
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
+
+  if (draftMissing) {
+    return <Container className="page-container" style={{ maxWidth: 640 }}>
+      <Alert variant="warning">{searchParams.get("draft") === "options"
+        ? "선택한 옵션 정보를 불러올 수 없습니다. 상품 상세에서 옵션과 수량을 다시 선택해 주세요."
+        : "주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요."}</Alert>
+      <LinkButton to={hasPrefilledItem ? `/products/${productId}` : "/products"}>
+        상품 다시 선택
+      </LinkButton>
+    </Container>;
+  }
 
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -271,8 +264,13 @@ function OrderCreateForm() {
         <Card className="mb-4">
           <Card.Body>
             <div className="legacy-order-step-label">1. 휴대폰 인증</div>
+            {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
+              key={verificationReset.version}
+              initialPhone={phone}
+              confirming={mutation.isPending}
               purpose="GUEST_ORDER"
+              onReset={() => setCode("")}
               onVerified={(p, c) => {
                 setPhone(p);
                 setCode(c);
@@ -312,11 +310,13 @@ function OrderCreateForm() {
             <Card.Header>{user ? "2." : "3."} 상품 선택</Card.Header>
             <Card.Body>
               <OrderItemsForm
-                items={items}
-                onChange={setItems}
-                onItemAmountChange={setItemAmount}
-                onProductTypesChange={setSelectedProductTypes}
+                state={orderItems}
+                onChange={updateItems}
               />
+              {draftSaveFailed && <Alert variant="warning" className="mt-3 mb-0">
+                변경한 주문 내용을 저장하지 못했습니다. 현재 선택은 유지됩니다. 브라우저 저장소 설정을 확인한 뒤 다시 저장해 주세요.
+                <Button variant="link" onClick={() => updateItems(items)}>다시 저장</Button>
+              </Alert>}
             </Card.Body>
           </Card>
 
@@ -330,27 +330,27 @@ function OrderCreateForm() {
           <Card className="mb-4">
             <Card.Header>{user ? "4." : "5."} 결제 금액</Card.Header>
             <Card.Body>
-              <OrderPriceSummary
-                itemAmount={itemAmount}
-                fulfillmentType={fulfillment.fulfillmentType}
-              />
-              {user && (
-                <>
-                  <hr />
-                  <MemberOrderBenefits
-                    productAmount={itemAmount}
-                    selectedCouponId={issuedCouponId}
-                    rewardPointsToUse={rewardAmount}
-                    disabled={mutation.isPending}
-                    onCouponChange={setIssuedCouponId}
-                    onRewardPointsChange={setRewardAmount}
-                  />
-                </>
+              {user ? (
+                <MemberOrderBenefits
+                  productAmount={itemAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                  selectedCouponId={issuedCouponId}
+                  rewardPointsToUse={rewardAmount}
+                  disabled={mutation.isPending}
+                  onCouponChange={setIssuedCouponId}
+                  onRewardPointsChange={setRewardAmount}
+                />
+              ) : (
+                <OrderPriceSummary
+                  itemAmount={itemAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                />
               )}
             </Card.Body>
           </Card>
 
-          <ErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+          <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={mutation.isPending} />
+          <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
           <MadeToOrderConsent
             required={requiresMadeToOrderConsent}
             policy={consent.policyQuery.data}
@@ -375,9 +375,9 @@ function OrderCreateForm() {
 
           <Button
             variant="primary" size="lg" className="w-100"
-            disabled={!normalizedName || items.length === 0 || !productTypesReady
+            disabled={!normalizedName || !orderItems.canPurchase || draftSaveFailed
               || !isFulfillmentComplete(fulfillment) || !consent.ready
-              || (!user && !guestPolicyConsent.ready) || mutation.isPending}
+              || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

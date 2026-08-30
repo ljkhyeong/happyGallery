@@ -4076,6 +4076,9 @@
           "passBooking" : {
             "type" : "boolean"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4096,7 +4099,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "balanceAmount", "balanceStatus", "bookingId", "cancelPolicy", "classId", "className", "depositAmount", "endAt", "participantCount", "passBooking", "refund", "slotId", "startAt", "status" ],
+        "required" : [ "balanceAmount", "balanceStatus", "bookingId", "cancelPolicy", "classId", "className", "depositAmount", "endAt", "participantCount", "passBooking", "receiptUrl", "refund", "slotId", "startAt", "status" ],
         "type" : "object"
       },
       "MyBookingPageResponse" : {
@@ -4309,6 +4312,9 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4329,7 +4335,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "expiresAt", "passId", "planCode", "planName", "purchasedAt", "refund", "remainingCredits", "totalCredits", "totalPrice" ],
+        "required" : [ "expiresAt", "passId", "planCode", "planName", "purchasedAt", "receiptUrl", "refund", "remainingCredits", "totalCredits", "totalPrice" ],
         "type" : "object"
       },
       "MyProductQnaListItem" : {
@@ -4778,6 +4784,9 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "receiptUrl" : {
+            "type" : [ "string", "null" ]
+          },
           "refund" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/RefundProgressResponse"
@@ -4806,7 +4815,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
+        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "receiptUrl", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
         "type" : "object"
       },
       "OrderItemRef" : {
@@ -5472,6 +5481,12 @@
           "specification" : {
             "type" : [ "string", "null" ]
           },
+          "stockQuantity" : {
+            "description" : "현재 재고 수량. 주문제작은 활성 옵션 조합의 합계",
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          },
           "type" : {
             "enum" : [ "READY_STOCK", "MADE_TO_ORDER" ],
             "type" : "string"
@@ -5483,7 +5498,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "optionGroups", "price", "productionLeadDays", "specification", "type", "variants" ],
+        "required" : [ "available", "careInstructions", "category", "description", "id", "imageUrl", "name", "optionGroups", "price", "productionLeadDays", "specification", "stockQuantity", "type", "variants" ],
         "type" : "object"
       },
       "ProductOptionGroupRequest" : {
@@ -5807,6 +5822,7 @@
             "type" : "integer"
           },
           "quantity" : {
+            "description" : "신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다.",
             "format" : "int32",
             "type" : "integer"
           },
@@ -5819,7 +5835,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "selections" ],
+        "required" : [ "active", "priceAdjustment", "quantity", "selections" ],
         "type" : "object"
       },
       "ProductVariantResponse" : {
@@ -7290,10 +7306,42 @@
         "required" : [ "options", "originProductNo", "salePrice", "status" ],
         "type" : "object"
       },
+      "SmartStoreCustomerInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreCustomerInquiryResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "page", "size", "totalCount", "totalPages" ],
+        "type" : "object"
+      },
       "SmartStoreCustomerInquiryResponse" : {
         "properties" : {
           "answerContent" : {
             "type" : [ "string", "null" ]
+          },
+          "answerContentId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
           },
           "answered" : {
             "type" : "boolean"
@@ -7341,7 +7389,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "answerContent", "answered", "answeredAt", "category", "channelProductId", "createdAt", "customerName", "inquiryContent", "inquiryNo", "maskedCustomerId", "orderId", "productName", "productOrderIds", "productOrderOption", "title" ],
+        "required" : [ "answerContent", "answerContentId", "answered", "answeredAt", "category", "channelProductId", "createdAt", "customerName", "inquiryContent", "inquiryNo", "maskedCustomerId", "orderId", "productName", "productOrderIds", "productOrderOption", "title" ],
         "type" : "object"
       },
       "SmartStoreInquiryAnswerRequest" : {
@@ -7368,6 +7416,34 @@
           }
         },
         "required" : [ "content", "questionType", "subject" ],
+        "type" : "object"
+      },
+      "SmartStoreInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreInquiryResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "size" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "totalPages" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "content", "page", "size", "totalCount", "totalPages" ],
         "type" : "object"
       },
       "SmartStoreInquiryResponse" : {
@@ -7644,6 +7720,22 @@
           }
         },
         "required" : [ "channelSalePrice", "channelStatus", "different", "localSalePrice", "localStatus", "options", "originProductNo", "productId", "productVersion" ],
+        "type" : "object"
+      },
+      "SmartStoreReturnDeliveryCompanyResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "priorityType" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "id", "name", "priorityType" ],
         "type" : "object"
       },
       "SmartStoreSettlementIssueResponse" : {
@@ -8260,6 +8352,7 @@
             "type" : "integer"
           },
           "quantity" : {
+            "description" : "선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.",
             "format" : "int32",
             "type" : [ "integer", "null" ]
           },
@@ -12689,6 +12782,71 @@
         "tags" : [ "admin-smart-store-inquiry-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-inquiries/customers/page" : {
+      "get" : {
+        "operationId" : "listSmartStoreCustomerInquiriesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "unansweredOnly",
+          "required" : false,
+          "schema" : {
+            "default" : true,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 999999,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 10,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreCustomerInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer" : {
       "put" : {
         "operationId" : "answerSmartStoreCustomerInquiry",
@@ -12714,6 +12872,111 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}" : {
+      "put" : {
+        "operationId" : "updateSmartStoreCustomerInquiryAnswer",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "inquiryNo",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "path",
+          "name" : "answerContentId",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SmartStoreInquiryAnswerRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-inquiry-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-inquiries/page" : {
+      "get" : {
+        "operationId" : "listSmartStoreInquiriesPage",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "from",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : true,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "unansweredOnly",
+          "required" : false,
+          "schema" : {
+            "default" : true,
+            "type" : "boolean"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "default" : 0,
+            "format" : "int32",
+            "maximum" : 999999,
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 50,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 10,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "admin-smart-store-inquiry-controller" ]
@@ -13031,6 +13294,27 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/SmartStoreOrderBulkActionResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/return-delivery-companies" : {
+      "get" : {
+        "operationId" : "listSmartStoreReturnDeliveryCompanies",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreReturnDeliveryCompanyResponse"
+                  },
+                  "type" : "array"
                 }
               }
             },
@@ -16708,6 +16992,32 @@
           }
         },
         "tags" : [ "payment-query-controller" ]
+      }
+    },
+    "/api/v1/payments/{orderId}/abandon" : {
+      "post" : {
+        "operationId" : "abandonPayment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "orderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Payment-Status-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "payment-controller" ]
       }
     },
     "/api/v1/policies/current" : {

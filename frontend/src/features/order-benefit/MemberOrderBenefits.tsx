@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Alert, Button, Form } from "react-bootstrap";
+import { Button, Form } from "react-bootstrap";
 import { fetchMyCoupons, type MyCouponResponse } from "@/features/coupon/api";
+import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
 import { queryKeys } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
@@ -14,6 +16,7 @@ import {
 
 interface Props {
   productAmount: number;
+  fulfillmentType: FulfillmentType | null;
   selectedCouponId: number | null;
   rewardPointsToUse: number;
   disabled?: boolean;
@@ -33,6 +36,7 @@ function couponLabel(coupon: MyCouponResponse): string {
 
 export function MemberOrderBenefits({
   productAmount,
+  fulfillmentType,
   selectedCouponId,
   rewardPointsToUse,
   disabled = false,
@@ -74,10 +78,6 @@ export function MemberOrderBenefits({
   }, [maximumPoints, onRewardPointsChange, rewardPointsToUse]);
 
   const isLoading = couponsQuery.isLoading || rewardQuery.isLoading;
-  const estimatedProductPayment = Math.max(
-    0,
-    productAmount - couponDiscountAmount - rewardPointsToUse,
-  );
 
   return (
     <div>
@@ -151,12 +151,12 @@ export function MemberOrderBenefits({
         </Form.Text>
       </Form.Group>
 
-      {(couponDiscountAmount > 0 || rewardPointsToUse > 0) && (
-        <Alert variant="success" className="mb-0 py-2">
-          쿠폰 -{formatKRW(couponDiscountAmount)} · 적립금 -{formatKRW(rewardPointsToUse)} ·
-          예상 상품 결제액 {formatKRW(estimatedProductPayment)}
-        </Alert>
-      )}
+      <OrderPriceSummary
+        itemAmount={productAmount}
+        fulfillmentType={fulfillmentType}
+        couponDiscountAmount={couponDiscountAmount}
+        rewardAmount={rewardPointsToUse}
+      />
     </div>
   );
 }

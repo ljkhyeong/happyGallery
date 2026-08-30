@@ -43,7 +43,7 @@ function canRetryConfirm(error: unknown): boolean {
       || error.code === "SERVICE_UNAVAILABLE";
   }
   return error instanceof TypeError
-    || (error instanceof Error && error.name === "AbortError");
+    || (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError"));
 }
 
 function requiresPaymentReconciliation(error: unknown): boolean {
@@ -54,6 +54,8 @@ function requiresPaymentReconciliation(error: unknown): boolean {
 export function PaymentSuccessPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const callbackPresent = params.has("paymentKey") || params.has("orderId") || params.has("amount");
+  const completedOrderId = callbackPresent ? null : params.get("completedOrderId")?.trim() || null;
   const { sessionVersion } = useCustomerAuth();
   const [customerSession] = useState(captureCustomerSession);
   const [error, setError] = useState<unknown>(null);
@@ -67,11 +69,9 @@ export function PaymentSuccessPage() {
   const completedRef = useRef(false);
 
   const [returnHintSession] = useState(() =>
-    readPaymentReturnHint(customerSession));
+    completedOrderId ? null : readPaymentReturnHint(customerSession));
   const [confirmSession] = useState<PaymentConfirmSession | null>(() => {
-    const callbackPresent = params.has("paymentKey")
-      || params.has("orderId")
-      || params.has("amount");
+    if (completedOrderId) return null;
     if (!callbackPresent) {
       const stored = readPaymentConfirmSession(customerSession);
       return stored ? { request: stored.value, handle: stored } : null;
@@ -93,8 +93,8 @@ export function PaymentSuccessPage() {
     };
   });
   const confirmRequest = confirmSession?.request ?? null;
-  const paymentKey = confirmRequest?.paymentKey ?? "";
-  const orderId = confirmRequest?.orderId ?? "";
+  const paymentKey = confirmRequest?.paymentKey ?? null;
+  const orderId = confirmRequest?.orderId ?? completedOrderId ?? "";
   const amount = confirmRequest?.amount ?? 0;
 
   const abandonChangedSession = useCallback(() => {
@@ -111,6 +111,17 @@ export function PaymentSuccessPage() {
   const requireCurrentCustomer = useCallback(() => {
     requireCurrentCustomerSession(customerSession);
   }, [customerSession]);
+
+  const completePayment = useCallback((response: ConfirmPaymentResponse) => {
+    requireCurrentCustomer();
+    window.history.replaceState(window.history.state, "",
+      `/payments/success?${new URLSearchParams({ completedOrderId: orderId })}`);
+    completedRef.current = true;
+    setResult(response);
+    setError(null);
+    if (returnHintSession) consumePaymentReturnHint(returnHintSession);
+    if (confirmSession?.handle) removePaymentConfirmRequest(confirmSession.handle);
+  }, [confirmSession, orderId, requireCurrentCustomer, returnHintSession]);
 
   const checkStatus = useCallback(async () => {
     requireCurrentCustomer();
@@ -133,28 +144,24 @@ export function PaymentSuccessPage() {
       removePaymentConfirmRequest(confirmSession.handle);
     }
     if (status.status === "COMPLETED" && status.domainId != null) {
-      requireCurrentCustomer();
-      completedRef.current = true;
-      setResult({
+      completePayment({
         context: status.context,
         domainId: status.domainId,
         accessToken: status.accessToken,
         accessRecoveryRequired: status.accessRecoveryRequired,
         receiptUrl: status.receiptUrl,
       });
-      setError(null);
-      if (returnHintSession) consumePaymentReturnHint(returnHintSession);
     }
     return status;
   }, [
     confirmSession,
+    completePayment,
     customerSession,
     orderId,
     requireCurrentCustomer,
-    returnHintSession,
   ]);
 
-  const runConfirm = useCallback(async () => {
+  const resolvePayment = useCallback(async () => {
     try {
       requireCurrentCustomer();
     } catch (requestError) {
@@ -164,7 +171,7 @@ export function PaymentSuccessPage() {
       }
       throw requestError;
     }
-    if (!confirmRequest) {
+    if (!confirmRequest && !completedOrderId) {
       setError(new Error("결제 정보가 올바르지 않습니다."));
       setConfirming(false);
       return;
@@ -175,6 +182,10 @@ export function PaymentSuccessPage() {
     setPaymentStatus(null);
     setConfirming(true);
     try {
+      if (completedOrderId) {
+        await checkStatus();
+        return;
+      }
       const response = await runForCustomerSession(
         customerSession,
         () => confirmPayment(
@@ -182,13 +193,7 @@ export function PaymentSuccessPage() {
           readPaymentStatusToken(orderId, customerSession),
         ),
       );
-      requireCurrentCustomer();
-      completedRef.current = true;
-      setResult(response);
-      if (returnHintSession) consumePaymentReturnHint(returnHintSession);
-      if (confirmSession?.handle) {
-        removePaymentConfirmRequest(confirmSession.handle);
-      }
+      completePayment(response);
     } catch (requestError) {
       if (requestError instanceof CustomerSessionChangedError) {
         abandonChangedSession();
@@ -196,6 +201,11 @@ export function PaymentSuccessPage() {
       }
       requireCurrentCustomer();
       setError(requestError);
+      if (completedOrderId) return;
+      if (requestError instanceof ApiError && confirmSession?.handle
+        && ["PAYMENT_ATTEMPT_EXPIRED", "PAYMENT_RESULT_RETENTION_EXPIRED", "NOT_FOUND"].includes(requestError.code)) {
+        removePaymentConfirmRequest(confirmSession.handle);
+      }
       try {
         await checkStatus();
       } catch (statusRequestError) {
@@ -216,13 +226,14 @@ export function PaymentSuccessPage() {
     abandonChangedSession,
     amount,
     checkStatus,
+    completePayment,
+    completedOrderId,
     confirmRequest,
     confirmSession,
     customerSession,
     orderId,
     paymentKey,
     requireCurrentCustomer,
-    returnHintSession,
   ]);
 
   useEffect(() => {
@@ -237,12 +248,14 @@ export function PaymentSuccessPage() {
   useEffect(() => {
     if (calledRef.current) return;
     calledRef.current = true;
-    void runConfirm();
-  }, [runConfirm]);
+    void resolvePayment();
+  }, [resolvePayment]);
 
   useEffect(() => {
-    window.history.replaceState(window.history.state, "", "/payments/success");
-  }, []);
+    window.history.replaceState(window.history.state, "", completedOrderId
+      ? `/payments/success?${new URLSearchParams({ completedOrderId })}`
+      : "/payments/success");
+  }, [completedOrderId]);
 
   useEffect(() => {
     const polling = shouldPollPaymentStatus(paymentStatus?.status);
@@ -299,7 +312,7 @@ export function PaymentSuccessPage() {
   if (confirming) {
     return (
       <Container className="page-container text-center" style={{ maxWidth: 540 }}>
-        <LoadingSpinner text="결제를 확정하고 있습니다..." />
+        <LoadingSpinner text={completedOrderId ? "결제 결과를 조회하고 있습니다..." : "결제를 확정하고 있습니다..."} />
       </Container>
     );
   }
@@ -311,8 +324,8 @@ export function PaymentSuccessPage() {
         {statusError && <Alert variant="warning" className="mt-3 mb-0">{statusError}</Alert>}
         <div className="d-flex gap-2 mt-3">
           {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (
-            <Button variant="primary" onClick={() => void runConfirm()}>
-              결제 결과 다시 확인
+            <Button variant="primary" onClick={() => void resolvePayment()}>
+              {completedOrderId ? "상태 새로고침" : "결제 결과 다시 확인"}
             </Button>
           )}
           {(paymentStatus.status === "REVIEW_REQUIRED"
@@ -339,12 +352,14 @@ export function PaymentSuccessPage() {
     const statusCheckRequired = retryable || reconciliationRequired;
     return (
       <Container className="page-container" style={{ maxWidth: 540 }}>
-        <h4 className="mb-4">{statusCheckRequired ? "결제 상태 확인 필요" : "결제 확정 실패"}</h4>
+        <h4 className="mb-4">{completedOrderId
+          ? "결제 결과 조회 실패"
+          : statusCheckRequired ? "결제 상태 확인 필요" : "결제 확정 실패"}</h4>
         <ErrorAlert error={error} />
         <div className="d-flex gap-2 mt-3">
-          {retryable && (
-            <Button variant="primary" onClick={() => void runConfirm()}>
-              다시 확인
+          {(completedOrderId || retryable) && (
+            <Button variant="primary" onClick={() => void resolvePayment()}>
+              {completedOrderId ? "결제 결과 다시 조회" : "다시 확인"}
             </Button>
           )}
           <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>

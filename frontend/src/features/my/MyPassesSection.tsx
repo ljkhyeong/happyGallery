@@ -5,6 +5,7 @@ import type { MyPassSummary } from "./api";
 import { isPassAvailableForBooking } from "./listUtils";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 
 interface Props {
   passes: MyPassSummary[] | undefined;
@@ -49,6 +50,7 @@ export function MyPassesSection({
               </Col>
               <Col xs={6} md={4} className="text-md-end">
                 <small className="d-block text-muted-soft">~{formatDateTime(p.expiresAt)}</small>
+                {p.receiptUrl && <div className="mt-2"><PaymentReceiptLink receiptUrl={p.receiptUrl} /></div>}
                 {isPassAvailableForBooking(p) && (
                   <LinkButton
                     to={`/bookings/new?passId=${p.passId}`}

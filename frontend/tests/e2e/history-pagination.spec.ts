@@ -126,6 +126,7 @@ test("공개 Q&A 더 보기는 같은 크기의 내 Q&A 페이지도 함께 전�
     price: 12000,
     imageUrl: null,
     available: true,
+    stockQuantity: 10,
     specification: null,
     careInstructions: null,
     productionLeadDays: null,

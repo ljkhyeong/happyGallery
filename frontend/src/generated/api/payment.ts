@@ -257,3 +257,24 @@ export const preparePayment = async (preparePaymentRequest: PreparePaymentReques
     body: JSON.stringify(preparePaymentRequest)
   }
 );}
+
+
+
+export const getAbandonPaymentUrl = (orderId: string,) => {
+
+
+
+
+  return `/api/v1/payments/${orderId}/abandon`
+}
+
+export const abandonPayment = async (orderId: string, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getAbandonPaymentUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}

@@ -285,9 +285,10 @@ export interface ProductVariantSelectionRequest {
 }
 
 export interface ProductVariantRequest {
-  active?: boolean;
-  priceAdjustment?: number;
-  quantity?: number;
+  active: boolean;
+  priceAdjustment: number;
+  /** 신규 조합의 최초 재고. 이미 등록된 조합은 요청값과 관계없이 현재 재고를 유지한다. */
+  quantity: number;
   /**
      * @minItems 0
      * @maxItems 3
@@ -436,7 +437,10 @@ export interface UpdateProductRequest {
      * @maximum 180
      */
   productionLeadDays?: number;
-  /** @nullable */
+  /**
+     * 선택형 옵션과 variants가 없을 때 신규 기본 조합의 최초 재고. 기존 조합 재고는 변경하지 않는다.
+     * @nullable
+     */
   quantity?: number | null;
   /**
      * @minLength 0

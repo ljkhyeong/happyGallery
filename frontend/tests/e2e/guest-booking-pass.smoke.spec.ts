@@ -138,6 +138,8 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   await expect(page.getByLabel("사용할 8회권")).toHaveValue(String(passId));
   await page.getByRole("button", { name: "8회권으로 예약하기" }).click();
 
+  await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
+  await page.getByRole("link", { name: "내 예약 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);
   await expect(page.getByText("8회권 사용")).toBeVisible();
 });

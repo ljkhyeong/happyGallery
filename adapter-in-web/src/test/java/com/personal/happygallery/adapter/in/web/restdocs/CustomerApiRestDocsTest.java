@@ -178,7 +178,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(booking), "cursor-next", true));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
-                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null));
+                .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null,
+                        "https://dashboard.tosspayments.com/receipt/booking"));
         when(bookingRescheduleUseCase.rescheduleMemberBooking(100L, CUSTOMER_USER_ID, 42L))
                 .thenReturn(booking);
         when(bookingCancelUseCase.cancelMemberBooking(100L, CUSTOMER_USER_ID))
@@ -195,7 +196,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
-        PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null);
+        PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null,
+                "https://dashboard.tosspayments.com/receipt/pass");
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
         when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));

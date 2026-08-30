@@ -8,6 +8,10 @@ public interface SmartStoreChannelOrderUseCase {
 
     List<ChannelOrderResult> list(boolean attentionOnly, int limit);
 
+    List<ReturnDeliveryCompanyResult> listReturnDeliveryCompanies();
+
+    record ReturnDeliveryCompanyResult(long id, String name, String priorityType) {}
+
     ChannelOrderDetailResult detail(String productOrderId);
 
     ChannelOrderResult retryInventory(String productOrderId);

@@ -1,12 +1,13 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { useCart } from "@/features/cart/useCart";
-import { confirmPayment, executePaymentFlow, type OrderPayload } from "@/features/payment";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { CartQuantityError } from "@/features/cart/useGuestCart";
+import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import {
   FulfillmentForm,
@@ -15,6 +16,7 @@ import {
   useFulfillmentSelection,
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
+import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
 import {
   isMadeToOrderConsentVersionMismatch,
@@ -25,7 +27,6 @@ import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { isCartSnapshotConflict } from "@/features/cart/cartSnapshot";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
-import { queryKeys } from "@/shared/api";
 
 export function CartPage() {
   const {
@@ -48,12 +49,10 @@ export function CartPage() {
 }
 
 function CartContent() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
   const [rewardAmount, setRewardAmount] = useState(0);
+  const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const { isAuthenticated, user } = useCustomerAuth();
   const {
     items,
@@ -102,6 +101,7 @@ function CartContent() {
         ...fulfillmentPayload(fulfillment),
       };
       await executePaymentFlow({
+        checkoutSelection,
         context: "ORDER",
         payload,
         orderName: availableItems.length === 1
@@ -109,25 +109,7 @@ function CartContent() {
           : `장바구니 상품 ${availableItems.length}건`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
-        returnHint: { customerName: user.name },
-        onZeroAmount: async (prep, requireCurrentCustomer) => {
-          const result = await confirmPayment({
-            paymentKey: null,
-            orderId: prep.orderId,
-            amount: 0,
-          });
-          requireCurrentCustomer();
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.cart }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.member.rewards }),
-          ]);
-          requireCurrentCustomer();
-          if (result.domainId == null) throw new Error("완료된 주문 번호를 확인할 수 없습니다.");
-          toast.show("쿠폰·적립금으로 주문이 완료되었습니다.", "success");
-          navigate(`/my/orders/${result.domainId}`);
-        },
+        returnHint: { customerName: user.name, returnPath: "/cart" },
       });
     },
     onError: (error) => {
@@ -250,7 +232,9 @@ function CartContent() {
           retrying={isRefetching}
         />
       )}
-      <ErrorAlert error={itemMutationError} />
+      {itemMutationError instanceof CartQuantityError
+        ? <Alert variant="warning">{itemMutationError.message}</Alert>
+        : <ErrorAlert error={itemMutationError} />}
       {isItemMutationPending && (
         <Alert variant="info" role="status" className="mb-3">
           장바구니 변경을 반영하고 있습니다.
@@ -278,18 +262,7 @@ function CartContent() {
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted">{formatKRW(item.price)}</div>
-                        {item.options.length > 0 && (
-                          <div className="small text-muted mt-1">
-                            {item.options.map((option) => (
-                              <div key={`${option.sortOrder}-${option.groupName}`}>
-                                {option.groupName}: {option.value}
-                                {option.priceAdjustment > 0
-                                  ? ` (+${formatKRW(option.priceAdjustment)})`
-                                  : ""}
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                        <OrderOptionList options={item.options} />
                         {item.productType && (
                           <div className="mt-2">
                             <ProductPurchaseTerms
@@ -302,8 +275,14 @@ function CartContent() {
                             />
                           </div>
                         )}
-                        {!item.available && (
-                          <span className="badge bg-secondary">품절</span>
+                        {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
+                        {!item.available && !item.quantityWarning && (
+                          <div>
+                            <span className="badge bg-secondary">구매 불가</span>
+                            <div className="small text-danger">
+                              재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td className="text-center">
@@ -322,7 +301,7 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={isItemMutationPending || item.qty >= MAX_PRODUCT_QUANTITY}
+                            disabled={isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
                             onClick={() => {
                               void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
                             }}
@@ -361,14 +340,13 @@ function CartContent() {
                 <span className="text-muted">상품 수</span>
                 <span>{items.length}종</span>
               </div>
-              <OrderPriceSummary
-                itemAmount={totalAmount}
-                fulfillmentType={fulfillment.fulfillmentType}
-                className="mb-3"
-              />
-
               {!isAuthenticated ? (
                 <>
+                  <OrderPriceSummary
+                    itemAmount={totalAmount}
+                    fulfillmentType={fulfillment.fulfillmentType}
+                    className="mb-3"
+                  />
                   <Alert variant="light" className="border mb-3">
                     담은 상품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다.
                   </Alert>
@@ -386,6 +364,7 @@ function CartContent() {
                   <div className="border-top pt-3 mb-3">
                     <MemberOrderBenefits
                       productAmount={totalAmount}
+                      fulfillmentType={fulfillment.fulfillmentType}
                       selectedCouponId={issuedCouponId}
                       rewardPointsToUse={rewardAmount}
                       disabled={checkout.isPending || isItemMutationPending || isRefetching}
@@ -398,7 +377,8 @@ function CartContent() {
                     <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
                   </div>
 
-                  <ErrorAlert
+                  <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={checkout.isPending} />
+                  <PaymentErrorAlert
                     error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
                   />
                   {cartSnapshotConflict && (

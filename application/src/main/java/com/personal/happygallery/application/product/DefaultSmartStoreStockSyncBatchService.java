@@ -58,6 +58,7 @@ public class DefaultSmartStoreStockSyncBatchService implements SmartStoreStockSy
                 : SyncResult.failure(stock.configurationError());
         transactionService.finish(
                 productId,
+                stock.generation(),
                 stock.version(),
                 result.success(),
                 result.reason(),

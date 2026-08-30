@@ -6,6 +6,8 @@ import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
+import com.personal.happygallery.application.payment.PaymentReceiptQuery;
+import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -32,6 +34,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final RefundPort refundPort;
     private final ShippingAddressProtector shippingAddressProtector;
     private final ShipmentTrackingEventPort trackingEventPort;
+    private final PaymentReceiptQuery receiptQuery;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
@@ -39,7 +42,8 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                                     GuestTokenService guestTokenService,
                                     RefundPort refundPort,
                                     ShippingAddressProtector shippingAddressProtector,
-                                    ShipmentTrackingEventPort trackingEventPort) {
+                                    ShipmentTrackingEventPort trackingEventPort,
+                                    PaymentReceiptQuery receiptQuery) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
@@ -47,6 +51,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
         this.refundPort = refundPort;
         this.shippingAddressProtector = shippingAddressProtector;
         this.trackingEventPort = trackingEventPort;
+        this.receiptQuery = receiptQuery;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
@@ -109,6 +114,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                 fulfillment,
                 shippingAddress,
                 trackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()),
-                refundPort.findDirectByOrderId(order.getId()).orElse(null));
+                refundPort.findDirectByOrderId(order.getId()).orElse(null),
+                receiptQuery.findReceipt(PaymentContext.ORDER, order.getId()));
     }
 }

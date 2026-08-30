@@ -137,8 +137,8 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
   ]);
   expect(mergeRequests).toHaveLength(2);
   expect(mergeRequests.map((request) => request.items)).toEqual([
-    [{ productId: 11, qty: 2 }],
-    [{ productId: 22, qty: 1 }],
+    [{ productId: 11, productVariantId: null, textInputs: [], qty: 2 }],
+    [{ productId: 22, productVariantId: null, textInputs: [], qty: 1 }],
   ]);
   expect(mergeRequests.map((request) => request.expectedCustomerId)).toEqual([
     101,

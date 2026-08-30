@@ -344,6 +344,19 @@ public class PaymentAttempt {
         this.status = PaymentAttemptStatus.COMPENSATED;
     }
 
+    /** 승인 선점 전의 결제만 고객 요청으로 종료한다. 재요청은 같은 결과를 유지한다. */
+    public boolean abandonPending() {
+        if (status == PaymentAttemptStatus.CANCELED) {
+            return false;
+        }
+        if (status != PaymentAttemptStatus.PENDING) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "승인 처리가 시작된 결제는 종료할 수 없습니다. 결제 상태를 확인해 주세요.");
+        }
+        cancelPending("고객이 결제 준비를 종료했습니다.");
+        return true;
+    }
+
     /** prepare 유효시간이 지난 미시작 결제를 취소하고 개인정보 payload를 제거한다. */
     public boolean expirePendingBefore(LocalDateTime cutoff) {
         if (status != PaymentAttemptStatus.PENDING
@@ -351,11 +364,15 @@ public class PaymentAttempt {
                 || createdAt.isAfter(cutoff)) {
             return false;
         }
+        cancelPending("결제 준비 유효시간이 만료되었습니다.");
+        return true;
+    }
+
+    private void cancelPending(String reason) {
         this.status = PaymentAttemptStatus.CANCELED;
         this.processingToken = null;
         this.payloadEnc = null;
-        this.failReason = "결제 준비 유효시간이 만료되었습니다.";
-        return true;
+        this.failReason = reason;
     }
 
     /**

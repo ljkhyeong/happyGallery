@@ -1,7 +1,7 @@
 # ADR-0033: 결제 confirm 트랜잭션과 보상 경계
 
 **날짜**: 2026-07-12  
-**최종 갱신**: 2026-08-27
+**최종 갱신**: 2026-08-30
 **상태**: Accepted
 
 ---
@@ -96,10 +96,20 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 ### 4. Toss 멱등키를 요청마다 고정한다
 
-- 브라우저는 Toss의 `CARD` 통합 결제창을 열고 고객이 그 안에서 카드 또는 간편결제를 선택한다. prepare payload의
+- 브라우저 기본 선택은 Toss `CARD` 통합 결제창이다. 네이버페이·카카오페이를 선택하면 같은 SDK에 `card.flowMode=DIRECT`,
+  선택한 `card.easyPay` 코드(`NAVERPAY` 또는 `KAKAOPAY`), `windowTarget=self`를 전달한다. 두 간편결제는 공통 선택 UI와
+  SDK 옵션 생성·약관 확인을 사용한다. 전용창의 토스 결제 약관 동의는 prepare 전에 확인하고, 결제수단 변경 시 초기화한다.
+  선택값은 브라우저 진입 방식일 뿐 별도 PG나 서버 결제 상태를 추가하지 않으며, 기존 승인·부분환불·정산을 재사용한다. prepare payload의
   예약 결제수단은 PG 호출 전 표시용 스냅샷일 뿐이며, 승인·조회 응답의 `method`를 `confirmed_payment_method`에 저장해
   최종 예약 결제수단으로 사용한다.
 - confirm: prepare에서 생성한 무작위 UUID `orderId`를 `Idempotency-Key`로 사용한다.
+- 결제창 취소·실패의 화면 복귀 경로는 기존 고객 세션 귀속 `PaymentReturnHint.returnPath`에 보관한다. 실패 콜백의
+  `orderId`나 외부 query를 복귀 주소로 사용하지 않는다. 로그인 복귀에서 사용하는 내부 주소 확인을 재사용하고,
+  링크 표시와 클릭 시 고객 세션을 확인한다. prepare에서 받은 결제 ID도 같은 hint에 보관해 복귀 전에 승인 전 결제를 종료한다.
+  종료 API는 confirm과 같은 행 잠금과 소유권 검증 아래 `PENDING -> CANCELED`, payload 제거와 혜택 예약 해제를 함께 커밋한다.
+  `CANCELED` 재요청은 성공하며 나머지 상태는 변경 없이 거절한다. 실패 화면은 종료 실패 시 조회 자격을 보존하고 현재 상태를 표시한다.
+  SDK 오류에도 같은 종료를 시도하며, 브라우저 자체 종료와 요청 실패는 기존 30분 만료 배치가 정리한다. prepare·confirm·환불은 자동 재요청하지 않는다.
+  예약 시간·재고·약관 동의는 복원하지 않고 구매 화면에서 다시 확인한다. 성공 화면의 승인·대사·보상 환불 경로는 유지한다.
 - Toss 승인 응답의 `paymentKey`, `orderId`가 요청값과 다르면 해당 응답을 결제 시도에 귀속할 수 없으므로
   현재 processing token 소유자만 즉시 `RECONCILIATION_REQUIRED`로 전이한다. 동일 응답을 자동 재시도하지 않는다.
 - refund: `refunds.idempotency_key`에 환불 생성 시 UUID를 저장하고 최초 실행과 모든 재시도에서 재사용한다.
@@ -107,7 +117,22 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 
 공식 계약: [토스페이먼츠 인증 및 기타 헤더 설정](https://docs.tosspayments.com/reference/using-api/authorization)
 
+자체창 계약: [토스페이먼츠 카드사 및 간편결제 자체창 연동](https://docs.tosspayments.com/guides/v2/payment-window/integration-direct)
+
 ### 5. PG 승인과 도메인 생성을 별도 트랜잭션으로 처리한다
+
+0원 주문과 8회권 사용 예약의 프론트엔드 확정도 공통 `/payments/success` 화면을 사용한다.
+화면별 confirm 콜백은 두지 않고, prepare 응답에서 받은 결제 번호와 `paymentKey=null`, `amount=0`을
+기존 고객 세션 귀속 저장소에 기록한 뒤 이동한다. 확정 응답 유실과 새로고침은 같은 요청을 재사용한다.
+미확인 0원 요청이 있으면 이후 구매 버튼도 새 prepare 대신 기존 결과 화면으로 연결한다.
+0원 요청을 URL에서 복원하지 않으며, 저장소를 사용할 수 없으면 승인 전에 기존 abandon API로 종료한다.
+다른 고객의 저장 요청은 사용하지 않고, 정리할 때도 소유자와 요청 값이 모두 일치한 항목만 제거한다.
+
+완료 결과는 승인 재시도 정보와 분리한다. 완료가 확인되면 확정 요청을 삭제하고 URL에는 조회용
+`completedOrderId`만 남기며 `paymentKey`와 금액은 제거한다. 새로고침은 기존 소유권 확인 상태 API만
+호출하고 회원 세션 또는 고객 세션에 귀속된 비회원 조회 토큰을 사용한다. 별도 완료 결과 저장소는
+만들지 않으며, 조회 오류는 결제 실패와 구분해 조회만 재시도한다. 이 경로는 아직 처리 중인 다른
+결제의 확정 요청이나 복귀 정보를 읽거나 삭제하지 않는다.
 
 1. `PENDING/RETRYABLE -> PROCESSING` 선점과 새 processing token 저장
 2. DB 트랜잭션 밖에서 PG confirm
@@ -197,7 +222,8 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 
 ### 8. 고객 영수증과 PG 정산 대사는 결제 원장에 연결한다
 
-- Toss 승인 응답의 `receipt.url`은 `payment_attempt.confirmed_receipt_url`에 저장하고 결제 완료·상태 조회 응답에 포함한다. 주문·예약·8회권에 같은 값을 복제하지 않는다.
+- Toss 승인 응답의 `receipt.url`은 `payment_attempt.confirmed_receipt_url`에 저장하고 결제 완료·상태 조회와 주문 상세·회원 예약 상세·8회권 목록/상세 응답에 포함한다. 주문·예약·8회권에 같은 값을 복제하지 않는다.
+- 거래 소유권을 확인한 뒤 `context + fulfilled_domain_id`로 유료 `CONFIRMED` 영수증만 읽는다. 회원에게 귀속된 비회원 거래도 현재 거래 소유권을 따르며, 8회권 목록은 ID 목록으로 일괄 조회한다. `V161` 복합 인덱스로 조회를 지원한다.
 - Toss 정산 API는 최대 60초가 걸릴 수 있으므로 confirm·cancel의 3초 풀과 분리한 전용 커넥션 풀을 사용한다. 인증 키와 base URL만 공유한다.
 - 매시간 최근 7일 정산을 다시 읽고 거래키로 upsert한다. 승인 거래는 `paymentKey`·`orderId`·금액, 취소 거래는 취소 `transactionKey`·금액을 로컬 원장과 비교한다.
 - 불일치는 `payment_settlements.reconciliation_status`와 사유로 유지하고 관리자 화면에 표시한다. 외부 조회 중에는 DB 트랜잭션을 열지 않고 각 거래 반영만 짧은 새 트랜잭션에서 수행한다.

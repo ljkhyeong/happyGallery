@@ -27,6 +27,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -39,6 +40,7 @@ import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -60,6 +62,7 @@ class MePassUseCaseIT {
     @Autowired RefundRepository refundRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
+    @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean NotificationService notificationService;
 
     MockMvc mockMvc;
@@ -90,15 +93,21 @@ class MePassUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("회원 8회권 목록을 조회한다")
+    @DisplayName("회원 8회권 목록과 페이지는 결제 영수증을 함께 조회한다")
     @Test
     void listMyPasses() throws Exception {
-        purchasePass();
+        Long passId = purchasePass();
+        String receiptUrl = "https://dashboard.tosspayments.com/receipt/member-pass";
+        jdbcTemplate.update("""
+                UPDATE payment_attempt SET confirmed_receipt_url = ?
+                WHERE context = 'PASS' AND fulfilled_domain_id = ?
+                """, receiptUrl, passId);
 
         mockMvc.perform(get("/api/v1/me/passes")
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].passId").isNumber())
+                .andExpect(jsonPath("$[0].receiptUrl").value(receiptUrl))
                 .andExpect(jsonPath("$[0].planCode").value("REGULAR_CRAFT_8"))
                 .andExpect(jsonPath("$[0].planName").value("정규 공예 8회권"))
                 .andExpect(jsonPath("$[0].totalCredits").value(8));
@@ -108,6 +117,7 @@ class MePassUseCaseIT {
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].passId").isNumber())
+                .andExpect(jsonPath("$.content[0].receiptUrl").value(receiptUrl))
                 .andExpect(jsonPath("$.hasMore").value(false));
     }
 
@@ -122,6 +132,7 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.passId").value(passId))
                 .andExpect(jsonPath("$.totalCredits").value(8))
                 .andExpect(jsonPath("$.remainingCredits").value(8))
+                .andExpect(jsonPath("$.receiptUrl").value(nullValue()))
                 .andExpect(jsonPath("$.totalPrice").value(240000));
     }
 

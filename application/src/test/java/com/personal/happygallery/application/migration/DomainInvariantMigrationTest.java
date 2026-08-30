@@ -411,6 +411,46 @@ class DomainInvariantMigrationTest {
         return new BenefitConstraintFixture(userId, paymentAttemptId, productId, orderId);
     }
 
+    @Test
+    @DisplayName("V164는 옵션 키 순으로 조합을 정렬하고 중복된 과거 조합의 번호와 참조를 보존한다")
+    void migrateV164_preservesVariantIdsAndReferences() {
+        flyway("163").migrate();
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("""
+                INSERT INTO products (id, name, type, price, status, specification, production_lead_days)
+                VALUES (164, '조합 전환 상품', 'MADE_TO_ORDER', 10000, 'ACTIVE', '가죽 키링', 3)
+                """);
+        jdbc.update("""
+                INSERT INTO product_variants (id, product_id, combination_key, quantity, active)
+                VALUES (1641, 164, 'a=two|a-z=one', 2, FALSE),
+                       (1642, 164, 'a-z=one|a=two', 4, TRUE),
+                       (1643, 164, 'DEFAULT', 1, FALSE),
+                       (1644, 164, 'a-z=-|a=two', 7, TRUE)
+                """);
+        jdbc.update("""
+                INSERT INTO users (id, name_enc, name_hmac)
+                VALUES (164, 'v164-user', REPEAT('b', 64))
+                """);
+        jdbc.update("""
+                INSERT INTO cart_items (id, user_id, product_id, product_variant_id, qty, line_key)
+                VALUES (1641, 164, 164, 1641, 1, REPEAT('1', 64)),
+                       (1642, 164, 164, 1642, 2, REPEAT('2', 64))
+                """);
+
+        flyway("164").migrate();
+
+        assertThat(jdbc.queryForList("SELECT combination_key FROM product_variants ORDER BY id", String.class))
+                .containsExactly("legacy-variant:1641", "a=two|a-z=one", "DEFAULT", "a=two|a-z=-");
+        assertThat(jdbc.queryForList("SELECT quantity FROM product_variants ORDER BY id", Integer.class))
+                .containsExactly(2, 4, 1, 7);
+        assertThat(jdbc.queryForList("SELECT id FROM product_variants WHERE active = TRUE ORDER BY id", Long.class))
+                .containsExactly(1642L, 1644L);
+        assertThat(jdbc.queryForList("SELECT product_variant_id FROM cart_items ORDER BY id", Long.class))
+                .containsExactly(1641L, 1642L);
+        assertThat(jdbc.queryForList("SELECT qty FROM cart_items ORDER BY id", Integer.class))
+                .containsExactly(1, 2);
+    }
+
     private int insertOrderItem(JdbcTemplate jdbc,
                                 BenefitConstraintFixture fixture,
                                 int qty,
@@ -450,6 +490,51 @@ class DomainInvariantMigrationTest {
                 .target(target)
                 .cleanDisabled(false)
                 .load();
+    }
+
+    @Test
+    @DisplayName("스마트스토어 전환은 기존 연결과 요청을 보존하고 같은 조합의 과거 연결만 중복 허용한다")
+    void migrateSmartStoreMappings_preservesExistingRowsAndCurrentMappingUniqueness() {
+        flyway("164").migrate();
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("""
+                INSERT INTO products (id, name, type, price, status, specification, production_lead_days)
+                VALUES (50001, '연결 전환 상품', 'MADE_TO_ORDER', 10000, 'ACTIVE', '가죽 제품', 7)
+                """);
+        jdbc.update("""
+                INSERT INTO product_variants (id, product_id, combination_key, quantity)
+                VALUES (50002, 50001, 'DEFAULT', 5)
+                """);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (id, product_id, product_variant_id, origin_product_no, option_id)
+                VALUES (50003, 50001, 50002, 123, 100)
+                """);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_syncs (product_id, request_version, status, next_attempt_at)
+                VALUES (50001, 7, 'PENDING', '2026-08-31 12:00:00')
+                """);
+
+        flyway("166").migrate();
+        assertThat(jdbc.queryForMap("""
+                SELECT generation, request_version, status FROM smartstore_stock_syncs WHERE product_id = 50001
+                """)).containsEntry("generation", "legacy").containsEntry("request_version", 7L)
+                .containsEntry("status", "PENDING");
+        assertThat(jdbc.queryForObject("SELECT internal_target_key FROM smartstore_stock_mappings WHERE id = 50003",
+                Long.class)).isEqualTo(50002L);
+        jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id, retired)
+                VALUES (50001, 50002, 123, 101, TRUE), (50001, 50002, 123, 102, TRUE)
+                """);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM smartstore_stock_mappings WHERE product_id = 50001",
+                Long.class)).isEqualTo(3L);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id)
+                VALUES (50001, 50002, 123, 103)
+                """)).isInstanceOf(DataAccessException.class);
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO smartstore_stock_mappings (product_id, product_variant_id, origin_product_no, option_id, retired)
+                VALUES (50001, 50002, 123, 100, TRUE)
+                """)).isInstanceOf(DataAccessException.class);
     }
 
     private long constraintCount(JdbcTemplate jdbc, String table, String constraint) {
