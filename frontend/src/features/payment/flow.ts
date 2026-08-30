@@ -35,6 +35,7 @@ interface ExecutePaymentFlowArgs<T extends PaymentPayload> {
   customerName?: string;
   customerPhone?: string;
   returnHint?: PaymentReturnHint;
+  onPrepared?: () => void;
 }
 
 /**
@@ -90,6 +91,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
   try {
     const prep = await runCustomerStep(() =>
       preparePayment(args.context, args.payload));
+    runCustomerEffect(() => args.onPrepared?.());
     const statusTokenHandle = runCustomerEffect(
       () => storePaymentStatusToken(
         prep.orderId,

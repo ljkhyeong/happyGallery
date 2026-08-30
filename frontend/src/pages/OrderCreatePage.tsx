@@ -34,6 +34,7 @@ import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFiel
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
+import { ApiError } from "@/shared/api";
 
 type Step = "verify" | "items";
 
@@ -85,6 +86,11 @@ function OrderCreateForm() {
   const [manualEntryConfirmed, setManualEntryConfirmed] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [verificationReset, setVerificationReset] = useState({ version: 0, message: "" });
+  const resetVerification = (message: string) => {
+    setCode("");
+    setVerificationReset((previous) => ({ version: previous.version + 1, message }));
+  };
   const [name, setName] = useState(user?.name ?? "");
   const [nameTouched, setNameTouched] = useState(false);
   const [items, setItems] = useState<OrderItemInput[]>([]);
@@ -164,6 +170,9 @@ function OrderCreateForm() {
         checkoutSelection,
         context: "ORDER",
         payload,
+        onPrepared: !user ? () => resetVerification(
+          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+        ) : undefined,
         orderName: items.length === 1 && items[0]
           ? `상품 주문 (${items[0].qty}개)`
           : `상품 주문 ${items.length}건`,
@@ -176,7 +185,12 @@ function OrderCreateForm() {
         },
       });
     },
-    onError: consent.handleSubmissionError,
+    onError: (error) => {
+      consent.handleSubmissionError(error);
+      if (!user && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
+        resetVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+      }
+    },
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
 
@@ -257,8 +271,13 @@ function OrderCreateForm() {
         <Card className="mb-4">
           <Card.Body>
             <div className="legacy-order-step-label">1. 휴대폰 인증</div>
+            {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
+              key={verificationReset.version}
+              initialPhone={phone}
+              confirming={mutation.isPending}
               purpose="GUEST_ORDER"
+              onReset={() => setCode("")}
               onVerified={(p, c) => {
                 setPhone(p);
                 setCode(c);
@@ -364,7 +383,7 @@ function OrderCreateForm() {
             variant="primary" size="lg" className="w-100"
             disabled={!normalizedName || items.length === 0 || !productTypesReady
               || !isFulfillmentComplete(fulfillment) || !consent.ready
-              || (!user && !guestPolicyConsent.ready) || mutation.isPending}
+              || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
             onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
             {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
           </Button>

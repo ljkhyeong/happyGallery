@@ -14,7 +14,7 @@ import {
   useCheckoutSelection,
   type BookingPayload,
 } from "@/features/payment";
-import { queryKeys } from "@/shared/api";
+import { ApiError, queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
@@ -133,6 +133,10 @@ function BookingCreateContent({
     () => resumeDraft?.passFallbackAccepted ?? false,
   );
   const [showGate, setShowGate] = useState(false);
+  const [guestVerificationReset, setGuestVerificationReset] = useState({ version: 0, message: "" });
+  const resetGuestVerification = (message: string) => setGuestVerificationReset((previous) => ({
+    version: previous.version + 1, message,
+  }));
 
   useEffect(() => {
     if (matchingResume === null) {
@@ -291,6 +295,9 @@ function BookingCreateContent({
         checkoutSelection: paymentPath === "deposit" ? checkoutSelection : undefined,
         context: "BOOKING",
         payload,
+        onPrepared: guest ? () => resetGuestVerification(
+          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+        ) : undefined,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: member ? `member_${member.id}` : undefined,
         customerName: guest?.name ?? member?.name,
@@ -301,6 +308,11 @@ function BookingCreateContent({
           returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
         },
       });
+    },
+    onError: (error, actor) => {
+      if (actor?.guest && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
+        resetGuestVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+      }
     },
   });
 
@@ -508,6 +520,7 @@ function BookingCreateContent({
 
       <AuthGateModal
         show={showGate}
+        guestVerificationReset={guestVerificationReset}
         onClose={() => {
           onMemberResumeHandled();
           setShowGate(false);
