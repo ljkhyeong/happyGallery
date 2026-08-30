@@ -42,7 +42,9 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -191,9 +193,7 @@ public class DefaultCartService implements CartUseCase {
         requireAvailableStock(
                 Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
 
-        existingItems.stream()
-                .filter(existing -> existing.getLineKey().equals(candidate.getLineKey()))
-                .findFirst()
+        Optional.ofNullable(indexCartLines(existingItems).get(candidate.getLineKey()))
                 .ifPresentOrElse(
                         existing -> existing.addQty(qty, changedAt),
                         () -> cartItemStore.save(candidate));
@@ -259,10 +259,7 @@ public class DefaultCartService implements CartUseCase {
         }
         requireAvailableStock(desiredQuantities, resolvedByStockKey);
 
-        Map<String, CartItem> existingByLineKey = new HashMap<>();
-        for (CartItem existing : existingItems) {
-            existingByLineKey.put(existing.getLineKey(), existing);
-        }
+        Map<String, CartItem> existingByLineKey = indexCartLines(existingItems);
         List<CartItem> newItems = new ArrayList<>();
         for (Map.Entry<String, PendingCartLine> entry : pendingByLineKey.entrySet()) {
             CartItem existing = existingByLineKey.get(entry.getKey());
@@ -284,15 +281,17 @@ public class DefaultCartService implements CartUseCase {
         CartItem item = cartItemReader.findByUserIdAndIdForUpdate(userId, cartItemId)
                 .orElseThrow(NotFoundException.supplier("장바구니 항목"));
         OrderAmountCalculator.requireQuantity(qty);
-        ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
-                toPurchaseRequest(0, item))).getFirst();
-        StockKey stockKey = stockKey(resolved);
-        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
-                userId, List.of(item.getProductId()));
-        long desiredQuantity = quantitiesByStockKey(existingItems).get(stockKey)
-                - item.getQty() + qty;
-        requireAvailableStock(
-                Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
+        if (qty > item.getQty()) {
+            ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
+                    toPurchaseRequest(0, item))).getFirst();
+            StockKey stockKey = stockKey(resolved);
+            List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
+                    userId, List.of(item.getProductId()));
+            long desiredQuantity = quantitiesByStockKey(existingItems).get(stockKey)
+                    - item.getQty() + qty;
+            requireAvailableStock(
+                    Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
+        }
         item.updateQty(qty, LocalDateTime.now(clock));
     }
 
@@ -359,6 +358,13 @@ public class DefaultCartService implements CartUseCase {
                 .map(input -> new CartItemTextInput(
                         input.groupId(), input.groupKey(), input.value(), input.sortOrder()))
                 .toList();
+    }
+
+    private static Map<String, CartItem> indexCartLines(List<CartItem> items) {
+        return items.stream().collect(Collectors.toMap(
+                item -> CartItem.lineKey(item.getProductId(), item.getProductVariantId(), item.getTextInputs()),
+                Function.identity(),
+                BinaryOperator.minBy(Comparator.comparing(CartItem::getId))));
     }
 
     private void requireAvailableStock(

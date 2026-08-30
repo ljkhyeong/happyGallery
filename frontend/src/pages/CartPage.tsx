@@ -277,7 +277,12 @@ function CartContent() {
                         )}
                         {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
                         {!item.available && !item.quantityWarning && (
-                          <span className="badge bg-secondary">품절</span>
+                          <div>
+                            <span className="badge bg-secondary">구매 불가</span>
+                            <div className="small text-danger">
+                              재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
+                            </div>
+                          </div>
                         )}
                       </td>
                       <td className="text-center">

@@ -108,8 +108,7 @@ public class CartItem {
                 .append("|variant=").append(productVariantId == null ? 0 : productVariantId)
                 .append("|inputs=");
         textInputs.stream()
-                .sorted(Comparator.comparingInt(CartItemTextInput::getSortOrder)
-                        .thenComparing(CartItemTextInput::getOptionKey))
+                .sorted(Comparator.comparing(CartItemTextInput::getOptionKey))
                 .forEach(input -> canonical
                         .append(input.getOptionKey()).append('=')
                         .append(Base64.getEncoder().encodeToString(

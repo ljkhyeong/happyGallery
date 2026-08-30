@@ -155,6 +155,7 @@
 - `cart_items`
   - `id`, `user_id(FK)`, `product_id(FK)`, `product_variant_id nullable`, `line_key`, `qty`, `created_at`, `updated_at`
   - `(user_id, line_key)`를 유일하게 유지한다. `line_key`는 상품·SKU·정규화된 직접입력값을 식별한다.
+  - V163부터 직접입력은 표시 순서가 아닌 옵션 키 순으로 정렬한다. 기존 동일 입력의 중복 행은 최소 ID에 정상 키, 나머지에 `legacy-cart-item:{id}`를 부여해 모든 ID·수량과 결제 준비 참조를 보존한다. 추가·병합은 입력 기준으로 기존 최소 ID에 합산하며 구버전과 혼용하지 않는다. 세부 전환·롤백 조건은 ADR-0012를 따른다.
 - `cart_item_text_inputs`
   - `cart_item_id`, `option_group_id`, `option_key`, `value`, `sort_order`
   - 같은 SKU라도 직접입력 제작 문구가 다른 장바구니 행의 선택을 보존한다.
