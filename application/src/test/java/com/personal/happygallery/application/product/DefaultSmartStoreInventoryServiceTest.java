@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.product.SmartStoreStockSyncTransactionService.ProductSyncSnapshot;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
@@ -43,6 +44,8 @@ class DefaultSmartStoreInventoryServiceTest {
     private static DefaultSmartStoreInventoryService service(
             SmartStoreInventoryProvider provider,
             SmartStoreStockSyncTransactionService transactionService) {
+        SmartStoreOrderSyncBatchUseCase orderSyncUseCase = mock(SmartStoreOrderSyncBatchUseCase.class);
+        when(orderSyncUseCase.synchronizeBeforeStock()).thenReturn(true);
         return new DefaultSmartStoreInventoryService(
                 mock(ProductReaderPort.class),
                 mock(ProductOptionConfigurationService.class),
@@ -51,6 +54,7 @@ class DefaultSmartStoreInventoryServiceTest {
                 mock(SmartStoreStockSyncQueuePort.class),
                 provider,
                 transactionService,
+                orderSyncUseCase,
                 Clock.systemUTC());
     }
 }

@@ -2,6 +2,7 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.batch.BatchExecutor;
 import com.personal.happygallery.application.batch.BatchResult;
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.product.SmartStoreStockSyncTransactionService.ClaimedStock;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
@@ -9,6 +10,8 @@ import com.personal.happygallery.application.product.port.out.SmartStoreInventor
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
@@ -20,16 +23,19 @@ public class DefaultSmartStoreStockSyncBatchService implements SmartStoreStockSy
     private final SmartStoreInventoryProvider inventoryProvider;
     private final SmartStoreStockSyncPort syncPort;
     private final SmartStoreStockSyncTransactionService transactionService;
+    private final SmartStoreOrderSyncBatchUseCase orderSyncUseCase;
     private final Clock clock;
 
     public DefaultSmartStoreStockSyncBatchService(
             SmartStoreInventoryProvider inventoryProvider,
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockSyncTransactionService transactionService,
+            SmartStoreOrderSyncBatchUseCase orderSyncUseCase,
             Clock clock) {
         this.inventoryProvider = inventoryProvider;
         this.syncPort = syncPort;
         this.transactionService = transactionService;
+        this.orderSyncUseCase = orderSyncUseCase;
         this.clock = clock;
     }
 
@@ -39,8 +45,15 @@ public class DefaultSmartStoreStockSyncBatchService implements SmartStoreStockSy
             return BatchResult.successOnly(0);
         }
         LocalDateTime now = LocalDateTime.now(clock);
+        List<Long> productIds = syncPort.findDueProductIds(now, now.minusMinutes(5), BATCH_SIZE);
+        if (productIds.isEmpty()) {
+            return BatchResult.successOnly(0);
+        }
+        if (!orderSyncUseCase.synchronizeBeforeStock()) {
+            return BatchResult.of(0, Map.of("스마트스토어 주문 수집 미완료로 재고 전송 보류", 1));
+        }
         return BatchExecutor.execute(
-                syncPort.findDueProductIds(now, now.minusMinutes(5), BATCH_SIZE),
+                productIds,
                 productId -> productId,
                 this::sync,
                 "스마트스토어 재고 동기화");

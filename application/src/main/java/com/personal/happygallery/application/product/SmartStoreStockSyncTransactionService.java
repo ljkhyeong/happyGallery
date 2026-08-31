@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
 import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
@@ -8,6 +9,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreStockMap
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -33,23 +35,31 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 class SmartStoreStockSyncTransactionService {
 
+    private static final Set<SmartStoreOrderAttentionReason> UNAPPLIED_STOCK_REASONS = Set.of(
+            SmartStoreOrderAttentionReason.MAPPING_REQUIRED,
+            SmartStoreOrderAttentionReason.STOCK_SHORTAGE,
+            SmartStoreOrderAttentionReason.STATUS_REVIEW);
+
     private final SmartStoreStockSyncPort syncPort;
     private final SmartStoreStockMappingPort mappingPort;
     private final ProductReaderPort productReaderPort;
     private final InventoryReaderPort inventoryReaderPort;
     private final ProductOptionConfigurationService optionConfigurationService;
+    private final SmartStoreProductOrderPort orderPort;
 
     SmartStoreStockSyncTransactionService(
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockMappingPort mappingPort,
             ProductReaderPort productReaderPort,
             InventoryReaderPort inventoryReaderPort,
-            ProductOptionConfigurationService optionConfigurationService) {
+            ProductOptionConfigurationService optionConfigurationService,
+            SmartStoreProductOrderPort orderPort) {
         this.syncPort = syncPort;
         this.mappingPort = mappingPort;
         this.productReaderPort = productReaderPort;
         this.inventoryReaderPort = inventoryReaderPort;
         this.optionConfigurationService = optionConfigurationService;
+        this.orderPort = orderPort;
     }
 
     @Transactional
@@ -69,6 +79,11 @@ class SmartStoreStockSyncTransactionService {
             return Optional.empty();
         }
         syncPort.save(sync);
+
+        if (hasUnappliedOrders(productId)) {
+            sync.postponeForUnappliedOrder(now);
+            return Optional.empty();
+        }
 
         try {
             return Optional.of(new ClaimedStock(sync.getGeneration(), claimedVersion, buildCommand(productId), null));
@@ -95,6 +110,11 @@ class SmartStoreStockSyncTransactionService {
             sync.fail(claimedGeneration, claimedVersion, reason, now);
         }
         syncPort.save(sync);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean hasUnappliedOrders(Long productId) {
+        return orderPort.existsInventoryAttentionForProduct(productId, UNAPPLIED_STOCK_REASONS);
     }
 
     @Transactional(readOnly = true)

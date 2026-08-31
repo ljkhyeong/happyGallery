@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
@@ -41,6 +42,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
     private final SmartStoreStockSyncQueuePort queuePort;
     private final SmartStoreInventoryProvider inventoryProvider;
     private final SmartStoreStockSyncTransactionService transactionService;
+    private final SmartStoreOrderSyncBatchUseCase orderSyncUseCase;
     private final Clock clock;
 
     public DefaultSmartStoreInventoryService(
@@ -51,6 +53,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             SmartStoreStockSyncQueuePort queuePort,
             SmartStoreInventoryProvider inventoryProvider,
             SmartStoreStockSyncTransactionService transactionService,
+            SmartStoreOrderSyncBatchUseCase orderSyncUseCase,
             Clock clock) {
         this.productReaderPort = productReaderPort;
         this.optionConfigurationService = optionConfigurationService;
@@ -59,6 +62,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
         this.queuePort = queuePort;
         this.inventoryProvider = inventoryProvider;
         this.transactionService = transactionService;
+        this.orderSyncUseCase = orderSyncUseCase;
         this.clock = clock;
     }
 
@@ -215,6 +219,14 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
     @Transactional(propagation = Propagation.NEVER)
     public void applyProduct(Long productId, String previewVersion) {
         requireProviderEnabled();
+        if (!orderSyncUseCase.synchronizeBeforeStock()) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "스마트스토어 주문 수집이 완료되지 않아 상품 반영을 보류했습니다. 잠시 후 다시 시도해 주세요.");
+        }
+        if (transactionService.hasUnappliedOrders(productId)) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "스마트스토어 재고 미반영 주문을 먼저 확인해 주세요.");
+        }
         var local = transactionService.productSnapshot(productId);
         if (!local.previewVersion().equals(previewVersion)) {
             throw new HappyGalleryException(

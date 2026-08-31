@@ -46,12 +46,13 @@ class SmartStoreOrderSyncStateService {
     }
 
     @Transactional
-    public void complete(ClaimedCursor claimed, ChangeCursor next) {
+    public boolean complete(ClaimedCursor claimed, ChangeCursor next) {
         SmartStoreOrderSyncState state = lockedState();
         if (!Objects.equals(state.getProcessingStartedAt(), claimed.processingStartedAt())) {
-            return;
+            return false;
         }
         state.complete(next.changedFrom(), next.moreSequence());
+        return true;
     }
 
     @Transactional

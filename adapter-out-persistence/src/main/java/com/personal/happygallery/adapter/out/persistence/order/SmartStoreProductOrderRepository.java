@@ -1,8 +1,10 @@
 package com.personal.happygallery.adapter.out.persistence.order;
 
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
+import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -36,6 +38,19 @@ public interface SmartStoreProductOrderRepository
     List<SmartStoreProductOrder> findRecent(
             @Param("attentionOnly") boolean attentionOnly,
             @Param("limit") int limit);
+
+    @Override
+    @Query("""
+            select count(channelOrder) > 0 from SmartStoreProductOrder channelOrder
+             where channelOrder.attentionReason in :reasons
+               and channelOrder.originProductNo in (
+                   select mapping.originProductNo from SmartStoreStockMapping mapping
+                    where mapping.productId = :productId and mapping.enabled = true
+               )
+            """)
+    boolean existsInventoryAttentionForProduct(
+            @Param("productId") Long productId,
+            @Param("reasons") Collection<SmartStoreOrderAttentionReason> reasons);
 
     @Override
     <S extends SmartStoreProductOrder> S save(S order);
