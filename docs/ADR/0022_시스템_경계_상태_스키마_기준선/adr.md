@@ -151,6 +151,7 @@
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.
+  - V167의 `return_reviewed_remain_quantity`는 마지막 반품 검수 당시 잔여 주문 수량이며 미검수는 NULL이다. 재고를 복원하지 않은 검수 결과도 유지하고, 이후 잔여 수량이 더 줄면 추가 반품 수량만 검수한다. 기존 `RETURNED` 중 확인 사유가 없는 건만 현재 잔여 수량으로 이관한다.
 - `smartstore_order_sync_state`
   - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
 - `smartstore_settlement_entries`

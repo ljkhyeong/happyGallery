@@ -84,26 +84,17 @@ class SmartStoreOrderTransactionService {
     @Transactional
     public SmartStoreProductOrder resolveReturn(String productOrderId, boolean restoreStock) {
         SmartStoreProductOrder order = lockedOrder(productOrderId);
-        if (!"RETURNED".equals(order.getProductOrderStatus())
-                || order.getAttentionReason() != SmartStoreOrderAttentionReason.RETURN_REVIEW) {
-            throw new IllegalArgumentException("반품 확인이 필요한 스마트스토어 주문만 처리할 수 있습니다.");
+        int restoreQuantity = order.resolveReturn(restoreStock);
+        if (restoreQuantity > 0) {
+            restore(order, restoreQuantity);
         }
-        if (restoreStock) {
-            int restoreQuantity = Math.max(
-                    order.getInventoryAppliedQuantity() - order.getRemainQuantity(), 0);
-            if (restoreQuantity > 0) {
-                restore(order, restoreQuantity);
-                order.applyInventoryQuantity(order.getInventoryAppliedQuantity() - restoreQuantity);
-            }
-        }
-        order.resolveAttention();
         return orderPort.save(order);
     }
 
     private void reconcile(SmartStoreProductOrder order) {
         String status = order.getProductOrderStatus();
         if ("RETURNED".equals(status)) {
-            if (order.getInventoryAppliedQuantity() > 0) {
+            if (order.pendingReturnQuantity() > 0) {
                 order.requireAttention(SmartStoreOrderAttentionReason.RETURN_REVIEW);
             } else {
                 order.resolveAttention();

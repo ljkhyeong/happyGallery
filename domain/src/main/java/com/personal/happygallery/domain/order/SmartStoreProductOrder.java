@@ -92,6 +92,9 @@ public class SmartStoreProductOrder {
     @Column(name = "inventory_applied_quantity", nullable = false)
     private int inventoryAppliedQuantity;
 
+    @Column(name = "return_reviewed_remain_quantity")
+    private Integer returnReviewedRemainQuantity;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "attention_reason", length = 30)
     private SmartStoreOrderAttentionReason attentionReason;
@@ -271,6 +274,25 @@ public class SmartStoreProductOrder {
         }
         this.inventoryAppliedQuantity = quantity;
         this.attentionReason = null;
+    }
+
+    public int pendingReturnQuantity() {
+        int unreviewedQuantity = returnReviewedRemainQuantity == null
+                ? inventoryAppliedQuantity
+                : Math.min(inventoryAppliedQuantity, returnReviewedRemainQuantity);
+        return Math.max(unreviewedQuantity - remainQuantity, 0);
+    }
+
+    public int resolveReturn(boolean restoreStock) {
+        if (!"RETURNED".equals(productOrderStatus)
+                || attentionReason != SmartStoreOrderAttentionReason.RETURN_REVIEW) {
+            throw new IllegalArgumentException("반품 확인이 필요한 스마트스토어 주문만 처리할 수 있습니다.");
+        }
+        int restoreQuantity = restoreStock ? pendingReturnQuantity() : 0;
+        inventoryAppliedQuantity -= restoreQuantity;
+        returnReviewedRemainQuantity = remainQuantity;
+        attentionReason = null;
+        return restoreQuantity;
     }
 
     public void requireAttention(SmartStoreOrderAttentionReason reason) {
