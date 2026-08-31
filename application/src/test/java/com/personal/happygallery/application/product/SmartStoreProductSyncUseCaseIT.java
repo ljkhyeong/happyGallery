@@ -132,6 +132,40 @@ class SmartStoreProductSyncUseCaseIT {
                 .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("재등록 전 전송이 늦게 적용돼도 성공·실패 응답 뒤 최신 재고를 다시 맞춘다")
+    void oldStockWriteAfterReregistration_requeuesCurrentStock(boolean success) {
+        Long productId = readyStockMapping();
+        AtomicInteger calls = new AtomicInteger();
+        AtomicInteger channelStock = new AtomicInteger(5);
+        when(provider.sync(any())).thenAnswer(invocation -> {
+            StockCommand command = invocation.getArgument(0);
+            boolean previousGeneration = calls.incrementAndGet() == 1;
+            if (previousGeneration) {
+                inventoryService.deduct(productId, 2);
+                smartStoreInventoryUseCase.deleteMapping(productId);
+                smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
+                assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isEqualTo(1);
+                assertThat(channelStock.get()).isEqualTo(3);
+            }
+            channelStock.set(command.stockQuantity());
+            return previousGeneration && !success
+                    ? SyncResult.failure("외부 수량 반영 후 응답 실패") : SyncResult.completed();
+        });
+
+        stockSyncBatchUseCase.syncPendingStocks();
+        assertThat(channelStock.get()).isEqualTo(5);
+        var pending = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertThat(pending.getStatus()).isEqualTo(SmartStoreStockSyncStatus.PENDING);
+        assertThat(pending.getAttemptCount()).isZero();
+        assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isEqualTo(1);
+        assertThat(channelStock.get()).isEqualTo(3);
+        assertThat(calls.get()).isEqualTo(3);
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
+    }
+
     @Test
     @DisplayName("원상품·옵션 연결 변경과 재등록은 이전 미리보기를 거절하고 수량만 바뀌면 최신 재고로 반영한다")
     void applyProduct_requiresCurrentMappingPreviewButUsesLatestQuantity() {

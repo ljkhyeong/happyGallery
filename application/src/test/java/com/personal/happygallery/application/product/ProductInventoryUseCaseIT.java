@@ -235,8 +235,8 @@ class ProductInventoryUseCaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    @DisplayName("전송 중 연동을 비활성화하거나 해제한 뒤 재등록해도 이전 응답이 새 요청과 재시도를 바꾸지 않는다")
-    void reenableSmartStoreMapping_ignoresPreviousGeneration(boolean deleteMapping) {
+    @DisplayName("재등록 전 응답은 진행 중 전송을 다시 요청하되 기존 대기와 재시도는 유지한다")
+    void reenableSmartStoreMapping_requeuesInFlightWriteAndPreservesRetries(boolean deleteMapping) {
         var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
@@ -267,7 +267,15 @@ class ProductInventoryUseCaseIT {
 
         var current = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
         assertThat(current.command().options()).contains(new OptionStock(101L, 9));
-        stockSyncTransactionService.finish(productId, current.generation(), current.version(), false, "새 전송 실패", now);
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
+        var correction = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertThat(correction.getRequestVersion()).isGreaterThan(current.version());
+        stockSyncTransactionService.finish(productId, current.generation(), current.version(), true, null, now);
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.PENDING);
+
+        var corrected = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
+        stockSyncTransactionService.finish(productId, corrected.generation(), corrected.version(), false, "새 전송 실패", now);
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), false, "이전 전송 실패", now);
         var retry = stockSyncPort.findByProductId(productId).orElseThrow();

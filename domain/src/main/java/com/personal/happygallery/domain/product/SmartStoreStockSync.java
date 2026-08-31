@@ -98,6 +98,7 @@ public class SmartStoreStockSync {
 
     public void complete(String claimedGeneration, long claimedVersion, LocalDateTime now) {
         if (!generation.equals(claimedGeneration)) {
+            requestAfterPreviousGeneration(now);
             return;
         }
         if (requestVersion == claimedVersion) {
@@ -115,6 +116,7 @@ public class SmartStoreStockSync {
 
     public void fail(String claimedGeneration, long claimedVersion, String reason, LocalDateTime now) {
         if (!generation.equals(claimedGeneration)) {
+            requestAfterPreviousGeneration(now);
             return;
         }
         if (requestVersion != claimedVersion) {
@@ -133,6 +135,13 @@ public class SmartStoreStockSync {
         status = SmartStoreStockSyncStatus.PENDING;
         nextAttemptAt = now.plusMinutes(Math.min(30, 1L << Math.min(attemptCount - 1, 5)));
         processingStartedAt = null;
+    }
+
+    /** 이미 전송했거나 전송 중이면 다시 요청하고, 대기·최종 실패의 재시도 정책은 유지한다. */
+    private void requestAfterPreviousGeneration(LocalDateTime now) {
+        if (status == SmartStoreStockSyncStatus.PROCESSING || status == SmartStoreStockSyncStatus.SYNCED) {
+            request(now);
+        }
     }
 
     private static String trim(String reason) {
