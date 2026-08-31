@@ -223,8 +223,8 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         SmartStoreOrderProvider.ClaimDetail claim = orderProvider.fetchDetails(List.of(productOrderId))
                 .stream()
                 .filter(detail -> productOrderId.equals(detail.productOrderId()))
-                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .findFirst()
+                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .orElse(null);
         return claim == null ? null : new ClaimDetail(
                 claim.claimId(), claim.claimType(), claim.claimStatus(), claim.reason(),
