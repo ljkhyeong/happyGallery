@@ -143,10 +143,10 @@ class NaverCommerceOrderProviderTest {
                               "channelCommission": 300,
                               "expectedSettlementAmount": 66700
                             },
-                            "delivery": [{
+                            "delivery": {
                               "deliveryCompany": "CJ대한통운",
                               "trackingNumber": "1234567890"
-                            }],
+                            },
                             "currentClaim": {
                               "return": {
                                 "claimId":"claim-1",

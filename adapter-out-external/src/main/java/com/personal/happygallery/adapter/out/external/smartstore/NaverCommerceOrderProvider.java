@@ -110,9 +110,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             DeliveryInfo deliveryInfo = address == null ? null : new DeliveryInfo(
                     address.name(), address.tel1(), address.zipCode(), address.baseAddress(),
                     address.detailedAddress(), productOrder.shippingMemo());
-            DeliveryResponse delivery = item.delivery() == null || item.delivery().isEmpty()
-                    ? null
-                    : item.delivery().getLast();
+            DeliveryResponse delivery = item.delivery();
             return new ProductOrderDetail(
                     productOrder.productOrderId(),
                     order.orderId(),
@@ -424,7 +422,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     private record DetailItem(
             OrderInfo order,
             ProductOrderInfo productOrder,
-            List<DeliveryResponse> delivery,
+            DeliveryResponse delivery,
             CurrentClaim currentClaim
     ) {}
 
