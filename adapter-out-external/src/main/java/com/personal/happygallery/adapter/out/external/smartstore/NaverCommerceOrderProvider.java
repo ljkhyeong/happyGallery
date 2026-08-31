@@ -6,7 +6,9 @@ import com.personal.happygallery.domain.time.Clocks;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -136,7 +138,8 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     productOrder.paymentCommission(),
                     productOrder.saleCommission(),
                     productOrder.channelCommission(),
-                    productOrder.expectedSettlementAmount());
+                    productOrder.expectedSettlementAmount(),
+                    completedReturns(item));
         }).toList();
     }
 
@@ -365,6 +368,36 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         return StringUtils.hasText(value) ? Long.valueOf(value) : null;
     }
 
+    private static List<CompletedReturn> completedReturns(DetailItem item) {
+        Map<String, CompletedReturn> returns = new LinkedHashMap<>();
+        if (item.completedClaims() != null) {
+            for (CompletedClaim claim : item.completedClaims()) {
+                if ("RETURN".equals(claim.claimType()) && "RETURN_DONE".equals(claim.claimStatus())) {
+                    addCompletedReturn(returns, claim.claimId(), claim.requestQuantity(),
+                            claim.claimCompleteOperationDate());
+                }
+            }
+        }
+        ReturnClaim current = item.currentClaim() == null ? null : item.currentClaim().returned();
+        if (current != null && "RETURN_DONE".equals(current.claimStatus())
+                && !returns.containsKey(current.claimId())) {
+            addCompletedReturn(returns, current.claimId(), current.requestQuantity(), current.returnCompletedDate());
+        }
+        if (returns.isEmpty() && ("RETURNED".equals(item.productOrder().productOrderStatus())
+                || "RETURN_DONE".equals(item.productOrder().claimStatus()))) {
+            throw new IllegalStateException("스마트스토어 반품 완료 수량을 확인할 수 없습니다.");
+        }
+        return List.copyOf(returns.values());
+    }
+
+    private static void addCompletedReturn(
+            Map<String, CompletedReturn> returns, String claimId, Integer quantity, OffsetDateTime completedAt) {
+        if (!StringUtils.hasText(claimId) || quantity == null || quantity <= 0 || completedAt == null) {
+            throw new IllegalStateException("스마트스토어 완료 반품의 번호·수량·완료일이 필요합니다.");
+        }
+        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity, toLocalDateTime(completedAt)));
+    }
+
     private static ClaimDetail claimDetail(CurrentClaim currentClaim) {
         if (currentClaim == null) {
             return null;
@@ -423,7 +456,16 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             OrderInfo order,
             ProductOrderInfo productOrder,
             DeliveryResponse delivery,
-            CurrentClaim currentClaim
+            CurrentClaim currentClaim,
+            List<CompletedClaim> completedClaims
+    ) {}
+
+    private record CompletedClaim(
+            String claimId,
+            String claimType,
+            String claimStatus,
+            Integer requestQuantity,
+            OffsetDateTime claimCompleteOperationDate
     ) {}
 
     private record CurrentClaim(
@@ -445,6 +487,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             String claimId,
             String claimStatus,
             OffsetDateTime claimRequestDate,
+            OffsetDateTime returnCompletedDate,
             Integer requestQuantity,
             String returnReason,
             String returnDetailedReason,

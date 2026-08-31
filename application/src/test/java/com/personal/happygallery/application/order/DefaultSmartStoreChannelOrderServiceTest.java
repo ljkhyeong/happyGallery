@@ -37,7 +37,7 @@ class DefaultSmartStoreChannelOrderServiceTest {
         ProductOrderDetail detail = new ProductOrderDetail(
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, null, "PAYED",
                 null, null, null, claim, 1, 1, changedAt, null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, List.of());
         when(orderPort.findByProductOrderId("po-1")).thenReturn(Optional.of(order));
         when(provider.isEnabled()).thenReturn(true);
         when(provider.fetchDetails(List.of("po-1"))).thenReturn(List.of(detail));

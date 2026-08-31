@@ -57,7 +57,8 @@ class SmartStoreOrderTransactionService {
                 detail.paymentDate(), change.lastChangedAt(), detail.shippingDueDate(),
                 detail.expectedDeliveryMethod(), detail.deliveryCompany(), detail.trackingNumber(),
                 detail.unitPrice(), detail.paymentAmount(), detail.paymentCommission(),
-                detail.saleCommission(), detail.channelCommission(), detail.expectedSettlementAmount()));
+                detail.saleCommission(), detail.channelCommission(), detail.expectedSettlementAmount(),
+                detail.completedReturnQuantity()));
         if (existing.isPresent() && !order.refresh(
                 detail.orderId(), detail.originProductNo(), detail.itemNo(), detail.productName(),
                 detail.productOption(), deliveryInfoProtector.encrypt(detail.deliveryInfo()),
@@ -67,7 +68,8 @@ class SmartStoreOrderTransactionService {
                 detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
                 detail.trackingNumber(), detail.unitPrice(), detail.paymentAmount(),
                 detail.paymentCommission(), detail.saleCommission(), detail.channelCommission(),
-                detail.expectedSettlementAmount())) {
+                detail.expectedSettlementAmount(), detail.completedReturnQuantity(),
+                detail.completedReturnQuantityAt(order.getLastChangedAt()))) {
             return order;
         }
         reconcile(order);
@@ -93,26 +95,15 @@ class SmartStoreOrderTransactionService {
 
     private void reconcile(SmartStoreProductOrder order) {
         String status = order.getProductOrderStatus();
-        if ("RETURNED".equals(status)) {
-            if (order.pendingReturnQuantity() > 0) {
-                order.requireAttention(SmartStoreOrderAttentionReason.RETURN_REVIEW);
-            } else {
-                order.resolveAttention();
-            }
-            return;
-        }
-        if (CANCELED_STATUSES.contains(status) || "PAYMENT_WAITING".equals(status)) {
-            changeAppliedQuantity(order, 0);
-            return;
-        }
-        if (!ACTIVE_STOCK_STATUSES.contains(status)) {
+        boolean canceled = CANCELED_STATUSES.contains(status) || "PAYMENT_WAITING".equals(status);
+        if (!canceled && !"RETURNED".equals(status) && !ACTIVE_STOCK_STATUSES.contains(status)) {
             order.requireAttention(SmartStoreOrderAttentionReason.STATUS_REVIEW);
             return;
         }
-        if (!ensureMapping(order)) {
-            return;
+        int targetQuantity = order.targetInventoryQuantity(canceled ? 0 : order.getRemainQuantity());
+        if (changeAppliedQuantity(order, targetQuantity) && order.pendingReturnQuantity() > 0) {
+            order.requireAttention(SmartStoreOrderAttentionReason.RETURN_REVIEW);
         }
-        changeAppliedQuantity(order, order.getRemainQuantity());
     }
 
     private boolean ensureMapping(SmartStoreProductOrder order) {
@@ -131,24 +122,25 @@ class SmartStoreOrderTransactionService {
         return true;
     }
 
-    private void changeAppliedQuantity(SmartStoreProductOrder order, int targetQuantity) {
+    private boolean changeAppliedQuantity(SmartStoreProductOrder order, int targetQuantity) {
         int currentQuantity = order.getInventoryAppliedQuantity();
         if (targetQuantity == currentQuantity) {
             order.resolveAttention();
-            return;
+            return true;
         }
-        if (!order.hasMapping() && !ensureMapping(order)) {
-            return;
+        if (!ensureMapping(order)) {
+            return false;
         }
         if (targetQuantity > currentQuantity) {
             if (!tryDeduct(order, targetQuantity - currentQuantity)) {
                 order.requireAttention(SmartStoreOrderAttentionReason.STOCK_SHORTAGE);
-                return;
+                return false;
             }
         } else {
             restore(order, currentQuantity - targetQuantity);
         }
         order.applyInventoryQuantity(targetQuantity);
+        return true;
     }
 
     private boolean tryDeduct(SmartStoreProductOrder order, int quantity) {

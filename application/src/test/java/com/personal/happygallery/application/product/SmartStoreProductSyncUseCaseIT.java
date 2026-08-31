@@ -264,7 +264,7 @@ class SmartStoreProductSyncUseCaseIT {
         when(orderProvider.fetchDetails(List.of("new-paid"))).thenReturn(List.of(new ProductOrderDetail(
                 "new-paid", "new-order", 123L, null, "수집한 주문", null, null, "PAYED",
                 null, null, null, null, soldQuantity, soldQuantity, now.minusMinutes(1), null,
-                null, null, null, null, null, null, null, null, null)));
+                null, null, null, null, null, null, null, null, null, List.of())));
         when(provider.applyProduct(any())).thenReturn(SyncResult.completed());
         when(provider.sync(any())).thenReturn(SyncResult.completed());
 

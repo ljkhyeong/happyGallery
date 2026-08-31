@@ -538,8 +538,8 @@ class DomainInvariantMigrationTest {
     }
 
     @Test
-    @DisplayName("V167은 기존 반품 검수 완료 건만 이관하고 미검수와 일반 주문 및 차감 수량을 보존한다")
-    void migrateV167_preservesCompletedReturnReviews() {
+    @DisplayName("V167·V168은 기존 반품 검수 결과와 차감 수량을 보존하고 누적 반품 수량은 재수집 전까지 미설정으로 둔다")
+    void migrateV167AndV168_preservesCompletedReturnReviews() {
         flyway("166").migrate();
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         jdbc.update("""
@@ -563,10 +563,20 @@ class DomainInvariantMigrationTest {
                 """);
 
         flyway("167").migrate();
+        flyway("168").migrate();
 
         assertThat(jdbc.queryForList("""
                 SELECT return_reviewed_remain_quantity FROM smartstore_product_orders ORDER BY product_order_id
                 """, Integer.class)).containsExactly(1, null, null, 1);
+        assertThat(jdbc.queryForList("""
+                SELECT completed_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsOnlyNulls();
+        assertThat(jdbc.queryForList("""
+                SELECT reviewed_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsExactly(0, 0, 0, 0);
+        assertThat(jdbc.queryForList("""
+                SELECT restored_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsExactly(0, 0, 0, 0);
         assertThat(jdbc.queryForList("""
                 SELECT product_order_id, inventory_applied_quantity, attention_reason, last_changed_at, updated_at
                 FROM smartstore_product_orders ORDER BY product_order_id

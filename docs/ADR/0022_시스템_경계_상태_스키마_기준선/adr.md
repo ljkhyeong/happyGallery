@@ -150,8 +150,9 @@
   - V166의 `smartstore_stock_mappings.retired`는 과거 원격 옵션에 재고 0개만 전송하는 연결을 구분한다. `internal_target_key`는 과거 연결일 때 NULL이므로 같은 SKU의 여러 과거 연결을 보존하면서 현재 연결은 SKU당 한 개만 허용한다. 원격 상품·옵션 유일 제약과 상품·SKU FK는 유지한다.
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
-  - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.
-  - V167의 `return_reviewed_remain_quantity`는 마지막 반품 검수 당시 잔여 주문 수량이며 미검수는 NULL이다. 재고를 복원하지 않은 검수 결과도 유지하고, 이후 잔여 수량이 더 줄면 추가 반품 수량만 검수한다. 기존 `RETURNED` 중 확인 사유가 없는 건만 현재 잔여 수량으로 이관한다.
+  - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
+  - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
+  - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
 - `smartstore_order_sync_state`
   - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
 - `smartstore_settlement_entries`

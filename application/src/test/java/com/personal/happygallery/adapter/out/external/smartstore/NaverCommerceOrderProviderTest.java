@@ -17,6 +17,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -25,6 +27,7 @@ import org.springframework.test.web.client.ResponseCreator;
 import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
@@ -41,6 +44,84 @@ class NaverCommerceOrderProviderTest {
             Duration.ofMillis(500), 5, Duration.ofSeconds(30));
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("완료 반품은 현재 클레임과 이력을 합쳐 한 번만 집계하고 취소와 반품 철회는 제외한다")
+    void fetchDetails_collectsCompletedReturnsWithoutDuplicates(boolean hasHistory) {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        String history = hasHistory ? """
+                [
+                  {"claimId":"r-1","claimType":"RETURN","claimStatus":"RETURN_DONE",
+                   "requestQuantity":1,"claimCompleteOperationDate":"2026-08-29T10:00:00+09:00"},
+                  {"claimId":"r-2","claimType":"RETURN","claimStatus":"RETURN_DONE",
+                   "requestQuantity":2,"claimCompleteOperationDate":"2026-08-29T11:00:00+09:00"},
+                  {"claimId":"c-1","claimType":"CANCEL","claimStatus":"CANCEL_DONE","requestQuantity":1},
+                  {"claimId":"r-3","claimType":"RETURN","claimStatus":"RETURN_REJECT","requestQuantity":1}
+                ]
+                """ : "null";
+        expectToken(server);
+        server.expect(requestTo(containsString("/product-orders/query")))
+                .andRespond(withSuccess("""
+                        {"data":[{
+                          "order":{"orderId":"o-1"},
+                          "productOrder":{"productOrderId":"po-1","originalProductId":"123",
+                            "productName":"반품 상품","productOrderStatus":"DELIVERING",
+                            "claimType":"RETURN","claimStatus":"RETURN_DONE",
+                            "initialQuantity":5,"remainQuantity":%d},
+                          "currentClaim":{"return":{"claimId":"r-2","claimStatus":"RETURN_DONE",
+                            "requestQuantity":2,"returnCompletedDate":"2026-08-29T11:00:00+09:00"}},
+                          "completedClaims":%s
+                        }]}
+                        """.formatted(hasHistory ? 1 : 3, history), MediaType.APPLICATION_JSON));
+
+        var detail = provider.fetchDetails(List.of("po-1")).getFirst();
+
+        assertThat(detail.completedReturnQuantity()).isEqualTo(hasHistory ? 3 : 2);
+        assertThat(detail.completedReturnQuantityAt(LocalDateTime.of(2026, 8, 29, 10, 30)))
+                .isEqualTo(hasHistory ? 1 : 0);
+        assertThat(detail.completedReturns()).extracting(returned -> returned.claimId())
+                .doesNotHaveDuplicates();
+        assertThat(detail.deliveryCompany()).isNull();
+        assertThat(detail.trackingNumber()).isNull();
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("반품 완료 이력이나 수량이 없으면 잔여 수량 감소를 취소로 처리하지 않고 수집을 실패시킨다")
+    void fetchDetails_rejectsIncompleteCompletedReturns(boolean hasReturnClaim) {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        String returned = hasReturnClaim ? """
+                {"claimId":"r-1","claimStatus":"RETURN_DONE",
+                 "returnCompletedDate":"2026-08-29T11:00:00+09:00"}
+                """ : "null";
+        expectToken(server);
+        server.expect(requestTo(containsString("/product-orders/query")))
+                .andRespond(withSuccess("""
+                        {"data":[{
+                          "order":{"orderId":"o-1"},
+                          "productOrder":{"productOrderId":"po-1","originalProductId":"123",
+                            "productName":"반품 상품","productOrderStatus":"DELIVERING",
+                            "claimType":"RETURN","claimStatus":"RETURN_DONE",
+                            "initialQuantity":2,"remainQuantity":1},
+                          "currentClaim":{"return":%s}
+                        }]}
+                        """.formatted(returned), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> provider.fetchDetails(List.of("po-1")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("반품");
+        server.verify();
+    }
 
     @Test
     @DisplayName("반품 택배사 계약번호와 우선순위를 v2 공식 응답에서 조회한다")

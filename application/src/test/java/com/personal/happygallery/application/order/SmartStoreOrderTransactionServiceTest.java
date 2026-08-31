@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -95,7 +96,7 @@ class SmartStoreOrderTransactionServiceTest {
         return new ProductOrderDetail(
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, null, status,
                 null, null, null, null, 2, remainQuantity, CHANGED_AT.minusMinutes(1), null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, List.of());
     }
 
     private static ProductOrderChange change(String type, LocalDateTime changedAt) {
