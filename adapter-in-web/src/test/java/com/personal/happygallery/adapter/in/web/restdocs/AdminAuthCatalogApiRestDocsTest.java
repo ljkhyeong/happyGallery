@@ -59,6 +59,8 @@ import com.personal.happygallery.domain.booking.BookingCalendarSettings;
 import com.personal.happygallery.domain.booking.BookingDayAvailability;
 import com.personal.happygallery.domain.booking.BookingTimeBlock;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
@@ -75,6 +77,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
@@ -207,15 +211,20 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 "RETURN", "RETURN_DONE", 2, 0, 2,
                 SmartStoreOrderAttentionReason.RETURN_REVIEW,
                 LocalDateTime.of(2026, 8, 29, 11, 58),
-                LocalDateTime.of(2026, 8, 29, 12, 0));
+                LocalDateTime.of(2026, 8, 29, 12, 0), 2, "R2:0");
         when(smartStoreChannelOrderUseCase.list(false, 100))
                 .thenReturn(List.of(smartStoreOrder));
         when(smartStoreChannelOrderUseCase.listReturnDeliveryCompanies())
                 .thenReturn(List.of(new ReturnDeliveryCompanyResult(1001L, "CJ대한통운", "PRIMARY")));
         when(smartStoreChannelOrderUseCase.retryInventory("2026082912345678"))
                 .thenReturn(smartStoreOrder);
-        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true))
-                .thenReturn(smartStoreOrder);
+        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true, "R2:0"))
+                .thenReturn(new ChannelOrderResult(
+                        "2026082912345678", "2026082911111111", 123456789L, 90001L,
+                        1L, 31L, "각인 카드지갑", "색상: 브라운", "RETURNED",
+                        "RETURN", "RETURN_DONE", 2, 0, 0, null,
+                        LocalDateTime.of(2026, 8, 29, 11, 58),
+                        LocalDateTime.of(2026, 8, 29, 12, 0), 0, "R2:2"));
         when(smartStoreChannelOrderUseCase.detail("2026082912345678"))
                 .thenReturn(new ChannelOrderDetailResult(
                         smartStoreOrder,
@@ -701,8 +710,39 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"restoreStock\":true}"))
-                .andExpect(status().isOk());
+                        .content("{\"restoreStock\":true,\"reviewVersion\":\"R2:0\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pendingReturnQuantity").value(0))
+                .andExpect(jsonPath("$.returnReviewVersion").value("R2:2"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"restoreStock\":true}", "{\"restoreStock\":false,\"reviewVersion\":\" \"}"})
+    @DisplayName("반품 검수 확인값이 없거나 공백이면 요청을 거절한다")
+    void admin_resolve_smartstore_return_requires_review_version(String request) throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("반품 검수 대상이 바뀌면 충돌 응답을 반환한다")
+    void admin_resolve_smartstore_return_rejects_changed_review_version() throws Exception {
+        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true, "R1:0"))
+                .thenThrow(new HappyGalleryException(ErrorCode.CONFLICT,
+                        "반품 검수 대상이 변경되었습니다. 최신 수량을 다시 확인해 주세요."));
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"restoreStock\":true,\"reviewVersion\":\"R1:0\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
     }
 
     @Test

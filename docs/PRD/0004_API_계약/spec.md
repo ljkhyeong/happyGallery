@@ -965,6 +965,7 @@ Authorization: Bearer {token}
   - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
   - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
 - `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. 다음 동기화는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량을 합한 목표 수량과의 차이만 변경한다. 검수 대기 또는 판매 불가로 종료한 반품은 계속 차감된 수량에 포함된다.
+- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. 두 필드는 항상 반환한다. 확인값은 화면에서 만들거나 해석하지 않고 검수 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry
@@ -980,13 +981,15 @@ POST /api/v1/admin/smartstore-orders/{productOrderId}/return-resolution
 Authorization: Bearer {token}
 Content-Type: application/json
 
-{ "restoreStock": true }
+{ "restoreStock": true, "reviewVersion": "R2:0" }
 ```
 
 - `RETURN_REVIEW` 주문만 처리한다. 배송 중 등 일반 주문 상태를 유지하는 부분반품도 포함하며 `RETURNED` 상태로 제한하지 않는다. `restoreStock=true`이면 미검수 반품 수량을 기존 내부 상품·옵션 재고에 복원하고, `false`이면 판매 불가 반품으로 재고를 복원하지 않는다.
-- 두 선택 모두 누적 검수 완료 수량을 저장한다. 재시도·재수집은 같은 수량을 다시 검수 대상으로 만들지 않으며, 추가 반품이 발생하면 새 반품 수량만 처리한다. 반품 뒤 다른 수량이 취소되어도 이전에 복원 없이 종료한 반품을 재고로 돌리지 않는다. 요청·응답 필드는 기존 형식을 유지한다.
+- `reviewVersion`은 필수다. 주문을 잠근 뒤 현재 검수 대상과 일치하는지 확인하며, 새 반품이 수집되거나 다른 관리자가 검수를 끝냈으면 재고·검수 기록을 바꾸지 않고 `409 CONFLICT`로 거절한다. 이전 검수를 끝낸 뒤 같은 수량의 새 반품이 생겨도 기존 확인값은 재사용할 수 없다.
+- 두 선택 모두 누적 검수 완료 수량을 저장한다. 재시도·재수집은 같은 수량을 다시 검수 대상으로 만들지 않으며, 추가 반품이 발생하면 새 반품 수량만 처리한다. 반품 뒤 다른 수량이 취소되어도 이전에 복원 없이 종료한 반품을 재고로 돌리지 않는다.
 - 성공: `200 OK` — 확인 사유를 해제한 주문 반환
-- 에러: 상품 주문 미존재 `404 NOT_FOUND`, 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`
+- 에러: 상품 주문 미존재 `404 NOT_FOUND`, 확인값 누락·빈 값 또는 현재 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`, 검수 대상 변경 `409 CONFLICT`
+- 확인값을 보내지 않는 구 관리자 화면은 검수 요청을 처리할 수 없다. 잘못된 재고 복원을 막기 위한 필수값 추가이므로 서버·관리자 화면·생성 클라이언트를 함께 배포한다. 충돌 시 목록만 새로 조회하며 검수 요청을 자동 재전송하지 않는다.
 
 ```http
 GET /api/v1/admin/smartstore-orders/{productOrderId}

@@ -17,6 +17,8 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -125,7 +127,8 @@ class SmartStoreOrderInventoryUseCaseIT {
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason())
                 .isEqualTo(SmartStoreOrderAttentionReason.RETURN_REVIEW);
 
-        orderService.resolveReturn("returned", restoreStock);
+        String reviewVersion = orderRepository.findById("returned").orElseThrow().returnReviewVersion();
+        orderService.resolveReturn("returned", restoreStock, reviewVersion);
         orderService.retryInventory("returned");
         orderService.synchronize(returned, returnChange);
         orderService.synchronize(returned, new ProductOrderChange(
@@ -133,8 +136,8 @@ class SmartStoreOrderInventoryUseCaseIT {
 
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason()).isNull();
         assertThat(quantity(productId, variantId)).isEqualTo(restoreStock ? 2 : 0);
-        assertThatThrownBy(() -> orderService.resolveReturn("returned", !restoreStock))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> orderService.resolveReturn("returned", !restoreStock, reviewVersion))
+                .isInstanceOf(HappyGalleryException.class);
 
         orderService.synchronize(claimDetail(optionId, "DELIVERED", "CANCEL", 2, firstReturns),
                 new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(3)));
@@ -147,7 +150,8 @@ class SmartStoreOrderInventoryUseCaseIT {
                 "returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(4)));
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason())
                 .isEqualTo(SmartStoreOrderAttentionReason.RETURN_REVIEW);
-        orderService.resolveReturn("returned", true);
+        orderService.resolveReturn("returned", true,
+                orderRepository.findById("returned").orElseThrow().returnReviewVersion());
         orderService.retryInventory("returned");
 
         var resolved = orderRepository.findById("returned").orElseThrow();
@@ -162,6 +166,40 @@ class SmartStoreOrderInventoryUseCaseIT {
                 "returned", "order-returned", 123L, optionId, "반품 검수 재고", null, null, status,
                 null, claimType, claimType + "_DONE", null, 5, remainQuantity, CHANGED_AT.minusMinutes(1), null,
                 null, null, null, null, null, null, null, null, null, returns);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false, true", "false, false", "true, true", "true, false"})
+    @DisplayName("추가 반품이나 다른 관리자 검수 뒤에는 수량이 같아도 이전 확인값으로 복원·종료하지 못한다")
+    void changedReturnReview_rejectsPreviousSnapshot(boolean previousReviewed, boolean restoreStock) {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "검수 대상 변경", ProductType.READY_STOCK, null, 35000L, 5, null, null,
+                null, null, null, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
+        orderService.synchronize(detail("returned", null, 5), change("returned"));
+        var first = new CompletedReturn("return-1", 2, CHANGED_AT.plusMinutes(1));
+        orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 3, List.of(first)),
+                new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1)));
+        String previousVersion = orderRepository.findById("returned").orElseThrow().returnReviewVersion();
+        if (previousReviewed) {
+            orderService.resolveReturn("returned", false, previousVersion);
+        }
+        var second = new CompletedReturn("return-2", 2, CHANGED_AT.plusMinutes(2));
+        orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 1, List.of(first, second)),
+                new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(2)));
+
+        assertThatThrownBy(() -> orderService.resolveReturn("returned", restoreStock, previousVersion))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+        var current = orderRepository.findById("returned").orElseThrow();
+        assertThat(current.pendingReturnQuantity()).isEqualTo(previousReviewed ? 2 : 4);
+        assertThat(current.getAttentionReason()).isEqualTo(SmartStoreOrderAttentionReason.RETURN_REVIEW);
+        assertThat(quantity(productId, null)).isZero();
+
+        orderService.resolveReturn("returned", restoreStock, current.returnReviewVersion());
+        assertThat(quantity(productId, null)).isEqualTo(restoreStock ? current.pendingReturnQuantity() : 0);
+        assertThat(orderRepository.findById("returned").orElseThrow().pendingReturnQuantity()).isZero();
     }
 
     @ParameterizedTest

@@ -16,7 +16,7 @@ public interface SmartStoreChannelOrderUseCase {
 
     ChannelOrderResult retryInventory(String productOrderId);
 
-    ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock);
+    ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock, String reviewVersion);
 
     void confirm(String productOrderId);
 
@@ -69,7 +69,9 @@ public interface SmartStoreChannelOrderUseCase {
             int inventoryAppliedQuantity,
             SmartStoreOrderAttentionReason attentionReason,
             LocalDateTime paymentDate,
-            LocalDateTime lastChangedAt
+            LocalDateTime lastChangedAt,
+            int pendingReturnQuantity,
+            String returnReviewVersion
     ) {}
 
     record ChannelOrderDetailResult(

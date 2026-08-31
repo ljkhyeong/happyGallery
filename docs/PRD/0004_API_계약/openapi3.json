@@ -6415,9 +6415,13 @@
         "properties" : {
           "restoreStock" : {
             "type" : "boolean"
+          },
+          "reviewVersion" : {
+            "minLength" : 1,
+            "type" : "string"
           }
         },
-        "required" : [ "restoreStock" ],
+        "required" : [ "restoreStock", "reviewVersion" ],
         "type" : "object"
       },
       "RevenueBreakdownResponse" : {
@@ -7255,6 +7259,10 @@
             "format" : "date-time",
             "type" : [ "string", "null" ]
           },
+          "pendingReturnQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "productId" : {
             "format" : "int64",
             "type" : [ "integer", "null" ]
@@ -7278,9 +7286,12 @@
           "remainQuantity" : {
             "format" : "int32",
             "type" : "integer"
+          },
+          "returnReviewVersion" : {
+            "type" : "string"
           }
         },
-        "required" : [ "attentionReason", "claimStatus", "claimType", "initialQuantity", "inventoryAppliedQuantity", "itemNo", "lastChangedAt", "orderId", "originProductNo", "paymentDate", "productId", "productName", "productOption", "productOrderId", "productOrderStatus", "productVariantId", "remainQuantity" ],
+        "required" : [ "attentionReason", "claimStatus", "claimType", "initialQuantity", "inventoryAppliedQuantity", "itemNo", "lastChangedAt", "orderId", "originProductNo", "paymentDate", "pendingReturnQuantity", "productId", "productName", "productOption", "productOrderId", "productOrderStatus", "productVariantId", "remainQuantity", "returnReviewVersion" ],
         "type" : "object"
       },
       "SmartStoreChannelProductResponse" : {

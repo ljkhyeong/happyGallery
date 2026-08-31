@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -282,7 +284,17 @@ public class SmartStoreProductOrder {
         return Math.max(unreviewedQuantity - remainQuantity, 0);
     }
 
-    public int resolveReturn(boolean restoreStock) {
+    public String returnReviewVersion() {
+        return completedReturnQuantity == null
+                ? "L%d:%d:%s".formatted(inventoryAppliedQuantity, remainQuantity, returnReviewedRemainQuantity)
+                : "R%d:%d".formatted(completedReturnQuantity, reviewedReturnQuantity);
+    }
+
+    public int resolveReturn(boolean restoreStock, String reviewVersion) {
+        if (!returnReviewVersion().equals(reviewVersion)) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "반품 검수 대상이 변경되었습니다. 최신 수량을 다시 확인해 주세요.");
+        }
         if (attentionReason != SmartStoreOrderAttentionReason.RETURN_REVIEW || pendingReturnQuantity() == 0) {
             throw new IllegalArgumentException("반품 확인이 필요한 스마트스토어 주문만 처리할 수 있습니다.");
         }

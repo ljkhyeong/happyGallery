@@ -79,7 +79,7 @@ public class AdminSmartStoreOrderController {
             @PathVariable String productOrderId,
             @Valid @RequestBody ResolveSmartStoreReturnRequest request) {
         return SmartStoreChannelOrderResponse.from(
-                channelOrderUseCase.resolveReturn(productOrderId, request.restoreStock()));
+                channelOrderUseCase.resolveReturn(productOrderId, request.restoreStock(), request.reviewVersion()));
     }
 
     @PostMapping("/{productOrderId}/confirm")

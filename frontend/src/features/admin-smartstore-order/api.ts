@@ -28,6 +28,7 @@ import {
   type HoldSmartStoreReturnRequest,
   type RequestSmartStoreSellerCancelRequest,
   type RequestSmartStoreSellerReturnRequest,
+  type ResolveSmartStoreReturnRequest,
   type BulkDispatchSmartStoreOrdersRequest,
   type SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
@@ -167,11 +168,11 @@ export function retrySmartStoreOrderInventory(
 export function resolveSmartStoreReturn(
   adminKey: string,
   productOrderId: string,
-  restoreStock: boolean,
+  request: ResolveSmartStoreReturnRequest,
 ) {
   return resolveSmartStoreChannelOrderReturn(
     productOrderId,
-    { restoreStock },
+    request,
     { headers: adminHeaders(adminKey) },
   );
 }

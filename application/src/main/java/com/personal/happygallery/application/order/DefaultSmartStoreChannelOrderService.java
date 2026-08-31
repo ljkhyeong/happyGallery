@@ -72,8 +72,8 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     }
 
     @Override
-    public ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock) {
-        return result(transactionService.resolveReturn(productOrderId, restoreStock));
+    public ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock, String reviewVersion) {
+        return result(transactionService.resolveReturn(productOrderId, restoreStock, reviewVersion));
     }
 
     @Override
@@ -266,6 +266,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 order.getProductName(), order.getProductOption(), order.getProductOrderStatus(),
                 order.getClaimType(), order.getClaimStatus(), order.getInitialQuantity(),
                 order.getRemainQuantity(), order.getInventoryAppliedQuantity(),
-                order.getAttentionReason(), order.getPaymentDate(), order.getLastChangedAt());
+                order.getAttentionReason(), order.getPaymentDate(), order.getLastChangedAt(),
+                order.pendingReturnQuantity(), order.returnReviewVersion());
     }
 }

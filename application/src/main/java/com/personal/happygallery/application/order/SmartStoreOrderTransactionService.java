@@ -84,9 +84,9 @@ class SmartStoreOrderTransactionService {
     }
 
     @Transactional
-    public SmartStoreProductOrder resolveReturn(String productOrderId, boolean restoreStock) {
+    public SmartStoreProductOrder resolveReturn(String productOrderId, boolean restoreStock, String reviewVersion) {
         SmartStoreProductOrder order = lockedOrder(productOrderId);
-        int restoreQuantity = order.resolveReturn(restoreStock);
+        int restoreQuantity = order.resolveReturn(restoreStock, reviewVersion);
         if (restoreQuantity > 0) {
             restore(order, restoreQuantity);
         }

@@ -666,6 +666,7 @@ export interface SmartStoreChannelOrderResponse {
   originProductNo: number;
   /** @nullable */
   paymentDate: string | null;
+  pendingReturnQuantity: number;
   /** @nullable */
   productId: number | null;
   productName: string;
@@ -676,6 +677,7 @@ export interface SmartStoreChannelOrderResponse {
   /** @nullable */
   productVariantId: number | null;
   remainQuantity: number;
+  returnReviewVersion: string;
 }
 
 export interface BulkConfirmSmartStoreOrdersRequest {
@@ -892,6 +894,8 @@ export interface DispatchSmartStoreOrderRequest {
 
 export interface ResolveSmartStoreReturnRequest {
   restoreStock: boolean;
+  /** @minLength 1 */
+  reviewVersion: string;
 }
 
 export type ListOrdersParams = {

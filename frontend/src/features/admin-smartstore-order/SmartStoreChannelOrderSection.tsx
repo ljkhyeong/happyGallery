@@ -83,6 +83,7 @@ export function SmartStoreChannelOrderSection({
   const [attentionOnly, setAttentionOnly] = useState(initialAttentionOnly);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [returnReviewOrder, setReturnReviewOrder] = useState<SmartStoreChannelOrderResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDispatchOpen, setBulkDispatchOpen] = useState(false);
   const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
@@ -111,16 +112,26 @@ export function SmartStoreChannelOrderSection({
   });
 
   const resolveReturn = useAdminMutation(onAuthError, {
-    mutationFn: ({ productOrderId, restoreStock }: {
-      productOrderId: string;
+    mutationFn: ({ order, restoreStock }: {
+      order: SmartStoreChannelOrderResponse;
       restoreStock: boolean;
-    }) => resolveSmartStoreReturn(adminKey, productOrderId, restoreStock),
-    onMutate: ({ productOrderId }) => setPendingId(productOrderId),
+    }) => resolveSmartStoreReturn(adminKey, order.productOrderId, {
+      restoreStock,
+      reviewVersion: order.returnReviewVersion,
+    }),
+    onMutate: ({ order }) => setPendingId(order.productOrderId),
     onSuccess: (_, variables) => {
       toast.show(variables.restoreStock
         ? "반품 검수 수량을 내부 재고에 복원했습니다."
         : "판매 불가 반품으로 확인하고 재고를 복원하지 않았습니다.");
+      setReturnReviewOrder(null);
       invalidate();
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        setReturnReviewOrder(null);
+        invalidate();
+      }
     },
     onSettled: () => setPendingId(null),
   });
@@ -165,6 +176,11 @@ export function SmartStoreChannelOrderSection({
           onClick={() => setSelectedIds(new Set())}>선택 해제</Button>
       </div>}
       <ErrorAlert error={bulkConfirm.error} />
+      {resolveReturn.error instanceof ApiError && resolveReturn.error.status === 409 && (
+        <Alert variant="warning" role="alert">
+          반품 검수 대상이 변경되었습니다. 목록에서 최신 수량을 다시 확인해 주세요.
+        </Alert>
+      )}
       {bulkResult && <BulkResultAlert result={bulkResult} />}
       {!data?.length ? (
         <EmptyState message={attentionOnly
@@ -215,7 +231,12 @@ export function SmartStoreChannelOrderSection({
                   )}
                 </td>
                 <td>{STATUS_LABELS[order.productOrderStatus] ?? order.productOrderStatus}</td>
-                <td>{order.initialQuantity}개 / 잔여 {order.remainQuantity}개</td>
+                <td>
+                  <div>{order.initialQuantity}개 / 잔여 {order.remainQuantity}개</div>
+                  {order.pendingReturnQuantity > 0 && (
+                    <div className="small text-warning-emphasis">미검수 반품 {order.pendingReturnQuantity}개</div>
+                  )}
+                </td>
                 <td>{order.inventoryAppliedQuantity}개 차감</td>
                 <td>
                   {order.attentionReason ? (
@@ -231,7 +252,10 @@ export function SmartStoreChannelOrderSection({
                   order,
                   pendingId,
                   retryInventory.mutate,
-                  resolveReturn.mutate,
+                  (order) => {
+                    resolveReturn.reset();
+                    setReturnReviewOrder(order);
+                  },
                   setSelectedId,
                 )}</td>
               </tr>
@@ -239,6 +263,35 @@ export function SmartStoreChannelOrderSection({
           </tbody>
         </Table>
       )}
+      <Modal
+        show={returnReviewOrder !== null}
+        onHide={() => { if (!resolveReturn.isPending) setReturnReviewOrder(null); }}
+        centered
+      >
+        <Modal.Header closeButton={!resolveReturn.isPending}>
+          <Modal.Title className="fs-6">스마트스토어 반품 검수</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ErrorAlert error={resolveReturn.error} />
+          <div>{returnReviewOrder?.productName}</div>
+          {returnReviewOrder?.productOption && <div>{returnReviewOrder.productOption}</div>}
+          <div className="small text-muted-soft mb-3">상품 주문 번호: {returnReviewOrder?.productOrderId}</div>
+          <p className="fw-semibold">이번 검수 대상: {returnReviewOrder?.pendingReturnQuantity}개</p>
+          <p className="mb-0">표시된 수량을 모두 검수한 뒤 처리해 주세요. 판매 가능한 반품만 재고로 복원하세요.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" disabled={resolveReturn.isPending}
+            onClick={() => setReturnReviewOrder(null)}>닫기</Button>
+          <Button variant="outline-secondary" disabled={resolveReturn.isPending}
+            onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: false })}>
+            복원 없이 검수 완료
+          </Button>
+          <Button variant="success" disabled={resolveReturn.isPending}
+            onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: true })}>
+            {returnReviewOrder?.pendingReturnQuantity}개 재고 복원
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <SmartStoreOrderDetailModal
         adminKey={adminKey}
         productOrderId={selectedId}
@@ -360,7 +413,7 @@ function actions(
   order: SmartStoreChannelOrderResponse,
   pendingId: string | null,
   retry: (productOrderId: string) => void,
-  resolveReturn: (variables: { productOrderId: string; restoreStock: boolean }) => void,
+  openReturnReview: (order: SmartStoreChannelOrderResponse) => void,
   openDetail: (productOrderId: string) => void,
 ) {
   const disabled = pendingId === order.productOrderId;
@@ -402,17 +455,9 @@ function actions(
         size="sm"
         variant="outline-success"
         disabled={disabled}
-        onClick={() => resolveReturn({ productOrderId: order.productOrderId, restoreStock: true })}
+        onClick={() => openReturnReview(order)}
       >
-        검수 후 재고 복원
-      </Button>
-      <Button
-        size="sm"
-        variant="outline-secondary"
-        disabled={disabled}
-        onClick={() => resolveReturn({ productOrderId: order.productOrderId, restoreStock: false })}
-      >
-        복원 없이 종료
+        반품 검수
       </Button>
     </div>
   );
