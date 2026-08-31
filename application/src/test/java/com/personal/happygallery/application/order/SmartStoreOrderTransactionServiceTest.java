@@ -47,6 +47,7 @@ class SmartStoreOrderTransactionServiceTest {
     void synchronize_duplicatePaidChange_deductsOnce() {
         when(mappingPort.findByOriginProductNoAndProductVariantIdIsNull(123L))
                 .thenReturn(Optional.of(new SmartStoreStockMapping(7L, null, 123L, null, true)));
+        when(inventoryService.tryDeduct(7L, 1)).thenReturn(true);
         when(orderPort.findByProductOrderIdWithLock("po-1"))
                 .thenReturn(Optional.empty());
 
@@ -54,7 +55,7 @@ class SmartStoreOrderTransactionServiceTest {
         when(orderPort.findByProductOrderIdWithLock("po-1")).thenReturn(Optional.of(order));
         service.synchronize(detail("PAYED", 1), change("PAYED", CHANGED_AT));
 
-        verify(inventoryService).deduct(7L, 1);
+        verify(inventoryService).tryDeduct(7L, 1);
         assertThat(order.getInventoryAppliedQuantity()).isEqualTo(1);
     }
 
@@ -86,7 +87,7 @@ class SmartStoreOrderTransactionServiceTest {
 
         SmartStoreProductOrder order = service.synchronize(detail("PAYED", 1), change("PAYED", CHANGED_AT));
 
-        verify(inventoryService, never()).deduct(any(), any(Integer.class));
+        verify(inventoryService, never()).tryDeduct(any(), any(Integer.class));
         assertThat(order.getAttentionReason()).isEqualTo(SmartStoreOrderAttentionReason.MAPPING_REQUIRED);
     }
 

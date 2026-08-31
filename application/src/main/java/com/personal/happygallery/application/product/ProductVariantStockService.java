@@ -2,6 +2,7 @@ package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.out.ProductVariantStorePort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
+import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductVariant;
@@ -33,6 +34,16 @@ public class ProductVariantStockService {
 
     public List<ProductVariant> deductAll(List<VariantAdjustment> adjustments) {
         return updateAll(adjustments, ProductVariant::deduct);
+    }
+
+    /** 단일 SKU만 시도하므로 재고 부족일 때 앞서 변경한 다른 SKU가 남지 않는다. */
+    public boolean tryDeduct(Long variantId, int quantity) {
+        try {
+            deductAll(List.of(new VariantAdjustment(variantId, quantity)));
+            return true;
+        } catch (InventoryNotEnoughException exception) {
+            return false;
+        }
     }
 
     public List<ProductVariant> restoreAll(List<VariantAdjustment> adjustments) {

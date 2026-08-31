@@ -7,7 +7,6 @@ import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
 import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
-import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
@@ -150,25 +149,22 @@ class SmartStoreOrderTransactionService {
         if (!order.hasMapping() && !ensureMapping(order)) {
             return;
         }
-        try {
-            if (targetQuantity > currentQuantity) {
-                deduct(order, targetQuantity - currentQuantity);
-            } else {
-                restore(order, currentQuantity - targetQuantity);
+        if (targetQuantity > currentQuantity) {
+            if (!tryDeduct(order, targetQuantity - currentQuantity)) {
+                order.requireAttention(SmartStoreOrderAttentionReason.STOCK_SHORTAGE);
+                return;
             }
-            order.applyInventoryQuantity(targetQuantity);
-        } catch (InventoryNotEnoughException exception) {
-            order.requireAttention(SmartStoreOrderAttentionReason.STOCK_SHORTAGE);
+        } else {
+            restore(order, currentQuantity - targetQuantity);
         }
+        order.applyInventoryQuantity(targetQuantity);
     }
 
-    private void deduct(SmartStoreProductOrder order, int quantity) {
+    private boolean tryDeduct(SmartStoreProductOrder order, int quantity) {
         if (order.getProductVariantId() == null) {
-            inventoryService.deduct(order.getProductId(), quantity);
-            return;
+            return inventoryService.tryDeduct(order.getProductId(), quantity);
         }
-        variantStockService.deductAll(List.of(new VariantAdjustment(
-                order.getProductVariantId(), quantity)));
+        return variantStockService.tryDeduct(order.getProductVariantId(), quantity);
     }
 
     private void restore(SmartStoreProductOrder order, int quantity) {

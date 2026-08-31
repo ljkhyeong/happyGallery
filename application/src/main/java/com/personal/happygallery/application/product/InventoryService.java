@@ -65,6 +65,16 @@ public class InventoryService {
         return deductAll(List.of(new InventoryAdjustment(productId, qty))).getFirst();
     }
 
+    /** 단일 상품의 부족 결과를 트랜잭션 밖으로 던지지 않아 채널 주문 확인 기록을 함께 저장한다. */
+    public boolean tryDeduct(Long productId, int qty) {
+        try {
+            deduct(productId, qty);
+            return true;
+        } catch (InventoryNotEnoughException exception) {
+            return false;
+        }
+    }
+
     /** 여러 상품 재고를 productId 순서로 한 번에 잠근 뒤 차감한다. */
     public List<Inventory> deductAll(List<InventoryAdjustment> adjustments) {
         return updateAll(adjustments, Inventory::deduct);
