@@ -6,6 +6,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -27,7 +28,7 @@ class SmartStoreSettlementSyncStateService {
 
     @Transactional
     Optional<ClaimedDate> claim() {
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
         SmartStoreSettlementSyncState state = lockedState();
         if (!state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
             return Optional.empty();

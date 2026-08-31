@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.order.SmartStoreOrderSyncState;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Objects;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ class SmartStoreOrderSyncStateService {
 
     @Transactional
     public Optional<ClaimedCursor> claim() {
-        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
         SmartStoreOrderSyncState state = statePort
                 .findByIdWithLock(SmartStoreOrderSyncState.SINGLETON_ID)
                 .orElseThrow(() -> new IllegalStateException("스마트스토어 주문 동기화 커서가 없습니다."));
