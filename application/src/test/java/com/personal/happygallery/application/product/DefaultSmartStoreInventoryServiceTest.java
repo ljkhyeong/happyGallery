@@ -29,10 +29,12 @@ class DefaultSmartStoreInventoryServiceTest {
                 mock(SmartStoreStockSyncTransactionService.class);
         when(provider.isEnabled()).thenReturn(true);
         when(transactionService.productSnapshot(1L)).thenReturn(new ProductSyncSnapshot(
-                1L, 4L, 123L, 35000L, "SALE", 3, List.of()));
+                1L, 4L, 123L, 35000L, "SALE", 3, List.of(), List.of(10L)));
         var service = service(provider, transactionService);
+        String previousVersion = new ProductSyncSnapshot(
+                1L, 3L, 123L, 35000L, "SALE", 3, List.of(), List.of(10L)).previewVersion();
 
-        assertThatThrownBy(() -> service.applyProduct(1L, 3L))
+        assertThatThrownBy(() -> service.applyProduct(1L, previousVersion))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("최신 차이");
         verify(provider, never()).applyProduct(any());

@@ -565,12 +565,13 @@ export interface SmartStoreProductPreviewResponse {
   localStatus: string;
   options: OptionPreview[];
   originProductNo: number;
+  previewVersion: string;
   productId: number;
-  productVersion: number;
 }
 
 export interface ApplySmartStoreProductRequest {
-  productVersion: number;
+  /** @minLength 1 */
+  previewVersion: string;
 }
 
 export type UpdateProductStatusRequestStatus = typeof UpdateProductStatusRequestStatus[keyof typeof UpdateProductStatusRequestStatus];

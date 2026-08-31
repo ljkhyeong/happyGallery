@@ -206,19 +206,19 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
                 || !local.targetStatus().equals(channel.status())
                 || options.stream().anyMatch(ProductOptionPreview::different);
         return new ProductPreviewResult(
-                local.productId(), local.productVersion(), local.originProductNo(),
+                local.productId(), local.previewVersion(), local.originProductNo(),
                 local.salePrice(), channel.salePrice(), local.targetStatus(), channel.status(),
                 different, options);
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void applyProduct(Long productId, long productVersion) {
+    public void applyProduct(Long productId, String previewVersion) {
         requireProviderEnabled();
         var local = transactionService.productSnapshot(productId);
-        if (local.productVersion() != productVersion) {
+        if (!local.previewVersion().equals(previewVersion)) {
             throw new HappyGalleryException(
-                    ErrorCode.CONFLICT, "상품이 변경되었습니다. 최신 차이를 다시 확인해 주세요.");
+                    ErrorCode.CONFLICT, "상품 또는 스마트스토어 연결이 변경되었습니다. 최신 차이를 다시 확인해 주세요.");
         }
         try {
             var result = inventoryProvider.applyProduct(new ProductCommand(

@@ -154,11 +154,11 @@ export function fetchSmartStoreProductPreview(
 export function applySmartStoreProduct(
   adminKey: string,
   productId: number,
-  productVersion: number,
+  previewVersion: string,
 ): Promise<void> {
   return applySmartStoreProductSync(
     productId,
-    { productVersion },
+    { previewVersion },
     { headers: adminHeaders(adminKey) },
   );
 }

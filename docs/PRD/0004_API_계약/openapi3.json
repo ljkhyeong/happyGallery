@@ -1316,12 +1316,12 @@
       },
       "ApplySmartStoreProductRequest" : {
         "properties" : {
-          "productVersion" : {
-            "format" : "int64",
-            "type" : "integer"
+          "previewVersion" : {
+            "minLength" : 1,
+            "type" : "string"
           }
         },
-        "required" : [ "productVersion" ],
+        "required" : [ "previewVersion" ],
         "type" : "object"
       },
       "BatchResponse" : {
@@ -7710,16 +7710,15 @@
             "format" : "int64",
             "type" : "integer"
           },
-          "productId" : {
-            "format" : "int64",
-            "type" : "integer"
+          "previewVersion" : {
+            "type" : "string"
           },
-          "productVersion" : {
+          "productId" : {
             "format" : "int64",
             "type" : "integer"
           }
         },
-        "required" : [ "channelSalePrice", "channelStatus", "different", "localSalePrice", "localStatus", "options", "originProductNo", "productId", "productVersion" ],
+        "required" : [ "channelSalePrice", "channelStatus", "different", "localSalePrice", "localStatus", "options", "originProductNo", "previewVersion", "productId" ],
         "type" : "object"
       },
       "SmartStoreReturnDeliveryCompanyResponse" : {

@@ -182,6 +182,6 @@ public class AdminProductController {
     public void applySmartStoreProductSync(
             @PathVariable Long id,
             @Valid @RequestBody ApplySmartStoreProductRequest request) {
-        smartStoreInventoryUseCase.applyProduct(id, request.productVersion());
+        smartStoreInventoryUseCase.applyProduct(id, request.previewVersion());
     }
 }

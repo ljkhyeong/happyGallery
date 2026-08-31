@@ -188,7 +188,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreInventoryUseCase.getMapping(1L)).thenReturn(Optional.of(smartStoreMapping));
         when(smartStoreInventoryUseCase.retry(1L)).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.previewProduct(1L)).thenReturn(new ProductPreviewResult(
-                1L, 0L, 123456789L, 35000L, 33000L,
+                1L, "preview-v1", 123456789L, 35000L, 33000L,
                 "SALE", "SALE", true, List.of()));
         when(smartStoreInventoryUseCase.listChannelProducts(1, 100))
                 .thenReturn(new CatalogPageResult(
@@ -631,13 +631,21 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.previewVersion").value("preview-v1"))
                 .andExpect(jsonPath("$.different").value(true));
         mockMvc.perform(post("/api/v1/admin/products/{id}/smartstore-product-sync", 1L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"productVersion\":0}"))
+                        .content("{\"previewVersion\":\"preview-v1\"}"))
                 .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/admin/products/{id}/smartstore-product-sync", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"productVersion\":0}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

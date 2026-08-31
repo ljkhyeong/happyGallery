@@ -13,6 +13,7 @@ import {
 } from "./api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { ApiError } from "@/shared/api";
 import type { ProductResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -148,13 +149,20 @@ export function SmartStoreInventoryModal({
     mutationFn: () => applySmartStoreProduct(
       adminKey,
       product!.id,
-      previewQuery.data!.productVersion,
+      previewQuery.data!.previewVersion,
     ),
     onSuccess: async () => {
       toast.show("해피갤러리의 가격·판매 상태·옵션 가격을 스마트스토어에 반영했습니다.");
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+        });
+      }
     },
   });
 
@@ -208,6 +216,7 @@ export function SmartStoreInventoryModal({
             <div className="d-flex justify-content-between align-items-start gap-3">
               <div>
                 <div className="fw-semibold">가격·판매 상태 비교</div>
+                <div className="small">반영 대상: 스마트스토어 원상품 {previewQuery.data.originProductNo}</div>
                 <div className="small mt-1">
                   판매가: 해피갤러리 {previewQuery.data.localSalePrice.toLocaleString()}원
                   {" · "}스마트스토어 {previewQuery.data.channelSalePrice.toLocaleString()}원
@@ -218,7 +227,8 @@ export function SmartStoreInventoryModal({
                 </div>
               </div>
               {previewQuery.data.different && (
-                <Button size="sm" variant="warning" disabled={applyMutation.isPending}
+                <Button size="sm" variant="warning"
+                  disabled={applyMutation.isPending || previewQuery.isFetching || previewQuery.isError}
                   onClick={() => applyMutation.mutate()}>
                   {applyMutation.isPending ? "반영 중..." : "차이 반영"}
                 </Button>

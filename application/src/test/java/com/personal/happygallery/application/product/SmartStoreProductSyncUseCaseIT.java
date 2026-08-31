@@ -5,19 +5,29 @@ import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
+import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
+import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ChannelProduct;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.SyncResult;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -25,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +47,8 @@ class SmartStoreProductSyncUseCaseIT {
     @Autowired ProductRepository productRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired InventoryService inventoryService;
+    @Autowired ProductAdminUseCase productAdminUseCase;
+    @Autowired ProductVariantStockService variantStockService;
     @Autowired SmartStoreInventoryUseCase smartStoreInventoryUseCase;
     @Autowired SmartStoreStockSyncBatchUseCase stockSyncBatchUseCase;
     @Autowired SmartStoreStockSyncPort stockSyncPort;
@@ -57,6 +70,8 @@ class SmartStoreProductSyncUseCaseIT {
         smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
         AtomicInteger channelStock = new AtomicInteger(10);
         when(provider.isEnabled()).thenReturn(true);
+        when(provider.getProduct(anyLong())).thenReturn(new ChannelProduct(33000L, "SALE", List.of()));
+        String previewVersion = smartStoreInventoryUseCase.previewProduct(productId).previewVersion();
         when(provider.sync(any())).thenAnswer(invocation -> {
             StockCommand command = invocation.getArgument(0);
             channelStock.set(command.stockQuantity());
@@ -75,9 +90,9 @@ class SmartStoreProductSyncUseCaseIT {
         });
 
         if (success) {
-            smartStoreInventoryUseCase.applyProduct(productId, product.getVersion());
+            smartStoreInventoryUseCase.applyProduct(productId, previewVersion);
         } else {
-            assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, product.getVersion()))
+            assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, previewVersion))
                     .isInstanceOf(HappyGalleryException.class);
         }
 
@@ -87,5 +102,50 @@ class SmartStoreProductSyncUseCaseIT {
         assertThat(channelStock.get()).isEqualTo(9);
         assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
                 .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
+    }
+
+    @Test
+    @DisplayName("원상품·옵션 연결 변경과 재등록은 이전 미리보기를 거절하고 수량만 바뀌면 최신 재고로 반영한다")
+    void applyProduct_requiresCurrentMappingPreviewButUsesLatestQuantity() {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "주문제작 연동 상품", ProductType.MADE_TO_ORDER, null, 35000L, 5,
+                null, null, "가죽 제품", null, 7, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        long productVersion = registered.product().getVersion();
+        when(provider.isEnabled()).thenReturn(true);
+        when(provider.getProduct(anyLong())).thenReturn(new ChannelProduct(33000L, "SALE", List.of()));
+        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                123L, true, List.of(new VariantMapping(variantId, 11L))));
+
+        for (SaveMappingCommand changed : List.of(
+                new SaveMappingCommand(456L, true, List.of(new VariantMapping(variantId, 11L))),
+                new SaveMappingCommand(456L, true, List.of(new VariantMapping(variantId, 12L))))) {
+            String previous = smartStoreInventoryUseCase.previewProduct(productId).previewVersion();
+            smartStoreInventoryUseCase.saveMapping(productId, changed);
+            assertThat(productRepository.findById(productId).orElseThrow().getVersion()).isEqualTo(productVersion);
+            assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, previous))
+                    .isInstanceOf(HappyGalleryException.class).hasMessageContaining("최신 차이");
+        }
+
+        String beforeRecreation = smartStoreInventoryUseCase.previewProduct(productId).previewVersion();
+        smartStoreInventoryUseCase.deleteMapping(productId);
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, beforeRecreation))
+                .isInstanceOf(HappyGalleryException.class).hasMessageContaining("연결");
+        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                456L, true, List.of(new VariantMapping(variantId, 12L))));
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, beforeRecreation))
+                .isInstanceOf(HappyGalleryException.class).hasMessageContaining("최신 차이");
+        verify(provider, never()).applyProduct(any());
+
+        String current = smartStoreInventoryUseCase.previewProduct(productId).previewVersion();
+        variantStockService.deductAll(List.of(new VariantAdjustment(variantId, 1)));
+        assertThat(smartStoreInventoryUseCase.previewProduct(productId).previewVersion()).isEqualTo(current);
+        when(provider.applyProduct(any())).thenReturn(SyncResult.completed());
+        smartStoreInventoryUseCase.applyProduct(productId, current);
+        verify(provider).applyProduct(argThat(command -> command.originProductNo().equals(456L)
+                && command.options().size() == 1
+                && command.options().getFirst().optionId().equals(12L)
+                && command.options().getFirst().stockQuantity() == 4));
     }
 }

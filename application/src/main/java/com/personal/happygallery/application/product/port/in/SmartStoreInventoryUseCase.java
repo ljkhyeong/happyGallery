@@ -25,7 +25,7 @@ public interface SmartStoreInventoryUseCase {
 
     ProductPreviewResult previewProduct(Long productId);
 
-    void applyProduct(Long productId, long productVersion);
+    void applyProduct(Long productId, String previewVersion);
 
     record SaveMappingCommand(
             Long originProductNo,
@@ -100,7 +100,7 @@ public interface SmartStoreInventoryUseCase {
 
     record ProductPreviewResult(
             Long productId,
-            long productVersion,
+            String previewVersion,
             Long originProductNo,
             long localSalePrice,
             long channelSalePrice,

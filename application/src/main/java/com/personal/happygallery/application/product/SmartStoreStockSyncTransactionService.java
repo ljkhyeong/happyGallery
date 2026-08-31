@@ -6,6 +6,8 @@ import com.personal.happygallery.application.product.port.out.SmartStoreInventor
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -13,7 +15,12 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreStockSync;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -99,8 +106,9 @@ class SmartStoreStockSyncTransactionService {
                 .filter(SmartStoreStockMapping::isEnabled)
                 .toList();
         if (mappings.isEmpty()) {
-            throw new IllegalStateException("스마트스토어 재고 연동 설정이 비활성 상태입니다.");
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "스마트스토어 연결이 해제되었거나 비활성 상태입니다.");
         }
+        List<Long> mappingIds = mappings.stream().map(SmartStoreStockMapping::getId).sorted().toList();
         Long originProductNo = mappings.getFirst().getOriginProductNo();
         if (product.getType() == ProductType.READY_STOCK) {
             Inventory inventory = inventoryReaderPort.findByProductId(productId)
@@ -108,14 +116,14 @@ class SmartStoreStockSyncTransactionService {
             return new ProductSyncSnapshot(
                     productId, product.getVersion(), originProductNo, product.getPrice(),
                     targetStatus(product.getStatus(), inventory.getQuantity()),
-                    inventory.getQuantity(), List.of());
+                    inventory.getQuantity(), List.of(), mappingIds);
         }
 
         List<ProductOptionSnapshot> options = mappedOptions(productId, mappings);
         int totalStock = options.stream().mapToInt(ProductOptionSnapshot::stockQuantity).sum();
         return new ProductSyncSnapshot(
                 productId, product.getVersion(), originProductNo, product.getPrice(),
-                targetStatus(product.getStatus(), totalStock), null, options);
+                targetStatus(product.getStatus(), totalStock), null, options, mappingIds);
     }
 
     private static String targetStatus(ProductStatus status, int stockQuantity) {
@@ -179,8 +187,25 @@ class SmartStoreStockSyncTransactionService {
             long salePrice,
             String targetStatus,
             Integer stockQuantity,
-            List<ProductOptionSnapshot> options
-    ) {}
+            List<ProductOptionSnapshot> options,
+            List<Long> mappingIds
+    ) {
+        String previewVersion() {
+            String optionState = options.stream()
+                    .sorted(Comparator.comparing(ProductOptionSnapshot::optionId))
+                    .map(option -> option.productVariantId() + ":" + option.optionId()
+                            + ":" + option.price() + ":" + option.usable())
+                    .collect(Collectors.joining(","));
+            String state = productId + "|" + productVersion + "|" + originProductNo
+                    + "|" + salePrice + "|" + targetStatus + "|" + mappingIds + "|" + optionState;
+            try {
+                return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                        .digest(state.getBytes(StandardCharsets.UTF_8)));
+            } catch (NoSuchAlgorithmException exception) {
+                throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
+            }
+        }
+    }
 
     record ProductOptionSnapshot(
             Long productVariantId,
