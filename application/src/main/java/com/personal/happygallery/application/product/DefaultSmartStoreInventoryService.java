@@ -220,15 +220,19 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT, "상품이 변경되었습니다. 최신 차이를 다시 확인해 주세요.");
         }
-        var result = inventoryProvider.applyProduct(new ProductCommand(
-                local.originProductNo(), local.salePrice(), local.targetStatus(),
-                local.stockQuantity(), local.options().stream()
-                        .map(option -> new ProductOption(
-                                option.optionId(), option.stockQuantity(), option.price(),
-                                option.usable()))
-                        .toList()));
-        if (!result.success()) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, result.reason());
+        try {
+            var result = inventoryProvider.applyProduct(new ProductCommand(
+                    local.originProductNo(), local.salePrice(), local.targetStatus(),
+                    local.stockQuantity(), local.options().stream()
+                            .map(option -> new ProductOption(
+                                    option.optionId(), option.stockQuantity(), option.price(),
+                                    option.usable()))
+                            .toList()));
+            if (!result.success()) {
+                throw new HappyGalleryException(ErrorCode.CONFLICT, result.reason());
+            }
+        } finally {
+            queuePort.requestIfMapped(List.of(productId), LocalDateTime.now(clock));
         }
     }
 
