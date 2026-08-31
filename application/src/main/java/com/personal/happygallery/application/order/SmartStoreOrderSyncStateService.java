@@ -27,9 +27,10 @@ class SmartStoreOrderSyncStateService {
 
     @Transactional
     public void skipDisabledPeriod() {
+        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
         SmartStoreOrderSyncState state = lockedState();
-        if (state.getProcessingStartedAt() == null) {
-            state.complete(LocalDateTime.now(clock), null);
+        if (state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
+            state.complete(now, null);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.order;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ChangeCursor;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderSyncStatePort;
@@ -10,8 +11,11 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -75,6 +79,37 @@ class SmartStoreSyncLeaseUseCaseIT {
         assertThat(settlementProcessingStartedAt()).isEqualTo(next.processingStartedAt());
         tx.executeWithoutResult(status -> nextService.release(next));
         assertThat(settlementProcessingStartedAt()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({",true", "299999999,false", "300000000,true", "300000001,true"})
+    @DisplayName("연동 중지 기간은 선점이 없거나 5분이 지난 경우에만 건너뛰고 이전 실행의 완료를 거절한다")
+    void skipDisabledPeriod_protectsActiveLeaseAndExpiresAtFiveMinutes(Long elapsedMicros, boolean skipped) {
+        LocalDateTime now = NOW.truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime previousFrom = now.minusHours(2);
+        LocalDateTime startedAt = elapsedMicros == null ? null : now.minus(elapsedMicros, ChronoUnit.MICROS);
+        jdbc.update("""
+                UPDATE smartstore_order_sync_state
+                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = ? WHERE id = 1
+                """, previousFrom, startedAt);
+        var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
+        var tx = new TransactionTemplate(transactionManager);
+
+        tx.executeWithoutResult(status -> service.skipDisabledPeriod());
+
+        var state = tx.execute(status -> orderStatePort.findByIdWithLock(1L).orElseThrow());
+        assertSoftly(softly -> {
+            softly.assertThat(state.getLastChangedFrom()).isEqualTo(skipped ? now : previousFrom);
+            softly.assertThat(state.getMoreSequence()).isEqualTo(skipped ? null : "previous-page");
+            softly.assertThat(state.getProcessingStartedAt()).isEqualTo(skipped ? null : startedAt);
+        });
+        if (skipped && startedAt != null) {
+            var previous = new SmartStoreOrderSyncStateService.ClaimedCursor(
+                    new ChangeCursor(previousFrom, "previous-page"), startedAt);
+            Boolean completed = tx.execute(status -> service.complete(previous,
+                    new ChangeCursor(previousFrom.plusMinutes(1), "late-page")));
+            assertThat(completed).isFalse();
+        }
     }
 
     private LocalDateTime orderProcessingStartedAt() {
