@@ -112,6 +112,16 @@ class SmartStoreStockSyncTransactionService {
         syncPort.save(sync);
     }
 
+    @Transactional
+    public boolean requestReconciliation(Long productId, LocalDateTime syncedBefore, LocalDateTime now) {
+        SmartStoreStockSync sync = syncPort.findByProductIdWithLock(productId).orElse(null);
+        if (sync == null || !sync.requestReconciliation(syncedBefore, now)) {
+            return false;
+        }
+        syncPort.save(sync);
+        return true;
+    }
+
     @Transactional(readOnly = true)
     public boolean hasUnappliedOrders(Long productId) {
         return orderPort.existsInventoryAttentionForProduct(productId, UNAPPLIED_STOCK_REASONS);

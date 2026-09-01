@@ -167,6 +167,31 @@ class SmartStoreProductSyncUseCaseIT {
     }
 
     @Test
+    @DisplayName("완료 후 24시간이 지난 재고만 다시 전송한다")
+    void syncedStock_isReconciledAfterTwentyFourHours() {
+        Long productId = readyStockMapping();
+        AtomicInteger calls = new AtomicInteger();
+        when(provider.sync(any())).thenAnswer(invocation -> {
+            calls.incrementAndGet();
+            return SyncResult.completed();
+        });
+        LocalDateTime now = LocalDateTime.now(clock);
+
+        assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isEqualTo(1);
+        jdbcTemplate.update("UPDATE smartstore_stock_syncs SET synced_at = ? WHERE product_id = ?",
+                now.minusHours(24).plusSeconds(1), productId);
+        assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isZero();
+        assertThat(calls.get()).isEqualTo(1);
+
+        jdbcTemplate.update("UPDATE smartstore_stock_syncs SET synced_at = ? WHERE product_id = ?",
+                now.minusHours(24), productId);
+        assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isEqualTo(1);
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
+    }
+
+    @Test
     @DisplayName("원상품·옵션 연결 변경과 재등록은 이전 미리보기를 거절하고 수량만 바뀌면 최신 재고로 반영한다")
     void applyProduct_requiresCurrentMappingPreviewButUsesLatestQuantity() {
         var registered = productAdminUseCase.register(new SaveProductCommand(

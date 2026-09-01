@@ -77,6 +77,16 @@ public class SmartStoreStockSync {
         lastError = null;
     }
 
+    public boolean requestReconciliation(LocalDateTime syncedBefore, LocalDateTime now) {
+        if (status != SmartStoreStockSyncStatus.SYNCED
+                || syncedAt == null
+                || syncedAt.isAfter(syncedBefore)) {
+            return false;
+        }
+        request(now);
+        return true;
+    }
+
     public long claim(LocalDateTime now, LocalDateTime staleBefore) {
         boolean staleProcessing = status == SmartStoreStockSyncStatus.PROCESSING
                 && processingStartedAt != null
