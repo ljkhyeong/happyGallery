@@ -185,3 +185,122 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
   await expect(panel.getByRole("checkbox", { name: "미답변 문의만 보기" })).not.toBeChecked();
   await expect(panel.getByRole("button", { name: "다음 페이지", exact: true })).toBeDisabled();
 });
+
+test("@admin 스마트스토어 원상품 변경은 기존 매핑 조회와 확인을 마친 뒤 최신 개정으로 저장한다", async ({ page }) => {
+  await prepareAdmin(page);
+  let releaseMapping: (() => void) | undefined;
+  const mappingGate = new Promise<void>((resolve) => {
+    releaseMapping = resolve;
+  });
+  let savedBody: Record<string, unknown> | undefined;
+
+  await page.route("**/api/v1/admin/products", (route) => json(route, [{
+    id: 1,
+    name: "연동 작품",
+    type: "READY_STOCK",
+    price: 35000,
+    quantity: 5,
+    status: "ACTIVE",
+    available: true,
+    category: null,
+    imageUrl: null,
+    description: null,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+    variants: [],
+    optionGroups: [],
+  }]));
+  await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => json(route, {
+    products: [
+      {
+        originProductNo: 123,
+        channelProductNo: 1001,
+        name: "기존 원상품",
+        imageUrl: null,
+        salePrice: 35000,
+        stockQuantity: 5,
+        status: "SALE",
+      },
+      {
+        originProductNo: 456,
+        channelProductNo: 1002,
+        name: "새 원상품",
+        imageUrl: null,
+        salePrice: 36000,
+        stockQuantity: 4,
+        status: "SALE",
+      },
+    ],
+    page: 1,
+    size: 100,
+    totalElements: 2,
+    totalPages: 1,
+  }));
+  await page.route("**/api/v1/admin/products/smartstore-catalog/*", (route) => {
+    const originProductNo = Number(new URL(route.request().url()).pathname.split("/").at(-1));
+    return json(route, { originProductNo, salePrice: 35000, status: "SALE", options: [] });
+  });
+  await page.route("**/api/v1/admin/products/1/smartstore-product-preview", (route) => json(route, {
+    productId: 1,
+    originProductNo: 123,
+    localSalePrice: 35000,
+    channelSalePrice: 35000,
+    localStatus: "SALE",
+    channelStatus: "SALE",
+    options: [],
+    different: false,
+    previewVersion: "preview-1",
+  }));
+  await page.route("**/api/v1/admin/products/1/smartstore-inventory", async (route) => {
+    if (route.request().method() === "PUT") {
+      savedBody = route.request().postDataJSON();
+      return json(route, {
+        productId: 1,
+        mappingVersion: 18,
+        originProductNo: 456,
+        enabled: true,
+        variants: [],
+        syncStatus: "PENDING",
+        attemptCount: 0,
+        lastError: null,
+        syncedAt: null,
+      });
+    }
+    await mappingGate;
+    return json(route, {
+      productId: 1,
+      mappingVersion: 17,
+      originProductNo: 123,
+      enabled: true,
+      variants: [],
+      syncStatus: "SYNCED",
+      attemptCount: 0,
+      lastError: null,
+      syncedAt: "2026-09-01T09:00:00+09:00",
+    });
+  });
+
+  await page.goto("/admin?view=products");
+  await page.getByRole("row").filter({ hasText: "연동 작품" })
+    .getByRole("button", { name: "스마트스토어", exact: true }).click();
+  await page.getByText("새 원상품", { exact: true }).click();
+  await expect(page.getByRole("button", { name: "연동 저장", exact: true })).toBeDisabled();
+
+  releaseMapping?.();
+  await expect(page.getByText("현재 상태:", { exact: false })).toBeVisible();
+  await page.getByText("새 원상품", { exact: true }).click();
+  await expect(page.getByText("기존 원상품 123에서 새 원상품 456(으)로 변경합니다.", { exact: false })).toBeVisible();
+  await page.getByRole("checkbox", {
+    name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+  }).check();
+  await page.getByRole("button", { name: "연동 저장", exact: true }).click();
+
+  await expect.poll(() => savedBody).toEqual({
+    originProductNo: 456,
+    enabled: true,
+    variants: [],
+    expectedMappingVersion: 17,
+    previousOriginConfirmed: true,
+  });
+});

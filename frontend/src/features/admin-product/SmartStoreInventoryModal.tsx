@@ -62,7 +62,10 @@ export function SmartStoreInventoryModal({
   const originChanged = previousOriginProductNo !== undefined
     && validOrigin
     && previousOriginProductNo !== originNumber;
-  const canSave = validOrigin && validOptions && (!originChanged || originChangeConfirmed);
+  const canSave = mappingQuery.isSuccess
+    && validOrigin
+    && validOptions
+    && (!originChanged || originChangeConfirmed);
   const catalogQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", catalogPage],
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
@@ -117,6 +120,8 @@ export function SmartStoreInventoryModal({
           optionId: Number(optionIds[variant.id]),
         }))
         : [],
+      expectedMappingVersion: mapping?.mappingVersion ?? null,
+      previousOriginConfirmed: originChangeConfirmed,
     }),
     onSuccess: async (mapping) => {
       queryClient.setQueryData(
@@ -129,6 +134,13 @@ export function SmartStoreInventoryModal({
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
+        });
+      }
     },
   });
 

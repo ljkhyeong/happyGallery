@@ -521,6 +521,7 @@ export interface SmartStoreInventoryMappingResponse {
   enabled: boolean;
   /** @nullable */
   lastError: string | null;
+  mappingVersion: number;
   originProductNo: number;
   productId: number;
   /** @nullable */
@@ -537,7 +538,10 @@ export interface SmartStoreVariantMappingRequest {
 
 export interface SaveSmartStoreInventoryMappingRequest {
   enabled?: boolean;
+  /** @nullable */
+  expectedMappingVersion: number | null;
   originProductNo: number;
+  previousOriginConfirmed: boolean;
   /**
      * @minItems 0
      * @maxItems 500
