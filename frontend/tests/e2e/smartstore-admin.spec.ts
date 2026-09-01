@@ -186,13 +186,14 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
   await expect(panel.getByRole("button", { name: "다음 페이지", exact: true })).toBeDisabled();
 });
 
-test("@admin 스마트스토어 원상품 변경은 기존 매핑 조회와 확인을 마친 뒤 최신 개정으로 저장한다", async ({ page }) => {
+test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확인과 최신 개정을 요구한다", async ({ page }) => {
   await prepareAdmin(page);
   let releaseMapping: (() => void) | undefined;
   const mappingGate = new Promise<void>((resolve) => {
     releaseMapping = resolve;
   });
   let savedBody: Record<string, unknown> | undefined;
+  let deleteParams: Record<string, string> | undefined;
 
   await page.route("**/api/v1/admin/products", (route) => json(route, [{
     id: 1,
@@ -252,7 +253,11 @@ test("@admin 스마트스토어 원상품 변경은 기존 매핑 조회와 확�
     different: false,
     previewVersion: "preview-1",
   }));
-  await page.route("**/api/v1/admin/products/1/smartstore-inventory", async (route) => {
+  await page.route("**/api/v1/admin/products/1/smartstore-inventory**", async (route) => {
+    if (route.request().method() === "DELETE") {
+      deleteParams = Object.fromEntries(new URL(route.request().url()).searchParams);
+      return route.fulfill({ status: 204 });
+    }
     if (route.request().method() === "PUT") {
       savedBody = route.request().postDataJSON();
       return json(route, {
@@ -302,5 +307,21 @@ test("@admin 스마트스토어 원상품 변경은 기존 매핑 조회와 확�
     variants: [],
     expectedMappingVersion: 17,
     previousOriginConfirmed: true,
+  });
+
+  await page.getByRole("button", { name: "연동 해제", exact: true }).click();
+  await expect(page.getByText("기존 원상품 456의 연결과 보존된 과거 옵션 연결을 모두 삭제합니다.", {
+    exact: false,
+  })).toBeVisible();
+  const unlink = page.getByRole("button", { name: "연동 해제 실행", exact: true });
+  await expect(unlink).toBeDisabled();
+  await page.getByRole("checkbox", {
+    name: "기존 원상품 456의 판매 중지·재고 확인을 완료했습니다.",
+  }).check();
+  await unlink.click();
+
+  await expect.poll(() => deleteParams).toEqual({
+    expectedMappingVersion: "18",
+    previousOriginConfirmed: "true",
   });
 });

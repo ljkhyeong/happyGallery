@@ -19,6 +19,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductResult;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
 import com.personal.happygallery.domain.error.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -126,8 +127,12 @@ public class AdminProductController {
     @DeleteMapping("/{id}/smartstore-inventory")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(operationId = "deleteSmartStoreInventoryMapping")
-    public void deleteSmartStoreInventoryMapping(@PathVariable Long id) {
-        smartStoreInventoryUseCase.deleteMapping(id);
+    public void deleteSmartStoreInventoryMapping(
+            @PathVariable Long id,
+            @RequestParam Long expectedMappingVersion,
+            @RequestParam boolean previousOriginConfirmed) {
+        smartStoreInventoryUseCase.deleteMapping(
+                id, new DeleteMappingCommand(expectedMappingVersion, previousOriginConfirmed));
     }
 
     @PostMapping("/{id}/smartstore-inventory/retry")

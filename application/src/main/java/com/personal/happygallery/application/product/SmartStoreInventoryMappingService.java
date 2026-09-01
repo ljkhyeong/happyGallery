@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
@@ -34,6 +35,7 @@ class SmartStoreInventoryMappingService {
     private final SmartStoreStockMappingPort mappingPort;
     private final SmartStoreStockSyncPort syncPort;
     private final SmartStoreStockSyncQueuePort queuePort;
+    private final SmartStoreStockSyncTransactionService stockSyncTransactionService;
     private final Clock clock;
 
     SmartStoreInventoryMappingService(
@@ -42,12 +44,14 @@ class SmartStoreInventoryMappingService {
             SmartStoreStockMappingPort mappingPort,
             SmartStoreStockSyncPort syncPort,
             SmartStoreStockSyncQueuePort queuePort,
+            SmartStoreStockSyncTransactionService stockSyncTransactionService,
             Clock clock) {
         this.productReaderPort = productReaderPort;
         this.optionConfigurationService = optionConfigurationService;
         this.mappingPort = mappingPort;
         this.syncPort = syncPort;
         this.queuePort = queuePort;
+        this.stockSyncTransactionService = stockSyncTransactionService;
         this.clock = clock;
     }
 
@@ -73,6 +77,7 @@ class SmartStoreInventoryMappingService {
         boolean originChanged = !previous.isEmpty()
                 && !previous.getFirst().getOriginProductNo().equals(command.originProductNo());
         requirePreviousOriginConfirmation(originChanged, command.previousOriginConfirmed());
+        requireNoUnappliedOrders(productId, originChanged);
         validate(product, command.variants());
 
         Set<Long> requestedOptionIds = command.variants().stream()
@@ -115,11 +120,24 @@ class SmartStoreInventoryMappingService {
         return mappings.isEmpty() ? Optional.empty() : Optional.of(result(mappings));
     }
 
-    @Transactional
-    public void deleteMapping(Long productId) {
+    @Transactional(readOnly = true)
+    public void planDelete(Long productId, DeleteMappingCommand command) {
         if (productReaderPort.findById(productId).isEmpty()) {
             throw new NotFoundException("상품");
         }
+        List<SmartStoreStockMapping> current = mappings(productId);
+        verifyExpectedVersion(current, command.expectedMappingVersion());
+        requirePreviousOriginConfirmation(!current.isEmpty(), command.previousOriginConfirmed());
+    }
+
+    @Transactional
+    public void deleteMapping(Long productId, DeleteMappingCommand command) {
+        productReaderPort.findByIdWithLock(productId)
+                .orElseThrow(NotFoundException.supplier("상품"));
+        List<SmartStoreStockMapping> current = mappings(productId);
+        verifyExpectedVersion(current, command.expectedMappingVersion());
+        requirePreviousOriginConfirmation(!current.isEmpty(), command.previousOriginConfirmed());
+        requireNoUnappliedOrders(productId, true);
         mappingPort.deleteByProductId(productId);
         syncPort.deleteByProductId(productId);
     }
@@ -190,6 +208,13 @@ class SmartStoreInventoryMappingService {
         if (originChanged && !confirmed) {
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT, "기존 원상품의 판매 중지와 재고 확인을 완료해 주세요.");
+        }
+    }
+
+    private void requireNoUnappliedOrders(Long productId, boolean previousOriginRemoved) {
+        if (previousOriginRemoved && stockSyncTransactionService.hasUnappliedOrders(productId)) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "기존 원상품의 재고 미반영 주문을 먼저 처리해 주세요.");
         }
     }
 

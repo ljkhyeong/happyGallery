@@ -11499,6 +11499,21 @@
             "format" : "int64",
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "expectedMappingVersion",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "previousOriginConfirmed",
+          "required" : true,
+          "schema" : {
+            "type" : "boolean"
+          }
         } ],
         "responses" : {
           "204" : {

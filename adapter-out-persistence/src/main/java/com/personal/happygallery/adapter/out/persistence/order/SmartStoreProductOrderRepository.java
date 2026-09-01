@@ -47,7 +47,7 @@ public interface SmartStoreProductOrderRepository
                     or (channelOrder.productId is null
                         and channelOrder.originProductNo in (
                             select mapping.originProductNo from SmartStoreStockMapping mapping
-                             where mapping.productId = :productId and mapping.enabled = true
+                             where mapping.productId = :productId
                         )))
             """)
     boolean existsInventoryAttentionForProduct(

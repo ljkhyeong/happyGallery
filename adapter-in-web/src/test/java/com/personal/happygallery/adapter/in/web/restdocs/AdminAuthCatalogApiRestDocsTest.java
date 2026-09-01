@@ -683,7 +683,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     void admin_delete_smartstore_inventory_mapping() throws Exception {
         mockMvc.perform(delete("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
                         .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token"))
+                        .header("Authorization", "Bearer admin-session-token")
+                        .queryParam("expectedMappingVersion", "17")
+                        .queryParam("previousOriginConfirmed", "true"))
                 .andExpect(status().isNoContent());
     }
 

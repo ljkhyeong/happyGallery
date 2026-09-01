@@ -50,9 +50,8 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
     @Transactional(propagation = Propagation.NEVER)
     public MappingResult saveMapping(Long productId, SaveMappingCommand command) {
         var plan = mappingService.planChange(productId, command);
-        if (plan.originChanged() && !orderSyncUseCase.synchronizeBeforeStock()) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT,
-                    "기존 원상품 주문 수집이 완료되지 않아 연동 변경을 보류했습니다. 잠시 후 다시 시도해 주세요.");
+        if (plan.originChanged()) {
+            synchronizePreviousOriginOrders();
         }
         return mappingService.saveMapping(productId, command);
     }
@@ -64,13 +63,23 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
     }
 
     @Override
-    public void deleteMapping(Long productId) {
-        mappingService.deleteMapping(productId);
+    @Transactional(propagation = Propagation.NEVER)
+    public void deleteMapping(Long productId, DeleteMappingCommand command) {
+        mappingService.planDelete(productId, command);
+        synchronizePreviousOriginOrders();
+        mappingService.deleteMapping(productId, command);
     }
 
     @Override
     public MappingResult retry(Long productId) {
         return mappingService.retry(productId);
+    }
+
+    private void synchronizePreviousOriginOrders() {
+        if (!orderSyncUseCase.synchronizeBeforeStock()) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "기존 원상품 주문 수집이 완료되지 않아 연동 변경을 보류했습니다. 잠시 후 다시 시도해 주세요.");
+        }
     }
 
     @Override

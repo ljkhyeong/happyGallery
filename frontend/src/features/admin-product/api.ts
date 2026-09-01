@@ -140,8 +140,14 @@ export function retrySmartStoreSync(
 export function removeSmartStoreMapping(
   adminKey: string,
   productId: number,
+  expectedMappingVersion: number,
+  previousOriginConfirmed: boolean,
 ): Promise<void> {
-  return deleteSmartStoreInventoryMapping(productId, { headers: adminHeaders(adminKey) });
+  return deleteSmartStoreInventoryMapping(
+    productId,
+    { expectedMappingVersion, previousOriginConfirmed },
+    { headers: adminHeaders(adminKey) },
+  );
 }
 
 export function fetchSmartStoreProductPreview(

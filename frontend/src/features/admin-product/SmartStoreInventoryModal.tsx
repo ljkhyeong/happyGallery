@@ -45,6 +45,8 @@ export function SmartStoreInventoryModal({
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [originChangeConfirmed, setOriginChangeConfirmed] = useState(false);
+  const [unlinkRequested, setUnlinkRequested] = useState(false);
+  const [unlinkConfirmed, setUnlinkConfirmed] = useState(false);
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const originNumber = Number(originProductNo);
   const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
@@ -63,6 +65,7 @@ export function SmartStoreInventoryModal({
     && validOrigin
     && previousOriginProductNo !== originNumber;
   const canSave = mappingQuery.isSuccess
+    && !unlinkRequested
     && validOrigin
     && validOptions
     && (!originChanged || originChangeConfirmed);
@@ -110,6 +113,19 @@ export function SmartStoreInventoryModal({
     setOriginChangeConfirmed(false);
   }, [originProductNo, previousOriginProductNo, product?.id]);
 
+  useEffect(() => {
+    setUnlinkRequested(false);
+    setUnlinkConfirmed(false);
+  }, [mapping?.mappingVersion, product?.id]);
+
+  const refreshMappingOnConflict = async (error: unknown) => {
+    if (error instanceof ApiError && error.status === 409) {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
+      });
+    }
+  };
+
   const saveMutation = useAdminMutation(onAuthError, {
     mutationFn: () => saveSmartStoreMapping(adminKey, product!.id, {
       originProductNo: originNumber,
@@ -135,13 +151,7 @@ export function SmartStoreInventoryModal({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
     },
-    onError: async (error) => {
-      if (error instanceof ApiError && error.status === 409) {
-        await queryClient.invalidateQueries({
-          queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
-        });
-      }
-    },
+    onError: refreshMappingOnConflict,
   });
 
   const retryMutation = useAdminMutation(onAuthError, {
@@ -156,7 +166,12 @@ export function SmartStoreInventoryModal({
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => removeSmartStoreMapping(adminKey, product!.id),
+    mutationFn: () => removeSmartStoreMapping(
+      adminKey,
+      product!.id,
+      mapping!.mappingVersion,
+      unlinkConfirmed,
+    ),
     onSuccess: () => {
       queryClient.setQueryData(
         ["admin", "products", product?.id, "smartstore-inventory"],
@@ -165,6 +180,7 @@ export function SmartStoreInventoryModal({
       toast.show("스마트스토어 재고 연동을 해제했습니다.");
       onClose();
     },
+    onError: refreshMappingOnConflict,
   });
 
   const applyMutation = useAdminMutation(onAuthError, {
@@ -408,14 +424,58 @@ export function SmartStoreInventoryModal({
             onChange={(event) => setEnabled(event.target.checked)}
           />
 
+          {unlinkRequested && mapping && (
+            <Alert variant="danger">
+              <div className="fw-semibold">연동 해제 전 기존 원상품을 확인해 주세요.</div>
+              <div className="small mt-1">
+                기존 원상품 {mapping.originProductNo}의 연결과 보존된 과거 옵션 연결을 모두 삭제합니다.
+                해제 후에는 기존 원상품 재고를 자동으로 보정하지 않습니다.
+              </div>
+              <Form.Check
+                className="mt-2"
+                id="smartstore-unlink-origin-checked"
+                label={`기존 원상품 ${mapping.originProductNo}의 판매 중지·재고 확인을 완료했습니다.`}
+                checked={unlinkConfirmed}
+                onChange={(event) => setUnlinkConfirmed(event.target.checked)}
+              />
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-secondary"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    deleteMutation.reset();
+                    setUnlinkRequested(false);
+                    setUnlinkConfirmed(false);
+                  }}
+                >
+                  해제 취소
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={!unlinkConfirmed || deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  {deleteMutation.isPending ? "해제 중..." : "연동 해제 실행"}
+                </Button>
+              </div>
+            </Alert>
+          )}
+
           <div className="d-flex justify-content-between gap-2">
             <div>
-              {mapping && (
+              {mapping && !unlinkRequested && (
                 <Button
                   type="button"
                   variant="outline-danger"
                   disabled={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate()}
+                  onClick={() => {
+                    deleteMutation.reset();
+                    setUnlinkRequested(true);
+                  }}
                 >
                   연동 해제
                 </Button>

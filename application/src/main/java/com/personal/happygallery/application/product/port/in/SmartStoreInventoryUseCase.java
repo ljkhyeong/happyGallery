@@ -11,7 +11,7 @@ public interface SmartStoreInventoryUseCase {
 
     Optional<MappingResult> getMapping(Long productId);
 
-    void deleteMapping(Long productId);
+    void deleteMapping(Long productId, DeleteMappingCommand command);
 
     MappingResult retry(Long productId);
 
@@ -47,6 +47,11 @@ public interface SmartStoreInventoryUseCase {
     }
 
     record VariantMapping(Long productVariantId, Long optionId) {}
+
+    record DeleteMappingCommand(
+            Long expectedMappingVersion,
+            boolean previousOriginConfirmed
+    ) {}
 
     record CatalogPageResult(
             List<CatalogProductResult> products,

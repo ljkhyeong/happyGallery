@@ -26,6 +26,7 @@ import com.personal.happygallery.application.product.ProductVariantStockService.
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
@@ -145,7 +146,7 @@ class SmartStoreProductSyncUseCaseIT {
             boolean previousGeneration = calls.incrementAndGet() == 1;
             if (previousGeneration) {
                 inventoryService.deduct(productId, 2);
-                smartStoreInventoryUseCase.deleteMapping(productId);
+                deleteMapping(productId);
                 smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
                 assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isEqualTo(1);
                 assertThat(channelStock.get()).isEqualTo(3);
@@ -218,7 +219,7 @@ class SmartStoreProductSyncUseCaseIT {
         }
 
         String beforeRecreation = smartStoreInventoryUseCase.previewProduct(productId).previewVersion();
-        smartStoreInventoryUseCase.deleteMapping(productId);
+        deleteMapping(productId);
         assertThatThrownBy(() -> smartStoreInventoryUseCase.applyProduct(productId, beforeRecreation))
                 .isInstanceOf(HappyGalleryException.class).hasMessageContaining("연결");
         smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
@@ -339,9 +340,39 @@ class SmartStoreProductSyncUseCaseIT {
     }
 
     @Test
+    @DisplayName("기존 원상품에서 수집한 미매핑 주문이 있으면 원상품 변경을 보류한다")
+    void originChange_rejectsUnmappedPreviousOriginOrder() {
+        Long productId = readyStockMapping();
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        LocalDateTime now = LocalDateTime.now(clock);
+        when(orderProvider.fetchChanges(any(), any())).thenReturn(new ChangePage(
+                List.of(new ProductOrderChange("unmapped-old-origin", "PAYED", now)), null));
+        when(orderProvider.fetchDetails(List.of("unmapped-old-origin"))).thenReturn(List.of(new ProductOrderDetail(
+                "unmapped-old-origin", "old-order", 123L, 999L, "기존 원상품 미매핑 주문", "새 옵션",
+                null, "PAYED", null, null, null, null, 1, 1, now.minusMinutes(1), null,
+                null, null, null, null, null, null, null, null, null, List.of())));
+
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                456L, true, List.of(), current.mappingVersion(), true)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("재고 미반영 주문");
+
+        assertSoftly(softly -> {
+            softly.assertThat(smartStoreInventoryUseCase.getMapping(productId).orElseThrow().originProductNo())
+                    .isEqualTo(123L);
+            softly.assertThat(inventoryRepository.findByProductId(productId).orElseThrow().getQuantity())
+                    .isEqualTo(5);
+            softly.assertThat(channelOrderRepository.findById("unmapped-old-origin").orElseThrow().getAttentionReason())
+                    .isEqualTo(SmartStoreOrderAttentionReason.MAPPING_REQUIRED);
+        });
+    }
+
+    @Test
     @DisplayName("기존 원상품에 매핑된 미반영 주문은 원상품 변경 뒤에도 새 재고 전송을 막는다")
     void mappedAttentionFromPreviousOrigin_blocksCurrentOriginStockSync() {
         Long productId = readyStockMapping();
+        smartStoreInventoryUseCase.saveMapping(productId,
+                mappingCommand(productId, 456L, true, List.of()));
         LocalDateTime now = LocalDateTime.now(clock);
         var order = new SmartStoreProductOrder(
                 "previous-origin-shortage", "previous-order", 123L, null, "기존 원상품 재고 부족", null,
@@ -349,8 +380,6 @@ class SmartStoreProductSyncUseCaseIT {
         order.mapTo(productId, null);
         order.requireAttention(SmartStoreOrderAttentionReason.STOCK_SHORTAGE);
         channelOrderRepository.save(order);
-        smartStoreInventoryUseCase.saveMapping(productId,
-                mappingCommand(productId, 456L, true, List.of()));
         when(provider.sync(any())).thenReturn(SyncResult.completed());
 
         assertThat(stockSyncBatchUseCase.syncPendingStocks().successCount()).isZero();
@@ -379,6 +408,57 @@ class SmartStoreProductSyncUseCaseIT {
                 .hasMessageContaining("최신 설정");
         assertThat(smartStoreInventoryUseCase.getMapping(productId).orElseThrow().originProductNo())
                 .isEqualTo(123L);
+    }
+
+    @Test
+    @DisplayName("연동 해제는 기존 원상품 확인과 최신 매핑 개정을 요구한다")
+    void deleteMapping_requiresConfirmationAndCurrentMappingVersion() {
+        Long productId = readyStockMapping();
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(current.mappingVersion(), false)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("판매 중지와 재고 확인");
+        when(orderProvider.fetchChanges(any(), any())).thenAnswer(invocation -> {
+            smartStoreInventoryUseCase.saveMapping(productId,
+                    new SaveMappingCommand(123L, false, List.of(), current.mappingVersion(), false));
+            return new ChangePage(List.of(), null);
+        });
+
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(current.mappingVersion(), true)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("최신 설정");
+        var disabled = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        doReturn(new ChangePage(List.of(), null)).when(orderProvider).fetchChanges(any(), any());
+        smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(disabled.mappingVersion(), true));
+        assertThat(smartStoreInventoryUseCase.getMapping(productId)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("재고 미반영 주문이 있으면 연동 해제를 보류한다")
+    void deleteMapping_rejectsUnappliedOrder() {
+        Long productId = readyStockMapping();
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        LocalDateTime now = LocalDateTime.now(clock);
+        when(orderProvider.fetchChanges(any(), any())).thenReturn(new ChangePage(
+                List.of(new ProductOrderChange("unlink-unmapped-order", "PAYED", now)), null));
+        when(orderProvider.fetchDetails(List.of("unlink-unmapped-order"))).thenReturn(List.of(new ProductOrderDetail(
+                "unlink-unmapped-order", "unlink-order", 123L, 999L, "해제 전 미반영 주문", "새 옵션",
+                null, "PAYED", null, null, null, null, 1, 1, now.minusMinutes(1), null,
+                null, null, null, null, null, null, null, null, null, List.of())));
+
+        assertThatThrownBy(() -> smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(current.mappingVersion(), true)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessageContaining("재고 미반영 주문");
+        assertSoftly(softly -> {
+            softly.assertThat(smartStoreInventoryUseCase.getMapping(productId)).isPresent();
+            softly.assertThat(channelOrderRepository.findById("unlink-unmapped-order").orElseThrow()
+                    .getAttentionReason()).isEqualTo(SmartStoreOrderAttentionReason.MAPPING_REQUIRED);
+        });
     }
 
     @ParameterizedTest
@@ -434,6 +514,12 @@ class SmartStoreProductSyncUseCaseIT {
                 variants,
                 current.map(SmartStoreInventoryUseCase.MappingResult::mappingVersion).orElse(null),
                 originChanged);
+    }
+
+    private void deleteMapping(Long productId) {
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(current.mappingVersion(), true));
     }
 
     private void resetCursor(LocalDateTime from, LocalDateTime processingStartedAt) {

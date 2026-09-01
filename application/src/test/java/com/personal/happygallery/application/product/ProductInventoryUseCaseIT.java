@@ -22,6 +22,7 @@ import com.personal.happygallery.adapter.out.persistence.product.InventoryReposi
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
@@ -73,6 +74,7 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductOptionConfigurationService optionConfigurationService;
     @Autowired ProductVariantRepository variantRepository;
     @Autowired SmartStoreInventoryUseCase smartStoreInventoryUseCase;
+    @Autowired SmartStoreInventoryMappingService smartStoreInventoryMappingService;
     @Autowired SmartStoreStockMappingPort mappingPort;
     @Autowired SmartStoreStockSyncPort stockSyncPort;
     @Autowired SmartStoreStockSyncTransactionService stockSyncTransactionService;
@@ -246,7 +248,7 @@ class ProductInventoryUseCaseIT {
         var previous = stockSyncTransactionService.claim(productId, now).orElseThrow();
 
         if (deleteMapping) {
-            smartStoreInventoryUseCase.deleteMapping(productId);
+            deleteMapping(productId);
         } else {
             smartStoreInventoryUseCase.saveMapping(productId,
                     mappingCommand(productId, 123L, false, command.variants()));
@@ -355,6 +357,12 @@ class ProductInventoryUseCaseIT {
                 variants,
                 current.map(SmartStoreInventoryUseCase.MappingResult::mappingVersion).orElse(null),
                 originChanged);
+    }
+
+    private void deleteMapping(Long productId) {
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        smartStoreInventoryMappingService.deleteMapping(
+                productId, new DeleteMappingCommand(current.mappingVersion(), true));
     }
 
     private static SaveProductCommand madeToOrderCommand(
