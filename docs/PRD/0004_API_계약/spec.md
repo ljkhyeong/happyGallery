@@ -890,6 +890,8 @@ Content-Type: application/json
 {
   "originProductNo": 123456789,
   "enabled": true,
+  "expectedMappingVersion": 17,
+  "previousOriginConfirmed": false,
   "variants": [
     { "productVariantId": 31, "optionId": 90001 },
     { "productVariantId": 32, "optionId": 90002 }
@@ -897,10 +899,12 @@ Content-Type: application/json
 }
 ```
 
-- 성공: `200 OK` — 저장된 매핑과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
+- 성공: `200 OK` — 저장된 매핑의 불투명 `mappingVersion`과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
+- 최초 등록은 `expectedMappingVersion=null`, 수정은 직전 조회·저장 응답의 `mappingVersion`을 보낸다. 현재 값과 다르면 다른 화면에서 설정이 변경·삭제·재등록된 것이므로 `409 CONFLICT`를 반환하며 자동 병합하지 않는다.
 - 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다.
 - 주문제작 상품은 관리자 상품 응답에 표시되는 현재 조합을 판매 중지 여부와 관계없이 정확히 한 번씩 보내야 한다. 과거 주문 보존용 조합은 입력하지 않는다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
 - 매핑 응답의 `variants`에는 현재 연결만 반환한다. 같은 원상품에서 옵션 구조 변경 또는 같은 조합의 원격 옵션 번호 변경으로 해제된 연결은 내부에 보존하며 자동 재고 전송에서는 0개를 보낸다. 실패하면 기존 재시도 경로에서 현재·과거 옵션을 함께 다시 전송한다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
+- 원상품 번호가 바뀌면 `previousOriginConfirmed=true`가 필수다. 서버는 기존 매핑이 남아 있는 동안 변경 주문을 현재 시점까지 수집하고, 수집 실패·진행 중·남은 페이지가 있으면 `409 CONFLICT`로 저장을 보류한다. 외부 수집 트랜잭션이 끝난 뒤 상품 행을 잠그고 `mappingVersion`을 다시 비교한 경우에만 새 원상품을 저장한다.
 - `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
 - 비활성화·해제 후 다시 등록한 동기화는 이전 전송과 구분한다. 이전 전송의 성공·실패 응답은 새 요청의 완료 상태, 시도 횟수, 오류와 재시도 시각을 바꾸지 않는다.
 - 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`

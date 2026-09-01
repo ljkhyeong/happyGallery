@@ -104,7 +104,7 @@ npm run dev
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
 - `prod`가 아닌 환경에서는 실제 알림·인증 SMS·이메일 인증 SMTP·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - 스마트스토어 주문·재고·문의·정산 연동은 기본 비활성화다. 운영에서는 `SMARTSTORE_ENABLED=true`, `SMARTSTORE_CLIENT_ID`, bcrypt salt 형식의 `SMARTSTORE_CLIENT_SECRET`을 설정하고 위임 판매자 방식이면 `SMARTSTORE_ACCOUNT_TYPE=SELLER`, `SMARTSTORE_ACCOUNT_ID`도 함께 주입한다. 활성화한 시점부터 변경 주문을 매분 수집하며 과거 주문을 소급 차감하지 않는다. 배송정보 암호문은 기존 데이터 키 회전 명령에서 다른 배송지 암호문과 함께 재암호화한다.
-- 연결된 스마트스토어 원상품 번호를 바꿀 때는 관리자 화면에 기존·신규 번호를 함께 표시한다. 기존 원상품의 판매 중지와 재고 확인을 완료했다고 확인해야 저장할 수 있으며, 변경 후 기존 원상품 재고는 자동 보정하지 않는다.
+- 연결된 스마트스토어 원상품 번호를 바꿀 때는 관리자 화면에 기존·신규 번호를 함께 표시한다. 기존 원상품의 판매 중지와 재고 확인을 완료했다고 확인해야 저장할 수 있으며, 서버는 기존 원상품 주문 수집을 마친 뒤 최신 매핑 개정을 확인해 저장한다. 변경 후 기존 원상품 재고는 자동 보정하지 않는다.
 - k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
 - 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업의 DB backlog, 결제·알림 CircuitBreaker 상태와 호출 결과, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다. 스마트스토어 주문·재고 동기화는 5분, 정산 대사는 2시간 동안 정상 완료가 없으면 별도 critical 경보를 보낸다. 업무 알림은 휘발성 사건 수가 아니라 아직 처리되지 않은 DB 상태를 기준으로 유지한다.
 - SMTP 장애가 주문·예약 API 전체를 비정상으로 만들지 않도록 Spring Mail health indicator는 기본 비활성화한다. 이메일 발송 장애는 알림 CircuitBreaker와 실패 로그로 관측하며, 독립 SMTP health가 필요한 환경에서만 `MAIL_HEALTH_ENABLED=true`로 켠다.
