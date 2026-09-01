@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-31
+**갱신**: 2026-09-01
 
 ---
 
@@ -155,9 +155,9 @@
   - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
   - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
 - `smartstore_order_sync_state`
-  - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각과 마지막으로 관측한 `integration_enabled`를 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
+  - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각, 마지막으로 관측한 `integration_enabled`와 활성화 대기 경계 `pending_activation_from`을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
   - 연동 중지 기간은 선점이 없거나 시작 후 5분 이상 지났을 때 조회 시작점을 현재 시각으로 옮기고 페이지·처리 시작 시각을 비운다. 유효한 실행은 보호하며 만료된 이전 실행의 완료 요청은 거절한다.
-  - `integration_enabled`는 V169 배포 전 상태를 추측하지 않도록 NULL을 허용한다. 비활성을 관측한 뒤 활성 설정으로 재기동하면 애플리케이션 시작 시각부터 수집하고, 계속 활성인 재기동은 기존 커서를 유지한다.
+  - `integration_enabled`는 V169 배포 전 상태를 추측하지 않도록 NULL을 허용한다. V171의 nullable `pending_activation_from`은 비활성을 관측한 뒤 활성 설정으로 재기동한 가장 이른 시작 시각을 첫 배치 전에 보존한다. 유효한 기존 선점이 끝난 뒤 같은 트랜잭션에서 이 경계를 커서에 적용하고 새 선점을 남기며, 계속 활성인 재기동은 기존 커서를 유지한다.
 - `smartstore_settlement_entries`
   - 네이버 상품 주문 정산의 금액·수수료·기준일·지급일과 로컬 주문 정산 예정액 대사 상태를 안정 키로 멱등 저장한다. 불일치는 로컬 주문을 바꾸지 않고 관리자 작업 목록으로만 제공한다.
 - `cart_items`
