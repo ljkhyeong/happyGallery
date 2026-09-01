@@ -25,6 +25,9 @@ public class SmartStoreOrderSyncState {
     @Column(name = "processing_started_at")
     private LocalDateTime processingStartedAt;
 
+    @Column(name = "integration_enabled")
+    private Boolean integrationEnabled;
+
     @Version
     @Column(name = "row_version", nullable = false)
     private long version;
@@ -33,6 +36,17 @@ public class SmartStoreOrderSyncState {
     private LocalDateTime updatedAt;
 
     protected SmartStoreOrderSyncState() {}
+
+    public void enable(LocalDateTime activatedAt) {
+        if (Boolean.FALSE.equals(integrationEnabled)) {
+            complete(activatedAt, null);
+        }
+        integrationEnabled = true;
+    }
+
+    public void disable() {
+        integrationEnabled = false;
+    }
 
     public boolean claim(LocalDateTime now, LocalDateTime staleBefore) {
         if (processingStartedAt != null && processingStartedAt.isAfter(staleBefore)) {
@@ -56,6 +70,7 @@ public class SmartStoreOrderSyncState {
     public LocalDateTime getLastChangedFrom() { return lastChangedFrom; }
     public String getMoreSequence() { return moreSequence; }
     public LocalDateTime getProcessingStartedAt() { return processingStartedAt; }
+    public Boolean getIntegrationEnabled() { return integrationEnabled; }
     public long getVersion() { return version; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

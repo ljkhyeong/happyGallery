@@ -19,16 +19,19 @@ class SmartStoreOrderSyncStateService {
 
     private final SmartStoreOrderSyncStatePort statePort;
     private final Clock clock;
+    private final LocalDateTime applicationStartedAt;
 
     SmartStoreOrderSyncStateService(SmartStoreOrderSyncStatePort statePort, Clock clock) {
         this.statePort = statePort;
         this.clock = clock;
+        this.applicationStartedAt = now();
     }
 
     @Transactional
     public void skipDisabledPeriod() {
-        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime now = now();
         SmartStoreOrderSyncState state = lockedState();
+        state.disable();
         if (state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
             state.complete(now, null);
         }
@@ -36,10 +39,9 @@ class SmartStoreOrderSyncStateService {
 
     @Transactional
     public Optional<ClaimedCursor> claim() {
-        LocalDateTime now = LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
-        SmartStoreOrderSyncState state = statePort
-                .findByIdWithLock(SmartStoreOrderSyncState.SINGLETON_ID)
-                .orElseThrow(() -> new IllegalStateException("스마트스토어 주문 동기화 커서가 없습니다."));
+        LocalDateTime now = now();
+        SmartStoreOrderSyncState state = lockedState();
+        state.enable(applicationStartedAt);
         if (!state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
             return Optional.empty();
         }
@@ -69,6 +71,10 @@ class SmartStoreOrderSyncStateService {
     private SmartStoreOrderSyncState lockedState() {
         return statePort.findByIdWithLock(SmartStoreOrderSyncState.SINGLETON_ID)
                 .orElseThrow(() -> new IllegalStateException("스마트스토어 주문 동기화 커서가 없습니다."));
+    }
+
+    private LocalDateTime now() {
+        return LocalDateTime.now(clock).truncatedTo(ChronoUnit.MICROS);
     }
 
     record ClaimedCursor(ChangeCursor cursor, LocalDateTime processingStartedAt) {}

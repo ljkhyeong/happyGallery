@@ -16,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -102,6 +103,7 @@ class SmartStoreSyncLeaseUseCaseIT {
             softly.assertThat(state.getLastChangedFrom()).isEqualTo(skipped ? now : previousFrom);
             softly.assertThat(state.getMoreSequence()).isEqualTo(skipped ? null : "previous-page");
             softly.assertThat(state.getProcessingStartedAt()).isEqualTo(skipped ? null : startedAt);
+            softly.assertThat(state.getIntegrationEnabled()).isFalse();
         });
         if (skipped && startedAt != null) {
             var previous = new SmartStoreOrderSyncStateService.ClaimedCursor(
@@ -110,6 +112,32 @@ class SmartStoreSyncLeaseUseCaseIT {
                     new ChangeCursor(previousFrom.plusMinutes(1), "late-page")));
             assertThat(completed).isFalse();
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    @DisplayName("재기동은 이전 연동 상태가 중지였을 때만 활성화 시각부터 주문을 수집한다")
+    void claim_startsAtActivationOnlyAfterDisabled(boolean previouslyEnabled) {
+        LocalDateTime now = NOW.truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime previousFrom = now.minusHours(2);
+        jdbc.update("""
+                UPDATE smartstore_order_sync_state
+                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = NULL,
+                    integration_enabled = ?
+                WHERE id = 1
+                """, previousFrom, previouslyEnabled);
+        var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
+        var tx = new TransactionTemplate(transactionManager);
+
+        var claimed = tx.execute(status -> service.claim().orElseThrow());
+
+        assertSoftly(softly -> {
+            softly.assertThat(claimed.cursor().changedFrom()).isEqualTo(previouslyEnabled ? previousFrom : now);
+            softly.assertThat(claimed.cursor().moreSequence()).isEqualTo(previouslyEnabled ? "previous-page" : null);
+            softly.assertThat(claimed.processingStartedAt()).isEqualTo(now);
+        });
+        var state = tx.execute(status -> orderStatePort.findByIdWithLock(1L).orElseThrow());
+        assertThat(state.getIntegrationEnabled()).isTrue();
     }
 
     private LocalDateTime orderProcessingStartedAt() {
