@@ -44,6 +44,7 @@ export function SmartStoreInventoryModal({
   const [optionIds, setOptionIds] = useState<Record<number, string>>({});
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [originChangeConfirmed, setOriginChangeConfirmed] = useState(false);
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const originNumber = Number(originProductNo);
   const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
@@ -57,6 +58,11 @@ export function SmartStoreInventoryModal({
     enabled: product !== null,
   });
   const mapping = mappingQuery.data;
+  const previousOriginProductNo = mapping?.originProductNo;
+  const originChanged = previousOriginProductNo !== undefined
+    && validOrigin
+    && previousOriginProductNo !== originNumber;
+  const canSave = validOrigin && validOptions && (!originChanged || originChangeConfirmed);
   const catalogQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", catalogPage],
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
@@ -96,6 +102,10 @@ export function SmartStoreInventoryModal({
     setCatalogPage(1);
     setCatalogSearch("");
   }, [product?.id]);
+
+  useEffect(() => {
+    setOriginChangeConfirmed(false);
+  }, [originProductNo, previousOriginProductNo, product?.id]);
 
   const saveMutation = useAdminMutation(onAuthError, {
     mutationFn: () => saveSmartStoreMapping(adminKey, product!.id, {
@@ -258,7 +268,7 @@ export function SmartStoreInventoryModal({
 
         <Form onSubmit={(event) => {
           event.preventDefault();
-          if (validOrigin && validOptions) saveMutation.mutate();
+          if (canSave) saveMutation.mutate();
         }}>
           <Form.Group className="mb-3" controlId="smartstore-origin-product-no">
             <Form.Label>스마트스토어 상품</Form.Label>
@@ -360,6 +370,23 @@ export function SmartStoreInventoryModal({
             </Table>
           )}
 
+          {originChanged && (
+            <Alert variant="warning">
+              <div className="fw-semibold">원상품 변경 전 기존 상품을 확인해 주세요.</div>
+              <div className="small mt-1">
+                기존 원상품 {previousOriginProductNo}에서 새 원상품 {originProductNo}(으)로 변경합니다.
+                저장 후에는 기존 원상품의 재고를 자동으로 보정하지 않습니다.
+              </div>
+              <Form.Check
+                className="mt-2"
+                id="smartstore-previous-origin-checked"
+                label={`기존 원상품 ${previousOriginProductNo}의 판매 중지·재고 확인을 완료했습니다.`}
+                checked={originChangeConfirmed}
+                onChange={(event) => setOriginChangeConfirmed(event.target.checked)}
+              />
+            </Alert>
+          )}
+
           <Form.Check
             className="mb-3"
             type="switch"
@@ -384,7 +411,7 @@ export function SmartStoreInventoryModal({
             </div>
             <Button
               type="submit"
-              disabled={!validOrigin || !validOptions || saveMutation.isPending}
+              disabled={!canSave || saveMutation.isPending}
             >
               {saveMutation.isPending ? "저장 중..." : "연동 저장"}
             </Button>
