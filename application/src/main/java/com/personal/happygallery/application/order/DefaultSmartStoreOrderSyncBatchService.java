@@ -15,10 +15,12 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DefaultSmartStoreOrderSyncBatchService implements SmartStoreOrderSyncBatchUseCase {
+public class DefaultSmartStoreOrderSyncBatchService
+        implements SmartStoreOrderSyncBatchUseCase, InitializingBean {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultSmartStoreOrderSyncBatchService.class);
 
@@ -36,6 +38,13 @@ public class DefaultSmartStoreOrderSyncBatchService implements SmartStoreOrderSy
         this.stateService = stateService;
         this.transactionService = transactionService;
         this.clock = clock;
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        if (orderProvider.isEnabled()) {
+            stateService.recordEnabledStart();
+        }
     }
 
     @Override

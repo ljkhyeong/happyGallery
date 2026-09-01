@@ -37,7 +37,9 @@ class SmartStoreSyncLeaseUseCaseIT {
     void orderLease_survivesDatabasePrecisionAndRejectsPreviousOwner() {
         jdbc.update("""
                 UPDATE smartstore_order_sync_state
-                SET last_changed_from = ?, more_sequence = NULL, processing_started_at = NULL WHERE id = 1
+                SET last_changed_from = ?, more_sequence = NULL, processing_started_at = NULL,
+                    integration_enabled = TRUE, pending_activation_from = NULL
+                WHERE id = 1
                 """, NOW.minusMinutes(1));
         var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
         var tx = new TransactionTemplate(transactionManager);
@@ -91,7 +93,9 @@ class SmartStoreSyncLeaseUseCaseIT {
         LocalDateTime startedAt = elapsedMicros == null ? null : now.minus(elapsedMicros, ChronoUnit.MICROS);
         jdbc.update("""
                 UPDATE smartstore_order_sync_state
-                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = ? WHERE id = 1
+                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = ?,
+                    integration_enabled = TRUE, pending_activation_from = NULL
+                WHERE id = 1
                 """, previousFrom, startedAt);
         var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
         var tx = new TransactionTemplate(transactionManager);
@@ -123,7 +127,7 @@ class SmartStoreSyncLeaseUseCaseIT {
         jdbc.update("""
                 UPDATE smartstore_order_sync_state
                 SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = NULL,
-                    integration_enabled = ?
+                    integration_enabled = ?, pending_activation_from = NULL
                 WHERE id = 1
                 """, previousFrom, previouslyEnabled);
         var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
@@ -138,6 +142,63 @@ class SmartStoreSyncLeaseUseCaseIT {
         });
         var state = tx.execute(status -> orderStatePort.findByIdWithLock(1L).orElseThrow());
         assertThat(state.getIntegrationEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("첫 선점 전 재기동은 가장 이른 활성화 경계를 유지한다")
+    void activationBoundary_survivesRestartBeforeFirstClaim() {
+        LocalDateTime firstStartedAt = NOW.truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime nextStartedAt = firstStartedAt.plusMinutes(1);
+        jdbc.update("""
+                UPDATE smartstore_order_sync_state
+                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = NULL,
+                    integration_enabled = FALSE, pending_activation_from = NULL
+                WHERE id = 1
+                """, firstStartedAt.minusHours(2));
+        var firstService = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
+        var nextService = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW.plusMinutes(1)));
+        var tx = new TransactionTemplate(transactionManager);
+
+        tx.executeWithoutResult(status -> firstService.recordEnabledStart());
+        tx.executeWithoutResult(status -> nextService.recordEnabledStart());
+        var claimed = tx.execute(status -> nextService.claim().orElseThrow());
+
+        assertSoftly(softly -> {
+            softly.assertThat(claimed.cursor()).isEqualTo(new ChangeCursor(firstStartedAt, null));
+            softly.assertThat(claimed.processingStartedAt()).isEqualTo(nextStartedAt);
+        });
+        var state = tx.execute(status -> orderStatePort.findByIdWithLock(1L).orElseThrow());
+        assertThat(state.getPendingActivationFrom()).isNull();
+    }
+
+    @Test
+    @DisplayName("활성화 대기 경계는 5분 미만 선점을 유지하고 만료 후 적용한다")
+    void activationBoundary_waitsForCurrentLease() {
+        LocalDateTime now = NOW.truncatedTo(ChronoUnit.MICROS);
+        LocalDateTime previousStartedAt = now.minusMinutes(1);
+        jdbc.update("""
+                UPDATE smartstore_order_sync_state
+                SET last_changed_from = ?, more_sequence = 'previous-page', processing_started_at = ?,
+                    integration_enabled = FALSE, pending_activation_from = NULL
+                WHERE id = 1
+                """, now.minusHours(2), previousStartedAt);
+        var service = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW));
+        var tx = new TransactionTemplate(transactionManager);
+
+        tx.executeWithoutResult(status -> service.recordEnabledStart());
+        var unclaimed = tx.execute(status -> service.claim());
+        assertThat(unclaimed).isEmpty();
+        var protectedState = tx.execute(status -> orderStatePort.findByIdWithLock(1L).orElseThrow());
+        assertSoftly(softly -> {
+            softly.assertThat(protectedState.getProcessingStartedAt()).isEqualTo(previousStartedAt);
+            softly.assertThat(protectedState.getPendingActivationFrom()).isEqualTo(now);
+            softly.assertThat(protectedState.getIntegrationEnabled()).isFalse();
+        });
+
+        var nextService = new SmartStoreOrderSyncStateService(orderStatePort, clock(NOW.plusMinutes(6)));
+        var claimed = tx.execute(status -> nextService.claim().orElseThrow());
+        assertThat(claimed.cursor()).isEqualTo(new ChangeCursor(now, null));
+        assertThat(claimed.processingStartedAt()).isEqualTo(now.plusMinutes(6));
     }
 
     private LocalDateTime orderProcessingStartedAt() {

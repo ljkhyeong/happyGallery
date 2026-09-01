@@ -28,6 +28,11 @@ class SmartStoreOrderSyncStateService {
     }
 
     @Transactional
+    public void recordEnabledStart() {
+        lockedState().recordEnabledStart(applicationStartedAt);
+    }
+
+    @Transactional
     public void skipDisabledPeriod() {
         LocalDateTime now = now();
         SmartStoreOrderSyncState state = lockedState();
@@ -41,8 +46,8 @@ class SmartStoreOrderSyncStateService {
     public Optional<ClaimedCursor> claim() {
         LocalDateTime now = now();
         SmartStoreOrderSyncState state = lockedState();
-        state.enable(applicationStartedAt);
-        if (!state.claim(now, now.minus(PROCESSING_TIMEOUT))) {
+        state.recordEnabledStart(applicationStartedAt);
+        if (!state.claimEnabled(now, now.minus(PROCESSING_TIMEOUT))) {
             return Optional.empty();
         }
         return Optional.of(new ClaimedCursor(

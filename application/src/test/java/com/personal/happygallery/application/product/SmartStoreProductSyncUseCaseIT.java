@@ -356,7 +356,8 @@ class SmartStoreProductSyncUseCaseIT {
     private void resetCursor(LocalDateTime from, LocalDateTime processingStartedAt) {
         jdbcTemplate.update("""
                 UPDATE smartstore_order_sync_state
-                   SET last_changed_from = ?, more_sequence = NULL, processing_started_at = ?
+                   SET last_changed_from = ?, more_sequence = NULL, processing_started_at = ?,
+                       integration_enabled = TRUE, pending_activation_from = NULL
                  WHERE id = 1
                 """, from, processingStartedAt);
     }

@@ -28,6 +28,9 @@ public class SmartStoreOrderSyncState {
     @Column(name = "integration_enabled")
     private Boolean integrationEnabled;
 
+    @Column(name = "pending_activation_from")
+    private LocalDateTime pendingActivationFrom;
+
     @Version
     @Column(name = "row_version", nullable = false)
     private long version;
@@ -37,15 +40,33 @@ public class SmartStoreOrderSyncState {
 
     protected SmartStoreOrderSyncState() {}
 
-    public void enable(LocalDateTime activatedAt) {
-        if (Boolean.FALSE.equals(integrationEnabled)) {
-            complete(activatedAt, null);
+    public void recordEnabledStart(LocalDateTime startedAt) {
+        if (integrationEnabled == null) {
+            integrationEnabled = true;
+            return;
         }
-        integrationEnabled = true;
+        if (Boolean.FALSE.equals(integrationEnabled)
+                && (pendingActivationFrom == null || startedAt.isBefore(pendingActivationFrom))) {
+            pendingActivationFrom = startedAt;
+        }
     }
 
     public void disable() {
         integrationEnabled = false;
+        pendingActivationFrom = null;
+    }
+
+    public boolean claimEnabled(LocalDateTime now, LocalDateTime staleBefore) {
+        if (!claim(now, staleBefore)) {
+            return false;
+        }
+        if (Boolean.FALSE.equals(integrationEnabled)) {
+            lastChangedFrom = pendingActivationFrom;
+            moreSequence = null;
+            integrationEnabled = true;
+            pendingActivationFrom = null;
+        }
+        return true;
     }
 
     public boolean claim(LocalDateTime now, LocalDateTime staleBefore) {
@@ -71,6 +92,7 @@ public class SmartStoreOrderSyncState {
     public String getMoreSequence() { return moreSequence; }
     public LocalDateTime getProcessingStartedAt() { return processingStartedAt; }
     public Boolean getIntegrationEnabled() { return integrationEnabled; }
+    public LocalDateTime getPendingActivationFrom() { return pendingActivationFrom; }
     public long getVersion() { return version; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }
