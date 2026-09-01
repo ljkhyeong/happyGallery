@@ -6816,9 +6816,16 @@
           "enabled" : {
             "type" : "boolean"
           },
+          "expectedMappingVersion" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
           "originProductNo" : {
             "format" : "int64",
             "type" : "integer"
+          },
+          "previousOriginConfirmed" : {
+            "type" : "boolean"
           },
           "variants" : {
             "items" : {
@@ -6829,7 +6836,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "originProductNo" ],
+        "required" : [ "expectedMappingVersion", "originProductNo", "previousOriginConfirmed" ],
         "type" : "object"
       },
       "SaveSmartStoreNoticeRequest" : {
@@ -7530,6 +7537,10 @@
           "lastError" : {
             "type" : [ "string", "null" ]
           },
+          "mappingVersion" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "originProductNo" : {
             "format" : "int64",
             "type" : "integer"
@@ -7553,7 +7564,7 @@
             "type" : "array"
           }
         },
-        "required" : [ "attemptCount", "enabled", "lastError", "originProductNo", "productId", "syncStatus", "syncedAt", "variants" ],
+        "required" : [ "attemptCount", "enabled", "lastError", "mappingVersion", "originProductNo", "productId", "syncStatus", "syncedAt", "variants" ],
         "type" : "object"
       },
       "SmartStoreNoticeIdResponse" : {

@@ -30,10 +30,19 @@ public interface SmartStoreInventoryUseCase {
     record SaveMappingCommand(
             Long originProductNo,
             boolean enabled,
-            List<VariantMapping> variants
+            List<VariantMapping> variants,
+            Long expectedMappingVersion,
+            boolean previousOriginConfirmed
     ) {
         public SaveMappingCommand {
             variants = variants == null ? List.of() : List.copyOf(variants);
+        }
+
+        public SaveMappingCommand(
+                Long originProductNo,
+                boolean enabled,
+                List<VariantMapping> variants) {
+            this(originProductNo, enabled, variants, null, false);
         }
     }
 
@@ -89,6 +98,7 @@ public interface SmartStoreInventoryUseCase {
 
     record MappingResult(
             Long productId,
+            long mappingVersion,
             Long originProductNo,
             boolean enabled,
             List<VariantMapping> variants,

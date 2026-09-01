@@ -181,6 +181,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(inventoryAdjustment));
         MappingResult smartStoreMapping = new MappingResult(
                 1L,
+                17L,
                 123456789L,
                 true,
                 List.of(),
@@ -606,10 +607,13 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                 {
                                   "originProductNo": 123456789,
                                   "enabled": true,
+                                  "expectedMappingVersion": 17,
+                                  "previousOriginConfirmed": false,
                                   "variants": []
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.syncStatus").value("PENDING"));
     }
 
@@ -620,6 +624,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.originProductNo").value(123456789));
     }
 

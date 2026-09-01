@@ -43,10 +43,12 @@ public interface SmartStoreProductOrderRepository
     @Query("""
             select count(channelOrder) > 0 from SmartStoreProductOrder channelOrder
              where channelOrder.attentionReason in :reasons
-               and channelOrder.originProductNo in (
-                   select mapping.originProductNo from SmartStoreStockMapping mapping
-                    where mapping.productId = :productId and mapping.enabled = true
-               )
+               and (channelOrder.productId = :productId
+                    or (channelOrder.productId is null
+                        and channelOrder.originProductNo in (
+                            select mapping.originProductNo from SmartStoreStockMapping mapping
+                             where mapping.productId = :productId and mapping.enabled = true
+                        )))
             """)
     boolean existsInventoryAttentionForProduct(
             @Param("productId") Long productId,
