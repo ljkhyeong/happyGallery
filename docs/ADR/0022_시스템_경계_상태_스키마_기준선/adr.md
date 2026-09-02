@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-09-01
+**갱신**: 2026-09-02
 
 ---
 
@@ -157,6 +157,9 @@
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
   - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
   - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
+- `smartstore_order_action_history`
+  - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
+  - 외부 주문 요청은 호출 전후의 별도 짧은 트랜잭션으로 기록하고 수동 재고 결정은 주문·재고 변경과 같은 트랜잭션으로 기록한다. 주문 원장이 없어도 실패 요청을 보존해야 하므로 상품 주문 FK는 두지 않는다.
 - `smartstore_order_sync_state`
   - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각, 마지막으로 관측한 `integration_enabled`와 활성화 대기 경계 `pending_activation_from`을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
   - 연동 중지 기간은 선점이 없거나 시작 후 5분 이상 지났을 때 조회 시작점을 현재 시각으로 옮기고 페이지·처리 시작 시각을 비운다. 유효한 실행은 보호하며 만료된 이전 실행의 완료 요청은 거절한다.
@@ -477,6 +480,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `smartstore_inventory_mapping_history(product_id, changed_at DESC, id DESC)` 상품별 최근 연동 설정 감사 이력 조회
 - `smartstore_product_orders(last_changed_at DESC, product_order_id)` 최신 채널 주문 조회
 - `smartstore_product_orders(attention_reason, last_changed_at DESC)` 관리자 확인 필요 채널 주문 조회
+- `smartstore_order_action_history(product_order_id, requested_at DESC, id DESC)` 상품 주문별 최근 처리 이력 조회
 - `smartstore_settlement_entries(reconciliation_status, fetched_at DESC)` 채널 정산 불일치 작업 목록 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회

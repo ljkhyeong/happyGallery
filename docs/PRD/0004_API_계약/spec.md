@@ -962,19 +962,38 @@ Authorization: Bearer {token}
 - `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 CONFLICT`를 반환한다.
 
 ```http
-GET /api/v1/admin/smartstore-orders?attentionOnly=false&limit=100
+GET /api/v1/admin/smartstore-orders?attentionOnly=true&attentionReason=STOCK_SHORTAGE&cursor={cursor}&size=50
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` — 최신 변경순 채널 상품 주문을 최대 `limit`건 반환한다. `limit`은 1~200이고 기본값은 100이다.
-- `attentionOnly=true`이면 재고 반영에 관리자 확인이 필요한 주문만 반환한다.
+- 성공: `200 OK` — 최신 변경순 채널 상품 주문을 `{content, nextCursor, hasMore}`로 반환한다. `size`는 1~100이고 기본값은 50이다. 다음 페이지는 응답의 불투명 `nextCursor`를 그대로 보내며 필터를 바꾸면 커서를 비운다.
+- `attentionOnly=true`이면 관리자 확인이 필요한 주문만 반환하고, `attentionReason`을 함께 보내면 해당 사유만 조회한다.
 - 응답의 `attentionReason`:
   - `MAPPING_REQUIRED`: 네이버 원상품·옵션 ID에 연결된 내부 상품·옵션 조합 없음
   - `STOCK_SHORTAGE`: 내부 재고가 네이버 주문의 추가 차감 필요 수량보다 부족함
   - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
   - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
 - `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. 다음 동기화는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량을 합한 목표 수량과의 차이만 변경한다. 검수 대기 또는 판매 불가로 종료한 반품은 계속 차감된 수량에 포함된다.
-- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. 두 필드는 항상 반환한다. 확인값은 화면에서 만들거나 해석하지 않고 검수 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
+- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 수동 재고 결정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
+
+```http
+POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "productVariantId": 31,
+  "action": "APPLY_REMAINING",
+  "reason": "스마트스토어 옵션과 내부 옵션 조합을 확인",
+  "resolutionVersion": "..."
+}
+```
+
+- `MAPPING_REQUIRED|STATUS_REVIEW` 주문만 처리한다. `productId`는 필수이며 기성품의 `productVariantId`는 명시적 `null`, 주문제작 상품은 해당 상품의 옵션 조합 ID가 필수다.
+- `action`은 남은 주문 수량까지 차감하는 `APPLY_REMAINING`, 현재 차감 수량을 모두 복원하는 `RESTORE_ALL`, 현재 차감을 유지하고 확인만 끝내는 `KEEP_CURRENT`다. 처리 사유는 500자 이하로 필수다.
+- 주문 잠금 안에서 `resolutionVersion`을 다시 비교하며 대상이 바뀌었으면 `409 CONFLICT`를 반환한다. 이미 재고가 반영된 주문은 다른 상품·옵션 조합으로 바꿀 수 없다.
+- 성공하면 상품 연결·재고 변경·`INVENTORY_RESOLVED` 처리 이력을 같은 트랜잭션으로 저장한다. 재고가 부족하면 연결은 유지하고 `STOCK_SHORTAGE`와 거절 이력을 반환 주문에 남긴다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry
@@ -1008,6 +1027,14 @@ Authorization: Bearer {token}
 - 성공: `200 OK` — 채널 주문 기본 정보와 `deliveryInfo`, `placeOrderStatus`, `shippingDueDate`, 배송수단·택배사·운송장, 단가·결제액·수수료·정산 예정액, 네이버에서 단건 조회한 현재 `claimDetail`을 반환한다. 클레임 상세에는 사유·상세 사유·요청 수량·요청일·수거 상태와 운송장·배송비·보류 상태·첨부 이미지 주소를 포함한다.
 - `deliveryInfo`는 암호문을 관리자 단건 조회에서만 복호화한 결과이며 목록 응답에는 포함하지 않는다.
 
+```http
+GET /api/v1/admin/smartstore-orders/{productOrderId}/actions
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 해당 상품 주문의 최근 처리 이력을 최신순 최대 50건 반환한다. 각 이력은 `action`, `status`, 요청 요약, 결과 코드·메시지, 관리자 ID·이름, 요청·완료 시각을 포함한다.
+- 외부 주문 요청은 호출 전에 `REQUESTED`로 저장한다. 명시적 네이버 거절은 `REJECTED`, 성공은 `SUCCEEDED`, 통신 실패·본문 누락처럼 실제 처리 여부를 확정할 수 없으면 `RESULT_UNKNOWN`으로 완료한다. 프로세스 종료 등으로 완료 기록을 남기지 못한 요청은 `REQUESTED` 상태가 유지된다.
+
 | 기능 | 메서드와 경로 | 요청 본문 | 성공 |
 |---|---|---|---|
 | 발주 확인 | `POST /api/v1/admin/smartstore-orders/{id}/confirm` | 없음 | `204` |
@@ -1029,7 +1056,7 @@ Authorization: Bearer {token}
 | 판매자 취소 요청 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/request` | `reason`, nullable `detailedReason`, nullable `quantity` | `204` |
 
 - 서버는 관리자 입력 형식과 연동 활성화 여부만 확인하며, 작업 가능 상태는 최신 상태를 보유한 네이버가 판정한다. 같은 상태 규칙을 로컬에서 중복 구현하지 않는다.
-- 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 성공 뒤 로컬 상태는 변경 피드에서 다시 수집한다.
+- 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 호출 전 요청 이력을 별도 트랜잭션으로 저장하고 호출 뒤 결과만 짧은 별도 트랜잭션으로 갱신한다. 성공 뒤 로컬 주문 상태는 변경 피드에서 다시 수집한다.
 - 일괄 응답은 `successProductOrderIds`와 `failures[{productOrderId, code, message}]`를 반환한다. 일부 실패가 있어도 성공 결과를 유지하고 실패 주문만 다시 선택할 수 있게 한다.
 
 ```http
