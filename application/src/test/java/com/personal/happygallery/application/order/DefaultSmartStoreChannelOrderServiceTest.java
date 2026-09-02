@@ -8,6 +8,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAction;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import java.time.LocalDateTime;
@@ -44,10 +46,7 @@ class DefaultSmartStoreChannelOrderServiceTest {
         ClaimDetail claim = hasClaim ? new ClaimDetail(
                 "claim-1", "RETURN", "RETURN_REQUEST", "PRODUCT_UNSATISFIED", null,
                 1, changedAt, null, null, null, null, null, List.of()) : null;
-        ProductOrderDetail detail = new ProductOrderDetail(
-                "po-1", "order-1", 123L, null, "가죽 지갑", null, null, "PAYED",
-                null, null, null, claim, 1, 1, changedAt, null,
-                null, null, null, null, null, null, null, null, null, List.of());
+        ProductOrderDetail detail = detail("po-1", claim, changedAt);
         when(orderPort.findByProductOrderId("po-1")).thenReturn(Optional.of(order));
         when(provider.isEnabled()).thenReturn(true);
         when(provider.fetchDetails(List.of("po-1"))).thenReturn(List.of(detail));
@@ -61,6 +60,27 @@ class DefaultSmartStoreChannelOrderServiceTest {
         } else {
             assertThat(result.claimDetail()).isNull();
         }
+    }
+
+    @Test
+    @DisplayName("네이버 현재 상태는 로컬 주문 원장이 없어도 외부 주문 번호로 조회한다")
+    void currentStatus_withoutLocalOrder_returnsProviderStatus() {
+        SmartStoreProductOrderPort orderPort = mock(SmartStoreProductOrderPort.class);
+        SmartStoreOrderProvider provider = mock(SmartStoreOrderProvider.class);
+        DefaultSmartStoreChannelOrderService service = new DefaultSmartStoreChannelOrderService(
+                orderPort, mock(SmartStoreOrderTransactionService.class), provider,
+                mock(SmartStoreDeliveryInfoProtector.class),
+                mock(SmartStoreOrderActionHistoryService.class));
+        LocalDateTime changedAt = LocalDateTime.of(2026, 9, 2, 12, 0);
+        when(provider.isEnabled()).thenReturn(true);
+        when(provider.fetchDetails(List.of("po-archived")))
+                .thenReturn(List.of(detail("po-archived", null, changedAt)));
+
+        var result = service.currentStatus("po-archived");
+
+        assertThat(result.productOrderId()).isEqualTo("po-archived");
+        assertThat(result.productOrderStatus()).isEqualTo("PAYED");
+        verify(provider).fetchDetails(List.of("po-archived"));
     }
 
     @Test
@@ -93,7 +113,9 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 .when(provider).confirm("po-1");
 
         assertThatThrownBy(() -> service.confirm("po-1", actor))
-                .isInstanceOf(OperationRejectedException.class);
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.SMARTSTORE_OPERATION_REJECTED));
 
         verify(historyService).reject(12L, "INVALID_STATUS", "처리할 수 없는 상태");
     }
@@ -112,7 +134,9 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 .when(provider).confirm("po-1");
 
         assertThatThrownBy(() -> service.confirm("po-1", actor))
-                .isInstanceOf(OperationResultUnknownException.class);
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.SMARTSTORE_OPERATION_RESULT_UNKNOWN));
 
         verify(historyService).markResultUnknown(13L, "응답 본문 없음");
     }
@@ -132,7 +156,9 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 .when(provider).confirm("po-1");
 
         assertThatThrownBy(() -> service.confirm("po-1", actor))
-                .isInstanceOf(OperationNotSentException.class);
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.SMARTSTORE_OPERATION_NOT_SENT));
 
         verify(historyService).markNotSent(14L, "ACCESS_TOKEN_UNAVAILABLE", "인증 토큰 준비 실패");
     }
@@ -154,10 +180,22 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 .thenThrow(new OperationRejectedException("HTTP_400", "잘못된 일괄 요청"));
 
         assertThatThrownBy(() -> service.confirmAll(productOrderIds, actor))
-                .isInstanceOf(OperationRejectedException.class);
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(ErrorCode.SMARTSTORE_OPERATION_REJECTED));
 
         verify(historyService).reject(21L, "HTTP_400", "잘못된 일괄 요청");
         verify(historyService).reject(22L, "HTTP_400", "잘못된 일괄 요청");
+    }
+
+    private static ProductOrderDetail detail(
+            String productOrderId,
+            ClaimDetail claim,
+            LocalDateTime changedAt) {
+        return new ProductOrderDetail(
+                productOrderId, "order-1", 123L, null, "가죽 지갑", null, null, "PAYED",
+                null, null, null, claim, 1, 1, changedAt, null,
+                null, null, null, null, null, null, null, null, null, List.of());
     }
 
     private static DefaultSmartStoreChannelOrderService service(

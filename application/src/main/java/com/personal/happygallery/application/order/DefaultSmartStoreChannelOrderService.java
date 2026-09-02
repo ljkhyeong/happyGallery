@@ -135,7 +135,6 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Override
     @Transactional(propagation = Propagation.NEVER)
     public CurrentOrderStatusResult currentStatus(String productOrderId) {
-        order(productOrderId);
         requireEnabled();
         SmartStoreOrderProvider.ProductOrderDetail detail = orderProvider.fetchDetails(List.of(productOrderId))
                 .stream()
@@ -363,28 +362,14 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         try {
             operation.run();
             completeAudit(() -> actionHistoryService.succeed(historyId), historyId);
-        } catch (OperationNotSentException exception) {
-            completeAudit(
-                    () -> actionHistoryService.markNotSent(
-                            historyId, exception.code(), exception.getMessage()),
-                    historyId);
-            throw exception;
-        } catch (OperationRejectedException exception) {
-            completeAudit(
-                    () -> actionHistoryService.reject(historyId, exception.code(), exception.getMessage()),
-                    historyId);
-            throw exception;
-        } catch (OperationResultUnknownException exception) {
-            completeAudit(
-                    () -> actionHistoryService.markResultUnknown(historyId, exception.getMessage()),
-                    historyId);
-            throw exception;
         } catch (RuntimeException exception) {
-            completeAudit(
-                    () -> actionHistoryService.markResultUnknown(
-                            historyId, "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다."),
-                    historyId);
-            throw exception;
+            completeFailureAudit(historyId, exception);
+            if (!isClassifiedOperationFailure(exception)) {
+                log.error(
+                        "스마트스토어 주문 처리 중 예상하지 못한 오류: productOrderId={}, action={}",
+                        productOrderId, action, exception);
+            }
+            throw operationFailure(exception);
         }
     }
 
@@ -402,30 +387,14 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         SmartStoreOrderProvider.OperationResult result;
         try {
             result = operation.execute();
-        } catch (OperationNotSentException exception) {
-            started.forEach(item -> completeAudit(
-                    () -> actionHistoryService.markNotSent(
-                            item.historyId(), exception.code(), exception.getMessage()),
-                    item.historyId()));
-            throw exception;
-        } catch (OperationRejectedException exception) {
-            started.forEach(item -> completeAudit(
-                    () -> actionHistoryService.reject(
-                            item.historyId(), exception.code(), exception.getMessage()),
-                    item.historyId()));
-            throw exception;
-        } catch (OperationResultUnknownException exception) {
-            started.forEach(item -> completeAudit(
-                    () -> actionHistoryService.markResultUnknown(
-                            item.historyId(), exception.getMessage()),
-                    item.historyId()));
-            throw exception;
         } catch (RuntimeException exception) {
-            started.forEach(item -> completeAudit(
-                    () -> actionHistoryService.markResultUnknown(
-                            item.historyId(), "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다."),
-                    item.historyId()));
-            throw exception;
+            started.forEach(item -> completeFailureAudit(item.historyId(), exception));
+            if (!isClassifiedOperationFailure(exception)) {
+                log.error(
+                        "스마트스토어 주문 일괄 처리 중 예상하지 못한 오류: productOrderIds={}, action={}",
+                        productOrderIds, action, exception);
+            }
+            throw operationFailure(exception);
         }
 
         Map<String, SmartStoreOrderProvider.OperationFailure> failures = result.failures().stream()
@@ -449,6 +418,37 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             }
         });
         return bulkResult(result);
+    }
+
+    private void completeFailureAudit(long historyId, RuntimeException exception) {
+        completeAudit(() -> {
+            if (exception instanceof OperationNotSentException notSent) {
+                actionHistoryService.markNotSent(historyId, notSent.code(), notSent.getMessage());
+            } else if (exception instanceof OperationRejectedException rejected) {
+                actionHistoryService.reject(historyId, rejected.code(), rejected.getMessage());
+            } else if (exception instanceof OperationResultUnknownException unknown) {
+                actionHistoryService.markResultUnknown(historyId, unknown.getMessage());
+            } else {
+                actionHistoryService.markResultUnknown(
+                        historyId, "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다.");
+            }
+        }, historyId);
+    }
+
+    private static HappyGalleryException operationFailure(RuntimeException exception) {
+        if (exception instanceof OperationNotSentException) {
+            return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_NOT_SENT);
+        }
+        if (exception instanceof OperationRejectedException) {
+            return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_REJECTED);
+        }
+        return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_RESULT_UNKNOWN);
+    }
+
+    private static boolean isClassifiedOperationFailure(RuntimeException exception) {
+        return exception instanceof OperationNotSentException
+                || exception instanceof OperationRejectedException
+                || exception instanceof OperationResultUnknownException;
     }
 
     private static SmartStoreOrderProvider.DispatchCommand providerCommand(DispatchCommand command) {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Table } from "react-bootstrap";
+import { useNavigate } from "react-router";
 import type {
   ReconcileSmartStoreOrderActionRequestOutcome,
   SmartStoreOrderActionHistoryResponse,
@@ -120,6 +121,7 @@ function ReconciliationModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const toast = useToast();
   const [outcome, setOutcome] = useState<ReconcileSmartStoreOrderActionRequestOutcome>("APPLIED");
   const [note, setNote] = useState("");
@@ -130,19 +132,31 @@ function ReconciliationModal({
     retry: false,
   });
   const reconcile = useAdminMutation(onAuthError, {
-    mutationFn: () => reconcileSmartStoreOrderActionHistory(
+    mutationFn: (request: {
+      outcome: ReconcileSmartStoreOrderActionRequestOutcome;
+      note: string;
+      openOrderAfterSave: boolean;
+    }) => reconcileSmartStoreOrderActionHistory(
       adminKey,
       action!.id,
-      { outcome, note: note.trim() },
+      { outcome: request.outcome, note: request.note },
     ),
-    onSuccess: () => {
+    onSuccess: (_, request) => {
       queryClient.invalidateQueries({
         queryKey: ["admin", "smartstore-order-actions", "unresolved"],
       });
-      toast.show(outcome === "APPLIED"
+      toast.show(request.outcome === "APPLIED"
         ? "네이버에 반영된 요청으로 확인했습니다."
         : "네이버에 반영되지 않은 요청으로 확인했습니다.");
-      onClose();
+      if (request.openOrderAfterSave && action) {
+        const params = new URLSearchParams({
+          view: "orders",
+          smartstoreOrderId: action.productOrderId,
+        });
+        navigate(`/admin?${params.toString()}`);
+      } else {
+        onClose();
+      }
     },
   });
   const status = currentStatus.data;
@@ -151,7 +165,11 @@ function ReconciliationModal({
     <Modal show={action !== null} onHide={() => { if (!reconcile.isPending) onClose(); }} centered>
       <Form onSubmit={(event) => {
         event.preventDefault();
-        if (action && note.trim()) reconcile.mutate();
+        if (action && note.trim()) reconcile.mutate({
+          outcome,
+          note: note.trim(),
+          openOrderAfterSave: false,
+        });
       }}>
         <Modal.Header closeButton={!reconcile.isPending}>
           <Modal.Title className="fs-6">스마트스토어 주문 처리 결과 확인</Modal.Title>
@@ -200,6 +218,20 @@ function ReconciliationModal({
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" disabled={reconcile.isPending} onClick={onClose}>닫기</Button>
+          {outcome === "NOT_APPLIED" && (
+            <Button
+              type="button"
+              variant="outline-primary"
+              disabled={!note.trim() || reconcile.isPending}
+              onClick={() => reconcile.mutate({
+                outcome,
+                note: note.trim(),
+                openOrderAfterSave: true,
+              })}
+            >
+              미반영 저장 후 주문 화면 열기
+            </Button>
+          )}
           <Button type="submit" disabled={!note.trim() || reconcile.isPending}>
             {reconcile.isPending ? "저장 중..." : "확인 결과 저장"}
           </Button>

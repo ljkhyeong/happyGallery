@@ -55,6 +55,7 @@ interface Props {
   adminKey: string;
   onAuthError: () => void;
   attentionOnly?: boolean;
+  focusProductOrderId?: string;
 }
 
 const ATTENTION_LABELS: Record<
@@ -85,6 +86,7 @@ export function SmartStoreChannelOrderSection({
   adminKey,
   onAuthError,
   attentionOnly: initialAttentionOnly = false,
+  focusProductOrderId,
 }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -94,7 +96,7 @@ export function SmartStoreChannelOrderSection({
   >("");
   const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(focusProductOrderId ?? null);
   const [inventoryResolutionOrder, setInventoryResolutionOrder] =
     useState<SmartStoreChannelOrderResponse | null>(null);
   const [returnReviewOrder, setReturnReviewOrder] = useState<SmartStoreChannelOrderResponse | null>(null);

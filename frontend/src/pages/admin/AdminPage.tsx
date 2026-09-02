@@ -170,6 +170,7 @@ export function AdminPage() {
   const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
   const focusedProductId = parsePositiveId(searchParams.get("productId"));
   const focusedVariantId = parsePositiveId(searchParams.get("variantId"));
+  const focusedSmartStoreOrderId = searchParams.get("smartstoreOrderId")?.trim() || undefined;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -213,7 +214,7 @@ export function AdminPage() {
     next.set("view", view);
     [
       "orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId",
-      "productId", "variantId",
+      "productId", "variantId", "smartstoreOrderId",
     ]
       .forEach((name) => next.delete(name));
     setSearchParams(next);
@@ -402,7 +403,12 @@ export function AdminPage() {
       {activeView === "orders" && (
         <>
           <AdminPanel title="스마트스토어 채널 주문">
-            <SmartStoreChannelOrderSection adminKey={adminKey} onAuthError={handleAuthError} />
+            <SmartStoreChannelOrderSection
+              key={focusedSmartStoreOrderId ?? "smartstore-orders"}
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              focusProductOrderId={focusedSmartStoreOrderId}
+            />
           </AdminPanel>
           <AdminPanel title="스마트스토어 정산 불일치">
             <SmartStoreSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />

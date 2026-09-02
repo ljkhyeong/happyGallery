@@ -8,6 +8,7 @@ import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderActionHistory;
 import com.personal.happygallery.domain.order.SmartStoreOrderReconciliationOutcome;
@@ -119,7 +120,7 @@ class SmartStoreOrderActionHistoryService {
 
     private SmartStoreOrderActionHistory history(long historyId) {
         return historyPort.findByIdWithLock(historyId)
-                .orElseThrow(() -> new IllegalStateException("스마트스토어 주문 처리 이력이 없습니다."));
+                .orElseThrow(() -> new NotFoundException("스마트스토어 주문 처리 이력"));
     }
 
     private LocalDateTime staleRequestedBefore() {

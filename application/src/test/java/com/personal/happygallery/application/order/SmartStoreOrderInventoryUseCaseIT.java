@@ -239,6 +239,18 @@ class SmartStoreOrderInventoryUseCaseIT {
     }
 
     @Test
+    @DisplayName("존재하지 않는 스마트스토어 주문 처리 이력을 대사하면 찾을 수 없음으로 거절한다")
+    void reconcileAction_missingHistory_returnsNotFound() {
+        assertThatThrownBy(() -> channelOrderUseCase.reconcileAction(
+                Long.MAX_VALUE,
+                new SmartStoreChannelOrderUseCase.ReconcileActionCommand(
+                        SmartStoreOrderReconciliationOutcome.NOT_APPLIED, "네이버 주문 미반영 확인"),
+                new AdminActor(19L, "대사 관리자")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND));
+    }
+
+    @Test
     @DisplayName("판매 뒤 중지된 주문제작 옵션 조합도 늦게 수집된 스마트스토어 주문 재고를 차감한다")
     void synchronize_inactiveVariant_deductsCommittedChannelSale() {
         var registered = productAdminUseCase.register(new SaveProductCommand(

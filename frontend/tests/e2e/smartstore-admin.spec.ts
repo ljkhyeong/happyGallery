@@ -19,6 +19,9 @@ async function prepareAdmin(page: Page) {
     if (pathname === "/api/v1/admin/smartstore-notices") {
       return json(route, { notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
     }
+    if (pathname === "/api/v1/admin/products/smartstore-inspections") {
+      return json(route, { products: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
+    }
     if (pathname === "/api/v1/admin/smartstore-settlements/accounting") {
       return json(route, {
         from: "2026-08-01", to: "2026-08-30", vatAvailableThrough: "2026-07-31",
@@ -249,6 +252,142 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   await page.getByRole("button", { name: "주문 처리", exact: true }).click();
   await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("수동 재고 결정");
   await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("운영 관리자");
+});
+
+test("@admin 스마트스토어 미확정 요청을 대사하고 미반영 주문 처리 화면으로 이동한다", async ({ page }) => {
+  await prepareAdmin(page);
+  let reconciled = false;
+  let reconciliationBody: Record<string, unknown> | undefined;
+  const productOrderId = "po-reconcile-1";
+  const history = {
+    id: 72,
+    productOrderId,
+    action: "ORDER_CONFIRMED",
+    status: "RESULT_UNKNOWN",
+    requestSummary: null,
+    resultCode: "RESULT_UNKNOWN",
+    resultMessage: "네이버 응답에서 처리 결과를 확인할 수 없습니다.",
+    changedByAdminId: 7,
+    changedBy: "주문 관리자",
+    requestedAt: "2026-09-02T10:00:00",
+    completedAt: "2026-09-02T10:00:30",
+    reconciliationOutcome: null,
+    reconciliationNote: null,
+    reconciledByAdminId: null,
+    reconciledBy: null,
+    reconciledAt: null,
+  };
+  const order = {
+    productOrderId,
+    orderId: "order-reconcile-1",
+    originProductNo: 123,
+    itemNo: null,
+    productId: 1,
+    productVariantId: null,
+    productName: "대사 확인 지갑",
+    productOption: null,
+    productOrderStatus: "PAYED",
+    claimType: null,
+    claimStatus: null,
+    initialQuantity: 1,
+    remainQuantity: 1,
+    inventoryAppliedQuantity: 1,
+    attentionReason: null,
+    paymentDate: "2026-09-02T09:50:00",
+    lastChangedAt: "2026-09-02T09:55:00",
+    pendingReturnQuantity: 0,
+    returnReviewVersion: "R0:0",
+    inventoryResolutionVersion: "resolution-1",
+  };
+  await page.route("**/api/v1/admin/smartstore-orders/actions/unresolved?**", (route) =>
+    json(route, {
+      content: reconciled ? [] : [history],
+      nextCursor: null,
+      hasMore: false,
+    }));
+  await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}/current-status`, (route) =>
+    json(route, {
+      productOrderId,
+      productOrderStatus: "PAYED",
+      placeOrderStatus: "NOT_YET",
+      claimType: null,
+      claimStatus: null,
+      remainQuantity: 1,
+      shippingDueDate: "2026-09-05T18:00:00",
+      expectedDeliveryMethod: "DELIVERY",
+      deliveryCompany: null,
+      trackingNumber: null,
+      claimDetail: null,
+    }));
+  await page.route("**/api/v1/admin/smartstore-orders/actions/72/reconciliation", async (route) => {
+    reconciliationBody = route.request().postDataJSON() as Record<string, unknown>;
+    reconciled = true;
+    await json(route, {
+      ...history,
+      reconciliationOutcome: "NOT_APPLIED",
+      reconciliationNote: "네이버 발주 상태가 미처리임을 확인",
+      reconciledByAdminId: 19,
+      reconciledBy: "대사 관리자",
+      reconciledAt: "2026-09-02T10:10:00",
+    });
+  });
+  await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}/actions`, (route) =>
+    json(route, [{
+      ...history,
+      reconciliationOutcome: "NOT_APPLIED",
+      reconciliationNote: "네이버 발주 상태가 미처리임을 확인",
+      reconciledByAdminId: 19,
+      reconciledBy: "대사 관리자",
+      reconciledAt: "2026-09-02T10:10:00",
+    }]));
+  await page.route(`**/api/v1/admin/smartstore-orders/${productOrderId}`, (route) => json(route, {
+    order,
+    deliveryInfo: null,
+    placeOrderStatus: "NOT_YET",
+    shippingDueDate: "2026-09-05T18:00:00",
+    expectedDeliveryMethod: "DELIVERY",
+    deliveryCompany: null,
+    trackingNumber: null,
+    unitPrice: 35000,
+    paymentAmount: 35000,
+    paymentCommission: null,
+    saleCommission: null,
+    channelCommission: null,
+    expectedSettlementAmount: 34000,
+    claimDetail: null,
+  }));
+  await page.route(
+    (url) => url.pathname === "/api/v1/admin/smartstore-orders",
+    (route) => json(route, {
+      content: [order],
+      nextCursor: null,
+      hasMore: false,
+    }),
+  );
+
+  await page.goto("/admin");
+  const panel = page.locator(".admin-workspace-panel").filter({
+    has: page.getByRole("heading", { name: "스마트스토어 주문 처리 결과 확인", exact: true }),
+  });
+  await panel.getByRole("button", { name: "네이버 상태 확인", exact: true }).click();
+  await expect(page.getByText("발주: NOT_YET", { exact: true })).toBeVisible();
+  await page.getByLabel("대사 결과").selectOption("NOT_APPLIED");
+  await page.getByLabel("대사 근거").fill("네이버 발주 상태가 미처리임을 확인");
+  await page.getByRole("button", { name: "미반영 저장 후 주문 화면 열기", exact: true }).click();
+
+  await expect.poll(() => reconciliationBody).toEqual({
+    outcome: "NOT_APPLIED",
+    note: "네이버 발주 상태가 미처리임을 확인",
+  });
+  await expect(page).toHaveURL(`/admin?view=orders&smartstoreOrderId=${productOrderId}`);
+  const orderDialog = page.getByRole("dialog");
+  await expect(orderDialog).toContainText("스마트스토어 주문 처리");
+  await expect(orderDialog).toContainText(productOrderId);
+  await orderDialog.getByRole("button", { name: "닫기", exact: true }).click();
+  await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
+  await expect(panel.getByText("처리 결과를 확인할 스마트스토어 주문 요청이 없습니다.", {
+    exact: true,
+  })).toBeVisible();
 });
 
 test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 탭별 조회 조건을 유지한다", async ({ page }) => {
