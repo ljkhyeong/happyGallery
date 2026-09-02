@@ -149,6 +149,9 @@
   - V165의 `smartstore_stock_syncs.generation`은 기존 행에 `legacy`를 채우고 새 행은 Java UUID로 생성한다. 상품별 기존 행과 재등록 행을 구분하며, 같은 행의 재고 요청 버전이 증가할 때는 유지한다. 삭제·재등록 전 세대와 이전 요청 버전의 응답을 새 요청의 성공·실패로 기록하지 않는다. 늦은 외부 쓰기를 보정하기 위해 현재 전송 중·완료 요청은 요청 버전을 올려 최신 수량을 다시 요청하며, 기존 대기·최종 실패 정책은 유지한다.
   - `SYNCED` 상태가 24시간 지난 행은 최대 100개씩 다시 요청한다. V170의 `(status, synced_at, product_id)` 인덱스로 오래된 완료 행을 순서대로 조회하고 실제 외부 전송 성공 시각부터 다음 24시간을 계산한다.
   - V166의 `smartstore_stock_mappings.retired`는 과거 원격 옵션에 재고 0개만 전송하는 연결을 구분한다. `internal_target_key`는 과거 연결일 때 NULL이므로 같은 SKU의 여러 과거 연결을 보존하면서 현재 연결은 SKU당 한 개만 허용한다. 원격 상품·옵션 유일 제약과 상품·SKU FK는 유지한다.
+- `smartstore_order_mapping_history`, `smartstore_inventory_mapping_history`
+  - V172의 주문 매핑 이력은 교체·해제 전 원상품·옵션과 내부 상품·SKU, 사용 여부, 종료 시각을 보존한다. 결제 시각이 종료 시각보다 이른 최근 연결을 주문 식별에만 사용하며 외부 재고 전송에는 포함하지 않는다.
+  - 매핑 감사 이력은 변경 전후 원상품·사용 여부·옵션 연결 요약·개정, 기존 원상품 확인 여부, 관리자 ID·이름과 처리 시각을 저장한다. 상품별 `(product_id, changed_at DESC, id DESC)` 인덱스로 최근 20건을 조회한다.
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
@@ -470,6 +473,8 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `product_variants(product_id, active, id)` 주문제작 상품의 판매 가능 SKU 일괄 조회
 - `inventory_adjustments(product_variant_id, adjusted_at DESC, id DESC)` 주문제작 SKU 수동 조정 이력 조회
 - `smartstore_stock_mappings(origin_product_no, external_target_key)` 네이버 원상품·옵션 주문의 내부 SKU 매핑
+- `smartstore_order_mapping_history(origin_product_no, option_id, closed_at)` 늦게 수집된 과거 원상품 주문의 내부 SKU 식별
+- `smartstore_inventory_mapping_history(product_id, changed_at DESC, id DESC)` 상품별 최근 연동 설정 감사 이력 조회
 - `smartstore_product_orders(last_changed_at DESC, product_order_id)` 최신 채널 주문 조회
 - `smartstore_product_orders(attention_reason, last_changed_at DESC)` 관리자 확인 필요 채널 주문 조회
 - `smartstore_settlement_entries(reconciliation_status, fetched_at DESC)` 채널 정산 불일치 작업 목록 조회

@@ -906,12 +906,15 @@ Content-Type: application/json
 - 매핑 응답의 `variants`에는 현재 연결만 반환한다. 같은 원상품에서 옵션 구조 변경 또는 같은 조합의 원격 옵션 번호 변경으로 해제된 연결은 내부에 보존하며 자동 재고 전송에서는 0개를 보낸다. 실패하면 기존 재시도 경로에서 현재·과거 옵션을 함께 다시 전송한다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
 - 원상품 번호가 바뀌면 `previousOriginConfirmed=true`가 필수다. 서버는 기존 매핑이 남아 있는 동안 변경 주문을 현재 시점까지 수집하고, 수집 실패·진행 중·남은 페이지가 있으면 `409 CONFLICT`로 저장을 보류한다. 외부 수집 트랜잭션이 끝난 뒤 상품 행을 잠그고 `mappingVersion`을 다시 비교한 경우에만 새 원상품을 저장한다.
 - 원상품 변경 전 수집한 기존 주문에 `MAPPING_REQUIRED|STOCK_SHORTAGE|STATUS_REVIEW`가 남아 있으면 기존 매핑을 유지하고 `409 CONFLICT`를 반환한다. 아직 내부 상품 번호가 없는 주문도 기존 원상품 번호로 확인한 뒤에만 새 원상품으로 전환한다.
+- 저장·해제 전 연결은 주문 식별 전용 이력에 종료 시각과 함께 보존한다. 이후 늦게 수집된 주문은 결제 시각에 해당하는 과거 원상품·옵션 연결을 먼저 사용해 기존 내부 상품·SKU 재고에 반영한다. 과거 옵션을 확정하지 못한 `MAPPING_REQUIRED|STATUS_REVIEW` 주문도 과거 원상품 이력으로 내부 상품을 찾아 현재 원상품 재고 전송을 보류한다. 이 이력은 현재 매핑 응답, 상품 미리보기와 외부 재고 전송에는 포함하지 않는다.
 - `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
 - 비활성화·해제 후 다시 등록한 동기화는 이전 전송과 구분한다. 이전 전송의 성공·실패 응답은 새 요청의 완료 상태, 시도 횟수, 오류와 재시도 시각을 바꾸지 않는다.
 - 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
 - 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory?expectedMappingVersion=17&previousOriginConfirmed=true`, 성공 `204 No Content`
 - 해제는 직전 응답의 `mappingVersion`과 기존 원상품의 판매 중지·재고 확인 완료를 필수로 받는다. 서버는 원상품 변경과 같은 주문 선수집·미반영 주문 확인·상품 잠금·개정 재검사를 거치며, 조건이 달라졌으면 `409 CONFLICT`로 현재 매핑을 유지한다.
+- 변경 이력: `GET /api/v1/admin/products/{id}/smartstore-inventory/history`
+- 변경 이력은 최근 20건을 최신순으로 반환한다. 각 항목은 `id`, `action(CREATED|UPDATED|ORIGIN_CHANGED|ENABLED|DISABLED|DELETED)`, nullable 변경 전후 원상품 번호·사용 여부·옵션 연결 요약·매핑 개정, 기존 원상품 확인 여부, nullable 관리자 ID, 관리자 이름과 처리 시각을 포함한다. 저장·해제 성공과 같은 트랜잭션에서 기록하며 Bearer 세션은 관리자 ID·이름, 로컬 API key는 nullable ID와 API key 주체 이름을 남긴다.
 
 가격·상태·옵션가를 반영하기 전에는 다음 미리보기를 조회한다.
 
