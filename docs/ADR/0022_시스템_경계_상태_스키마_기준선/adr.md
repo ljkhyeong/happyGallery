@@ -159,6 +159,7 @@
   - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
 - `smartstore_order_action_history`
   - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
+  - V174는 외부 호출 전 실패를 `NOT_SENT`로 구분하고, 결과 미확정 요청의 수동 확인 결과·근거·관리자·시각을 nullable 열로 추가한다. 대사 정보는 전부 비어 있거나 결과·근거·관리자 이름·시각이 함께 존재하도록 `CHECK` 제약으로 강제한다.
   - 외부 주문 요청은 호출 전후의 별도 짧은 트랜잭션으로 기록하고 수동 재고 결정은 주문·재고 변경과 같은 트랜잭션으로 기록한다. 주문 원장이 없어도 실패 요청을 보존해야 하므로 상품 주문 FK는 두지 않는다.
 - `smartstore_order_sync_state`
   - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각, 마지막으로 관측한 `integration_enabled`와 활성화 대기 경계 `pending_activation_from`을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
@@ -481,6 +482,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `smartstore_product_orders(last_changed_at DESC, product_order_id)` 최신 채널 주문 조회
 - `smartstore_product_orders(attention_reason, last_changed_at DESC)` 관리자 확인 필요 채널 주문 조회
 - `smartstore_order_action_history(product_order_id, requested_at DESC, id DESC)` 상품 주문별 최근 처리 이력 조회
+- `smartstore_order_action_history(reconciled_at, requested_at DESC, id DESC)` 대사하지 않은 결과 미확정·장기 요청 조회
 - `smartstore_settlement_entries(reconciliation_status, fetched_at DESC)` 채널 정산 불일치 작업 목록 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회

@@ -1032,8 +1032,39 @@ GET /api/v1/admin/smartstore-orders/{productOrderId}/actions
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` — 해당 상품 주문의 최근 처리 이력을 최신순 최대 50건 반환한다. 각 이력은 `action`, `status`, 요청 요약, 결과 코드·메시지, 관리자 ID·이름, 요청·완료 시각을 포함한다.
-- 외부 주문 요청은 호출 전에 `REQUESTED`로 저장한다. 명시적 네이버 거절은 `REJECTED`, 성공은 `SUCCEEDED`, 통신 실패·본문 누락처럼 실제 처리 여부를 확정할 수 없으면 `RESULT_UNKNOWN`으로 완료한다. 프로세스 종료 등으로 완료 기록을 남기지 못한 요청은 `REQUESTED` 상태가 유지된다.
+- 성공: `200 OK` — 해당 상품 주문의 최근 처리 이력을 최신순 최대 50건 반환한다. 각 이력은 `productOrderId`, `action`, `status`, 요청 요약, 결과 코드·메시지, 요청 관리자 ID·이름, 요청·완료 시각과 nullable 대사 결과·근거·관리자·시각을 포함한다.
+- 외부 주문 요청은 호출 전에 `REQUESTED`로 저장한다. 인증 토큰 준비 실패처럼 주문 API를 호출하지 않은 요청은 `NOT_SENT`, 명시적 네이버 거절은 `REJECTED`, 성공은 `SUCCEEDED`, 전송 뒤 통신 실패·본문 누락처럼 실제 처리 여부를 확정할 수 없으면 `RESULT_UNKNOWN`으로 완료한다. 프로세스 종료 등으로 완료 기록을 남기지 못한 요청은 `REQUESTED` 상태가 유지된다.
+
+```http
+GET /api/v1/admin/smartstore-orders/actions/unresolved?cursor={cursor}&size=20
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 아직 대사하지 않은 `RESULT_UNKNOWN`과 요청 후 5분 넘게 `REQUESTED`인 이력을 최신 요청순 `{content, nextCursor, hasMore}`로 반환한다. `size`는 1~100이고 기본값은 20이다.
+- `NOT_SENT`와 `REJECTED`는 네이버 처리 여부가 이미 확정됐으므로 이 목록에 포함하지 않는다.
+
+```http
+GET /api/v1/admin/smartstore-orders/{productOrderId}/current-status
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 네이버에서 현재 주문·발주·클레임 상태, 잔여 수량, 발송 기한·배송수단·택배사·운송장과 nullable 클레임 상세를 실시간 조회한다.
+- 조회 결과는 로컬 주문 원장과 마지막 변경 시각을 갱신하지 않는다. 연동 비활성은 `409 CONFLICT`, 로컬 또는 네이버 주문 미존재는 `404 NOT_FOUND`다.
+
+```http
+POST /api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "outcome": "APPLIED",
+  "note": "네이버 판매자센터에서 발주 확인 완료 상태를 확인"
+}
+```
+
+- `outcome`은 실제 반영을 확인한 `APPLIED` 또는 미반영을 확인한 `NOT_APPLIED`이며, `note`는 확인 근거를 1~500자로 필수 입력한다.
+- 성공: `200 OK` — 원래 요청 상태는 바꾸지 않고 대사 결과·근거·관리자·시각이 추가된 처리 이력을 반환한다.
+- 이미 대사했거나 아직 5분이 지나지 않은 `REQUESTED`, 결과가 확정된 이력은 `409 CONFLICT`다. 같은 외부 요청을 자동으로 다시 전송하지 않는다.
 
 | 기능 | 메서드와 경로 | 요청 본문 | 성공 |
 |---|---|---|---|
