@@ -1049,7 +1049,7 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `200 OK` — 네이버에서 현재 주문·발주·클레임 상태, 잔여 수량, 발송 기한·배송수단·택배사·운송장과 nullable 클레임 상세를 실시간 조회한다.
-- 조회 결과는 로컬 주문 원장과 마지막 변경 시각을 갱신하지 않는다. 연동 비활성은 `409 CONFLICT`, 로컬 또는 네이버 주문 미존재는 `404 NOT_FOUND`다.
+- 조회는 로컬 주문 원장의 존재 여부와 관계없이 경로의 상품 주문 번호로 네이버에 요청하며 로컬 주문 원장과 마지막 변경 시각을 조회하거나 갱신하지 않는다. 연동 비활성은 `409 CONFLICT`, 네이버 주문 미존재는 `404 NOT_FOUND`다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation
@@ -1064,7 +1064,7 @@ Content-Type: application/json
 
 - `outcome`은 실제 반영을 확인한 `APPLIED` 또는 미반영을 확인한 `NOT_APPLIED`이며, `note`는 확인 근거를 1~500자로 필수 입력한다.
 - 성공: `200 OK` — 원래 요청 상태는 바꾸지 않고 대사 결과·근거·관리자·시각이 추가된 처리 이력을 반환한다.
-- 이미 대사했거나 아직 5분이 지나지 않은 `REQUESTED`, 결과가 확정된 이력은 `409 CONFLICT`다. 같은 외부 요청을 자동으로 다시 전송하지 않는다.
+- 없는 처리 이력은 `404 NOT_FOUND`, 이미 대사했거나 아직 5분이 지나지 않은 `REQUESTED`, 결과가 확정된 이력은 `409 CONFLICT`다. 같은 외부 요청을 자동으로 다시 전송하지 않는다.
 
 | 기능 | 메서드와 경로 | 요청 본문 | 성공 |
 |---|---|---|---|
@@ -1088,6 +1088,7 @@ Content-Type: application/json
 
 - 서버는 관리자 입력 형식과 연동 활성화 여부만 확인하며, 작업 가능 상태는 최신 상태를 보유한 네이버가 판정한다. 같은 상태 규칙을 로컬에서 중복 구현하지 않는다.
 - 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 호출 전 요청 이력을 별도 트랜잭션으로 저장하고 호출 뒤 결과만 짧은 별도 트랜잭션으로 갱신한다. 성공 뒤 로컬 주문 상태는 변경 피드에서 다시 수집한다.
+- 주문 API 호출 전에 실패한 `NOT_SENT`는 `503 SMARTSTORE_OPERATION_NOT_SENT`로 반환해 같은 요청을 다시 시도할 수 있게 한다. 네이버의 명시적 거절은 `409 SMARTSTORE_OPERATION_REJECTED`로 반환해 상태·입력을 확인하게 한다. 전송 뒤 결과가 불명확한 `RESULT_UNKNOWN`과 분류되지 않은 외부 호출 오류는 `409 SMARTSTORE_OPERATION_RESULT_UNKNOWN`으로 반환하며 자동 또는 즉시 재시도하지 않고 처리 결과 확인 목록에서 대사한다.
 - 일괄 응답은 `successProductOrderIds`와 `failures[{productOrderId, code, message}]`를 반환한다. 일부 실패가 있어도 성공 결과를 유지하고 실패 주문만 다시 선택할 수 있게 한다.
 
 ```http
@@ -4190,6 +4191,8 @@ file={JPEG|PNG|WebP binary}
 | 409 | `REVIEW_RECREATION_BLOCKED` | 숨김 이력이 있는 삭제 후기의 원천으로 재작성 시도 |
 | 409 | `REVIEW_REPORT_ALREADY_EXISTS` | 같은 회원이 같은 후기를 다시 신고 |
 | 409 | `REVIEW_CONTENT_CHANGED` | 회원 또는 관리자가 불러온 뒤 후기 본문·평점·사진이 변경됨 |
+| 409 | `SMARTSTORE_OPERATION_REJECTED` | 네이버가 주문 처리 요청을 명시적으로 거절해 주문 상태 또는 입력 확인이 필요함 |
+| 409 | `SMARTSTORE_OPERATION_RESULT_UNKNOWN` | 네이버에 보낸 주문 처리 요청의 실제 반영 여부가 불명확해 자동 재시도 없이 대사가 필요함 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
@@ -4220,6 +4223,7 @@ file={JPEG|PNG|WebP binary}
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |
+| 503 | `SMARTSTORE_OPERATION_NOT_SENT` | 네이버 주문 API 호출 전에 실패해 같은 요청을 안전하게 다시 시도할 수 있음 |
 | 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS·이메일 SMTP 등 필수 외부 작업을 시작·완료할 수 없음 |
 
 Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는 위 `ErrorResponse` 형식으로
