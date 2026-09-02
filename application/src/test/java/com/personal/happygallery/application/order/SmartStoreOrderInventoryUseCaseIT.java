@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.personal.happygallery.adapter.out.persistence.order.SmartStoreProductOrderRepository;
+import com.personal.happygallery.adapter.out.persistence.order.SmartStoreOrderActionHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.CompletedReturn;
@@ -23,11 +24,15 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderActionHistory;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
+import com.personal.happygallery.domain.order.SmartStoreOrderReconciliationOutcome;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
+import java.time.Clock;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,12 +53,14 @@ class SmartStoreOrderInventoryUseCaseIT {
     @Autowired SmartStoreOrderTransactionService orderService;
     @Autowired SmartStoreChannelOrderUseCase channelOrderUseCase;
     @Autowired SmartStoreProductOrderRepository orderRepository;
+    @Autowired SmartStoreOrderActionHistoryRepository actionHistoryRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired ProductVariantRepository variantRepository;
     @Autowired InventoryService inventoryService;
     @Autowired ProductVariantStockService variantStockService;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired JdbcTemplate jdbc;
+    @Autowired Clock clock;
 
     @AfterEach
     void tearDown() {
@@ -180,6 +187,55 @@ class SmartStoreOrderInventoryUseCaseIT {
         assertThat(second.content()).extracting(SmartStoreChannelOrderUseCase.ChannelOrderResult::productOrderId)
                 .containsExactly("cursor-1");
         assertThat(second.hasMore()).isFalse();
+    }
+
+    @Test
+    @DisplayName("결과 미확정과 장기 요청만 대사 작업함에 표시하고 관리자 확인 뒤 제거한다")
+    void unresolvedActions_arePagedAndReconciledWithAdminEvidence() {
+        LocalDateTime now = LocalDateTime.now(clock);
+        SmartStoreOrderActionHistory unknown = new SmartStoreOrderActionHistory(
+                "unknown-action", SmartStoreOrderAction.ORDER_CONFIRMED, null,
+                7L, "주문 관리자", now.minusMinutes(1));
+        unknown.markResultUnknown("응답 대기 중 연결 종료", now.minusMinutes(1));
+        SmartStoreOrderActionHistory stale = new SmartStoreOrderActionHistory(
+                "stale-action", SmartStoreOrderAction.ORDER_DISPATCHED, "운송장 1234",
+                7L, "주문 관리자", now.minusMinutes(10));
+        SmartStoreOrderActionHistory notSent = new SmartStoreOrderActionHistory(
+                "not-sent-action", SmartStoreOrderAction.ORDER_CONFIRMED, null,
+                7L, "주문 관리자", now.minusMinutes(20));
+        notSent.markNotSent("ACCESS_TOKEN_UNAVAILABLE", "인증 토큰 준비 실패", now.minusMinutes(20));
+        actionHistoryRepository.saveAllAndFlush(List.of(unknown, stale, notSent));
+
+        var first = channelOrderUseCase.listUnresolvedActions(null, 1);
+        var second = channelOrderUseCase.listUnresolvedActions(first.nextCursor(), 1);
+
+        assertThat(first.content()).extracting(SmartStoreChannelOrderUseCase.ActionHistoryResult::productOrderId)
+                .containsExactly("unknown-action");
+        assertThat(first.hasMore()).isTrue();
+        assertThat(second.content()).extracting(SmartStoreChannelOrderUseCase.ActionHistoryResult::productOrderId)
+                .containsExactly("stale-action");
+        assertThat(second.hasMore()).isFalse();
+
+        var reconciled = channelOrderUseCase.reconcileAction(
+                unknown.getId(),
+                new SmartStoreChannelOrderUseCase.ReconcileActionCommand(
+                        SmartStoreOrderReconciliationOutcome.APPLIED,
+                        "네이버 주문 상세에서 발주 완료 상태를 확인"),
+                new AdminActor(19L, "대사 관리자"));
+
+        assertThat(reconciled.reconciliationOutcome())
+                .isEqualTo(SmartStoreOrderReconciliationOutcome.APPLIED);
+        assertThat(reconciled.reconciledByAdminId()).isEqualTo(19L);
+        assertThat(channelOrderUseCase.listUnresolvedActions(null, 10).content())
+                .extracting(SmartStoreChannelOrderUseCase.ActionHistoryResult::productOrderId)
+                .containsExactly("stale-action");
+        assertThatThrownBy(() -> channelOrderUseCase.reconcileAction(
+                unknown.getId(),
+                new SmartStoreChannelOrderUseCase.ReconcileActionCommand(
+                        SmartStoreOrderReconciliationOutcome.NOT_APPLIED, "중복 대사"),
+                new AdminActor(19L, "대사 관리자")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
     }
 
     @Test

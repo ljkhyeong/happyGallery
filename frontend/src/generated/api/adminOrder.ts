@@ -688,6 +688,103 @@ export interface SmartStoreChannelOrderPageResponse {
   nextCursor: string | null;
 }
 
+export type SmartStoreOrderActionHistoryResponseAction = typeof SmartStoreOrderActionHistoryResponseAction[keyof typeof SmartStoreOrderActionHistoryResponseAction];
+
+
+export const SmartStoreOrderActionHistoryResponseAction = {
+  INVENTORY_RESOLVED: 'INVENTORY_RESOLVED',
+  ORDER_CONFIRMED: 'ORDER_CONFIRMED',
+  ORDER_DISPATCHED: 'ORDER_DISPATCHED',
+  ORDER_DELAYED: 'ORDER_DELAYED',
+  CANCEL_APPROVED: 'CANCEL_APPROVED',
+  RETURN_APPROVED: 'RETURN_APPROVED',
+  RETURN_REJECTED: 'RETURN_REJECTED',
+  RETURN_HELD: 'RETURN_HELD',
+  RETURN_HOLD_RELEASED: 'RETURN_HOLD_RELEASED',
+  RETURN_REQUESTED: 'RETURN_REQUESTED',
+  EXCHANGE_DISPATCHED: 'EXCHANGE_DISPATCHED',
+  EXCHANGE_COLLECTION_COMPLETED: 'EXCHANGE_COLLECTION_COMPLETED',
+  EXCHANGE_REJECTED: 'EXCHANGE_REJECTED',
+  EXCHANGE_HELD: 'EXCHANGE_HELD',
+  EXCHANGE_HOLD_RELEASED: 'EXCHANGE_HOLD_RELEASED',
+  CANCEL_REQUESTED: 'CANCEL_REQUESTED',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SmartStoreOrderActionHistoryResponseReconciliationOutcome = typeof SmartStoreOrderActionHistoryResponseReconciliationOutcome[keyof typeof SmartStoreOrderActionHistoryResponseReconciliationOutcome] | null;
+
+
+export const SmartStoreOrderActionHistoryResponseReconciliationOutcome = {
+  APPLIED: 'APPLIED',
+  NOT_APPLIED: 'NOT_APPLIED',
+} as const;
+
+export type SmartStoreOrderActionHistoryResponseStatus = typeof SmartStoreOrderActionHistoryResponseStatus[keyof typeof SmartStoreOrderActionHistoryResponseStatus];
+
+
+export const SmartStoreOrderActionHistoryResponseStatus = {
+  REQUESTED: 'REQUESTED',
+  SUCCEEDED: 'SUCCEEDED',
+  REJECTED: 'REJECTED',
+  NOT_SENT: 'NOT_SENT',
+  RESULT_UNKNOWN: 'RESULT_UNKNOWN',
+} as const;
+
+export interface SmartStoreOrderActionHistoryResponse {
+  action: SmartStoreOrderActionHistoryResponseAction;
+  changedBy: string;
+  /** @nullable */
+  changedByAdminId: number | null;
+  /** @nullable */
+  completedAt: string | null;
+  id: number;
+  productOrderId: string;
+  /** @nullable */
+  reconciledAt: string | null;
+  /** @nullable */
+  reconciledBy: string | null;
+  /** @nullable */
+  reconciledByAdminId: number | null;
+  /** @nullable */
+  reconciliationNote: string | null;
+  /** @nullable */
+  reconciliationOutcome: SmartStoreOrderActionHistoryResponseReconciliationOutcome;
+  /** @nullable */
+  requestSummary: string | null;
+  requestedAt: string;
+  /** @nullable */
+  resultCode: string | null;
+  /** @nullable */
+  resultMessage: string | null;
+  status: SmartStoreOrderActionHistoryResponseStatus;
+}
+
+export interface SmartStoreOrderActionPageResponse {
+  content: SmartStoreOrderActionHistoryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export type ReconcileSmartStoreOrderActionRequestOutcome = typeof ReconcileSmartStoreOrderActionRequestOutcome[keyof typeof ReconcileSmartStoreOrderActionRequestOutcome];
+
+
+export const ReconcileSmartStoreOrderActionRequestOutcome = {
+  APPLIED: 'APPLIED',
+  NOT_APPLIED: 'NOT_APPLIED',
+} as const;
+
+export interface ReconcileSmartStoreOrderActionRequest {
+  /**
+     * @minLength 0
+     * @maxLength 500
+     */
+  note: string;
+  outcome: ReconcileSmartStoreOrderActionRequestOutcome;
+}
+
 export interface BulkConfirmSmartStoreOrdersRequest {
   /**
      * @minItems 1
@@ -804,56 +901,6 @@ export interface SmartStoreChannelOrderDetailResponse {
   unitPrice: number | null;
 }
 
-export type SmartStoreOrderActionHistoryResponseAction = typeof SmartStoreOrderActionHistoryResponseAction[keyof typeof SmartStoreOrderActionHistoryResponseAction];
-
-
-export const SmartStoreOrderActionHistoryResponseAction = {
-  INVENTORY_RESOLVED: 'INVENTORY_RESOLVED',
-  ORDER_CONFIRMED: 'ORDER_CONFIRMED',
-  ORDER_DISPATCHED: 'ORDER_DISPATCHED',
-  ORDER_DELAYED: 'ORDER_DELAYED',
-  CANCEL_APPROVED: 'CANCEL_APPROVED',
-  RETURN_APPROVED: 'RETURN_APPROVED',
-  RETURN_REJECTED: 'RETURN_REJECTED',
-  RETURN_HELD: 'RETURN_HELD',
-  RETURN_HOLD_RELEASED: 'RETURN_HOLD_RELEASED',
-  RETURN_REQUESTED: 'RETURN_REQUESTED',
-  EXCHANGE_DISPATCHED: 'EXCHANGE_DISPATCHED',
-  EXCHANGE_COLLECTION_COMPLETED: 'EXCHANGE_COLLECTION_COMPLETED',
-  EXCHANGE_REJECTED: 'EXCHANGE_REJECTED',
-  EXCHANGE_HELD: 'EXCHANGE_HELD',
-  EXCHANGE_HOLD_RELEASED: 'EXCHANGE_HOLD_RELEASED',
-  CANCEL_REQUESTED: 'CANCEL_REQUESTED',
-} as const;
-
-export type SmartStoreOrderActionHistoryResponseStatus = typeof SmartStoreOrderActionHistoryResponseStatus[keyof typeof SmartStoreOrderActionHistoryResponseStatus];
-
-
-export const SmartStoreOrderActionHistoryResponseStatus = {
-  REQUESTED: 'REQUESTED',
-  SUCCEEDED: 'SUCCEEDED',
-  REJECTED: 'REJECTED',
-  RESULT_UNKNOWN: 'RESULT_UNKNOWN',
-} as const;
-
-export interface SmartStoreOrderActionHistoryResponse {
-  action: SmartStoreOrderActionHistoryResponseAction;
-  changedBy: string;
-  /** @nullable */
-  changedByAdminId: number | null;
-  /** @nullable */
-  completedAt: string | null;
-  id: number;
-  /** @nullable */
-  requestSummary: string | null;
-  requestedAt: string;
-  /** @nullable */
-  resultCode: string | null;
-  /** @nullable */
-  resultMessage: string | null;
-  status: SmartStoreOrderActionHistoryResponseStatus;
-}
-
 export interface RequestSmartStoreSellerCancelRequest {
   /**
      * @minLength 0
@@ -918,6 +965,28 @@ export interface RequestSmartStoreSellerReturnRequest {
   returnQuantity?: number;
   /** @minLength 1 */
   returnReason: string;
+}
+
+export interface SmartStoreCurrentOrderStatusResponse {
+  claimDetail: ClaimDetail | null;
+  /** @nullable */
+  claimStatus: string | null;
+  /** @nullable */
+  claimType: string | null;
+  /** @nullable */
+  deliveryCompany: string | null;
+  /** @nullable */
+  expectedDeliveryMethod: string | null;
+  /** @nullable */
+  placeOrderStatus: string | null;
+  productOrderId: string;
+  /** @nullable */
+  productOrderStatus: string | null;
+  remainQuantity: number;
+  /** @nullable */
+  shippingDueDate: string | null;
+  /** @nullable */
+  trackingNumber: string | null;
 }
 
 export interface DelaySmartStoreOrderRequest {
@@ -1060,6 +1129,15 @@ export const ListSmartStoreChannelOrdersAttentionReason = {
   RETURN_REVIEW: 'RETURN_REVIEW',
   STATUS_REVIEW: 'STATUS_REVIEW',
 } as const;
+
+export type ListUnresolvedSmartStoreOrderActionsParams = {
+cursor?: string;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+size?: number;
+};
 
 export const getListOrdersUrl = (params?: ListOrdersParams,) => {
   const normalizedParams = new URLSearchParams();
@@ -1484,6 +1562,56 @@ export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannel
 
 
 
+export const getListUnresolvedSmartStoreOrderActionsUrl = (params?: ListUnresolvedSmartStoreOrderActionsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-orders/actions/unresolved?${stringifiedParams}` : `/api/v1/admin/smartstore-orders/actions/unresolved`
+}
+
+export const listUnresolvedSmartStoreOrderActions = async (params?: ListUnresolvedSmartStoreOrderActionsParams, options?: RequestInit): Promise<SmartStoreOrderActionPageResponse> => {
+
+  return generatedApiClient<SmartStoreOrderActionPageResponse>(getListUnresolvedSmartStoreOrderActionsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getReconcileSmartStoreOrderActionUrl = (historyId: number,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/actions/${historyId}/reconciliation`
+}
+
+export const reconcileSmartStoreOrderAction = async (historyId: number,
+    reconcileSmartStoreOrderActionRequest: ReconcileSmartStoreOrderActionRequest, options?: RequestInit): Promise<SmartStoreOrderActionHistoryResponse> => {
+
+  return generatedApiClient<SmartStoreOrderActionHistoryResponse>(getReconcileSmartStoreOrderActionUrl(historyId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reconcileSmartStoreOrderActionRequest)
+  }
+);}
+
+
+
 export const getConfirmSmartStoreChannelOrdersUrl = () => {
 
 
@@ -1861,6 +1989,27 @@ export const confirmSmartStoreChannelOrder = async (productOrderId: string, opti
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getGetCurrentSmartStoreOrderStatusUrl = (productOrderId: string,) => {
+
+
+
+
+  return `/api/v1/admin/smartstore-orders/${productOrderId}/current-status`
+}
+
+export const getCurrentSmartStoreOrderStatus = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreCurrentOrderStatusResponse> => {
+
+  return generatedApiClient<SmartStoreCurrentOrderStatusResponse>(getGetCurrentSmartStoreOrderStatusUrl(productOrderId),
+  {
+    ...options,
+    method: 'GET'
 
 
   }

@@ -2,7 +2,9 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -115,6 +117,36 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     public List<ActionHistoryResult> listActionHistory(String productOrderId) {
         order(productOrderId);
         return actionHistoryService.list(productOrderId);
+    }
+
+    @Override
+    public CursorPage<ActionHistoryResult> listUnresolvedActions(String cursor, int size) {
+        return actionHistoryService.listUnresolved(cursor, size);
+    }
+
+    @Override
+    public ActionHistoryResult reconcileAction(
+            long historyId,
+            ReconcileActionCommand command,
+            AdminActor actor) {
+        return actionHistoryService.reconcile(historyId, command.outcome(), command.note(), actor);
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public CurrentOrderStatusResult currentStatus(String productOrderId) {
+        order(productOrderId);
+        requireEnabled();
+        SmartStoreOrderProvider.ProductOrderDetail detail = orderProvider.fetchDetails(List.of(productOrderId))
+                .stream()
+                .filter(candidate -> productOrderId.equals(candidate.productOrderId()))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("네이버 스마트스토어 상품 주문"));
+        return new CurrentOrderStatusResult(
+                detail.productOrderId(), detail.productOrderStatus(), detail.placeOrderStatus(),
+                detail.claimType(), detail.claimStatus(), detail.remainQuantity(),
+                detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
+                detail.trackingNumber(), claimDetail(detail.claimDetail()));
     }
 
     @Override
@@ -331,14 +363,26 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         try {
             operation.run();
             completeAudit(() -> actionHistoryService.succeed(historyId), historyId);
+        } catch (OperationNotSentException exception) {
+            completeAudit(
+                    () -> actionHistoryService.markNotSent(
+                            historyId, exception.code(), exception.getMessage()),
+                    historyId);
+            throw exception;
         } catch (OperationRejectedException exception) {
             completeAudit(
                     () -> actionHistoryService.reject(historyId, exception.code(), exception.getMessage()),
                     historyId);
             throw exception;
-        } catch (RuntimeException exception) {
+        } catch (OperationResultUnknownException exception) {
             completeAudit(
                     () -> actionHistoryService.markResultUnknown(historyId, exception.getMessage()),
+                    historyId);
+            throw exception;
+        } catch (RuntimeException exception) {
+            completeAudit(
+                    () -> actionHistoryService.markResultUnknown(
+                            historyId, "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다."),
                     historyId);
             throw exception;
         }
@@ -358,9 +402,28 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         SmartStoreOrderProvider.OperationResult result;
         try {
             result = operation.execute();
+        } catch (OperationNotSentException exception) {
+            started.forEach(item -> completeAudit(
+                    () -> actionHistoryService.markNotSent(
+                            item.historyId(), exception.code(), exception.getMessage()),
+                    item.historyId()));
+            throw exception;
+        } catch (OperationRejectedException exception) {
+            started.forEach(item -> completeAudit(
+                    () -> actionHistoryService.reject(
+                            item.historyId(), exception.code(), exception.getMessage()),
+                    item.historyId()));
+            throw exception;
+        } catch (OperationResultUnknownException exception) {
+            started.forEach(item -> completeAudit(
+                    () -> actionHistoryService.markResultUnknown(
+                            item.historyId(), exception.getMessage()),
+                    item.historyId()));
+            throw exception;
         } catch (RuntimeException exception) {
             started.forEach(item -> completeAudit(
-                    () -> actionHistoryService.markResultUnknown(item.historyId(), exception.getMessage()),
+                    () -> actionHistoryService.markResultUnknown(
+                            item.historyId(), "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다."),
                     item.historyId()));
             throw exception;
         }
@@ -418,6 +481,10 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 .findFirst()
                 .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .orElse(null);
+        return claimDetail(claim);
+    }
+
+    private static ClaimDetail claimDetail(SmartStoreOrderProvider.ClaimDetail claim) {
         return claim == null ? null : new ClaimDetail(
                 claim.claimId(), claim.claimType(), claim.claimStatus(), claim.reason(),
                 claim.detailedReason(), claim.requestQuantity(), claim.requestedAt(),

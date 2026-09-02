@@ -226,9 +226,26 @@ public interface SmartStoreOrderProvider {
         }
     }
 
+    class OperationNotSentException extends RuntimeException {
+        private final String code;
+
+        public OperationNotSentException(String code, String message, Throwable cause) {
+            super(message, cause);
+            this.code = code;
+        }
+
+        public String code() {
+            return code;
+        }
+    }
+
     class OperationResultUnknownException extends RuntimeException {
         public OperationResultUnknownException(String message) {
             super(message);
+        }
+
+        public OperationResultUnknownException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.DispatchSmartStoreOrde
 import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreExchangeRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.HoldSmartStoreReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.RejectSmartStoreExchangeRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.ReconcileSmartStoreOrderActionRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSellerCancelRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.RequestSmartStoreSellerReturnRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.ResolveSmartStoreInventoryRequest;
@@ -17,6 +18,8 @@ import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrder
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelOrderResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreOrderBulkActionResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreOrderActionHistoryResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreOrderActionPageResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCurrentOrderStatusResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreReturnDeliveryCompanyResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
@@ -26,6 +29,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -68,10 +72,36 @@ public class AdminSmartStoreOrderController {
                 .map(SmartStoreReturnDeliveryCompanyResponse::from).toList();
     }
 
+    @GetMapping("/actions/unresolved")
+    @Operation(operationId = "listUnresolvedSmartStoreOrderActions")
+    public SmartStoreOrderActionPageResponse listUnresolvedActions(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
+        return SmartStoreOrderActionPageResponse.from(
+                channelOrderUseCase.listUnresolvedActions(cursor, size));
+    }
+
+    @PostMapping("/actions/{historyId}/reconciliation")
+    @Operation(operationId = "reconcileSmartStoreOrderAction")
+    public SmartStoreOrderActionHistoryResponse reconcileAction(
+            @PathVariable @Positive long historyId,
+            @Valid @RequestBody ReconcileSmartStoreOrderActionRequest request,
+            @AuthenticationPrincipal AdminPrincipal admin) {
+        return SmartStoreOrderActionHistoryResponse.from(
+                channelOrderUseCase.reconcileAction(historyId, request.toCommand(), actor(admin)));
+    }
+
     @GetMapping("/{productOrderId}")
     @Operation(operationId = "getSmartStoreChannelOrder")
     public SmartStoreChannelOrderDetailResponse detail(@PathVariable String productOrderId) {
         return SmartStoreChannelOrderDetailResponse.from(channelOrderUseCase.detail(productOrderId));
+    }
+
+    @GetMapping("/{productOrderId}/current-status")
+    @Operation(operationId = "getCurrentSmartStoreOrderStatus")
+    public SmartStoreCurrentOrderStatusResponse currentStatus(@PathVariable String productOrderId) {
+        return SmartStoreCurrentOrderStatusResponse.from(
+                channelOrderUseCase.currentStatus(productOrderId));
     }
 
     @PostMapping("/{productOrderId}/inventory/retry")

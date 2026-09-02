@@ -49,6 +49,7 @@ import {
   resolveSmartStoreReturn,
   retrySmartStoreOrderInventory,
 } from "./api";
+import { ACTION_LABELS, ACTION_STATUS_LABELS } from "./labels";
 
 interface Props {
   adminKey: string;
@@ -76,32 +77,6 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELED: "취소",
   RETURNED: "반품 완료",
   CANCELED_BY_NOPAYMENT: "미결제 취소",
-};
-
-const ACTION_LABELS: Record<string, string> = {
-  INVENTORY_RESOLVED: "수동 재고 결정",
-  ORDER_CONFIRMED: "발주 확인",
-  ORDER_DISPATCHED: "발송 처리",
-  ORDER_DELAYED: "발송 지연",
-  CANCEL_APPROVED: "취소 승인",
-  RETURN_APPROVED: "반품 승인",
-  RETURN_REJECTED: "반품 거부",
-  RETURN_HELD: "반품 보류",
-  RETURN_HOLD_RELEASED: "반품 보류 해제",
-  RETURN_REQUESTED: "판매자 반품 요청",
-  EXCHANGE_DISPATCHED: "교환품 발송",
-  EXCHANGE_COLLECTION_COMPLETED: "교환품 수거 완료",
-  EXCHANGE_REJECTED: "교환 거부",
-  EXCHANGE_HELD: "교환 보류",
-  EXCHANGE_HOLD_RELEASED: "교환 보류 해제",
-  CANCEL_REQUESTED: "판매자 취소 요청",
-};
-
-const ACTION_STATUS_LABELS: Record<string, string> = {
-  REQUESTED: "요청 접수",
-  SUCCEEDED: "성공",
-  REJECTED: "거절",
-  RESULT_UNKNOWN: "결과 확인 필요",
 };
 
 const MAX_BULK_ORDERS = 30;
@@ -1327,6 +1302,16 @@ function SmartStoreOrderActionHistory({
                   {item.resultMessage}{item.resultCode ? ` (${item.resultCode})` : ""}
                 </div>
               )}
+              {item.reconciliationOutcome && (
+                <div className="mt-1 text-primary-emphasis">
+                  대사 결과: {item.reconciliationOutcome === "APPLIED"
+                    ? "네이버에 반영됨"
+                    : "네이버에 반영되지 않음"}
+                  {item.reconciledBy && ` · ${item.reconciledBy}`}
+                  {item.reconciledAt && ` · ${formatDateTime(item.reconciledAt)}`}
+                  {item.reconciliationNote && <div>{item.reconciliationNote}</div>}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1338,6 +1323,7 @@ function SmartStoreOrderActionHistory({
 function actionStatusColor(status: SmartStoreOrderActionHistoryResponse["status"]): string {
   if (status === "SUCCEEDED") return "success";
   if (status === "REJECTED") return "danger";
+  if (status === "NOT_SENT") return "secondary";
   if (status === "RESULT_UNKNOWN") return "warning";
   return "secondary";
 }

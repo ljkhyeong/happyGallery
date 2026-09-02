@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeRejectCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeHoldCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
@@ -37,6 +38,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class NaverCommerceOrderProviderTest {
 
@@ -485,6 +488,21 @@ class NaverCommerceOrderProviderTest {
                 "po-1", LocalDateTime.of(2026, 8, 31, 18, 0), "CUSTOM_BUILD", "각인 제작 중")))
                 .isInstanceOf(OperationResultUnknownException.class);
         server.verify();
+    }
+
+    @Test
+    @DisplayName("인증 토큰을 준비하지 못하면 주문 API를 호출하지 않고 미전송으로 분류한다")
+    void writeOperation_tokenUnavailable_isNotSent() {
+        RestClient restClient = RestClient.builder().baseUrl(PROPERTIES.baseUrl()).build();
+        NaverCommerceAccessTokenProvider tokenProvider = mock(NaverCommerceAccessTokenProvider.class);
+        when(tokenProvider.accessToken(false)).thenThrow(new IllegalStateException("token unavailable"));
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                restClient, PROPERTIES, tokenProvider);
+
+        assertThatThrownBy(() -> provider.confirm("po-1"))
+                .isInstanceOfSatisfying(OperationNotSentException.class,
+                        exception -> assertThat(exception.code())
+                                .isEqualTo("ACCESS_TOKEN_UNAVAILABLE"));
     }
 
     private static ResponseCreator operationSuccess() {

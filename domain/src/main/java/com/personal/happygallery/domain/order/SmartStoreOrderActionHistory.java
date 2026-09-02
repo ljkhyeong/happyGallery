@@ -8,12 +8,15 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 @Entity
 @Table(name = "smartstore_order_action_history")
 public class SmartStoreOrderActionHistory {
+
+    public static final Duration STALE_REQUEST_AFTER = Duration.ofMinutes(5);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +54,22 @@ public class SmartStoreOrderActionHistory {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reconciliation_outcome", length = 20)
+    private SmartStoreOrderReconciliationOutcome reconciliationOutcome;
+
+    @Column(name = "reconciliation_note", length = 500)
+    private String reconciliationNote;
+
+    @Column(name = "reconciled_by_admin_id")
+    private Long reconciledByAdminId;
+
+    @Column(name = "reconciled_by", length = 100)
+    private String reconciledBy;
+
+    @Column(name = "reconciled_at")
+    private LocalDateTime reconciledAt;
+
     protected SmartStoreOrderActionHistory() {}
 
     public SmartStoreOrderActionHistory(
@@ -79,6 +98,36 @@ public class SmartStoreOrderActionHistory {
 
     public void markResultUnknown(String resultMessage, LocalDateTime completedAt) {
         complete(SmartStoreOrderActionStatus.RESULT_UNKNOWN, "RESULT_UNKNOWN", resultMessage, completedAt);
+    }
+
+    public void markNotSent(String resultCode, String resultMessage, LocalDateTime completedAt) {
+        complete(SmartStoreOrderActionStatus.NOT_SENT, resultCode, resultMessage, completedAt);
+    }
+
+    public boolean requiresReconciliation(LocalDateTime staleRequestedBefore) {
+        if (reconciledAt != null) {
+            return false;
+        }
+        return status == SmartStoreOrderActionStatus.RESULT_UNKNOWN
+                || status == SmartStoreOrderActionStatus.REQUESTED
+                && !requestedAt.isAfter(staleRequestedBefore);
+    }
+
+    public void reconcile(
+            SmartStoreOrderReconciliationOutcome outcome,
+            String note,
+            Long adminUserId,
+            String adminName,
+            LocalDateTime reconciledAt,
+            LocalDateTime staleRequestedBefore) {
+        if (!requiresReconciliation(staleRequestedBefore)) {
+            throw new IllegalStateException("대사할 수 있는 스마트스토어 주문 처리 이력이 아닙니다.");
+        }
+        this.reconciliationOutcome = Objects.requireNonNull(outcome, "대사 결과는 필수입니다.");
+        this.reconciliationNote = truncate(requireText(note, "대사 근거"), 500);
+        this.reconciledByAdminId = adminUserId;
+        this.reconciledBy = requireText(adminName, "대사 처리자");
+        this.reconciledAt = Objects.requireNonNull(reconciledAt, "대사 시각은 필수입니다.");
     }
 
     private void complete(
@@ -122,4 +171,9 @@ public class SmartStoreOrderActionHistory {
     public String getChangedBy() { return changedBy; }
     public LocalDateTime getRequestedAt() { return requestedAt; }
     public LocalDateTime getCompletedAt() { return completedAt; }
+    public SmartStoreOrderReconciliationOutcome getReconciliationOutcome() { return reconciliationOutcome; }
+    public String getReconciliationNote() { return reconciliationNote; }
+    public Long getReconciledByAdminId() { return reconciledByAdminId; }
+    public String getReconciledBy() { return reconciledBy; }
+    public LocalDateTime getReconciledAt() { return reconciledAt; }
 }

@@ -6071,6 +6071,21 @@
         "required" : [ "replyContent" ],
         "type" : "object"
       },
+      "ReconcileSmartStoreOrderActionRequest" : {
+        "properties" : {
+          "note" : {
+            "maxLength" : 500,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "outcome" : {
+            "enum" : [ "APPLIED", "NOT_APPLIED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "note", "outcome" ],
+        "type" : "object"
+      },
       "RecoverGuestRecordsRequest" : {
         "properties" : {
           "phone" : {
@@ -7372,6 +7387,51 @@
         "required" : [ "options", "originProductNo", "salePrice", "status" ],
         "type" : "object"
       },
+      "SmartStoreCurrentOrderStatusResponse" : {
+        "properties" : {
+          "claimDetail" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/ClaimDetail"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "claimStatus" : {
+            "type" : [ "string", "null" ]
+          },
+          "claimType" : {
+            "type" : [ "string", "null" ]
+          },
+          "deliveryCompany" : {
+            "type" : [ "string", "null" ]
+          },
+          "expectedDeliveryMethod" : {
+            "type" : [ "string", "null" ]
+          },
+          "placeOrderStatus" : {
+            "type" : [ "string", "null" ]
+          },
+          "productOrderId" : {
+            "type" : "string"
+          },
+          "productOrderStatus" : {
+            "type" : [ "string", "null" ]
+          },
+          "remainQuantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "shippingDueDate" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "trackingNumber" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "claimDetail", "claimStatus", "claimType", "deliveryCompany", "expectedDeliveryMethod", "placeOrderStatus", "productOrderId", "productOrderStatus", "remainQuantity", "shippingDueDate", "trackingNumber" ],
+        "type" : "object"
+      },
       "SmartStoreCustomerInquiryPageResponse" : {
         "properties" : {
           "content" : {
@@ -7782,6 +7842,27 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "productOrderId" : {
+            "type" : "string"
+          },
+          "reconciledAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "reconciledBy" : {
+            "type" : [ "string", "null" ]
+          },
+          "reconciledByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "reconciliationNote" : {
+            "type" : [ "string", "null" ]
+          },
+          "reconciliationOutcome" : {
+            "enum" : [ "APPLIED", "NOT_APPLIED" ],
+            "type" : [ "string", "null" ]
+          },
           "requestSummary" : {
             "type" : [ "string", "null" ]
           },
@@ -7796,11 +7877,29 @@
             "type" : [ "string", "null" ]
           },
           "status" : {
-            "enum" : [ "REQUESTED", "SUCCEEDED", "REJECTED", "RESULT_UNKNOWN" ],
+            "enum" : [ "REQUESTED", "SUCCEEDED", "REJECTED", "NOT_SENT", "RESULT_UNKNOWN" ],
             "type" : "string"
           }
         },
-        "required" : [ "action", "changedBy", "changedByAdminId", "completedAt", "id", "requestSummary", "requestedAt", "resultCode", "resultMessage", "status" ],
+        "required" : [ "action", "changedBy", "changedByAdminId", "completedAt", "id", "productOrderId", "reconciledAt", "reconciledBy", "reconciledByAdminId", "reconciliationNote", "reconciliationOutcome", "requestSummary", "requestedAt", "resultCode", "resultMessage", "status" ],
+        "type" : "object"
+      },
+      "SmartStoreOrderActionPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SmartStoreOrderActionHistoryResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
         "type" : "object"
       },
       "SmartStoreOrderBulkActionResponse" : {
@@ -13471,6 +13570,81 @@
         "tags" : [ "admin-smart-store-order-controller" ]
       }
     },
+    "/api/v1/admin/smartstore-orders/actions/unresolved" : {
+      "get" : {
+        "operationId" : "listUnresolvedSmartStoreOrderActions",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "maximum" : 100,
+            "minimum" : 1,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreOrderActionPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation" : {
+      "post" : {
+        "operationId" : "reconcileSmartStoreOrderAction",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "historyId",
+          "required" : true,
+          "schema" : {
+            "exclusiveMinimum" : 0,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ReconcileSmartStoreOrderActionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreOrderActionHistoryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
     "/api/v1/admin/smartstore-orders/confirm" : {
       "post" : {
         "operationId" : "confirmSmartStoreChannelOrders",
@@ -13905,6 +14079,32 @@
         "responses" : {
           "204" : {
             "description" : "No Content"
+          }
+        },
+        "tags" : [ "admin-smart-store-order-controller" ]
+      }
+    },
+    "/api/v1/admin/smartstore-orders/{productOrderId}/current-status" : {
+      "get" : {
+        "operationId" : "getCurrentSmartStoreOrderStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "productOrderId",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SmartStoreCurrentOrderStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "admin-smart-store-order-controller" ]

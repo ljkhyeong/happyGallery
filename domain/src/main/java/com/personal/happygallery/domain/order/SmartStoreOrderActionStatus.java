@@ -4,5 +4,6 @@ public enum SmartStoreOrderActionStatus {
     REQUESTED,
     SUCCEEDED,
     REJECTED,
+    NOT_SENT,
     RESULT_UNKNOWN
 }

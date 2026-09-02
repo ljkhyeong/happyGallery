@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderActionStatus;
+import com.personal.happygallery.domain.order.SmartStoreOrderReconciliationOutcome;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,12 @@ public interface SmartStoreChannelOrderUseCase {
     ChannelOrderResult resolveInventory(InventoryResolutionCommand command, AdminActor actor);
 
     List<ActionHistoryResult> listActionHistory(String productOrderId);
+
+    CursorPage<ActionHistoryResult> listUnresolvedActions(String cursor, int size);
+
+    ActionHistoryResult reconcileAction(long historyId, ReconcileActionCommand command, AdminActor actor);
+
+    CurrentOrderStatusResult currentStatus(String productOrderId);
 
     void confirm(String productOrderId, AdminActor actor);
 
@@ -83,6 +90,11 @@ public interface SmartStoreChannelOrderUseCase {
             String expectedResolutionVersion
     ) {}
 
+    record ReconcileActionCommand(
+            SmartStoreOrderReconciliationOutcome outcome,
+            String note
+    ) {}
+
     record ChannelOrderResult(
             String productOrderId,
             String orderId,
@@ -108,6 +120,7 @@ public interface SmartStoreChannelOrderUseCase {
 
     record ActionHistoryResult(
             long id,
+            String productOrderId,
             SmartStoreOrderAction action,
             SmartStoreOrderActionStatus status,
             String requestSummary,
@@ -116,7 +129,26 @@ public interface SmartStoreChannelOrderUseCase {
             Long changedByAdminId,
             String changedBy,
             LocalDateTime requestedAt,
-            LocalDateTime completedAt
+            LocalDateTime completedAt,
+            SmartStoreOrderReconciliationOutcome reconciliationOutcome,
+            String reconciliationNote,
+            Long reconciledByAdminId,
+            String reconciledBy,
+            LocalDateTime reconciledAt
+    ) {}
+
+    record CurrentOrderStatusResult(
+            String productOrderId,
+            String productOrderStatus,
+            String placeOrderStatus,
+            String claimType,
+            String claimStatus,
+            int remainQuantity,
+            LocalDateTime shippingDueDate,
+            String expectedDeliveryMethod,
+            String deliveryCompany,
+            String trackingNumber,
+            ClaimDetail claimDetail
     ) {}
 
     record ChannelOrderDetailResult(

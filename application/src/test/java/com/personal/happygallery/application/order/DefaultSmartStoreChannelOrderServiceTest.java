@@ -3,6 +3,7 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ClaimDetail;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
@@ -114,6 +115,49 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 .isInstanceOf(OperationResultUnknownException.class);
 
         verify(historyService).markResultUnknown(13L, "응답 본문 없음");
+    }
+
+    @Test
+    @DisplayName("인증 토큰 실패로 주문 요청을 보내지 못하면 안전하게 다시 시도할 수 있도록 미전송으로 남긴다")
+    void confirm_notSent_recordsRetryableAudit() {
+        SmartStoreOrderProvider provider = mock(SmartStoreOrderProvider.class);
+        SmartStoreOrderActionHistoryService historyService = mock(SmartStoreOrderActionHistoryService.class);
+        DefaultSmartStoreChannelOrderService service = service(provider, historyService);
+        AdminActor actor = new AdminActor(7L, "주문 관리자");
+        when(provider.isEnabled()).thenReturn(true);
+        when(historyService.start(
+                "po-1", SmartStoreOrderAction.ORDER_CONFIRMED, null, actor)).thenReturn(14L);
+        doThrow(new OperationNotSentException(
+                "ACCESS_TOKEN_UNAVAILABLE", "인증 토큰 준비 실패", new IllegalStateException()))
+                .when(provider).confirm("po-1");
+
+        assertThatThrownBy(() -> service.confirm("po-1", actor))
+                .isInstanceOf(OperationNotSentException.class);
+
+        verify(historyService).markNotSent(14L, "ACCESS_TOKEN_UNAVAILABLE", "인증 토큰 준비 실패");
+    }
+
+    @Test
+    @DisplayName("스마트스토어 일괄 주문 요청이 거절되면 모든 주문 이력을 거절로 남긴다")
+    void confirmAll_rejected_recordsRejectedAudits() {
+        SmartStoreOrderProvider provider = mock(SmartStoreOrderProvider.class);
+        SmartStoreOrderActionHistoryService historyService = mock(SmartStoreOrderActionHistoryService.class);
+        DefaultSmartStoreChannelOrderService service = service(provider, historyService);
+        AdminActor actor = new AdminActor(7L, "주문 관리자");
+        List<String> productOrderIds = List.of("po-1", "po-2");
+        when(provider.isEnabled()).thenReturn(true);
+        when(historyService.start("po-1", SmartStoreOrderAction.ORDER_CONFIRMED, null, actor))
+                .thenReturn(21L);
+        when(historyService.start("po-2", SmartStoreOrderAction.ORDER_CONFIRMED, null, actor))
+                .thenReturn(22L);
+        when(provider.confirmAll(productOrderIds))
+                .thenThrow(new OperationRejectedException("HTTP_400", "잘못된 일괄 요청"));
+
+        assertThatThrownBy(() -> service.confirmAll(productOrderIds, actor))
+                .isInstanceOf(OperationRejectedException.class);
+
+        verify(historyService).reject(21L, "HTTP_400", "잘못된 일괄 요청");
+        verify(historyService).reject(22L, "HTTP_400", "잘못된 일괄 요청");
     }
 
     private static DefaultSmartStoreChannelOrderService service(

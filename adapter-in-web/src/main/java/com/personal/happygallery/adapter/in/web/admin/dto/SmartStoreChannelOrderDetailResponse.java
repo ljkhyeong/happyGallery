@@ -60,7 +60,7 @@ public record SmartStoreChannelOrderDetailResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String holdbackStatus,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<String> imageUrls
     ) {
-        private static ClaimDetail from(SmartStoreChannelOrderUseCase.ClaimDetail result) {
+        public static ClaimDetail from(SmartStoreChannelOrderUseCase.ClaimDetail result) {
             return new ClaimDetail(
                     result.claimId(), result.claimType(), result.claimStatus(), result.reason(),
                     result.detailedReason(), result.requestQuantity(), result.requestedAt(),

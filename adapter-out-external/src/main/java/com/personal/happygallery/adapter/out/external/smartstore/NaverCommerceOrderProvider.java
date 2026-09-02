@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.domain.time.Clocks;
@@ -11,12 +12,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
@@ -265,7 +268,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private void execute(String path, Object body, String productOrderId) {
-        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+        OperationResponse response = authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -276,7 +279,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private OperationResponse executeBulk(String path, Object body) {
-        return accessTokenProvider.authorized(token -> restClient.post()
+        return authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -286,13 +289,68 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private void executeWithoutBody(String path, String productOrderId) {
-        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+        OperationResponse response = authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentLength(0)
                 .retrieve()
                 .body(OperationResponse.class));
         requireOperationSuccess(response, productOrderId);
+    }
+
+    private <T> T authorizedWrite(Function<String, T> request) {
+        String token;
+        try {
+            token = accessTokenProvider.accessToken(false);
+        } catch (RuntimeException exception) {
+            throw new OperationNotSentException(
+                    "ACCESS_TOKEN_UNAVAILABLE",
+                    "스마트스토어 인증 토큰을 준비하지 못해 주문 요청을 보내지 않았습니다.",
+                    exception);
+        }
+        try {
+            return request.apply(token);
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 401) {
+                return retryAuthorizedWrite(request);
+            }
+            throw classifyWriteResponse(exception);
+        } catch (RuntimeException exception) {
+            throw new OperationResultUnknownException(
+                    "스마트스토어 주문 요청의 처리 결과를 확인할 수 없습니다.", exception);
+        }
+    }
+
+    private <T> T retryAuthorizedWrite(Function<String, T> request) {
+        String token;
+        try {
+            token = accessTokenProvider.accessToken(true);
+        } catch (RuntimeException exception) {
+            throw new OperationNotSentException(
+                    "ACCESS_TOKEN_REFRESH_FAILED",
+                    "스마트스토어 인증 토큰 갱신에 실패해 주문 요청을 다시 보내지 않았습니다.",
+                    exception);
+        }
+        try {
+            return request.apply(token);
+        } catch (RestClientResponseException exception) {
+            throw classifyWriteResponse(exception);
+        } catch (RuntimeException exception) {
+            throw new OperationResultUnknownException(
+                    "스마트스토어 주문 요청의 처리 결과를 확인할 수 없습니다.", exception);
+        }
+    }
+
+    private static RuntimeException classifyWriteResponse(RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
+        if (exception.getStatusCode().is4xxClientError()) {
+            return new OperationRejectedException(
+                    "HTTP_" + status,
+                    "네이버가 스마트스토어 주문 요청을 거절했습니다. (HTTP " + status + ")");
+        }
+        return new OperationResultUnknownException(
+                "네이버 오류 응답으로 주문 처리 결과를 확인할 수 없습니다. (HTTP " + status + ")",
+                exception);
     }
 
     private static void requireOperationSuccess(OperationResponse response, String productOrderId) {

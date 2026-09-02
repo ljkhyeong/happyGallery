@@ -305,6 +305,15 @@ groups:
         annotations:
           summary: "스마트스토어 주문·재고 동기화가 5분 넘게 정상 완료되지 않았습니다"
 
+      - alert: SmartStoreOrderActionReconciliationRequired
+        expr: max(happygallery_smartstore_order_action_reconciliation_backlog_count{application="happygallery"}) > 0
+        for: 2m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "처리 결과를 확인해야 하는 스마트스토어 주문 요청이 있습니다"
+
       - alert: SmartStoreSettlementBatchStalled
         expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job="smartstore_settlement_sync"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
         for: 5m

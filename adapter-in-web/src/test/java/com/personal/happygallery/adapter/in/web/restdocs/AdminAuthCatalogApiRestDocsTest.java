@@ -37,6 +37,7 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DeliveryInfo;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ClaimDetail;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.CurrentOrderStatusResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
@@ -75,6 +76,7 @@ import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderActionStatus;
+import com.personal.happygallery.domain.order.SmartStoreOrderReconciliationOutcome;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -257,6 +259,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreChannelOrderUseCase.listActionHistory("2026082912345678"))
                 .thenReturn(List.of(new ActionHistoryResult(
                         71L,
+                        "2026082912345678",
                         SmartStoreOrderAction.INVENTORY_RESOLVED,
                         SmartStoreOrderActionStatus.SUCCEEDED,
                         "상품 1, 옵션 조합 31, 재고 결정 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
@@ -265,7 +268,40 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         ADMIN_USER_ID,
                         "admin",
                         LocalDateTime.of(2026, 9, 2, 14, 30),
-                        LocalDateTime.of(2026, 9, 2, 14, 30))));
+                        LocalDateTime.of(2026, 9, 2, 14, 30),
+                        null, null, null, null, null)));
+        ActionHistoryResult unresolvedAction = new ActionHistoryResult(
+                72L,
+                "2026082912345678",
+                SmartStoreOrderAction.ORDER_DISPATCHED,
+                SmartStoreOrderActionStatus.RESULT_UNKNOWN,
+                "배송 방법 DELIVERY, 택배사 CJGLS, 운송장 1234567890, 발송일 2026-09-02T14:30",
+                "RESULT_UNKNOWN",
+                "네이버 응답에서 처리 결과를 확인할 수 없습니다.",
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 30),
+                LocalDateTime.of(2026, 9, 2, 14, 30),
+                null, null, null, null, null);
+        when(smartStoreChannelOrderUseCase.listUnresolvedActions("action-cursor", 20))
+                .thenReturn(new CursorPage<>(List.of(unresolvedAction), null, false));
+        ActionHistoryResult reconciledAction = new ActionHistoryResult(
+                unresolvedAction.id(), unresolvedAction.productOrderId(), unresolvedAction.action(),
+                unresolvedAction.status(), unresolvedAction.requestSummary(), unresolvedAction.resultCode(),
+                unresolvedAction.resultMessage(), unresolvedAction.changedByAdminId(),
+                unresolvedAction.changedBy(), unresolvedAction.requestedAt(), unresolvedAction.completedAt(),
+                SmartStoreOrderReconciliationOutcome.APPLIED,
+                "네이버 주문 상세에서 발송 완료와 운송장 번호를 확인",
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 40));
+        when(smartStoreChannelOrderUseCase.reconcileAction(eq(72L), any(), any()))
+                .thenReturn(reconciledAction);
+        when(smartStoreChannelOrderUseCase.currentStatus("2026082912345678"))
+                .thenReturn(new CurrentOrderStatusResult(
+                        "2026082912345678", "DELIVERING", "OK", null, null, 2,
+                        LocalDateTime.of(2026, 9, 3, 18, 0), "DELIVERY",
+                        "CJ대한통운", "1234567890", null));
         when(smartStoreChannelOrderUseCase.detail("2026082912345678"))
                 .thenReturn(new ChannelOrderDetailResult(
                         smartStoreOrder,
@@ -818,6 +854,58 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].action").value("INVENTORY_RESOLVED"))
                 .andExpect(jsonPath("$[0].status").value("SUCCEEDED"))
                 .andExpect(jsonPath("$[0].changedBy").value("admin"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 미확정 주문 처리 목록 API를 문서화한다")
+    void admin_list_unresolved_smartstore_order_actions() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/actions/unresolved")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .queryParam("cursor", "action-cursor")
+                        .queryParam("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].productOrderId").value("2026082912345678"))
+                .andExpect(jsonPath("$.content[0].status").value("RESULT_UNKNOWN"))
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 처리 대사 API를 문서화한다")
+    void admin_reconcile_smartstore_order_action() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation", 72L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "outcome":"APPLIED",
+                                  "note":"네이버 주문 상세에서 발송 완료와 운송장 번호를 확인"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reconciliationOutcome").value("APPLIED"))
+                .andExpect(jsonPath("$.reconciledBy").value("admin"));
+
+        verify(smartStoreChannelOrderUseCase).reconcileAction(
+                eq(72L),
+                argThat(command -> command.outcome() == SmartStoreOrderReconciliationOutcome.APPLIED
+                        && command.note().equals("네이버 주문 상세에서 발송 완료와 운송장 번호를 확인")),
+                argThat(actor -> actor.adminUserId().equals(ADMIN_USER_ID)
+                        && actor.name().equals("admin")));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문의 네이버 현재 상태 조회 API를 문서화한다")
+    void admin_get_current_smartstore_order_status() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/{productOrderId}/current-status",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productOrderStatus").value("DELIVERING"))
+                .andExpect(jsonPath("$.deliveryCompany").value("CJ대한통운"))
+                .andExpect(jsonPath("$.trackingNumber").value("1234567890"));
     }
 
     @Test

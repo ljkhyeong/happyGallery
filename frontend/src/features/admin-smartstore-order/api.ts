@@ -16,10 +16,13 @@ import {
   requestSmartStoreSellerCancel,
   requestSmartStoreSellerReturn,
   getSmartStoreChannelOrder,
+  getCurrentSmartStoreOrderStatus,
   listSmartStoreChannelOrderActions,
   listSmartStoreChannelOrders,
+  listUnresolvedSmartStoreOrderActions,
   listSmartStoreReturnDeliveryCompanies,
   rejectSmartStoreReturnClaim,
+  reconcileSmartStoreOrderAction,
   resolveSmartStoreChannelOrderInventory,
   resolveSmartStoreChannelOrderReturn,
   retrySmartStoreChannelOrderInventory,
@@ -31,6 +34,7 @@ import {
   type ListSmartStoreChannelOrdersAttentionReason,
   type RequestSmartStoreSellerCancelRequest,
   type RequestSmartStoreSellerReturnRequest,
+  type ReconcileSmartStoreOrderActionRequest,
   type ResolveSmartStoreInventoryRequest,
   type ResolveSmartStoreReturnRequest,
   type BulkDispatchSmartStoreOrdersRequest,
@@ -55,6 +59,35 @@ export function fetchSmartStoreChannelOrderActions(
   productOrderId: string,
 ) {
   return listSmartStoreChannelOrderActions(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function fetchUnresolvedSmartStoreOrderActions(
+  adminKey: string,
+  cursor?: string,
+) {
+  return listUnresolvedSmartStoreOrderActions(
+    { cursor, size: 20 },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function fetchCurrentSmartStoreOrderStatus(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return getCurrentSmartStoreOrderStatus(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function reconcileSmartStoreOrderActionHistory(
+  adminKey: string,
+  historyId: number,
+  request: ReconcileSmartStoreOrderActionRequest,
+) {
+  return reconcileSmartStoreOrderAction(historyId, request, {
     headers: adminHeaders(adminKey),
   });
 }

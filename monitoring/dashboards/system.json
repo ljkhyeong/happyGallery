@@ -412,6 +412,31 @@
           "legendFormat": "failed revocations"
         }
       ]
+    },
+    {
+      "id": 28,
+      "title": "SmartStore Order Action Reconciliation Backlog",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 128 },
+      "targets": [
+        {
+          "expr": "max(happygallery_smartstore_order_action_reconciliation_backlog_count{application=\"happygallery\"})",
+          "legendFormat": "unresolved actions"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "title": "SmartStore Order Action Reconciliation Oldest Age",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 128 },
+      "targets": [
+        {
+          "expr": "max(happygallery_smartstore_order_action_reconciliation_backlog_oldest_age_seconds{application=\"happygallery\"})",
+          "legendFormat": "oldest unresolved action"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
     }
   ],
   "schemaVersion": 39
