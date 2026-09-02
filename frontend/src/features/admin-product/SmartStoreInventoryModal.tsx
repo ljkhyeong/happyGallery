@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import {
   fetchSmartStoreInventoryMapping,
+  fetchSmartStoreInventoryMappingHistory,
   fetchSmartStoreProduct,
   fetchSmartStoreProducts,
   fetchSmartStoreProductPreview,
@@ -14,6 +15,7 @@ import {
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ApiError } from "@/shared/api";
+import { formatDateTime } from "@/shared/lib";
 import type { ProductResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -29,6 +31,15 @@ const STATUS_LABEL = {
   PROCESSING: "반영 중",
   SYNCED: "동기화 완료",
   FAILED: "확인 필요",
+} as const;
+
+const HISTORY_ACTION_LABEL = {
+  CREATED: "연동 등록",
+  UPDATED: "옵션 연결 수정",
+  ORIGIN_CHANGED: "원상품 변경",
+  ENABLED: "자동 반영 활성화",
+  DISABLED: "자동 반영 비활성화",
+  DELETED: "연동 해제",
 } as const;
 
 export function SmartStoreInventoryModal({
@@ -60,6 +71,11 @@ export function SmartStoreInventoryModal({
     enabled: product !== null,
   });
   const mapping = mappingQuery.data;
+  const historyQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+    queryFn: () => fetchSmartStoreInventoryMappingHistory(adminKey, product!.id),
+    enabled: product !== null,
+  });
   const previousOriginProductNo = mapping?.originProductNo;
   const originChanged = previousOriginProductNo !== undefined
     && validOrigin
@@ -150,6 +166,9 @@ export function SmartStoreInventoryModal({
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+      });
     },
     onError: refreshMappingOnConflict,
   });
@@ -172,11 +191,14 @@ export function SmartStoreInventoryModal({
       mapping!.mappingVersion,
       unlinkConfirmed,
     ),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.setQueryData(
         ["admin", "products", product?.id, "smartstore-inventory"],
         null,
       );
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+      });
       toast.show("스마트스토어 재고 연동을 해제했습니다.");
       onClose();
     },
@@ -221,7 +243,7 @@ export function SmartStoreInventoryModal({
         {(mappingQuery.isLoading || catalogQuery.isLoading || channelProductQuery.isLoading)
           && <LoadingSpinner />}
         <ErrorAlert error={mappingQuery.error ?? catalogQuery.error ?? channelProductQuery.error
-          ?? previewQuery.error ?? saveMutation.error
+          ?? previewQuery.error ?? historyQuery.error ?? saveMutation.error
           ?? retryMutation.error ?? deleteMutation.error ?? applyMutation.error} />
 
         {mapping && (
@@ -489,9 +511,72 @@ export function SmartStoreInventoryModal({
             </Button>
           </div>
         </Form>
+
+        <section className="mt-4 border-top pt-3" aria-labelledby="smartstore-mapping-history-title">
+          <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <div>
+              <h3 id="smartstore-mapping-history-title" className="fs-6 mb-1">최근 변경 이력</h3>
+              <div className="small text-muted-soft">최근 20건의 연동 설정과 처리자를 표시합니다.</div>
+            </div>
+          </div>
+          {historyQuery.isLoading && <LoadingSpinner />}
+          {historyQuery.data?.length === 0 && (
+            <div className="small text-muted-soft py-2">아직 변경 이력이 없습니다.</div>
+          )}
+          {!!historyQuery.data?.length && (
+            <Table responsive size="sm" className="align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>처리</th>
+                  <th>변경 내용</th>
+                  <th>처리자</th>
+                  <th>처리 시각</th>
+                </tr>
+              </thead>
+              <tbody>{historyQuery.data.map((history) => (
+                <tr key={history.id}>
+                  <td className="text-nowrap">{HISTORY_ACTION_LABEL[history.action]}</td>
+                  <td className="small">
+                    <div>{mappingTransition(history.previousOriginProductNo, history.nextOriginProductNo)}</div>
+                    {(history.previousEnabled !== history.nextEnabled) && (
+                      <div className="text-muted-soft">
+                        자동 반영 {enabledLabel(history.previousEnabled)} → {enabledLabel(history.nextEnabled)}
+                      </div>
+                    )}
+                    {(history.previousOptionMappings || history.nextOptionMappings) && (
+                      <div className="text-muted-soft">
+                        옵션 {history.previousOptionMappings ?? "없음"} → {history.nextOptionMappings ?? "없음"}
+                      </div>
+                    )}
+                    {history.previousOriginConfirmed && (
+                      <Badge bg="light" text="dark" className="mt-1">기존 원상품 확인 완료</Badge>
+                    )}
+                  </td>
+                  <td className="text-nowrap small">
+                    {history.changedBy}
+                    {history.changedByAdminId !== null && ` #${history.changedByAdminId}`}
+                  </td>
+                  <td className="text-nowrap small">{formatDateTime(history.changedAt)}</td>
+                </tr>
+              ))}</tbody>
+            </Table>
+          )}
+        </section>
       </Modal.Body>
     </Modal>
   );
+}
+
+function mappingTransition(previous: number | null, next: number | null): string {
+  if (previous === null) return `원상품 ${next} 연동`;
+  if (next === null) return `원상품 ${previous} 연동 해제`;
+  if (previous === next) return `원상품 ${next}`;
+  return `원상품 ${previous} → ${next}`;
+}
+
+function enabledLabel(enabled: boolean | null): string {
+  if (enabled === null) return "미설정";
+  return enabled ? "사용" : "중지";
 }
 
 function variantLabel(product: ProductResponse, variantId: number): string {

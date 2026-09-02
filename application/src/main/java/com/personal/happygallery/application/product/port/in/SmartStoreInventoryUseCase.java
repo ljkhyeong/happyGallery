@@ -1,17 +1,28 @@
 package com.personal.happygallery.application.product.port.in;
 
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
+import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface SmartStoreInventoryUseCase {
 
-    MappingResult saveMapping(Long productId, SaveMappingCommand command);
+    MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor);
+
+    default MappingResult saveMapping(Long productId, SaveMappingCommand command) {
+        return saveMapping(productId, command, MappingActor.system());
+    }
 
     Optional<MappingResult> getMapping(Long productId);
 
-    void deleteMapping(Long productId, DeleteMappingCommand command);
+    void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor);
+
+    default void deleteMapping(Long productId, DeleteMappingCommand command) {
+        deleteMapping(productId, command, MappingActor.system());
+    }
+
+    List<MappingHistoryResult> listMappingHistory(Long productId);
 
     MappingResult retry(Long productId);
 
@@ -52,6 +63,16 @@ public interface SmartStoreInventoryUseCase {
             Long expectedMappingVersion,
             boolean previousOriginConfirmed
     ) {}
+
+    record MappingActor(Long adminUserId, String name) {
+        public MappingActor {
+            name = name == null || name.isBlank() ? "시스템" : name.strip();
+        }
+
+        public static MappingActor system() {
+            return new MappingActor(null, "시스템");
+        }
+    }
 
     record CatalogPageResult(
             List<CatalogProductResult> products,
@@ -111,6 +132,23 @@ public interface SmartStoreInventoryUseCase {
             int attemptCount,
             String lastError,
             LocalDateTime syncedAt
+    ) {}
+
+    record MappingHistoryResult(
+            long id,
+            SmartStoreInventoryMappingAction action,
+            Long previousOriginProductNo,
+            Long nextOriginProductNo,
+            Boolean previousEnabled,
+            Boolean nextEnabled,
+            String previousOptionMappings,
+            String nextOptionMappings,
+            Long previousMappingVersion,
+            Long nextMappingVersion,
+            boolean previousOriginConfirmed,
+            Long changedByAdminId,
+            String changedBy,
+            LocalDateTime changedAt
     ) {}
 
     record ProductPreviewResult(

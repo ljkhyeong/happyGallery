@@ -3,6 +3,7 @@ import {
   changeStatus,
   deleteSmartStoreInventoryMapping,
   getSmartStoreInventoryMapping,
+  listSmartStoreInventoryMappingHistory,
   getSmartStoreProduct,
   listAll,
   listInventoryAdjustments,
@@ -27,6 +28,7 @@ import {
   type ProductResponse,
   type SaveSmartStoreInventoryMappingRequest,
   type SmartStoreInventoryMappingResponse,
+  type SmartStoreInventoryMappingHistoryResponse,
   type SmartStoreChannelProductResponse,
   type SmartStoreProductCatalogPageResponse,
   type SmartStoreProductPreviewResponse,
@@ -97,6 +99,15 @@ export async function fetchSmartStoreInventoryMapping(
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+}
+
+export function fetchSmartStoreInventoryMappingHistory(
+  adminKey: string,
+  productId: number,
+): Promise<SmartStoreInventoryMappingHistoryResponse[]> {
+  return listSmartStoreInventoryMappingHistory(productId, {
+    headers: adminHeaders(adminKey),
+  });
 }
 
 export function fetchSmartStoreProducts(

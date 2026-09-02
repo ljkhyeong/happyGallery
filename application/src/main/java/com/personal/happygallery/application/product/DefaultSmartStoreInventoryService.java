@@ -48,12 +48,12 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public MappingResult saveMapping(Long productId, SaveMappingCommand command) {
+    public MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor) {
         var plan = mappingService.planChange(productId, command);
         if (plan.originChanged()) {
             synchronizePreviousOriginOrders();
         }
-        return mappingService.saveMapping(productId, command);
+        return mappingService.saveMapping(productId, command, actor);
     }
 
     @Override
@@ -64,10 +64,16 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void deleteMapping(Long productId, DeleteMappingCommand command) {
+    public void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor) {
         mappingService.planDelete(productId, command);
         synchronizePreviousOriginOrders();
-        mappingService.deleteMapping(productId, command);
+        mappingService.deleteMapping(productId, command, actor);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MappingHistoryResult> listMappingHistory(Long productId) {
+        return mappingService.listMappingHistory(productId);
     }
 
     @Override

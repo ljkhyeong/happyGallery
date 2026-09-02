@@ -7,10 +7,13 @@ import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
 import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreOrderMappingHistoryPort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
+import com.personal.happygallery.domain.product.SmartStoreOrderMappingHistory;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,6 +30,7 @@ class SmartStoreOrderTransactionService {
 
     private final SmartStoreProductOrderPort orderPort;
     private final SmartStoreStockMappingPort mappingPort;
+    private final SmartStoreOrderMappingHistoryPort orderMappingHistoryPort;
     private final InventoryService inventoryService;
     private final ProductVariantStockService variantStockService;
     private final SmartStoreDeliveryInfoProtector deliveryInfoProtector;
@@ -34,11 +38,13 @@ class SmartStoreOrderTransactionService {
     SmartStoreOrderTransactionService(
             SmartStoreProductOrderPort orderPort,
             SmartStoreStockMappingPort mappingPort,
+            SmartStoreOrderMappingHistoryPort orderMappingHistoryPort,
             InventoryService inventoryService,
             ProductVariantStockService variantStockService,
             SmartStoreDeliveryInfoProtector deliveryInfoProtector) {
         this.orderPort = orderPort;
         this.mappingPort = mappingPort;
+        this.orderMappingHistoryPort = orderMappingHistoryPort;
         this.inventoryService = inventoryService;
         this.variantStockService = variantStockService;
         this.deliveryInfoProtector = deliveryInfoProtector;
@@ -97,7 +103,9 @@ class SmartStoreOrderTransactionService {
         String status = order.getProductOrderStatus();
         boolean canceled = CANCELED_STATUSES.contains(status) || "PAYMENT_WAITING".equals(status);
         if (!canceled && !"RETURNED".equals(status) && !ACTIVE_STOCK_STATUSES.contains(status)) {
-            order.requireAttention(SmartStoreOrderAttentionReason.STATUS_REVIEW);
+            if (ensureMapping(order)) {
+                order.requireAttention(SmartStoreOrderAttentionReason.STATUS_REVIEW);
+            }
             return;
         }
         int targetQuantity = order.targetInventoryQuantity(canceled ? 0 : order.getRemainQuantity());
@@ -110,6 +118,13 @@ class SmartStoreOrderTransactionService {
         if (order.hasMapping()) {
             return true;
         }
+        Optional<SmartStoreOrderMappingHistory> previous = orderMappingHistoryPort.findResolvable(
+                order.getOriginProductNo(), order.getItemNo(), orderReferenceAt(order));
+        if (previous.isPresent()) {
+            SmartStoreOrderMappingHistory found = previous.get();
+            order.mapTo(found.getProductId(), found.getProductVariantId());
+            return true;
+        }
         Optional<SmartStoreStockMapping> mapping = order.getItemNo() == null
                 ? mappingPort.findByOriginProductNoAndProductVariantIdIsNull(order.getOriginProductNo())
                 : mappingPort.findByOriginProductNoAndOptionId(order.getOriginProductNo(), order.getItemNo());
@@ -120,6 +135,10 @@ class SmartStoreOrderTransactionService {
         SmartStoreStockMapping found = mapping.get();
         order.mapTo(found.getProductId(), found.getProductVariantId());
         return true;
+    }
+
+    private static LocalDateTime orderReferenceAt(SmartStoreProductOrder order) {
+        return order.getPaymentDate() == null ? order.getLastChangedAt() : order.getPaymentDate();
     }
 
     private boolean changeAppliedQuantity(SmartStoreProductOrder order, int targetQuantity) {

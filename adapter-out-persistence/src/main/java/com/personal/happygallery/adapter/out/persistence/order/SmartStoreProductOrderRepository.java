@@ -45,10 +45,17 @@ public interface SmartStoreProductOrderRepository
              where channelOrder.attentionReason in :reasons
                and (channelOrder.productId = :productId
                     or (channelOrder.productId is null
-                        and channelOrder.originProductNo in (
-                            select mapping.originProductNo from SmartStoreStockMapping mapping
-                             where mapping.productId = :productId
-                        )))
+                        and (channelOrder.originProductNo in (
+                                select mapping.originProductNo from SmartStoreStockMapping mapping
+                                 where mapping.productId = :productId
+                            )
+                            or exists (
+                                select history.id from SmartStoreOrderMappingHistory history
+                                 where history.productId = :productId
+                                   and history.originProductNo = channelOrder.originProductNo
+                                   and history.closedAt >= coalesce(
+                                       channelOrder.paymentDate, channelOrder.lastChangedAt)
+                            ))))
             """)
     boolean existsInventoryAttentionForProduct(
             @Param("productId") Long productId,

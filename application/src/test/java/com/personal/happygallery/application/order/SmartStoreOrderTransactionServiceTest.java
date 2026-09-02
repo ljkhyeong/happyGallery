@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.out.SmartStoreProductOrd
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreOrderMappingHistoryPort;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
@@ -29,6 +30,7 @@ class SmartStoreOrderTransactionServiceTest {
 
     private SmartStoreProductOrderPort orderPort;
     private SmartStoreStockMappingPort mappingPort;
+    private SmartStoreOrderMappingHistoryPort orderMappingHistoryPort;
     private InventoryService inventoryService;
     private SmartStoreOrderTransactionService service;
 
@@ -36,11 +38,14 @@ class SmartStoreOrderTransactionServiceTest {
     void setUp() {
         orderPort = mock(SmartStoreProductOrderPort.class);
         mappingPort = mock(SmartStoreStockMappingPort.class);
+        orderMappingHistoryPort = mock(SmartStoreOrderMappingHistoryPort.class);
         inventoryService = mock(InventoryService.class);
         service = new SmartStoreOrderTransactionService(
-                orderPort, mappingPort, inventoryService, mock(ProductVariantStockService.class),
+                orderPort, mappingPort, orderMappingHistoryPort,
+                inventoryService, mock(ProductVariantStockService.class),
                 mock(SmartStoreDeliveryInfoProtector.class));
         when(orderPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderMappingHistoryPort.findResolvable(any(), any(), any())).thenReturn(Optional.empty());
     }
 
     @Test

@@ -47,6 +47,7 @@ import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingHistoryResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ProductPreviewResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogPageResult;
@@ -67,6 +68,7 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
+import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
@@ -85,6 +87,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -189,8 +192,23 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 0,
                 null,
                 null);
-        when(smartStoreInventoryUseCase.saveMapping(eq(1L), any())).thenReturn(smartStoreMapping);
+        when(smartStoreInventoryUseCase.saveMapping(eq(1L), any(), any())).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.getMapping(1L)).thenReturn(Optional.of(smartStoreMapping));
+        when(smartStoreInventoryUseCase.listMappingHistory(1L)).thenReturn(List.of(new MappingHistoryResult(
+                21L,
+                SmartStoreInventoryMappingAction.ORIGIN_CHANGED,
+                111111111L,
+                123456789L,
+                true,
+                true,
+                "조합 31 → 옵션 81",
+                "조합 31 → 옵션 91",
+                16L,
+                17L,
+                true,
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 30))));
         when(smartStoreInventoryUseCase.retry(1L)).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.previewProduct(1L)).thenReturn(new ProductPreviewResult(
                 1L, "preview-v1", 123456789L, 35000L, 33000L,
@@ -615,6 +633,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.syncStatus").value("PENDING"));
+        verify(smartStoreInventoryUseCase).saveMapping(
+                eq(1L), any(), argThat(actor ->
+                        actor.adminUserId().equals(ADMIN_USER_ID) && actor.name().equals("admin")));
     }
 
     @Test
@@ -626,6 +647,19 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.originProductNo").value(123456789));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 연동 변경 이력 API를 문서화한다")
+    void admin_list_smartstore_inventory_mapping_history() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products/{id}/smartstore-inventory/history", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].action").value("ORIGIN_CHANGED"))
+                .andExpect(jsonPath("$[0].previousOriginProductNo").value(111111111))
+                .andExpect(jsonPath("$[0].nextOriginProductNo").value(123456789))
+                .andExpect(jsonPath("$[0].changedBy").value("admin"));
     }
 
     @Test
@@ -687,6 +721,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .queryParam("expectedMappingVersion", "17")
                         .queryParam("previousOriginConfirmed", "true"))
                 .andExpect(status().isNoContent());
+        verify(smartStoreInventoryUseCase).deleteMapping(
+                eq(1L), any(), argThat(actor ->
+                        actor.adminUserId().equals(ADMIN_USER_ID) && actor.name().equals("admin")));
     }
 
     @Test

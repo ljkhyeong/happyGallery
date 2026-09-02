@@ -7525,6 +7525,62 @@
         "required" : [ "page", "products", "size", "totalElements", "totalPages" ],
         "type" : "object"
       },
+      "SmartStoreInventoryMappingHistoryResponse" : {
+        "properties" : {
+          "action" : {
+            "enum" : [ "CREATED", "UPDATED", "ORIGIN_CHANGED", "ENABLED", "DISABLED", "DELETED" ],
+            "type" : "string"
+          },
+          "changedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "changedBy" : {
+            "type" : "string"
+          },
+          "changedByAdminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "nextEnabled" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "nextMappingVersion" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "nextOptionMappings" : {
+            "type" : [ "string", "null" ]
+          },
+          "nextOriginProductNo" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "previousEnabled" : {
+            "type" : [ "boolean", "null" ]
+          },
+          "previousMappingVersion" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "previousOptionMappings" : {
+            "type" : [ "string", "null" ]
+          },
+          "previousOriginConfirmed" : {
+            "type" : "boolean"
+          },
+          "previousOriginProductNo" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "action", "changedAt", "changedBy", "changedByAdminId", "id", "nextEnabled", "nextMappingVersion", "nextOptionMappings", "nextOriginProductNo", "previousEnabled", "previousMappingVersion", "previousOptionMappings", "previousOriginConfirmed", "previousOriginProductNo" ],
+        "type" : "object"
+      },
       "SmartStoreInventoryMappingResponse" : {
         "properties" : {
           "attemptCount" : {
@@ -11574,6 +11630,36 @@
               "*/*" : {
                 "schema" : {
                   "$ref" : "#/components/schemas/SmartStoreInventoryMappingResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-product-controller" ]
+      }
+    },
+    "/api/v1/admin/products/{id}/smartstore-inventory/history" : {
+      "get" : {
+        "operationId" : "listSmartStoreInventoryMappingHistory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/SmartStoreInventoryMappingHistoryResponse"
+                  },
+                  "type" : "array"
                 }
               }
             },

@@ -17,6 +17,7 @@ import com.personal.happygallery.adapter.out.persistence.order.SmartStoreProduct
 import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ChangeCursor;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ChangePage;
@@ -27,6 +28,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
@@ -40,6 +42,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.ProductType;
+import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -70,6 +73,7 @@ class SmartStoreProductSyncUseCaseIT {
     @Autowired SmartStoreStockSyncPort stockSyncPort;
     @Autowired SmartStoreProductOrderRepository channelOrderRepository;
     @Autowired SmartStoreChannelOrderUseCase channelOrderUseCase;
+    @Autowired SmartStoreOrderSyncBatchUseCase orderSyncBatchUseCase;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -340,6 +344,68 @@ class SmartStoreProductSyncUseCaseIT {
     }
 
     @Test
+    @DisplayName("원상품 변경 뒤 늦게 도착한 기존 주문도 과거 연결로 재고를 차감한다")
+    void latePreviousOriginOrder_usesPreservedOrderMapping() {
+        Long productId = readyStockMapping();
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        LocalDateTime now = LocalDateTime.now(clock);
+        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                456L, true, List.of(), current.mappingVersion(), true));
+        resetCursor(now.minusMinutes(1), null);
+        when(orderProvider.fetchChanges(any(), any())).thenReturn(new ChangePage(
+                List.of(new ProductOrderChange("late-old-origin", "PAYED", now)), null));
+        when(orderProvider.fetchDetails(List.of("late-old-origin"))).thenReturn(List.of(new ProductOrderDetail(
+                "late-old-origin", "late-order", 123L, null, "늦게 수집한 기존 주문", null, null,
+                "PAYED", null, null, null, null, 1, 1, now.minusMinutes(2), null,
+                null, null, null, null, null, null, null, null, null, List.of())));
+
+        orderSyncBatchUseCase.syncChangedOrders();
+
+        var order = channelOrderRepository.findById("late-old-origin").orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(order.getProductId()).isEqualTo(productId);
+            softly.assertThat(order.getAttentionReason()).isNull();
+            softly.assertThat(order.getInventoryAppliedQuantity()).isEqualTo(1);
+            softly.assertThat(inventoryRepository.findByProductId(productId).orElseThrow().getQuantity())
+                    .isEqualTo(4);
+        });
+    }
+
+    @Test
+    @DisplayName("스마트스토어 연동 등록·원상품 변경·해제 이력에 처리자와 설정 스냅샷을 남긴다")
+    void mappingChanges_areRecordedWithActorAndSnapshots() {
+        var product = productRepository.save(readyStockProduct("연동 이력 상품", 35000L));
+        inventoryRepository.save(inventory(product, 5));
+        Long productId = product.getId();
+        MappingActor actor = new MappingActor(7L, "운영 관리자");
+
+        var created = smartStoreInventoryUseCase.saveMapping(
+                productId, new SaveMappingCommand(123L, true, List.of()), actor);
+        var changed = smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                456L, true, List.of(), created.mappingVersion(), true), actor);
+        smartStoreInventoryUseCase.deleteMapping(
+                productId, new DeleteMappingCommand(changed.mappingVersion(), true), actor);
+
+        var histories = smartStoreInventoryUseCase.listMappingHistory(productId);
+        assertSoftly(softly -> {
+            softly.assertThat(histories).extracting(SmartStoreInventoryUseCase.MappingHistoryResult::action)
+                    .containsExactly(
+                            SmartStoreInventoryMappingAction.DELETED,
+                            SmartStoreInventoryMappingAction.ORIGIN_CHANGED,
+                            SmartStoreInventoryMappingAction.CREATED);
+            softly.assertThat(histories.getFirst().previousOriginProductNo()).isEqualTo(456L);
+            softly.assertThat(histories.getFirst().nextOriginProductNo()).isNull();
+            softly.assertThat(histories.getFirst().previousOriginConfirmed()).isTrue();
+            softly.assertThat(histories.getFirst().changedByAdminId()).isEqualTo(7L);
+            softly.assertThat(histories.getFirst().changedBy()).isEqualTo("운영 관리자");
+            softly.assertThat(histories.get(1).previousOriginProductNo()).isEqualTo(123L);
+            softly.assertThat(histories.get(1).nextOriginProductNo()).isEqualTo(456L);
+            softly.assertThat(histories.get(1).previousMappingVersion()).isEqualTo(created.mappingVersion());
+            softly.assertThat(histories.get(1).nextMappingVersion()).isEqualTo(changed.mappingVersion());
+        });
+    }
+
+    @Test
     @DisplayName("기존 원상품에서 수집한 미매핑 주문이 있으면 원상품 변경을 보류한다")
     void originChange_rejectsUnmappedPreviousOriginOrder() {
         Long productId = readyStockMapping();
@@ -367,9 +433,10 @@ class SmartStoreProductSyncUseCaseIT {
         });
     }
 
-    @Test
-    @DisplayName("기존 원상품에 매핑된 미반영 주문은 원상품 변경 뒤에도 새 재고 전송을 막는다")
-    void mappedAttentionFromPreviousOrigin_blocksCurrentOriginStockSync() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("기존 원상품의 미반영 주문은 내부 상품 매핑 여부와 관계없이 새 재고 전송을 막는다")
+    void attentionFromPreviousOrigin_blocksCurrentOriginStockSync(boolean mapped) {
         Long productId = readyStockMapping();
         smartStoreInventoryUseCase.saveMapping(productId,
                 mappingCommand(productId, 456L, true, List.of()));
@@ -377,7 +444,9 @@ class SmartStoreProductSyncUseCaseIT {
         var order = new SmartStoreProductOrder(
                 "previous-origin-shortage", "previous-order", 123L, null, "기존 원상품 재고 부족", null,
                 "PAYED", null, null, 2, 2, "PAYED", now.minusMinutes(1), now);
-        order.mapTo(productId, null);
+        if (mapped) {
+            order.mapTo(productId, null);
+        }
         order.requireAttention(SmartStoreOrderAttentionReason.STOCK_SHORTAGE);
         channelOrderRepository.save(order);
         when(provider.sync(any())).thenReturn(SyncResult.completed());

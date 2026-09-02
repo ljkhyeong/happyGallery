@@ -7,6 +7,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.InventoryAdjustmentRes
 import com.personal.happygallery.adapter.in.web.admin.dto.ProductResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SaveSmartStoreInventoryMappingRequest;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInventoryMappingResponse;
+import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInventoryMappingHistoryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInspectionPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreProductPreviewResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreChannelProductResponse;
@@ -20,6 +21,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
 import com.personal.happygallery.domain.error.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -111,9 +113,11 @@ public class AdminProductController {
     @Operation(operationId = "saveSmartStoreInventoryMapping")
     public SmartStoreInventoryMappingResponse saveSmartStoreInventoryMapping(
             @PathVariable Long id,
-            @RequestBody @Valid SaveSmartStoreInventoryMappingRequest request) {
+            @RequestBody @Valid SaveSmartStoreInventoryMappingRequest request,
+            @AuthenticationPrincipal AdminPrincipal admin) {
         return SmartStoreInventoryMappingResponse.from(
-                smartStoreInventoryUseCase.saveMapping(id, request.toCommand()));
+                smartStoreInventoryUseCase.saveMapping(
+                        id, request.toCommand(), new MappingActor(admin.auditActorId(), admin.getName())));
     }
 
     @GetMapping("/{id}/smartstore-inventory")
@@ -130,9 +134,21 @@ public class AdminProductController {
     public void deleteSmartStoreInventoryMapping(
             @PathVariable Long id,
             @RequestParam Long expectedMappingVersion,
-            @RequestParam boolean previousOriginConfirmed) {
+            @RequestParam boolean previousOriginConfirmed,
+            @AuthenticationPrincipal AdminPrincipal admin) {
         smartStoreInventoryUseCase.deleteMapping(
-                id, new DeleteMappingCommand(expectedMappingVersion, previousOriginConfirmed));
+                id,
+                new DeleteMappingCommand(expectedMappingVersion, previousOriginConfirmed),
+                new MappingActor(admin.auditActorId(), admin.getName()));
+    }
+
+    @GetMapping("/{id}/smartstore-inventory/history")
+    @Operation(operationId = "listSmartStoreInventoryMappingHistory")
+    public List<SmartStoreInventoryMappingHistoryResponse> listSmartStoreInventoryMappingHistory(
+            @PathVariable Long id) {
+        return smartStoreInventoryUseCase.listMappingHistory(id).stream()
+                .map(SmartStoreInventoryMappingHistoryResponse::from)
+                .toList();
     }
 
     @PostMapping("/{id}/smartstore-inventory/retry")

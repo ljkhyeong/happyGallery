@@ -254,6 +254,24 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     previewVersion: "preview-1",
   }));
   await page.route("**/api/v1/admin/products/1/smartstore-inventory**", async (route) => {
+    if (new URL(route.request().url()).pathname.endsWith("/history")) {
+      return json(route, [{
+        id: 21,
+        action: "ORIGIN_CHANGED",
+        previousOriginProductNo: 111,
+        nextOriginProductNo: 123,
+        previousEnabled: true,
+        nextEnabled: true,
+        previousOptionMappings: null,
+        nextOptionMappings: null,
+        previousMappingVersion: 16,
+        nextMappingVersion: 17,
+        previousOriginConfirmed: true,
+        changedByAdminId: 1,
+        changedBy: "운영자",
+        changedAt: "2026-09-02T14:30:00",
+      }]);
+    }
     if (route.request().method() === "DELETE") {
       deleteParams = Object.fromEntries(new URL(route.request().url()).searchParams);
       return route.fulfill({ status: 204 });
@@ -294,6 +312,8 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
 
   releaseMapping?.();
   await expect(page.getByText("현재 상태:", { exact: false })).toBeVisible();
+  await expect(page.getByText("최근 변경 이력", { exact: true })).toBeVisible();
+  await expect(page.getByText("운영자 #1", { exact: true })).toBeVisible();
   await page.getByText("새 원상품", { exact: true }).click();
   await expect(page.getByText("기존 원상품 123에서 새 원상품 456(으)로 변경합니다.", { exact: false })).toBeVisible();
   await page.getByRole("checkbox", {

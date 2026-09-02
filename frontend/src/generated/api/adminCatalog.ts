@@ -549,6 +549,44 @@ export interface SaveSmartStoreInventoryMappingRequest {
   variants?: SmartStoreVariantMappingRequest[];
 }
 
+export type SmartStoreInventoryMappingHistoryResponseAction = typeof SmartStoreInventoryMappingHistoryResponseAction[keyof typeof SmartStoreInventoryMappingHistoryResponseAction];
+
+
+export const SmartStoreInventoryMappingHistoryResponseAction = {
+  CREATED: 'CREATED',
+  UPDATED: 'UPDATED',
+  ORIGIN_CHANGED: 'ORIGIN_CHANGED',
+  ENABLED: 'ENABLED',
+  DISABLED: 'DISABLED',
+  DELETED: 'DELETED',
+} as const;
+
+export interface SmartStoreInventoryMappingHistoryResponse {
+  action: SmartStoreInventoryMappingHistoryResponseAction;
+  changedAt: string;
+  changedBy: string;
+  /** @nullable */
+  changedByAdminId: number | null;
+  id: number;
+  /** @nullable */
+  nextEnabled: boolean | null;
+  /** @nullable */
+  nextMappingVersion: number | null;
+  /** @nullable */
+  nextOptionMappings: string | null;
+  /** @nullable */
+  nextOriginProductNo: number | null;
+  /** @nullable */
+  previousEnabled: boolean | null;
+  /** @nullable */
+  previousMappingVersion: number | null;
+  /** @nullable */
+  previousOptionMappings: string | null;
+  previousOriginConfirmed: boolean;
+  /** @nullable */
+  previousOriginProductNo: number | null;
+}
+
 export interface OptionPreview {
   /** @nullable */
   channelPrice: number | null;
@@ -1250,6 +1288,27 @@ export const saveSmartStoreInventoryMapping = async (id: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(saveSmartStoreInventoryMappingRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreInventoryMappingHistoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory/history`
+}
+
+export const listSmartStoreInventoryMappingHistory = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingHistoryResponse[]> => {
+
+  return generatedApiClient<SmartStoreInventoryMappingHistoryResponse[]>(getListSmartStoreInventoryMappingHistoryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 
