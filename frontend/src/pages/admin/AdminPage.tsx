@@ -18,6 +18,7 @@ import { BookingCancellationTaskSection } from "@/features/admin-booking/Booking
 import { OrderListSection } from "@/features/admin-order/OrderListSection";
 import { AdminOrderClaimSection } from "@/features/admin-order-claim/AdminOrderClaimSection";
 import { SmartStoreChannelOrderSection } from "@/features/admin-smartstore-order/SmartStoreChannelOrderSection";
+import { SmartStoreOrderReconciliationSection } from "@/features/admin-smartstore-order/SmartStoreOrderReconciliationSection";
 import { FailedRefundSection } from "@/features/admin-refund/FailedRefundSection";
 import { FailedNotificationSection } from "@/features/admin-notification/FailedNotificationSection";
 import { PaymentReconciliationSection } from "@/features/admin-payment-reconciliation/PaymentReconciliationSection";
@@ -169,6 +170,7 @@ export function AdminPage() {
   const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
   const focusedProductId = parsePositiveId(searchParams.get("productId"));
   const focusedVariantId = parsePositiveId(searchParams.get("variantId"));
+  const focusedSmartStoreOrderId = searchParams.get("smartstoreOrderId")?.trim() || undefined;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -212,7 +214,7 @@ export function AdminPage() {
     next.set("view", view);
     [
       "orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId",
-      "productId", "variantId",
+      "productId", "variantId", "smartstoreOrderId",
     ]
       .forEach((name) => next.delete(name));
     setSearchParams(next);
@@ -351,6 +353,12 @@ export function AdminPage() {
               initialStatus="REQUESTED"
             />
           </AdminPanel>
+          <AdminPanel title="스마트스토어 주문 처리 결과 확인">
+            <SmartStoreOrderReconciliationSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+            />
+          </AdminPanel>
           <AdminPanel title="스마트스토어 주문 확인 필요">
             <SmartStoreChannelOrderSection
               adminKey={adminKey}
@@ -395,7 +403,12 @@ export function AdminPage() {
       {activeView === "orders" && (
         <>
           <AdminPanel title="스마트스토어 채널 주문">
-            <SmartStoreChannelOrderSection adminKey={adminKey} onAuthError={handleAuthError} />
+            <SmartStoreChannelOrderSection
+              key={focusedSmartStoreOrderId ?? "smartstore-orders"}
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              focusProductOrderId={focusedSmartStoreOrderId}
+            />
           </AdminPanel>
           <AdminPanel title="스마트스토어 정산 불일치">
             <SmartStoreSettlementIssueSection adminKey={adminKey} onAuthError={handleAuthError} />

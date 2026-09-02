@@ -537,6 +537,52 @@ class DomainInvariantMigrationTest {
                 """)).isInstanceOf(DataAccessException.class);
     }
 
+    @Test
+    @DisplayName("V167·V168은 기존 반품 검수 결과와 차감 수량을 보존하고 누적 반품 수량은 재수집 전까지 미설정으로 둔다")
+    void migrateV167AndV168_preservesCompletedReturnReviews() {
+        flyway("166").migrate();
+        JdbcTemplate jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("""
+                INSERT INTO smartstore_product_orders (
+                    product_order_id, order_id, origin_product_no, product_name,
+                    product_order_status, initial_quantity, remain_quantity,
+                    inventory_applied_quantity, attention_reason, last_changed_type, last_changed_at
+                ) VALUES
+                    ('no-restock', 'o-1', 123, '검수 상품', 'RETURNED', 3, 1, 3, NULL,
+                     'CLAIM_COMPLETED', '2026-08-31 12:00:00'),
+                    ('restocked', 'o-2', 123, '검수 상품', 'RETURNED', 3, 1, 1, NULL,
+                     'CLAIM_COMPLETED', '2026-08-31 12:00:00'),
+                    ('pending', 'o-3', 123, '검수 상품', 'RETURNED', 3, 1, 3, 'RETURN_REVIEW',
+                     'CLAIM_COMPLETED', '2026-08-31 12:00:00'),
+                    ('paid', 'o-4', 123, '검수 상품', 'PAYED', 3, 3, 3, NULL,
+                     'PAYED', '2026-08-31 12:00:00')
+                """);
+        var previousOrders = jdbc.queryForList("""
+                SELECT product_order_id, inventory_applied_quantity, attention_reason, last_changed_at, updated_at
+                FROM smartstore_product_orders ORDER BY product_order_id
+                """);
+
+        flyway("167").migrate();
+        flyway("168").migrate();
+
+        assertThat(jdbc.queryForList("""
+                SELECT return_reviewed_remain_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsExactly(1, null, null, 1);
+        assertThat(jdbc.queryForList("""
+                SELECT completed_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsOnlyNulls();
+        assertThat(jdbc.queryForList("""
+                SELECT reviewed_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsExactly(0, 0, 0, 0);
+        assertThat(jdbc.queryForList("""
+                SELECT restored_return_quantity FROM smartstore_product_orders ORDER BY product_order_id
+                """, Integer.class)).containsExactly(0, 0, 0, 0);
+        assertThat(jdbc.queryForList("""
+                SELECT product_order_id, inventory_applied_quantity, attention_reason, last_changed_at, updated_at
+                FROM smartstore_product_orders ORDER BY product_order_id
+                """)).isEqualTo(previousOrders);
+    }
+
     private long constraintCount(JdbcTemplate jdbc, String table, String constraint) {
         return jdbc.queryForObject("""
                 SELECT COUNT(*)

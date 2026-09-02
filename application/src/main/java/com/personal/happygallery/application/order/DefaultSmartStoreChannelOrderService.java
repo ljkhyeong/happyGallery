@@ -2,12 +2,24 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
+import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.order.SmartStoreOrderAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,26 +27,46 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOrderUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultSmartStoreChannelOrderService.class);
+
     private final SmartStoreProductOrderPort orderPort;
     private final SmartStoreOrderTransactionService transactionService;
     private final SmartStoreOrderProvider orderProvider;
     private final SmartStoreDeliveryInfoProtector deliveryInfoProtector;
+    private final SmartStoreOrderActionHistoryService actionHistoryService;
 
     public DefaultSmartStoreChannelOrderService(
             SmartStoreProductOrderPort orderPort,
             SmartStoreOrderTransactionService transactionService,
             SmartStoreOrderProvider orderProvider,
-            SmartStoreDeliveryInfoProtector deliveryInfoProtector) {
+            SmartStoreDeliveryInfoProtector deliveryInfoProtector,
+            SmartStoreOrderActionHistoryService actionHistoryService) {
         this.orderPort = orderPort;
         this.transactionService = transactionService;
         this.orderProvider = orderProvider;
         this.deliveryInfoProtector = deliveryInfoProtector;
+        this.actionHistoryService = actionHistoryService;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<ChannelOrderResult> list(boolean attentionOnly, int limit) {
-        return orderPort.findRecent(attentionOnly, limit).stream().map(this::result).toList();
+    public CursorPage<ChannelOrderResult> list(
+            boolean attentionOnly,
+            SmartStoreOrderAttentionReason attentionReason,
+            String cursor,
+            int size) {
+        int pageSize = PageParams.requireSize(size);
+        SmartStoreOrderCursor.CursorParam cursorParam = cursor == null
+                ? null : SmartStoreOrderCursor.decode(cursor);
+        List<SmartStoreProductOrder> orders = orderPort.findRecentPage(
+                attentionOnly,
+                attentionReason,
+                cursorParam == null ? null : cursorParam.changedAt(),
+                cursorParam == null ? null : cursorParam.productOrderId(),
+                pageSize + 1);
+        List<ChannelOrderResult> results = orders.stream().map(this::result).toList();
+        return CursorPage.of(results, pageSize, item -> SmartStoreOrderCursor.encode(
+                item.lastChangedAt(), item.productOrderId()));
     }
 
     @Override
@@ -72,148 +104,371 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     }
 
     @Override
-    public ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock) {
-        return result(transactionService.resolveReturn(productOrderId, restoreStock));
+    public ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock, String reviewVersion) {
+        return result(transactionService.resolveReturn(productOrderId, restoreStock, reviewVersion));
+    }
+
+    @Override
+    public ChannelOrderResult resolveInventory(InventoryResolutionCommand command, AdminActor actor) {
+        return result(transactionService.resolveInventory(command, actor));
+    }
+
+    @Override
+    public List<ActionHistoryResult> listActionHistory(String productOrderId) {
+        order(productOrderId);
+        return actionHistoryService.list(productOrderId);
+    }
+
+    @Override
+    public CursorPage<ActionHistoryResult> listUnresolvedActions(String cursor, int size) {
+        return actionHistoryService.listUnresolved(cursor, size);
+    }
+
+    @Override
+    public ActionHistoryResult reconcileAction(
+            long historyId,
+            ReconcileActionCommand command,
+            AdminActor actor) {
+        return actionHistoryService.reconcile(historyId, command.outcome(), command.note(), actor);
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void confirm(String productOrderId) {
+    public CurrentOrderStatusResult currentStatus(String productOrderId) {
         requireEnabled();
-        orderProvider.confirm(productOrderId);
+        SmartStoreOrderProvider.ProductOrderDetail detail = orderProvider.fetchDetails(List.of(productOrderId))
+                .stream()
+                .filter(candidate -> productOrderId.equals(candidate.productOrderId()))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("네이버 스마트스토어 상품 주문"));
+        return new CurrentOrderStatusResult(
+                detail.productOrderId(), detail.productOrderStatus(), detail.placeOrderStatus(),
+                detail.claimType(), detail.claimStatus(), detail.remainQuantity(),
+                detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
+                detail.trackingNumber(), claimDetail(detail.claimDetail()));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public BulkOperationResult confirmAll(List<String> productOrderIds) {
+    public void confirm(String productOrderId, AdminActor actor) {
         requireEnabled();
-        return bulkResult(orderProvider.confirmAll(productOrderIds));
+        executeAudited(
+                productOrderId, SmartStoreOrderAction.ORDER_CONFIRMED, null, actor,
+                () -> orderProvider.confirm(productOrderId));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void dispatch(DispatchCommand command) {
+    public BulkOperationResult confirmAll(List<String> productOrderIds, AdminActor actor) {
         requireEnabled();
-        orderProvider.dispatch(new SmartStoreOrderProvider.DispatchCommand(
+        return executeBulkAudited(
+                productOrderIds,
+                SmartStoreOrderAction.ORDER_CONFIRMED,
+                ignored -> null,
+                actor,
+                () -> orderProvider.confirmAll(productOrderIds));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void dispatch(DispatchCommand command, AdminActor actor) {
+        requireEnabled();
+        executeAudited(
+                command.productOrderId(),
+                SmartStoreOrderAction.ORDER_DISPATCHED,
+                dispatchSummary(command),
+                actor,
+                () -> orderProvider.dispatch(providerCommand(command)));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public BulkOperationResult dispatchAll(List<DispatchCommand> commands, AdminActor actor) {
+        requireEnabled();
+        Map<String, DispatchCommand> commandsById = commands.stream()
+                .collect(Collectors.toMap(
+                        DispatchCommand::productOrderId,
+                        Function.identity(),
+                        (first, ignored) -> first));
+        return executeBulkAudited(
+                commands.stream().map(DispatchCommand::productOrderId).toList(),
+                SmartStoreOrderAction.ORDER_DISPATCHED,
+                productOrderId -> dispatchSummary(commandsById.get(productOrderId)),
+                actor,
+                () -> orderProvider.dispatchAll(commands.stream()
+                        .map(DefaultSmartStoreChannelOrderService::providerCommand)
+                        .toList()));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void delay(DelayCommand command, AdminActor actor) {
+        requireEnabled();
+        executeAudited(
+                command.productOrderId(), SmartStoreOrderAction.ORDER_DELAYED,
+                "발송 기한 %s, 사유 코드 %s, 상세 사유 %s".formatted(
+                        command.dispatchDueDate(), command.reasonCode(), command.detailedReason()),
+                actor,
+                () -> orderProvider.delay(new SmartStoreOrderProvider.DelayCommand(
+                        command.productOrderId(), command.dispatchDueDate(), command.reasonCode(),
+                        command.detailedReason())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void approveCancel(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.CANCEL_APPROVED, null, actor,
+                () -> orderProvider.approveCancel(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void approveReturn(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.RETURN_APPROVED, null, actor,
+                () -> orderProvider.approveReturn(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void rejectReturn(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.RETURN_REJECTED, null, actor,
+                () -> orderProvider.rejectReturn(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void holdReturn(ReturnHoldCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.RETURN_HELD,
+                "보류 사유 %s, 상세 사유 %s, 추가 반품비 %s".formatted(
+                        command.holdbackClassType(), command.detailedReason(),
+                        command.extraReturnFeeAmount()),
+                actor,
+                () -> orderProvider.holdReturn(new SmartStoreOrderProvider.ReturnHoldCommand(
+                        command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
+                        command.extraReturnFeeAmount())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void releaseReturnHold(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.RETURN_HOLD_RELEASED, null, actor,
+                () -> orderProvider.releaseReturnHold(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void requestSellerReturn(SellerReturnCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.RETURN_REQUESTED,
+                "반품 사유 %s, 수거 방법 %s, 수거 택배사 %s, 운송장 %s, 수량 %s".formatted(
+                        command.returnReason(), command.collectDeliveryMethod(),
+                        command.collectDeliveryCompany(), command.collectTrackingNumber(),
+                        command.returnQuantity()),
+                actor,
+                () -> orderProvider.requestSellerReturn(new SmartStoreOrderProvider.SellerReturnCommand(
+                        command.productOrderId(), command.returnReason(), command.collectDeliveryMethod(),
+                        command.collectDeliveryCompany(), command.collectTrackingNumber(),
+                        command.returnQuantity())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void dispatchExchange(ExchangeDispatchCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.EXCHANGE_DISPATCHED,
+                "배송 방법 %s, 택배사 %s, 운송장 %s".formatted(
+                        command.deliveryMethod(), command.deliveryCompanyCode(), command.trackingNumber()),
+                actor,
+                () -> orderProvider.dispatchExchange(new SmartStoreOrderProvider.ExchangeDispatchCommand(
+                        command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
+                        command.trackingNumber())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void completeExchangeCollect(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.EXCHANGE_COLLECTION_COMPLETED, null, actor,
+                () -> orderProvider.completeExchangeCollect(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void rejectExchange(ExchangeRejectCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.EXCHANGE_REJECTED,
+                "거절 사유 %s".formatted(command.reason()), actor,
+                () -> orderProvider.rejectExchange(new SmartStoreOrderProvider.ExchangeRejectCommand(
+                        command.productOrderId(), command.reason())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void holdExchange(ExchangeHoldCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.EXCHANGE_HELD,
+                "보류 사유 %s, 상세 사유 %s, 추가 교환비 %s".formatted(
+                        command.holdbackClassType(), command.detailedReason(),
+                        command.extraExchangeFeeAmount()),
+                actor,
+                () -> orderProvider.holdExchange(new SmartStoreOrderProvider.ExchangeHoldCommand(
+                        command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
+                        command.extraExchangeFeeAmount())));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void releaseExchangeHold(String productOrderId, AdminActor actor) {
+        executeEnabledAction(
+                productOrderId, SmartStoreOrderAction.EXCHANGE_HOLD_RELEASED, null, actor,
+                () -> orderProvider.releaseExchangeHold(productOrderId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.NEVER)
+    public void requestSellerCancel(SellerCancelCommand command, AdminActor actor) {
+        executeEnabledAction(
+                command.productOrderId(), SmartStoreOrderAction.CANCEL_REQUESTED,
+                "취소 사유 %s, 상세 사유 %s, 수량 %s".formatted(
+                        command.reason(), command.detailedReason(), command.quantity()),
+                actor,
+                () -> orderProvider.requestSellerCancel(new SmartStoreOrderProvider.SellerCancelCommand(
+                        command.productOrderId(), command.reason(), command.detailedReason(),
+                        command.quantity())));
+    }
+
+    private void executeEnabledAction(
+            String productOrderId,
+            SmartStoreOrderAction action,
+            String requestSummary,
+            AdminActor actor,
+            Runnable operation) {
+        requireEnabled();
+        executeAudited(productOrderId, action, requestSummary, actor, operation);
+    }
+
+    private void executeAudited(
+            String productOrderId,
+            SmartStoreOrderAction action,
+            String requestSummary,
+            AdminActor actor,
+            Runnable operation) {
+        long historyId = actionHistoryService.start(productOrderId, action, requestSummary, actor);
+        try {
+            operation.run();
+            completeAudit(() -> actionHistoryService.succeed(historyId), historyId);
+        } catch (RuntimeException exception) {
+            completeFailureAudit(historyId, exception);
+            if (!isClassifiedOperationFailure(exception)) {
+                log.error(
+                        "스마트스토어 주문 처리 중 예상하지 못한 오류: productOrderId={}, action={}",
+                        productOrderId, action, exception);
+            }
+            throw operationFailure(exception);
+        }
+    }
+
+    private BulkOperationResult executeBulkAudited(
+            List<String> productOrderIds,
+            SmartStoreOrderAction action,
+            Function<String, String> summary,
+            AdminActor actor,
+            Operation operation) {
+        List<StartedAction> started = productOrderIds.stream()
+                .map(productOrderId -> new StartedAction(
+                        productOrderId,
+                        actionHistoryService.start(productOrderId, action, summary.apply(productOrderId), actor)))
+                .toList();
+        SmartStoreOrderProvider.OperationResult result;
+        try {
+            result = operation.execute();
+        } catch (RuntimeException exception) {
+            started.forEach(item -> completeFailureAudit(item.historyId(), exception));
+            if (!isClassifiedOperationFailure(exception)) {
+                log.error(
+                        "스마트스토어 주문 일괄 처리 중 예상하지 못한 오류: productOrderIds={}, action={}",
+                        productOrderIds, action, exception);
+            }
+            throw operationFailure(exception);
+        }
+
+        Map<String, SmartStoreOrderProvider.OperationFailure> failures = result.failures().stream()
+                .collect(Collectors.toMap(
+                        SmartStoreOrderProvider.OperationFailure::productOrderId,
+                        Function.identity(),
+                        (first, ignored) -> first));
+        started.forEach(item -> {
+            SmartStoreOrderProvider.OperationFailure failure = failures.get(item.productOrderId());
+            if (failure == null) {
+                completeAudit(() -> actionHistoryService.succeed(item.historyId()), item.historyId());
+            } else if ("UNKNOWN_RESULT".equals(failure.code())) {
+                completeAudit(
+                        () -> actionHistoryService.markResultUnknown(item.historyId(), failure.message()),
+                        item.historyId());
+            } else {
+                completeAudit(
+                        () -> actionHistoryService.reject(
+                                item.historyId(), failure.code(), failure.message()),
+                        item.historyId());
+            }
+        });
+        return bulkResult(result);
+    }
+
+    private void completeFailureAudit(long historyId, RuntimeException exception) {
+        completeAudit(() -> {
+            if (exception instanceof OperationNotSentException notSent) {
+                actionHistoryService.markNotSent(historyId, notSent.code(), notSent.getMessage());
+            } else if (exception instanceof OperationRejectedException rejected) {
+                actionHistoryService.reject(historyId, rejected.code(), rejected.getMessage());
+            } else if (exception instanceof OperationResultUnknownException unknown) {
+                actionHistoryService.markResultUnknown(historyId, unknown.getMessage());
+            } else {
+                actionHistoryService.markResultUnknown(
+                        historyId, "예상하지 못한 오류로 처리 결과를 확인할 수 없습니다.");
+            }
+        }, historyId);
+    }
+
+    private static HappyGalleryException operationFailure(RuntimeException exception) {
+        if (exception instanceof OperationNotSentException) {
+            return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_NOT_SENT);
+        }
+        if (exception instanceof OperationRejectedException) {
+            return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_REJECTED);
+        }
+        return new HappyGalleryException(ErrorCode.SMARTSTORE_OPERATION_RESULT_UNKNOWN);
+    }
+
+    private static boolean isClassifiedOperationFailure(RuntimeException exception) {
+        return exception instanceof OperationNotSentException
+                || exception instanceof OperationRejectedException
+                || exception instanceof OperationResultUnknownException;
+    }
+
+    private static SmartStoreOrderProvider.DispatchCommand providerCommand(DispatchCommand command) {
+        return new SmartStoreOrderProvider.DispatchCommand(
                 command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
-                command.trackingNumber(), command.dispatchDate()));
+                command.trackingNumber(), command.dispatchDate());
     }
 
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public BulkOperationResult dispatchAll(List<DispatchCommand> commands) {
-        requireEnabled();
-        return bulkResult(orderProvider.dispatchAll(commands.stream()
-                .map(command -> new SmartStoreOrderProvider.DispatchCommand(
-                        command.productOrderId(), command.deliveryMethod(),
-                        command.deliveryCompanyCode(), command.trackingNumber(),
-                        command.dispatchDate()))
-                .toList()));
+    private static String dispatchSummary(DispatchCommand command) {
+        return "배송 방법 %s, 택배사 %s, 운송장 %s, 발송일 %s".formatted(
+                command.deliveryMethod(), command.deliveryCompanyCode(),
+                command.trackingNumber(), command.dispatchDate());
     }
 
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void delay(DelayCommand command) {
-        requireEnabled();
-        orderProvider.delay(new SmartStoreOrderProvider.DelayCommand(
-                command.productOrderId(), command.dispatchDueDate(), command.reasonCode(),
-                command.detailedReason()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void approveCancel(String productOrderId) {
-        requireEnabled();
-        orderProvider.approveCancel(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void approveReturn(String productOrderId) {
-        requireEnabled();
-        orderProvider.approveReturn(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void rejectReturn(String productOrderId) {
-        requireEnabled();
-        orderProvider.rejectReturn(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void holdReturn(ReturnHoldCommand command) {
-        requireEnabled();
-        orderProvider.holdReturn(new SmartStoreOrderProvider.ReturnHoldCommand(
-                command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
-                command.extraReturnFeeAmount()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void releaseReturnHold(String productOrderId) {
-        requireEnabled();
-        orderProvider.releaseReturnHold(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void requestSellerReturn(SellerReturnCommand command) {
-        requireEnabled();
-        orderProvider.requestSellerReturn(new SmartStoreOrderProvider.SellerReturnCommand(
-                command.productOrderId(), command.returnReason(), command.collectDeliveryMethod(),
-                command.collectDeliveryCompany(), command.collectTrackingNumber(),
-                command.returnQuantity()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void dispatchExchange(ExchangeDispatchCommand command) {
-        requireEnabled();
-        orderProvider.dispatchExchange(new SmartStoreOrderProvider.ExchangeDispatchCommand(
-                command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
-                command.trackingNumber()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void completeExchangeCollect(String productOrderId) {
-        requireEnabled();
-        orderProvider.completeExchangeCollect(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void rejectExchange(ExchangeRejectCommand command) {
-        requireEnabled();
-        orderProvider.rejectExchange(new SmartStoreOrderProvider.ExchangeRejectCommand(
-                command.productOrderId(), command.reason()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void holdExchange(ExchangeHoldCommand command) {
-        requireEnabled();
-        orderProvider.holdExchange(new SmartStoreOrderProvider.ExchangeHoldCommand(
-                command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
-                command.extraExchangeFeeAmount()));
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void releaseExchangeHold(String productOrderId) {
-        requireEnabled();
-        orderProvider.releaseExchangeHold(productOrderId);
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.NEVER)
-    public void requestSellerCancel(SellerCancelCommand command) {
-        requireEnabled();
-        orderProvider.requestSellerCancel(new SmartStoreOrderProvider.SellerCancelCommand(
-                command.productOrderId(), command.reason(), command.detailedReason(),
-                command.quantity()));
+    private static void completeAudit(Runnable completion, long historyId) {
+        try {
+            completion.run();
+        } catch (RuntimeException exception) {
+            log.error("스마트스토어 주문 처리 이력 완료 저장 실패: historyId={}", historyId, exception);
+        }
     }
 
     private ClaimDetail currentClaimDetail(String productOrderId) {
@@ -223,9 +478,13 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         SmartStoreOrderProvider.ClaimDetail claim = orderProvider.fetchDetails(List.of(productOrderId))
                 .stream()
                 .filter(detail -> productOrderId.equals(detail.productOrderId()))
-                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .findFirst()
+                .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .orElse(null);
+        return claimDetail(claim);
+    }
+
+    private static ClaimDetail claimDetail(SmartStoreOrderProvider.ClaimDetail claim) {
         return claim == null ? null : new ClaimDetail(
                 claim.claimId(), claim.claimType(), claim.claimStatus(), claim.reason(),
                 claim.detailedReason(), claim.requestQuantity(), claim.requestedAt(),
@@ -249,8 +508,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         return new HappyGalleryException(ErrorCode.CONFLICT, message);
     }
 
-    private static BulkOperationResult bulkResult(
-            SmartStoreOrderProvider.OperationResult result) {
+    private static BulkOperationResult bulkResult(SmartStoreOrderProvider.OperationResult result) {
         return new BulkOperationResult(
                 result.successProductOrderIds(),
                 result.failures().stream()
@@ -266,6 +524,15 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 order.getProductName(), order.getProductOption(), order.getProductOrderStatus(),
                 order.getClaimType(), order.getClaimStatus(), order.getInitialQuantity(),
                 order.getRemainQuantity(), order.getInventoryAppliedQuantity(),
-                order.getAttentionReason(), order.getPaymentDate(), order.getLastChangedAt());
+                order.getAttentionReason(), order.getPaymentDate(), order.getLastChangedAt(),
+                order.pendingReturnQuantity(), order.returnReviewVersion(),
+                order.inventoryResolutionVersion());
     }
+
+    @FunctionalInterface
+    private interface Operation {
+        SmartStoreOrderProvider.OperationResult execute();
+    }
+
+    private record StartedAction(String productOrderId, long historyId) {}
 }

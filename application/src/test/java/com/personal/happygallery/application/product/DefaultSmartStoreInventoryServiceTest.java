@@ -1,10 +1,8 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.product.SmartStoreStockSyncTransactionService.ProductSyncSnapshot;
-import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
-import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
-import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
@@ -29,10 +27,12 @@ class DefaultSmartStoreInventoryServiceTest {
                 mock(SmartStoreStockSyncTransactionService.class);
         when(provider.isEnabled()).thenReturn(true);
         when(transactionService.productSnapshot(1L)).thenReturn(new ProductSyncSnapshot(
-                1L, 4L, 123L, 35000L, "SALE", 3, List.of()));
+                1L, 4L, 123L, 35000L, "SALE", 3, List.of(), List.of(10L)));
         var service = service(provider, transactionService);
+        String previousVersion = new ProductSyncSnapshot(
+                1L, 3L, 123L, 35000L, "SALE", 3, List.of(), List.of(10L)).previewVersion();
 
-        assertThatThrownBy(() -> service.applyProduct(1L, 3L))
+        assertThatThrownBy(() -> service.applyProduct(1L, previousVersion))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessageContaining("최신 차이");
         verify(provider, never()).applyProduct(any());
@@ -41,14 +41,14 @@ class DefaultSmartStoreInventoryServiceTest {
     private static DefaultSmartStoreInventoryService service(
             SmartStoreInventoryProvider provider,
             SmartStoreStockSyncTransactionService transactionService) {
+        SmartStoreOrderSyncBatchUseCase orderSyncUseCase = mock(SmartStoreOrderSyncBatchUseCase.class);
+        when(orderSyncUseCase.synchronizeBeforeStock()).thenReturn(true);
         return new DefaultSmartStoreInventoryService(
-                mock(ProductReaderPort.class),
-                mock(ProductOptionConfigurationService.class),
-                mock(SmartStoreStockMappingPort.class),
-                mock(SmartStoreStockSyncPort.class),
+                mock(SmartStoreInventoryMappingService.class),
                 mock(SmartStoreStockSyncQueuePort.class),
                 provider,
                 transactionService,
+                orderSyncUseCase,
                 Clock.systemUTC());
     }
 }

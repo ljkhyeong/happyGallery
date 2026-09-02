@@ -53,7 +53,7 @@ class SmartStoreSettlementTransactionServiceTest {
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, null,
                 "PURCHASE_DECIDED", "OK", null, null, 1, 1, "PURCHASE_DECIDED",
                 changedAt.minusDays(2), changedAt, null, "DELIVERY", "CJ대한통운", "1234",
-                70000L, 70000L, 1000L, 2000L, 0L, expectedSettlementAmount);
+                70000L, 70000L, 1000L, 2000L, 0L, expectedSettlementAmount, 0);
     }
 
     private static SettlementItem item(long expectedSettlementAmount) {

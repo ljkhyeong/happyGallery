@@ -32,11 +32,14 @@ import com.personal.happygallery.application.booking.port.in.SlotManagementUseCa
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ActionHistoryResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DeliveryInfo;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ClaimDetail;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.CurrentOrderStatusResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.CustomerInquiryResult;
@@ -47,6 +50,7 @@ import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingHistoryResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ProductPreviewResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogPageResult;
@@ -59,13 +63,20 @@ import com.personal.happygallery.domain.booking.BookingCalendarSettings;
 import com.personal.happygallery.domain.booking.BookingDayAvailability;
 import com.personal.happygallery.domain.booking.BookingTimeBlock;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
+import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
+import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderActionStatus;
+import com.personal.happygallery.domain.order.SmartStoreOrderReconciliationOutcome;
 import com.personal.happygallery.domain.store.WorkshopProfile;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
@@ -75,12 +86,15 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -177,6 +191,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(inventoryAdjustment));
         MappingResult smartStoreMapping = new MappingResult(
                 1L,
+                17L,
                 123456789L,
                 true,
                 List.of(),
@@ -184,11 +199,26 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 0,
                 null,
                 null);
-        when(smartStoreInventoryUseCase.saveMapping(eq(1L), any())).thenReturn(smartStoreMapping);
+        when(smartStoreInventoryUseCase.saveMapping(eq(1L), any(), any())).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.getMapping(1L)).thenReturn(Optional.of(smartStoreMapping));
+        when(smartStoreInventoryUseCase.listMappingHistory(1L)).thenReturn(List.of(new MappingHistoryResult(
+                21L,
+                SmartStoreInventoryMappingAction.ORIGIN_CHANGED,
+                111111111L,
+                123456789L,
+                true,
+                true,
+                "조합 31 → 옵션 81",
+                "조합 31 → 옵션 91",
+                16L,
+                17L,
+                true,
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 30))));
         when(smartStoreInventoryUseCase.retry(1L)).thenReturn(smartStoreMapping);
         when(smartStoreInventoryUseCase.previewProduct(1L)).thenReturn(new ProductPreviewResult(
-                1L, 0L, 123456789L, 35000L, 33000L,
+                1L, "preview-v1", 123456789L, 35000L, 33000L,
                 "SALE", "SALE", true, List.of()));
         when(smartStoreInventoryUseCase.listChannelProducts(1, 100))
                 .thenReturn(new CatalogPageResult(
@@ -207,15 +237,71 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 "RETURN", "RETURN_DONE", 2, 0, 2,
                 SmartStoreOrderAttentionReason.RETURN_REVIEW,
                 LocalDateTime.of(2026, 8, 29, 11, 58),
-                LocalDateTime.of(2026, 8, 29, 12, 0));
-        when(smartStoreChannelOrderUseCase.list(false, 100))
-                .thenReturn(List.of(smartStoreOrder));
+                LocalDateTime.of(2026, 8, 29, 12, 0), 2, "R2:0", "resolution-v1");
+        when(smartStoreChannelOrderUseCase.list(false, null, null, 50))
+                .thenReturn(new CursorPage<>(List.of(smartStoreOrder), "next-order-cursor", true));
+        when(smartStoreChannelOrderUseCase.list(
+                true, SmartStoreOrderAttentionReason.STOCK_SHORTAGE, "order-cursor", 25))
+                .thenReturn(new CursorPage<>(List.of(smartStoreOrder), null, false));
         when(smartStoreChannelOrderUseCase.listReturnDeliveryCompanies())
                 .thenReturn(List.of(new ReturnDeliveryCompanyResult(1001L, "CJ대한통운", "PRIMARY")));
         when(smartStoreChannelOrderUseCase.retryInventory("2026082912345678"))
                 .thenReturn(smartStoreOrder);
-        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true))
+        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true, "R2:0"))
+                .thenReturn(new ChannelOrderResult(
+                        "2026082912345678", "2026082911111111", 123456789L, 90001L,
+                        1L, 31L, "각인 카드지갑", "색상: 브라운", "RETURNED",
+                        "RETURN", "RETURN_DONE", 2, 0, 0, null,
+                        LocalDateTime.of(2026, 8, 29, 11, 58),
+                        LocalDateTime.of(2026, 8, 29, 12, 0), 0, "R2:2", "resolution-v2"));
+        when(smartStoreChannelOrderUseCase.resolveInventory(any(), any()))
                 .thenReturn(smartStoreOrder);
+        when(smartStoreChannelOrderUseCase.listActionHistory("2026082912345678"))
+                .thenReturn(List.of(new ActionHistoryResult(
+                        71L,
+                        "2026082912345678",
+                        SmartStoreOrderAction.INVENTORY_RESOLVED,
+                        SmartStoreOrderActionStatus.SUCCEEDED,
+                        "상품 1, 옵션 조합 31, 재고 결정 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
+                        null,
+                        null,
+                        ADMIN_USER_ID,
+                        "admin",
+                        LocalDateTime.of(2026, 9, 2, 14, 30),
+                        LocalDateTime.of(2026, 9, 2, 14, 30),
+                        null, null, null, null, null)));
+        ActionHistoryResult unresolvedAction = new ActionHistoryResult(
+                72L,
+                "2026082912345678",
+                SmartStoreOrderAction.ORDER_DISPATCHED,
+                SmartStoreOrderActionStatus.RESULT_UNKNOWN,
+                "배송 방법 DELIVERY, 택배사 CJGLS, 운송장 1234567890, 발송일 2026-09-02T14:30",
+                "RESULT_UNKNOWN",
+                "네이버 응답에서 처리 결과를 확인할 수 없습니다.",
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 30),
+                LocalDateTime.of(2026, 9, 2, 14, 30),
+                null, null, null, null, null);
+        when(smartStoreChannelOrderUseCase.listUnresolvedActions("action-cursor", 20))
+                .thenReturn(new CursorPage<>(List.of(unresolvedAction), null, false));
+        ActionHistoryResult reconciledAction = new ActionHistoryResult(
+                unresolvedAction.id(), unresolvedAction.productOrderId(), unresolvedAction.action(),
+                unresolvedAction.status(), unresolvedAction.requestSummary(), unresolvedAction.resultCode(),
+                unresolvedAction.resultMessage(), unresolvedAction.changedByAdminId(),
+                unresolvedAction.changedBy(), unresolvedAction.requestedAt(), unresolvedAction.completedAt(),
+                SmartStoreOrderReconciliationOutcome.APPLIED,
+                "네이버 주문 상세에서 발송 완료와 운송장 번호를 확인",
+                ADMIN_USER_ID,
+                "admin",
+                LocalDateTime.of(2026, 9, 2, 14, 40));
+        when(smartStoreChannelOrderUseCase.reconcileAction(eq(72L), any(), any()))
+                .thenReturn(reconciledAction);
+        when(smartStoreChannelOrderUseCase.currentStatus("2026082912345678"))
+                .thenReturn(new CurrentOrderStatusResult(
+                        "2026082912345678", "DELIVERING", "OK", null, null, 2,
+                        LocalDateTime.of(2026, 9, 3, 18, 0), "DELIVERY",
+                        "CJ대한통운", "1234567890", null));
         when(smartStoreChannelOrderUseCase.detail("2026082912345678"))
                 .thenReturn(new ChannelOrderDetailResult(
                         smartStoreOrder,
@@ -597,11 +683,17 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                 {
                                   "originProductNo": 123456789,
                                   "enabled": true,
+                                  "expectedMappingVersion": 17,
+                                  "previousOriginConfirmed": false,
                                   "variants": []
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.syncStatus").value("PENDING"));
+        verify(smartStoreInventoryUseCase).saveMapping(
+                eq(1L), any(), argThat(actor ->
+                        actor.adminUserId().equals(ADMIN_USER_ID) && actor.name().equals("admin")));
     }
 
     @Test
@@ -611,7 +703,21 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mappingVersion").value(17))
                 .andExpect(jsonPath("$.originProductNo").value(123456789));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 재고 연동 변경 이력 API를 문서화한다")
+    void admin_list_smartstore_inventory_mapping_history() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/products/{id}/smartstore-inventory/history", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].action").value("ORIGIN_CHANGED"))
+                .andExpect(jsonPath("$[0].previousOriginProductNo").value(111111111))
+                .andExpect(jsonPath("$[0].nextOriginProductNo").value(123456789))
+                .andExpect(jsonPath("$[0].changedBy").value("admin"));
     }
 
     @Test
@@ -631,13 +737,21 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.previewVersion").value("preview-v1"))
                 .andExpect(jsonPath("$.different").value(true));
         mockMvc.perform(post("/api/v1/admin/products/{id}/smartstore-product-sync", 1L)
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"productVersion\":0}"))
+                        .content("{\"previewVersion\":\"preview-v1\"}"))
                 .andExpect(status().isNoContent());
+
+        mockMvc.perform(post("/api/v1/admin/products/{id}/smartstore-product-sync", 1L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"productVersion\":0}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -661,8 +775,13 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     void admin_delete_smartstore_inventory_mapping() throws Exception {
         mockMvc.perform(delete("/api/v1/admin/products/{id}/smartstore-inventory", 1L)
                         .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token"))
+                        .header("Authorization", "Bearer admin-session-token")
+                        .queryParam("expectedMappingVersion", "17")
+                        .queryParam("previousOriginConfirmed", "true"))
                 .andExpect(status().isNoContent());
+        verify(smartStoreInventoryUseCase).deleteMapping(
+                eq(1L), any(), argThat(actor ->
+                        actor.adminUserId().equals(ADMIN_USER_ID) && actor.name().equals("admin")));
     }
 
     @Test
@@ -672,7 +791,121 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].attentionReason").value("RETURN_REVIEW"));
+                .andExpect(jsonPath("$.content[0].attentionReason").value("RETURN_REVIEW"))
+                .andExpect(jsonPath("$.nextCursor").value("next-order-cursor"))
+                .andExpect(jsonPath("$.hasMore").value(true));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 확인 대상 주문의 사유 필터와 커서 API를 문서화한다")
+    void admin_list_smartstore_attention_orders_with_reason_and_cursor() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .queryParam("attentionOnly", "true")
+                        .queryParam("attentionReason", "STOCK_SHORTAGE")
+                        .queryParam("cursor", "order-cursor")
+                        .queryParam("size", "25"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].productOrderId").value("2026082912345678"))
+                .andExpect(jsonPath("$.nextCursor").doesNotExist())
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 수동 재고 결정 API를 문서화한다")
+    void admin_resolve_smartstore_order_inventory() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "productId":1,
+                                  "productVariantId":31,
+                                  "action":"APPLY_REMAINING",
+                                  "reason":"스마트스토어 옵션과 내부 옵션 조합을 확인",
+                                  "resolutionVersion":"resolution-v1"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inventoryResolutionVersion").value("resolution-v1"));
+
+        verify(smartStoreChannelOrderUseCase).resolveInventory(
+                argThat(command -> command.productOrderId().equals("2026082912345678")
+                        && command.productId().equals(1L)
+                        && command.productVariantId().equals(31L)
+                        && command.action() == SmartStoreInventoryResolutionAction.APPLY_REMAINING
+                        && command.reason().equals("스마트스토어 옵션과 내부 옵션 조합을 확인")
+                        && command.expectedResolutionVersion().equals("resolution-v1")),
+                argThat(actor -> actor.adminUserId().equals(ADMIN_USER_ID)
+                        && actor.name().equals("admin")));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 처리 이력 조회 API를 문서화한다")
+    void admin_list_smartstore_order_action_history() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/{productOrderId}/actions",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].action").value("INVENTORY_RESOLVED"))
+                .andExpect(jsonPath("$[0].status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$[0].changedBy").value("admin"));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 미확정 주문 처리 목록 API를 문서화한다")
+    void admin_list_unresolved_smartstore_order_actions() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/actions/unresolved")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .queryParam("cursor", "action-cursor")
+                        .queryParam("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].productOrderId").value("2026082912345678"))
+                .andExpect(jsonPath("$.content[0].status").value("RESULT_UNKNOWN"))
+                .andExpect(jsonPath("$.hasMore").value(false));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문 처리 대사 API를 문서화한다")
+    void admin_reconcile_smartstore_order_action() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation", 72L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "outcome":"APPLIED",
+                                  "note":"네이버 주문 상세에서 발송 완료와 운송장 번호를 확인"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reconciliationOutcome").value("APPLIED"))
+                .andExpect(jsonPath("$.reconciledBy").value("admin"));
+
+        verify(smartStoreChannelOrderUseCase).reconcileAction(
+                eq(72L),
+                argThat(command -> command.outcome() == SmartStoreOrderReconciliationOutcome.APPLIED
+                        && command.note().equals("네이버 주문 상세에서 발송 완료와 운송장 번호를 확인")),
+                argThat(actor -> actor.adminUserId().equals(ADMIN_USER_ID)
+                        && actor.name().equals("admin")));
+    }
+
+    @Test
+    @DisplayName("관리자 스마트스토어 주문의 네이버 현재 상태 조회 API를 문서화한다")
+    void admin_get_current_smartstore_order_status() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/smartstore-orders/{productOrderId}/current-status",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.productOrderStatus").value("DELIVERING"))
+                .andExpect(jsonPath("$.deliveryCompany").value("CJ대한통운"))
+                .andExpect(jsonPath("$.trackingNumber").value("1234567890"));
     }
 
     @Test
@@ -693,8 +926,39 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         .with(adminUser())
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"restoreStock\":true}"))
-                .andExpect(status().isOk());
+                        .content("{\"restoreStock\":true,\"reviewVersion\":\"R2:0\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pendingReturnQuantity").value(0))
+                .andExpect(jsonPath("$.returnReviewVersion").value("R2:2"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"restoreStock\":true}", "{\"restoreStock\":false,\"reviewVersion\":\" \"}"})
+    @DisplayName("반품 검수 확인값이 없거나 공백이면 요청을 거절한다")
+    void admin_resolve_smartstore_return_requires_review_version(String request) throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("반품 검수 대상이 바뀌면 충돌 응답을 반환한다")
+    void admin_resolve_smartstore_return_rejects_changed_review_version() throws Exception {
+        when(smartStoreChannelOrderUseCase.resolveReturn("2026082912345678", true, "R1:0"))
+                .thenThrow(new HappyGalleryException(ErrorCode.CONFLICT,
+                        "반품 검수 대상이 변경되었습니다. 최신 수량을 다시 확인해 주세요."));
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/return-resolution",
+                        "2026082912345678")
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"restoreStock\":true,\"reviewVersion\":\"R1:0\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
     }
 
     @Test

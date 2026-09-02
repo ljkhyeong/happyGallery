@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-08-31
+**갱신**: 2026-09-02
 
 ---
 
@@ -146,13 +146,25 @@
   - 관리자 수동 조정은 `inventory` 행 잠금 안에서 수량 변경과 이력 저장을 같은 트랜잭션으로 처리한다.
 - `smartstore_stock_mappings`, `smartstore_stock_syncs`
   - 내부 상품·옵션 조합과 네이버 원상품·옵션 ID를 연결하고, 로컬 최신 절대 재고를 외부에 보낼 요청 버전·처리 상태·재시도 시각을 저장한다.
-  - V165의 `smartstore_stock_syncs.generation`은 기존 행에 `legacy`를 채우고 새 행은 Java UUID로 생성한다. 상품별 기존 행과 재등록 행을 구분하며, 같은 행의 재고 요청 버전이 증가할 때는 유지한다. 선점 결과에 함께 전달해 삭제·재등록 전 응답을 제외한다.
+  - V165의 `smartstore_stock_syncs.generation`은 기존 행에 `legacy`를 채우고 새 행은 Java UUID로 생성한다. 상품별 기존 행과 재등록 행을 구분하며, 같은 행의 재고 요청 버전이 증가할 때는 유지한다. 삭제·재등록 전 세대와 이전 요청 버전의 응답을 새 요청의 성공·실패로 기록하지 않는다. 늦은 외부 쓰기를 보정하기 위해 현재 전송 중·완료 요청은 요청 버전을 올려 최신 수량을 다시 요청하며, 기존 대기·최종 실패 정책은 유지한다.
+  - `SYNCED` 상태가 24시간 지난 행은 최대 100개씩 다시 요청한다. V170의 `(status, synced_at, product_id)` 인덱스로 오래된 완료 행을 순서대로 조회하고 실제 외부 전송 성공 시각부터 다음 24시간을 계산한다.
   - V166의 `smartstore_stock_mappings.retired`는 과거 원격 옵션에 재고 0개만 전송하는 연결을 구분한다. `internal_target_key`는 과거 연결일 때 NULL이므로 같은 SKU의 여러 과거 연결을 보존하면서 현재 연결은 SKU당 한 개만 허용한다. 원격 상품·옵션 유일 제약과 상품·SKU FK는 유지한다.
+- `smartstore_order_mapping_history`, `smartstore_inventory_mapping_history`
+  - V172의 주문 매핑 이력은 교체·해제 전 원상품·옵션과 내부 상품·SKU, 사용 여부, 종료 시각을 보존한다. 결제 시각이 종료 시각보다 이른 최근 연결을 주문 식별에만 사용하며 외부 재고 전송에는 포함하지 않는다.
+  - 매핑 감사 이력은 변경 전후 원상품·사용 여부·옵션 연결 요약·개정, 기존 원상품 확인 여부, 관리자 ID·이름과 처리 시각을 저장한다. 상품별 `(product_id, changed_at DESC, id DESC)` 인덱스로 최근 20건을 조회한다.
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
-  - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 잔여 수량의 차이만 재고에 반영한다.
+  - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
+  - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
+  - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
+- `smartstore_order_action_history`
+  - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
+  - V174는 외부 호출 전 실패를 `NOT_SENT`로 구분하고, 결과 미확정 요청의 수동 확인 결과·근거·관리자·시각을 nullable 열로 추가한다. 대사 정보는 전부 비어 있거나 결과·근거·관리자 이름·시각이 함께 존재하도록 `CHECK` 제약으로 강제한다.
+  - 외부 주문 요청은 호출 전후의 별도 짧은 트랜잭션으로 기록하고 수동 재고 결정은 주문·재고 변경과 같은 트랜잭션으로 기록한다. 주문 원장이 없어도 실패 요청을 보존해야 하므로 상품 주문 FK는 두지 않는다.
 - `smartstore_order_sync_state`
-  - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
+  - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각, 마지막으로 관측한 `integration_enabled`와 활성화 대기 경계 `pending_activation_from`을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
+  - 연동 중지 기간은 선점이 없거나 시작 후 5분 이상 지났을 때 조회 시작점을 현재 시각으로 옮기고 페이지·처리 시작 시각을 비운다. 유효한 실행은 보호하며 만료된 이전 실행의 완료 요청은 거절한다.
+  - `integration_enabled`는 V169 배포 전 상태를 추측하지 않도록 NULL을 허용한다. V171의 nullable `pending_activation_from`은 비활성을 관측한 뒤 활성 설정으로 재기동한 가장 이른 시작 시각을 첫 배치 전에 보존한다. 유효한 기존 선점이 끝난 뒤 같은 트랜잭션에서 이 경계를 커서에 적용하고 새 선점을 남기며, 계속 활성인 재기동은 기존 커서를 유지한다.
 - `smartstore_settlement_entries`
   - 네이버 상품 주문 정산의 금액·수수료·기준일·지급일과 로컬 주문 정산 예정액 대사 상태를 안정 키로 멱등 저장한다. 불일치는 로컬 주문을 바꾸지 않고 관리자 작업 목록으로만 제공한다.
 - `cart_items`
@@ -465,8 +477,12 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `product_variants(product_id, active, id)` 주문제작 상품의 판매 가능 SKU 일괄 조회
 - `inventory_adjustments(product_variant_id, adjusted_at DESC, id DESC)` 주문제작 SKU 수동 조정 이력 조회
 - `smartstore_stock_mappings(origin_product_no, external_target_key)` 네이버 원상품·옵션 주문의 내부 SKU 매핑
+- `smartstore_order_mapping_history(origin_product_no, option_id, closed_at)` 늦게 수집된 과거 원상품 주문의 내부 SKU 식별
+- `smartstore_inventory_mapping_history(product_id, changed_at DESC, id DESC)` 상품별 최근 연동 설정 감사 이력 조회
 - `smartstore_product_orders(last_changed_at DESC, product_order_id)` 최신 채널 주문 조회
 - `smartstore_product_orders(attention_reason, last_changed_at DESC)` 관리자 확인 필요 채널 주문 조회
+- `smartstore_order_action_history(product_order_id, requested_at DESC, id DESC)` 상품 주문별 최근 처리 이력 조회
+- `smartstore_order_action_history(reconciled_at, requested_at DESC, id DESC)` 대사하지 않은 결과 미확정·장기 요청 조회
 - `smartstore_settlement_entries(reconciliation_status, fetched_at DESC)` 채널 정산 불일치 작업 목록 조회
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회

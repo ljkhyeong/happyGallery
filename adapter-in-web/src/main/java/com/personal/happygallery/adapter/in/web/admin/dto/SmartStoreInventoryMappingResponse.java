@@ -8,6 +8,7 @@ import java.util.List;
 
 public record SmartStoreInventoryMappingResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long productId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long mappingVersion,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long originProductNo,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean enabled,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
@@ -21,6 +22,7 @@ public record SmartStoreInventoryMappingResponse(
     public static SmartStoreInventoryMappingResponse from(MappingResult result) {
         return new SmartStoreInventoryMappingResponse(
                 result.productId(),
+                result.mappingVersion(),
                 result.originProductNo(),
                 result.enabled(),
                 result.variants().stream().map(SmartStoreVariantMappingResponse::from).toList(),

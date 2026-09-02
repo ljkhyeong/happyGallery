@@ -37,6 +37,19 @@ public interface SmartStoreStockSyncRepository
             @Param("limit") int limit);
 
     @Override
+    @Query(value = """
+            select product_id
+              from smartstore_stock_syncs
+             where status = 'SYNCED'
+               and synced_at <= :syncedBefore
+             order by synced_at, product_id
+             limit :limit
+            """, nativeQuery = true)
+    List<Long> findReconciliationProductIds(
+            @Param("syncedBefore") LocalDateTime syncedBefore,
+            @Param("limit") int limit);
+
+    @Override
     <S extends SmartStoreStockSync> S save(S sync);
 
     @Override

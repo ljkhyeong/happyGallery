@@ -1,5 +1,7 @@
 package com.personal.happygallery.domain.order;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -92,6 +94,18 @@ public class SmartStoreProductOrder {
     @Column(name = "inventory_applied_quantity", nullable = false)
     private int inventoryAppliedQuantity;
 
+    @Column(name = "return_reviewed_remain_quantity")
+    private Integer returnReviewedRemainQuantity;
+
+    @Column(name = "completed_return_quantity")
+    private Integer completedReturnQuantity;
+
+    @Column(name = "reviewed_return_quantity", nullable = false)
+    private int reviewedReturnQuantity;
+
+    @Column(name = "restored_return_quantity", nullable = false)
+    private int restoredReturnQuantity;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "attention_reason", length = 30)
     private SmartStoreOrderAttentionReason attentionReason;
@@ -131,7 +145,7 @@ public class SmartStoreProductOrder {
         this(productOrderId, orderId, originProductNo, itemNo, productName, productOption,
                 null, productOrderStatus, null, claimType, claimStatus, initialQuantity,
                 remainQuantity, lastChangedType, paymentDate, lastChangedAt, null, null,
-                null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, 0);
     }
 
     public SmartStoreProductOrder(
@@ -160,35 +174,17 @@ public class SmartStoreProductOrder {
             Long paymentCommission,
             Long saleCommission,
             Long channelCommission,
-            Long expectedSettlementAmount) {
+            Long expectedSettlementAmount,
+            int completedReturnQuantity) {
         this.productOrderId = requireText(productOrderId, "상품 주문 번호");
         this.inventoryAppliedQuantity = 0;
+        this.completedReturnQuantity = 0;
         refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
                 productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
                 remainQuantity, lastChangedType, paymentDate, lastChangedAt, shippingDueDate,
                 expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
-                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount);
-    }
-
-    public boolean refresh(
-            String orderId,
-            Long originProductNo,
-            Long itemNo,
-            String productName,
-            String productOption,
-            String productOrderStatus,
-            String claimType,
-            String claimStatus,
-            int initialQuantity,
-            int remainQuantity,
-            String lastChangedType,
-            LocalDateTime paymentDate,
-            LocalDateTime changedAt) {
-        return refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
-                productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
-                remainQuantity, lastChangedType, paymentDate, changedAt, shippingDueDate,
-                expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
-                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount);
+                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount,
+                completedReturnQuantity, 0);
     }
 
     public boolean refresh(
@@ -216,7 +212,9 @@ public class SmartStoreProductOrder {
             Long paymentCommission,
             Long saleCommission,
             Long channelCommission,
-            Long expectedSettlementAmount) {
+            Long expectedSettlementAmount,
+            int completedReturnQuantity,
+            int previouslyCompletedReturnQuantity) {
         if (lastChangedAt != null
                 && (changedAt.isBefore(lastChangedAt)
                 || changedAt.equals(lastChangedAt) && Objects.equals(this.lastChangedType, lastChangedType))) {
@@ -225,6 +223,9 @@ public class SmartStoreProductOrder {
         if (originProductNo == null || initialQuantity < 0 || remainQuantity < 0) {
             throw new IllegalArgumentException("스마트스토어 상품과 주문 수량이 올바르지 않습니다.");
         }
+        initializeReturnTracking(this.remainQuantity == remainQuantity
+                ? completedReturnQuantity : previouslyCompletedReturnQuantity);
+        this.completedReturnQuantity = Math.max(this.completedReturnQuantity, completedReturnQuantity);
         this.orderId = requireText(orderId, "주문 번호");
         this.originProductNo = originProductNo;
         this.itemNo = itemNo;
@@ -273,12 +274,77 @@ public class SmartStoreProductOrder {
         this.attentionReason = null;
     }
 
+    public int pendingReturnQuantity() {
+        if (completedReturnQuantity != null) {
+            return completedReturnQuantity - reviewedReturnQuantity;
+        }
+        int unreviewedQuantity = returnReviewedRemainQuantity == null
+                ? inventoryAppliedQuantity
+                : Math.min(inventoryAppliedQuantity, returnReviewedRemainQuantity);
+        return Math.max(unreviewedQuantity - remainQuantity, 0);
+    }
+
+    public String returnReviewVersion() {
+        return completedReturnQuantity == null
+                ? "L%d:%d:%s".formatted(inventoryAppliedQuantity, remainQuantity, returnReviewedRemainQuantity)
+                : "R%d:%d".formatted(completedReturnQuantity, reviewedReturnQuantity);
+    }
+
+    public int resolveReturn(boolean restoreStock, String reviewVersion) {
+        if (!returnReviewVersion().equals(reviewVersion)) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "반품 검수 대상이 변경되었습니다. 최신 수량을 다시 확인해 주세요.");
+        }
+        if (attentionReason != SmartStoreOrderAttentionReason.RETURN_REVIEW || pendingReturnQuantity() == 0) {
+            throw new IllegalArgumentException("반품 확인이 필요한 스마트스토어 주문만 처리할 수 있습니다.");
+        }
+        int restoreQuantity = restoreStock ? pendingReturnQuantity() : 0;
+        inventoryAppliedQuantity -= restoreQuantity;
+        if (completedReturnQuantity == null) {
+            returnReviewedRemainQuantity = remainQuantity;
+        } else {
+            reviewedReturnQuantity = completedReturnQuantity;
+            restoredReturnQuantity += restoreQuantity;
+        }
+        attentionReason = null;
+        return restoreQuantity;
+    }
+
+    public int targetInventoryQuantity(int activeQuantity) {
+        if (completedReturnQuantity == null) {
+            return "RETURNED".equals(productOrderStatus) ? inventoryAppliedQuantity : activeQuantity;
+        }
+        return activeQuantity + completedReturnQuantity - restoredReturnQuantity;
+    }
+
+    private void initializeReturnTracking(int previouslyCompletedReturnQuantity) {
+        if (completedReturnQuantity != null) {
+            return;
+        }
+        int pending = attentionReason == SmartStoreOrderAttentionReason.RETURN_REVIEW
+                ? Math.min(previouslyCompletedReturnQuantity, pendingReturnQuantity()) : 0;
+        int retained = Math.max(inventoryAppliedQuantity - remainQuantity, 0);
+        restoredReturnQuantity = Math.max(previouslyCompletedReturnQuantity - retained, 0);
+        reviewedReturnQuantity = previouslyCompletedReturnQuantity - pending;
+        completedReturnQuantity = previouslyCompletedReturnQuantity;
+        returnReviewedRemainQuantity = null;
+    }
+
     public void requireAttention(SmartStoreOrderAttentionReason reason) {
         this.attentionReason = Objects.requireNonNull(reason, "확인 사유는 필수입니다.");
     }
 
     public void resolveAttention() {
         this.attentionReason = null;
+    }
+
+    public String inventoryResolutionVersion() {
+        return "%s|%s|%s|%s|%d".formatted(
+                lastChangedAt,
+                productId,
+                productVariantId,
+                attentionReason,
+                inventoryAppliedQuantity);
     }
 
     public boolean hasMapping() {

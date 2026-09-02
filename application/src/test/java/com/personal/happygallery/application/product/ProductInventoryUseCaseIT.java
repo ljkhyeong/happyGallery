@@ -22,6 +22,8 @@ import com.personal.happygallery.adapter.out.persistence.product.InventoryReposi
 import com.personal.happygallery.adapter.out.persistence.product.ProductRepository;
 import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
+import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
@@ -73,6 +75,7 @@ class ProductInventoryUseCaseIT {
     @Autowired ProductOptionConfigurationService optionConfigurationService;
     @Autowired ProductVariantRepository variantRepository;
     @Autowired SmartStoreInventoryUseCase smartStoreInventoryUseCase;
+    @Autowired SmartStoreInventoryMappingService smartStoreInventoryMappingService;
     @Autowired SmartStoreStockMappingPort mappingPort;
     @Autowired SmartStoreStockSyncPort stockSyncPort;
     @Autowired SmartStoreStockSyncTransactionService stockSyncTransactionService;
@@ -199,9 +202,9 @@ class ProductInventoryUseCaseIT {
         Long redId = current.get(0).id();
         Long blueId = current.get(1).id();
         assertThatThrownBy(() -> smartStoreInventoryUseCase.saveMapping(productId,
-                new SaveMappingCommand(123L, true, List.of(new VariantMapping(redId, 101L)))))
+                mappingCommand(productId, 123L, true, List.of(new VariantMapping(redId, 101L)))))
                 .isInstanceOf(IllegalArgumentException.class);
-        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
+        smartStoreInventoryUseCase.saveMapping(productId, mappingCommand(productId, 123L, true,
                 List.of(new VariantMapping(redId, 101L), new VariantMapping(blueId, 102L))));
 
         var claimed = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
@@ -224,7 +227,7 @@ class ProductInventoryUseCaseIT {
                         new VariantDefinition(List.of(new SelectionDefinition("color", "green")), 1000, 2, true))));
         Long greenId = replaced.options().variants().stream().filter(variant -> !variant.id().equals(blueId))
                 .findFirst().orElseThrow().id();
-        smartStoreInventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
+        smartStoreInventoryUseCase.saveMapping(productId, mappingCommand(productId, 123L, true,
                 List.of(new VariantMapping(greenId, 100L), new VariantMapping(blueId, 102L))));
         assertThat(mappingPort.findByProductIdOrderByProductVariantIdAsc(productId))
                 .extracting(SmartStoreStockMapping::getProductVariantId).containsExactlyInAnyOrder(redId, blueId, greenId);
@@ -235,8 +238,8 @@ class ProductInventoryUseCaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
-    @DisplayName("전송 중 연동을 비활성화하거나 해제한 뒤 재등록해도 이전 응답이 새 요청과 재시도를 바꾸지 않는다")
-    void reenableSmartStoreMapping_ignoresPreviousGeneration(boolean deleteMapping) {
+    @DisplayName("재등록 전 응답은 진행 중 전송을 다시 요청하되 기존 대기와 재시도는 유지한다")
+    void reenableSmartStoreMapping_requeuesInFlightWriteAndPreservesRetries(boolean deleteMapping) {
         var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
@@ -246,13 +249,13 @@ class ProductInventoryUseCaseIT {
         var previous = stockSyncTransactionService.claim(productId, now).orElseThrow();
 
         if (deleteMapping) {
-            smartStoreInventoryUseCase.deleteMapping(productId);
+            deleteMapping(productId);
         } else {
             smartStoreInventoryUseCase.saveMapping(productId,
-                    new SaveMappingCommand(123L, false, command.variants()));
+                    mappingCommand(productId, 123L, false, command.variants()));
         }
-        smartStoreInventoryUseCase.saveMapping(productId,
-                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 101L))));
+        smartStoreInventoryUseCase.saveMapping(productId, mappingCommand(
+                productId, 123L, true, List.of(new VariantMapping(variantId, 101L))));
         var pending = stockSyncPort.findByProductId(productId).orElseThrow();
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), false, "이전 전송 실패", now);
@@ -267,7 +270,15 @@ class ProductInventoryUseCaseIT {
 
         var current = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
         assertThat(current.command().options()).contains(new OptionStock(101L, 9));
-        stockSyncTransactionService.finish(productId, current.generation(), current.version(), false, "새 전송 실패", now);
+        stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
+        var correction = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertThat(correction.getRequestVersion()).isGreaterThan(current.version());
+        stockSyncTransactionService.finish(productId, current.generation(), current.version(), true, null, now);
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.PENDING);
+
+        var corrected = stockSyncTransactionService.claim(productId, LocalDateTime.now(clock)).orElseThrow();
+        stockSyncTransactionService.finish(productId, corrected.generation(), corrected.version(), false, "새 전송 실패", now);
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), true, null, now);
         stockSyncTransactionService.finish(productId, previous.generation(), previous.version(), false, "이전 전송 실패", now);
         var retry = stockSyncPort.findByProductId(productId).orElseThrow();
@@ -296,7 +307,7 @@ class ProductInventoryUseCaseIT {
         stockSyncTransactionService.finish(productId, initial.generation(), initial.version(), true, null, now);
 
         var saved = smartStoreInventoryUseCase.saveMapping(productId,
-                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 101L))));
+                mappingCommand(productId, 123L, true, List.of(new VariantMapping(variantId, 101L))));
         var changed = stockSyncTransactionService.claim(productId, now).orElseThrow();
         assertSoftly(softly -> {
             softly.assertThat(saved.variants()).containsExactly(new VariantMapping(variantId, 101L));
@@ -319,11 +330,11 @@ class ProductInventoryUseCaseIT {
                     softly.assertThat(option.stockQuantity()).isZero();
                     softly.assertThat(option.price()).isZero();
                     softly.assertThat(option.usable()).isFalse();
-                }));
+        }));
         smartStoreInventoryUseCase.saveMapping(productId,
-                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 102L))));
+                mappingCommand(productId, 123L, true, List.of(new VariantMapping(variantId, 102L))));
         var reused = smartStoreInventoryUseCase.saveMapping(productId,
-                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 100L))));
+                mappingCommand(productId, 123L, true, List.of(new VariantMapping(variantId, 100L))));
         assertThat(reused.variants()).containsExactly(new VariantMapping(variantId, 100L));
         assertThat(stockSyncTransactionService.claim(productId, now.plusMinutes(1)).orElseThrow().command().options())
                 .containsExactlyInAnyOrder(new OptionStock(100L, 10), new OptionStock(101L, 0), new OptionStock(102L, 0));
@@ -334,6 +345,27 @@ class ProductInventoryUseCaseIT {
                 variant.selections().stream().map(selection -> new SelectionDefinition(
                         selection.groupKey(), selection.valueKey())).toList(),
                 variant.priceAdjustment(), variant.quantity(), variant.active())).toList();
+    }
+
+    private SaveMappingCommand mappingCommand(
+            Long productId, Long originProductNo, boolean enabled, List<VariantMapping> variants) {
+        var current = smartStoreInventoryUseCase.getMapping(productId);
+        boolean originChanged = current.isPresent()
+                && !current.orElseThrow().originProductNo().equals(originProductNo);
+        return new SaveMappingCommand(
+                originProductNo,
+                enabled,
+                variants,
+                current.map(SmartStoreInventoryUseCase.MappingResult::mappingVersion).orElse(null),
+                originChanged);
+    }
+
+    private void deleteMapping(Long productId) {
+        var current = smartStoreInventoryUseCase.getMapping(productId).orElseThrow();
+        smartStoreInventoryMappingService.deleteMapping(
+                productId,
+                new DeleteMappingCommand(current.mappingVersion(), true),
+                MappingActor.system());
     }
 
     private static SaveProductCommand madeToOrderCommand(

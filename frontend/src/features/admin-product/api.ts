@@ -3,6 +3,7 @@ import {
   changeStatus,
   deleteSmartStoreInventoryMapping,
   getSmartStoreInventoryMapping,
+  listSmartStoreInventoryMappingHistory,
   getSmartStoreProduct,
   listAll,
   listInventoryAdjustments,
@@ -27,6 +28,7 @@ import {
   type ProductResponse,
   type SaveSmartStoreInventoryMappingRequest,
   type SmartStoreInventoryMappingResponse,
+  type SmartStoreInventoryMappingHistoryResponse,
   type SmartStoreChannelProductResponse,
   type SmartStoreProductCatalogPageResponse,
   type SmartStoreProductPreviewResponse,
@@ -99,6 +101,15 @@ export async function fetchSmartStoreInventoryMapping(
   }
 }
 
+export function fetchSmartStoreInventoryMappingHistory(
+  adminKey: string,
+  productId: number,
+): Promise<SmartStoreInventoryMappingHistoryResponse[]> {
+  return listSmartStoreInventoryMappingHistory(productId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
 export function fetchSmartStoreProducts(
   adminKey: string,
   page: number,
@@ -140,8 +151,14 @@ export function retrySmartStoreSync(
 export function removeSmartStoreMapping(
   adminKey: string,
   productId: number,
+  expectedMappingVersion: number,
+  previousOriginConfirmed: boolean,
 ): Promise<void> {
-  return deleteSmartStoreInventoryMapping(productId, { headers: adminHeaders(adminKey) });
+  return deleteSmartStoreInventoryMapping(
+    productId,
+    { expectedMappingVersion, previousOriginConfirmed },
+    { headers: adminHeaders(adminKey) },
+  );
 }
 
 export function fetchSmartStoreProductPreview(
@@ -154,11 +171,11 @@ export function fetchSmartStoreProductPreview(
 export function applySmartStoreProduct(
   adminKey: string,
   productId: number,
-  productVersion: number,
+  previewVersion: string,
 ): Promise<void> {
   return applySmartStoreProductSync(
     productId,
-    { productVersion },
+    { previewVersion },
     { headers: adminHeaders(adminKey) },
   );
 }

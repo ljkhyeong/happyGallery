@@ -3,14 +3,21 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
+import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
+import com.personal.happygallery.application.product.port.out.SmartStoreOrderMappingHistoryPort;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +35,7 @@ class SmartStoreOrderTransactionServiceTest {
 
     private SmartStoreProductOrderPort orderPort;
     private SmartStoreStockMappingPort mappingPort;
+    private SmartStoreOrderMappingHistoryPort orderMappingHistoryPort;
     private InventoryService inventoryService;
     private SmartStoreOrderTransactionService service;
 
@@ -35,11 +43,17 @@ class SmartStoreOrderTransactionServiceTest {
     void setUp() {
         orderPort = mock(SmartStoreProductOrderPort.class);
         mappingPort = mock(SmartStoreStockMappingPort.class);
+        orderMappingHistoryPort = mock(SmartStoreOrderMappingHistoryPort.class);
         inventoryService = mock(InventoryService.class);
         service = new SmartStoreOrderTransactionService(
-                orderPort, mappingPort, inventoryService, mock(ProductVariantStockService.class),
-                mock(SmartStoreDeliveryInfoProtector.class));
+                orderPort, mappingPort, orderMappingHistoryPort,
+                mock(SmartStoreOrderActionHistoryPort.class),
+                mock(ProductReaderPort.class), mock(ProductVariantReaderPort.class),
+                inventoryService, mock(ProductVariantStockService.class),
+                mock(SmartStoreDeliveryInfoProtector.class),
+                Clock.fixed(CHANGED_AT.atZone(ZoneId.of("Asia/Seoul")).toInstant(), ZoneId.of("Asia/Seoul")));
         when(orderPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderMappingHistoryPort.findResolvable(any(), any(), any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -47,6 +61,7 @@ class SmartStoreOrderTransactionServiceTest {
     void synchronize_duplicatePaidChange_deductsOnce() {
         when(mappingPort.findByOriginProductNoAndProductVariantIdIsNull(123L))
                 .thenReturn(Optional.of(new SmartStoreStockMapping(7L, null, 123L, null, true)));
+        when(inventoryService.tryDeduct(7L, 1)).thenReturn(true);
         when(orderPort.findByProductOrderIdWithLock("po-1"))
                 .thenReturn(Optional.empty());
 
@@ -54,7 +69,7 @@ class SmartStoreOrderTransactionServiceTest {
         when(orderPort.findByProductOrderIdWithLock("po-1")).thenReturn(Optional.of(order));
         service.synchronize(detail("PAYED", 1), change("PAYED", CHANGED_AT));
 
-        verify(inventoryService).deduct(7L, 1);
+        verify(inventoryService).tryDeduct(7L, 1);
         assertThat(order.getInventoryAppliedQuantity()).isEqualTo(1);
     }
 
@@ -86,7 +101,7 @@ class SmartStoreOrderTransactionServiceTest {
 
         SmartStoreProductOrder order = service.synchronize(detail("PAYED", 1), change("PAYED", CHANGED_AT));
 
-        verify(inventoryService, never()).deduct(any(), any(Integer.class));
+        verify(inventoryService, never()).tryDeduct(any(), any(Integer.class));
         assertThat(order.getAttentionReason()).isEqualTo(SmartStoreOrderAttentionReason.MAPPING_REQUIRED);
     }
 
@@ -94,7 +109,7 @@ class SmartStoreOrderTransactionServiceTest {
         return new ProductOrderDetail(
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, null, status,
                 null, null, null, null, 2, remainQuantity, CHANGED_AT.minusMinutes(1), null,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, List.of());
     }
 
     private static ProductOrderChange change(String type, LocalDateTime changedAt) {
