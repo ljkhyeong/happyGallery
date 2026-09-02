@@ -1,12 +1,20 @@
 package com.personal.happygallery.application.order.port.in;
 
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
+import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderActionStatus;
+import com.personal.happygallery.application.shared.page.CursorPage;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface SmartStoreChannelOrderUseCase {
 
-    List<ChannelOrderResult> list(boolean attentionOnly, int limit);
+    CursorPage<ChannelOrderResult> list(
+            boolean attentionOnly,
+            SmartStoreOrderAttentionReason attentionReason,
+            String cursor,
+            int size);
 
     List<ReturnDeliveryCompanyResult> listReturnDeliveryCompanies();
 
@@ -18,39 +26,62 @@ public interface SmartStoreChannelOrderUseCase {
 
     ChannelOrderResult resolveReturn(String productOrderId, boolean restoreStock, String reviewVersion);
 
-    void confirm(String productOrderId);
+    ChannelOrderResult resolveInventory(InventoryResolutionCommand command, AdminActor actor);
 
-    BulkOperationResult confirmAll(List<String> productOrderIds);
+    List<ActionHistoryResult> listActionHistory(String productOrderId);
 
-    void dispatch(DispatchCommand command);
+    void confirm(String productOrderId, AdminActor actor);
 
-    BulkOperationResult dispatchAll(List<DispatchCommand> commands);
+    BulkOperationResult confirmAll(List<String> productOrderIds, AdminActor actor);
 
-    void delay(DelayCommand command);
+    void dispatch(DispatchCommand command, AdminActor actor);
 
-    void approveCancel(String productOrderId);
+    BulkOperationResult dispatchAll(List<DispatchCommand> commands, AdminActor actor);
 
-    void approveReturn(String productOrderId);
+    void delay(DelayCommand command, AdminActor actor);
 
-    void rejectReturn(String productOrderId);
+    void approveCancel(String productOrderId, AdminActor actor);
 
-    void holdReturn(ReturnHoldCommand command);
+    void approveReturn(String productOrderId, AdminActor actor);
 
-    void releaseReturnHold(String productOrderId);
+    void rejectReturn(String productOrderId, AdminActor actor);
 
-    void requestSellerReturn(SellerReturnCommand command);
+    void holdReturn(ReturnHoldCommand command, AdminActor actor);
 
-    void dispatchExchange(ExchangeDispatchCommand command);
+    void releaseReturnHold(String productOrderId, AdminActor actor);
 
-    void completeExchangeCollect(String productOrderId);
+    void requestSellerReturn(SellerReturnCommand command, AdminActor actor);
 
-    void rejectExchange(ExchangeRejectCommand command);
+    void dispatchExchange(ExchangeDispatchCommand command, AdminActor actor);
 
-    void holdExchange(ExchangeHoldCommand command);
+    void completeExchangeCollect(String productOrderId, AdminActor actor);
 
-    void releaseExchangeHold(String productOrderId);
+    void rejectExchange(ExchangeRejectCommand command, AdminActor actor);
 
-    void requestSellerCancel(SellerCancelCommand command);
+    void holdExchange(ExchangeHoldCommand command, AdminActor actor);
+
+    void releaseExchangeHold(String productOrderId, AdminActor actor);
+
+    void requestSellerCancel(SellerCancelCommand command, AdminActor actor);
+
+    record AdminActor(Long adminUserId, String name) {
+        public AdminActor {
+            name = name == null || name.isBlank() ? "시스템" : name.strip();
+        }
+
+        public static AdminActor system() {
+            return new AdminActor(null, "시스템");
+        }
+    }
+
+    record InventoryResolutionCommand(
+            String productOrderId,
+            Long productId,
+            Long productVariantId,
+            SmartStoreInventoryResolutionAction action,
+            String reason,
+            String expectedResolutionVersion
+    ) {}
 
     record ChannelOrderResult(
             String productOrderId,
@@ -71,7 +102,21 @@ public interface SmartStoreChannelOrderUseCase {
             LocalDateTime paymentDate,
             LocalDateTime lastChangedAt,
             int pendingReturnQuantity,
-            String returnReviewVersion
+            String returnReviewVersion,
+            String inventoryResolutionVersion
+    ) {}
+
+    record ActionHistoryResult(
+            long id,
+            SmartStoreOrderAction action,
+            SmartStoreOrderActionStatus status,
+            String requestSummary,
+            String resultCode,
+            String resultMessage,
+            Long changedByAdminId,
+            String changedBy,
+            LocalDateTime requestedAt,
+            LocalDateTime completedAt
     ) {}
 
     record ChannelOrderDetailResult(

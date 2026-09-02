@@ -203,11 +203,32 @@ public interface SmartStoreOrderProvider {
                     .filter(failure -> productOrderId.equals(failure.productOrderId()))
                     .findFirst()
                     .ifPresent(failure -> {
-                        throw new IllegalStateException(
-                                "스마트스토어 주문 처리 실패: " + failure.message());
+                        if ("UNKNOWN_RESULT".equals(failure.code())) {
+                            throw new OperationResultUnknownException(failure.message());
+                        }
+                        throw new OperationRejectedException(failure.code(), failure.message());
                     });
         }
     }
 
     record OperationFailure(String productOrderId, String code, String message) {}
+
+    class OperationRejectedException extends RuntimeException {
+        private final String code;
+
+        public OperationRejectedException(String code, String message) {
+            super(message);
+            this.code = code;
+        }
+
+        public String code() {
+            return code;
+        }
+    }
+
+    class OperationResultUnknownException extends RuntimeException {
+        public OperationResultUnknownException(String message) {
+            super(message);
+        }
+    }
 }

@@ -9,6 +9,9 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductVariantR
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.CompletedReturn;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.InventoryResolutionCommand;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
 import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
@@ -19,6 +22,7 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -27,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -41,6 +46,7 @@ class SmartStoreOrderInventoryUseCaseIT {
     @Autowired ProductAdminUseCase productAdminUseCase;
     @Autowired SmartStoreInventoryUseCase inventoryUseCase;
     @Autowired SmartStoreOrderTransactionService orderService;
+    @Autowired SmartStoreChannelOrderUseCase channelOrderUseCase;
     @Autowired SmartStoreProductOrderRepository orderRepository;
     @Autowired InventoryRepository inventoryRepository;
     @Autowired ProductVariantRepository variantRepository;
@@ -93,6 +99,109 @@ class SmartStoreOrderInventoryUseCaseIT {
         assertThat(retried.getAttentionReason()).isNull();
         assertThat(retried.getInventoryAppliedQuantity()).isEqualTo(2);
         assertThat(quantity(productId, variantId)).isZero();
+    }
+
+    @Test
+    @DisplayName("관리자는 매핑 누락 주문을 상품에 연결하고 남은 수량을 재고와 처리 이력에 함께 반영한다")
+    void resolveInventory_mappingRequired_appliesInventoryAndAuditTogether() {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "수동 연결 상품", ProductType.READY_STOCK, null, 35000L, 3, null, null,
+                null, null, null, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        orderService.synchronize(detail("manual-resolution", null, 2), change("manual-resolution"));
+        var pending = orderRepository.findById("manual-resolution").orElseThrow();
+
+        var resolved = channelOrderUseCase.resolveInventory(new InventoryResolutionCommand(
+                "manual-resolution",
+                productId,
+                null,
+                SmartStoreInventoryResolutionAction.APPLY_REMAINING,
+                "기존 스마트스토어 상품을 내부 상품에 연결",
+                pending.inventoryResolutionVersion()), new AdminActor(17L, "운영 관리자"));
+
+        assertThat(resolved.productId()).isEqualTo(productId);
+        assertThat(resolved.inventoryAppliedQuantity()).isEqualTo(2);
+        assertThat(resolved.attentionReason()).isNull();
+        assertThat(quantity(productId, null)).isEqualTo(1);
+        assertThat(jdbc.queryForMap("""
+                SELECT action, status, changed_by_admin_id, changed_by, request_summary
+                FROM smartstore_order_action_history
+                WHERE product_order_id = 'manual-resolution'
+                """))
+                .containsEntry("action", "INVENTORY_RESOLVED")
+                .containsEntry("status", "SUCCEEDED")
+                .containsEntry("changed_by_admin_id", 17L)
+                .containsEntry("changed_by", "운영 관리자");
+    }
+
+    @Test
+    @DisplayName("관리자가 오래된 재고 확인 버전으로 수동 결정을 제출하면 현재 주문을 변경하지 않는다")
+    void resolveInventory_staleVersion_rejectsWithoutChangingInventory() {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "수동 연결 충돌", ProductType.READY_STOCK, null, 35000L, 3, null, null,
+                null, null, null, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        orderService.synchronize(detail("stale-resolution", null, 2), change("stale-resolution"));
+
+        assertThatThrownBy(() -> channelOrderUseCase.resolveInventory(new InventoryResolutionCommand(
+                "stale-resolution",
+                productId,
+                null,
+                SmartStoreInventoryResolutionAction.APPLY_REMAINING,
+                "오래된 화면에서 처리",
+                "stale-version"), new AdminActor(17L, "운영 관리자")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+
+        assertThat(quantity(productId, null)).isEqualTo(3);
+        assertThat(orderRepository.findById("stale-resolution").orElseThrow().getProductId()).isNull();
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM smartstore_order_action_history WHERE product_order_id = ?",
+                Integer.class,
+                "stale-resolution")).isZero();
+    }
+
+    @Test
+    @DisplayName("확인 대상 주문 목록은 사유 필터와 커서로 중복 없이 다음 페이지를 조회한다")
+    void listAttentionOrders_filtersReasonAndUsesCursor() {
+        orderService.synchronize(detail("cursor-1", null, 1),
+                new ProductOrderChange("cursor-1", "PAYED", CHANGED_AT.plusMinutes(1)));
+        orderService.synchronize(detail("cursor-2", null, 1),
+                new ProductOrderChange("cursor-2", "PAYED", CHANGED_AT.plusMinutes(2)));
+
+        var first = channelOrderUseCase.list(
+                true, SmartStoreOrderAttentionReason.MAPPING_REQUIRED, null, 1);
+        var second = channelOrderUseCase.list(
+                true, SmartStoreOrderAttentionReason.MAPPING_REQUIRED, first.nextCursor(), 1);
+
+        assertThat(first.content()).extracting(SmartStoreChannelOrderUseCase.ChannelOrderResult::productOrderId)
+                .containsExactly("cursor-2");
+        assertThat(first.hasMore()).isTrue();
+        assertThat(second.content()).extracting(SmartStoreChannelOrderUseCase.ChannelOrderResult::productOrderId)
+                .containsExactly("cursor-1");
+        assertThat(second.hasMore()).isFalse();
+    }
+
+    @Test
+    @DisplayName("판매 뒤 중지된 주문제작 옵션 조합도 늦게 수집된 스마트스토어 주문 재고를 차감한다")
+    void synchronize_inactiveVariant_deductsCommittedChannelSale() {
+        var registered = productAdminUseCase.register(new SaveProductCommand(
+                "판매 중지 옵션 주문", ProductType.MADE_TO_ORDER, null, 35000L, 2, null, null,
+                "가죽 제품", null, 7, List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        inventoryUseCase.saveMapping(productId, new SaveMappingCommand(
+                123L, true, List.of(new VariantMapping(variantId, 11L))));
+        var variant = variantRepository.findById(variantId).orElseThrow();
+        variant.deactivate();
+        variantRepository.saveAndFlush(variant);
+
+        orderService.synchronize(detail("inactive-variant", 11L, 1), change("inactive-variant"));
+
+        var order = orderRepository.findById("inactive-variant").orElseThrow();
+        assertThat(order.getInventoryAppliedQuantity()).isEqualTo(1);
+        assertThat(order.getAttentionReason()).isNull();
+        assertThat(quantity(productId, variantId)).isEqualTo(1);
     }
 
     private int quantity(Long productId, Long variantId) {

@@ -139,6 +139,118 @@ test("@admin 반품 택배사 계약은 펼칠 때 조회하고 주문 수거 �
   expect(reads).toBe(1);
 });
 
+test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하고 수동 재고 결정을 저장한다", async ({ page }) => {
+  await prepareAdmin(page);
+  const reads: Array<Record<string, string>> = [];
+  let resolutionBody: Record<string, unknown> | undefined;
+  const order = {
+    productOrderId: "po-manual-1",
+    orderId: "order-manual-1",
+    originProductNo: 123,
+    itemNo: null,
+    productId: null,
+    productVariantId: null,
+    productName: "매핑 확인 지갑",
+    productOption: "색상: 브라운",
+    productOrderStatus: "PAYED",
+    claimType: null,
+    claimStatus: null,
+    initialQuantity: 2,
+    remainQuantity: 2,
+    inventoryAppliedQuantity: 0,
+    attentionReason: "MAPPING_REQUIRED",
+    paymentDate: "2026-09-02T10:00:00",
+    lastChangedAt: "2026-09-02T10:01:00",
+    pendingReturnQuantity: 0,
+    returnReviewVersion: "R0:0",
+    inventoryResolutionVersion: "resolution-1",
+  };
+  await page.route("**/api/v1/admin/smartstore-orders?**", async (route) => {
+    const url = new URL(route.request().url());
+    reads.push(Object.fromEntries(url.searchParams));
+    await json(route, {
+      content: [order],
+      nextCursor: url.searchParams.has("cursor") ? null : "next-page",
+      hasMore: !url.searchParams.has("cursor"),
+    });
+  });
+  await page.route("**/api/v1/admin/products", (route) => json(route, [{
+    id: 1,
+    name: "내부 카드지갑",
+    type: "READY_STOCK",
+    price: 35000,
+    quantity: 5,
+    status: "ACTIVE",
+    available: true,
+    category: null,
+    imageUrl: null,
+    description: null,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+    variants: [],
+    optionGroups: [],
+  }]));
+  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1/inventory-resolution", async (route) => {
+    resolutionBody = route.request().postDataJSON() as Record<string, unknown>;
+    await json(route, { ...order, productId: 1, inventoryAppliedQuantity: 2, attentionReason: null });
+  });
+  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1/actions", (route) => json(route, [{
+    id: 71,
+    action: "INVENTORY_RESOLVED",
+    status: "SUCCEEDED",
+    requestSummary: "상품 1, 재고 결정 APPLY_REMAINING, 사유: 스마트스토어 옵션과 내부 상품을 확인",
+    resultCode: null,
+    resultMessage: null,
+    changedByAdminId: 1,
+    changedBy: "운영 관리자",
+    requestedAt: "2026-09-02T10:10:00",
+    completedAt: "2026-09-02T10:10:00",
+  }]));
+  await page.route("**/api/v1/admin/smartstore-orders/po-manual-1", (route) => json(route, {
+    order,
+    deliveryInfo: null,
+    placeOrderStatus: "OK",
+    shippingDueDate: null,
+    expectedDeliveryMethod: "DELIVERY",
+    deliveryCompany: null,
+    trackingNumber: null,
+    unitPrice: 35000,
+    paymentAmount: 70000,
+    paymentCommission: null,
+    saleCommission: null,
+    channelCommission: null,
+    expectedSettlementAmount: 68000,
+    claimDetail: null,
+  }));
+
+  await page.goto("/admin?view=orders");
+  await page.getByRole("checkbox", { name: "확인이 필요한 주문만 보기" }).check();
+  await page.getByLabel("확인 사유 필터").selectOption("MAPPING_REQUIRED");
+  await expect.poll(() => reads.at(-1)).toMatchObject({
+    attentionOnly: "true",
+    attentionReason: "MAPPING_REQUIRED",
+    size: "50",
+  });
+  await page.getByRole("button", { name: "다음", exact: true }).click();
+  await expect.poll(() => reads.at(-1)).toMatchObject({ cursor: "next-page" });
+  await page.getByRole("button", { name: "상품 연결·재고 결정", exact: true }).click();
+  await page.getByLabel("내부 상품").selectOption("1");
+  await page.getByLabel("처리 사유").fill("스마트스토어 옵션과 내부 상품을 확인");
+  await page.getByRole("button", { name: "상품 연결과 재고 결정 저장", exact: true }).click();
+
+  await expect.poll(() => resolutionBody).toEqual({
+    productId: 1,
+    productVariantId: null,
+    action: "APPLY_REMAINING",
+    reason: "스마트스토어 옵션과 내부 상품을 확인",
+    resolutionVersion: "resolution-1",
+  });
+  await page.getByRole("button", { name: "주문 처리", exact: true }).click();
+  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("수동 재고 결정");
+  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("운영 관리자");
+});
+
 test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 탭별 조회 조건을 유지한다", async ({ page }) => {
   await prepareAdmin(page);
   const reads: Array<Record<string, string>> = [];

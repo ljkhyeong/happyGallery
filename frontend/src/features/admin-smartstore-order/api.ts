@@ -16,9 +16,11 @@ import {
   requestSmartStoreSellerCancel,
   requestSmartStoreSellerReturn,
   getSmartStoreChannelOrder,
+  listSmartStoreChannelOrderActions,
   listSmartStoreChannelOrders,
   listSmartStoreReturnDeliveryCompanies,
   rejectSmartStoreReturnClaim,
+  resolveSmartStoreChannelOrderInventory,
   resolveSmartStoreChannelOrderReturn,
   retrySmartStoreChannelOrderInventory,
   type DelaySmartStoreOrderRequest,
@@ -26,8 +28,10 @@ import {
   type DispatchSmartStoreOrderRequest,
   type HoldSmartStoreExchangeRequest,
   type HoldSmartStoreReturnRequest,
+  type ListSmartStoreChannelOrdersAttentionReason,
   type RequestSmartStoreSellerCancelRequest,
   type RequestSmartStoreSellerReturnRequest,
+  type ResolveSmartStoreInventoryRequest,
   type ResolveSmartStoreReturnRequest,
   type BulkDispatchSmartStoreOrdersRequest,
   type SmartStoreOrderBulkActionResponse,
@@ -37,11 +41,22 @@ import { adminHeaders } from "@/shared/api";
 export function fetchSmartStoreChannelOrders(
   adminKey: string,
   attentionOnly: boolean,
+  attentionReason?: ListSmartStoreChannelOrdersAttentionReason,
+  cursor?: string,
 ) {
   return listSmartStoreChannelOrders(
-    { attentionOnly, limit: 100 },
+    { attentionOnly, attentionReason, cursor, size: 50 },
     { headers: adminHeaders(adminKey) },
   );
+}
+
+export function fetchSmartStoreChannelOrderActions(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return listSmartStoreChannelOrderActions(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
 }
 
 export function fetchSmartStoreReturnDeliveryCompanies(adminKey: string) {
@@ -161,6 +176,16 @@ export function retrySmartStoreOrderInventory(
   productOrderId: string,
 ) {
   return retrySmartStoreChannelOrderInventory(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function resolveSmartStoreOrderInventory(
+  adminKey: string,
+  productOrderId: string,
+  request: ResolveSmartStoreInventoryRequest,
+) {
+  return resolveSmartStoreChannelOrderInventory(productOrderId, request, {
     headers: adminHeaders(adminKey),
   });
 }

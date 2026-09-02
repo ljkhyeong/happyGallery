@@ -46,6 +46,18 @@ public class ProductVariantStockService {
         }
     }
 
+    /** 이미 판매된 채널 주문은 비활성 옵션 조합이어도 남은 실재고에서 반영한다. */
+    public boolean tryDeductCommittedSale(Long variantId, int quantity) {
+        try {
+            updateAll(
+                    List.of(new VariantAdjustment(variantId, quantity)),
+                    ProductVariant::deductCommittedSale);
+            return true;
+        } catch (InventoryNotEnoughException exception) {
+            return false;
+        }
+    }
+
     public List<ProductVariant> restoreAll(List<VariantAdjustment> adjustments) {
         return updateAll(adjustments, ProductVariant::restore);
     }

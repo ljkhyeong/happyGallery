@@ -338,6 +338,15 @@ public class SmartStoreProductOrder {
         this.attentionReason = null;
     }
 
+    public String inventoryResolutionVersion() {
+        return "%s|%s|%s|%s|%d".formatted(
+                lastChangedAt,
+                productId,
+                productVariantId,
+                attentionReason,
+                inventoryAppliedQuantity);
+    }
+
     public boolean hasMapping() {
         return productId != null;
     }

@@ -3,13 +3,18 @@ package com.personal.happygallery.application.order;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
+import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreOrderMappingHistoryPort;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
+import java.time.Clock;
+import java.time.ZoneId;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.List;
@@ -42,8 +47,11 @@ class SmartStoreOrderTransactionServiceTest {
         inventoryService = mock(InventoryService.class);
         service = new SmartStoreOrderTransactionService(
                 orderPort, mappingPort, orderMappingHistoryPort,
+                mock(SmartStoreOrderActionHistoryPort.class),
+                mock(ProductReaderPort.class), mock(ProductVariantReaderPort.class),
                 inventoryService, mock(ProductVariantStockService.class),
-                mock(SmartStoreDeliveryInfoProtector.class));
+                mock(SmartStoreDeliveryInfoProtector.class),
+                Clock.fixed(CHANGED_AT.atZone(ZoneId.of("Asia/Seoul")).toInstant(), ZoneId.of("Asia/Seoul")));
         when(orderPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(orderMappingHistoryPort.findResolvable(any(), any(), any())).thenReturn(Optional.empty());
     }

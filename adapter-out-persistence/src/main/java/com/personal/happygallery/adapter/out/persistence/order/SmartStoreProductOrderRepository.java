@@ -4,9 +4,12 @@ import com.personal.happygallery.application.order.port.out.SmartStoreProductOrd
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -27,17 +30,35 @@ public interface SmartStoreProductOrderRepository
     Optional<SmartStoreProductOrder> findByProductOrderIdWithLock(
             @Param("productOrderId") String productOrderId);
 
-    @Override
-    @Query(value = """
-            select *
-              from smartstore_product_orders
-             where (:attentionOnly = false or attention_reason is not null)
-             order by last_changed_at desc, product_order_id desc
-             limit :limit
-            """, nativeQuery = true)
-    List<SmartStoreProductOrder> findRecent(
+    @Query("""
+            select channelOrder
+              from SmartStoreProductOrder channelOrder
+             where (:attentionOnly = false or channelOrder.attentionReason is not null)
+               and (:attentionReason is null or channelOrder.attentionReason = :attentionReason)
+               and (:cursorAt is null
+                    or channelOrder.lastChangedAt < :cursorAt
+                    or (channelOrder.lastChangedAt = :cursorAt
+                        and channelOrder.productOrderId < :cursorProductOrderId))
+             order by channelOrder.lastChangedAt desc, channelOrder.productOrderId desc
+            """)
+    List<SmartStoreProductOrder> queryRecentPage(
             @Param("attentionOnly") boolean attentionOnly,
-            @Param("limit") int limit);
+            @Param("attentionReason") SmartStoreOrderAttentionReason attentionReason,
+            @Param("cursorAt") LocalDateTime cursorAt,
+            @Param("cursorProductOrderId") String cursorProductOrderId,
+            Pageable pageable);
+
+    @Override
+    default List<SmartStoreProductOrder> findRecentPage(
+            boolean attentionOnly,
+            SmartStoreOrderAttentionReason attentionReason,
+            LocalDateTime cursorAt,
+            String cursorProductOrderId,
+            int limit) {
+        return queryRecentPage(
+                attentionOnly, attentionReason, cursorAt, cursorProductOrderId,
+                PageRequest.of(0, limit));
+    }
 
     @Override
     @Query("""

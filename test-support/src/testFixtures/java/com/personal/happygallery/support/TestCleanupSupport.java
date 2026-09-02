@@ -206,6 +206,7 @@ public class TestCleanupSupport {
     private void clearProductOptionData() {
         JdbcTestUtils.deleteFromTables(
                 jdbcTemplate,
+                "smartstore_order_action_history",
                 "smartstore_inventory_mapping_history",
                 "smartstore_order_mapping_history",
                 "smartstore_stock_syncs",

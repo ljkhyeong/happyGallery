@@ -25,7 +25,8 @@ public record SmartStoreChannelOrderResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) LocalDateTime paymentDate,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime lastChangedAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int pendingReturnQuantity,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String returnReviewVersion
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String returnReviewVersion,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String inventoryResolutionVersion
 ) {
     public static SmartStoreChannelOrderResponse from(ChannelOrderResult result) {
         return new SmartStoreChannelOrderResponse(
@@ -34,6 +35,7 @@ public record SmartStoreChannelOrderResponse(
                 result.productOption(), result.productOrderStatus(), result.claimType(),
                 result.claimStatus(), result.initialQuantity(), result.remainQuantity(),
                 result.inventoryAppliedQuantity(), result.attentionReason(), result.paymentDate(),
-                result.lastChangedAt(), result.pendingReturnQuantity(), result.returnReviewVersion());
+                result.lastChangedAt(), result.pendingReturnQuantity(), result.returnReviewVersion(),
+                result.inventoryResolutionVersion());
     }
 }

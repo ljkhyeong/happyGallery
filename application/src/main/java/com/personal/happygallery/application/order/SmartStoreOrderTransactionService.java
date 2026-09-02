@@ -2,19 +2,32 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.InventoryResolutionCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
 import com.personal.happygallery.application.product.InventoryService;
 import com.personal.happygallery.application.product.ProductVariantStockService;
 import com.personal.happygallery.application.product.ProductVariantStockService.VariantAdjustment;
+import com.personal.happygallery.application.product.port.out.ProductReaderPort;
+import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreOrderMappingHistoryPort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.order.SmartStoreOrderAction;
+import com.personal.happygallery.domain.order.SmartStoreOrderActionHistory;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreProductOrder;
+import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreOrderMappingHistory;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -31,23 +44,35 @@ class SmartStoreOrderTransactionService {
     private final SmartStoreProductOrderPort orderPort;
     private final SmartStoreStockMappingPort mappingPort;
     private final SmartStoreOrderMappingHistoryPort orderMappingHistoryPort;
+    private final SmartStoreOrderActionHistoryPort actionHistoryPort;
+    private final ProductReaderPort productReaderPort;
+    private final ProductVariantReaderPort variantReaderPort;
     private final InventoryService inventoryService;
     private final ProductVariantStockService variantStockService;
     private final SmartStoreDeliveryInfoProtector deliveryInfoProtector;
+    private final Clock clock;
 
     SmartStoreOrderTransactionService(
             SmartStoreProductOrderPort orderPort,
             SmartStoreStockMappingPort mappingPort,
             SmartStoreOrderMappingHistoryPort orderMappingHistoryPort,
+            SmartStoreOrderActionHistoryPort actionHistoryPort,
+            ProductReaderPort productReaderPort,
+            ProductVariantReaderPort variantReaderPort,
             InventoryService inventoryService,
             ProductVariantStockService variantStockService,
-            SmartStoreDeliveryInfoProtector deliveryInfoProtector) {
+            SmartStoreDeliveryInfoProtector deliveryInfoProtector,
+            Clock clock) {
         this.orderPort = orderPort;
         this.mappingPort = mappingPort;
         this.orderMappingHistoryPort = orderMappingHistoryPort;
+        this.actionHistoryPort = actionHistoryPort;
+        this.productReaderPort = productReaderPort;
+        this.variantReaderPort = variantReaderPort;
         this.inventoryService = inventoryService;
         this.variantStockService = variantStockService;
         this.deliveryInfoProtector = deliveryInfoProtector;
+        this.clock = clock;
     }
 
     @Transactional
@@ -97,6 +122,74 @@ class SmartStoreOrderTransactionService {
             restore(order, restoreQuantity);
         }
         return orderPort.save(order);
+    }
+
+    @Transactional
+    public SmartStoreProductOrder resolveInventory(InventoryResolutionCommand command, AdminActor actor) {
+        SmartStoreProductOrder order = lockedOrder(command.productOrderId());
+        if (!Objects.equals(order.inventoryResolutionVersion(), command.expectedResolutionVersion())) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "주문 재고 확인 대상이 변경되었습니다. 최신 주문을 다시 확인해 주세요.");
+        }
+        if (order.getAttentionReason() != SmartStoreOrderAttentionReason.MAPPING_REQUIRED
+                && order.getAttentionReason() != SmartStoreOrderAttentionReason.STATUS_REVIEW) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT, "수동 재고 결정이 필요한 스마트스토어 주문이 아닙니다.");
+        }
+        validateManualTarget(order, command.productId(), command.productVariantId());
+        order.mapTo(command.productId(), command.productVariantId());
+
+        int targetQuantity = switch (command.action()) {
+            case APPLY_REMAINING -> order.targetInventoryQuantity(order.getRemainQuantity());
+            case RESTORE_ALL -> 0;
+            case KEEP_CURRENT -> order.getInventoryAppliedQuantity();
+        };
+        boolean applied = changeAppliedQuantity(order, targetQuantity);
+        if (applied && order.pendingReturnQuantity() > 0) {
+            order.requireAttention(SmartStoreOrderAttentionReason.RETURN_REVIEW);
+        }
+        SmartStoreProductOrder saved = orderPort.save(order);
+
+        LocalDateTime changedAt = LocalDateTime.now(clock);
+        String summary = "상품 %d, 옵션 조합 %s, 재고 결정 %s, 목표 적용 %d개, 사유: %s".formatted(
+                command.productId(), Objects.toString(command.productVariantId(), "없음"),
+                command.action(), targetQuantity, command.reason().strip());
+        SmartStoreOrderActionHistory history = new SmartStoreOrderActionHistory(
+                command.productOrderId(), SmartStoreOrderAction.INVENTORY_RESOLVED, summary,
+                actor.adminUserId(), actor.name(), changedAt);
+        if (applied) {
+            history.succeed(changedAt);
+        } else {
+            history.reject("STOCK_SHORTAGE", "내부 재고가 부족해 선택한 수량을 반영하지 못했습니다.", changedAt);
+        }
+        actionHistoryPort.save(history);
+        return saved;
+    }
+
+    private void validateManualTarget(
+            SmartStoreProductOrder order,
+            Long productId,
+            Long productVariantId) {
+        Product product = productReaderPort.findById(productId)
+                .orElseThrow(NotFoundException.supplier("상품"));
+        if (product.getType() == ProductType.READY_STOCK && productVariantId != null) {
+            throw new IllegalArgumentException("기성품은 옵션 조합 없이 연결해 주세요.");
+        }
+        if (product.getType() == ProductType.MADE_TO_ORDER) {
+            if (productVariantId == null) {
+                throw new IllegalArgumentException("주문제작 상품은 옵션 조합을 선택해 주세요.");
+            }
+            variantReaderPort.findWithSelectionsById(productVariantId)
+                    .filter(found -> found.getProductId().equals(productId))
+                    .orElseThrow(NotFoundException.supplier("상품 옵션 조합"));
+        }
+        boolean mappingChanged = !Objects.equals(order.getProductId(), productId)
+                || !Objects.equals(order.getProductVariantId(), productVariantId);
+        if (mappingChanged && order.getInventoryAppliedQuantity() > 0) {
+            throw new HappyGalleryException(
+                    ErrorCode.CONFLICT,
+                    "이미 재고가 반영된 주문은 다른 상품이나 옵션 조합으로 변경할 수 없습니다.");
+        }
     }
 
     private void reconcile(SmartStoreProductOrder order) {
@@ -166,7 +259,7 @@ class SmartStoreOrderTransactionService {
         if (order.getProductVariantId() == null) {
             return inventoryService.tryDeduct(order.getProductId(), quantity);
         }
-        return variantStockService.tryDeduct(order.getProductVariantId(), quantity);
+        return variantStockService.tryDeductCommittedSale(order.getProductVariantId(), quantity);
     }
 
     private void restore(SmartStoreProductOrder order, int quantity) {

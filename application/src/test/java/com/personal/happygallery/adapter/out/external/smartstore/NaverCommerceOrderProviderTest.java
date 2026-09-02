@@ -6,6 +6,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeRejectCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeHoldCommand;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
@@ -456,6 +458,33 @@ class NaverCommerceOrderProviderTest {
         assertThat(dispatch.successProductOrderIds()).containsExactly("po-1");
         assertThat(dispatch.failures()).singleElement()
                 .satisfies(failure -> assertThat(failure.code()).isEqualTo("INVALID_TRACKING"));
+    }
+
+    @Test
+    @DisplayName("단건 처리의 네이버 거절과 결과 없는 응답을 서로 다른 실패로 구분한다")
+    void singleOperation_distinguishesRejectionFromUnknownResult() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        expectToken(server);
+        server.expect(requestTo(containsString("/product-orders/confirm")))
+                .andRespond(withSuccess("""
+                        {"data":{"successProductOrderIds":[],"failProductOrderInfos":[{
+                          "productOrderId":"po-1","code":"INVALID_STATUS","message":"발주 상태가 아닙니다."
+                        }]}}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/product-orders/po-1/delay")))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> provider.confirm("po-1"))
+                .isInstanceOfSatisfying(OperationRejectedException.class,
+                        exception -> assertThat(exception.code()).isEqualTo("INVALID_STATUS"));
+        assertThatThrownBy(() -> provider.delay(new DelayCommand(
+                "po-1", LocalDateTime.of(2026, 8, 31, 18, 0), "CUSTOM_BUILD", "각인 제작 중")))
+                .isInstanceOf(OperationResultUnknownException.class);
+        server.verify();
     }
 
     private static ResponseCreator operationSuccess() {

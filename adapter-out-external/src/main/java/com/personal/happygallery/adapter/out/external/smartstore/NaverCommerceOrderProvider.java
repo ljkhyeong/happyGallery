@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.domain.time.Clocks;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -9,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -294,7 +297,8 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private static void requireOperationSuccess(OperationResponse response, String productOrderId) {
         if (response == null || response.data() == null) {
-            return;
+            throw new OperationResultUnknownException(
+                    "네이버 응답에서 주문 처리 결과를 확인할 수 없습니다.");
         }
         List<RemoteOperationFailure> failures = response.data().failProductOrderInfos();
         if (failures == null || failures.isEmpty()) {
@@ -304,14 +308,17 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .filter(item -> productOrderId.equals(item.productOrderId()))
                 .findFirst()
                 .orElse(failures.getFirst());
-        throw new IllegalStateException("스마트스토어 주문 처리 실패: " + failure.message());
+        throw new OperationRejectedException(failure.code(), failure.message());
     }
 
     private static OperationResult operationResult(
             OperationResponse response, List<String> requestedIds) {
         OperationData data = response == null ? null : response.data();
         if (data == null) {
-            return new OperationResult(requestedIds, List.of());
+            return new OperationResult(List.of(), requestedIds.stream()
+                    .map(id -> new OperationFailure(
+                            id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
+                    .toList());
         }
         List<String> successIds = data.successProductOrderIds() == null
                 ? List.of() : data.successProductOrderIds();
@@ -335,7 +342,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                         id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                 .toList();
         if (!missing.isEmpty()) {
-            failures = java.util.stream.Stream.concat(failures.stream(), missing.stream()).toList();
+            failures = Stream.concat(failures.stream(), missing.stream()).toList();
         }
         return new OperationResult(successIds, failures);
     }

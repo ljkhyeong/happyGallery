@@ -9,16 +9,21 @@ import type {
   SmartStoreChannelOrderResponseAttentionReason,
   HoldSmartStoreExchangeRequest,
   HoldSmartStoreReturnRequest,
+  ListSmartStoreChannelOrdersAttentionReason,
   RequestSmartStoreSellerCancelRequest,
   RequestSmartStoreSellerReturnRequest,
+  ResolveSmartStoreInventoryRequestAction,
+  SmartStoreOrderActionHistoryResponse,
   SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
+import type { ProductResponse, ProductVariantResponse } from "@/generated/api/adminCatalog";
 import { ApiError } from "@/shared/api";
+import { fetchProducts } from "@/features/admin-product/api";
 import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 import {
   approveSmartStoreCancel,
   approveSmartStoreReturn,
@@ -36,9 +41,11 @@ import {
   rejectSmartStoreExchange,
   requestSmartStoreOrderCancel,
   requestSmartStoreOrderReturn,
+  fetchSmartStoreChannelOrderActions,
   fetchSmartStoreChannelOrder,
   fetchSmartStoreChannelOrders,
   rejectSmartStoreReturn,
+  resolveSmartStoreOrderInventory,
   resolveSmartStoreReturn,
   retrySmartStoreOrderInventory,
 } from "./api";
@@ -71,6 +78,32 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELED_BY_NOPAYMENT: "미결제 취소",
 };
 
+const ACTION_LABELS: Record<string, string> = {
+  INVENTORY_RESOLVED: "수동 재고 결정",
+  ORDER_CONFIRMED: "발주 확인",
+  ORDER_DISPATCHED: "발송 처리",
+  ORDER_DELAYED: "발송 지연",
+  CANCEL_APPROVED: "취소 승인",
+  RETURN_APPROVED: "반품 승인",
+  RETURN_REJECTED: "반품 거부",
+  RETURN_HELD: "반품 보류",
+  RETURN_HOLD_RELEASED: "반품 보류 해제",
+  RETURN_REQUESTED: "판매자 반품 요청",
+  EXCHANGE_DISPATCHED: "교환품 발송",
+  EXCHANGE_COLLECTION_COMPLETED: "교환품 수거 완료",
+  EXCHANGE_REJECTED: "교환 거부",
+  EXCHANGE_HELD: "교환 보류",
+  EXCHANGE_HOLD_RELEASED: "교환 보류 해제",
+  CANCEL_REQUESTED: "판매자 취소 요청",
+};
+
+const ACTION_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: "요청 접수",
+  SUCCEEDED: "성공",
+  REJECTED: "거절",
+  RESULT_UNKNOWN: "결과 확인 필요",
+};
+
 const MAX_BULK_ORDERS = 30;
 
 export function SmartStoreChannelOrderSection({
@@ -81,18 +114,38 @@ export function SmartStoreChannelOrderSection({
   const queryClient = useQueryClient();
   const toast = useToast();
   const [attentionOnly, setAttentionOnly] = useState(initialAttentionOnly);
+  const [attentionReason, setAttentionReason] = useState<
+    ListSmartStoreChannelOrdersAttentionReason | ""
+  >("");
+  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [inventoryResolutionOrder, setInventoryResolutionOrder] =
+    useState<SmartStoreChannelOrderResponse | null>(null);
   const [returnReviewOrder, setReturnReviewOrder] = useState<SmartStoreChannelOrderResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDispatchOpen, setBulkDispatchOpen] = useState(false);
   const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
-  const queryKey = ["admin", "smartstore-orders", attentionOnly] as const;
+  const cursor = pageCursors.at(-1);
+  const queryKey = [
+    "admin", "smartstore-orders", attentionOnly, attentionReason || null, cursor ?? null,
+  ] as const;
   const { data, isLoading, error } = useAdminQuery(onAuthError, {
     queryKey,
-    queryFn: () => fetchSmartStoreChannelOrders(adminKey, attentionOnly),
+    queryFn: () => fetchSmartStoreChannelOrders(
+      adminKey,
+      attentionOnly,
+      attentionReason || undefined,
+      cursor,
+    ),
     refetchInterval: 30_000,
   });
+  const orders = data?.content ?? [];
+
+  function resetPages() {
+    setPageCursors([undefined]);
+    setSelectedIds(new Set());
+  }
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ["admin", "smartstore-orders"] });
@@ -161,8 +214,30 @@ export function SmartStoreChannelOrderSection({
           id="smartstore-order-attention-only"
           label="확인이 필요한 주문만 보기"
           checked={attentionOnly}
-          onChange={(event) => setAttentionOnly(event.target.checked)}
+          onChange={(event) => {
+            setAttentionOnly(event.target.checked);
+            if (!event.target.checked) setAttentionReason("");
+            resetPages();
+          }}
         />
+      )}
+      {attentionOnly && (
+        <Form.Select
+          className="mb-3"
+          style={{ maxWidth: 300 }}
+          aria-label="확인 사유 필터"
+          value={attentionReason}
+          onChange={(event) => {
+            setAttentionReason(event.target.value as ListSmartStoreChannelOrdersAttentionReason | "");
+            resetPages();
+          }}
+        >
+          <option value="">모든 확인 사유</option>
+          <option value="MAPPING_REQUIRED">상품·옵션 매핑 필요</option>
+          <option value="STOCK_SHORTAGE">내부 재고 부족</option>
+          <option value="RETURN_REVIEW">반품 검수 필요</option>
+          <option value="STATUS_REVIEW">새 주문 상태 확인 필요</option>
+        </Form.Select>
       )}
       {!!selectedIds.size && <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
         <Badge bg="primary">{selectedIds.size}건 선택</Badge>
@@ -182,7 +257,7 @@ export function SmartStoreChannelOrderSection({
         </Alert>
       )}
       {bulkResult && <BulkResultAlert result={bulkResult} />}
-      {!data?.length ? (
+      {!orders.length ? (
         <EmptyState message={attentionOnly
           ? "확인이 필요한 스마트스토어 주문이 없습니다."
           : "수집된 스마트스토어 주문이 없습니다."} />
@@ -192,10 +267,10 @@ export function SmartStoreChannelOrderSection({
             <tr>
               <th style={{ width: 40 }}><Form.Check
                 aria-label="전체 주문 선택"
-                checked={!!data?.length && data.slice(0, MAX_BULK_ORDERS)
+                checked={orders.length > 0 && orders.slice(0, MAX_BULK_ORDERS)
                   .every((order) => selectedIds.has(order.productOrderId))}
                 onChange={(event) => setSelectedIds(event.target.checked
-                  ? new Set(data?.slice(0, MAX_BULK_ORDERS).map((order) => order.productOrderId))
+                  ? new Set(orders.slice(0, MAX_BULK_ORDERS).map((order) => order.productOrderId))
                   : new Set())}
               /></th>
               <th>상품 주문 번호</th>
@@ -209,7 +284,7 @@ export function SmartStoreChannelOrderSection({
             </tr>
           </thead>
           <tbody>
-            {data.map((order) => (
+            {orders.map((order) => (
               <tr key={order.productOrderId}>
                 <td><Form.Check
                   aria-label={`${order.productOrderId} 선택`}
@@ -256,12 +331,41 @@ export function SmartStoreChannelOrderSection({
                     resolveReturn.reset();
                     setReturnReviewOrder(order);
                   },
+                  setInventoryResolutionOrder,
                   setSelectedId,
                 )}</td>
               </tr>
             ))}
           </tbody>
         </Table>
+      )}
+      {(pageCursors.length > 1 || data?.hasMore) && (
+        <div className="d-flex justify-content-end gap-2 mb-3">
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={pageCursors.length === 1}
+            onClick={() => {
+              setPageCursors((current) => current.slice(0, -1));
+              setSelectedIds(new Set());
+            }}
+          >
+            이전
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            disabled={!data?.hasMore || !data.nextCursor}
+            onClick={() => {
+              if (data?.nextCursor) {
+                setPageCursors((current) => [...current, data.nextCursor ?? undefined]);
+                setSelectedIds(new Set());
+              }
+            }}
+          >
+            다음
+          </Button>
+        </div>
       )}
       <Modal
         show={returnReviewOrder !== null}
@@ -292,6 +396,19 @@ export function SmartStoreChannelOrderSection({
           </Button>
         </Modal.Footer>
       </Modal>
+      {inventoryResolutionOrder && (
+        <InventoryResolutionModal
+          key={inventoryResolutionOrder.productOrderId}
+          adminKey={adminKey}
+          order={inventoryResolutionOrder}
+          onAuthError={onAuthError}
+          onClose={() => setInventoryResolutionOrder(null)}
+          onCompleted={() => {
+            setInventoryResolutionOrder(null);
+            invalidate();
+          }}
+        />
+      )}
       <SmartStoreOrderDetailModal
         adminKey={adminKey}
         productOrderId={selectedId}
@@ -315,6 +432,170 @@ export function SmartStoreChannelOrderSection({
       <DeliveryCompanyDatalist />
     </>
   );
+}
+
+function InventoryResolutionModal({
+  adminKey,
+  order,
+  onAuthError,
+  onClose,
+  onCompleted,
+}: {
+  adminKey: string;
+  order: SmartStoreChannelOrderResponse;
+  onAuthError: () => void;
+  onClose: () => void;
+  onCompleted: () => void;
+}) {
+  const toast = useToast();
+  const [productId, setProductId] = useState(order.productId ? String(order.productId) : "");
+  const [variantId, setVariantId] = useState(
+    order.productVariantId ? String(order.productVariantId) : "",
+  );
+  const [resolutionAction, setResolutionAction] =
+    useState<ResolveSmartStoreInventoryRequestAction>(
+      order.attentionReason === "STATUS_REVIEW" ? "KEEP_CURRENT" : "APPLY_REMAINING",
+    );
+  const [reason, setReason] = useState("");
+  const productsQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products"],
+    queryFn: () => fetchProducts(adminKey),
+  });
+  const selectedProduct = productsQuery.data?.find(
+    (product) => product.id === Number(productId),
+  );
+  const submit = useAdminMutation(onAuthError, {
+    mutationFn: () => resolveSmartStoreOrderInventory(
+      adminKey,
+      order.productOrderId,
+      {
+        productId: Number(productId),
+        productVariantId: selectedProduct?.type === "MADE_TO_ORDER"
+          ? Number(variantId)
+          : null,
+        action: resolutionAction,
+        reason: reason.trim(),
+        resolutionVersion: order.inventoryResolutionVersion,
+      },
+    ),
+    onSuccess: (resolved) => {
+      toast.show(resolved.attentionReason === "STOCK_SHORTAGE"
+        ? "상품 연결은 저장했지만 재고가 부족합니다. 재고를 조정한 뒤 다시 시도해 주세요."
+        : "스마트스토어 주문의 상품 연결과 재고 결정을 저장했습니다.");
+      onCompleted();
+    },
+  });
+  const valid = !!selectedProduct
+    && (selectedProduct.type !== "MADE_TO_ORDER" || !!variantId)
+    && !!reason.trim();
+
+  return (
+    <Modal show onHide={() => { if (!submit.isPending) onClose(); }} centered>
+      <Form onSubmit={(event) => {
+        event.preventDefault();
+        if (valid) submit.mutate();
+      }}>
+        <Modal.Header closeButton={!submit.isPending}>
+          <Modal.Title className="fs-6">스마트스토어 주문 수동 재고 결정</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ErrorAlert error={productsQuery.error ?? submit.error} />
+          <div className="mb-3">
+            <div className="fw-semibold">{order.productName}</div>
+            {order.productOption && <div className="small text-muted-soft">{order.productOption}</div>}
+            <div className="small text-muted-soft">상품 주문 번호: {order.productOrderId}</div>
+          </div>
+          {order.inventoryAppliedQuantity > 0 && (
+            <Alert variant="warning" className="small">
+              이미 {order.inventoryAppliedQuantity}개가 재고에 반영되어 있어 다른 상품이나 옵션 조합으로 바꿀 수 없습니다.
+            </Alert>
+          )}
+          <Form.Group className="mb-3">
+            <Form.Label>내부 상품</Form.Label>
+            <Form.Select
+              aria-label="내부 상품"
+              required
+              value={productId}
+              disabled={productsQuery.isLoading}
+              onChange={(event) => {
+                setProductId(event.target.value);
+                setVariantId("");
+              }}
+            >
+              <option value="">상품 선택</option>
+              {(productsQuery.data ?? []).map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} · {product.type === "READY_STOCK" ? "기성품" : "주문제작"}
+                  {product.status === "INACTIVE" ? " · 판매 중지" : ""}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          {selectedProduct?.type === "MADE_TO_ORDER" && (
+            <Form.Group className="mb-3">
+              <Form.Label>옵션 조합</Form.Label>
+              <Form.Select
+                aria-label="옵션 조합"
+                required
+                value={variantId}
+                onChange={(event) => setVariantId(event.target.value)}
+              >
+                <option value="">옵션 조합 선택</option>
+                {selectedProduct.variants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>
+                    {productVariantLabel(selectedProduct, variant)} · 재고 {variant.quantity}개
+                    {!variant.active ? " · 사용 중지" : ""}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+          <Form.Group className="mb-3">
+            <Form.Label>재고 결정</Form.Label>
+            <Form.Select
+              aria-label="재고 결정"
+              value={resolutionAction}
+              onChange={(event) => setResolutionAction(
+                event.target.value as ResolveSmartStoreInventoryRequestAction,
+              )}
+            >
+              <option value="APPLY_REMAINING">남은 판매 수량 {order.remainQuantity}개 차감</option>
+              <option value="RESTORE_ALL">현재 차감 {order.inventoryAppliedQuantity}개 전부 복원</option>
+              <option value="KEEP_CURRENT">현재 차감 {order.inventoryAppliedQuantity}개 유지</option>
+            </Form.Select>
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>처리 사유</Form.Label>
+            <Form.Control
+              aria-label="처리 사유"
+              as="textarea"
+              rows={2}
+              required
+              maxLength={500}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="상품 연결과 재고 결정을 확인한 근거를 입력하세요."
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" disabled={submit.isPending} onClick={onClose}>취소</Button>
+          <Button type="submit" disabled={!valid || submit.isPending}>
+            {submit.isPending ? "저장 중..." : "상품 연결과 재고 결정 저장"}
+          </Button>
+        </Modal.Footer>
+      </Form>
+    </Modal>
+  );
+}
+
+function productVariantLabel(product: ProductResponse, variant: ProductVariantResponse): string {
+  if (!variant.selections.length) return "기본 조합";
+  return variant.selections.map((selection) => {
+    const group = product.optionGroups.find((candidate) => candidate.key === selection.groupKey);
+    const value = group?.values.find((candidate) => candidate.key === selection.valueKey);
+    return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
+  }).join(" / ");
 }
 
 function BulkResultAlert({ result }: { result: SmartStoreOrderBulkActionResponse }) {
@@ -414,11 +695,12 @@ function actions(
   pendingId: string | null,
   retry: (productOrderId: string) => void,
   openReturnReview: (order: SmartStoreChannelOrderResponse) => void,
+  openInventoryResolution: (order: SmartStoreChannelOrderResponse) => void,
   openDetail: (productOrderId: string) => void,
 ) {
   const disabled = pendingId === order.productOrderId;
   if (order.attentionReason === "MAPPING_REQUIRED"
-      || order.attentionReason === "STOCK_SHORTAGE") {
+      || order.attentionReason === "STATUS_REVIEW") {
     return <div className="d-flex flex-wrap gap-1">
       <Button size="sm" variant="outline-secondary" onClick={() => openDetail(order.productOrderId)}>
         주문 처리
@@ -427,10 +709,29 @@ function actions(
           size="sm"
           variant="outline-primary"
           disabled={disabled}
-          onClick={() => retry(order.productOrderId)}
+          onClick={() => openInventoryResolution(order)}
         >
-          재고 반영 다시 시도
+          상품 연결·재고 결정
         </Button>
+    </div>;
+  }
+  if (order.attentionReason === "STOCK_SHORTAGE") {
+    return <div className="d-flex flex-wrap gap-1">
+      <Button size="sm" variant="outline-secondary" onClick={() => openDetail(order.productOrderId)}>
+        주문 처리
+      </Button>
+      {order.productId && <LinkButton
+        size="sm"
+        variant="outline-warning"
+        to={`/admin?view=products&productId=${order.productId}${order.productVariantId
+          ? `&variantId=${order.productVariantId}` : ""}`}
+      >
+        재고 조정
+      </LinkButton>}
+      <Button size="sm" variant="outline-primary" disabled={disabled}
+        onClick={() => retry(order.productOrderId)}>
+        재고 반영 다시 시도
+      </Button>
     </div>;
   }
   if (order.attentionReason !== "RETURN_REVIEW") {
@@ -523,6 +824,11 @@ function SmartStoreOrderDetailModal({
     queryFn: () => fetchSmartStoreChannelOrder(adminKey, productOrderId!),
     enabled: productOrderId !== null,
   });
+  const historyQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "smartstore-orders", "actions", productOrderId],
+    queryFn: () => fetchSmartStoreChannelOrderActions(adminKey, productOrderId!),
+    enabled: productOrderId !== null,
+  });
 
   const action = useAdminMutation(onAuthError, {
     mutationFn: async (request: ChannelAction) => {
@@ -565,6 +871,9 @@ function SmartStoreOrderDetailModal({
       await queryClient.invalidateQueries({
         queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "smartstore-orders", "actions", productOrderId],
+      });
     },
   });
 
@@ -591,7 +900,7 @@ function SmartStoreOrderDetailModal({
       </Modal.Header>
       <Modal.Body>
         {detailQuery.isLoading && <LoadingSpinner />}
-        <ErrorAlert error={detailQuery.error ?? action.error} />
+        <ErrorAlert error={detailQuery.error ?? historyQuery.error ?? action.error} />
         {detail && order && (
           <>
             <div className="mb-3">
@@ -653,6 +962,11 @@ function SmartStoreOrderDetailModal({
                 </div>}
               </Col>
             </Row>
+
+            <SmartStoreOrderActionHistory
+              history={historyQuery.data ?? []}
+              loading={historyQuery.isLoading}
+            />
 
             {canPlaceOrder && detail.placeOrderStatus === "NOT_YET" && (
               <Button
@@ -978,6 +1292,54 @@ function SmartStoreOrderDetailModal({
       </Modal.Footer>
     </Modal>
   );
+}
+
+function SmartStoreOrderActionHistory({
+  history,
+  loading,
+}: {
+  history: SmartStoreOrderActionHistoryResponse[];
+  loading: boolean;
+}) {
+  return (
+    <section className="border rounded p-3 mb-3" aria-label="주문 처리 이력">
+      <div className="fw-semibold mb-2">최근 처리 이력</div>
+      {loading ? (
+        <div className="small text-muted-soft">처리 이력을 불러오는 중입니다.</div>
+      ) : !history.length ? (
+        <div className="small text-muted-soft">저장된 처리 이력이 없습니다.</div>
+      ) : (
+        <div className="d-grid gap-2">
+          {history.map((item) => (
+            <div key={item.id} className="small border-bottom pb-2">
+              <div className="d-flex flex-wrap justify-content-between gap-2">
+                <span className="fw-semibold">{ACTION_LABELS[item.action] ?? item.action}</span>
+                <Badge bg={actionStatusColor(item.status)}>
+                  {ACTION_STATUS_LABELS[item.status] ?? item.status}
+                </Badge>
+              </div>
+              <div className="text-muted-soft">
+                {item.changedBy} · {formatDateTime(item.requestedAt)}
+              </div>
+              {item.requestSummary && <div>{item.requestSummary}</div>}
+              {item.resultMessage && (
+                <div className={item.status === "SUCCEEDED" ? "" : "text-danger"}>
+                  {item.resultMessage}{item.resultCode ? ` (${item.resultCode})` : ""}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function actionStatusColor(status: SmartStoreOrderActionHistoryResponse["status"]): string {
+  if (status === "SUCCEEDED") return "success";
+  if (status === "REJECTED") return "danger";
+  if (status === "RESULT_UNKNOWN") return "warning";
+  return "secondary";
 }
 
 function DeliveryFields({
