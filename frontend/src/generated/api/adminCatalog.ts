@@ -521,6 +521,7 @@ export interface SmartStoreInventoryMappingResponse {
   enabled: boolean;
   /** @nullable */
   lastError: string | null;
+  mappingVersion: number;
   originProductNo: number;
   productId: number;
   /** @nullable */
@@ -537,12 +538,53 @@ export interface SmartStoreVariantMappingRequest {
 
 export interface SaveSmartStoreInventoryMappingRequest {
   enabled?: boolean;
+  /** @nullable */
+  expectedMappingVersion: number | null;
   originProductNo: number;
+  previousOriginConfirmed: boolean;
   /**
      * @minItems 0
      * @maxItems 500
      */
   variants?: SmartStoreVariantMappingRequest[];
+}
+
+export type SmartStoreInventoryMappingHistoryResponseAction = typeof SmartStoreInventoryMappingHistoryResponseAction[keyof typeof SmartStoreInventoryMappingHistoryResponseAction];
+
+
+export const SmartStoreInventoryMappingHistoryResponseAction = {
+  CREATED: 'CREATED',
+  UPDATED: 'UPDATED',
+  ORIGIN_CHANGED: 'ORIGIN_CHANGED',
+  ENABLED: 'ENABLED',
+  DISABLED: 'DISABLED',
+  DELETED: 'DELETED',
+} as const;
+
+export interface SmartStoreInventoryMappingHistoryResponse {
+  action: SmartStoreInventoryMappingHistoryResponseAction;
+  changedAt: string;
+  changedBy: string;
+  /** @nullable */
+  changedByAdminId: number | null;
+  id: number;
+  /** @nullable */
+  nextEnabled: boolean | null;
+  /** @nullable */
+  nextMappingVersion: number | null;
+  /** @nullable */
+  nextOptionMappings: string | null;
+  /** @nullable */
+  nextOriginProductNo: number | null;
+  /** @nullable */
+  previousEnabled: boolean | null;
+  /** @nullable */
+  previousMappingVersion: number | null;
+  /** @nullable */
+  previousOptionMappings: string | null;
+  previousOriginConfirmed: boolean;
+  /** @nullable */
+  previousOriginProductNo: number | null;
 }
 
 export interface OptionPreview {
@@ -565,12 +607,13 @@ export interface SmartStoreProductPreviewResponse {
   localStatus: string;
   options: OptionPreview[];
   originProductNo: number;
+  previewVersion: string;
   productId: number;
-  productVersion: number;
 }
 
 export interface ApplySmartStoreProductRequest {
-  productVersion: number;
+  /** @minLength 1 */
+  previewVersion: string;
 }
 
 export type UpdateProductStatusRequestStatus = typeof UpdateProductStatusRequestStatus[keyof typeof UpdateProductStatusRequestStatus];
@@ -814,6 +857,11 @@ page?: number;
  * @maximum 100
  */
 size?: number;
+};
+
+export type DeleteSmartStoreInventoryMappingParams = {
+expectedMappingVersion: number;
+previousOriginConfirmed: boolean;
 };
 
 export type ListSlotsParams = {
@@ -1172,17 +1220,26 @@ export const adjustInventory = async (id: number,
 
 
 
-export const getDeleteSmartStoreInventoryMappingUrl = (id: number,) => {
+export const getDeleteSmartStoreInventoryMappingUrl = (id: number,
+    params: DeleteSmartStoreInventoryMappingParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/v1/admin/products/${id}/smartstore-inventory`
+  return stringifiedParams.length > 0 ? `/api/v1/admin/products/${id}/smartstore-inventory?${stringifiedParams}` : `/api/v1/admin/products/${id}/smartstore-inventory`
 }
 
-export const deleteSmartStoreInventoryMapping = async (id: number, options?: RequestInit): Promise<void> => {
+export const deleteSmartStoreInventoryMapping = async (id: number,
+    params: DeleteSmartStoreInventoryMappingParams, options?: RequestInit): Promise<void> => {
 
-  return generatedApiClient<void>(getDeleteSmartStoreInventoryMappingUrl(id),
+  return generatedApiClient<void>(getDeleteSmartStoreInventoryMappingUrl(id,params),
   {
     ...options,
     method: 'DELETE'
@@ -1231,6 +1288,27 @@ export const saveSmartStoreInventoryMapping = async (id: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(saveSmartStoreInventoryMappingRequest)
+  }
+);}
+
+
+
+export const getListSmartStoreInventoryMappingHistoryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/products/${id}/smartstore-inventory/history`
+}
+
+export const listSmartStoreInventoryMappingHistory = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingHistoryResponse[]> => {
+
+  return generatedApiClient<SmartStoreInventoryMappingHistoryResponse[]>(getListSmartStoreInventoryMappingHistoryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

@@ -77,6 +77,16 @@ public class SmartStoreStockSync {
         lastError = null;
     }
 
+    public boolean requestReconciliation(LocalDateTime syncedBefore, LocalDateTime now) {
+        if (status != SmartStoreStockSyncStatus.SYNCED
+                || syncedAt == null
+                || syncedAt.isAfter(syncedBefore)) {
+            return false;
+        }
+        request(now);
+        return true;
+    }
+
     public long claim(LocalDateTime now, LocalDateTime staleBefore) {
         boolean staleProcessing = status == SmartStoreStockSyncStatus.PROCESSING
                 && processingStartedAt != null
@@ -89,8 +99,16 @@ public class SmartStoreStockSync {
         return requestVersion;
     }
 
+    /** 미반영 채널 주문을 기다리는 동안 실패 횟수를 늘리지 않고 다른 상품에 전송 순서를 넘긴다. */
+    public void postponeForUnappliedOrder(LocalDateTime now) {
+        status = SmartStoreStockSyncStatus.PENDING;
+        nextAttemptAt = now.plusMinutes(1);
+        processingStartedAt = null;
+    }
+
     public void complete(String claimedGeneration, long claimedVersion, LocalDateTime now) {
         if (!generation.equals(claimedGeneration)) {
+            requestAfterSupersededWrite(now);
             return;
         }
         if (requestVersion == claimedVersion) {
@@ -101,19 +119,16 @@ public class SmartStoreStockSync {
             processingStartedAt = null;
             return;
         }
-        status = SmartStoreStockSyncStatus.PENDING;
-        nextAttemptAt = now;
-        processingStartedAt = null;
+        requestAfterSupersededWrite(now);
     }
 
     public void fail(String claimedGeneration, long claimedVersion, String reason, LocalDateTime now) {
         if (!generation.equals(claimedGeneration)) {
+            requestAfterSupersededWrite(now);
             return;
         }
         if (requestVersion != claimedVersion) {
-            status = SmartStoreStockSyncStatus.PENDING;
-            nextAttemptAt = now;
-            processingStartedAt = null;
+            requestAfterSupersededWrite(now);
             return;
         }
         attemptCount++;
@@ -126,6 +141,13 @@ public class SmartStoreStockSync {
         status = SmartStoreStockSyncStatus.PENDING;
         nextAttemptAt = now.plusMinutes(Math.min(30, 1L << Math.min(attemptCount - 1, 5)));
         processingStartedAt = null;
+    }
+
+    /** 뒤늦은 외부 쓰기 이후 전송을 보장하고, 대기·최종 실패의 재시도 정책은 유지한다. */
+    private void requestAfterSupersededWrite(LocalDateTime now) {
+        if (status == SmartStoreStockSyncStatus.PROCESSING || status == SmartStoreStockSyncStatus.SYNCED) {
+            request(now);
+        }
     }
 
     private static String trim(String reason) {

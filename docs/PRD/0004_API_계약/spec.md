@@ -890,6 +890,8 @@ Content-Type: application/json
 {
   "originProductNo": 123456789,
   "enabled": true,
+  "expectedMappingVersion": 17,
+  "previousOriginConfirmed": false,
   "variants": [
     { "productVariantId": 31, "optionId": 90001 },
     { "productVariantId": 32, "optionId": 90002 }
@@ -897,15 +899,22 @@ Content-Type: application/json
 }
 ```
 
-- 성공: `200 OK` — 저장된 매핑과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
+- 성공: `200 OK` — 저장된 매핑의 불투명 `mappingVersion`과 `PENDING|PROCESSING|SYNCED|FAILED` 동기화 상태, 시도 횟수, 마지막 오류와 완료 시각 반환
+- 최초 등록은 `expectedMappingVersion=null`, 수정은 직전 조회·저장 응답의 `mappingVersion`을 보낸다. 현재 값과 다르면 다른 화면에서 설정이 변경·삭제·재등록된 것이므로 `409 CONFLICT`를 반환하며 자동 병합하지 않는다.
 - 기성품은 `variants=[]`로 보내고 스마트스토어 원상품 재고를 갱신한다.
 - 주문제작 상품은 관리자 상품 응답에 표시되는 현재 조합을 판매 중지 여부와 관계없이 정확히 한 번씩 보내야 한다. 과거 주문 보존용 조합은 입력하지 않는다. 각 `optionId`는 같은 원상품 안에서 중복할 수 없다.
 - 매핑 응답의 `variants`에는 현재 연결만 반환한다. 같은 원상품에서 옵션 구조 변경 또는 같은 조합의 원격 옵션 번호 변경으로 해제된 연결은 내부에 보존하며 자동 재고 전송에서는 0개를 보낸다. 실패하면 기존 재시도 경로에서 현재·과거 옵션을 함께 다시 전송한다. 현재 조합이 그 원격 옵션 번호를 재사용하면 과거 연결은 제거해 중복 전송하지 않는다. 전체 연동 해제는 보존된 매핑도 제거하며, 원상품 번호를 바꾸는 경우 이전 원상품 판매 상태는 스마트스토어에서 별도로 관리한다.
+- 원상품 번호가 바뀌면 `previousOriginConfirmed=true`가 필수다. 서버는 기존 매핑이 남아 있는 동안 변경 주문을 현재 시점까지 수집하고, 수집 실패·진행 중·남은 페이지가 있으면 `409 CONFLICT`로 저장을 보류한다. 외부 수집 트랜잭션이 끝난 뒤 상품 행을 잠그고 `mappingVersion`을 다시 비교한 경우에만 새 원상품을 저장한다.
+- 원상품 변경 전 수집한 기존 주문에 `MAPPING_REQUIRED|STOCK_SHORTAGE|STATUS_REVIEW`가 남아 있으면 기존 매핑을 유지하고 `409 CONFLICT`를 반환한다. 아직 내부 상품 번호가 없는 주문도 기존 원상품 번호로 확인한 뒤에만 새 원상품으로 전환한다.
+- 저장·해제 전 연결은 주문 식별 전용 이력에 종료 시각과 함께 보존한다. 이후 늦게 수집된 주문은 결제 시각에 해당하는 과거 원상품·옵션 연결을 먼저 사용해 기존 내부 상품·SKU 재고에 반영한다. 과거 옵션을 확정하지 못한 `MAPPING_REQUIRED|STATUS_REVIEW` 주문도 과거 원상품 이력으로 내부 상품을 찾아 현재 원상품 재고 전송을 보류한다. 이 이력은 현재 매핑 응답, 상품 미리보기와 외부 재고 전송에는 포함하지 않는다.
 - `enabled=true`로 저장하거나 재시도하면 최신 로컬 재고 반영 요청을 같은 트랜잭션에서 생성한다. `enabled=false`는 매핑을 보존하되 대기 중 동기화를 제거한다.
 - 비활성화·해제 후 다시 등록한 동기화는 이전 전송과 구분한다. 이전 전송의 성공·실패 응답은 새 요청의 완료 상태, 시도 횟수, 오류와 재시도 시각을 바꾸지 않는다.
 - 조회: `GET /api/v1/admin/products/{id}/smartstore-inventory`, 미설정이면 `404 NOT_FOUND`
 - 재시도: `POST /api/v1/admin/products/{id}/smartstore-inventory/retry`
-- 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory`, 성공 `204 No Content`
+- 해제: `DELETE /api/v1/admin/products/{id}/smartstore-inventory?expectedMappingVersion=17&previousOriginConfirmed=true`, 성공 `204 No Content`
+- 해제는 직전 응답의 `mappingVersion`과 기존 원상품의 판매 중지·재고 확인 완료를 필수로 받는다. 서버는 원상품 변경과 같은 주문 선수집·미반영 주문 확인·상품 잠금·개정 재검사를 거치며, 조건이 달라졌으면 `409 CONFLICT`로 현재 매핑을 유지한다.
+- 변경 이력: `GET /api/v1/admin/products/{id}/smartstore-inventory/history`
+- 변경 이력은 최근 20건을 최신순으로 반환한다. 각 항목은 `id`, `action(CREATED|UPDATED|ORIGIN_CHANGED|ENABLED|DISABLED|DELETED)`, nullable 변경 전후 원상품 번호·사용 여부·옵션 연결 요약·매핑 개정, 기존 원상품 확인 여부, nullable 관리자 ID, 관리자 이름과 처리 시각을 포함한다. 저장·해제 성공과 같은 트랜잭션에서 기록하며 Bearer 세션은 관리자 ID·이름, 로컬 API key는 nullable ID와 API key 주체 이름을 남긴다.
 
 가격·상태·옵션가를 반영하기 전에는 다음 미리보기를 조회한다.
 
@@ -915,10 +924,13 @@ POST /api/v1/admin/products/{id}/smartstore-product-sync
 Authorization: Bearer {token}
 ```
 
-- 미리보기는 상품 버전, 양쪽 판매가·판매 상태와 옵션별 양쪽 옵션가·사용 여부·차이 여부를 반환한다.
+- 미리보기는 불투명 문자열 `previewVersion`, 양쪽 판매가·판매 상태와 옵션별 양쪽 옵션가·사용 여부·차이 여부를 반환한다.
 - 미리보기에는 과거 연결도 포함하며 추가금 0원·사용 불가로 반환한다. 같은 `productVariantId`가 여러 원격 옵션에 남을 수 있으므로 옵션 행은 `optionId`로 구분한다. 관리자 화면은 원격 옵션 번호와 이전 연결 여부를 표시하고 매핑 저장 후 미리보기를 다시 조회한다.
-- 반영 요청은 `{ "productVersion": 7 }`을 받는다. 현재 상품 버전과 다르면 `409 CONFLICT`로 거절해 오래된 미리보기 값을 적용하지 않는다.
+- 반영 요청은 `{ "previewVersion": "미리보기에서 받은 값" }`을 받는다. 상품 버전·가격·판매 상태·원상품 번호·현재 및 과거 옵션 연결·옵션가·사용 여부와 연결 행 식별자를 비교해 변경됐으면 `409 CONFLICT`로 거절한다. 재고 수량만 바뀌고 판매 상태가 같으면 최신 수량을 사용한다. 연결을 해제·재등록한 경우에는 같은 번호여도 다시 비교해야 한다.
+- 기존 숫자 `productVersion` 요청은 허용하지 않으며 서버와 화면을 함께 배포한다. 관리 화면은 반영 대상 원상품 번호를 표시하고, 충돌 시 미리보기를 다시 조회하되 반영은 자동 재시도하지 않는다.
 - 주문제작 상품은 판매가와 모든 옵션의 옵션가·사용 여부·현재 재고를 한 요청으로 보내고, 기성품은 판매가와 현재 재고를 함께 반영한다. 그 뒤 현재 재고를 고려한 `SALE|OUTOFSTOCK|SUSPENSION` 상태를 적용한다.
+- 외부 반영을 호출한 뒤에는 성공·부분 실패와 관계없이 현재 활성 연결의 재고 동기화를 다시 요청한다. 먼저 완료된 자동 전송을 늦은 수동 요청이 덮어써도 다음 배치가 최신 수량으로 보정한다. 가격·판매 상태는 자동 재시도하지 않는다.
+- 수동 반영 직전에 주문 변경 피드를 한 페이지 수집한다. 수집 비활성·실패·다른 실행의 처리 중 상태, 남은 페이지나 이전 날짜 구간이 있으면 `409 CONFLICT`로 보류한다. 연결된 원상품에 매핑 누락·재고 부족·알 수 없는 주문 상태로 미반영된 주문이 있어도 같은 응답으로 거절한다. 수집 완료 뒤 최신 재고로 `previewVersion`을 확인하므로 새 주문으로 품절 여부가 바뀌면 미리보기를 다시 확인해야 한다. 미리보기 조회 자체는 보류하지 않는다.
 
 네이버 검수 반려 상품과 상품 공지사항은 로컬에 복제하지 않고 실시간 관리한다.
 
@@ -950,18 +962,38 @@ Authorization: Bearer {token}
 - `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 CONFLICT`를 반환한다.
 
 ```http
-GET /api/v1/admin/smartstore-orders?attentionOnly=false&limit=100
+GET /api/v1/admin/smartstore-orders?attentionOnly=true&attentionReason=STOCK_SHORTAGE&cursor={cursor}&size=50
 Authorization: Bearer {token}
 ```
 
-- 성공: `200 OK` — 최신 변경순 채널 상품 주문을 최대 `limit`건 반환한다. `limit`은 1~200이고 기본값은 100이다.
-- `attentionOnly=true`이면 재고 반영에 관리자 확인이 필요한 주문만 반환한다.
+- 성공: `200 OK` — 최신 변경순 채널 상품 주문을 `{content, nextCursor, hasMore}`로 반환한다. `size`는 1~100이고 기본값은 50이다. 다음 페이지는 응답의 불투명 `nextCursor`를 그대로 보내며 필터를 바꾸면 커서를 비운다.
+- `attentionOnly=true`이면 관리자 확인이 필요한 주문만 반환하고, `attentionReason`을 함께 보내면 해당 사유만 조회한다.
 - 응답의 `attentionReason`:
   - `MAPPING_REQUIRED`: 네이버 원상품·옵션 ID에 연결된 내부 상품·옵션 조합 없음
-  - `STOCK_SHORTAGE`: 내부 재고가 네이버 잔여 주문 수량보다 부족함
+  - `STOCK_SHORTAGE`: 내부 재고가 네이버 주문의 추가 차감 필요 수량보다 부족함
   - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
   - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
-- `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. `remainQuantity`와의 차이만 다음 동기화에서 변경한다.
+- `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. 다음 동기화는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량을 합한 목표 수량과의 차이만 변경한다. 검수 대기 또는 판매 불가로 종료한 반품은 계속 차감된 수량에 포함된다.
+- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 수동 재고 결정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
+
+```http
+POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "productId": 1,
+  "productVariantId": 31,
+  "action": "APPLY_REMAINING",
+  "reason": "스마트스토어 옵션과 내부 옵션 조합을 확인",
+  "resolutionVersion": "..."
+}
+```
+
+- `MAPPING_REQUIRED|STATUS_REVIEW` 주문만 처리한다. `productId`는 필수이며 기성품의 `productVariantId`는 명시적 `null`, 주문제작 상품은 해당 상품의 옵션 조합 ID가 필수다.
+- `action`은 남은 주문 수량까지 차감하는 `APPLY_REMAINING`, 현재 차감 수량을 모두 복원하는 `RESTORE_ALL`, 현재 차감을 유지하고 확인만 끝내는 `KEEP_CURRENT`다. 처리 사유는 500자 이하로 필수다.
+- 주문 잠금 안에서 `resolutionVersion`을 다시 비교하며 대상이 바뀌었으면 `409 CONFLICT`를 반환한다. 이미 재고가 반영된 주문은 다른 상품·옵션 조합으로 바꿀 수 없다.
+- 성공하면 상품 연결·재고 변경·`INVENTORY_RESOLVED` 처리 이력을 같은 트랜잭션으로 저장한다. 재고가 부족하면 연결은 유지하고 `STOCK_SHORTAGE`와 거절 이력을 반환 주문에 남긴다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory/retry
@@ -977,12 +1009,15 @@ POST /api/v1/admin/smartstore-orders/{productOrderId}/return-resolution
 Authorization: Bearer {token}
 Content-Type: application/json
 
-{ "restoreStock": true }
+{ "restoreStock": true, "reviewVersion": "R2:0" }
 ```
 
-- `RETURN_REVIEW` 주문만 처리한다. `restoreStock=true`이면 검수한 반품 수량을 기존 내부 상품·옵션 재고에 복원하고, `false`이면 판매 불가 반품으로 재고를 복원하지 않는다.
+- `RETURN_REVIEW` 주문만 처리한다. 배송 중 등 일반 주문 상태를 유지하는 부분반품도 포함하며 `RETURNED` 상태로 제한하지 않는다. `restoreStock=true`이면 미검수 반품 수량을 기존 내부 상품·옵션 재고에 복원하고, `false`이면 판매 불가 반품으로 재고를 복원하지 않는다.
+- `reviewVersion`은 필수다. 주문을 잠근 뒤 현재 검수 대상과 일치하는지 확인하며, 새 반품이 수집되거나 다른 관리자가 검수를 끝냈으면 재고·검수 기록을 바꾸지 않고 `409 CONFLICT`로 거절한다. 이전 검수를 끝낸 뒤 같은 수량의 새 반품이 생겨도 기존 확인값은 재사용할 수 없다.
+- 두 선택 모두 누적 검수 완료 수량을 저장한다. 재시도·재수집은 같은 수량을 다시 검수 대상으로 만들지 않으며, 추가 반품이 발생하면 새 반품 수량만 처리한다. 반품 뒤 다른 수량이 취소되어도 이전에 복원 없이 종료한 반품을 재고로 돌리지 않는다.
 - 성공: `200 OK` — 확인 사유를 해제한 주문 반환
-- 에러: 상품 주문 미존재 `404 NOT_FOUND`, 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`
+- 에러: 상품 주문 미존재 `404 NOT_FOUND`, 확인값 누락·빈 값 또는 현재 반품 확인 대상이 아닌 주문 `400 INVALID_INPUT`, 검수 대상 변경 `409 CONFLICT`
+- 확인값을 보내지 않는 구 관리자 화면은 검수 요청을 처리할 수 없다. 잘못된 재고 복원을 막기 위한 필수값 추가이므로 서버·관리자 화면·생성 클라이언트를 함께 배포한다. 충돌 시 목록만 새로 조회하며 검수 요청을 자동 재전송하지 않는다.
 
 ```http
 GET /api/v1/admin/smartstore-orders/{productOrderId}
@@ -991,6 +1026,45 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK` — 채널 주문 기본 정보와 `deliveryInfo`, `placeOrderStatus`, `shippingDueDate`, 배송수단·택배사·운송장, 단가·결제액·수수료·정산 예정액, 네이버에서 단건 조회한 현재 `claimDetail`을 반환한다. 클레임 상세에는 사유·상세 사유·요청 수량·요청일·수거 상태와 운송장·배송비·보류 상태·첨부 이미지 주소를 포함한다.
 - `deliveryInfo`는 암호문을 관리자 단건 조회에서만 복호화한 결과이며 목록 응답에는 포함하지 않는다.
+
+```http
+GET /api/v1/admin/smartstore-orders/{productOrderId}/actions
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 해당 상품 주문의 최근 처리 이력을 최신순 최대 50건 반환한다. 각 이력은 `productOrderId`, `action`, `status`, 요청 요약, 결과 코드·메시지, 요청 관리자 ID·이름, 요청·완료 시각과 nullable 대사 결과·근거·관리자·시각을 포함한다.
+- 외부 주문 요청은 호출 전에 `REQUESTED`로 저장한다. 인증 토큰 준비 실패처럼 주문 API를 호출하지 않은 요청은 `NOT_SENT`, 명시적 네이버 거절은 `REJECTED`, 성공은 `SUCCEEDED`, 전송 뒤 통신 실패·본문 누락처럼 실제 처리 여부를 확정할 수 없으면 `RESULT_UNKNOWN`으로 완료한다. 프로세스 종료 등으로 완료 기록을 남기지 못한 요청은 `REQUESTED` 상태가 유지된다.
+
+```http
+GET /api/v1/admin/smartstore-orders/actions/unresolved?cursor={cursor}&size=20
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 아직 대사하지 않은 `RESULT_UNKNOWN`과 요청 후 5분 넘게 `REQUESTED`인 이력을 최신 요청순 `{content, nextCursor, hasMore}`로 반환한다. `size`는 1~100이고 기본값은 20이다.
+- `NOT_SENT`와 `REJECTED`는 네이버 처리 여부가 이미 확정됐으므로 이 목록에 포함하지 않는다.
+
+```http
+GET /api/v1/admin/smartstore-orders/{productOrderId}/current-status
+Authorization: Bearer {token}
+```
+
+- 성공: `200 OK` — 네이버에서 현재 주문·발주·클레임 상태, 잔여 수량, 발송 기한·배송수단·택배사·운송장과 nullable 클레임 상세를 실시간 조회한다.
+- 조회는 로컬 주문 원장의 존재 여부와 관계없이 경로의 상품 주문 번호로 네이버에 요청하며 로컬 주문 원장과 마지막 변경 시각을 조회하거나 갱신하지 않는다. 연동 비활성은 `409 CONFLICT`, 네이버 주문 미존재는 `404 NOT_FOUND`다.
+
+```http
+POST /api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "outcome": "APPLIED",
+  "note": "네이버 판매자센터에서 발주 확인 완료 상태를 확인"
+}
+```
+
+- `outcome`은 실제 반영을 확인한 `APPLIED` 또는 미반영을 확인한 `NOT_APPLIED`이며, `note`는 확인 근거를 1~500자로 필수 입력한다.
+- 성공: `200 OK` — 원래 요청 상태는 바꾸지 않고 대사 결과·근거·관리자·시각이 추가된 처리 이력을 반환한다.
+- 없는 처리 이력은 `404 NOT_FOUND`, 이미 대사했거나 아직 5분이 지나지 않은 `REQUESTED`, 결과가 확정된 이력은 `409 CONFLICT`다. 같은 외부 요청을 자동으로 다시 전송하지 않는다.
 
 | 기능 | 메서드와 경로 | 요청 본문 | 성공 |
 |---|---|---|---|
@@ -1013,7 +1087,8 @@ Authorization: Bearer {token}
 | 판매자 취소 요청 | `POST /api/v1/admin/smartstore-orders/{id}/claims/cancel/request` | `reason`, nullable `detailedReason`, nullable `quantity` | `204` |
 
 - 서버는 관리자 입력 형식과 연동 활성화 여부만 확인하며, 작업 가능 상태는 최신 상태를 보유한 네이버가 판정한다. 같은 상태 규칙을 로컬에서 중복 구현하지 않는다.
-- 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 성공 뒤 로컬 상태는 변경 피드에서 다시 수집한다.
+- 외부 요청 중에는 DB 트랜잭션을 열지 않는다. 호출 전 요청 이력을 별도 트랜잭션으로 저장하고 호출 뒤 결과만 짧은 별도 트랜잭션으로 갱신한다. 성공 뒤 로컬 주문 상태는 변경 피드에서 다시 수집한다.
+- 주문 API 호출 전에 실패한 `NOT_SENT`는 `503 SMARTSTORE_OPERATION_NOT_SENT`로 반환해 같은 요청을 다시 시도할 수 있게 한다. 네이버의 명시적 거절은 `409 SMARTSTORE_OPERATION_REJECTED`로 반환해 상태·입력을 확인하게 한다. 전송 뒤 결과가 불명확한 `RESULT_UNKNOWN`과 분류되지 않은 외부 호출 오류는 `409 SMARTSTORE_OPERATION_RESULT_UNKNOWN`으로 반환하며 자동 또는 즉시 재시도하지 않고 처리 결과 확인 목록에서 대사한다.
 - 일괄 응답은 `successProductOrderIds`와 `failures[{productOrderId, code, message}]`를 반환한다. 일부 실패가 있어도 성공 결과를 유지하고 실패 주문만 다시 선택할 수 있게 한다.
 
 ```http
@@ -4116,6 +4191,8 @@ file={JPEG|PNG|WebP binary}
 | 409 | `REVIEW_RECREATION_BLOCKED` | 숨김 이력이 있는 삭제 후기의 원천으로 재작성 시도 |
 | 409 | `REVIEW_REPORT_ALREADY_EXISTS` | 같은 회원이 같은 후기를 다시 신고 |
 | 409 | `REVIEW_CONTENT_CHANGED` | 회원 또는 관리자가 불러온 뒤 후기 본문·평점·사진이 변경됨 |
+| 409 | `SMARTSTORE_OPERATION_REJECTED` | 네이버가 주문 처리 요청을 명시적으로 거절해 주문 상태 또는 입력 확인이 필요함 |
+| 409 | `SMARTSTORE_OPERATION_RESULT_UNKNOWN` | 네이버에 보낸 주문 처리 요청의 실제 반영 여부가 불명확해 자동 재시도 없이 대사가 필요함 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
@@ -4146,6 +4223,7 @@ file={JPEG|PNG|WebP binary}
 | 500 | `INTERNAL_ERROR` | 서버 내부 처리 오류 또는 내부 JSON 직렬화/역직렬화 실패 |
 | 502 | `PAYMENT_FAILED` | PG가 결제 확정(`/payments/confirm`)을 최종 거절 |
 | 503 | `PAYMENT_CONFIRM_RETRYABLE` | PG 결제 확정 결과를 같은 결제 정보로 재확인할 수 있는 일시 실패 |
+| 503 | `SMARTSTORE_OPERATION_NOT_SENT` | 네이버 주문 API 호출 전에 실패해 같은 요청을 안전하게 다시 시도할 수 있음 |
 | 503 | `SERVICE_UNAVAILABLE` | fail-closed 처리율 제한 저장소 장애 또는 인증 SMS·이메일 SMTP 등 필수 외부 작업을 시작·완료할 수 없음 |
 
 Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는 위 `ErrorResponse` 형식으로

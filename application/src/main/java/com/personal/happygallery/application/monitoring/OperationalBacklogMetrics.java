@@ -6,11 +6,14 @@ import com.personal.happygallery.application.notification.port.out.NotificationO
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionBacklogSummary;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
+import com.personal.happygallery.domain.order.SmartStoreOrderActionHistory;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
@@ -51,10 +54,12 @@ public class OperationalBacklogMetrics {
     private final PaymentAttemptReaderPort paymentAttemptReader;
     private final OrderReaderPort orderReader;
     private final BookingCancellationTaskPort bookingCancellationTaskPort;
+    private final SmartStoreOrderActionHistoryPort smartStoreOrderActionHistoryPort;
     private final Clock clock;
     private final BacklogState paymentReconciliationState = new BacklogState();
     private final BacklogState orderApprovalState = new BacklogState();
     private final BacklogState bookingCancellationTaskState = new BacklogState();
+    private final BacklogState smartStoreOrderActionState = new BacklogState();
     private final EnumMap<RefundStatus, BacklogState> refundStates = new EnumMap<>(RefundStatus.class);
     private final EnumMap<NotificationOutboxStatus, BacklogState> outboxStates =
             new EnumMap<>(NotificationOutboxStatus.class);
@@ -63,17 +68,20 @@ public class OperationalBacklogMetrics {
     private final RefreshState paymentRefresh;
     private final RefreshState orderApprovalRefresh;
     private final RefreshState bookingCancellationTaskRefresh;
+    private final RefreshState smartStoreOrderActionRefresh;
     private final Counter refundRefreshFailures;
     private final Counter outboxRefreshFailures;
     private final Counter paymentRefreshFailures;
     private final Counter orderApprovalRefreshFailures;
     private final Counter bookingCancellationTaskRefreshFailures;
+    private final Counter smartStoreOrderActionRefreshFailures;
 
     public OperationalBacklogMetrics(RefundPort refundPort,
                                      NotificationOutboxPort outboxPort,
                                      PaymentAttemptReaderPort paymentAttemptReader,
                                      OrderReaderPort orderReader,
                                      BookingCancellationTaskPort bookingCancellationTaskPort,
+                                     SmartStoreOrderActionHistoryPort smartStoreOrderActionHistoryPort,
                                      MeterRegistry registry,
                                      Clock clock) {
         this.refundPort = refundPort;
@@ -81,12 +89,14 @@ public class OperationalBacklogMetrics {
         this.paymentAttemptReader = paymentAttemptReader;
         this.orderReader = orderReader;
         this.bookingCancellationTaskPort = bookingCancellationTaskPort;
+        this.smartStoreOrderActionHistoryPort = smartStoreOrderActionHistoryPort;
         this.clock = clock;
         this.refundRefresh = new RefreshState(clock);
         this.outboxRefresh = new RefreshState(clock);
         this.paymentRefresh = new RefreshState(clock);
         this.orderApprovalRefresh = new RefreshState(clock);
         this.bookingCancellationTaskRefresh = new RefreshState(clock);
+        this.smartStoreOrderActionRefresh = new RefreshState(clock);
 
         registerBacklogGauges(
                 registry,
@@ -106,6 +116,12 @@ public class OperationalBacklogMetrics {
                 null,
                 bookingCancellationTaskState,
                 "예약 취소 후속 작업");
+        registerBacklogGauges(
+                registry,
+                "happygallery.smartstore.order.action.reconciliation.backlog",
+                null,
+                smartStoreOrderActionState,
+                "스마트스토어 주문 처리 대사");
 
         REFUND_BACKLOG_STATUSES.forEach(status -> {
             BacklogState state = new BacklogState();
@@ -134,6 +150,7 @@ public class OperationalBacklogMetrics {
         registerRefreshGauge(registry, "order_approval", orderApprovalRefresh);
         registerRefreshGauge(
                 registry, "booking_cancellation_task", bookingCancellationTaskRefresh);
+        registerRefreshGauge(registry, "smartstore_order_action", smartStoreOrderActionRefresh);
         this.refundRefreshFailures = registerRefreshFailureCounter(registry, "refund");
         this.outboxRefreshFailures = registerRefreshFailureCounter(registry, "notification");
         this.paymentRefreshFailures = registerRefreshFailureCounter(registry, "payment");
@@ -141,6 +158,8 @@ public class OperationalBacklogMetrics {
                 registerRefreshFailureCounter(registry, "order_approval");
         this.bookingCancellationTaskRefreshFailures =
                 registerRefreshFailureCounter(registry, "booking_cancellation_task");
+        this.smartStoreOrderActionRefreshFailures =
+                registerRefreshFailureCounter(registry, "smartstore_order_action");
     }
 
     @Scheduled(
@@ -150,6 +169,7 @@ public class OperationalBacklogMetrics {
         refreshPaymentReconciliationBacklog();
         refreshOrderApprovalBacklog();
         refreshBookingCancellationTaskBacklog();
+        refreshSmartStoreOrderActionBacklog();
         refreshRefundBacklog();
         refreshOutboxBacklog();
     }
@@ -191,6 +211,22 @@ public class OperationalBacklogMetrics {
         } catch (Exception e) {
             bookingCancellationTaskRefreshFailures.increment();
             log.warn("운영 backlog 메트릭 갱신 실패 [source=booking_cancellation_task type={}]",
+                    e.getClass().getSimpleName());
+        }
+    }
+
+    private void refreshSmartStoreOrderActionBacklog() {
+        try {
+            LocalDateTime staleRequestedBefore = LocalDateTime.now(clock)
+                    .minus(SmartStoreOrderActionHistory.STALE_REQUEST_AFTER);
+            SmartStoreOrderActionBacklogSummary summary =
+                    smartStoreOrderActionHistoryPort.summarizeUnresolvedBacklog(staleRequestedBefore);
+            smartStoreOrderActionState.update(
+                    summary.count(), summary.oldestRequestedAt(), clock.getZone());
+            smartStoreOrderActionRefresh.markSucceeded(clock);
+        } catch (Exception e) {
+            smartStoreOrderActionRefreshFailures.increment();
+            log.warn("운영 backlog 메트릭 갱신 실패 [source=smartstore_order_action type={}]",
                     e.getClass().getSimpleName());
         }
     }

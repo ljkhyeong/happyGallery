@@ -2,16 +2,24 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
 import com.personal.happygallery.domain.time.Clocks;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
@@ -110,9 +118,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             DeliveryInfo deliveryInfo = address == null ? null : new DeliveryInfo(
                     address.name(), address.tel1(), address.zipCode(), address.baseAddress(),
                     address.detailedAddress(), productOrder.shippingMemo());
-            DeliveryResponse delivery = item.delivery() == null || item.delivery().isEmpty()
-                    ? null
-                    : item.delivery().getLast();
+            DeliveryResponse delivery = item.delivery();
             return new ProductOrderDetail(
                     productOrder.productOrderId(),
                     order.orderId(),
@@ -138,7 +144,8 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     productOrder.paymentCommission(),
                     productOrder.saleCommission(),
                     productOrder.channelCommission(),
-                    productOrder.expectedSettlementAmount());
+                    productOrder.expectedSettlementAmount(),
+                    completedReturns(item));
         }).toList();
     }
 
@@ -261,7 +268,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private void execute(String path, Object body, String productOrderId) {
-        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+        OperationResponse response = authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -272,7 +279,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private OperationResponse executeBulk(String path, Object body) {
-        return accessTokenProvider.authorized(token -> restClient.post()
+        return authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -282,7 +289,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     private void executeWithoutBody(String path, String productOrderId) {
-        OperationResponse response = accessTokenProvider.authorized(token -> restClient.post()
+        OperationResponse response = authorizedWrite(token -> restClient.post()
                 .uri(path)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentLength(0)
@@ -291,9 +298,65 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         requireOperationSuccess(response, productOrderId);
     }
 
+    private <T> T authorizedWrite(Function<String, T> request) {
+        String token;
+        try {
+            token = accessTokenProvider.accessToken(false);
+        } catch (RuntimeException exception) {
+            throw new OperationNotSentException(
+                    "ACCESS_TOKEN_UNAVAILABLE",
+                    "스마트스토어 인증 토큰을 준비하지 못해 주문 요청을 보내지 않았습니다.",
+                    exception);
+        }
+        try {
+            return request.apply(token);
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 401) {
+                return retryAuthorizedWrite(request);
+            }
+            throw classifyWriteResponse(exception);
+        } catch (RuntimeException exception) {
+            throw new OperationResultUnknownException(
+                    "스마트스토어 주문 요청의 처리 결과를 확인할 수 없습니다.", exception);
+        }
+    }
+
+    private <T> T retryAuthorizedWrite(Function<String, T> request) {
+        String token;
+        try {
+            token = accessTokenProvider.accessToken(true);
+        } catch (RuntimeException exception) {
+            throw new OperationNotSentException(
+                    "ACCESS_TOKEN_REFRESH_FAILED",
+                    "스마트스토어 인증 토큰 갱신에 실패해 주문 요청을 다시 보내지 않았습니다.",
+                    exception);
+        }
+        try {
+            return request.apply(token);
+        } catch (RestClientResponseException exception) {
+            throw classifyWriteResponse(exception);
+        } catch (RuntimeException exception) {
+            throw new OperationResultUnknownException(
+                    "스마트스토어 주문 요청의 처리 결과를 확인할 수 없습니다.", exception);
+        }
+    }
+
+    private static RuntimeException classifyWriteResponse(RestClientResponseException exception) {
+        int status = exception.getStatusCode().value();
+        if (exception.getStatusCode().is4xxClientError()) {
+            return new OperationRejectedException(
+                    "HTTP_" + status,
+                    "네이버가 스마트스토어 주문 요청을 거절했습니다. (HTTP " + status + ")");
+        }
+        return new OperationResultUnknownException(
+                "네이버 오류 응답으로 주문 처리 결과를 확인할 수 없습니다. (HTTP " + status + ")",
+                exception);
+    }
+
     private static void requireOperationSuccess(OperationResponse response, String productOrderId) {
         if (response == null || response.data() == null) {
-            return;
+            throw new OperationResultUnknownException(
+                    "네이버 응답에서 주문 처리 결과를 확인할 수 없습니다.");
         }
         List<RemoteOperationFailure> failures = response.data().failProductOrderInfos();
         if (failures == null || failures.isEmpty()) {
@@ -303,14 +366,17 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .filter(item -> productOrderId.equals(item.productOrderId()))
                 .findFirst()
                 .orElse(failures.getFirst());
-        throw new IllegalStateException("스마트스토어 주문 처리 실패: " + failure.message());
+        throw new OperationRejectedException(failure.code(), failure.message());
     }
 
     private static OperationResult operationResult(
             OperationResponse response, List<String> requestedIds) {
         OperationData data = response == null ? null : response.data();
         if (data == null) {
-            return new OperationResult(requestedIds, List.of());
+            return new OperationResult(List.of(), requestedIds.stream()
+                    .map(id -> new OperationFailure(
+                            id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
+                    .toList());
         }
         List<String> successIds = data.successProductOrderIds() == null
                 ? List.of() : data.successProductOrderIds();
@@ -334,7 +400,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                         id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                 .toList();
         if (!missing.isEmpty()) {
-            failures = java.util.stream.Stream.concat(failures.stream(), missing.stream()).toList();
+            failures = Stream.concat(failures.stream(), missing.stream()).toList();
         }
         return new OperationResult(successIds, failures);
     }
@@ -365,6 +431,36 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private static Long parseNullableLong(String value) {
         return StringUtils.hasText(value) ? Long.valueOf(value) : null;
+    }
+
+    private static List<CompletedReturn> completedReturns(DetailItem item) {
+        Map<String, CompletedReturn> returns = new LinkedHashMap<>();
+        if (item.completedClaims() != null) {
+            for (CompletedClaim claim : item.completedClaims()) {
+                if ("RETURN".equals(claim.claimType()) && "RETURN_DONE".equals(claim.claimStatus())) {
+                    addCompletedReturn(returns, claim.claimId(), claim.requestQuantity(),
+                            claim.claimCompleteOperationDate());
+                }
+            }
+        }
+        ReturnClaim current = item.currentClaim() == null ? null : item.currentClaim().returned();
+        if (current != null && "RETURN_DONE".equals(current.claimStatus())
+                && !returns.containsKey(current.claimId())) {
+            addCompletedReturn(returns, current.claimId(), current.requestQuantity(), current.returnCompletedDate());
+        }
+        if (returns.isEmpty() && ("RETURNED".equals(item.productOrder().productOrderStatus())
+                || "RETURN_DONE".equals(item.productOrder().claimStatus()))) {
+            throw new IllegalStateException("스마트스토어 반품 완료 수량을 확인할 수 없습니다.");
+        }
+        return List.copyOf(returns.values());
+    }
+
+    private static void addCompletedReturn(
+            Map<String, CompletedReturn> returns, String claimId, Integer quantity, OffsetDateTime completedAt) {
+        if (!StringUtils.hasText(claimId) || quantity == null || quantity <= 0 || completedAt == null) {
+            throw new IllegalStateException("스마트스토어 완료 반품의 번호·수량·완료일이 필요합니다.");
+        }
+        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity, toLocalDateTime(completedAt)));
     }
 
     private static ClaimDetail claimDetail(CurrentClaim currentClaim) {
@@ -424,8 +520,17 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     private record DetailItem(
             OrderInfo order,
             ProductOrderInfo productOrder,
-            List<DeliveryResponse> delivery,
-            CurrentClaim currentClaim
+            DeliveryResponse delivery,
+            CurrentClaim currentClaim,
+            List<CompletedClaim> completedClaims
+    ) {}
+
+    private record CompletedClaim(
+            String claimId,
+            String claimType,
+            String claimStatus,
+            Integer requestQuantity,
+            OffsetDateTime claimCompleteOperationDate
     ) {}
 
     private record CurrentClaim(
@@ -447,6 +552,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
             String claimId,
             String claimStatus,
             OffsetDateTime claimRequestDate,
+            OffsetDateTime returnCompletedDate,
             Integer requestQuantity,
             String returnReason,
             String returnDetailedReason,

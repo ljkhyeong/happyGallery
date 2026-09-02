@@ -7,7 +7,7 @@ import java.util.List;
 
 public record SmartStoreProductPreviewResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long productId,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long productVersion,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String previewVersion,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long originProductNo,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long localSalePrice,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long channelSalePrice,
@@ -18,7 +18,7 @@ public record SmartStoreProductPreviewResponse(
 ) {
     public static SmartStoreProductPreviewResponse from(ProductPreviewResult result) {
         return new SmartStoreProductPreviewResponse(
-                result.productId(), result.productVersion(), result.originProductNo(),
+                result.productId(), result.previewVersion(), result.originProductNo(),
                 result.localSalePrice(), result.channelSalePrice(), result.localStatus(),
                 result.channelStatus(), result.different(), result.options().stream()
                         .map(OptionPreview::from)

@@ -292,8 +292,11 @@ test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 
       await json(route, EMPTY_CURSOR_PAGE);
       return;
     }
-    if (pathname === "/api/v1/admin/smartstore-orders"
-      || pathname === "/api/v1/admin/smartstore-settlements/issues") {
+    if (pathname === "/api/v1/admin/smartstore-orders") {
+      await json(route, EMPTY_CURSOR_PAGE);
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-settlements/issues") {
       await json(route, []);
       return;
     }

@@ -99,6 +99,15 @@ public class ProductVariant {
         quantity -= qty;
     }
 
+    /** 이미 외부 채널에서 확정된 판매는 현재 로컬 판매 여부와 관계없이 실재고에서 차감한다. */
+    public void deductCommittedSale(int qty) {
+        requirePositive(qty);
+        if (quantity < qty) {
+            throw new InventoryNotEnoughException();
+        }
+        quantity -= qty;
+    }
+
     public void restore(int qty) {
         requirePositive(qty);
         quantity = Math.addExact(quantity, qty);

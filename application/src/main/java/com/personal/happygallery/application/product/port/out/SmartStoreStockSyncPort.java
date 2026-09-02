@@ -13,6 +13,8 @@ public interface SmartStoreStockSyncPort {
 
     List<Long> findDueProductIds(LocalDateTime now, LocalDateTime staleBefore, int limit);
 
+    List<Long> findReconciliationProductIds(LocalDateTime syncedBefore, int limit);
+
     <S extends SmartStoreStockSync> S save(S sync);
 
     void deleteByProductId(Long productId);

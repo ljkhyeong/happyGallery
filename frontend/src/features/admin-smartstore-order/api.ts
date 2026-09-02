@@ -16,9 +16,14 @@ import {
   requestSmartStoreSellerCancel,
   requestSmartStoreSellerReturn,
   getSmartStoreChannelOrder,
+  getCurrentSmartStoreOrderStatus,
+  listSmartStoreChannelOrderActions,
   listSmartStoreChannelOrders,
+  listUnresolvedSmartStoreOrderActions,
   listSmartStoreReturnDeliveryCompanies,
   rejectSmartStoreReturnClaim,
+  reconcileSmartStoreOrderAction,
+  resolveSmartStoreChannelOrderInventory,
   resolveSmartStoreChannelOrderReturn,
   retrySmartStoreChannelOrderInventory,
   type DelaySmartStoreOrderRequest,
@@ -26,8 +31,12 @@ import {
   type DispatchSmartStoreOrderRequest,
   type HoldSmartStoreExchangeRequest,
   type HoldSmartStoreReturnRequest,
+  type ListSmartStoreChannelOrdersAttentionReason,
   type RequestSmartStoreSellerCancelRequest,
   type RequestSmartStoreSellerReturnRequest,
+  type ReconcileSmartStoreOrderActionRequest,
+  type ResolveSmartStoreInventoryRequest,
+  type ResolveSmartStoreReturnRequest,
   type BulkDispatchSmartStoreOrdersRequest,
   type SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
@@ -36,11 +45,51 @@ import { adminHeaders } from "@/shared/api";
 export function fetchSmartStoreChannelOrders(
   adminKey: string,
   attentionOnly: boolean,
+  attentionReason?: ListSmartStoreChannelOrdersAttentionReason,
+  cursor?: string,
 ) {
   return listSmartStoreChannelOrders(
-    { attentionOnly, limit: 100 },
+    { attentionOnly, attentionReason, cursor, size: 50 },
     { headers: adminHeaders(adminKey) },
   );
+}
+
+export function fetchSmartStoreChannelOrderActions(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return listSmartStoreChannelOrderActions(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function fetchUnresolvedSmartStoreOrderActions(
+  adminKey: string,
+  cursor?: string,
+) {
+  return listUnresolvedSmartStoreOrderActions(
+    { cursor, size: 20 },
+    { headers: adminHeaders(adminKey) },
+  );
+}
+
+export function fetchCurrentSmartStoreOrderStatus(
+  adminKey: string,
+  productOrderId: string,
+) {
+  return getCurrentSmartStoreOrderStatus(productOrderId, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function reconcileSmartStoreOrderActionHistory(
+  adminKey: string,
+  historyId: number,
+  request: ReconcileSmartStoreOrderActionRequest,
+) {
+  return reconcileSmartStoreOrderAction(historyId, request, {
+    headers: adminHeaders(adminKey),
+  });
 }
 
 export function fetchSmartStoreReturnDeliveryCompanies(adminKey: string) {
@@ -164,14 +213,24 @@ export function retrySmartStoreOrderInventory(
   });
 }
 
+export function resolveSmartStoreOrderInventory(
+  adminKey: string,
+  productOrderId: string,
+  request: ResolveSmartStoreInventoryRequest,
+) {
+  return resolveSmartStoreChannelOrderInventory(productOrderId, request, {
+    headers: adminHeaders(adminKey),
+  });
+}
+
 export function resolveSmartStoreReturn(
   adminKey: string,
   productOrderId: string,
-  restoreStock: boolean,
+  request: ResolveSmartStoreReturnRequest,
 ) {
   return resolveSmartStoreChannelOrderReturn(
     productOrderId,
-    { restoreStock },
+    request,
     { headers: adminHeaders(adminKey) },
   );
 }

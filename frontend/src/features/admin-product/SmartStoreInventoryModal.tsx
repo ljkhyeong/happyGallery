@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import {
   fetchSmartStoreInventoryMapping,
+  fetchSmartStoreInventoryMappingHistory,
   fetchSmartStoreProduct,
   fetchSmartStoreProducts,
   fetchSmartStoreProductPreview,
@@ -13,6 +14,8 @@ import {
 } from "./api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { ApiError } from "@/shared/api";
+import { formatDateTime } from "@/shared/lib";
 import type { ProductResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
@@ -30,6 +33,15 @@ const STATUS_LABEL = {
   FAILED: "확인 필요",
 } as const;
 
+const HISTORY_ACTION_LABEL = {
+  CREATED: "연동 등록",
+  UPDATED: "옵션 연결 수정",
+  ORIGIN_CHANGED: "원상품 변경",
+  ENABLED: "자동 반영 활성화",
+  DISABLED: "자동 반영 비활성화",
+  DELETED: "연동 해제",
+} as const;
+
 export function SmartStoreInventoryModal({
   adminKey,
   product,
@@ -43,6 +55,9 @@ export function SmartStoreInventoryModal({
   const [optionIds, setOptionIds] = useState<Record<number, string>>({});
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [originChangeConfirmed, setOriginChangeConfirmed] = useState(false);
+  const [unlinkRequested, setUnlinkRequested] = useState(false);
+  const [unlinkConfirmed, setUnlinkConfirmed] = useState(false);
   const variants = useMemo(() => product?.variants ?? [], [product]);
   const originNumber = Number(originProductNo);
   const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
@@ -56,6 +71,20 @@ export function SmartStoreInventoryModal({
     enabled: product !== null,
   });
   const mapping = mappingQuery.data;
+  const historyQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+    queryFn: () => fetchSmartStoreInventoryMappingHistory(adminKey, product!.id),
+    enabled: product !== null,
+  });
+  const previousOriginProductNo = mapping?.originProductNo;
+  const originChanged = previousOriginProductNo !== undefined
+    && validOrigin
+    && previousOriginProductNo !== originNumber;
+  const canSave = mappingQuery.isSuccess
+    && !unlinkRequested
+    && validOrigin
+    && validOptions
+    && (!originChanged || originChangeConfirmed);
   const catalogQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", catalogPage],
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
@@ -96,6 +125,23 @@ export function SmartStoreInventoryModal({
     setCatalogSearch("");
   }, [product?.id]);
 
+  useEffect(() => {
+    setOriginChangeConfirmed(false);
+  }, [originProductNo, previousOriginProductNo, product?.id]);
+
+  useEffect(() => {
+    setUnlinkRequested(false);
+    setUnlinkConfirmed(false);
+  }, [mapping?.mappingVersion, product?.id]);
+
+  const refreshMappingOnConflict = async (error: unknown) => {
+    if (error instanceof ApiError && error.status === 409) {
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
+      });
+    }
+  };
+
   const saveMutation = useAdminMutation(onAuthError, {
     mutationFn: () => saveSmartStoreMapping(adminKey, product!.id, {
       originProductNo: originNumber,
@@ -106,6 +152,8 @@ export function SmartStoreInventoryModal({
           optionId: Number(optionIds[variant.id]),
         }))
         : [],
+      expectedMappingVersion: mapping?.mappingVersion ?? null,
+      previousOriginConfirmed: originChangeConfirmed,
     }),
     onSuccess: async (mapping) => {
       queryClient.setQueryData(
@@ -118,7 +166,11 @@ export function SmartStoreInventoryModal({
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+      });
     },
+    onError: refreshMappingOnConflict,
   });
 
   const retryMutation = useAdminMutation(onAuthError, {
@@ -133,28 +185,44 @@ export function SmartStoreInventoryModal({
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => removeSmartStoreMapping(adminKey, product!.id),
-    onSuccess: () => {
+    mutationFn: () => removeSmartStoreMapping(
+      adminKey,
+      product!.id,
+      mapping!.mappingVersion,
+      unlinkConfirmed,
+    ),
+    onSuccess: async () => {
       queryClient.setQueryData(
         ["admin", "products", product?.id, "smartstore-inventory"],
         null,
       );
+      await queryClient.invalidateQueries({
+        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+      });
       toast.show("스마트스토어 재고 연동을 해제했습니다.");
       onClose();
     },
+    onError: refreshMappingOnConflict,
   });
 
   const applyMutation = useAdminMutation(onAuthError, {
     mutationFn: () => applySmartStoreProduct(
       adminKey,
       product!.id,
-      previewQuery.data!.productVersion,
+      previewQuery.data!.previewVersion,
     ),
     onSuccess: async () => {
       toast.show("해피갤러리의 가격·판매 상태·옵션 가격을 스마트스토어에 반영했습니다.");
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        await queryClient.invalidateQueries({
+          queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+        });
+      }
     },
   });
 
@@ -175,7 +243,7 @@ export function SmartStoreInventoryModal({
         {(mappingQuery.isLoading || catalogQuery.isLoading || channelProductQuery.isLoading)
           && <LoadingSpinner />}
         <ErrorAlert error={mappingQuery.error ?? catalogQuery.error ?? channelProductQuery.error
-          ?? previewQuery.error ?? saveMutation.error
+          ?? previewQuery.error ?? historyQuery.error ?? saveMutation.error
           ?? retryMutation.error ?? deleteMutation.error ?? applyMutation.error} />
 
         {mapping && (
@@ -208,6 +276,7 @@ export function SmartStoreInventoryModal({
             <div className="d-flex justify-content-between align-items-start gap-3">
               <div>
                 <div className="fw-semibold">가격·판매 상태 비교</div>
+                <div className="small">반영 대상: 스마트스토어 원상품 {previewQuery.data.originProductNo}</div>
                 <div className="small mt-1">
                   판매가: 해피갤러리 {previewQuery.data.localSalePrice.toLocaleString()}원
                   {" · "}스마트스토어 {previewQuery.data.channelSalePrice.toLocaleString()}원
@@ -218,7 +287,8 @@ export function SmartStoreInventoryModal({
                 </div>
               </div>
               {previewQuery.data.different && (
-                <Button size="sm" variant="warning" disabled={applyMutation.isPending}
+                <Button size="sm" variant="warning"
+                  disabled={applyMutation.isPending || previewQuery.isFetching || previewQuery.isError}
                   onClick={() => applyMutation.mutate()}>
                   {applyMutation.isPending ? "반영 중..." : "차이 반영"}
                 </Button>
@@ -248,7 +318,7 @@ export function SmartStoreInventoryModal({
 
         <Form onSubmit={(event) => {
           event.preventDefault();
-          if (validOrigin && validOptions) saveMutation.mutate();
+          if (canSave) saveMutation.mutate();
         }}>
           <Form.Group className="mb-3" controlId="smartstore-origin-product-no">
             <Form.Label>스마트스토어 상품</Form.Label>
@@ -350,6 +420,23 @@ export function SmartStoreInventoryModal({
             </Table>
           )}
 
+          {originChanged && (
+            <Alert variant="warning">
+              <div className="fw-semibold">원상품 변경 전 기존 상품을 확인해 주세요.</div>
+              <div className="small mt-1">
+                기존 원상품 {previousOriginProductNo}에서 새 원상품 {originProductNo}(으)로 변경합니다.
+                저장 후에는 기존 원상품의 재고를 자동으로 보정하지 않습니다.
+              </div>
+              <Form.Check
+                className="mt-2"
+                id="smartstore-previous-origin-checked"
+                label={`기존 원상품 ${previousOriginProductNo}의 판매 중지·재고 확인을 완료했습니다.`}
+                checked={originChangeConfirmed}
+                onChange={(event) => setOriginChangeConfirmed(event.target.checked)}
+              />
+            </Alert>
+          )}
+
           <Form.Check
             className="mb-3"
             type="switch"
@@ -359,14 +446,58 @@ export function SmartStoreInventoryModal({
             onChange={(event) => setEnabled(event.target.checked)}
           />
 
+          {unlinkRequested && mapping && (
+            <Alert variant="danger">
+              <div className="fw-semibold">연동 해제 전 기존 원상품을 확인해 주세요.</div>
+              <div className="small mt-1">
+                기존 원상품 {mapping.originProductNo}의 연결과 보존된 과거 옵션 연결을 모두 삭제합니다.
+                해제 후에는 기존 원상품 재고를 자동으로 보정하지 않습니다.
+              </div>
+              <Form.Check
+                className="mt-2"
+                id="smartstore-unlink-origin-checked"
+                label={`기존 원상품 ${mapping.originProductNo}의 판매 중지·재고 확인을 완료했습니다.`}
+                checked={unlinkConfirmed}
+                onChange={(event) => setUnlinkConfirmed(event.target.checked)}
+              />
+              <div className="d-flex justify-content-end gap-2 mt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-secondary"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    deleteMutation.reset();
+                    setUnlinkRequested(false);
+                    setUnlinkConfirmed(false);
+                  }}
+                >
+                  해제 취소
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="danger"
+                  disabled={!unlinkConfirmed || deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  {deleteMutation.isPending ? "해제 중..." : "연동 해제 실행"}
+                </Button>
+              </div>
+            </Alert>
+          )}
+
           <div className="d-flex justify-content-between gap-2">
             <div>
-              {mapping && (
+              {mapping && !unlinkRequested && (
                 <Button
                   type="button"
                   variant="outline-danger"
                   disabled={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate()}
+                  onClick={() => {
+                    deleteMutation.reset();
+                    setUnlinkRequested(true);
+                  }}
                 >
                   연동 해제
                 </Button>
@@ -374,15 +505,78 @@ export function SmartStoreInventoryModal({
             </div>
             <Button
               type="submit"
-              disabled={!validOrigin || !validOptions || saveMutation.isPending}
+              disabled={!canSave || saveMutation.isPending}
             >
               {saveMutation.isPending ? "저장 중..." : "연동 저장"}
             </Button>
           </div>
         </Form>
+
+        <section className="mt-4 border-top pt-3" aria-labelledby="smartstore-mapping-history-title">
+          <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+            <div>
+              <h3 id="smartstore-mapping-history-title" className="fs-6 mb-1">최근 변경 이력</h3>
+              <div className="small text-muted-soft">최근 20건의 연동 설정과 처리자를 표시합니다.</div>
+            </div>
+          </div>
+          {historyQuery.isLoading && <LoadingSpinner />}
+          {historyQuery.data?.length === 0 && (
+            <div className="small text-muted-soft py-2">아직 변경 이력이 없습니다.</div>
+          )}
+          {!!historyQuery.data?.length && (
+            <Table responsive size="sm" className="align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>처리</th>
+                  <th>변경 내용</th>
+                  <th>처리자</th>
+                  <th>처리 시각</th>
+                </tr>
+              </thead>
+              <tbody>{historyQuery.data.map((history) => (
+                <tr key={history.id}>
+                  <td className="text-nowrap">{HISTORY_ACTION_LABEL[history.action]}</td>
+                  <td className="small">
+                    <div>{mappingTransition(history.previousOriginProductNo, history.nextOriginProductNo)}</div>
+                    {(history.previousEnabled !== history.nextEnabled) && (
+                      <div className="text-muted-soft">
+                        자동 반영 {enabledLabel(history.previousEnabled)} → {enabledLabel(history.nextEnabled)}
+                      </div>
+                    )}
+                    {(history.previousOptionMappings || history.nextOptionMappings) && (
+                      <div className="text-muted-soft">
+                        옵션 {history.previousOptionMappings ?? "없음"} → {history.nextOptionMappings ?? "없음"}
+                      </div>
+                    )}
+                    {history.previousOriginConfirmed && (
+                      <Badge bg="light" text="dark" className="mt-1">기존 원상품 확인 완료</Badge>
+                    )}
+                  </td>
+                  <td className="text-nowrap small">
+                    {history.changedBy}
+                    {history.changedByAdminId !== null && ` #${history.changedByAdminId}`}
+                  </td>
+                  <td className="text-nowrap small">{formatDateTime(history.changedAt)}</td>
+                </tr>
+              ))}</tbody>
+            </Table>
+          )}
+        </section>
       </Modal.Body>
     </Modal>
   );
+}
+
+function mappingTransition(previous: number | null, next: number | null): string {
+  if (previous === null) return `원상품 ${next} 연동`;
+  if (next === null) return `원상품 ${previous} 연동 해제`;
+  if (previous === next) return `원상품 ${next}`;
+  return `원상품 ${previous} → ${next}`;
+}
+
+function enabledLabel(enabled: boolean | null): string {
+  if (enabled === null) return "미설정";
+  return enabled ? "사용" : "중지";
 }
 
 function variantLabel(product: ProductResponse, variantId: number): string {

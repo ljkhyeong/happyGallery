@@ -6,6 +6,8 @@ import com.personal.happygallery.application.notification.port.out.NotificationO
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.application.order.port.out.OrderApprovalBacklogSummary;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionBacklogSummary;
+import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptBacklogSummary;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundBacklogSummary;
@@ -39,6 +41,8 @@ class OperationalBacklogMetricsTest {
         OrderReaderPort orderReader = mock(OrderReaderPort.class);
         BookingCancellationTaskPort bookingCancellationTaskPort =
                 mock(BookingCancellationTaskPort.class);
+        SmartStoreOrderActionHistoryPort smartStoreOrderActionHistoryPort =
+                mock(SmartStoreOrderActionHistoryPort.class);
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         MutableClock clock = new MutableClock(Instant.parse("2026-07-20T00:00:00Z"));
         OperationalBacklogMetrics metrics = new OperationalBacklogMetrics(
@@ -47,6 +51,7 @@ class OperationalBacklogMetricsTest {
                 paymentAttemptReader,
                 orderReader,
                 bookingCancellationTaskPort,
+                smartStoreOrderActionHistoryPort,
                 registry,
                 clock);
         when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
@@ -58,6 +63,10 @@ class OperationalBacklogMetricsTest {
         when(bookingCancellationTaskPort.summarizePendingBacklog())
                 .thenReturn(new BookingCancellationTaskBacklogSummary(
                         2, LocalDateTime.of(2026, 7, 19, 23, 55)));
+        when(smartStoreOrderActionHistoryPort.summarizeUnresolvedBacklog(
+                LocalDateTime.of(2026, 7, 20, 8, 55)))
+                .thenReturn(new SmartStoreOrderActionBacklogSummary(
+                        2, LocalDateTime.of(2026, 7, 20, 8, 50)));
         when(refundPort.summarizeUnresolvedBacklog()).thenReturn(List.of(
                 new RefundBacklogSummary(
                         RefundStatus.RETRYABLE,
@@ -115,6 +124,12 @@ class OperationalBacklogMetricsTest {
             softly.assertThat(gauge(
                     registry, "happygallery.booking.cancellation.task.backlog.oldest.age"))
                     .isEqualTo(300);
+            softly.assertThat(gauge(
+                    registry, "happygallery.smartstore.order.action.reconciliation.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(
+                    registry, "happygallery.smartstore.order.action.reconciliation.backlog.oldest.age"))
+                    .isEqualTo(600);
         });
 
         when(paymentAttemptReader.summarizeReconciliationRequiredBacklog())
@@ -122,6 +137,9 @@ class OperationalBacklogMetricsTest {
         when(orderReader.summarizePendingApprovalBacklog())
                 .thenThrow(new IllegalStateException("database unavailable"));
         when(bookingCancellationTaskPort.summarizePendingBacklog())
+                .thenThrow(new IllegalStateException("database unavailable"));
+        when(smartStoreOrderActionHistoryPort.summarizeUnresolvedBacklog(
+                LocalDateTime.of(2026, 7, 20, 8, 56, 30)))
                 .thenThrow(new IllegalStateException("database unavailable"));
         when(refundPort.summarizeUnresolvedBacklog())
                 .thenThrow(new IllegalStateException("database unavailable"));
@@ -175,6 +193,15 @@ class OperationalBacklogMetricsTest {
             softly.assertThat(registry.counter(
                     "happygallery.operational.backlog.refresh.failures", "source",
                     "booking_cancellation_task").count()).isOne();
+            softly.assertThat(gauge(
+                    registry, "happygallery.smartstore.order.action.reconciliation.backlog.count"))
+                    .isEqualTo(2);
+            softly.assertThat(gauge(
+                    registry, "happygallery.smartstore.order.action.reconciliation.backlog.oldest.age"))
+                    .isEqualTo(690);
+            softly.assertThat(registry.counter(
+                    "happygallery.operational.backlog.refresh.failures", "source",
+                    "smartstore_order_action").count()).isOne();
         });
     }
 
