@@ -3078,6 +3078,19 @@ Cookie: HG_SESSION={sessionToken}
 - `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
 - `POST /api/v1/me/orders/{id}/delay-response` — 제작 지연 제안 수락/거절
 
+세 페이지 API는 선택적인 `keyword`, `status`, `sort`로 **전체 회원 이력**을 먼저 검색·정렬한 뒤 페이지를 나눈다. `keyword`는 앞뒤 공백을 제거하고 최대 100자로 정제하며 주문·8회권 번호의 부분 일치, 예약 번호 또는 클래스명의 부분 일치를 지원한다. `%`, `_`는 검색 문자로 처리한다. 전체 상태를 조회할 때는 `status`를 생략한다.
+
+| 목록 | `status` | `sort`와 생략 시 기본값 |
+| --- | --- | --- |
+| 주문 | `OrderStatus` 값 | `LATEST`(기본, 생성일 내림차순), `OLDEST`, `AMOUNT_DESC`, `AMOUNT_ASC` |
+| 예약 | `BOOKED`, `CANCELED`, `NO_SHOW`, `COMPLETED` | `CREATED_DESC`(기본, 생성일 내림차순), `SOONEST`(예약일 오름차순), `LATEST`(예약일 내림차순), `DEPOSIT_DESC` |
+| 8회권 | `ACTIVE`, `USED_UP`, `EXPIRED` | `PURCHASE_DESC`(기본), `EXPIRY_ASC`, `CREDITS_DESC` |
+
+- `ACTIVE`는 잔여 횟수가 있고 만료 시각 전인 건, `EXPIRED`는 잔여 횟수가 있고 만료 시각에 도달한 건, `USED_UP`은 잔여 횟수가 없는 건이다. 이 목록 분류는 환불 요청 가능 여부를 대신하지 않는다.
+- `size`는 기본 20, 1~100이며 응답은 기존 `{content,nextCursor,hasMore}`를 유지한다. 검색·정렬 조건을 바꾸면 커서를 비운다. 정렬값이 같으면 거래 번호를 같은 방향으로 정렬한다.
+- 검색·상태 필터 없이 기본 정렬을 쓰면 기존 생성일·구매일 커서를 유지한다. 나머지 커서는 회원·목록·검색·상태·정렬에 귀속하며 다른 조건으로 재사용하면 `400 INVALID_INPUT`을 반환한다. 잘못된 enum·커서·페이지 크기도 400으로 거절한다.
+- 예약일·잔여 횟수처럼 바뀔 수 있는 정렬값은 조회 시점의 값을 사용한다. 변경·취소·환불 후에는 목록을 새로 조회한다. 기존 배열 조회 경로와 기본 정렬 동작은 바꾸지 않는다.
+
 회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
 회원 주문 상세·예약 상세와 8회권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 8회권 목록은 영수증을 일괄 조회한다.
@@ -3130,7 +3143,7 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
-- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다.
+- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 기본 정렬은 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다. 회원 주문·예약·8회권의 검색·정렬 확장은 2.12.3의 조건별 커서 규칙을 따른다.
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
 - 신규 `REGULAR_CRAFT_8`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
 - 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.

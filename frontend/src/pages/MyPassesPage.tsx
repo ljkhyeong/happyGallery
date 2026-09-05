@@ -1,3 +1,5 @@
+import { ListMyPassesPageSort, ListMyPassesPageStatus } from "@/generated/api/customerStore";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -7,7 +9,6 @@ import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import {
-  buildPassTabs,
   getPassFilterKey,
   isPassAvailableForBooking,
   isPassRefundable,
@@ -52,7 +53,18 @@ function MyPassesContent() {
     sortValue,
     updateFilters,
     resetFilters,
-  } = useMyListFilters({ defaultSort: DEFAULT_SORT, legacyStatusParam: "filter" });
+  } = useMyListFilters({
+    defaultSort: DEFAULT_SORT,
+    legacyStatusParam: "filter",
+    statusValues: Object.values(ListMyPassesPageStatus),
+    sortValues: PASS_SORT_OPTIONS.map((option) => option.value),
+  });
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const filters = {
+    keyword: debouncedSearch.trim() || undefined,
+    status: passFilter === "ALL" ? undefined : passFilter as ListMyPassesPageStatus,
+    sort: sortValue as ListMyPassesPageSort,
+  };
   const {
     data: passesData,
     isLoading,
@@ -63,8 +75,8 @@ function MyPassesContent() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: queryKeys.member.passHistory,
-    queryFn: ({ pageParam, signal }) => fetchMyPassesPage(pageParam, signal),
+    queryKey: [...queryKeys.member.passHistory, filters],
+    queryFn: ({ pageParam, signal }) => fetchMyPassesPage(pageParam, signal, filters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
@@ -82,24 +94,12 @@ function MyPassesContent() {
   });
   const passes = passesData?.pages.flatMap((page) => page.content) ?? [];
   const hasLoadedPasses = passesData !== undefined;
-  const normalizedQuery = searchQuery.trim();
-  const filteredPasses = passes.filter((pass) => {
-    const matchesFilter = passFilter === "ALL" || getPassFilterKey(pass) === passFilter;
-    const matchesQuery = normalizedQuery === "" || String(pass.passId).includes(normalizedQuery);
-    return matchesFilter && matchesQuery;
-  });
-  const sortedPasses = [...filteredPasses].sort((left, right) => {
-    switch (sortValue) {
-      case "PURCHASE_DESC":
-        return parseApiDateTime(right.purchasedAt) - parseApiDateTime(left.purchasedAt);
-      case "CREDITS_DESC":
-        return right.remainingCredits - left.remainingCredits;
-      case "EXPIRY_ASC":
-      default:
-        return parseApiDateTime(left.expiresAt) - parseApiDateTime(right.expiresAt);
-    }
-  });
-  const quickTabs = buildPassTabs(passes);
+  const quickTabs = [
+    { value: "ALL", label: "전체" },
+    { value: "ACTIVE", label: "사용 가능" },
+    { value: "USED_UP", label: "사용 완료" },
+    { value: "EXPIRED", label: "만료" },
+  ];
   const activePassCount = passes.filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
   const expiringSoonCount = passes.filter((pass) => {
     const expiresIn = parseApiDateTime(pass.expiresAt) - Date.now();
@@ -130,7 +130,7 @@ function MyPassesContent() {
       ),
   });
 
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
@@ -175,39 +175,35 @@ function MyPassesContent() {
           <span className="my-summary-chip">불러온 8회권 중 7일 내 만료 {expiringSoonCount}건</span>
         </div>
       )}
-      {passes.length > 0 && (
-        <MyListFilterBar
-          idPrefix="my-passes"
-          searchLabel="8회권 번호 검색"
-          searchPlaceholder="예: 12"
-          searchValue={searchQuery}
-          onSearchChange={(value) => updateFilters({ q: value })}
-          filterLabel="상태"
-          filterValue={passFilter}
-          filterOptions={[
-            { value: "ALL", label: "전체 상태" },
-            { value: "ACTIVE", label: "사용 가능" },
-            { value: "USED_UP", label: "사용 완료" },
-            { value: "EXPIRED", label: "만료" },
-          ]}
-          onFilterChange={(value) => updateFilters({ status: value })}
-          quickTabs={quickTabs}
-          activeTabValue={passFilter}
-          onTabChange={(value) => updateFilters({ status: value })}
-          sortLabel="정렬"
-          sortValue={sortValue}
-          sortOptions={PASS_SORT_OPTIONS}
-          onSortChange={(value) => updateFilters({ sort: value })}
-          defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedPasses.length}건 표시 중 · 불러온 8회권 ${passes.length}건`}
-          onReset={resetFilters}
-        />
-      )}
-      {hasLoadedPasses && passes.length === 0 && <EmptyState message="8회권이 없습니다." />}
-      {passes.length > 0 && sortedPasses.length === 0 && (
-        <EmptyState message="필터 조건에 맞는 8회권이 없습니다." />
-      )}
-      {sortedPasses.length > 0 && sortedPasses.map((pass) => (
+      <MyListFilterBar
+        idPrefix="my-passes"
+        searchLabel="8회권 번호 검색"
+        searchPlaceholder="예: 12"
+        searchValue={searchQuery}
+        onSearchChange={(value) => updateFilters({ q: value })}
+        filterLabel="상태"
+        filterValue={passFilter}
+        filterOptions={[
+          { value: "ALL", label: "전체 상태" },
+          { value: "ACTIVE", label: "사용 가능" },
+          { value: "USED_UP", label: "사용 완료" },
+          { value: "EXPIRED", label: "만료" },
+        ]}
+        onFilterChange={(value) => updateFilters({ status: value })}
+        quickTabs={quickTabs}
+        activeTabValue={passFilter}
+        onTabChange={(value) => updateFilters({ status: value })}
+        sortLabel="정렬"
+        sortValue={sortValue}
+        sortOptions={PASS_SORT_OPTIONS}
+        onSortChange={(value) => updateFilters({ sort: value })}
+        defaultSortValue={DEFAULT_SORT}
+        resultText={`검색 결과 ${passes.length}건 표시 중${hasNextPage ? " · 더 보기로 계속 조회" : ""}`}
+        onReset={resetFilters}
+      />
+      {isLoading && <LoadingSpinner />}
+      {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 8회권 내역이 없습니다." />}
+      {passes.length > 0 && passes.map((pass) => (
         <Card key={pass.passId} className="mb-2 my-list-card border-0">
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">

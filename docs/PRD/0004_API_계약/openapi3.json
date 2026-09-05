@@ -15104,6 +15104,30 @@
             "minimum" : 1,
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "keyword",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "BOOKED", "CANCELED", "NO_SHOW", "COMPLETED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "CREATED_DESC",
+            "enum" : [ "CREATED_DESC", "SOONEST", "LATEST", "DEPOSIT_DESC" ],
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -15780,6 +15804,30 @@
             "minimum" : 1,
             "type" : "integer"
           }
+        }, {
+          "in" : "query",
+          "name" : "keyword",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "PAID_APPROVAL_PENDING", "APPROVED_FULFILLMENT_PENDING", "REJECTED", "CUSTOMER_CANCELED", "AUTO_REFUND_TIMEOUT", "IN_PRODUCTION", "DELAY_CONSENT_PENDING", "DELAY_ACCEPTED", "DELAY_REJECTED_CANCELED", "SHIPPING_PREPARING", "SHIPPED", "DELIVERED", "PICKUP_READY", "PICKED_UP", "PICKUP_EXPIRED", "PICKUP_FORFEITED", "COMPLETED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "LATEST",
+            "enum" : [ "LATEST", "OLDEST", "AMOUNT_DESC", "AMOUNT_ASC" ],
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -15991,6 +16039,30 @@
             "maximum" : 100,
             "minimum" : 1,
             "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "keyword",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "ACTIVE", "USED_UP", "EXPIRED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "default" : "PURCHASE_DESC",
+            "enum" : [ "PURCHASE_DESC", "EXPIRY_ASC", "CREDITS_DESC" ],
+            "type" : "string"
           }
         } ],
         "responses" : {

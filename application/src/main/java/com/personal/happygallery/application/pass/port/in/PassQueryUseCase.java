@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.pass.port.in;
 
+import com.personal.happygallery.application.pass.PassHistoryQuery;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -15,6 +16,8 @@ public interface PassQueryUseCase {
     List<PassView> listMyPasses(Long userId);
 
     CursorPage<PassView> listMyPasses(Long userId, String cursor, int size);
+
+    CursorPage<PassView> listMyPasses(Long userId, PassHistoryQuery query, String cursor, int size);
 
     PassView findMyPass(Long id, Long userId);
 

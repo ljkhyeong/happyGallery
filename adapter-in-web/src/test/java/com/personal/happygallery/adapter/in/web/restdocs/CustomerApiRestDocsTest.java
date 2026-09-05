@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.application.pass.PassHistoryQuery;
+import com.personal.happygallery.application.booking.BookingHistoryQuery;
+import com.personal.happygallery.application.order.OrderHistoryQuery;
 import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
 import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialController;
@@ -175,7 +178,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         39000L,
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
-        when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), any(BookingHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(booking), "cursor-next", true));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null,
@@ -193,13 +196,13 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(vacancyAlertUseCase.registerMember(42L, CUSTOMER_USER_ID)).thenReturn(vacancyAlert);
         when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(vacancyAlert));
         when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
-        when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), any(OrderHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null,
                 "https://dashboard.tosspayments.com/receipt/pass");
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
-        when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), any(PassHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
@@ -646,7 +649,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_bookings_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/bookings/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "향수")
+                        .param("status", "BOOKED")
+                        .param("sort", "SOONEST"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].bookingId").value(100))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
@@ -738,7 +744,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_orders_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "200")
+                        .param("status", "PAID_APPROVAL_PENDING")
+                        .param("sort", "AMOUNT_DESC"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].orderId").value(200))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
@@ -765,7 +774,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_passes_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "300")
+                        .param("status", "ACTIVE")
+                        .param("sort", "EXPIRY_ASC"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].passId").value(300))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))

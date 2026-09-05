@@ -6,7 +6,7 @@ export interface MyFilterOption {
 }
 
 export interface MyQuickTab extends MyFilterOption {
-  count: number;
+  count?: number;
 }
 
 interface Props {
@@ -76,9 +76,11 @@ export function MyListFilterBar({
                   aria-pressed={isActive}
                 >
                   <span>{tab.label}</span>
-                  <Badge bg={isActive ? "light" : "secondary"} text={isActive ? "dark" : "light"}>
-                    {tab.count}
-                  </Badge>
+                  {tab.count !== undefined && (
+                    <Badge bg={isActive ? "light" : "secondary"} text={isActive ? "dark" : "light"}>
+                      {tab.count}
+                    </Badge>
+                  )}
                 </Button>
               );
             })}

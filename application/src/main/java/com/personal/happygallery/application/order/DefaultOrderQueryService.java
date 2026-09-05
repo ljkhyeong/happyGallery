@@ -8,6 +8,7 @@ import com.personal.happygallery.application.order.port.out.ShipmentTrackingEven
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -35,6 +36,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final ShippingAddressProtector shippingAddressProtector;
     private final ShipmentTrackingEventPort trackingEventPort;
     private final PaymentReceiptQuery receiptQuery;
+    private final MemberHistoryReaderPort memberHistoryReader;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
@@ -43,7 +45,8 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                                     RefundPort refundPort,
                                     ShippingAddressProtector shippingAddressProtector,
                                     ShipmentTrackingEventPort trackingEventPort,
-                                    PaymentReceiptQuery receiptQuery) {
+                                    PaymentReceiptQuery receiptQuery,
+                                    MemberHistoryReaderPort memberHistoryReader) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
@@ -52,12 +55,20 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
         this.shippingAddressProtector = shippingAddressProtector;
         this.trackingEventPort = trackingEventPort;
         this.receiptQuery = receiptQuery;
+        this.memberHistoryReader = memberHistoryReader;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
     @Override
     public List<Order> listMyOrders(Long userId) {
         return listMyOrders(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<Order> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        if (query.isDefault()) return listMyOrders(userId, cursor, pageSize);
+        return memberHistoryReader.findOrders(userId, query, cursor, pageSize);
     }
 
     @Override

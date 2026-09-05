@@ -1,3 +1,5 @@
+import { ListMyOrdersPageSort, ListMyOrdersPageStatus } from "@/generated/api/customerStore";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
@@ -5,12 +7,12 @@ import { Link } from "react-router";
 import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
-import { buildQuickStatusTabs, buildStatusFilterOptions } from "@/features/my/listUtils";
+import { buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys } from "@/shared/api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
-import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
+import { formatDateTime, formatKRW } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
 const ORDER_SORT_OPTIONS = [
@@ -23,7 +25,17 @@ const ORDER_SORT_OPTIONS = [
 export function MyOrdersPage() {
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
-    useMyListFilters({ defaultSort: DEFAULT_SORT });
+    useMyListFilters({
+      defaultSort: DEFAULT_SORT,
+      statusValues: Object.values(ListMyOrdersPageStatus),
+      sortValues: ORDER_SORT_OPTIONS.map((option) => option.value),
+    });
+  const debouncedSearch = useDebouncedValue(searchQuery, 300);
+  const filters = {
+    keyword: debouncedSearch.trim() || undefined,
+    status: statusFilter === "ALL" ? undefined : statusFilter as ListMyOrdersPageStatus,
+    sort: sortValue as ListMyOrdersPageSort,
+  };
   const {
     data: ordersData,
     isLoading,
@@ -34,8 +46,8 @@ export function MyOrdersPage() {
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: queryKeys.member.orders.history,
-    queryFn: ({ pageParam, signal }) => fetchMyOrdersPage(pageParam, signal),
+    queryKey: [...queryKeys.member.orders.history, filters],
+    queryFn: ({ pageParam, signal }) => fetchMyOrdersPage(pageParam, signal, filters),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
@@ -43,35 +55,19 @@ export function MyOrdersPage() {
   });
   const orders = ordersData?.pages.flatMap((page) => page.content) ?? [];
   const hasLoadedOrders = ordersData !== undefined;
-  const normalizedQuery = searchQuery.trim();
-  const statuses = orders.map((order) => order.status);
   const statusOptions = [
     { value: "ALL", label: "전체 상태" },
-    ...buildStatusFilterOptions(statuses),
+    ...buildStatusFilterOptions(Object.values(ListMyOrdersPageStatus)),
   ];
-  const quickTabs = buildQuickStatusTabs(statuses);
-  const filteredOrders = orders.filter((order) => {
-    const matchesStatus = statusFilter === "ALL" || order.status === statusFilter;
-    const matchesQuery = normalizedQuery === "" || String(order.orderId).includes(normalizedQuery);
-    return matchesStatus && matchesQuery;
-  });
-  const sortedOrders = [...filteredOrders].sort((left, right) => {
-    switch (sortValue) {
-      case "OLDEST":
-        return parseApiDateTime(left.createdAt) - parseApiDateTime(right.createdAt);
-      case "AMOUNT_DESC":
-        return right.totalAmount - left.totalAmount;
-      case "AMOUNT_ASC":
-        return left.totalAmount - right.totalAmount;
-      case "LATEST":
-      default:
-        return parseApiDateTime(right.createdAt) - parseApiDateTime(left.createdAt);
-    }
-  });
+  const quickTabs = [
+    { value: "ALL", label: "전체" },
+    ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"]),
+  ];
   const activeCount = orders.filter((order) =>
     ![
       "PICKED_UP",
       "DELIVERED",
+      "COMPLETED",
       "REJECTED",
       "CUSTOMER_CANCELED",
       "AUTO_REFUND_TIMEOUT",
@@ -81,10 +77,10 @@ export function MyOrdersPage() {
     ].includes(order.status),
   ).length;
   const completedCount = orders.filter((order) =>
-    ["PICKED_UP", "DELIVERED"].includes(order.status),
+    ["PICKED_UP", "DELIVERED", "COMPLETED"].includes(order.status),
   ).length;
 
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
@@ -131,34 +127,30 @@ export function MyOrdersPage() {
           </span>
         </div>
       )}
-      {orders.length > 0 && (
-        <MyListFilterBar
-          idPrefix="my-orders"
-          searchLabel="주문 번호 검색"
-          searchPlaceholder="예: 123"
-          searchValue={searchQuery}
-          onSearchChange={(value) => updateFilters({ q: value })}
-          filterLabel="상태"
-          filterValue={statusFilter}
-          filterOptions={statusOptions}
-          onFilterChange={(value) => updateFilters({ status: value })}
-          quickTabs={quickTabs}
-          activeTabValue={statusFilter}
-          onTabChange={(value) => updateFilters({ status: value })}
-          sortLabel="정렬"
-          sortValue={sortValue}
-          sortOptions={ORDER_SORT_OPTIONS}
-          onSortChange={(value) => updateFilters({ sort: value })}
-          defaultSortValue={DEFAULT_SORT}
-          resultText={`${sortedOrders.length}건 표시 중 · 불러온 주문 ${orders.length}건`}
-          onReset={resetFilters}
-        />
-      )}
-      {hasLoadedOrders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
-      {orders.length > 0 && sortedOrders.length === 0 && (
-        <EmptyState message="필터 조건에 맞는 주문이 없습니다." />
-      )}
-      {sortedOrders.length > 0 && sortedOrders.map((order) => (
+      <MyListFilterBar
+        idPrefix="my-orders"
+        searchLabel="주문 번호 검색"
+        searchPlaceholder="예: 123"
+        searchValue={searchQuery}
+        onSearchChange={(value) => updateFilters({ q: value })}
+        filterLabel="상태"
+        filterValue={statusFilter}
+        filterOptions={statusOptions}
+        onFilterChange={(value) => updateFilters({ status: value })}
+        quickTabs={quickTabs}
+        activeTabValue={statusFilter}
+        onTabChange={(value) => updateFilters({ status: value })}
+        sortLabel="정렬"
+        sortValue={sortValue}
+        sortOptions={ORDER_SORT_OPTIONS}
+        onSortChange={(value) => updateFilters({ sort: value })}
+        defaultSortValue={DEFAULT_SORT}
+        resultText={`검색 결과 ${orders.length}건 표시 중${hasNextPage ? " · 더 보기로 계속 조회" : ""}`}
+        onReset={resetFilters}
+      />
+      {isLoading && <LoadingSpinner />}
+      {hasLoadedOrders && orders.length === 0 && <EmptyState message="검색 조건에 맞는 주문 내역이 없습니다." />}
+      {orders.length > 0 && orders.map((order) => (
         <Card
           key={order.orderId}
           as={Link}
@@ -168,20 +160,20 @@ export function MyOrdersPage() {
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
-                  <div className="fw-semibold small">주문 #{order.orderId}</div>
-                  <small className="text-muted-soft">
-                    {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
-                  </small>
-                </Col>
+                <div className="fw-semibold small">주문 #{order.orderId}</div>
+                <small className="text-muted-soft">
+                  {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
+                </small>
+              </Col>
               <Col xs={6} md={3}>
                 <StatusBadge status={order.status} />
               </Col>
-                <Col xs={6} md={5} className="text-md-end">
-                  <small>{formatKRW(order.totalAmount)}</small>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
+              <Col xs={6} md={5} className="text-md-end">
+                <small>{formatKRW(order.totalAmount)}</small>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
       ))}
       {hasNextPage && (
         <div className="d-grid mt-3">

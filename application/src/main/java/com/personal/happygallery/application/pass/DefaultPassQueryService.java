@@ -5,12 +5,15 @@ import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPor
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,19 +30,32 @@ public class DefaultPassQueryService implements PassQueryUseCase {
     private final PassPurchaseReaderPort passPurchaseReader;
     private final RefundPort refundPort;
     private final PaymentReceiptQuery receiptQuery;
+    private final MemberHistoryReaderPort memberHistoryReader;
+    private final Clock clock;
 
     public DefaultPassQueryService(PassPurchaseReaderPort passPurchaseReader,
                                    RefundPort refundPort,
-                                   PaymentReceiptQuery receiptQuery) {
+                                   PaymentReceiptQuery receiptQuery,
+                                   MemberHistoryReaderPort memberHistoryReader, Clock clock) {
         this.passPurchaseReader = passPurchaseReader;
         this.refundPort = refundPort;
         this.receiptQuery = receiptQuery;
+        this.memberHistoryReader = memberHistoryReader;
+        this.clock = clock;
     }
 
     /** 회원 — 자기 8회권 목록 조회 */
     @Override
     public List<PassView> listMyPasses(Long userId) {
         return listMyPasses(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<PassView> listMyPasses(Long userId, PassHistoryQuery query, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        if (query.isDefault()) return listMyPasses(userId, cursor, pageSize);
+        var page = memberHistoryReader.findPasses(userId, query, cursor, pageSize, LocalDateTime.now(clock));
+        return new CursorPage<>(withRefunds(page.content()), page.nextCursor(), page.hasMore());
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -22,15 +23,18 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     private final BookingReaderPort bookingReaderPort;
     private final RefundPort refundPort;
     private final PaymentReceiptQuery receiptQuery;
+    private final MemberHistoryReaderPort memberHistoryReader;
 
     public DefaultBookingQueryService(BookingSupport bookingSupport,
                                       BookingReaderPort bookingReaderPort,
                                       RefundPort refundPort,
-                                      PaymentReceiptQuery receiptQuery) {
+                                      PaymentReceiptQuery receiptQuery,
+                                      MemberHistoryReaderPort memberHistoryReader) {
         this.bookingSupport = bookingSupport;
         this.bookingReaderPort = bookingReaderPort;
         this.refundPort = refundPort;
         this.receiptQuery = receiptQuery;
+        this.memberHistoryReader = memberHistoryReader;
     }
 
     /**
@@ -46,6 +50,13 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     @Override
     public List<Booking> listMyBookings(Long userId) {
         return listMyBookings(userId, null, PageParams.MAX_SIZE).content();
+    }
+
+    @Override
+    public CursorPage<Booking> listMyBookings(Long userId, BookingHistoryQuery query, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        if (query.isDefault()) return listMyBookings(userId, cursor, pageSize);
+        return memberHistoryReader.findBookings(userId, query, cursor, pageSize);
     }
 
     @Override

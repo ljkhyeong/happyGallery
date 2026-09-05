@@ -86,6 +86,40 @@ class MeOrderUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
+    @Test
+    @DisplayName("주문 검색은 전체 이력에서 본인 주문을 찾고 금액 동점도 다음 페이지로 이어 조회한다")
+    void searchMyOrderHistory() throws Exception {
+        Long olderId = createOrder();
+        Long newerId = createOrder();
+        Long hiddenId = createOrder();
+        customerHelper.signupAndGetSessionCookie("other-history@test.com", "010-3333-5555");
+        Long otherUserId = userReaderPort.findByEmail("other-history@test.com").orElseThrow().getId();
+        jdbcTemplate.update("UPDATE orders SET user_id = ? WHERE id = ?", otherUserId, hiddenId);
+
+        var first = mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("sort", "AMOUNT_DESC").param("status", "PAID_APPROVAL_PENDING").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").value(newerId))
+                .andExpect(jsonPath("$.hasMore").value(true)).andReturn();
+        String cursor = objectMapper.readTree(first.getResponse().getContentAsString()).get("nextCursor").asText();
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("sort", "AMOUNT_DESC").param("status", "PAID_APPROVAL_PENDING")
+                        .param("size", "1").param("cursor", cursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").value(olderId))
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("keyword", olderId.toString()).param("sort", "OLDEST"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].orderId").value(olderId));
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("keyword", hiddenId.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("sort", "AMOUNT_ASC").param("cursor", cursor))
+                .andExpect(status().isBadRequest());
+    }
+
     @DisplayName("회원 주문 목록을 조회한다")
     @Test
     void listMyOrders() throws Exception {

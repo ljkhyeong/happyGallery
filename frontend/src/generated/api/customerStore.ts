@@ -617,7 +617,43 @@ cursor?: string;
  * @maximum 100
  */
 size?: number;
+keyword?: string;
+status?: ListMyOrdersPageStatus;
+sort?: ListMyOrdersPageSort;
 };
+
+export type ListMyOrdersPageStatus = typeof ListMyOrdersPageStatus[keyof typeof ListMyOrdersPageStatus];
+
+
+export const ListMyOrdersPageStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type ListMyOrdersPageSort = typeof ListMyOrdersPageSort[keyof typeof ListMyOrdersPageSort];
+
+
+export const ListMyOrdersPageSort = {
+  LATEST: 'LATEST',
+  OLDEST: 'OLDEST',
+  AMOUNT_DESC: 'AMOUNT_DESC',
+  AMOUNT_ASC: 'AMOUNT_ASC',
+} as const;
 
 export type ListMyPassesPageParams = {
 cursor?: string;
@@ -626,7 +662,28 @@ cursor?: string;
  * @maximum 100
  */
 size?: number;
+keyword?: string;
+status?: ListMyPassesPageStatus;
+sort?: ListMyPassesPageSort;
 };
+
+export type ListMyPassesPageStatus = typeof ListMyPassesPageStatus[keyof typeof ListMyPassesPageStatus];
+
+
+export const ListMyPassesPageStatus = {
+  ACTIVE: 'ACTIVE',
+  USED_UP: 'USED_UP',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export type ListMyPassesPageSort = typeof ListMyPassesPageSort[keyof typeof ListMyPassesPageSort];
+
+
+export const ListMyPassesPageSort = {
+  PURCHASE_DESC: 'PURCHASE_DESC',
+  EXPIRY_ASC: 'EXPIRY_ASC',
+  CREDITS_DESC: 'CREDITS_DESC',
+} as const;
 
 export const getGetMyCartUrl = () => {
 
