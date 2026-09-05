@@ -1,3 +1,4 @@
+import { MyFavoritesSection } from "@/features/my/Favorites";
 import { MyDefaultShippingAddressSection } from "@/features/my/DefaultShippingAddress";
 import { useEffect, useState } from "react";
 import { Container, Badge } from "react-bootstrap";
@@ -334,6 +335,7 @@ function MyPageContent() {
       />
 
       <MyVacancyAlertsSection />
+      <MyFavoritesSection />
       <MyDefaultShippingAddressSection />
       <MyRestockAlertsSection />
               <MyGroupInquiriesSection />

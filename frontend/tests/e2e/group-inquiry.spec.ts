@@ -30,7 +30,8 @@ for (const member of [false, true]) {
       if (path === "/api/v1/me") return member
         ? json({ id: 501, name: "회원", email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
         : json({ code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-      if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      if (path === "/api/v1/me/favorites") return json({ content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
       if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
       if (path.endsWith("/group-inquiries")) {
         if (route.request().method() === "POST") {

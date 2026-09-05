@@ -32,6 +32,7 @@ test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다",
       }
       return json({ version, shippingAddress: address });
     }
+    if (path === "/api/v1/me/favorites") return json({ content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
     if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
     if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return json({ content: [], hasMore: false, nextCursor: null });

@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/my/Favorites";
 import { useMemo } from "react";
 import { Badge, Card, Col, Container, Row } from "react-bootstrap";
 import { Link } from "react-router";
@@ -61,6 +62,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
               </div>
               <p className="store-section-kicker mb-2">HappyGallery Class</p>
               <h1 className="class-detail-title">{bookingClass.name}</h1>
+              <FavoriteButton type="CLASS" targetId={bookingClass.id} />
               <p className="text-muted-soft class-detail-description">
                 {bookingClass.description || "재료와 과정을 차근차근 안내하는 해피갤러리 공예 수업입니다."}
               </p>

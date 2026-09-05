@@ -215,6 +215,34 @@ export interface UpdateShippingAddressRequest {
   version: number;
 }
 
+export type FavoriteResponseTargetType = typeof FavoriteResponseTargetType[keyof typeof FavoriteResponseTargetType];
+
+
+export const FavoriteResponseTargetType = {
+  PRODUCT: 'PRODUCT',
+  CLASS: 'CLASS',
+} as const;
+
+export interface FavoriteResponse {
+  active: boolean;
+  createdAt: string;
+  id: number;
+  name: string;
+  targetId: number;
+  targetType: FavoriteResponseTargetType;
+}
+
+export interface FavoritePageResponse {
+  content: FavoriteResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface FavoriteStatusResponse {
+  saved: boolean;
+}
+
 export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
 
 
@@ -783,6 +811,20 @@ export type DeleteMyDefaultShippingAddressParams = {
 version: number;
 };
 
+export type ListMyFavoritesParams = {
+type?: ListMyFavoritesType;
+cursor?: string;
+size?: number;
+};
+
+export type ListMyFavoritesType = typeof ListMyFavoritesType[keyof typeof ListMyFavoritesType];
+
+
+export const ListMyFavoritesType = {
+  PRODUCT: 'PRODUCT',
+  CLASS: 'CLASS',
+} as const;
+
 export type ListMyGroupInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -1064,6 +1106,103 @@ export const saveMyDefaultShippingAddress = async (updateShippingAddressRequest:
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(updateShippingAddressRequest)
+  }
+);}
+
+
+
+export const getListMyFavoritesUrl = (params?: ListMyFavoritesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/favorites?${stringifiedParams}` : `/api/v1/me/favorites`
+}
+
+export const listMyFavorites = async (params?: ListMyFavoritesParams, options?: RequestInit): Promise<FavoritePageResponse> => {
+
+  return generatedApiClient<FavoritePageResponse>(getListMyFavoritesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRemoveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const removeMyFavorite = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRemoveMyFavoriteUrl(type,targetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetMyFavoriteStatusUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const getMyFavoriteStatus = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<FavoriteStatusResponse> => {
+
+  return generatedApiClient<FavoriteStatusResponse>(getGetMyFavoriteStatusUrl(type,targetId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSaveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const saveMyFavorite = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getSaveMyFavoriteUrl(type,targetId),
+  {
+    ...options,
+    method: 'PUT'
+
+
   }
 );}
 

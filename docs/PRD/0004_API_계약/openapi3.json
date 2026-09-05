@@ -3334,6 +3334,61 @@
         "required" : [ "code", "message", "productOrderId" ],
         "type" : "object"
       },
+      "FavoritePageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FavoriteResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "FavoriteResponse" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "targetId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "targetType" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "active", "createdAt", "id", "name", "targetId", "targetType" ],
+        "type" : "object"
+      },
+      "FavoriteStatusResponse" : {
+        "properties" : {
+          "saved" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "saved" ],
+        "type" : "object"
+      },
       "FulfillmentDto" : {
         "properties" : {
           "carrier" : {
@@ -16368,6 +16423,139 @@
           }
         },
         "tags" : [ "me-email-controller" ]
+      }
+    },
+    "/api/v1/me/favorites" : {
+      "get" : {
+        "operationId" : "listMyFavorites",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoritePageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-favorite-controller" ]
+      }
+    },
+    "/api/v1/me/favorites/{type}/{targetId}" : {
+      "delete" : {
+        "operationId" : "removeMyFavorite",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "targetId",
+          "required" : true,
+          "schema" : {
+            "exclusiveMinimum" : 0,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-favorite-controller" ]
+      },
+      "get" : {
+        "operationId" : "getMyFavoriteStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "targetId",
+          "required" : true,
+          "schema" : {
+            "exclusiveMinimum" : 0,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoriteStatusResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-favorite-controller" ]
+      },
+      "put" : {
+        "operationId" : "saveMyFavorite",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "type",
+          "required" : true,
+          "schema" : {
+            "enum" : [ "PRODUCT", "CLASS" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "targetId",
+          "required" : true,
+          "schema" : {
+            "exclusiveMinimum" : 0,
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-favorite-controller" ]
       }
     },
     "/api/v1/me/group-inquiries" : {

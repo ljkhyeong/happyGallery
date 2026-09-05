@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/my/Favorites";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -231,6 +232,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                 </span>
               </div>
               <h1 className="store-detail-title">{product.name}</h1>
+              <FavoriteButton type="PRODUCT" targetId={product.id} />
               <p className="text-muted-soft store-section-desc store-detail-description">
                 {product.description || (product.type === "MADE_TO_ORDER"
                   ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."

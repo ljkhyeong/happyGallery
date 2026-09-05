@@ -4307,3 +4307,10 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 ### 관리자 재입고 대기 현황
 
 `GET /api/v1/admin/restock-demand?productId&page&size`는 상품·옵션별 대기 인원 내림차순 페이지를 반환한다. 상품 번호는 선택, 페이지 기본 0, 크기 기본 20·최대 100이다. 응답은 `{content:[{productId,productName,productVariantId,optionLabel,waitingCount}],page,size,totalCount,totalPages}`. 옵션 번호는 기성품일 때 null이며 옵션 표시명은 신청 당시 기록을 사용한다. 해지·발송 완료·탈퇴·휴대폰 미인증 회원, 판매 중지 상품·비활성 옵션을 제외한다. 발송 결과가 SENT이면 신청 상태 갱신 전이라도 제외한다. 개인정보는 포함하지 않는다.
+
+### 회원 상품·클래스 찜
+
+- `GET /api/v1/me/favorites?type&cursor&size`: 본인 찜을 저장 시각·ID 최신순 커서 페이지로 조회한다. `type`은 선택 `PRODUCT`·`CLASS`, 기본 크기 20·최대 100. `{content:[{id,targetType,targetId,name,active,createdAt}],nextCursor,hasMore}`를 반환한다.
+- `GET /api/v1/me/favorites/{type}/{targetId}`: `{saved}`로 저장 여부를 조회한다. `PUT` 같은 경로는 저장, `DELETE`는 해제하고 모두 204를 반환한다. 중복 저장과 반복 해제는 한 번 수행한 결과를 유지한다.
+- 현재 활성 상품·클래스만 신규 저장할 수 있다. 저장 이후 중지된 항목은 내 목록에 `active=false`로 표시하며 해제할 수 있다. 대상을 물리 삭제하면 찜도 함께 삭제된다.
+- 회원 세션과 CSRF 보호를 적용하고 요청 본문으로 다른 회원 ID를 받지 않는다. 찜은 전화번호 인증 없이 로그인 회원에게 제공한다.

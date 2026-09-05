@@ -15,6 +15,7 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
     const json = (body: unknown, responseStatus = 200) => route.fulfill({ status: responseStatus, contentType: "application/json", body: JSON.stringify(body) });
     if (path === "/api/v1/products/42") return route.fallback();
     if (path === "/api/v1/me") return json({ id: 501, name: "회원", email: "restock@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
+    if (path === "/api/v1/me/favorites") return json({ content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
     if (path === "/api/v1/me/notifications/unread-count") return json({ count: 1 });
     if (path === "/api/v1/me/notifications") return json([{ id: 70, eventType: "PRODUCT_RESTOCK_AVAILABLE", aggregateType: "RESTOCK_ALERT", aggregateId: 901, read: true, readAt: "2026-09-05T10:00:00", deliveredAt: "2026-09-05T10:00:00" }]);

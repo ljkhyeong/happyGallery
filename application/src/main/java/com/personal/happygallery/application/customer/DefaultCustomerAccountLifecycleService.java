@@ -2,6 +2,7 @@ package com.personal.happygallery.application.customer;
 
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.inquiry.port.out.GroupInquiryPort;
+import com.personal.happygallery.application.customer.port.out.FavoritePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.CustomerAccountActivityPort;
 import com.personal.happygallery.application.customer.port.out.SocialAccountStorePort;
@@ -29,13 +30,14 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final GroupInquiryPort groupInquiries;
+    private final FavoritePort favorites;
 
     public DefaultCustomerAccountLifecycleService(UserReaderPort userReader,
                                                   UserStorePort userStore,
                                                   CustomerAccountActivityPort accountActivity,
                                                   SocialAccountStorePort socialAccountStore,
                                                   ApplicationEventPublisher eventPublisher,
-                                                  Clock clock, GroupInquiryPort groupInquiries) {
+                                                  Clock clock, GroupInquiryPort groupInquiries, FavoritePort favorites) {
         this.userReader = userReader;
         this.userStore = userStore;
         this.accountActivity = accountActivity;
@@ -43,6 +45,7 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
         this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.groupInquiries = groupInquiries;
+        this.favorites = favorites;
     }
 
     @Override
@@ -69,6 +72,7 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
         userStore.save(user);
         socialAccountStore.deleteByUserId(command.userId());
         groupInquiries.deleteByUserId(command.userId());
+        favorites.deleteByUserId(command.userId());
         eventPublisher.publishEvent(new CustomerCredentialsChangedEvent(
                 command.userId(), invalidatedCredentialVersion));
     }
