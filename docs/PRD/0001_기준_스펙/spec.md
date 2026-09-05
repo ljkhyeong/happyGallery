@@ -545,3 +545,9 @@
 
 - 상단 알림 메뉴의 전체 보기에서 `/my/notifications`로 이동한다. 알림은 발송 시각과 ID 역순으로 20개씩 조회하며 이전·다음 페이지와 읽지 않은 알림 필터를 제공한다.
 - 필터와 페이지는 URL에 보존한다. 읽지 않은 목록에서 읽음 처리하면 첫 페이지를 다시 조회해 목록에서 빠진 항목 때문에 다음 알림을 건너뛰지 않는다. 개별 읽음·모두 읽음·관련 주문이나 예약으로 이동을 지원한다.
+
+### 내 정보와 관리 화면
+
+- `/my`는 주문·예약·8회권 요약, 관리 메뉴와 최근 주문·예약 각 1건을 표시한다. 계정 관리와 비회원 내역 연결은 같은 화면에서 진행한다.
+- 찜(`/my/favorites`), 기본 배송지(`/my/shipping-address`), 재입고 알림(`/my/restock-alerts`), 빈자리 알림(`/my/vacancy-alerts`), 단체 문의(`/my/group-inquiries`)는 별도 회원 화면에서 조회·관리한다. 이 화면의 데이터는 진입할 때만 요청한다.
+- 기존 `/my#my-favorites`, `#my-default-shipping-address`, `#my-restock-alerts`, `#my-vacancy-alerts`, `#my-group-inquiries` 링크는 해당 관리 화면으로 이동한다.

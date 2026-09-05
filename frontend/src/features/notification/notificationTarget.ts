@@ -8,7 +8,7 @@ export function notificationTarget(notification: NotificationResponse): string |
     case "BOOKING":
       return aggregateId ? `/my/bookings/${aggregateId}` : "/my/bookings";
     case "RESTOCK_ALERT":
-      return "/my#my-restock-alerts";
+      return "/my/restock-alerts";
     case "PASS_PURCHASE":
       return "/my/passes";
     case "INQUIRY":

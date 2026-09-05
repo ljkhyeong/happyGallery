@@ -28,8 +28,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{orderCount}</div>
             <div className="text-muted-soft small">
               {latestOrder
-                ? `표시 중인 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
-                : `표시 중인 주문 ${orderCount}건`}
+                ? `최근 조회한 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
+                : `최근 조회한 주문 ${orderCount}건`}
             </div>
           </Card.Body>
         </Card>
@@ -41,8 +41,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{bookingCount}</div>
             <div className="text-muted-soft small">
               {nextBooking
-                ? `표시 중인 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
-                : `표시 중인 예약 ${bookingCount}건 · 예정된 예약 없음`}
+                ? `최근 조회한 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
+                : `최근 조회한 예약 ${bookingCount}건 · 예정된 예약 없음`}
             </div>
           </Card.Body>
         </Card>

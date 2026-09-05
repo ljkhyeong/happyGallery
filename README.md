@@ -67,6 +67,8 @@
 
 - 회원 알림은 상단 메뉴의 전체 보기(`/my/notifications`)에서 이전 알림·읽지 않은 알림을 조회하고 개별 또는 전체 읽음 처리한다.
 
+- 내 정보는 최근 내역과 관리 메뉴를 표시한다. 찜·기본 배송지·재입고 및 빈자리 알림·단체 문의는 각각 `/my/favorites`, `/my/shipping-address`, `/my/restock-alerts`, `/my/vacancy-alerts`, `/my/group-inquiries`에서 관리한다.
+
 ## 빠른 시작
 
 ### 요구사항

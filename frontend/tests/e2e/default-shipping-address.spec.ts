@@ -43,7 +43,7 @@ test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다",
     if (path === "/api/v1/me/rewards") return json({ balance: 0 });
     return json([]);
   });
-  await page.goto("/my");
+  await page.goto("/my/shipping-address");
   const section = page.locator("#my-default-shipping-address");
   await section.getByLabel("우편번호", { exact: true }).fill("12345");
   await section.getByLabel("기본 주소", { exact: true }).fill("서울시 저장 주소 10");
@@ -55,7 +55,7 @@ test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다",
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("입력 중인 주소");
   await page.getByRole("button", { name: "기본 배송지 불러오기", exact: true }).click();
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("서울시 저장 주소 10");
-  await page.goto("/my");
+  await page.goto("/my/shipping-address");
   await section.getByRole("button", { name: "기본 배송지 삭제", exact: true }).click();
   await expect(section.getByRole("button", { name: "기본 배송지 삭제" })).toHaveCount(0);
   await expect(section.getByLabel("기본 주소", { exact: true })).toHaveValue("");

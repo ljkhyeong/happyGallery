@@ -1,8 +1,6 @@
-import { MyFavoritesSection } from "@/features/my/Favorites";
-import { MyDefaultShippingAddressSection } from "@/features/my/DefaultShippingAddress";
 import { useEffect, useState } from "react";
 import { Container, Badge } from "react-bootstrap";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
@@ -16,7 +14,7 @@ import {
   fetchRecentMyOrders,
   fetchRecentMyPasses,
 } from "@/features/my/api";
-import { fetchRecentMyInquiries } from "@/features/my-inquiry/api";
+import { MyManagementLinks } from "@/features/my/MyManagementLinks";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyDashboardHero } from "@/features/my/MyDashboardHero";
 import { MyStatsRow } from "@/features/my/MyStatsRow";
@@ -24,18 +22,22 @@ import { MyClaimCard } from "@/features/my/MyClaimCard";
 import { MyAccountCard } from "@/features/my/MyAccountCard";
 import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
-import { MyPassesSection } from "@/features/my/MyPassesSection";
-import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
-import { MyVacancyAlertsSection } from "@/features/my/MyVacancyAlertsSection";
-import { MyGroupInquiriesSection } from "@/features/my/MyGroupInquiriesSection";
-import { MyRestockAlertsSection } from "@/features/my/MyRestockAlertsSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
 import { CustomerSessionChangedError, queryKeys } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
-import { LoadingSpinner, useToast } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyPage() {
   const { sessionVersion } = useCustomerAuth();
+  const { hash } = useLocation();
+  const movedSection: Record<string, string> = {
+    "#my-favorites": "/my/favorites",
+    "#my-default-shipping-address": "/my/shipping-address",
+    "#my-restock-alerts": "/my/restock-alerts",
+    "#my-vacancy-alerts": "/my/vacancy-alerts",
+    "#my-group-inquiries": "/my/group-inquiries",
+  };
+  if (movedSection[hash]) return <Navigate to={movedSection[hash]} replace />;
   return <MyPageContent key={sessionVersion} />;
 }
 
@@ -90,18 +92,6 @@ function MyPageContent() {
   } = useQuery({
     queryKey: queryKeys.member.passes,
     queryFn: ({ signal }) => fetchRecentMyPasses(signal),
-    enabled: isAuthenticated,
-  });
-
-  const {
-    data: inquiries,
-    isLoading: inquiriesLoading,
-    isFetching: inquiriesFetching,
-    error: inquiriesError,
-    refetch: refetchInquiries,
-  } = useQuery({
-    queryKey: queryKeys.member.inquiries,
-    queryFn: ({ signal }) => fetchRecentMyInquiries(signal),
     enabled: isAuthenticated,
   });
 
@@ -296,6 +286,10 @@ function MyPageContent() {
           />
         )}
 
+      {passesLoading && <LoadingSpinner text="8회권 현황을 확인하고 있습니다" />}
+      <ErrorAlert error={passesError} onRetry={() => { void refetchPasses(); }} retrying={passesFetching} />
+      <MyManagementLinks />
+
       <MyClaimCard
         user={user!}
         showClaimEntryHint={showClaimEntryHint}
@@ -320,6 +314,7 @@ function MyPageContent() {
 
       <MyOrdersSection
         orders={orders}
+        previewSize={1}
         isLoading={ordersLoading}
         error={ordersError}
         isFetching={ordersFetching}
@@ -328,32 +323,11 @@ function MyPageContent() {
 
       <MyBookingsSection
         bookings={bookings}
+        previewSize={1}
         isLoading={bookingsLoading}
         error={bookingsError}
         isFetching={bookingsFetching}
         onRetry={() => void refetchBookings()}
-      />
-
-      <MyVacancyAlertsSection />
-      <MyFavoritesSection />
-      <MyDefaultShippingAddressSection />
-      <MyRestockAlertsSection />
-              <MyGroupInquiriesSection />
-
-      <MyPassesSection
-        passes={passes}
-        isLoading={passesLoading}
-        error={passesError}
-        isFetching={passesFetching}
-        onRetry={() => void refetchPasses()}
-      />
-
-      <MyInquiriesSection
-        inquiries={inquiries}
-        isLoading={inquiriesLoading}
-        error={inquiriesError}
-        isFetching={inquiriesFetching}
-        onRetry={() => void refetchInquiries()}
       />
 
       {showClaimModal && user!.phone && (

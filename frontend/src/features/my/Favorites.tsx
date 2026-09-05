@@ -43,7 +43,7 @@ function FavoriteButtonContent({ type, targetId }: { type: TargetType; targetId:
       <Heart size={16} fill={saved ? "currentColor" : "none"} aria-hidden className="me-1" />
       {type === "PRODUCT" ? "상품" : "클래스"} {saved ? "찜 해제" : "찜하기"}
     </Button>
-    <Link to="/my#my-favorites" className="small ms-3">내 찜 보기</Link>
+    <Link to="/my/favorites" className="small ms-3">내 찜 보기</Link>
     <ErrorAlert error={query.error ?? mutation.error} onRetry={() => { void query.refetch(); }} />
   </div>;
 }
