@@ -1306,7 +1306,7 @@ function SmartStoreOrderActionHistory({
               )}
               {item.reconciliationOutcome && (
                 <div className="mt-1 text-primary-emphasis">
-                  대사 결과: {item.reconciliationOutcome === "APPLIED"
+                  반영 여부 확인 결과: {item.reconciliationOutcome === "APPLIED"
                     ? "네이버에 반영됨"
                     : "네이버에 반영되지 않음"}
                   {item.reconciledBy && ` · ${item.reconciledBy}`}

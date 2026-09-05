@@ -274,7 +274,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("운영 관리자");
 });
 
-test("@admin 스마트스토어 미확정 요청을 대사하고 미반영 주문 처리 화면으로 이동한다", async ({ page }) => {
+test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반영 주문 처리 화면으로 이동한다", async ({ page }) => {
   await prepareAdmin(page);
   let reconciled = false;
   let reconciliationBody: Record<string, unknown> | undefined;
@@ -391,8 +391,8 @@ test("@admin 스마트스토어 미확정 요청을 대사하고 미반영 주�
   });
   await panel.getByRole("button", { name: "네이버 상태 확인", exact: true }).click();
   await expect(page.getByText("발주: NOT_YET", { exact: true })).toBeVisible();
-  await page.getByLabel("대사 결과").selectOption("NOT_APPLIED");
-  await page.getByLabel("대사 근거").fill("네이버 발주 상태가 미처리임을 확인");
+  await page.getByLabel("반영 여부 확인 결과").selectOption("NOT_APPLIED");
+  await page.getByLabel("확인 근거").fill("네이버 발주 상태가 미처리임을 확인");
   await page.getByRole("button", { name: "미반영 저장 후 주문 화면 열기", exact: true }).click();
 
   await expect.poll(() => reconciliationBody).toEqual({
