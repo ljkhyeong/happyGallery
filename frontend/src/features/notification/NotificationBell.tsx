@@ -205,6 +205,8 @@ function notificationTarget(notification: NotificationResponse): string | null {
       return aggregateId ? `/my/orders/${aggregateId}` : "/my/orders";
     case "BOOKING":
       return aggregateId ? `/my/bookings/${aggregateId}` : "/my/bookings";
+    case "RESTOCK_ALERT":
+      return "/my#my-restock-alerts";
     case "PASS_PURCHASE":
       return "/my/passes";
     case "INQUIRY":

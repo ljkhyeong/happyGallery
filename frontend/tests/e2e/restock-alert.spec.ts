@@ -16,7 +16,9 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
     if (path === "/api/v1/products/42") return route.fallback();
     if (path === "/api/v1/me") return json({ id: 501, name: "회원", email: "restock@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
     if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
+    if (path === "/api/v1/me/notifications/unread-count") return json({ count: 1 });
+    if (path === "/api/v1/me/notifications") return json([{ id: 70, eventType: "PRODUCT_RESTOCK_AVAILABLE", aggregateType: "RESTOCK_ALERT", aggregateId: 901, read: true, readAt: "2026-09-05T10:00:00", deliveredAt: "2026-09-05T10:00:00" }]);
+    if (path === "/api/v1/me/group-inquiries") return json({ content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
     if (path === "/api/v1/me/restock-alerts") {
       if (route.request().method() === "POST") {
@@ -41,7 +43,9 @@ test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지�
   await page.goto("/products/42");
   await page.getByRole("button", { name: "재입고 알림 받기", exact: true }).click();
   await expect(page.getByRole("button", { name: "재입고 알림 해지", exact: true })).toBeVisible();
-  await page.goto("/my");
+  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await page.getByRole("button", { name: /상품 재입고 안내/ }).click();
+  await expect(page).toHaveURL(/\/my#my-restock-alerts$/);
   const section = page.locator("#my-restock-alerts");
   await expect(section.getByRole("link", { name: product.name })).toBeVisible();
   await section.getByRole("button", { name: "알림 해지", exact: true }).click();
