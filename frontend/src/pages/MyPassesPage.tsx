@@ -159,7 +159,7 @@ function MyPassesContent() {
         <div className="my-section-kicker mb-2">My Passes</div>
         <h4 className="mb-2">전체 8회권</h4>
         <p className="text-muted-soft small mb-0">
-          남은 횟수와 만료일을 기준으로 현재 사용할 수 있는 8회권을 정렬하고, 빠른 상태 탭으로 바로 좁힐 수 있습니다.
+          8회권의 남은 횟수와 만료일을 확인하세요.
         </p>
       </div>
 

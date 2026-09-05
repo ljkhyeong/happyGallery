@@ -110,7 +110,7 @@ export function MyOrdersPage() {
         <div className="my-section-kicker mb-2">My Orders</div>
         <h4 className="mb-2">전체 주문</h4>
         <p className="text-muted-soft small mb-0">
-          최근 주문부터 상태와 결제 금액을 확인하고, 빠른 상태 탭과 정렬로 원하는 주문을 바로 찾습니다.
+          주문 상태와 결제 금액을 확인하고, 원하는 주문을 검색하세요.
         </p>
       </div>
 

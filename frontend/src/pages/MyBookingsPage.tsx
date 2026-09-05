@@ -98,7 +98,7 @@ export function MyBookingsPage() {
         <div className="my-section-kicker mb-2">My Bookings</div>
         <h4 className="mb-2">전체 예약</h4>
         <p className="text-muted-soft small mb-0">
-          다가오는 클래스와 지난 예약 상태를 상태 탭과 정렬로 나눠 보고, 상세 페이지에서 변경이나 취소를 이어갈 수 있습니다.
+          예약 내역과 변경·취소 가능 여부를 확인하세요.
         </p>
       </div>
 

@@ -65,7 +65,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="warning" className="mb-0">
           <Alert.Heading className="fs-5">결제사 결과를 확인하고 있습니다</Alert.Heading>
-          <p className="mb-0">중복 결제를 피하기 위해 새로 결제하지 마세요. 공방에서 확인한 뒤 상태를 새로고침해 주세요.</p>
+          <p className="mb-0">중복 결제를 피하기 위해 새로 결제하지 마세요. 공방에 결제 결과를 문의한 뒤 새로고침해 주세요.</p>
         </Alert>
       );
     case "SUPPORT_REQUIRED":
