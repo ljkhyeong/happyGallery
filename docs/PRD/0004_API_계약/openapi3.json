@@ -3313,9 +3313,13 @@
           "type" : {
             "enum" : [ "SHIPPING", "PICKUP" ],
             "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
           }
         },
-        "required" : [ "carrier", "carrierCode", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingEvents", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt", "type" ],
+        "required" : [ "carrier", "carrierCode", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingEvents", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt", "type", "version" ],
         "type" : "object"
       },
       "GuestClaimPreviewResponse" : {
@@ -8697,6 +8701,19 @@
           }
         },
         "required" : [ "expectedContentRevision", "expectedVersion", "status" ],
+        "type" : "object"
+      },
+      "UpdateShippingAddressRequest" : {
+        "properties" : {
+          "shippingAddress" : {
+            "$ref" : "#/components/schemas/ShippingAddress"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "shippingAddress", "version" ],
         "type" : "object"
       },
       "UpdateWorkshopProfileRequest" : {
@@ -15933,6 +15950,36 @@
         "tags" : [ "me-order-customer-action-controller" ]
       }
     },
+    "/api/v1/me/orders/{id}/shipping-address" : {
+      "put" : {
+        "operationId" : "updateMyOrderShippingAddress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateShippingAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-order-customer-action-controller" ]
+      }
+    },
     "/api/v1/me/orders/{orderId}/claims" : {
       "get" : {
         "operationId" : "listMyOrderClaims",
@@ -17356,6 +17403,43 @@
               }
             },
             "description" : "OK"
+          }
+        },
+        "tags" : [ "order-customer-action-controller" ]
+      }
+    },
+    "/api/v1/orders/{id}/shipping-address" : {
+      "put" : {
+        "operationId" : "updateGuestOrderShippingAddress",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "header",
+          "name" : "X-Access-Token",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateShippingAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
           }
         },
         "tags" : [ "order-customer-action-controller" ]

@@ -124,6 +124,11 @@ class KeyRotationUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.save(Fulfillment.shipping(
                 order.getId(), oldEncryptor.encrypt("{\"address\":\"서울\"}")));
         jdbcTemplate.update("""
+                INSERT INTO shipping_address_changes(order_id, user_id, before_address_enc, after_address_enc, changed_at)
+                VALUES (?, ?, ?, ?, ?)
+                """, order.getId(), user.getId(), oldEncryptor.encrypt("이전 배송지"),
+                oldEncryptor.encrypt("새 배송지"), paidAt);
+        jdbcTemplate.update("""
                 INSERT INTO smartstore_product_orders (
                     product_order_id, order_id, origin_product_no, product_name,
                     delivery_info_enc, product_order_status, initial_quantity, remain_quantity,
@@ -168,6 +173,10 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.bookings()).isEqualTo(1);
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
+            softly.assertThat(result.shippingAddressChanges()).isEqualTo(1);
+            var addressHistory = jdbcTemplate.queryForMap("SELECT before_address_enc, after_address_enc FROM shipping_address_changes WHERE order_id = ?", order.getId());
+            softly.assertThat((String) addressHistory.get("before_address_enc")).startsWith("hg:v2:");
+            softly.assertThat((String) addressHistory.get("after_address_enc")).startsWith("hg:v2:");
             softly.assertThat(result.smartStoreOrders()).isEqualTo(1);
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
             softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);

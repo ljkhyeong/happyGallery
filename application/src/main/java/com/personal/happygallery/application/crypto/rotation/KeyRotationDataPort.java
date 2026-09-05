@@ -28,6 +28,13 @@ public interface KeyRotationDataPort {
 
     void updateFulfillment(FulfillmentRotatedRow row);
 
+    List<ShippingAddressChangeRow> findShippingAddressChangesAfterId(long afterId, int limit);
+
+    void updateShippingAddressChange(ShippingAddressChangeRow row);
+
+    record ShippingAddressChangeRow(long id, String beforeAddressEnc, String afterAddressEnc)
+            implements IdentifiedRow {}
+
     List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
             String afterProductOrderId, int limit);
 

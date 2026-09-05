@@ -119,6 +119,8 @@ public record OrderDetailResponse(
 
     public record FulfillmentDto(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
+            long version,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             FulfillmentType type,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
             LocalDate expectedShipDate,
@@ -147,6 +149,7 @@ public record OrderDetailResponse(
                 ShippingAddress shippingAddress,
                 List<ShipmentTrackingEvent> trackingEvents) {
             return new FulfillmentDto(
+                    f.getVersion(),
                     f.getType(),
                     f.getExpectedShipDate(),
                     f.getPickupDeadlineAt(),

@@ -459,6 +459,7 @@ export interface FulfillmentDto {
   /** @nullable */
   trackingUpdatedAt: string | null;
   type: FulfillmentDtoType;
+  version: number;
 }
 
 export type OrderOptionSnapshotResponseType = typeof OrderOptionSnapshotResponseType[keyof typeof OrderOptionSnapshotResponseType];
@@ -547,6 +548,27 @@ export const OrderDelayResponseRequestDecision = {
 
 export interface OrderDelayResponseRequest {
   decision: OrderDelayResponseRequestDecision;
+}
+
+export interface ShippingAddress {
+  /** @minLength 1 */
+  addressLine1: string;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @minLength 1 */
+  phone: string;
+  /**
+     * @minLength 1
+     * @pattern ^[0-9]{5}$
+     */
+  postalCode: string;
+  /** @minLength 1 */
+  recipientName: string;
+}
+
+export interface UpdateShippingAddressRequest {
+  shippingAddress: ShippingAddress;
+  version: number;
 }
 
 export type MyPassSummaryPlanCode = typeof MyPassSummaryPlanCode[keyof typeof MyPassSummaryPlanCode];
@@ -1053,6 +1075,28 @@ export const respondToMyOrderDelay = async (id: number,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(orderDelayResponseRequest)
+  }
+);}
+
+
+
+export const getUpdateMyOrderShippingAddressUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/orders/${id}/shipping-address`
+}
+
+export const updateMyOrderShippingAddress = async (id: number,
+    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateMyOrderShippingAddressUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateShippingAddressRequest)
   }
 );}
 

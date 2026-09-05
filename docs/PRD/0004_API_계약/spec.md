@@ -4246,3 +4246,11 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 ---
 
 문서 끝.
+
+### 배송지 수정
+
+- `PUT /api/v1/me/orders/{id}/shipping-address`: 로그인 회원의 주문을 수정한다.
+- `PUT /api/v1/orders/{id}/shipping-address`: `X-Access-Token`으로 비회원 소유권을 확인한다.
+- 요청: `version`(필수, 0 이상), `shippingAddress`(필수, 결제 요청과 동일한 수령인·휴대폰·5자리 우편번호·기본/상세 주소). 성공은 `204`이며 상세를 다시 조회한다.
+- 상세 `fulfillment.version`을 요청에 전달한다. 이전 버전이면 `409 CONFLICT`, 잘못된 소유권·조회 코드는 `404`, 픽업이나 수정 불가 상태는 `400 INVALID_INPUT`이다.
+- 승인 대기·이행 대기·제작 중·지연 동의 대기·지연 수락 상태에서만 허용한다. 배송 준비부터와 취소·종결 주문은 거절한다. 주문 금액·품목·수령 방식은 변경하지 않는다.

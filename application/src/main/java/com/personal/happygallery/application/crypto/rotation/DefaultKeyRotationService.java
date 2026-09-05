@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.crypto.rotation;
 
 import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
+import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.ShippingAddressChangeRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.AdminTotpSecretRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.FulfillmentRotatedRow;
 import com.personal.happygallery.application.crypto.rotation.KeyRotationDataPort.GuestRotatedRow;
@@ -50,6 +51,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         int bookings = dataPort.refreshBookedOwnerPhoneHmac();
         int paymentAttempts = rotatePaymentAttempts();
         int fulfillments = rotateFulfillments();
+        int shippingAddressChanges = rotateShippingAddressChanges();
         int smartStoreOrders = rotateSmartStoreOrders();
         int socialAccounts = rotateSocialAccounts();
         int adminMfaSecrets = rotateAdminMfaSecrets();
@@ -62,7 +64,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
             throw new IllegalStateException(
                     "구 키로 암호화된 관리자 MFA 비밀키가 남아 있습니다: " + pendingAdminMfaSecrets);
         }
-        return new RotationResult(users, guests, bookings, paymentAttempts, fulfillments,
+        return new RotationResult(users, guests, bookings, paymentAttempts, fulfillments, shippingAddressChanges,
                 smartStoreOrders,
                 socialAccounts, adminMfaSecrets,
                 deletedPhoneVerifications, deletedEmailVerifications,
@@ -139,6 +141,14 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         return rotatePages((afterId, limit) -> dataPort.findFulfillmentsAfterId(afterId, limit), row -> {
             dataPort.updateFulfillment(new FulfillmentRotatedRow(
                     row.id(), fieldEncryptor.reencrypt(row.shippingAddressEnc())));
+            return true;
+        });
+    }
+
+    private int rotateShippingAddressChanges() {
+        return rotatePages(dataPort::findShippingAddressChangesAfterId, row -> {
+            dataPort.updateShippingAddressChange(new ShippingAddressChangeRow(row.id(),
+                    fieldEncryptor.reencrypt(row.beforeAddressEnc()), fieldEncryptor.reencrypt(row.afterAddressEnc())));
             return true;
         });
     }

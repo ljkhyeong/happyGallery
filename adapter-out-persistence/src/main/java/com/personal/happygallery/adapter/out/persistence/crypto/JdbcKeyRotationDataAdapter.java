@@ -158,6 +158,25 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     }
 
     @Override
+    public List<ShippingAddressChangeRow> findShippingAddressChangesAfterId(long afterId, int limit) {
+        return jdbc.sql("""
+                        SELECT id, before_address_enc, after_address_enc FROM shipping_address_changes
+                        WHERE id > :afterId ORDER BY id LIMIT :limit
+                        """)
+                .param("afterId", afterId).param("limit", limit)
+                .query(ShippingAddressChangeRow.class).list();
+    }
+
+    @Override
+    public void updateShippingAddressChange(ShippingAddressChangeRow row) {
+        jdbc.sql("""
+                        UPDATE shipping_address_changes
+                        SET before_address_enc = :beforeAddressEnc, after_address_enc = :afterAddressEnc
+                        WHERE id = :id
+                        """).paramSource(row).update();
+    }
+
+    @Override
     public List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
             String afterProductOrderId, int limit) {
         return jdbc.sql("""

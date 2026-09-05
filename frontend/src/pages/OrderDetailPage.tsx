@@ -8,6 +8,7 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
+import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
@@ -216,6 +217,7 @@ function OrderDetailContent() {
       {order && (
         <>
           <OrderDetailCard order={order} />
+          {lookup && <ShippingAddressEditPanel key={lookup.requestId} order={order} accessToken={lookup.credentials.token} onSaved={refetchOrder} />}
           <OrderCustomerActionPanel
             status={order.status}
             pending={cancelMutation.isPending || delayMutation.isPending}
