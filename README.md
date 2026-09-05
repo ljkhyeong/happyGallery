@@ -238,7 +238,9 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 
 ## 운영/배포
 
-현재는 보유 노트북(i5-8250U·RAM 16GB·표시 저장용량 477GB)에 Ubuntu Server 24.04 LTS를 설치해 운영 가능성을 먼저 검증한다. Windows 삭제·Linux 설치와 24시간 가동은 가능하며, SSD 여부·유선 연결·공유기 설정은 확인이 필요하다. [노트북 설치 준비](deploy/laptop/README.md)에서 시작한다. 월 2~3만 원 목표는 유지하며 실제 전기료·외부 백업 비용을 확인한다. 클라우드 VM 구매는 보류하고 [AWS·Google Cloud 서울 비교](deploy/cloud/README.md)를 대체 후보로 보관한다.
+현재는 보유 노트북(i5-8250U·RAM 16GB·표시 저장용량 477GB)에 Ubuntu Server 24.04 LTS를 설치해 운영 가능성을 먼저 검증한다. Windows 삭제·Linux 설치와 24시간 가동은 가능하며, BE3600 공유기에 Wi-Fi로 연결한다. SSD 여부·무선랜 호환성·자동 재접속·공유기 설정은 확인이 필요하다. [노트북 설치 준비](deploy/laptop/README.md)에서 시작한다. 월 2~3만 원 목표는 유지하며 실제 전기료·외부 백업 비용을 확인한다. 클라우드 VM 구매는 보류하고 [AWS·Google Cloud 서울 비교](deploy/cloud/README.md)를 대체 후보로 보관한다.
+
+BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 구성과 격리 검토](deploy/laptop/multi-project.md)에 정리했다. 단일 k3s에서 프로젝트를 분리하는 권고안이며, 프로젝트 전체 자원 할당량·디스크 제한과 다른 프로젝트 배포는 아직 적용하지 않았다.
 
 ```text
 브라우저 -> Cloudflare DNS -> 공유기/호스트 방화벽 -> k3s Ingress(TLS)
