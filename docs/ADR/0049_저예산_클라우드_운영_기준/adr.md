@@ -9,7 +9,7 @@
 
 ## 결정
 
-- 초기 구성은 Linux 가상서버 한 대에 기존 단일 노드 k3s를 설치한다. 검토 사양은 x86_64, 4 vCPU, RAM 8GB, SSD 100GB다. 이는 초기 검증을 위한 자원 배정이며 처리량을 보장한 부하 시험 결과는 아니다.
+- 초기 구성은 Linux 가상서버 한 대에 기존 단일 노드 k3s를 설치하는 안을 기준으로 검토한다. 한국 이용자 기준으로 서울 리전을 우선하며 AWS Lightsail을 먼저 비교한다. 기존 일본 8GB 견적은 구매 보류다. 메모리 한도 합계를 실제 필요량으로 취급하지 않으며, 2GB·4GB 운영 가능 여부는 구성 조정과 부하 검증으로 판단한다. 배포 방식이나 모니터링 구성을 바꾸면 별도 구현·검증과 문서 갱신을 선행한다.
 - `deploy/k3s`의 app, frontend, MySQL, Redis, Prometheus, Alertmanager, Grafana와 TLS ingress를 재사용한다. 관리형 DB·Redis·Kubernetes·로드밸런서를 추가하지 않는다. 개발용 Compose는 계속 개발·복구 진단용이다.
 - Cloudflare DNS의 대표 주소를 `happy-gallery.com`으로 연결한다. 초기에는 DNS only를 사용해 기존 Traefik 신뢰 경계를 유지한다. Cloudflare 프록시를 켤 때는 허용 IP·forwarded header·rate limit·캐시·결제 callback을 별도 검증한다.
 - 외부 공개는 TCP 80/443, SSH는 운영자 IP에 한정한다. Kubernetes API, DB, Redis, app와 관리·모니터링 포트는 공개하지 않는다. 모니터링 화면과 클러스터 관리는 SSH 터널을 사용한다.
@@ -22,7 +22,7 @@
 
 ADR-0037의 동일 origin, 비공개 저장소, 운영 Secret 허용 목록, `prod` 불변식, AES/HMAC 키와 DB 비밀번호 회전, 복구 묶음 검증, 호환 이미지와 Flyway 롤백 경계를 유지한다. 물리적인 노트북 대신 클라우드 VM에 적용한다.
 
-현재 비용 후보는 Contabo 일본 Cloud VPS 4와 Hetzner Storage Box BX11이다. 실제 주문 국가·세금·월 계약·초기 비용과 공급 상태 확인 후 구매한다. 대안 비교와 개통 절차의 원본은 [`deploy/cloud/README.md`](../../../deploy/cloud/README.md)다.
+현재 우선 후보는 AWS Lightsail 서울이다. 2GB는 원래 예산 안의 운영 가능성을 먼저 검증해야 하고, 4GB는 월 3만 원을 넘으므로 예산 변경이 확정되기 전 구매하지 않는다. 백업 저장 국가·업체도 함께 다시 선택한다. Contabo 일본과 Hetzner 유럽 백업의 기존 견적은 비교 기록으로만 유지한다. 대안 비교와 개통 절차의 원본은 [`deploy/cloud/README.md`](../../../deploy/cloud/README.md)다.
 
 ## 현재 검증 범위
 

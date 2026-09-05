@@ -2,7 +2,27 @@
 
 2026-09-05 기준 준비안이다. 운영 VM·백업 저장소는 아직 생성하지 않았다. 현재 실행 계획은 루트 `plan.md`, 클라우드 전환 결정은 [ADR-0049](../../docs/ADR/0049_저예산_클라우드_운영_기준/adr.md), 실제 서비스 배포·복구 명령은 [k3s 운영 절차](../k3s/README.md)를 따른다.
 
-## 추천 구성과 월 예산
+## 한국 이용자 기준의 우선 검토안
+
+운영자가 한국 이용자와 AWS·Google Cloud 사용을 우선 검토하도록 요청했다. 기존 Contabo 일본·Hetzner 백업 구매안은 보류한다. 가격과 메모리 용량만으로 일본 서버를 최선으로 판단하지 않는다. 아래는 공급자·사양 비교이며 구매 확정이나 예산 증액 승인이 아니다.
+
+AWS Lightsail은 [서울 리전 `ap-northeast-2`](https://docs.aws.amazon.com/lightsail/latest/userguide/understanding-regions-and-availability-zones-in-amazon-lightsail.html)을 지원한다. 한국 이용자가 주 대상이므로 서울을 먼저 검토한다. 국내 통신망에서 실제 응답 시간을 측정한 결과는 아직 없다.
+
+| 후보 | 정상 요금, 무료 체험·약정 할인 제외 | 판단 |
+| --- | --- | --- |
+| AWS Lightsail 서울 2GB | $12/월, IPv4·SSD 60GB·전송 3TB 포함 | 예산 안에서 검토할 수 있으나 현재 전체 구성을 그대로 올릴 수 있다고 보장하지 않음 |
+| AWS Lightsail 서울 4GB | $24/월, IPv4·SSD 80GB·전송 4TB 포함 | 우선 운영 검증 후보. 원래 월 3만 원 목표보다 비용이 높음 |
+| Google Compute Engine 서울 e2-small 2GiB | $0.02149143/시간, 730시간 약 $15.69 | 디스크·IPv4·외부 전송·백업 별도 |
+| Google Compute Engine 서울 e2-medium 4GiB | $0.04298286/시간, 730시간 약 $31.38 | 같은 상시 서버 방식에서는 Lightsail보다 기본 비용이 높음 |
+
+- AWS 가격은 [공식 요금표](https://aws.amazon.com/lightsail/pricing/), Google 가격은 [범용 VM 요금표](https://cloud.google.com/products/compute/pricing/general-purpose)에서 Seoul을 선택해 확인했다. Google E2 소형은 공유 코어 상품이므로 표기된 가상 CPU 수를 전용 코어 수로 해석하지 않는다.
+- Google의 [일반 VM 외부 IPv4](https://cloud.google.com/vpc/network-pricing)는 시간당 $0.005, 730시간 약 $3.65가 추가된다. 무료 1시간을 제외하기 전의 견적이다. 서버 요금만으로 두 업체의 총비용을 비교하지 않는다.
+- 견적용 환율 $1=1,500원과 세금 여유 10%를 가정하면 Lightsail 2GB 서버는 약 19,800원, 4GB는 약 39,600원이다. 이는 실시간 환율·최종 청구액이 아니다. 별도 백업·환전 비용까지 포함하면 2GB는 월 2~3만 원을 목표로 검토할 여지가 있고, 4GB는 월 4~5만 원 수준의 예산 검토가 필요하다. 백업 대상·보존 용량에 따라 더 들 수 있다.
+- 현재 메모리 한도 합계 약 4.75GiB는 실제 사용량이나 최소 요구 메모리가 아니다. 8GB를 필수 조건으로 확정하지 않는다. 2GB·4GB에서 기동, 주문·예약 동시 처리, 배치·백업과 재기동을 측정한 결과도 아직 없다.
+- 2GB 검토 시 JVM·MySQL·연결 풀과 모니터링 상주 구성을 조정한다. k3s 유지 여부도 실측 대상이며, 변경한다면 별도 운영 구성을 구현하고 ADR·백업·배포 절차를 함께 갱신한다. 기존 개발용 Compose를 그대로 운영에 올리지 않는다.
+- 백업 저장 국가와 업체도 서버와 함께 다시 정한다. 국내 저장을 원하면 유럽 Storage Box를 자동 채택하지 않는다. 저장 방식이 달라지면 기존 원격 mount 백업과의 호환성 또는 전송 절차를 먼저 검증한다.
+
+## 기존 일본 서버 견적 — 구매 보류
 
 아래는 서버·백업 등 인프라 예산이다. 문자·알림톡·이메일 발송, 결제 수수료와 도메인 갱신은 별도다. 기존 계정과 예산 포함 범위는 운영자 답변 전이므로 확정 청구액으로 보지 않는다.
 
@@ -37,14 +57,16 @@
 현재 ingress·인증서는 `happy-gallery.com` 한 호스트만 처리한다. `www` CNAME만 추가해도 HTTPS 리다이렉트가 된다고 가정하지 않는다. Cloudflare 프록시를 바로 켜거나 로그인·장바구니·결제 API에 전체 캐시 규칙을 적용하지 않는다.
 
 ```text
-이용자 -> Cloudflare DNS -> 일본 VM :443 -> k3s Traefik
+이용자 -> Cloudflare DNS -> 운영 VM :443 -> k3s Traefik
                                              -> 웹 SSR
                                              -> Spring Boot -> MySQL / Redis
 운영 VM -> 암호화된 복구 묶음 -> 다른 업체의 백업 저장소
 외부 uptime 감시 -> happy-gallery.com
 ```
 
-## 서버 생성 시 선택값
+## 기존 일본 후보 선택값과 공통 호스트 준비
+
+아래 첫 항목은 보류한 일본 견적의 선택값이다. 서울 후보가 확정되면 해당 공급자의 사양·OS·방화벽에 맞게 갱신한 뒤 생성한다.
 
 - 1대, 1개월 계약, x86_64, 4 vCPU, RAM 8GB, SSD 100GB, 일본, IPv4 포함.
 - Linux는 Ubuntu LTS를 사용하고 구매 화면에서 지원되는 버전을 기록한다. 유료 OS·패널·추가 모니터링은 선택하지 않는다.
