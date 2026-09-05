@@ -3252,7 +3252,8 @@ Cookie: HG_SESSION={sessionToken}
       "options": [],
       "qty": 2,
       "subtotal": 78000,
-      "available": true
+      "available": true,
+      "availableQuantity": 5
     }
   ],
   "totalAmount": 78000,
@@ -3280,6 +3281,7 @@ Cookie: HG_SESSION={sessionToken}
   - 응답: `204 No Content`
 - 장바구니 결제는 별도 checkout API를 두지 않는다. `POST /api/v1/payments/prepare`에 `context=ORDER`, `payload.userId`, `payload.cartCheckout=true`, `payload.items=[]`를 보내 시작한다.
 - 선택 구매는 `payload.selectedCartItemIds`에 본인 장바구니 행 ID를 1~100개 전달하고 `expectedCartVersion`을 반드시 지정한다. 생략 또는 null이면 기존 구매 가능한 전체 항목을 사용한다. 빈 배열·중복·다른 회원이나 구매 불가 항목·일반 주문에서의 지정은 400 `INVALID_INPUT`, 버전 불일치는 409 `CART_SNAPSHOT_CHANGED`다. 가격·수량·쿠폰 최소 금액·적립금 한도는 선택된 서버 항목 기준으로 확정하고, 배송비는 기존 배송 방식별 정책을 적용한다. confirm은 준비한 행의 수량만 차감해 미선택 상품을 남긴다.
+- 선택 항목은 본인 장바구니에서 먼저 추린 뒤 재고를 합산한다. 각 행의 수량이 `availableQuantity` 이하면 선택할 수 있으며, 같은 상품·옵션 조합의 선택 합계가 재고를 넘으면 prepare는 `409 INVENTORY_NOT_ENOUGH`로 거절한다. 각인 두 행이 각각 1개이고 재고가 1개라면 한 행만 선택해 구매할 수 있다. 판매 중지·변경된 옵션·한 행 자체의 재고 부족은 위의 구매 불가 항목에 해당한다.
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
@@ -3294,8 +3296,9 @@ Cookie: HG_SESSION={sessionToken}
 - 상품 상세의 회원 다건 담기도 `/api/v1/me/cart/merge`를 사용한다. 선택한 모든 항목을 한 요청으로 전송하고 결과가 불명확한 재시도에는 같은 멱등키를 사용한다. 비회원은 한 번의 로컬 장바구니 잠금·저장으로 반영한다.
 - 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 로컬 항목은 요청 당시 계보를 함께 보존하고 성공 후 같은 계보의 스냅샷 수량만 차감한다. 도중에 추가된 수량은 새 멱등키로 이어서 병합하며, 로그아웃 뒤 상품을 삭제하고 다시 담아 새 계보가 된 수량은 이전 계정의 늦은 성공 응답이 차감하지 않는다. 계보 식별자는 브라우저 내부 값이며 API 요청에는 보내지 않는다.
 - 같은 브라우저의 여러 탭은 비회원 장바구니 추가·수량 변경·삭제와 병합의 최신 로컬 조회부터 성공분 제거까지를 같은 탭 간 잠금으로 직렬화한다. 한 탭의 로컬 변경은 다른 탭에도 반영하며, 병합 응답 뒤 보류 요청이 이미 정리됐더라도 응답을 받은 탭은 자신이 전송한 계보 스냅샷을 제거한다.
-- 상품이 `ACTIVE`가 아니거나 같은 SKU의 장바구니 합산 수량보다 재고가 적으면 관련 항목을 모두 `available=false`로 표시하며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
-- `cartVersion`은 항목 순서·표시 정보·수량·구매 가능 여부를 SHA-256으로 만든 불투명 스냅샷 식별자다. 클라이언트는 값을 해석하거나 직접 만들지 않고 결제 준비의 `expectedCartVersion`으로 그대로 돌려보낸다.
+- 상품이 `ACTIVE`가 아니거나 같은 SKU의 장바구니 합산 수량보다 재고가 적으면 관련 항목을 모두 `available=false`로 표시한다. `totalAmount`는 `available=true`인 행의 소계 합계다. 선택 ID를 생략한 기존 checkout은 이 기준으로 구매 가능한 항목만 주문으로 전환한다.
+- `availableQuantity`는 필수·non-null인 0 이상의 정수이며 현재 판매 가능한 상품·옵션 조합의 수량이다. 판매 중지·변경된 옵션·재고 없음은 0이다. 선택 구매 화면은 `available` 대신 각 행 수량과 `availableQuantity`로 선택 가능 여부를 판단하고, 선택한 SKU별 합계를 다시 비교한다. 선택 금액은 선택된 행의 `subtotal` 합계로 계산한다.
+- `cartVersion`은 항목 순서·표시 정보·수량·구매 가능 여부·현재 구매 가능 수량을 SHA-256으로 만든 불투명 스냅샷 식별자다. 구매 가능 여부가 그대로여도 `availableQuantity`가 바뀌면 버전이 변경된다. 클라이언트는 값을 해석하거나 직접 만들지 않고 결제 준비의 `expectedCartVersion`으로 그대로 돌려보낸다.
 - 장바구니 prepare는 같은 회원의 장바구니 변경과 직렬화한 뒤 `expectedCartVersion`을 현재 스냅샷과 비교한다. 다르면 `409 CART_SNAPSHOT_CHANGED`로 최신 장바구니 확인을 요구하고 결제 시도를 만들지 않는다. 일치하면 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 
 #### 2.12.7 회원 알림함

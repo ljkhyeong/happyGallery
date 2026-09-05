@@ -91,6 +91,11 @@ export const CartItemResponseProductType = {
 
 export interface CartItemResponse {
   available: boolean;
+  /**
+     * 같은 상품·옵션 조합에서 구매 가능한 현재 수량. 판매 중지·변경된 옵션은 0. 같은 조합의 선택 수량 합계를 이 값과 비교한다
+     * @minimum 0
+     */
+  availableQuantity: number;
   basePrice: number;
   /** @nullable */
   careInstructions: string | null;

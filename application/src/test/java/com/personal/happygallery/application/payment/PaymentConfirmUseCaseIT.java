@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
+import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
@@ -35,6 +36,7 @@ import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
+import com.personal.happygallery.application.product.ProductOptions.TextInput;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.product.port.out.ProductVariantReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -57,6 +59,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
@@ -126,6 +129,7 @@ class PaymentConfirmUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired PhoneVerificationStorePort phoneVerificationStorePort;
     @Autowired CartItemStorePort cartItemStorePort;
+    @Autowired CartUseCase cartUseCase;
     @Autowired CartItemRepository cartItemRepository;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired JdbcTemplate jdbcTemplate;
@@ -260,6 +264,69 @@ class PaymentConfirmUseCaseIT {
         });
         verify(paymentProvider).confirm(
                 "payment-key-confirm", prepared.orderId(), prepared.amount(), prepared.orderId());
+    }
+
+    @DisplayName("같은 재고를 쓰는 각인 두 행 중 하나만 선택해 결제하면 미선택 행은 남는다")
+    @Test
+    void confirm_selectedCartCheckout_checksOnlySelectedSkuQuantity() {
+        User user = userStorePort.save(new User(
+                "selected-stock@example.com", "hashed", "선택 구매 회원", "01033335556"));
+        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+                new ProductAdminUseCase.SaveProductCommand(
+                        "각인 키링", ProductType.MADE_TO_ORDER, null,
+                        20_000L, 2, null, null, "소가죽 키링", null, 5,
+                        List.of(new ProductAdminUseCase.OptionGroupDefinition(
+                                "engraving", ProductOptionType.TEXT, "각인 문구", true, 0,
+                                null, 20, 2_000L, List.of())),
+                        List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        cartUseCase.addItem(user.getId(), productId, variantId,
+                List.of(new TextInput("engraving", "HAPPY")), 1);
+        cartUseCase.addItem(user.getId(), productId, variantId,
+                List.of(new TextInput("engraving", "GALLERY")), 1);
+        productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
+                productId, variantId, InventoryAdjustmentType.DECREASE, 1,
+                "오프라인 판매", null, "local-api-key"));
+        CartUseCase.CartView cart = cartUseCase.getCart(user.getId());
+        List<Long> cartItemIds = cart.items().stream().map(CartUseCase.CartItemView::cartItemId).toList();
+        AuthContext auth = AuthContext.member(user.getId());
+
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true,
+                        FulfillmentType.PICKUP, null, MadeToOrderConsent.CURRENT_VERSION, true,
+                        null, cart.cartVersion(), null, 0L, cartItemIds), auth)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true,
+                        FulfillmentType.PICKUP, null, MadeToOrderConsent.CURRENT_VERSION, true,
+                        null, cart.cartVersion(), null, 0L, List.of(cartItemIds.getFirst())), auth));
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                customerCommand("selected-stock-payment", prepared, auth));
+
+        assertSoftly(softly -> {
+            softly.assertThat(prepared.amount()).isEqualTo(22_000L);
+            softly.assertThat(cartUseCase.getCart(user.getId()).items()).singleElement()
+                    .satisfies(item -> {
+                        softly.assertThat(item.cartItemId()).isEqualTo(cartItemIds.getLast());
+                        softly.assertThat(item.qty()).isEqualTo(1);
+                        softly.assertThat(item.availableQuantity()).isZero();
+                    });
+            softly.assertThat(productVariantReaderPort.findWithSelectionsById(variantId))
+                    .hasValueSatisfying(variant -> softly.assertThat(variant.getQuantity()).isZero());
+            var order = orderReader.findById(result.domainId()).orElseThrow();
+            softly.assertThat(orderItemPort.findByOrder(order)).singleElement()
+                    .satisfies(item -> {
+                        softly.assertThat(item.getUnitPrice()).isEqualTo(22_000L);
+                        softly.assertThat(item.getOptionSnapshots()).singleElement()
+                                .satisfies(option -> softly.assertThat(option.getValue()).isEqualTo("HAPPY"));
+                    });
+        });
     }
 
     @DisplayName("주문제작 결제는 별도 동의 없이는 준비하지 않고 동의 문구와 시각을 주문에 보존한다")

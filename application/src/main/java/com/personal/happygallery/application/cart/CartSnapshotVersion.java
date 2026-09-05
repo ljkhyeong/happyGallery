@@ -40,6 +40,7 @@ final class CartSnapshotVersion {
             });
             append(canonical, item.qty());
             append(canonical, item.available());
+            append(canonical, item.availableQuantity());
         }
         try {
             MessageDigest sha256 = MessageDigest.getInstance("SHA-256");

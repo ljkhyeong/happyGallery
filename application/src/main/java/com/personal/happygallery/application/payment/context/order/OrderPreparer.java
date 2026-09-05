@@ -267,19 +267,15 @@ public class OrderPreparer implements PaymentPreparer {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "선택 구매에는 최신 장바구니 버전과 중복 없는 항목이 필요합니다.");
         }
-        PurchasableCart cart = cartUseCase.getPurchasableCart(userId);
+        PurchasableCart cart = cartUseCase.getPurchasableCart(userId, selectedCartItemIds);
         if (expectedCartVersion != null && !expectedCartVersion.equals(cart.cartVersion())) {
             throw new HappyGalleryException(ErrorCode.CART_SNAPSHOT_CHANGED);
         }
-        var selectedIds = selectedCartItemIds == null ? null : new HashSet<>(selectedCartItemIds);
-        var selectedItems = cart.items().stream()
-                .filter(item -> selectedIds == null || selectedIds.contains(item.cartItemId()))
-                .toList();
-        if (selectedIds != null && selectedItems.size() != selectedIds.size()) {
+        if (selectedCartItemIds != null && cart.items().size() != selectedCartItemIds.size()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "선택한 항목 중 현재 장바구니에서 구매할 수 없는 상품이 있습니다.");
         }
-        return selectedItems.stream().map(ItemToPrepare::from).toList();
+        return cart.items().stream().map(ItemToPrepare::from).toList();
     }
 
     private List<ItemToPrepare> mergeDirectItems(List<OrderItemRef> requestedItems) {

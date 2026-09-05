@@ -877,6 +877,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
         cartVersion: "a".repeat(64),
         items: [{
           available: true,
+          availableQuantity: 5,
           basePrice: 12000,
           careInstructions: null,
           cartItemId: 42,

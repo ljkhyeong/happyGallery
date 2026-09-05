@@ -1881,6 +1881,12 @@
           "available" : {
             "type" : "boolean"
           },
+          "availableQuantity" : {
+            "description" : "같은 상품·옵션 조합에서 구매 가능한 현재 수량. 판매 중지·변경된 옵션은 0. 같은 조합의 선택 수량 합계를 이 값과 비교한다",
+            "format" : "int32",
+            "minimum" : 0,
+            "type" : "integer"
+          },
           "basePrice" : {
             "format" : "int64",
             "type" : "integer"
@@ -1941,7 +1947,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "available", "basePrice", "careInstructions", "cartItemId", "options", "price", "productId", "productName", "productType", "productVariantId", "productionLeadDays", "qty", "specification", "subtotal", "textOptionPriceAdjustment", "variantPriceAdjustment" ],
+        "required" : [ "available", "availableQuantity", "basePrice", "careInstructions", "cartItemId", "options", "price", "productId", "productName", "productType", "productVariantId", "productionLeadDays", "qty", "specification", "subtotal", "textOptionPriceAdjustment", "variantPriceAdjustment" ],
         "type" : "object"
       },
       "CartResponse" : {

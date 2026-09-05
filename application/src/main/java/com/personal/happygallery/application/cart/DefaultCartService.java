@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -96,12 +97,16 @@ public class DefaultCartService implements CartUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public PurchasableCart getPurchasableCart(Long userId) {
+    public PurchasableCart getPurchasableCart(Long userId, List<Long> selectedCartItemIds) {
         CartSnapshot snapshot = readSnapshot(userId);
         Map<Long, CartItemView> viewsById = snapshot.views().stream()
                 .collect(Collectors.toMap(CartItemView::cartItemId, Function.identity()));
+        var selectedIds = selectedCartItemIds == null ? null : new HashSet<>(selectedCartItemIds);
         List<CartPurchaseItem> items = snapshot.items().stream()
-                .filter(item -> viewsById.get(item.getId()).available())
+                .filter(item -> selectedIds == null
+                        ? viewsById.get(item.getId()).available()
+                        : selectedIds.contains(item.getId())
+                            && item.getQty() <= viewsById.get(item.getId()).availableQuantity())
                 .map(item -> new CartPurchaseItem(
                         item.getId(),
                         item.getProductId(),
@@ -144,9 +149,10 @@ public class DefaultCartService implements CartUseCase {
             }
             ResolvedPurchase purchase = resolved.purchase();
             long stockQuantity = quantitiesByStockKey.get(stockKey(item));
-            boolean stockAvailable = product.getType() == ProductType.READY_STOCK
-                    ? readyStockAvailable(inventoriesByProductId.get(product.getId()), stockQuantity)
-                    : purchase.variantActive() && purchase.availableQuantity() >= stockQuantity;
+            int availableQuantity = product.getStatus() != ProductStatus.ACTIVE ? 0
+                    : product.getType() == ProductType.READY_STOCK
+                        ? inventoryQuantity(inventoriesByProductId.get(product.getId()))
+                        : purchase.variantActive() ? purchase.availableQuantity() : 0;
             views.add(new CartItemView(
                     item.getId(),
                     product.getId(),
@@ -162,7 +168,7 @@ public class DefaultCartService implements CartUseCase {
                     product.getProductionLeadDays(),
                     purchase.optionSnapshots(),
                     item.getQty(),
-                    product.getStatus() == ProductStatus.ACTIVE && stockAvailable));
+                    availableQuantity >= stockQuantity, availableQuantity));
         }
         List<CartItemView> immutableViews = List.copyOf(views);
         return new CartSnapshot(items, immutableViews, CartSnapshotVersion.from(immutableViews));
@@ -423,16 +429,12 @@ public class DefaultCartService implements CartUseCase {
         return inventory == null ? 0 : inventory.getQuantity();
     }
 
-    private static boolean readyStockAvailable(Inventory inventory, long quantity) {
-        return inventory != null && inventory.getQuantity() >= quantity;
-    }
-
     private static CartItemView unavailableView(CartItem item, Product product) {
         return new CartItemView(
                 item.getId(), item.getProductId(), item.getProductVariantId(),
                 product.getName(), product.getType(), product.getPrice(), 0L, 0L,
                 product.getPrice(), product.getSpecification(), product.getCareInstructions(),
-                product.getProductionLeadDays(), List.of(), item.getQty(), false);
+                product.getProductionLeadDays(), List.of(), item.getQty(), false, 0);
     }
 
     private static String payloadHash(List<MergeItem> items) {

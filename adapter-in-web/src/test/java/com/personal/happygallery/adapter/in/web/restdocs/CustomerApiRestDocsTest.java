@@ -176,7 +176,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(
-                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true)),
+                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true, 5)),
                         39000L,
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
@@ -554,7 +554,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("장바구니 조회 API를 문서화한다")
     void get_cart() throws Exception {
         mockMvc.perform(get("/api/v1/me/cart").with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].availableQuantity").value(5));
     }
 
     @Test

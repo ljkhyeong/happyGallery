@@ -4,7 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { Alert, Container, Card, Button, Row, Col, Modal, Table, Form } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import type { CartItemIdentifier } from "@/features/cart/guestCartView";
+import { productQuantities, productSkuKey } from "@/features/product/purchaseStock";
+import type { CartItemIdentifier, CartItemView } from "@/features/cart/guestCartView";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
@@ -76,8 +77,14 @@ function CartContent() {
     user?.name,
     user?.phone ?? undefined,
   );
-  const availableItems = items.filter((item) => item.available);
+  const canSelect = (item: CartItemView) => item.available
+    || (isAuthenticated && item.qty <= item.availableQuantity);
+  const availableItems = items.filter(canSelect);
   const selectedItems = availableItems.filter((item) => !excludedItemIds.has(item.cartItemId));
+  const selectedQuantities = productQuantities(selectedItems);
+  const stockExceededItems = selectedItems.filter((item, index) =>
+    (selectedQuantities.get(productSkuKey(item)) ?? 0) > item.availableQuantity
+    && selectedItems.findIndex((other) => productSkuKey(other) === productSkuKey(item)) === index);
   const totalAmount = isAuthenticated
     ? selectedItems.reduce((sum, item) => sum + item.subtotal, 0)
     : cartTotalAmount;
@@ -227,7 +234,7 @@ function CartContent() {
   }
 
   const handleCheckout = async () => {
-    if (!cartVersion || selectedItems.length === 0 || isItemMutationPending || isRefetching || guestCartMergeIssue) {
+    if (!cartVersion || selectedItems.length === 0 || stockExceededItems.length > 0 || isItemMutationPending || isRefetching || guestCartMergeIssue) {
       return;
     }
     try {
@@ -281,12 +288,12 @@ function CartContent() {
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.cartItemId} className={item.available ? "" : "text-muted"}>
+                    <tr key={item.cartItemId} className={canSelect(item) ? "" : "text-muted"}>
                       <td>
                         {isAuthenticated && <Form.Check className="mb-2"
                           id={`cart-select-${item.cartItemId}`} label={`${item.productName} 선택`}
-                          checked={item.available && !excludedItemIds.has(item.cartItemId)}
-                          disabled={selectionDisabled || !item.available}
+                          checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
+                          disabled={selectionDisabled || !canSelect(item)}
                           onChange={(event) => {
                             const next = new Set(excludedItemIds);
                             if (event.target.checked) next.delete(item.cartItemId);
@@ -311,7 +318,7 @@ function CartContent() {
                           </div>
                         )}
                         {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
-                        {!item.available && !item.quantityWarning && (
+                        {!canSelect(item) && !item.quantityWarning && (
                           <div>
                             <span className="badge bg-secondary">구매 불가</span>
                             <div className="small text-danger">
@@ -397,6 +404,10 @@ function CartContent() {
               ) : (
                 <>
                   {selectedItems.length === 0 && <Alert variant="info">구매할 상품을 선택해 주세요.</Alert>}
+                  {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
+                    {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
+                    현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
+                  </Alert>)}
                   <div className="border-top pt-3 mb-3">
                     <MemberOrderBenefits
                       productAmount={totalAmount}
@@ -454,7 +465,7 @@ function CartContent() {
                     variant="primary"
                     size="lg"
                     className="w-100"
-                    disabled={checkout.isPending || selectedItems.length === 0
+                    disabled={checkout.isPending || selectedItems.length === 0 || stockExceededItems.length > 0
                       || !cartVersion
                       || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
                       || !isFulfillmentComplete(fulfillment) || !consent.ready}
