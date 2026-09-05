@@ -1,4 +1,9 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import type { RestockDemandPageResponse } from "../../src/generated/api/adminCatalog";
+import type {
+  GroupInquiryFollowUpPageResponse,
+  GroupInquiryPageResponse,
+} from "../../src/generated/api/adminOperations";
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -13,6 +18,21 @@ async function prepareAdmin(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") return json(route, {}, 401);
+    if (pathname === "/api/v1/admin/group-inquiries") {
+      return json(route, {
+        content: [], hasMore: false, nextCursor: null,
+      } satisfies GroupInquiryPageResponse);
+    }
+    if (pathname === "/api/v1/admin/group-inquiries/follow-ups") {
+      return json(route, {
+        content: [], hasMore: false, nextCursor: null,
+      } satisfies GroupInquiryFollowUpPageResponse);
+    }
+    if (pathname === "/api/v1/admin/restock-demand") {
+      return json(route, {
+        content: [], page: 0, size: 20, totalCount: 0, totalPages: 0,
+      } satisfies RestockDemandPageResponse);
+    }
     if (pathname.includes("smartstore-inquiries") && pathname.endsWith("/page")) {
       return json(route, inquiryPage([]));
     }
