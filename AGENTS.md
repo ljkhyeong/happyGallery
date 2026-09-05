@@ -13,7 +13,7 @@
 - 원본은 `.agents/skills/<이름>/SKILL.md`다. 공통 규칙은 이 문서에, 도메인 규칙은 해당 스킬에만 둔다.
 - 변경을 주로 담당하는 스킬을 선택하고, API·DB·시간·상태 규칙도 바뀔 때만 해당 보조 스킬을 함께 읽는다. 공통 백엔드 변경은 `happygallery-spring-backend`, 화면은 `happygallery-frontend-flows`, 문서는 `happygallery-documentation-flows`를 사용한다.
 - 스킬에는 적용 범위, 코드에서 놓치기 쉬운 규칙, 필요한 검증만 적는다. 구현 현황·전체 경로 목록·완료 이력은 복제하지 않는다.
-- `CLAUDE.md`도 이 문서와 같은 스킬 원본을 참조한다. 다른 경로에 프로젝트 스킬 사본을 추가하지 않는다.
+- `CLAUDE.md`도 이 문서와 같은 스킬 원본을 참조한다. `.claude/skills`는 `../.agents/skills`를 가리키는 링크로 유지하고, 전역 경로에 프로젝트 스킬 사본을 추가하지 않는다.
 
 ## 코드와 데이터
 
