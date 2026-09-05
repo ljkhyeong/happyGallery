@@ -382,7 +382,7 @@ export function AdminPage() {
               initialStatus="PAID_APPROVAL_PENDING"
             />
           </AdminPanel>
-          <AdminPanel title="품절 상품·옵션 조합">
+          <AdminPanel title="품절·재고 부족 상품과 옵션">
             <OutOfStockProductSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="오늘 예약">

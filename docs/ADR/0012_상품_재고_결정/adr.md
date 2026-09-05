@@ -128,3 +128,9 @@ List<Inventory> findByProductIdInWithLock(List<Long> productIds);
 - **운영 재고 추적 누락**: 온라인 주문 밖의 변경은 이유 없는 직접 DB 수정 대신 관리자 수동 조정 API와 이력을 사용한다.
 - **`restore()` 멱등성**: 환불 재시도 시 중복 복구 가능.
   → §8.2 환불 흐름에서 refund 상태 전이로 방어 필요.
+
+## 최소 보유 수량과 재고 부족 안내
+
+- 기성품은 `inventory.minimum_stock`, 주문제작은 `product_variants.minimum_stock`에 선택 기준을 둔다. null은 기준 해제이며 기존 품절 표시를 유지한다.
+- 기준 수정은 상품→해당 재고 행 순서로 잠그고 조회 버전을 확인한다. 수량 변경과 같은 행의 버전을 사용하므로 판매·보충 도중 이전 정보를 보고 저장하지 않게 한다.
+- 관리자 재고 조회는 두 재고 테이블을 `StockLevelRepository`의 UNION ALL 조회로 합친다. 기준·수량·판매 상태를 같은 조회에서 읽어 경고 여부를 계산하고 외부 재고 전송에는 영향을 주지 않는다.

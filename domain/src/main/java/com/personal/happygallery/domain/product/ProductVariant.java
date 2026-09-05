@@ -39,6 +39,11 @@ public class ProductVariant {
     @Column(nullable = false)
     private int quantity;
 
+    @Column(name = "minimum_stock")
+    private Integer minimumStock;
+
+
+
     @Column(nullable = false)
     private boolean active;
 
@@ -60,6 +65,13 @@ public class ProductVariant {
     private LocalDateTime updatedAt;
 
     protected ProductVariant() {}
+
+    public void changeMinimumStock(Integer minimumStock, long expectedVersion) {
+        StockThresholdPolicy.requireWritable(minimumStock, expectedVersion, version);
+        this.minimumStock = minimumStock;
+    }
+
+    public Integer getMinimumStock() { return minimumStock; }
 
     public ProductVariant(Long productId, String combinationKey, long basePrice,
                           long priceAdjustment, int quantity, boolean active,

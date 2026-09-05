@@ -113,6 +113,7 @@ export default defineConfig({
     "admin-coupon-controller",
   ]),
   adminCatalogApi: generatedApi("./src/generated/api/adminCatalog.ts", [
+    "admin-stock-controller",
     "admin-class-controller",
     "admin-media-controller",
     "admin-product-controller",

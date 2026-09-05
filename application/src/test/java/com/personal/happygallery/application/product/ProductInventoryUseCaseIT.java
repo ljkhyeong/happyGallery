@@ -1,6 +1,8 @@
 package com.personal.happygallery.application.product;
 
 import com.jayway.jsonpath.JsonPath;
+import com.personal.happygallery.application.product.port.in.StockThresholdUseCase;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
@@ -65,6 +67,49 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @UseCaseIT
 class ProductInventoryUseCaseIT {
+
+    @Autowired StockThresholdUseCase stockThresholds;
+
+    @Test
+    @DisplayName("최소 보유 수량 경계와 해제 및 이전 버전 거절을 적용하고 판매 중지 상품은 경고하지 않는다")
+    void stockThreshold_usesCurrentStockAndVersion() {
+        var product = productRepository.save(readyStockProduct("부족 기준 상품", 10000L));
+        inventoryRepository.save(new Inventory(product, 2));
+        var before = stockThresholds.list(product.getId()).getFirst();
+        assertThat(before.lowStock()).isFalse();
+        stockThresholds.update(product.getId(), null, 2, before.version());
+        var warned = stockThresholds.list(product.getId()).getFirst();
+        assertThat(warned.lowStock()).isTrue();
+        assertThat(warned.quantity()).isEqualTo(2);
+        assertThatThrownBy(() -> stockThresholds.update(product.getId(), null, 3, before.version()))
+                .isInstanceOf(HappyGalleryException.class);
+        productAdminUseCase.changeStatus(product.getId(), ProductStatus.INACTIVE);
+        assertThat(stockThresholds.list(product.getId()).getFirst().lowStock()).isFalse();
+        stockThresholds.update(product.getId(), null, null, warned.version());
+        assertThat(stockThresholds.list(product.getId()).getFirst().minimumStock()).isNull();
+    }
+
+    @Test
+    @DisplayName("옵션 조합별 부족 기준을 구분하고 다른 상품 조합의 설정을 거절한다")
+    void variantThreshold_targetsOnlySelectedCombination() {
+        var groups = List.of(selectGroup("color", 0, true, "red", "blue"));
+        var draft = List.of(
+                new VariantDefinition(List.of(new SelectionDefinition("color", "red")), 0L, 2, true),
+                new VariantDefinition(List.of(new SelectionDefinition("color", "blue")), 0L, 2, false));
+        var product = productAdminUseCase.register(madeToOrderCommand(groups, draft)).product();
+        var rows = stockThresholds.list(product.getId());
+        assertThat(rows).hasSize(2);
+        for (var row : rows) stockThresholds.update(product.getId(), row.productVariantId(), 2, row.version());
+        assertThat(stockThresholds.list(product.getId()).stream().filter(StockLevel::lowStock)).hasSize(1);
+        var another = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of())).product();
+        var target = stockThresholds.list(product.getId()).getFirst();
+        assertThatThrownBy(() -> stockThresholds.update(another.getId(), target.productVariantId(), 2, target.version()))
+                .isInstanceOf(HappyGalleryException.class);
+        productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(product.getId(),
+                rows.stream().filter(StockLevel::active).findFirst().orElseThrow().productVariantId(),
+                InventoryAdjustmentType.INCREASE, 1, "재고 보충", null, "테스트 관리자"));
+        assertThat(stockThresholds.list(product.getId())).noneMatch(StockLevel::lowStock);
+    }
 
     @Autowired MockMvc mockMvc;
     @Autowired ProductRepository productRepository;

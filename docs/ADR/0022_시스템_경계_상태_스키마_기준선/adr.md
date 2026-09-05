@@ -40,6 +40,7 @@
 
 - 배송지 수정과 배송 준비 시작: 같은 주문 row lock으로 직렬화하고, 배송지 수정은 이행 정보의 조회 버전을 비교한다. `shipping_address_changes`에 변경 전후 암호문·회원/비회원 ID·시각을 같은 트랜잭션으로 저장한다. 주소 이력은 주문과 함께 보존·삭제하며 데이터 키 회전 대상에 포함한다.
 - 슬롯 정원: `SELECT ... FOR UPDATE` + `booked_count`
+- 재고 부족 안내 기준: `inventory.minimum_stock`, `product_variants.minimum_stock`에 null 또는 0 이상 정수를 저장한다.
 - 단일 작품 재고: row lock 또는 version 기반 낙관적 락
 - 주문 승인, 자동 환불, 픽업 만료, 8회권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
 - 공지 관리자 수정·삭제와 공방 프로필 수정: 조회 응답 `version`과 변경 요청 `expectedVersion`의
