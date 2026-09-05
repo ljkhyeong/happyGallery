@@ -20,7 +20,8 @@ description: happyGallery의 공통 설정·Gradle·모듈 구조·여러 도메
 
 ## 검증 선택
 
-- 단위·adapter: 해당 모듈의 `test --tests "*대상클래스*"`.
+- 주석·`@DisplayName`만 바뀌면 diff를 확인한다. 실행 코드가 바뀌면 실제 테스트 클래스와 해당 모듈의 tag 설정을 먼저 확인한다.
+- 단위·adapter: 해당 모듈의 `test --tests "*대상클래스*"`. `:application:test`는 policy를, `:adapter-in-web:test`는 restdocs·openapi를 제외한다. REST Docs 클래스는 `:adapter-in-web:restDocsTest`로 실행한다.
 - 정책: `./gradlew :application:policyTest --tests "*대상클래스*"`.
 - DB·트랜잭션·Flyway: `./gradlew --no-daemon :application:useCaseTest --tests "*대상클래스*"`.
 - HTTP 계약은 `api-contract`, schema는 `entity-migration-sync`, 시간은 `time-boundary-policy`, 상태 전이는 `domain-state-machine`을 함께 적용한다.

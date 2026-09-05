@@ -80,6 +80,32 @@
 - 검증 포인트가 여러 개면 `SoftAssertions.assertSoftly`를 우선 사용한다.
 - 같은 위험을 여러 계층에서 중복 검증하지 않는다.
 
+### 6. 변경별 최소 검사와 종료 기준
+
+| 변경 | 시작할 검사 | 확대 조건 |
+|---|---|---|
+| 문서·주석·테스트 설명만 | diff, 변경한 링크·용어 확인 | 실행 코드나 계약도 바뀐 경우 |
+| 스킬·에이전트 지시 | `ruby tools/check-agent-skills.rb`, 변경한 규칙 검토 | 도구·설정 동작도 바뀐 경우 |
+| 화면 문구·상태 안내 | diff와 사용처 확인, JSX를 수정하면 `npm run typecheck` | 문구를 선택자로 쓰는 해당 테스트, 실제 동작·배치 변경 |
+| component·query 로직 | `npm run typecheck`와 해당 단위 테스트 | 라우트·SSR·스타일·번들 설정 변경 시 build, 사용자 흐름 변경 시 해당 E2E |
+| Java 정책·단위 로직 | 해당 모듈·tag의 테스트 클래스 | 트랜잭션·DB·외부 연동도 바뀐 경우 |
+| DB·트랜잭션 | 해당 use case | 공용 fixture·여러 도메인에 영향이 확인된 경우 |
+| HTTP 계약 | 해당 REST Docs, OpenAPI·클라이언트 생성, 타입 사용처 확인 | 인증·업무 흐름도 바뀐 경우 |
+
+- `npm run build`는 typegen과 `tsc -b`를 포함한다. build를 선택했으면 같은 입력으로 `typecheck`를 따로 실행하지 않는다.
+- `api:check`는 생성 후 Git 차이를 확인하는 CI용 검사다. 로컬 계약 수정은 `openapi3` → `api:generate` → 생성 diff·사용처 검토로 진행하고 바로 `api:check`를 반복하지 않는다. 명세가 그대로인 화면 수정에는 생성을 실행하지 않는다.
+- `:application:test`는 policy tag를 제외한다. policy는 `:application:policyTest`, usecase는 `:application:useCaseTest`를 선택한다.
+- `:adapter-in-web:test`는 restdocs·openapi tag를 제외한다. REST Docs는 `restDocsTest`, OpenAPI 갱신은 `openapi3`를 사용한다. 좁은 테스트가 없다는 이유만으로 전체 build를 실행하지 않는다.
+
+### 7. 결과 재사용과 실패 처리
+
+- 검사 대상·명령·결과·미확인 항목을 작업 기록에 짧게 남긴다. 관련 코드·테스트·fixture·설정·의존성·실행 환경이 같을 때만 통과 결과를 재사용한다.
+- 문서 커밋이나 응답 작성만으로 코드 검사 결과를 무효화하지 않는다. 추가 수정이 있으면 그 수정에 영향받는 검사만 다시 실행한다.
+- 실패하면 제품 코드, 잘못된 명령·tag, 실행 환경 중 원인을 구분한다. 알려진 필터 오류는 명령을 고치고, 서비스·인증·테스트 데이터 준비 실패는 조건을 해결한 뒤 관련 시나리오만 실행한다.
+- 환경을 고칠 권한과 범위가 있으면 해결한다. 필요한 값이나 접근 권한이 없으면 미검증 범위와 재실행 조건을 알리고 독립 작업을 마친다. 준비 단계 실패를 제품 회귀나 검사 통과로 기록하지 않는다.
+- 동일 실패를 조건 변경 없이 반복하지 않는다. 같은 명령 재시도는 일시 장애 근거가 있을 때만 한다.
+- 선택한 검사와 필수 검사가 통과하면 종료한다. 기존 CI의 필수 검사나 PR별 검사 결과를 로컬 결과로 대체하지 않는다. CI 대기 중 동일한 로컬 검사를 추가로 돌리지 않는다.
+
 ---
 
 ## 기존 문서와의 관계
@@ -115,5 +141,6 @@
 
 - `docs/ADR/0026_통합_테스트_프로파일과_TestContainer_기준선/adr.md`
 - `docs/Retrospective/0009_프론트_E2E_실행_시간_슬림화/retrospective.md`
+- [에이전트 검증 반복 감소](../../Retrospective/0011_에이전트_검증_반복_감소/retrospective.md)
 - `docs/PRD/0001_기준_스펙/spec.md`
 - `HANDOFF.md`

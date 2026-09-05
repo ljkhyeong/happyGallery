@@ -21,4 +21,5 @@ description: happyGallery의 README·HANDOFF·PRD·ADR·계획·스킬 등 문�
 ## 검증
 
 - 수정한 설명을 코드와 대조하고, 링크·파일 경로·용어를 확인한다. 문서만 바꾸면 앱 빌드와 테스트는 실행하지 않는다.
-- 스킬 변경은 `SKILL.md`의 YAML, 적용 범위, 참조 경로를 확인한다.
+- 스킬 변경은 `ruby tools/check-agent-skills.rb`로 YAML·이름·참조·Git 파일명을 한 번 확인하고, 변경한 규칙의 적용 범위를 검토한다. 검사만을 위해 Python 패키지를 설치하지 않는다.
+- 파일명 대소문자를 바꾸면 임시 이름을 거쳐 `git mv`하고, Git index에도 최종 이름만 남았는지 확인한다. 같은 내용을 다른 이름으로 다시 추가하지 않는다.

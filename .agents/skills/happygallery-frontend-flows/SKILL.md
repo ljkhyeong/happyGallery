@@ -19,6 +19,8 @@ description: happyGallery의 React Router 화면·SSR·스타일·폼·React Que
 
 ## 검증
 
-- component·query·SSR 변경은 `frontend`에서 `npm run build`를 실행한다. 생성 API 사용이 바뀌면 `npm run api:check`도 확인한다.
-- 화면 배치·반응형 변경은 관련 화면을 모바일·데스크톱에서 확인한다.
-- 결제·인증·관리자 흐름은 관련 `e2e:payment`, `e2e:identity`, `e2e:admin` 중 하나를 선택한다. 공용 흐름이 넓게 바뀔 때만 `e2e:full`을 사용한다.
+- 문구만 바꾸면 diff·사용처를 확인하고 JSX 변경은 `frontend`에서 `npm run typecheck`로 확인한다. 문구를 선택자로 쓰는 기존 테스트만 실행하며, 결제·인증 화면이라는 이유로 도메인 E2E 전체를 실행하지 않는다.
+- component·query 로직은 typecheck와 해당 단위 테스트, 라우트·SSR·스타일·번들 설정은 `npm run build`를 선택한다. build가 typegen·tsc를 포함하므로 같은 입력의 typecheck를 연달아 실행하지 않는다.
+- 화면 배치·반응형 변경은 관련 화면을 모바일·데스크톱에서 확인한다. 생성 API 변경은 `api-contract`의 생성·검토 절차를 따르고, 명세가 그대로면 재생성하지 않는다.
+- 사용자 흐름이 바뀌면 관련 spec·시나리오를 먼저 선택한다. 여러 시나리오에 영향이 있으면 `e2e:payment`, `e2e:identity`, `e2e:admin`, 공용 흐름이 넓게 바뀌면 `e2e:full`로 확대한다.
+- E2E를 실행하기 전 해당 시나리오의 backend·인증·fixture 준비 조건을 확인한다. 준비 단계에서 실패하면 원인을 해결한 뒤 해당 시나리오만 다시 실행하고, 미해결이면 미검증 항목으로 남긴다.

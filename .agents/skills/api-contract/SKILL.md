@@ -26,5 +26,7 @@ description: happyGallery의 엔드포인트·웹 DTO·HTTP 오류·REST Docs·O
 
 1. 웹 DTO·Controller와 해당 REST Docs 시나리오, PRD-0004를 수정한다.
 2. 영향받는 `:adapter-in-web:restDocsTest --tests "*대상클래스*"`를 `--no-daemon`으로 실행한다.
-3. `./gradlew --no-daemon :adapter-in-web:openapi3` 후 `frontend`에서 `npm run api:generate`를 실행한다.
-4. `npm run api:check`를 확인하고, 클라이언트 타입이 바뀌면 `npm run build`로 사용처를 검증한다.
+3. `./gradlew --no-daemon :adapter-in-web:openapi3` 후 `frontend`에서 `npm run api:generate`를 한 번 실행하고 생성 diff를 검토한다.
+4. 클라이언트 타입이 바뀌면 `npm run typecheck`로 사용처를 확인한다. SSR·번들·스타일 변경으로 build를 실행했다면 별도 typecheck는 생략한다.
+
+`api:check`는 재생성 후 Git 차이를 확인하는 CI용 검사다. 로컬에서 의도한 계약을 생성한 직후 반복 실행하지 않는다. 명세·생성 설정이 그대로인 화면 수정에는 생성 명령을 실행하지 않는다.
