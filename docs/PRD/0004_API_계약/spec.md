@@ -4291,3 +4291,9 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 - `GET /api/v1/me/orders/page`의 `keyword`는 주문 번호 또는 구매 당시 상품명 부분 일치로 검색한다. `%`, `_`는 일반 문자로 취급한다. 현재 상품명 변경은 과거 주문 검색에 영향을 주지 않는다.
 - 기존 배열·페이지 목록 모두 `items`를 포함한다. 각 항목은 `orderItemId`, `productName`, `quantity`, `options`(옵션명·값 문자열 배열)이며 구매 당시 기록을 사용한다.
 - 본인 주문 조건과 정렬·커서 규칙을 유지하고, 상품 검색으로 동일 주문이 중복되지 않는다.
+
+### 회원 기본 배송지
+
+- `GET /api/v1/me/default-shipping-address`: `{version, shippingAddress}`. 미등록이면 `shippingAddress=null`, 최초 변경 번호는 0이다.
+- `PUT` 같은 경로: `{version, shippingAddress}`로 저장하고 204 반환. `DELETE` 같은 경로: 필수 쿼리 `version`으로 삭제하고 204 반환. 오래된 변경 번호는 409 `CONFLICT`. 저장·삭제마다 변경 번호를 증가시킨다.
+- 회원 세션의 본인 주소만 접근한다. CSRF 보호를 유지하며 주소 형식은 주문 배송지와 동일하다.

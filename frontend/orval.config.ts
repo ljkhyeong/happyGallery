@@ -68,6 +68,7 @@ export default defineConfig({
     "me-phone-controller",
   ]),
   customerStoreApi: generatedApi("./src/generated/api/customerStore.ts", [
+    "me-default-shipping-address-controller",
     "me-restock-alert-controller",
     "me-group-inquiry-controller",
     "group-inquiry-controller",

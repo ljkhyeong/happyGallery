@@ -91,7 +91,8 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
                     email == null ? null : blindIndexKeyRing.index(email),
                     fieldEncryptor.encrypt(name), blindIndexKeyRing.index(name),
                     phone == null ? null : fieldEncryptor.encrypt(phone),
-                    phone == null ? null : blindIndexKeyRing.index(phone)));
+                    phone == null ? null : blindIndexKeyRing.index(phone),
+                    row.defaultShippingAddressEnc() == null ? null : fieldEncryptor.reencrypt(row.defaultShippingAddressEnc())));
             return true;
         });
     }

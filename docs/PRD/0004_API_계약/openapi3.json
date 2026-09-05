@@ -2973,6 +2973,23 @@
         "required" : [ "decision" ],
         "type" : "object"
       },
+      "DefaultShippingAddressResponse" : {
+        "properties" : {
+          "shippingAddress" : {
+            "oneOf" : [ {
+              "$ref" : "#/components/schemas/SavedShippingAddress"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "shippingAddress", "version" ],
+        "type" : "object"
+      },
       "DelaySmartStoreOrderRequest" : {
         "properties" : {
           "detailedReason" : {
@@ -7205,6 +7222,27 @@
           }
         },
         "required" : [ "detailContents", "postCategoryType", "title" ],
+        "type" : "object"
+      },
+      "SavedShippingAddress" : {
+        "properties" : {
+          "addressLine1" : {
+            "type" : "string"
+          },
+          "addressLine2" : {
+            "type" : [ "string", "null" ]
+          },
+          "phone" : {
+            "type" : "string"
+          },
+          "postalCode" : {
+            "type" : "string"
+          },
+          "recipientName" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "addressLine1", "addressLine2", "phone", "postalCode", "recipientName" ],
         "type" : "object"
       },
       "SendEmailVerificationRequest" : {
@@ -16004,6 +16042,62 @@
           }
         },
         "tags" : [ "me-coupon-controller" ]
+      }
+    },
+    "/api/v1/me/default-shipping-address" : {
+      "delete" : {
+        "operationId" : "deleteMyDefaultShippingAddress",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "version",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "minimum" : 0,
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-default-shipping-address-controller" ]
+      },
+      "get" : {
+        "operationId" : "getMyDefaultShippingAddress",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/DefaultShippingAddressResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-default-shipping-address-controller" ]
+      },
+      "put" : {
+        "operationId" : "saveMyDefaultShippingAddress",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateShippingAddressRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-default-shipping-address-controller" ]
       }
     },
     "/api/v1/me/email" : {

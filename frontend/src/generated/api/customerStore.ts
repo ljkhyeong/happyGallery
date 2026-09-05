@@ -180,6 +180,41 @@ export interface MergeCartRequest {
   items: MergeCartItemRequest[];
 }
 
+export interface SavedShippingAddress {
+  addressLine1: string;
+  /** @nullable */
+  addressLine2: string | null;
+  phone: string;
+  postalCode: string;
+  recipientName: string;
+}
+
+export interface DefaultShippingAddressResponse {
+  shippingAddress: SavedShippingAddress | null;
+  version: number;
+}
+
+export interface ShippingAddress {
+  /** @minLength 1 */
+  addressLine1: string;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @minLength 1 */
+  phone: string;
+  /**
+     * @minLength 1
+     * @pattern ^[0-9]{5}$
+     */
+  postalCode: string;
+  /** @minLength 1 */
+  recipientName: string;
+}
+
+export interface UpdateShippingAddressRequest {
+  shippingAddress: ShippingAddress;
+  version: number;
+}
+
 export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
 
 
@@ -660,27 +695,6 @@ export interface OrderDelayResponseRequest {
   decision: OrderDelayResponseRequestDecision;
 }
 
-export interface ShippingAddress {
-  /** @minLength 1 */
-  addressLine1: string;
-  /** @nullable */
-  addressLine2?: string | null;
-  /** @minLength 1 */
-  phone: string;
-  /**
-     * @minLength 1
-     * @pattern ^[0-9]{5}$
-     */
-  postalCode: string;
-  /** @minLength 1 */
-  recipientName: string;
-}
-
-export interface UpdateShippingAddressRequest {
-  shippingAddress: ShippingAddress;
-  version: number;
-}
-
 export type MyPassSummaryPlanCode = typeof MyPassSummaryPlanCode[keyof typeof MyPassSummaryPlanCode];
 
 
@@ -761,6 +775,13 @@ export interface RestockAlertRequest {
   /** @nullable */
   productVariantId?: number | null;
 }
+
+export type DeleteMyDefaultShippingAddressParams = {
+/**
+ * @minimum 0
+ */
+version: number;
+};
 
 export type ListMyGroupInquiriesParams = {
 cursor?: string;
@@ -973,6 +994,76 @@ export const mergeMyCartItems = async (mergeCartRequest: MergeCartRequest, optio
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(mergeCartRequest)
+  }
+);}
+
+
+
+export const getDeleteMyDefaultShippingAddressUrl = (params: DeleteMyDefaultShippingAddressParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/default-shipping-address?${stringifiedParams}` : `/api/v1/me/default-shipping-address`
+}
+
+export const deleteMyDefaultShippingAddress = async (params: DeleteMyDefaultShippingAddressParams, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDeleteMyDefaultShippingAddressUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetMyDefaultShippingAddressUrl = () => {
+
+
+
+
+  return `/api/v1/me/default-shipping-address`
+}
+
+export const getMyDefaultShippingAddress = async ( options?: RequestInit): Promise<DefaultShippingAddressResponse> => {
+
+  return generatedApiClient<DefaultShippingAddressResponse>(getGetMyDefaultShippingAddressUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSaveMyDefaultShippingAddressUrl = () => {
+
+
+
+
+  return `/api/v1/me/default-shipping-address`
+}
+
+export const saveMyDefaultShippingAddress = async (updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getSaveMyDefaultShippingAddressUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateShippingAddressRequest)
   }
 );}
 

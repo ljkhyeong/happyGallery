@@ -63,11 +63,12 @@ public interface KeyRotationDataPort {
 
     long countSocialAccountsWithoutProviderIdEnc();
 
-    record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc)
+    record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc, String defaultShippingAddressEnc)
             implements IdentifiedRow {}
 
     record UserRotatedRow(long id, String emailEnc, String emailHmac,
-                          String nameEnc, String nameHmac, String phoneEnc, String phoneHmac) {}
+                          String nameEnc, String nameHmac, String phoneEnc, String phoneHmac,
+                          String defaultShippingAddressEnc) {}
 
     record GuestEncryptedRow(long id, String nameEnc, String phoneEnc) implements IdentifiedRow {}
 

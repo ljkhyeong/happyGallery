@@ -171,7 +171,12 @@ class KeyRotationUseCaseIT {
         jdbcTemplate.update("INSERT INTO group_inquiry_activities(inquiry_id, to_status, note_enc, created_at) VALUES (?, 'RECEIVED', ?, ?)",
                 inquiryId, oldEncryptor.encrypt("상담 메모"), paidAt);
 
+        jdbcTemplate.update("UPDATE users SET default_shipping_address_enc = ? WHERE id = ?",
+                oldEncryptor.encrypt("기본 배송지 암호문"), user.getId());
         KeyRotationUseCase.RotationResult result = keyRotationUseCase.rotate("v1");
+        assertThat(value("users", "default_shipping_address_enc", user.getId())).startsWith("hg:v2:");
+        assertThat(activeEncryptor.decrypt(value("users", "default_shipping_address_enc", user.getId())))
+                .isEqualTo("기본 배송지 암호문");
 
         assertSoftly(softly -> {
             softly.assertThat(result.users()).isEqualTo(2);

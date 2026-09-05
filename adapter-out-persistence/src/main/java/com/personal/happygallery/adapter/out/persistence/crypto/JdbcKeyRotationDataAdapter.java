@@ -29,7 +29,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     @Override
     public List<UserEncryptedRow> findUsersAfterId(long afterId, int limit) {
         return jdbc.sql("""
-                        SELECT id, email_enc, name_enc, phone_enc
+                        SELECT id, email_enc, name_enc, phone_enc, default_shipping_address_enc
                         FROM users
                         WHERE id > :afterId
                         ORDER BY id
@@ -47,7 +47,8 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         UPDATE users
                         SET email_enc = :emailEnc, email_hmac = :emailHmac,
                             name_enc = :nameEnc, name_hmac = :nameHmac,
-                            phone_enc = :phoneEnc, phone_hmac = :phoneHmac
+                            phone_enc = :phoneEnc, phone_hmac = :phoneHmac,
+                            default_shipping_address_enc = :defaultShippingAddressEnc
                         WHERE id = :id
                         """)
                 .paramSource(row)

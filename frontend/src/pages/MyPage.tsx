@@ -1,3 +1,4 @@
+import { MyDefaultShippingAddressSection } from "@/features/my/DefaultShippingAddress";
 import { useEffect, useState } from "react";
 import { Container, Badge } from "react-bootstrap";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -333,6 +334,7 @@ function MyPageContent() {
       />
 
       <MyVacancyAlertsSection />
+      <MyDefaultShippingAddressSection />
       <MyRestockAlertsSection />
               <MyGroupInquiriesSection />
 
