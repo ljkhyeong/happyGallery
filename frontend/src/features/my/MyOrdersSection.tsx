@@ -1,3 +1,4 @@
+import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { Card, Col, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import type { MyOrderSummary } from "./api";
@@ -40,6 +41,7 @@ export function MyOrdersSection({
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
                 <div className="fw-semibold small">주문 #{o.orderId}</div>
+                <OrderItemSummary items={o.items} />
                 <small className="text-muted-soft">
                   {o.paidAt ? `결제 ${formatDateTime(o.paidAt)}` : formatDateTime(o.createdAt)}
                 </small>

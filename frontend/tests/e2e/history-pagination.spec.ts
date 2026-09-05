@@ -518,7 +518,7 @@ test("예약 생성의 8회권 후보는 첫 페이지에 없더라도 다음 �
 });
 
 for (const scenario of [
-  { path: "orders", label: "주문 번호 검색", more: "주문 더 보기", sort: "AMOUNT_DESC", status: "DELIVERED",
+  { path: "orders", label: "주문 번호·상품명 검색", more: "주문 더 보기", sort: "AMOUNT_DESC", status: "DELIVERED",
     item: { orderId: 9090, status: "DELIVERED", totalAmount: 12000, createdAt: "2026-08-01T12:00:00", paidAt: null } },
   { path: "bookings", label: "예약 검색", more: "예약 더 보기", sort: "LATEST", status: "CANCELED",
     item: { bookingId: 9090, status: "CANCELED", className: "이력 검색 클래스", startAt: "2099-01-01T10:00:00", participantCount: 1, depositAmount: 10000 } },

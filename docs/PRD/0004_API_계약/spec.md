@@ -4285,3 +4285,9 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 접수 본문: 필수 `organization`·`preferredSchedule`·`location`·`classInterest`(각 200자 이하), `contactName`(100자 이하), `phone`(국내 휴대폰), `headcount`(1~500); `email`·`message`는 누락/null 가능하며 추가 요청은 2000자 이하이다. 회원 ID와 출처는 본문으로 받지 않는다. 본인 이력과 관리자 목록은 연락처·메모를 제외한 요약이며 상세·상담 이력은 관리자에게만 반환한다.
 
 상태는 `RECEIVED`, `CONSULTING`, `CONFIRMED`, `CLOSED`, 출처는 `WEBSITE`, `EXTERNAL`이다. 접수→상담 중/종료, 상담 중→확정/종료, 확정→상담 중/종료, 종료→상담 중 전환과 같은 상태의 메모 추가를 허용한다. 버전·상태 충돌은 409, 잘못된 입력·커서는 400, 미존재 문의는 404다. 공개 접수는 동일 IP 5회/10분을 공유하고 초과 429, 제한 저장소 장애 503을 반환한다.
+
+### 회원 주문 목록 상품 검색
+
+- `GET /api/v1/me/orders/page`의 `keyword`는 주문 번호 또는 구매 당시 상품명 부분 일치로 검색한다. `%`, `_`는 일반 문자로 취급한다. 현재 상품명 변경은 과거 주문 검색에 영향을 주지 않는다.
+- 기존 배열·페이지 목록 모두 `items`를 포함한다. 각 항목은 `orderItemId`, `productName`, `quantity`, `options`(옵션명·값 문자열 배열)이며 구매 당시 기록을 사용한다.
+- 본인 주문 조건과 정렬·커서 규칙을 유지하고, 상품 검색으로 동일 주문이 중복되지 않는다.

@@ -43,7 +43,9 @@ class MemberHistoryRepository implements MemberHistoryReaderPort {
             parameters.put("status", query.status());
         }
         if (query.keyword() != null) {
-            where.append(" AND cast(o.id as String) LIKE :keyword ESCAPE '!'");
+            where.append(" AND (cast(o.id as String) LIKE :keyword ESCAPE '!'"
+                    + " OR EXISTS (SELECT oi.id FROM OrderItem oi WHERE oi.order = o"
+                    + " AND lower(oi.productName) LIKE lower(:keyword) ESCAPE '!'))");
             parameters.put("keyword", keywordPattern(query.keyword()));
         }
         return page(Order.class, "SELECT o FROM Order o", "o.id", where, parameters, key,

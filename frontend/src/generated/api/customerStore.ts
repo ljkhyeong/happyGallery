@@ -349,8 +349,16 @@ export const MyOrderSummaryStatus = {
   COMPLETED: 'COMPLETED',
 } as const;
 
+export interface MyOrderItemSummary {
+  options: string[];
+  orderItemId: number;
+  productName: string;
+  quantity: number;
+}
+
 export interface MyOrderSummary {
   createdAt: string;
+  items: MyOrderItemSummary[];
   orderId: number;
   /** @nullable */
   paidAt: string | null;

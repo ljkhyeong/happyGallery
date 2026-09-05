@@ -4425,6 +4425,29 @@
         "required" : [ "content", "hasMore", "nextCursor" ],
         "type" : "object"
       },
+      "MyOrderItemSummary" : {
+        "properties" : {
+          "options" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "orderItemId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "quantity" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "options", "orderItemId", "productName", "quantity" ],
+        "type" : "object"
+      },
       "MyOrderPageResponse" : {
         "properties" : {
           "content" : {
@@ -4449,6 +4472,12 @@
             "format" : "date-time",
             "type" : "string"
           },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyOrderItemSummary"
+            },
+            "type" : "array"
+          },
           "orderId" : {
             "format" : "int64",
             "type" : "integer"
@@ -4466,7 +4495,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "createdAt", "orderId", "paidAt", "status", "totalAmount" ],
+        "required" : [ "createdAt", "items", "orderId", "paidAt", "status", "totalAmount" ],
         "type" : "object"
       },
       "MyPassPageResponse" : {

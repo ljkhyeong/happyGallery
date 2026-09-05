@@ -118,6 +118,22 @@ class MeOrderUseCaseIT {
         mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
                         .param("sort", "AMOUNT_ASC").param("cursor", cursor))
                 .andExpect(status().isBadRequest());
+
+        jdbcTemplate.update("UPDATE order_items SET product_name = '기억할 머그_100%' WHERE order_id IN (?, ?)", olderId, hiddenId);
+        jdbcTemplate.update("UPDATE products SET name = '변경된 상품명' WHERE id = ?", productId);
+        jdbcTemplate.update("""
+                INSERT INTO order_item_option_snapshots (order_item_id, option_type, group_name, value, price_adjustment, sort_order)
+                SELECT id, 'SELECT', '색상', '파랑', 0, 0 FROM order_items WHERE order_id = ?
+                """, olderId);
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie)
+                        .param("keyword", "머그_100%"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(olderId))
+                .andExpect(jsonPath("$.content[0].items[0].productName").value("기억할 머그_100%"))
+                .andExpect(jsonPath("$.content[0].items[0].options[0]").value("색상: 파랑"));
+        mockMvc.perform(get("/api/v1/me/orders/page").cookie(sessionCookie).param("keyword", "변경된 상품명"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
     }
 
     @DisplayName("회원 주문 목록을 조회한다")

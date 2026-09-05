@@ -1,3 +1,4 @@
+import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { ListMyOrdersPageSort, ListMyOrdersPageStatus } from "@/generated/api/customerStore";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
@@ -129,8 +130,8 @@ export function MyOrdersPage() {
       )}
       <MyListFilterBar
         idPrefix="my-orders"
-        searchLabel="주문 번호 검색"
-        searchPlaceholder="예: 123"
+        searchLabel="주문 번호·상품명 검색"
+        searchPlaceholder="예: 123 또는 머그"
         searchValue={searchQuery}
         onSearchChange={(value) => updateFilters({ q: value })}
         filterLabel="상태"
@@ -161,6 +162,7 @@ export function MyOrdersPage() {
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
                 <div className="fw-semibold small">주문 #{order.orderId}</div>
+                <OrderItemSummary items={order.items} />
                 <small className="text-muted-soft">
                   {order.paidAt ? `결제 ${formatDateTime(order.paidAt)}` : formatDateTime(order.createdAt)}
                 </small>

@@ -63,7 +63,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
   await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
-  await page.getByLabel("주문 번호 검색").fill(String(orderId));
+  await page.getByLabel("주문 번호·상품명 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
   await expect(page).toHaveURL(new RegExp(`/my/orders/${orderId}$`));
 

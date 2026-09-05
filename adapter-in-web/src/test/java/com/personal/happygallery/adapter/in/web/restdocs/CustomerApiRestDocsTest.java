@@ -195,9 +195,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(vacancyAlert.getStatus()).thenReturn(VacancyAlertStatus.WAITING);
         when(vacancyAlertUseCase.registerMember(42L, CUSTOMER_USER_ID)).thenReturn(vacancyAlert);
         when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(vacancyAlert));
-        when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
+        var orderSummary = new OrderQueryUseCase.OrderSummary(order, orderDetail.items());
+        when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(orderSummary));
         when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), any(OrderHistoryQuery.class), isNull(), eq(20)))
-                .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
+                .thenReturn(new CursorPage<>(List.of(orderSummary), "cursor-next", true));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null,
                 "https://dashboard.tosspayments.com/receipt/pass");
