@@ -25,6 +25,7 @@ fallback으로 HTTP 200을 받았고, sitemap·canonical·`og:url`이 없었다.
 - 공개 loader는 프런트엔드 Node 런타임에서 `INTERNAL_API_ORIGIN`의 백엔드 공개
   API를 호출한다. 백엔드 404는 문서 404로, 일시적 장애는 검색 색인을
   허용하지 않는 장애 응답으로 반환한다.
+- 상품 목록은 URL의 `keyword`, `type`, `category`, `sort`를 공통 파서로 정제해 서버 loader와 브라우저에 같은 조건을 전달한다. loader 응답은 해당 조건의 query cache에만 반영하고 상품 목록 canonical과 sitemap 경로는 `/products`를 유지한다.
 - 요청 간 React Query cache가 섞이지 않도록 SSR 요청마다 `QueryClient`를 생성한다.
   브라우저 저장소는 client hydration 이후에만 읽는다.
 
