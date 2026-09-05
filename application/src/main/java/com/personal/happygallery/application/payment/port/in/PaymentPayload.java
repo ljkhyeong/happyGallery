@@ -45,11 +45,23 @@ public sealed interface PaymentPayload {
             PolicyAcceptance policyAcceptance,
             String expectedCartVersion,
             Long issuedCouponId,
-            long rewardAmount
+            long rewardAmount,
+            List<Long> selectedCartItemIds
     ) implements PaymentPayload {
 
         public OrderPayload {
             FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
+        }
+
+        public OrderPayload(Long userId, String phone, String verificationCode, String name,
+                            List<OrderItemRef> items, boolean cartCheckout,
+                            FulfillmentType fulfillmentType, ShippingAddress shippingAddress,
+                            String madeToOrderConsentVersion, boolean madeToOrderConsent,
+                            PolicyAcceptance policyAcceptance, String expectedCartVersion,
+                            Long issuedCouponId, long rewardAmount) {
+            this(userId, phone, verificationCode, name, items, cartCheckout, fulfillmentType,
+                    shippingAddress, madeToOrderConsentVersion, madeToOrderConsent,
+                    policyAcceptance, expectedCartVersion, issuedCouponId, rewardAmount, null);
         }
 
         public OrderPayload(Long userId,

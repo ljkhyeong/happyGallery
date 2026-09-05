@@ -5325,6 +5325,16 @@
               "minimum" : 0,
               "type" : [ "integer", "null" ]
             },
+            "selectedCartItemIds" : {
+              "description" : "선택 구매할 본인 장바구니 행 ID. 생략 또는 null이면 구매 가능한 전체 항목. 지정 시 expectedCartVersion 필수",
+              "items" : {
+                "format" : "int64",
+                "type" : "integer"
+              },
+              "maxItems" : 100,
+              "minItems" : 1,
+              "type" : [ "array", "null" ]
+            },
             "shippingAddress" : {
               "oneOf" : [ {
                 "$ref" : "#/components/schemas/ShippingAddress"

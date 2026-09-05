@@ -11,7 +11,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
-test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다음 수동 결제에만 사용한다", async ({
+test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에도 선택을 유지해 수동 재결제한다", async ({
   baseURL,
   context,
   page,
@@ -87,8 +87,14 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
           qty,
           specification: null,
           subtotal: 12000 * qty,
+        }, {
+          cartItemId: 84, productId: 84, productVariantId: null,
+          productName: "나중에 구매할 작품", productType: "MADE_TO_ORDER",
+          options: [], basePrice: 7000, price: 7000, qty: 1, subtotal: 7000,
+          variantPriceAdjustment: 0, textOptionPriceAdjustment: 0,
+          available: true, specification: null, careInstructions: null, productionLeadDays: 7,
         }],
-        totalAmount: 12000 * qty,
+        totalAmount: 12000 * qty + 7000,
       });
       return;
     }
@@ -138,12 +144,18 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
 
   await page.goto("/cart");
   await expect(page.getByText("스냅샷 확인 작품", { exact: true })).toBeVisible();
+  await page.getByRole("checkbox", { name: "전체 선택" }).uncheck();
+  await expect(page.getByText("구매할 상품을 선택해 주세요.")).toBeVisible();
+  await page.getByRole("checkbox", { name: "스냅샷 확인 작품 선택" }).check();
+  await expect(page.getByRole("checkbox", { name: "나중에 구매할 작품 선택" })).not.toBeChecked();
   await page.getByRole("button", { name: "매장 수령" }).click();
   const checkoutButton = page.getByRole("button", { name: "결제하기", exact: true });
   await expect(checkoutButton).toBeDisabled();
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.locator(".store-purchase-card").getByRole("alert")).toContainText(
     "장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.",
   );
+  await expect(page.locator(".store-purchase-card")).toContainText("₩12,000");
+  await expect(page.locator(".store-purchase-card")).not.toContainText("₩19,000");
   expect(preparePayloads).toHaveLength(0);
 
   await page.getByRole("button", { name: "장바구니 다시 확인" }).click();
@@ -156,8 +168,10 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
   expect(preparePayloads[0]).toMatchObject({
     cartCheckout: true,
     expectedCartVersion: firstVersion,
+    selectedCartItemIds: [42],
+    madeToOrderConsent: false,
   });
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.locator(".store-purchase-card").getByRole("alert")).toContainText(
     "수량과 금액을 다시 확인한 뒤 결제를 진행해 주세요.",
   );
   await expect(page.locator("tbody tr").first().locator("td").nth(1)).toContainText("2");
@@ -171,6 +185,7 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
   expect(preparePayloads[1]).toMatchObject({
     cartCheckout: true,
     expectedCartVersion: refreshedVersion,
+    selectedCartItemIds: [42],
   });
   await expect.poll(() => page.evaluate(() => {
     const browserGlobal = globalThis as unknown as {
@@ -178,6 +193,8 @@ test("@payment 장바구니 충돌은 최신 버전을 다시 조회하고 다�
     };
     return browserGlobal.cartSnapshotTossRequests.length;
   })).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
 
 test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시하고 자동 갱신하지 않는다", async ({
@@ -274,10 +291,10 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
   const readsBeforeCheckout = cartReads;
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
 
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.locator(".store-purchase-card").getByRole("alert")).toContainText(
     "요청을 완료할 수 없습니다. 안내된 조건을 확인하거나 잠시 후 다시 시도해 주세요.",
   );
-  await expect(page.getByRole("alert")).not.toContainText(
+  await expect(page.locator(".store-purchase-card").getByRole("alert")).not.toContainText(
     "장바구니 내용이 변경되어 최신 정보로 갱신했습니다.",
   );
   await page.waitForTimeout(300);

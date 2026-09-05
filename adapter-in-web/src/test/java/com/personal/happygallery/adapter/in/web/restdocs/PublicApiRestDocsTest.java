@@ -35,6 +35,7 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.order.OrderPriceProperties;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentWebhookUseCase;
@@ -72,6 +73,8 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -668,6 +671,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                     "userId": 11,
                                     "items": [],
                                     "cartCheckout": true,
+                                    "selectedCartItemIds": [42],
                                     "expectedCartVersion": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
                                     "fulfillmentType": "PICKUP",
                                     "shippingAddress": null,
@@ -676,6 +680,9 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isOk());
+        verify(paymentPrepareUseCase).prepare(argThat(command ->
+                command.payload() instanceof OrderPayload order
+                        && order.selectedCartItemIds().equals(List.of(42L))));
     }
 
     @Test

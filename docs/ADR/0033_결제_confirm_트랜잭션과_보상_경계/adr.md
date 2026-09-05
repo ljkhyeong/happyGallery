@@ -279,3 +279,8 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `V58__track_refund_success_time.sql`
 - `V60__normalize_revenue_timestamps_to_seoul.sql`
 - `V76__secure_payment_attempt_status_lookup.sql`
+
+## 장바구니 선택 구매
+
+- 결제 요청의 `selectedCartItemIds`는 선택 의사만 전달한다. 회원 잠금과 장바구니 버전 확인 후 서버가 본인 장바구니의 구매 가능한 행을 대조하고 가격·수량·혜택을 확정한다. 선택 구매는 버전을 필수로 받고, 생략한 기존 요청은 전체 구매를 유지한다.
+- 저장된 결제 스냅샷과 confirm 차감 계약은 그대로 활용한다. 미선택 상품을 스냅샷에 포함하지 않아 결제 후에도 남기며, 준비 후 추가 수량과 재생성 행의 보존 규칙도 유지한다.
