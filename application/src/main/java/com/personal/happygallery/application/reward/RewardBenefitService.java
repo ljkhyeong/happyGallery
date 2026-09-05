@@ -2,7 +2,7 @@ package com.personal.happygallery.application.reward;
 
 import java.time.LocalDateTime;
 
-/** 결제·환불 흐름이 적립금 저장 구조를 직접 알지 않도록 하는 내부 금융 경계. */
+/** 적립금 저장 구조를 감추고 결제·환불용 기능을 제공하는 인터페이스. */
 public interface RewardBenefitService {
 
     long quoteAndLock(Long userId, long requestedAmount, long maxUsableAmount, LocalDateTime now);

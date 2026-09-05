@@ -452,7 +452,7 @@ public class PaymentAttempt {
         return true;
     }
 
-    /** 휴대폰 소유 확인 뒤 이 비회원 결제 시도의 조회 자격을 새 토큰으로 교체한다. */
+    /** 휴대폰 번호 인증 뒤 이 비회원 결제 시도의 조회 자격을 새 토큰으로 교체한다. */
     public void replaceStatusAccessToken(String tokenHash) {
         if (ownerUserId != null || ownerPhoneHmac == null) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "비회원 결제 조회 자격을 갱신할 수 없습니다.");

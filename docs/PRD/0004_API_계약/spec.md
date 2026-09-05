@@ -974,7 +974,7 @@ Authorization: Bearer {token}
   - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
   - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
 - `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. 다음 동기화는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량을 합한 목표 수량과의 차이만 변경한다. 검수 대기 또는 판매 불가로 종료한 반품은 계속 차감된 수량에 포함된다.
-- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 수동 재고 결정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
+- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 재고 반영 방법 지정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution
@@ -4273,7 +4273,7 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 
 ### 회원 재입고 알림
 
-- `POST /api/v1/me/restock-alerts`: `productId` 필수, 기성품은 `productVariantId=null`, 주문제작은 품절인 활성 조합 번호를 전달한다. 현재 판매 중인 품절 상품만 신청 가능하며 휴대폰 소유 확인이 필요하다. 성공은 `204`, 같은 회원·상품·조합의 대기 중 신청은 하나로 유지한다.
+- `POST /api/v1/me/restock-alerts`: `productId` 필수, 기성품은 `productVariantId=null`, 주문제작은 품절인 활성 조합 번호를 전달한다. 현재 판매 중인 품절 상품만 신청 가능하며 휴대폰 번호 인증이 필요하다. 성공은 `204`, 같은 회원·상품·조합의 대기 중 신청은 하나로 유지한다.
 - `GET /api/v1/me/restock-alerts`: 본인 신청의 상품명·선택 옵션·상태·신청 및 발송 시각을 반환한다. 상태는 `WAITING`(입고 대기), `QUEUED`(알림 접수), `NOTIFIED`(발송 완료), `CANCELED`(해지)다.
 - `DELETE /api/v1/me/restock-alerts/{id}`: 본인의 대기·접수된 신청을 해지한다. 성공은 `204`, 다른 회원의 번호는 `404`다.
 - 신청 옵션의 실제 판매 가능 수량을 약 1분마다 확인한다. 다른 옵션 입고·판매 중지·비활성 옵션·탈퇴 회원·해지된 신청은 발송하지 않는다. 발송 전 다시 품절되면 같은 알림 요청을 다음 입고 때 재사용한다.
