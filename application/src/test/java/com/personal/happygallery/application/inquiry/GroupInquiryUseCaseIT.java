@@ -72,13 +72,13 @@ class GroupInquiryUseCaseIT {
         var consulting = inquiries.update(id, 0, GroupInquiryStatus.CONSULTING, "일정과 재료 상담", 99L);
         assertThat(consulting.view().inquiry().getVersion()).isEqualTo(1);
         assertThatThrownBy(() -> inquiries.update(id, 0, GroupInquiryStatus.CLOSED, "오래된 화면", 98L))
-                .isInstanceOf(HappyGalleryException.class).hasMessageContaining("다른 관리자");
+                .isInstanceOf(HappyGalleryException.class).hasMessageContaining("문의가 변경");
         var confirmed = inquiries.update(id, 1, GroupInquiryStatus.CONFIRMED, "20명 레진 수업 확정", 98L);
         assertThat(confirmed.activities()).hasSize(3);
         assertThat(confirmed.activities().getFirst().note()).isEqualTo("20명 레진 수업 확정");
         assertThat(confirmed.activities().getFirst().activity().getAdminId()).isEqualTo(98);
-        assertThat(inquiries.listForAdmin(GroupInquiryStatus.RECEIVED, null, 20).content()).isEmpty();
-        assertThat(inquiries.listForAdmin(GroupInquiryStatus.CONFIRMED, null, 20).content()).hasSize(1);
+        assertThat(inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(GroupInquiryStatus.RECEIVED, null, null, null, null), null, 20).content()).isEmpty();
+        assertThat(inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(GroupInquiryStatus.CONFIRMED, null, null, null, null), null, 20).content()).hasSize(1);
         assertThat(jdbc.queryForList("SELECT note_enc FROM group_inquiry_activities", String.class))
                 .allSatisfy(value -> assertThat(value).startsWith("hg:").doesNotContain("상담", "확정"));
         var reopened = inquiries.update(id, 2, GroupInquiryStatus.CONSULTING, "일정 재협의", 99L);
@@ -122,6 +122,65 @@ class GroupInquiryUseCaseIT {
         assertThat(inquiries.detailForAdmin(closed.inquiry().getId()).view().inquiry().getNextContactOn()).isNull();
         assertThatThrownBy(() -> inquiries.scheduleContact(closed.inquiry().getId(), 2, todayDate, 99L))
                 .isInstanceOf(HappyGalleryException.class);
+    }
+
+    @Test
+    @DisplayName("회원은 본인 문의의 일정과 인원을 변경하고 취소하며 관리자 메모는 볼 수 없다")
+    void memberChangesCheckOwnerVersionAndHistory() {
+        var owner = users.save(new User("edit-group@example.com", "hash", "회원", "01012345678"));
+        var other = users.save(new User("edit-other@example.com", "hash", "다른 회원", "01099998888"));
+        var id = inquiries.create(owner.getId(), details("수정 기관")).inquiry().getId();
+        inquiries.update(id, 0, GroupInquiryStatus.CONSULTING, "로컬 관리자 전용 견적 메모", null);
+        assertThatThrownBy(() -> inquiries.detailForMember(other.getId(), id)).hasMessageContaining("찾을 수 없");
+        assertThatThrownBy(() -> inquiries.reviseByMember(other.getId(), id, 1, 30, "10월 오전")).hasMessageContaining("찾을 수 없");
+        assertThatThrownBy(() -> inquiries.cancelByMember(other.getId(), id, 1)).hasMessageContaining("찾을 수 없");
+        var revised = inquiries.reviseByMember(owner.getId(), id, 1, 30, "10월 오전");
+        assertThat(revised.view().details().headcount()).isEqualTo(30);
+        assertThat(revised.changes()).singleElement().satisfies(change -> assertThat(change.note()).contains("20명 → 30명", "9월 평일 오전 → 10월 오전"));
+        assertThat(inquiries.detailForAdmin(id).activities()).hasSize(2);
+        assertThatThrownBy(() -> inquiries.reviseByMember(owner.getId(), id, 1, 40, "오래된 일정")).hasMessageContaining("문의가 변경");
+        assertThat(inquiries.detailForMember(owner.getId(), id).view().details().headcount()).isEqualTo(30);
+        inquiries.scheduleContact(id, 2, LocalDate.of(2026, 9, 6), 99L);
+        var canceled = inquiries.cancelByMember(owner.getId(), id, 3);
+        assertThat(canceled.view().inquiry().getStatus()).isEqualTo(GroupInquiryStatus.CANCELED);
+        assertThat(canceled.view().inquiry().getNextContactOn()).isNull();
+        assertThat(canceled.changes()).hasSize(2);
+        assertThat(inquiries.followUps(null, 20).content()).isEmpty();
+        assertThatThrownBy(() -> inquiries.update(id, 4, GroupInquiryStatus.CONSULTING, "취소 문의 재개", 99L)).isInstanceOf(HappyGalleryException.class);
+        assertThatThrownBy(() -> inquiries.reviseByMember(owner.getId(), id, 4, 50, "취소 후 수정")).hasMessageContaining("확정 전");
+        assertThat(jdbc.queryForList("SELECT note_enc FROM group_inquiry_activities", String.class))
+                .allSatisfy(value -> assertThat(value).startsWith("hg:").doesNotContain("관리자", "10월", "회원"));
+        var confirmedId = inquiries.create(owner.getId(), details("확정 기관")).inquiry().getId();
+        inquiries.update(confirmedId, 0, GroupInquiryStatus.CONSULTING, "상담", 99L);
+        inquiries.update(confirmedId, 1, GroupInquiryStatus.CONFIRMED, "확정", 99L);
+        assertThatThrownBy(() -> inquiries.cancelByMember(owner.getId(), confirmedId, 2)).hasMessageContaining("확정 전");
+        assertThatThrownBy(() -> inquiries.reviseByMember(owner.getId(), confirmedId, 2, 30, "확정 후 수정")).hasMessageContaining("확정 전");
+    }
+
+    @Test
+    @DisplayName("관리자는 접수 번호와 경로 및 접수일 종료 시각까지 조회하고 같은 조건으로 다음 페이지를 연다")
+    void adminSearchScopesBeforePaging() {
+        var before = inquiries.createExternal(99L, details("전날 접수")).view().inquiry().getId();
+        var first = inquiries.createExternal(99L, details("시작 시각")).view().inquiry().getId();
+        var last = inquiries.createExternal(99L, details("마지막 시각")).view().inquiry().getId();
+        var after = inquiries.createExternal(99L, details("다음날 접수")).view().inquiry().getId();
+        inquiries.create(null, details("웹 접수"));
+        jdbc.update("UPDATE group_inquiries SET created_at = '2026-09-05 23:59:59' WHERE id = ?", before);
+        jdbc.update("UPDATE group_inquiries SET created_at = '2026-09-06 00:00:00' WHERE id = ?", first);
+        jdbc.update("UPDATE group_inquiries SET created_at = '2026-09-06 23:59:59.999999' WHERE id = ?", last);
+        jdbc.update("UPDATE group_inquiries SET created_at = '2026-09-07 00:00:00' WHERE id = ?", after);
+        var date = LocalDate.of(2026, 9, 6);
+        var filter = new GroupInquiryUseCase.AdminFilter(GroupInquiryStatus.RECEIVED, GroupInquiry.Source.EXTERNAL, null, date, date);
+        var page = inquiries.listForAdmin(filter, null, 1);
+        assertThat(page.content()).singleElement().satisfies(row -> assertThat(row.inquiry().getId()).isEqualTo(last));
+        assertThat(page.hasMore()).isTrue();
+        var next = inquiries.listForAdmin(filter, page.nextCursor(), 1);
+        assertThat(next.content()).singleElement().satisfies(row -> assertThat(row.inquiry().getId()).isEqualTo(first));
+        assertThat(next.hasMore()).isFalse();
+        assertThat(inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(null, null, first, null, null), null, 20).content()).hasSize(1);
+        assertThat(inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(null, GroupInquiry.Source.WEBSITE, first, null, null), null, 20).content()).isEmpty();
+        assertThatThrownBy(() -> inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(null, null, null, date.plusDays(1), date), null, 20))
+                .hasMessageContaining("조회 시작일");
     }
 
     private GroupInquiryDetails details(String organization) {

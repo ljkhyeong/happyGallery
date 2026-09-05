@@ -1,6 +1,9 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.inquiry.dto.GroupInquiryRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.MyGroupInquiryResponse;
+import com.personal.happygallery.adapter.in.web.customer.dto.UpdateMyGroupInquiryRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.CancelMyGroupInquiryRequest;
 import com.personal.happygallery.adapter.in.web.inquiry.dto.GroupInquiryReceiptResponse;
 import com.personal.happygallery.adapter.in.web.inquiry.dto.GroupInquiryPageResponse;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
@@ -10,6 +13,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,5 +41,26 @@ public class MeGroupInquiryController {
     public GroupInquiryPageResponse list(@AuthenticationPrincipal CustomerPrincipal customer,
             @RequestParam(required = false) String cursor, @RequestParam(defaultValue = "20") int size) {
         return GroupInquiryPageResponse.from(inquiries.listForMember(customer.userId(), cursor, size));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(operationId = "getMyGroupInquiry")
+    public MyGroupInquiryResponse detail(@AuthenticationPrincipal CustomerPrincipal customer, @PathVariable Long id) {
+        return MyGroupInquiryResponse.from(inquiries.detailForMember(customer.userId(), id));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(operationId = "updateMyGroupInquiry")
+    public MyGroupInquiryResponse update(@AuthenticationPrincipal CustomerPrincipal customer, @PathVariable Long id,
+            @Valid @RequestBody UpdateMyGroupInquiryRequest request) {
+        return MyGroupInquiryResponse.from(inquiries.reviseByMember(customer.userId(), id, request.version(),
+                request.headcount(), request.preferredSchedule()));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(operationId = "cancelMyGroupInquiry")
+    public MyGroupInquiryResponse cancel(@AuthenticationPrincipal CustomerPrincipal customer, @PathVariable Long id,
+            @Valid @RequestBody CancelMyGroupInquiryRequest request) {
+        return MyGroupInquiryResponse.from(inquiries.cancelByMember(customer.userId(), id, request.version()));
     }
 }

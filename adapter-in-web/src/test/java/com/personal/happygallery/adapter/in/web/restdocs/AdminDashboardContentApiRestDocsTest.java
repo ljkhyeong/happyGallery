@@ -5,6 +5,7 @@ import com.personal.happygallery.adapter.in.web.admin.AdminInquiryController;
 import com.personal.happygallery.adapter.in.web.admin.AdminGroupInquiryController;
 import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
+import com.personal.happygallery.domain.inquiry.GroupInquiry;
 import com.personal.happygallery.adapter.in.web.admin.AdminNoticeController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminReviewController;
@@ -49,6 +50,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,6 +64,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
 
     private static final String SNIPPET_GROUP = "admin-api-rest-docs-test";
 
+    private GroupInquiryUseCase groupInquiries;
     private MockMvc mockMvc;
     private DashboardQueryUseCase dashboardQueryUseCase;
     private NoticeAdminUseCase noticeAdminUseCase;
@@ -214,12 +217,12 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 eq(71L), eq(ReviewReportStatus.ACCEPTED), any(), eq(ADMIN_USER_ID)))
                 .thenReturn(acceptedReport);
 
-        var groupInquiries = mock(GroupInquiryUseCase.class);
+        groupInquiries = mock(GroupInquiryUseCase.class);
         var groupDetail = GroupInquiryRestDocsFixtures.detail();
         when(groupInquiries.detailForAdmin(51L)).thenReturn(groupDetail);
         when(groupInquiries.followUps(null, 20)).thenReturn(new CursorPage<>(List.of(groupDetail.view()), null, false));
         when(groupInquiries.scheduleContact(51L, 0, LocalDate.of(2026, 9, 6), ADMIN_USER_ID)).thenReturn(groupDetail);
-        when(groupInquiries.listForAdmin(isNull(), isNull(), eq(20)))
+        when(groupInquiries.listForAdmin(any(), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(groupDetail.view()), null, false));
         when(groupInquiries.createExternal(eq(ADMIN_USER_ID), any())).thenReturn(groupDetail);
         when(groupInquiries.update(51L, 0L, GroupInquiryStatus.CONSULTING, "일정 협의 중", ADMIN_USER_ID)).thenReturn(groupDetail);
@@ -249,6 +252,18 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/admin/group-inquiries").with(adminUser()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(51));
     }
+    @Test
+    @DisplayName("관리자 단체 문의 검색은 번호와 경로 및 날짜 조건을 전달한다")
+    void admin_group_inquiry_search() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/group-inquiries").with(adminUser())
+                        .param("inquiryId", "51").param("source", "WEBSITE")
+                        .param("from", "2026-09-01").param("to", "2026-09-06"))
+                .andExpect(status().isOk());
+        verify(groupInquiries).listForAdmin(new GroupInquiryUseCase.AdminFilter(null,
+                GroupInquiry.Source.WEBSITE, 51L,
+                LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 6)), null, 20);
+    }
+
     @Test
     @DisplayName("관리자에게 단체 문의의 연락처와 상담 이력을 제공한다")
     void admin_group_inquiry_detail() throws Exception {

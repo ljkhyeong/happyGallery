@@ -15,6 +15,7 @@ export const GroupInquirySummaryResponseStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface GroupInquirySummaryResponse {
@@ -97,6 +98,7 @@ export const ActivityResponseFromStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export type ActivityResponseToStatus = typeof ActivityResponseToStatus[keyof typeof ActivityResponseToStatus];
@@ -107,6 +109,7 @@ export const ActivityResponseToStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface ActivityResponse {
@@ -116,6 +119,7 @@ export interface ActivityResponse {
   /** @nullable */
   fromStatus: ActivityResponseFromStatus;
   id: number;
+  memberAction: boolean;
   note: string;
   toStatus: ActivityResponseToStatus;
 }
@@ -137,6 +141,7 @@ export const GroupInquiryFollowUpStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface GroupInquiryFollowUp {
@@ -161,6 +166,7 @@ export const GroupInquiryUpdateRequestStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface GroupInquiryUpdateRequest {
@@ -629,6 +635,10 @@ export interface SmartStoreSettlementSyncResponse {
 
 export type ListAdminGroupInquiriesParams = {
 status?: ListAdminGroupInquiriesStatus;
+source?: ListAdminGroupInquiriesSource;
+inquiryId?: number;
+from?: string;
+to?: string;
 cursor?: string;
 size?: number;
 };
@@ -641,6 +651,15 @@ export const ListAdminGroupInquiriesStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export type ListAdminGroupInquiriesSource = typeof ListAdminGroupInquiriesSource[keyof typeof ListAdminGroupInquiriesSource];
+
+
+export const ListAdminGroupInquiriesSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
 } as const;
 
 export type ListAdminGroupInquiryFollowUpsParams = {

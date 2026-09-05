@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,6 +32,10 @@ class GroupInquiryApiRestDocsTest extends RestDocsTestSupport {
         when(useCase.create(isNull(), any())).thenReturn(view);
         when(useCase.create(eq(CUSTOMER_USER_ID), any())).thenReturn(view);
         when(useCase.listForMember(CUSTOMER_USER_ID, null, 20)).thenReturn(new CursorPage<>(List.of(view), null, false));
+        var memberDetail = new GroupInquiryUseCase.MemberDetail(view, List.of());
+        when(useCase.detailForMember(CUSTOMER_USER_ID, 51L)).thenReturn(memberDetail);
+        when(useCase.reviseByMember(CUSTOMER_USER_ID, 51L, 0, 30, "10월 오전")).thenReturn(memberDetail);
+        when(useCase.cancelByMember(CUSTOMER_USER_ID, 51L, 0)).thenReturn(memberDetail);
         mvc = mockMvc(documentation, new GroupInquiryController(useCase), new MeGroupInquiryController(useCase));
     }
     @Test
@@ -53,5 +58,30 @@ class GroupInquiryApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].organization").value("충주 기관"))
                 .andExpect(jsonPath("$.content[0].phone").doesNotExist())
                 .andExpect(jsonPath("$.content[0].activities").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("회원 문의 상세는 버전과 본인 변경 이력을 반환하고 관리자 연락일과 메모는 노출하지 않는다")
+    void member_detail() throws Exception {
+        mvc.perform(get("/api/v1/me/group-inquiries/51").with(customerUser()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(0))
+                .andExpect(jsonPath("$.changes").isArray()).andExpect(jsonPath("$.activities").doesNotExist())
+                .andExpect(jsonPath("$.nextContactOn").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("회원 문의 수정과 취소 요청은 읽은 버전을 필수로 받는다")
+    void member_update_and_cancel() throws Exception {
+        mvc.perform(put("/api/v1/me/group-inquiries/51").with(customerUser()).contentType(APPLICATION_JSON)
+                        .content("{\"version\":0,\"headcount\":30,\"preferredSchedule\":\"10월 오전\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/me/group-inquiries/51/cancel").with(customerUser()).contentType(APPLICATION_JSON)
+                        .content("{\"version\":0}"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/v1/me/group-inquiries/51").with(customerUser()).contentType(APPLICATION_JSON)
+                        .content("{\"headcount\":30,\"preferredSchedule\":\"10월 오전\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/me/group-inquiries/51/cancel").with(customerUser()).contentType(APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest());
     }
 }

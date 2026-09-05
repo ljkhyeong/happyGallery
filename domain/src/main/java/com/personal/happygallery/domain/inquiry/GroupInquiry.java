@@ -49,7 +49,7 @@ public class GroupInquiry {
     }
 
     public void recordConsultation(long expectedVersion, GroupInquiryStatus next, LocalDateTime now) {
-        if (version != expectedVersion) throw new HappyGalleryException(ErrorCode.CONFLICT, "다른 관리자가 상담을 변경했습니다. 새로고침 후 다시 확인해 주세요.");
+        requireVersion(expectedVersion);
         status.requireTransitionTo(next);
         status = next;
         if (next == GroupInquiryStatus.CLOSED) nextContactOn = null;
@@ -57,11 +57,32 @@ public class GroupInquiry {
     }
 
     public void scheduleContact(long expectedVersion, LocalDate date, LocalDateTime now) {
-        if (status == GroupInquiryStatus.CLOSED) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "종료한 상담은 다시 연 뒤 연락일을 지정해 주세요.");
+        if (status == GroupInquiryStatus.CLOSED || status == GroupInquiryStatus.CANCELED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "종료하거나 취소한 문의에는 연락일을 지정할 수 없습니다.");
         }
         recordConsultation(expectedVersion, status, now);
         nextContactOn = date;
+    }
+
+    public void reviseByMember(long expectedVersion, String encryptedDetails, LocalDateTime now) {
+        requireVersion(expectedVersion);
+        status.requireMemberChange();
+        detailsEnc = encryptedDetails;
+        updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
+    }
+
+    public void cancelByMember(long expectedVersion, LocalDateTime now) {
+        requireVersion(expectedVersion);
+        status.requireMemberChange();
+        status = GroupInquiryStatus.CANCELED;
+        nextContactOn = null;
+        updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
+    }
+
+    private void requireVersion(long expectedVersion) {
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "문의가 변경되었습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
+        }
     }
 
     public LocalDate getNextContactOn() { return nextContactOn; }

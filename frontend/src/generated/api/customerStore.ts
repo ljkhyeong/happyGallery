@@ -57,6 +57,7 @@ export const GroupInquiryReceiptResponseStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface GroupInquiryReceiptResponse {
@@ -259,6 +260,7 @@ export const GroupInquirySummaryResponseStatus = {
   CONSULTING: 'CONSULTING',
   CONFIRMED: 'CONFIRMED',
   CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
 } as const;
 
 export interface GroupInquirySummaryResponse {
@@ -278,6 +280,36 @@ export interface GroupInquiryPageResponse {
   hasMore: boolean;
   /** @nullable */
   nextCursor: string | null;
+}
+
+export interface MyGroupInquiryChange {
+  createdAt: string;
+  id: number;
+  note: string;
+}
+
+export interface MyGroupInquiryResponse {
+  changes: MyGroupInquiryChange[];
+  summary: GroupInquirySummaryResponse;
+  version: number;
+}
+
+export interface UpdateMyGroupInquiryRequest {
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+  version: number;
+}
+
+export interface CancelMyGroupInquiryRequest {
+  version: number;
 }
 
 export interface ClaimGuestRecordsRequest {
@@ -1252,6 +1284,71 @@ export const createMyGroupInquiry = async (groupInquiryRequest: GroupInquiryRequ
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
+
+export const getGetMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}`
+}
+
+export const getMyGroupInquiry = async (id: number, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getGetMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}`
+}
+
+export const updateMyGroupInquiry = async (id: number,
+    updateMyGroupInquiryRequest: UpdateMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getUpdateMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateMyGroupInquiryRequest)
+  }
+);}
+
+
+
+export const getCancelMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}/cancel`
+}
+
+export const cancelMyGroupInquiry = async (id: number,
+    cancelMyGroupInquiryRequest: CancelMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getCancelMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cancelMyGroupInquiryRequest)
   }
 );}
 

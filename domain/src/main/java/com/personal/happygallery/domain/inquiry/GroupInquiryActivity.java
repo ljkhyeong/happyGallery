@@ -19,6 +19,8 @@ public class GroupInquiryActivity {
     private Long inquiryId;
     @Column(name = "admin_id")
     private Long adminId;
+    @Column(name = "member_action", nullable = false)
+    private boolean memberAction;
     @Enumerated(EnumType.STRING) @Column(name = "from_status", length = 20)
     private GroupInquiryStatus fromStatus;
     @Enumerated(EnumType.STRING) @Column(name = "to_status", nullable = false, length = 20)
@@ -40,6 +42,14 @@ public class GroupInquiryActivity {
         this.createdAt = now;
     }
 
+    public static GroupInquiryActivity forMember(Long inquiryId, GroupInquiryStatus fromStatus,
+            GroupInquiryStatus toStatus, String noteEnc, LocalDateTime now) {
+        var activity = new GroupInquiryActivity(inquiryId, null, fromStatus, toStatus, noteEnc, now);
+        activity.memberAction = true;
+        return activity;
+    }
+
+    public boolean isMemberAction() { return memberAction; }
     public Long getId() { return id; }
     public Long getAdminId() { return adminId; }
     public GroupInquiryStatus getFromStatus() { return fromStatus; }

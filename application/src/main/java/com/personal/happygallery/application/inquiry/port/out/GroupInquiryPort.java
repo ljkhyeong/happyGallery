@@ -11,7 +11,8 @@ public interface GroupInquiryPort {
     GroupInquiry saveAndFlush(GroupInquiry inquiry);
     Optional<GroupInquiry> findById(Long id);
     Optional<GroupInquiry> findByIdForUpdate(Long id);
-    List<GroupInquiry> search(Long userId, GroupInquiryStatus status, LocalDateTime before, Long beforeId, int limit);
+    List<GroupInquiry> search(Long userId, GroupInquiryStatus status, GroupInquiry.Source source, Long inquiryId,
+            LocalDateTime from, LocalDateTime until, LocalDateTime before, Long beforeId, int limit);
     List<GroupInquiry> findFollowUps(LocalDate today, LocalDate after, Long afterId, int limit);
     void deleteByUserId(Long userId);
 }

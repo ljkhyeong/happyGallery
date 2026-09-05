@@ -18,6 +18,7 @@ public record AdminGroupInquiryResponse(
     public record ActivityResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long adminId,
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean memberAction,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) GroupInquiryStatus fromStatus,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) GroupInquiryStatus toStatus,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String note,
@@ -27,7 +28,7 @@ public record AdminGroupInquiryResponse(
         return new AdminGroupInquiryResponse(GroupInquirySummaryResponse.from(detail.view()),
                 GroupInquiryRequest.from(detail.view().details()), detail.view().inquiry().getVersion(), detail.view().inquiry().getNextContactOn(),
                 detail.activities().stream().map(item -> new ActivityResponse(item.activity().getId(),
-                        item.activity().getAdminId(), item.activity().getFromStatus(), item.activity().getToStatus(),
+                        item.activity().getAdminId(), item.activity().isMemberAction(), item.activity().getFromStatus(), item.activity().getToStatus(),
                         item.note(), item.activity().getCreatedAt())).toList());
     }
 }

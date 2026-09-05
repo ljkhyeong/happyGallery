@@ -11,12 +11,18 @@ import java.time.LocalDate;
 public interface GroupInquiryUseCase {
     record View(GroupInquiry inquiry, GroupInquiryDetails details) {}
     record ActivityView(GroupInquiryActivity activity, String note) {}
+    record MemberDetail(View view, List<ActivityView> changes) {}
+    record AdminFilter(GroupInquiryStatus status, GroupInquiry.Source source, Long inquiryId,
+                       LocalDate from, LocalDate to) {}
     record Detail(View view, List<ActivityView> activities) {}
 
     View create(Long userId, GroupInquiryDetails details);
     Detail createExternal(Long adminId, GroupInquiryDetails details);
-    CursorPage<View> listForAdmin(GroupInquiryStatus status, String cursor, int size);
+    CursorPage<View> listForAdmin(AdminFilter filter, String cursor, int size);
     CursorPage<View> listForMember(Long userId, String cursor, int size);
+    MemberDetail detailForMember(Long userId, Long id);
+    MemberDetail reviseByMember(Long userId, Long id, long version, int headcount, String preferredSchedule);
+    MemberDetail cancelByMember(Long userId, Long id, long version);
     Detail detailForAdmin(Long id);
     Detail scheduleContact(Long id, long version, LocalDate nextContactOn, Long adminId);
     CursorPage<View> followUps(String cursor, int size);

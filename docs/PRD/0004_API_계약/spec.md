@@ -4278,14 +4278,14 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 | `POST /api/v1/group-inquiries` | 비회원 접수. CSRF 필요. 201 `{id,status}` 반환 |
 | `POST /api/v1/me/group-inquiries` | 회원 세션의 사용자로 접수. 201 `{id,status}` 반환 |
 | `GET /api/v1/me/group-inquiries` | 본인 문의만 조회. `cursor`, `size`(기본 20, 1~100), `{content,nextCursor,hasMore}` |
-| `GET /api/v1/admin/group-inquiries` | 관리자 전체/상태별 조회. `status` 선택, 동일 커서 계약 |
+| `GET /api/v1/admin/group-inquiries` | 관리자 조회. `status,inquiryId,source,from,to` 선택, 동일 커서 계약 |
 | `POST /api/v1/admin/group-inquiries` | 외부 문의를 `EXTERNAL` 출처로 등록. 201 관리자 상세 반환 |
 | `GET /api/v1/admin/group-inquiries/{id}` | 문의 조건·담당 연락처·버전·상담 이력 조회 |
 | `PUT /api/v1/admin/group-inquiries/{id}` | 필수 `version`(0 이상), `status`, `note`(공백 불가, 2000자 이하). 갱신 상세 반환 |
 
 접수 본문: 필수 `organization`·`preferredSchedule`·`location`·`classInterest`(각 200자 이하), `contactName`(100자 이하), `phone`(국내 휴대폰), `headcount`(1~500); `email`·`message`는 누락/null 가능하며 추가 요청은 2000자 이하이다. 회원 ID와 출처는 본문으로 받지 않는다. 본인 이력과 관리자 목록은 연락처·메모를 제외한 요약이며 상세·상담 이력은 관리자에게만 반환한다.
 
-상태는 `RECEIVED`, `CONSULTING`, `CONFIRMED`, `CLOSED`, 출처는 `WEBSITE`, `EXTERNAL`이다. 접수→상담 중/종료, 상담 중→확정/종료, 확정→상담 중/종료, 종료→상담 중 전환과 같은 상태의 메모 추가를 허용한다. 버전·상태 충돌은 409, 잘못된 입력·커서는 400, 미존재 문의는 404다. 공개 접수는 동일 IP 5회/10분을 공유하고 초과 429, 제한 저장소 장애 503을 반환한다.
+상태는 `RECEIVED`, `CONSULTING`, `CONFIRMED`, `CLOSED`, `CANCELED`, 출처는 `WEBSITE`, `EXTERNAL`이다. 접수→상담 중/종료, 상담 중→확정/종료, 확정→상담 중/종료, 종료→상담 중 전환과 같은 상태의 메모 추가를 허용한다. 버전·상태 충돌은 409, 잘못된 입력·커서는 400, 미존재 문의는 404다. 공개 접수는 동일 IP 5회/10분을 공유하고 초과 429, 제한 저장소 장애 503을 반환한다.
 
 ### 회원 주문 목록 상품 검색
 
@@ -4302,7 +4302,7 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 ### 단체 문의 다음 연락일
 
 - `PUT /api/v1/admin/group-inquiries/{id}/next-contact`: `{version, nextContactOn}`. 서울 기준 `YYYY-MM-DD`, 생략·null은 연락일 해제다. 관리자 상세 응답에 필수 nullable `nextContactOn`을 추가한다.
-- `GET /api/v1/admin/group-inquiries/follow-ups?cursor&size`: 오늘 또는 이전 연락일이 지정된 미종료 문의를 연락일·ID 오름차순 커서 페이지로 조회한다. 응답 `{content:[{id,organization,status,nextContactOn}],nextCursor,hasMore}`. 기본 20, 최대 100. 연락처와 상담 메모는 목록에 포함하지 않는다.
+- `GET /api/v1/admin/group-inquiries/follow-ups?cursor&size`: 오늘 또는 이전 연락일이 지정된 종료·고객 취소를 제외한 문의를 연락일·ID 오름차순 커서 페이지로 조회한다. 응답 `{content:[{id,organization,status,nextContactOn}],nextCursor,hasMore}`. 기본 20, 최대 100. 연락처와 상담 메모는 목록에 포함하지 않는다.
 - 종료한 상담은 연락일 지정을 400으로 거절하고 먼저 상담을 다시 열도록 안내한다. 오래된 변경 번호는 409. 기존 상담 상태·메모 수정 API는 유지한다.
 
 ### 관리자 재입고 대기 현황
@@ -4315,3 +4315,12 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 - `GET /api/v1/me/favorites/{type}/{targetId}`: `{saved}`로 저장 여부를 조회한다. `PUT` 같은 경로는 저장, `DELETE`는 해제하고 모두 204를 반환한다. 중복 저장과 반복 해제는 한 번 수행한 결과를 유지한다.
 - 현재 활성 상품·클래스만 신규 저장할 수 있다. 저장 이후 중지된 항목은 내 목록에 `active=false`로 표시하며 해제할 수 있다. 대상을 물리 삭제하면 찜도 함께 삭제된다.
 - 회원 세션과 CSRF 보호를 적용하고 요청 본문으로 다른 회원 ID를 받지 않는다. 찜은 전화번호 인증 없이 로그인 회원에게 제공한다.
+
+### 회원 단체 문의 수정·취소와 관리자 검색
+
+- `GET /api/v1/me/group-inquiries/{id}`는 본인의 `summary`, `version`, `changes[] {id,note,createdAt}`를 반환한다. 변경 이력은 회원의 일정·인원 수정과 취소만 포함하며 관리자 상담 메모·연락일·연락처는 포함하지 않는다.
+- `PUT /api/v1/me/group-inquiries/{id}`는 `{version,headcount,preferredSchedule}`를 받는다. 모두 필수이며 version은 0 이상, 인원은 1~500명, 일정은 공백이 아닌 200자 이하다.
+- `POST /api/v1/me/group-inquiries/{id}/cancel`은 `{version}`을 받아 `CANCELED`(고객 취소)로 변경하고 다음 연락일을 해제한다. 수정·취소 성공은 최신 상세를 `200 OK`로 반환한다.
+- 수정·취소는 현재 상태가 `RECEIVED` 또는 `CONSULTING`일 때만 가능하다. 타인·비회원 문의는 `404 NOT_FOUND`, 화면 버전 불일치 또는 확정·종료·취소 상태는 `409 CONFLICT`다. 관리자도 `CANCELED` 문의를 다시 열 수 없다.
+- `GET /api/v1/admin/group-inquiries`는 기존 `status,cursor,size`에 선택 조건 `inquiryId,source,from,to`를 추가한다. 번호는 양수이며 경로는 `WEBSITE|EXTERNAL`, 날짜는 서울 접수일 기준 `YYYY-MM-DD`다. 시작일 00시 이상, 종료일 다음날 00시 미만을 조회하며 날짜 역전은 `400 INVALID_INPUT`이다. 모든 조건을 적용한 뒤 기존 접수 시각·ID 역순으로 페이지를 나눈다.
+- 관리자 상세 이력에 필수 `memberAction`을 추가한다. `true`는 회원 변경이고, `false`이면서 `adminId=null`인 기존 기록은 로컬 관리자 작업이다.

@@ -12,22 +12,25 @@
             "type" : "string"
           },
           "fromStatus" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : [ "string", "null" ]
           },
           "id" : {
             "format" : "int64",
             "type" : "integer"
           },
+          "memberAction" : {
+            "type" : "boolean"
+          },
           "note" : {
             "type" : "string"
           },
           "toStatus" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : "string"
           }
         },
-        "required" : [ "adminId", "createdAt", "fromStatus", "id", "note", "toStatus" ],
+        "required" : [ "adminId", "createdAt", "fromStatus", "id", "memberAction", "note", "toStatus" ],
         "type" : "object"
       },
       "AddCartItemRequest" : {
@@ -1802,6 +1805,16 @@
         "required" : [ "orders" ],
         "type" : "object"
       },
+      "CancelMyGroupInquiryRequest" : {
+        "properties" : {
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "version" ],
+        "type" : "object"
+      },
       "CancelResponse" : {
         "properties" : {
           "bookingId" : {
@@ -3478,7 +3491,7 @@
             "type" : "string"
           },
           "status" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : "string"
           }
         },
@@ -3528,7 +3541,7 @@
             "type" : "integer"
           },
           "status" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : "string"
           }
         },
@@ -3618,7 +3631,7 @@
             "type" : "string"
           },
           "status" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : "string"
           }
         },
@@ -3633,7 +3646,7 @@
             "type" : "string"
           },
           "status" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
             "type" : "string"
           },
           "version" : {
@@ -4535,6 +4548,42 @@
           }
         },
         "required" : [ "claimedAt", "definitionId", "discountType", "discountValue", "id", "maxDiscountAmount", "minOrderAmount", "name", "reservedAt", "status", "usedAt", "validFrom", "validUntil" ],
+        "type" : "object"
+      },
+      "MyGroupInquiryChange" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "note" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "note" ],
+        "type" : "object"
+      },
+      "MyGroupInquiryResponse" : {
+        "properties" : {
+          "changes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/MyGroupInquiryChange"
+            },
+            "type" : "array"
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/GroupInquirySummaryResponse"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "changes", "summary", "version" ],
         "type" : "object"
       },
       "MyInquiryPageResponse" : {
@@ -9065,6 +9114,27 @@
         "required" : [ "phone", "verificationCode" ],
         "type" : "object"
       },
+      "UpdateMyGroupInquiryRequest" : {
+        "properties" : {
+          "headcount" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "preferredSchedule" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "headcount", "preferredSchedule", "version" ],
+        "type" : "object"
+      },
       "UpdateNoticeRequest" : {
         "properties" : {
           "content" : {
@@ -10790,7 +10860,39 @@
           "name" : "status",
           "required" : false,
           "schema" : {
-            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED", "CANCELED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "source",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "WEBSITE", "EXTERNAL" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "inquiryId",
+          "required" : false,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
             "type" : "string"
           }
         }, {
@@ -16614,6 +16716,105 @@
               }
             },
             "description" : "Created"
+          }
+        },
+        "tags" : [ "me-group-inquiry-controller" ]
+      }
+    },
+    "/api/v1/me/group-inquiries/{id}" : {
+      "get" : {
+        "operationId" : "getMyGroupInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-group-inquiry-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateMyGroupInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateMyGroupInquiryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-group-inquiry-controller" ]
+      }
+    },
+    "/api/v1/me/group-inquiries/{id}/cancel" : {
+      "post" : {
+        "operationId" : "cancelMyGroupInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CancelMyGroupInquiryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MyGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "OK"
           }
         },
         "tags" : [ "me-group-inquiry-controller" ]
