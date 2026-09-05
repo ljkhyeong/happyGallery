@@ -68,7 +68,7 @@
 ### 5. 배포 인프라
 
 - `nginx/nginx.conf`와 `docker-compose.yml`의 Nginx 서비스는 로컬 React Router SSR frontend와 API를 한 origin으로 연결하는 reverse proxy 통합 검증·복구 진단용으로 유지한다. 로컬 reverse proxy도 access log를 끄고 결제 callback query를 기록하지 않는다.
-- 운영 목표는 [ADR-0049](../0049_저예산_클라우드_운영_기준/adr.md)에 따라 단일 클라우드 VM의 k3s와 Kubernetes Ingress를 사용한다. ADR-0037의 배포·데이터 보호 조건은 유지한다. Docker Compose의 `local` 프로필과 개발 기본값을 운영 구성으로 사용하지 않는다.
+- 운영 목표는 [ADR-0037](../0037_자가_호스팅_배포_토폴로지_기준/adr.md)에 따라 단일 Linux 노트북의 k3s와 Kubernetes Ingress를 먼저 설치·검증한다. [ADR-0049](../0049_저예산_클라우드_운영_기준/adr.md)의 클라우드 VM은 대체 후보로 보류한다. Docker Compose의 `local` 프로필과 개발 기본값을 운영 구성으로 사용하지 않는다.
 - ingress는 `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`를 덮어쓰거나 정규화하고 애플리케이션 직접 접근을 차단한다.
 - `application-prod.yml`은 forwarded header 신뢰를 기본적으로 끈다. 통제된 ingress가 헤더를
   덮어쓰고 직접 접근을 차단한 뒤에만 `FORWARD_HEADERS_STRATEGY=native`로 Tomcat의 전달 헤더
@@ -83,7 +83,7 @@
 - **일반 Email/Push 알림 채널** (PRD §7): `NotificationChannel` enum에 값은 있으나
   일반 알림 outbox용 어댑터는 구현하지 않았다. 회원 이메일 소유 확인용 SMTP 발송은
   별도 인증 경계이며 일반 알림 채널로 보지 않는다.
-- **실환경 개통**: k3s 산출물은 구현됐지만 실제 클라우드 VM의 DNS·방화벽·TLS, 외부 암호화 백업 mount·중단 시간, 복원 훈련과 핵심 사용자 흐름 검증은 운영 개시 전에 수행해야 한다([개통 절차](../../../deploy/cloud/README.md)).
+- **실환경 개통**: k3s 산출물은 구현됐지만 실제 운영 호스트의 DNS·방화벽·TLS, 외부 암호화 백업 mount·중단 시간, 복원 훈련과 핵심 사용자 흐름 검증은 운영 개시 전에 수행해야 한다([노트북 설치 준비](../../../deploy/laptop/README.md), [서비스 배포·복구](../../../deploy/k3s/README.md)).
 - **신뢰 프록시 경계**: 공유기, 터널 또는 별도 프록시를 ingress 앞에 추가하면 신뢰 가능한 홉과 전달 헤더 정규화 규칙을 명시하고 실제 IP 기반 처리율 제한을 다시 검증해야 한다.
 
 ## Update (2026-04-26)

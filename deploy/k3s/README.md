@@ -1,9 +1,9 @@
 # happyGallery 단일 노드 k3s 운영
 
-이 디렉터리는 단일 노드 k3s의 서비스 배포·백업·복원 절차를 관리한다. 목표 운영 호스트는 [ADR-0049](../../docs/ADR/0049_저예산_클라우드_운영_기준/adr.md)의 클라우드 VM이며, 서버 구매·DNS·방화벽·원격 백업 연결은 [클라우드 운영 준비](../cloud/README.md)를 먼저 따른다. ADR-0037의 배포·데이터 보호 조건은 유지한다. Docker Compose는 계속 로컬 개발·복구 진단용이며 이 manifest의 대체물이 아니다.
+이 디렉터리는 단일 노드 k3s의 서비스 배포·백업·복원 절차를 관리한다. 현재는 [ADR-0037](../../docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)에 따라 보유 노트북에 먼저 설치해 검증한다. OS·전원·회선·원격 백업 준비는 [노트북 설치 준비](../laptop/README.md)를 따른다. [클라우드 운영 준비](../cloud/README.md)는 대체 후보이며 VM 구매는 보류다. Docker Compose는 계속 로컬 개발·복구 진단용이며 이 manifest의 대체물이 아니다.
 
 ```text
-Internet -> VM firewall :80/:443 -> k3s Traefik
+Internet -> 공유기/호스트 방화벽 :80/:443 -> k3s Traefik
                                    -> /api/* -> app:8080
                                    -> 그 외   -> frontend:8080 (React Router Node SSR)
 app -> mysql:3306 (Retain PVC)
@@ -13,7 +13,7 @@ prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
 grafana -> prometheus:9090 (cluster 내부 전용)
 ```
 
-단일 운영 VM, 디스크, 네트워크 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
+단일 운영 호스트, 디스크, 전원, 네트워크 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
 Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 운영 호스트 밖에 별도로 둔다.
 경보 규칙의 단일 원본은 저장소 루트의 `monitoring/alerts.yml`이다. 변경 후 `./deploy/k3s/scripts/sync-prometheus-alerts.sh`를 실행하면 kustomize가 읽는 `base/prometheus-alerts.generated.yml`이 갱신된다. 생성 파일을 직접 편집하지 않으며 `validate.sh`는 원본, 생성 파일과 최종 ConfigMap 중 하나라도 달라지면 실패한다.
 
@@ -30,13 +30,13 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 
 ## 1. 외부 전제
 
-- Linux VM 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
+- Linux 호스트 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
-- 공개 DNS A 레코드가 VM의 공인 IPv4를 가리켜야 한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. 클라우드·호스트 방화벽은 TCP 80/443을 공개하고 SSH는 운영자 IP로 제한한다.
-- 클라우드 VM에는 공인 IPv4를 배정한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
-- 운영 백업 대상은 VM과 다른 업체의 원격 mount다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 VM 내부 디스크를 외부 백업으로 취급하지 않는다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 갱신 방법을 마련한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
+- 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
 
 k3s 설정 예시:
@@ -236,7 +236,7 @@ kubectl -n happygallery port-forward service/grafana 3000:3000
 
 검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 공개 경로에서는 루트 SSR HTML의 canonical·실제 본문·CSP nonce, `robots.txt`, `sitemap.xml`, 알 수 없는 route의 HTTP 404를 함께 검증한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
-운영 VM과 클라우드 방화벽에서는 다음도 별도로 확인한다.
+운영 호스트와 공유기·방화벽에서는 다음도 별도로 확인한다.
 
 - 외부에서 80/443 이외 app 8080/8081, MySQL 3306, Redis 6379, Prometheus 9090 접근 불가
 - 실제 브라우저에서 Secure 세션 cookie, CSRF, Google/Naver/Kakao callback, 결제 confirm
