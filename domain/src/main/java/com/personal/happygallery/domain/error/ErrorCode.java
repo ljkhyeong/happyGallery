@@ -49,7 +49,7 @@ public enum ErrorCode {
     SLOT_NOT_AVAILABLE(409, "예약할 수 없는 슬롯입니다."),
     BOOKING_CONFLICT(409, "동시 변경 요청이 감지되었습니다. 잠시 후 다시 시도해주세요."),
     CART_SNAPSHOT_CHANGED(409, "장바구니가 변경되었습니다. 최신 장바구니를 확인한 뒤 다시 결제해 주세요."),
-    PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 확정을 처리 중입니다. 잠시 후 다시 시도해주세요."),
+    PAYMENT_CONFIRM_IN_PROGRESS(409, "결제 처리 중입니다. 잠시 후 다시 확인해 주세요."),
     PAYMENT_RECONCILIATION_REQUIRED(409, "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요."),
     SMARTSTORE_OPERATION_REJECTED(409, "네이버가 주문 처리 요청을 거절했습니다. 주문 상태와 입력값을 확인해 주세요."),
     SMARTSTORE_OPERATION_RESULT_UNKNOWN(
@@ -91,7 +91,7 @@ public enum ErrorCode {
     REVIEW_INTERACTION_NOT_ALLOWED(422, "공개 중인 후기에만 이 작업을 수행할 수 있습니다."),
     REVIEW_SELF_INTERACTION_NOT_ALLOWED(422, "본인이 작성한 후기에는 이 작업을 수행할 수 없습니다."),
     REVIEW_IMAGE_LIMIT_EXCEEDED(422, "후기 사진은 최대 5장까지 등록할 수 있습니다."),
-    REVIEW_REPORT_DECISION_NOT_ALLOWED(422, "처리 대기 중인 신고만 결정할 수 있습니다."),
+    REVIEW_REPORT_DECISION_NOT_ALLOWED(422, "처리 대기 중인 신고만 인정·반려할 수 있습니다."),
 
     // 500 Internal Server Error — 서버 오류
     INTERNAL_ERROR(500, "서버 내부 오류가 발생했습니다."),

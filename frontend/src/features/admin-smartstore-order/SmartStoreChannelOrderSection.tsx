@@ -458,7 +458,7 @@ function InventoryResolutionModal({
     onSuccess: (resolved) => {
       toast.show(resolved.attentionReason === "STOCK_SHORTAGE"
         ? "상품 연결은 저장했지만 재고가 부족합니다. 재고를 조정한 뒤 다시 시도해 주세요."
-        : "스마트스토어 주문의 상품 연결과 재고 결정을 저장했습니다.");
+        : "스마트스토어 주문의 상품 연결과 재고 반영 방법을 저장했습니다.");
       onCompleted();
     },
   });
@@ -473,7 +473,7 @@ function InventoryResolutionModal({
         if (valid) submit.mutate();
       }}>
         <Modal.Header closeButton={!submit.isPending}>
-          <Modal.Title className="fs-6">스마트스토어 주문 수동 재고 결정</Modal.Title>
+          <Modal.Title className="fs-6">스마트스토어 주문 재고 반영 방법 지정</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={productsQuery.error ?? submit.error} />
@@ -528,9 +528,9 @@ function InventoryResolutionModal({
             </Form.Group>
           )}
           <Form.Group className="mb-3">
-            <Form.Label>재고 결정</Form.Label>
+            <Form.Label>재고 반영 방법</Form.Label>
             <Form.Select
-              aria-label="재고 결정"
+              aria-label="재고 반영 방법"
               value={resolutionAction}
               onChange={(event) => setResolutionAction(
                 event.target.value as ResolveSmartStoreInventoryRequestAction,
@@ -551,14 +551,14 @@ function InventoryResolutionModal({
               maxLength={500}
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              placeholder="상품 연결과 재고 결정을 확인한 근거를 입력하세요."
+              placeholder="상품 연결과 재고 반영 방법을 선택한 근거를 입력하세요."
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" disabled={submit.isPending} onClick={onClose}>취소</Button>
           <Button type="submit" disabled={!valid || submit.isPending}>
-            {submit.isPending ? "저장 중..." : "상품 연결과 재고 결정 저장"}
+            {submit.isPending ? "저장 중..." : "상품 연결과 재고 반영 방법 저장"}
           </Button>
         </Modal.Footer>
       </Form>
@@ -688,7 +688,7 @@ function actions(
           disabled={disabled}
           onClick={() => openInventoryResolution(order)}
         >
-          상품 연결·재고 결정
+          상품 연결·재고 반영 방법
         </Button>
     </div>;
   }

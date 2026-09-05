@@ -134,7 +134,7 @@ class SmartStoreOrderTransactionService {
         if (order.getAttentionReason() != SmartStoreOrderAttentionReason.MAPPING_REQUIRED
                 && order.getAttentionReason() != SmartStoreOrderAttentionReason.STATUS_REVIEW) {
             throw new HappyGalleryException(
-                    ErrorCode.CONFLICT, "수동 재고 결정이 필요한 스마트스토어 주문이 아닙니다.");
+                    ErrorCode.CONFLICT, "재고 반영 방법 지정이 필요한 스마트스토어 주문이 아닙니다.");
         }
         validateManualTarget(order, command.productId(), command.productVariantId());
         order.mapTo(command.productId(), command.productVariantId());
@@ -151,7 +151,7 @@ class SmartStoreOrderTransactionService {
         SmartStoreProductOrder saved = orderPort.save(order);
 
         LocalDateTime changedAt = LocalDateTime.now(clock);
-        String summary = "상품 %d, 옵션 조합 %s, 재고 결정 %s, 목표 적용 %d개, 사유: %s".formatted(
+        String summary = "상품 %d, 옵션 조합 %s, 재고 반영 방법 %s, 목표 적용 %d개, 사유: %s".formatted(
                 command.productId(), Objects.toString(command.productVariantId(), "없음"),
                 command.action(), targetQuantity, command.reason().strip());
         SmartStoreOrderActionHistory history = new SmartStoreOrderActionHistory(

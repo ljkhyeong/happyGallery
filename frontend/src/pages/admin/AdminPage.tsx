@@ -49,7 +49,7 @@ const ADMIN_VIEWS = [
   {
     value: "today",
     label: "오늘 할 일",
-    description: "금전·전달 장애와 오늘 처리할 주문·예약을 우선 확인합니다.",
+    description: "결제·환불·알림 오류와 오늘 처리할 주문·예약을 확인합니다.",
   },
   {
     value: "overview",

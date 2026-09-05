@@ -162,7 +162,7 @@ test("@admin 반품 택배사 계약은 펼칠 때 조회하고 주문 수거 �
   expect(reads).toBe(1);
 });
 
-test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하고 수동 재고 결정을 저장한다", async ({ page }) => {
+test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하고 재고 반영 방법을 지정한다", async ({ page }) => {
   await prepareAdmin(page);
   const reads: Array<Record<string, string>> = [];
   let resolutionBody: Record<string, unknown> | undefined;
@@ -222,7 +222,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
     id: 71,
     action: "INVENTORY_RESOLVED",
     status: "SUCCEEDED",
-    requestSummary: "상품 1, 재고 결정 APPLY_REMAINING, 사유: 스마트스토어 옵션과 내부 상품을 확인",
+    requestSummary: "상품 1, 재고 반영 방법 APPLY_REMAINING, 사유: 스마트스토어 옵션과 내부 상품을 확인",
     resultCode: null,
     resultMessage: null,
     changedByAdminId: 1,
@@ -257,10 +257,10 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   });
   await page.getByRole("button", { name: "다음", exact: true }).click();
   await expect.poll(() => reads.at(-1)).toMatchObject({ cursor: "next-page" });
-  await page.getByRole("button", { name: "상품 연결·재고 결정", exact: true }).click();
+  await page.getByRole("button", { name: "상품 연결·재고 반영 방법", exact: true }).click();
   await page.getByLabel("내부 상품").selectOption("1");
   await page.getByLabel("처리 사유").fill("스마트스토어 옵션과 내부 상품을 확인");
-  await page.getByRole("button", { name: "상품 연결과 재고 결정 저장", exact: true }).click();
+  await page.getByRole("button", { name: "상품 연결과 재고 반영 방법 저장", exact: true }).click();
 
   await expect.poll(() => resolutionBody).toEqual({
     productId: 1,
@@ -270,7 +270,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
     resolutionVersion: "resolution-1",
   });
   await page.getByRole("button", { name: "주문 처리", exact: true }).click();
-  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("수동 재고 결정");
+  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("재고 반영 방법 지정");
   await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("운영 관리자");
 });
 

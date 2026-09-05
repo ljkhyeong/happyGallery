@@ -264,7 +264,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "2026082912345678",
                         SmartStoreOrderAction.INVENTORY_RESOLVED,
                         SmartStoreOrderActionStatus.SUCCEEDED,
-                        "상품 1, 옵션 조합 31, 재고 결정 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
+                        "상품 1, 옵션 조합 31, 재고 반영 방법 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
                         null,
                         null,
                         ADMIN_USER_ID,
@@ -827,7 +827,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 스마트스토어 주문 수동 재고 결정 API를 문서화한다")
+    @DisplayName("관리자 스마트스토어 주문 재고 반영 방법 지정 API를 문서화한다")
     void admin_resolve_smartstore_order_inventory() throws Exception {
         mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution",
                         "2026082912345678")
