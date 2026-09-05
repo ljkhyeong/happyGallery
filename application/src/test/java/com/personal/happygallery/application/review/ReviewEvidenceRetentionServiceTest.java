@@ -31,9 +31,7 @@ class ReviewEvidenceRetentionServiceTest {
         LocalDateTime now = LocalDateTime.of(2026, 8, 9, 0, 0);
         when(moderationPort.findBefore(now.minusYears(3), 10)).thenReturn(List.of());
         when(reportPort.findResolvedBefore(now.minusYears(3), 10)).thenReturn(List.of());
-        when(evidencePort.findExpired(now, 10)).thenReturn(List.of(first, second));
-        when(first.getId()).thenReturn(1L);
-        when(second.getId()).thenReturn(2L);
+        when(evidencePort.findExpiredIds(now, 10)).thenReturn(List.of(1L, 2L));
         when(evidencePort.findByIds(List.of(1L, 2L))).thenReturn(List.of(first, second));
         when(first.getImageUrls()).thenReturn(List.of(
                 "/api/v1/media/images/first.jpg",
@@ -53,6 +51,6 @@ class ReviewEvidenceRetentionServiceTest {
                 "/api/v1/media/images/first.jpg",
                 "/api/v1/media/images/shared.png",
                 "/api/v1/media/images/second.webp")));
-        verify(evidencePort).findExpired(now, 10);
+        verify(evidencePort).findExpiredIds(now, 10);
     }
 }

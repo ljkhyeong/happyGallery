@@ -75,7 +75,7 @@ class JpaReviewReportAdapter implements ReviewReportPort {
 
     @Override
     public void deleteAll(List<ReviewReport> reports) {
-        repository.deleteAll(reports);
         repository.flush();
+        repository.deleteAllInBatch(reports);
     }
 }
