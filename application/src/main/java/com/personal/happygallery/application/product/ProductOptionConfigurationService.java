@@ -466,8 +466,6 @@ public class ProductOptionConfigurationService {
         List<ProductVariant> changed = new ArrayList<>();
         for (String key : expectedKeys) {
             VariantDefinition definition = definitionsByKey.get(key);
-            ProductOptionPolicy.requireVariantPrice(product.getPrice(), definition.priceAdjustment());
-            addPrice(Math.addExact(product.getPrice(), definition.priceAdjustment()), maximumTextAdjustment);
             ProductVariant variant = existingByKey.get(key);
             if (variant == null) {
                 variant = new ProductVariant(
@@ -484,6 +482,7 @@ public class ProductOptionConfigurationService {
                         definition.priceAdjustment(),
                         definition.active());
             }
+            addPrice(Math.addExact(product.getPrice(), definition.priceAdjustment()), maximumTextAdjustment);
             changed.add(variant);
         }
         for (ProductVariant variant : existing) {
@@ -567,7 +566,7 @@ public class ProductOptionConfigurationService {
         }
         Map<String, SelectionDefinition> selectionsByGroup = new HashMap<>();
         for (SelectionDefinition selection : selections) {
-            if (selection == null || selection.groupKey() == null || selection.valueKey() == null
+            if (selection.groupKey() == null || selection.valueKey() == null
                     || selectionsByGroup.putIfAbsent(selection.groupKey(), selection) != null) {
                 throw invalid("옵션 조합 선택값이 올바르지 않습니다.");
             }
@@ -608,7 +607,7 @@ public class ProductOptionConfigurationService {
         Set<String> groupKeys = new HashSet<>();
         Set<Integer> sortOrders = new HashSet<>();
         for (OptionGroupDefinition group : definitions) {
-            if (group == null || group.type() == null
+            if (group.type() == null
                     || !groupKeys.add(ProductOptionPolicy.requireKey(group.key(), "옵션"))
                     || !sortOrders.add(group.sortOrder())) {
                 throw invalid("옵션 그룹 식별자와 정렬 순서는 중복될 수 없습니다.");
@@ -620,8 +619,7 @@ public class ProductOptionConfigurationService {
             Set<String> valueKeys = new HashSet<>();
             Set<Integer> valueSortOrders = new HashSet<>();
             for (OptionValueDefinition value : group.values()) {
-                if (value == null
-                        || !valueKeys.add(ProductOptionPolicy.requireKey(value.key(), "옵션값"))
+                if (!valueKeys.add(ProductOptionPolicy.requireKey(value.key(), "옵션값"))
                         || !valueSortOrders.add(value.sortOrder())) {
                     throw invalid("옵션값 식별자와 정렬 순서는 한 그룹 안에서 중복될 수 없습니다.");
                 }

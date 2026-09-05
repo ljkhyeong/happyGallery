@@ -3,6 +3,8 @@ package com.personal.happygallery.application.product;
 import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.application.product.port.in.StockThresholdUseCase;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
@@ -130,6 +132,36 @@ class ProductInventoryUseCaseIT {
     @AfterEach
     void tearDown() {
         cleanupSupport.clearProductData();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {-10000L, PaymentAmountPolicy.MAX_AMOUNT, Long.MAX_VALUE})
+    @DisplayName("옵션 가격이 0원 이하이거나 금액 상한을 넘으면 상품 등록을 롤백한다")
+    void registerVariant_rejectsInvalidPrice(long adjustment) {
+        var command = madeToOrderCommand(List.of(), List.of(
+                new VariantDefinition(List.of(), adjustment, 1, true)));
+
+        assertThatThrownBy(() -> productAdminUseCase.register(command))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThat(productRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("직접입력 옵션 합계가 금액 상한을 넘으면 기존 조합 가격을 보존한다")
+    void updateVariant_rejectsTotalAboveLimit() {
+        var product = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of())).product();
+        var groups = List.of(new OptionGroupDefinition(
+                "engraving", ProductOptionType.TEXT, "각인", false, 0,
+                null, 20, PaymentAmountPolicy.MAX_AMOUNT - 10000L, List.of()));
+        var command = madeToOrderCommand(groups, List.of(
+                new VariantDefinition(List.of(), 1L, 1, true)));
+
+        assertThatThrownBy(() -> productAdminUseCase.update(product.getId(), command))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThat(optionConfigurationService.get(product.getId(), true).variants())
+                .singleElement().satisfies(variant -> assertThat(variant.priceAdjustment()).isZero());
     }
 
     @Test

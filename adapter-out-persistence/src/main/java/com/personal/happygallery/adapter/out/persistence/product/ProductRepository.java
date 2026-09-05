@@ -25,6 +25,8 @@ public interface ProductRepository extends JpaRepository<Product, Long>,
 
     @Override Optional<Product> findById(Long id);
 
+    @Override boolean existsById(Long id);
+
     @Override
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select product from Product product where product.id = :id")
