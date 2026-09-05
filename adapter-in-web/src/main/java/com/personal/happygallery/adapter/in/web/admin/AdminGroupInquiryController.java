@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminGroupInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.GroupInquiryUpdateRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.GroupInquiryContactRequest;
+import com.personal.happygallery.adapter.in.web.admin.dto.GroupInquiryFollowUpPageResponse;
 import com.personal.happygallery.adapter.in.web.inquiry.dto.GroupInquiryPageResponse;
 import com.personal.happygallery.adapter.in.web.inquiry.dto.GroupInquiryRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
@@ -32,6 +34,20 @@ public class AdminGroupInquiryController {
     public GroupInquiryPageResponse list(@RequestParam(required = false) GroupInquiryStatus status,
             @RequestParam(required = false) String cursor, @RequestParam(defaultValue = "20") int size) {
         return GroupInquiryPageResponse.from(inquiries.listForAdmin(status, cursor, size));
+    }
+
+    @GetMapping("/follow-ups")
+    @Operation(operationId = "listAdminGroupInquiryFollowUps")
+    public GroupInquiryFollowUpPageResponse followUps(@RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return GroupInquiryFollowUpPageResponse.from(inquiries.followUps(cursor, size));
+    }
+
+    @PutMapping("/{id}/next-contact")
+    @Operation(operationId = "scheduleAdminGroupInquiryContact")
+    public AdminGroupInquiryResponse scheduleContact(@PathVariable Long id, @AuthenticationPrincipal AdminPrincipal admin,
+            @Valid @RequestBody GroupInquiryContactRequest request) {
+        return AdminGroupInquiryResponse.from(inquiries.scheduleContact(id, request.version(), request.nextContactOn(), admin.auditActorId()));
     }
 
     @GetMapping("/{id}")

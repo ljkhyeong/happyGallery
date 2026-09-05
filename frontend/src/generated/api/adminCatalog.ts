@@ -628,6 +628,23 @@ export interface UpdateProductStatusRequest {
   status: UpdateProductStatusRequestStatus;
 }
 
+export interface RestockDemandResponse {
+  optionLabel: string;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  productVariantId: number | null;
+  waitingCount: number;
+}
+
+export interface RestockDemandPageResponse {
+  content: RestockDemandResponse[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface SlotResponse {
   adminActive: boolean;
   bookedCount: number;
@@ -896,6 +913,15 @@ size?: number;
 export type DeleteSmartStoreInventoryMappingParams = {
 expectedMappingVersion: number;
 previousOriginConfirmed: boolean;
+};
+
+export type ListAdminRestockDemandParams = {
+/**
+ * @exclusiveMinimum 0
+ */
+productId?: number;
+page?: number;
+size?: number;
 };
 
 export type ListSlotsParams = {
@@ -1433,6 +1459,34 @@ export const changeStatus = async (id: number,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(updateProductStatusRequest)
+  }
+);}
+
+
+
+export const getListAdminRestockDemandUrl = (params?: ListAdminRestockDemandParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/restock-demand?${stringifiedParams}` : `/api/v1/admin/restock-demand`
+}
+
+export const listAdminRestockDemand = async (params?: ListAdminRestockDemandParams, options?: RequestInit): Promise<RestockDemandPageResponse> => {
+
+  return generatedApiClient<RestockDemandPageResponse>(getListAdminRestockDemandUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

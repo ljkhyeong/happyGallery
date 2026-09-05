@@ -217,6 +217,8 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
         var groupInquiries = mock(GroupInquiryUseCase.class);
         var groupDetail = GroupInquiryRestDocsFixtures.detail();
         when(groupInquiries.detailForAdmin(51L)).thenReturn(groupDetail);
+        when(groupInquiries.followUps(null, 20)).thenReturn(new CursorPage<>(List.of(groupDetail.view()), null, false));
+        when(groupInquiries.scheduleContact(51L, 0, LocalDate.of(2026, 9, 6), ADMIN_USER_ID)).thenReturn(groupDetail);
         when(groupInquiries.listForAdmin(isNull(), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(groupDetail.view()), null, false));
         when(groupInquiries.createExternal(eq(ADMIN_USER_ID), any())).thenReturn(groupDetail);
@@ -229,6 +231,16 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
                 new AdminReviewController(adminReviewUseCase));
+    }
+
+    @Test
+    @DisplayName("관리자는 단체 문의 연락일을 지정하고 오늘까지 연락할 문의를 조회한다")
+    void admin_group_inquiry_follow_up() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/group-inquiries/51/next-contact").with(adminUser())
+                        .contentType(APPLICATION_JSON).content("{\"version\":0,\"nextContactOn\":\"2026-09-06\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.nextContactOn").value("2026-09-06"));
+        mockMvc.perform(get("/api/v1/admin/group-inquiries/follow-ups").with(adminUser()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].nextContactOn").value("2026-09-06"));
     }
 
     @Test

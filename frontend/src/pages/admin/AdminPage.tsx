@@ -1,3 +1,5 @@
+import { RestockDemandSection } from "@/features/admin-product/RestockDemandSection";
+import { GroupInquiryFollowUpSection } from "@/features/admin-inquiry/GroupInquiryFollowUpSection";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, Container, Form, Nav } from "react-bootstrap";
 import { useSearchParams } from "react-router";
@@ -386,6 +388,9 @@ export function AdminPage() {
           <AdminPanel title="품절·재고 부족 상품과 옵션">
             <OutOfStockProductSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
+          <AdminPanel title="연락할 단체 문의">
+            <GroupInquiryFollowUpSection token={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="오늘 예약">
             <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -456,6 +461,9 @@ export function AdminPage() {
         <>
           <AdminPanel title="상품 등록">
             <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="재입고 알림 대기 현황">
+            <RestockDemandSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="상품 목록">
             <ProductListSection

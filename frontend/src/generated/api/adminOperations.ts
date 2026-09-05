@@ -123,8 +123,34 @@ export interface ActivityResponse {
 export interface AdminGroupInquiryResponse {
   activities: ActivityResponse[];
   details: GroupInquiryRequest;
+  /** @nullable */
+  nextContactOn: string | null;
   summary: GroupInquirySummaryResponse;
   version: number;
+}
+
+export type GroupInquiryFollowUpStatus = typeof GroupInquiryFollowUpStatus[keyof typeof GroupInquiryFollowUpStatus];
+
+
+export const GroupInquiryFollowUpStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface GroupInquiryFollowUp {
+  id: number;
+  nextContactOn: string;
+  organization: string;
+  status: GroupInquiryFollowUpStatus;
+}
+
+export interface GroupInquiryFollowUpPageResponse {
+  content: GroupInquiryFollowUp[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export type GroupInquiryUpdateRequestStatus = typeof GroupInquiryUpdateRequestStatus[keyof typeof GroupInquiryUpdateRequestStatus];
@@ -144,6 +170,15 @@ export interface GroupInquiryUpdateRequest {
      */
   note: string;
   status: GroupInquiryUpdateRequestStatus;
+  version: number;
+}
+
+export interface GroupInquiryContactRequest {
+  /**
+     * 서울 날짜. 생략 또는 null이면 연락 예정일 해제
+     * @nullable
+     */
+  nextContactOn?: string | null;
   version: number;
 }
 
@@ -608,6 +643,11 @@ export const ListAdminGroupInquiriesStatus = {
   CLOSED: 'CLOSED',
 } as const;
 
+export type ListAdminGroupInquiryFollowUpsParams = {
+cursor?: string;
+size?: number;
+};
+
 export type ListAdminInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -678,6 +718,34 @@ export const createAdminGroupInquiry = async (groupInquiryRequest: GroupInquiryR
 
 
 
+export const getListAdminGroupInquiryFollowUpsUrl = (params?: ListAdminGroupInquiryFollowUpsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries/follow-ups?${stringifiedParams}` : `/api/v1/admin/group-inquiries/follow-ups`
+}
+
+export const listAdminGroupInquiryFollowUps = async (params?: ListAdminGroupInquiryFollowUpsParams, options?: RequestInit): Promise<GroupInquiryFollowUpPageResponse> => {
+
+  return generatedApiClient<GroupInquiryFollowUpPageResponse>(getListAdminGroupInquiryFollowUpsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getGetAdminGroupInquiryUrl = (id: number,) => {
 
 
@@ -716,6 +784,28 @@ export const updateAdminGroupInquiry = async (id: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(groupInquiryUpdateRequest)
+  }
+);}
+
+
+
+export const getScheduleAdminGroupInquiryContactUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}/next-contact`
+}
+
+export const scheduleAdminGroupInquiryContact = async (id: number,
+    groupInquiryContactRequest: GroupInquiryContactRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getScheduleAdminGroupInquiryContactUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryContactRequest)
   }
 );}
 

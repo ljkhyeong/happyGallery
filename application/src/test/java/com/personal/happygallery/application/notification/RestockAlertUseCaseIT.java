@@ -10,6 +10,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SelectionDefinition;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.VariantDefinition;
 import com.personal.happygallery.application.product.port.in.RestockAlertUseCase;
+import com.personal.happygallery.application.product.port.in.RestockDemandUseCase;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.error.PhoneVerificationRequiredException;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -35,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @UseCaseIT
 class RestockAlertUseCaseIT {
     @Autowired RestockAlertUseCase alerts;
+    @Autowired RestockDemandUseCase demand;
     @Autowired RestockAlertScheduler scheduler;
     @Autowired ProductAdminUseCase products;
     @Autowired UserStorePort users;
@@ -83,6 +85,11 @@ class RestockAlertUseCaseIT {
         long blue = product.options().variants().stream().filter(v -> v.id() != red).findFirst().orElseThrow().id();
         var alert = alerts.register(user.getId(), product.product().getId(), red);
         assertThat(alert.getOptionLabel()).isEqualTo("색상: 빨강");
+        assertThat(demand.list(product.product().getId(), 0, 20).content()).singleElement().satisfies(row -> {
+            assertThat(row.productVariantId()).isEqualTo(red);
+            assertThat(row.optionLabel()).isEqualTo("색상: 빨강");
+            assertThat(row.waitingCount()).isEqualTo(1);
+        });
         jdbc.update("UPDATE product_variants SET quantity = 1 WHERE id = ?", blue);
         assertThat(scheduler.processPending().successCount()).isZero();
         jdbc.update("UPDATE product_variants SET quantity = 1 WHERE id = ?", red);
@@ -113,6 +120,7 @@ class RestockAlertUseCaseIT {
         assertThat(outboxes.findAll()).singleElement().satisfies(outbox -> assertThat(outbox.getId()).isEqualTo(outboxId));
         dispatcher.dispatchPending();
         assertThat(outboxes.findById(outboxId).orElseThrow().getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
+        assertThat(demand.list(null, 0, 20).content()).isEmpty();
         scheduler.processPending();
         assertThat(alerts.list(user.getId())).singleElement().satisfies(view -> {
             assertThat(view.alert().getId()).isEqualTo(alert.getId());
@@ -133,6 +141,34 @@ class RestockAlertUseCaseIT {
         jdbc.update("UPDATE products SET status = 'ACTIVE' WHERE id = ?", product);
         jdbc.update("UPDATE users SET withdrawn_at = CURRENT_TIMESTAMP WHERE id = ?", user.getId());
         assertThat(scheduler.processPending().successCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("재입고 대기 현황은 해지·탈퇴 회원을 제외하고 상품별 인원순으로 페이지 조회한다")
+    void demandCountsActiveWaitingMembers() {
+        var first = readyStock();
+        var second = readyStock();
+        var user = verifiedUser();
+        var other = new User("other-restock@example.com", "hash", "다른회원", "01012345679");
+        other.markPhoneVerified();
+        other = users.save(other);
+        alerts.register(user.getId(), first, null);
+        alerts.register(other.getId(), first, null);
+        var canceled = alerts.register(other.getId(), second, null);
+        alerts.cancel(other.getId(), canceled.getId());
+        alerts.register(user.getId(), second, null);
+        var firstPage = demand.list(null, 0, 1);
+        assertThat(firstPage.totalCount()).isEqualTo(2);
+        assertThat(firstPage.content()).singleElement().satisfies(row -> {
+            assertThat(row.productId()).isEqualTo(first);
+            assertThat(row.waitingCount()).isEqualTo(2);
+        });
+        assertThat(demand.list(null, 1, 1).content()).singleElement().satisfies(row -> {
+            assertThat(row.productId()).isEqualTo(second);
+            assertThat(row.waitingCount()).isEqualTo(1);
+        });
+        jdbc.update("UPDATE users SET withdrawn_at = CURRENT_TIMESTAMP WHERE id = ?", other.getId());
+        assertThat(demand.list(first, 0, 20).content()).singleElement().satisfies(row -> assertThat(row.waitingCount()).isEqualTo(1));
     }
 
     private User verifiedUser() {

@@ -118,6 +118,7 @@ export default defineConfig({
   ]),
   adminCatalogApi: generatedApi("./src/generated/api/adminCatalog.ts", [
     "admin-stock-controller",
+    "admin-restock-demand-controller",
     "admin-class-controller",
     "admin-media-controller",
     "admin-product-controller",

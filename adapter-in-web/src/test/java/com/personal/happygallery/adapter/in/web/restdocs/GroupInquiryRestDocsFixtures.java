@@ -19,6 +19,7 @@ final class GroupInquiryRestDocsFixtures {
         var now = LocalDateTime.of(2026, 9, 5, 10, 0);
         var inquiry = new GroupInquiry(11L, GroupInquiry.Source.WEBSITE, "encrypted", now);
         ReflectionTestUtils.setField(inquiry, "id", 51L);
+        inquiry.scheduleContact(0, now.toLocalDate().plusDays(1), now);
         var details = new GroupInquiryDetails("충주 기관", "담당자", "01012345678", null,
                 20, "9월 평일 오전", "기관 강당", "레진아트", "초등학생 대상");
         var activity = new GroupInquiryActivity(51L, 99L, GroupInquiryStatus.RECEIVED,

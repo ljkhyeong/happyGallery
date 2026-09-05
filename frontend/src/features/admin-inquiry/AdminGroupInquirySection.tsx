@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Badge, Button, Card, Form } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
-import { createAdminGroupInquiry, getAdminGroupInquiry, listAdminGroupInquiries, updateAdminGroupInquiry,
+import { createAdminGroupInquiry, getAdminGroupInquiry, listAdminGroupInquiries, updateAdminGroupInquiry, scheduleAdminGroupInquiryContact,
   type AdminGroupInquiryResponse, type GroupInquiryRequest } from "@/generated/api/adminOperations";
 import { GroupInquiryForm } from "@/features/group-inquiry/GroupInquiryForm";
 import { GROUP_INQUIRY_STATUS, type GroupInquiryStatus } from "@/features/group-inquiry/status";
@@ -62,7 +62,7 @@ export function AdminGroupInquirySection({ token, onAuthError }: Props) {
   );
 }
 
-function GroupInquiryDetail({ id, token, onAuthError }: Props & { id: number }) {
+export function GroupInquiryDetail({ id, token, onAuthError }: Props & { id: number }) {
   const query = useAdminQuery(onAuthError, { queryKey: ["admin", "group-inquiry", id],
     queryFn: () => getAdminGroupInquiry(id, { headers: adminHeaders(token) }) });
   return <Card className="mt-3"><Card.Body>
@@ -77,6 +77,7 @@ function GroupInquiryDetail({ id, token, onAuthError }: Props & { id: number }) 
 function ConsultationForm({ detail, token, onAuthError }: Props & { detail: AdminGroupInquiryResponse }) {
   const [status, setStatus] = useState<GroupInquiryStatus>(detail.summary.status);
   const [note, setNote] = useState("");
+  const [nextContactOn, setNextContactOn] = useState(detail.nextContactOn ?? "");
   const client = useQueryClient();
   const toast = useToast();
   const id = detail.summary.id;
@@ -90,10 +91,27 @@ function ConsultationForm({ detail, token, onAuthError }: Props & { detail: Admi
       toast.show("상담 상태와 메모를 저장했습니다.");
     },
   });
+  const contactMutation = useAdminMutation(onAuthError, {
+    mutationFn: () => scheduleAdminGroupInquiryContact(id, { version: detail.version, nextContactOn: nextContactOn || null }, { headers: adminHeaders(token) }),
+    onSuccess: (result) => {
+      client.setQueryData(["admin", "group-inquiry", id], result);
+      void client.invalidateQueries({ queryKey: ["admin", "group-inquiries"] });
+      toast.show("다음 연락일을 저장했습니다.");
+    },
+  });
   return <>
     <p className="mb-1">{detail.details.organization} · {detail.details.contactName} · {detail.details.phone} {detail.details.email && `· ${detail.details.email}`}</p>
     <p className="mb-1">{detail.details.headcount}명 · {detail.details.preferredSchedule} · {detail.details.location} · {detail.details.classInterest}</p>
     <p className="small" style={{ whiteSpace: "pre-wrap" }}>{detail.details.message}</p>
+    {detail.summary.status !== "CLOSED" && <Form className="my-3" onSubmit={(event) => { event.preventDefault(); contactMutation.mutate(); }}>
+      <Form.Group controlId={`next-contact-${id}`} className="mb-2"><Form.Label>다음 연락일</Form.Label>
+        <Form.Control type="date" value={nextContactOn} disabled={contactMutation.isPending || mutation.isPending}
+          onChange={(event) => setNextContactOn(event.target.value)} />
+        <Form.Text>서울 날짜 기준입니다. 비우고 저장하면 연락 예정일을 해제합니다.</Form.Text>
+      </Form.Group>
+      <ErrorAlert error={contactMutation.error} />
+      <Button type="submit" variant="outline-primary" disabled={contactMutation.isPending || mutation.isPending}>연락일 저장</Button>
+    </Form>}
     <Form onSubmit={(event) => { event.preventDefault(); mutation.mutate(); }}>
       <Form.Group controlId={`consultation-status-${id}`} className="mb-2"><Form.Label>상담 상태</Form.Label>
         <Form.Select value={status} disabled={mutation.isPending} onChange={(event) => setStatus(event.target.value as GroupInquiryStatus)}>
@@ -104,7 +122,7 @@ function ConsultationForm({ detail, token, onAuthError }: Props & { detail: Admi
         <Form.Control as="textarea" rows={3} required maxLength={2000} disabled={mutation.isPending} value={note} onChange={(event) => setNote(event.target.value)} />
       </Form.Group>
       <ErrorAlert error={mutation.error} />
-      <Button type="submit" disabled={mutation.isPending || !note.trim()}>{mutation.isPending ? "저장 중..." : "상담 저장"}</Button>
+      <Button type="submit" disabled={mutation.isPending || contactMutation.isPending || !note.trim()}>{mutation.isPending ? "저장 중..." : "상담 저장"}</Button>
     </Form>
     <p className="small text-muted mt-2">확정은 상담 결과를 기록합니다. 결제나 일반 클래스 예약은 자동 생성되지 않습니다.</p>
     {detail.activities.map((activity) => <div key={activity.id} className="border-top py-2 small">

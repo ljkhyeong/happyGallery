@@ -62,8 +62,9 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
   let created = false;
   let version = 0;
   let status = "RECEIVED";
+  let nextContactOn: string | null = null;
   const activities: { id: number; adminId: number; fromStatus: string; toStatus: string; note: string; createdAt: string }[] = [];
-  const detail = () => ({ summary: { ...summary, source: "EXTERNAL", status }, details, version, activities });
+  const detail = () => ({ summary: { ...summary, source: "EXTERNAL", status }, details, version, nextContactOn, activities });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     const json = (body: unknown, responseStatus = 200) => route.fulfill({ status: responseStatus, contentType: "application/json", body: JSON.stringify(body) });
@@ -76,6 +77,15 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
         return json(detail(), 201);
       }
       return json({ content: created ? [detail().summary] : [], hasMore: false, nextCursor: null });
+    }
+    if (path === "/api/v1/admin/group-inquiries/follow-ups") return json({
+      content: nextContactOn ? [{ id: 51, organization: details.organization, status, nextContactOn }] : [], nextCursor: null, hasMore: false,
+    });
+    if (path === "/api/v1/admin/group-inquiries/51/next-contact") {
+      const request = route.request().postDataJSON();
+      expect(request.version).toBe(version);
+      version += 1; nextContactOn = request.nextContactOn;
+      return json(detail());
     }
     if (path === "/api/v1/admin/group-inquiries/51") {
       if (route.request().method() === "PUT") {
@@ -102,4 +112,15 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
   await expect(section.getByText("10월 오전 일정 협의", { exact: true })).toBeVisible();
   await expect(section.getByLabel("상담 메모", { exact: true })).toHaveValue("");
   await expect(section.getByLabel("상담 상태", { exact: true })).toHaveValue("CONSULTING");
+  await section.getByLabel("다음 연락일", { exact: true }).fill("2000-01-01");
+  await section.getByRole("button", { name: "연락일 저장", exact: true }).click();
+  await expect.poll(() => nextContactOn).toBe("2000-01-01");
+  await page.goto("/admin?view=today");
+  const followUps = page.locator("#group-inquiry-follow-ups");
+  await expect(followUps.getByText("연락 예정일 2000-01-01", { exact: true })).toBeVisible();
+  await followUps.getByRole("button", { name: "상담 열기", exact: true }).click();
+  await followUps.getByLabel("다음 연락일", { exact: true }).fill("");
+  await followUps.getByRole("button", { name: "연락일 저장", exact: true }).click();
+  await expect(followUps.getByText("오늘까지 연락할 단체 문의가 없습니다.", { exact: true })).toBeVisible();
+
 });

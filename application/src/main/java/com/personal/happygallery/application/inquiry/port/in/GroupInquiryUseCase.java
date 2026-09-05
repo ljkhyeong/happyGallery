@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.inquiry.GroupInquiryActivity;
 import com.personal.happygallery.domain.inquiry.GroupInquiryDetails;
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import java.util.List;
+import java.time.LocalDate;
 
 public interface GroupInquiryUseCase {
     record View(GroupInquiry inquiry, GroupInquiryDetails details) {}
@@ -17,5 +18,7 @@ public interface GroupInquiryUseCase {
     CursorPage<View> listForAdmin(GroupInquiryStatus status, String cursor, int size);
     CursorPage<View> listForMember(Long userId, String cursor, int size);
     Detail detailForAdmin(Long id);
+    Detail scheduleContact(Long id, long version, LocalDate nextContactOn, Long adminId);
+    CursorPage<View> followUps(String cursor, int size);
     Detail update(Long id, long version, GroupInquiryStatus status, String note, Long adminId);
 }

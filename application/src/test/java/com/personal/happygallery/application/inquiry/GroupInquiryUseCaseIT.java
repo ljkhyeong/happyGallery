@@ -10,6 +10,11 @@ import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import org.springframework.test.context.bean.override.convention.TestBean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +26,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @UseCaseIT
 class GroupInquiryUseCaseIT {
+    @TestBean(name = "fixedClock", methodName = "inquiryClock") Clock clock;
+    static Clock inquiryClock() {
+        return Clock.fixed(Instant.parse("2026-09-05T15:00:00Z"), ZoneOffset.UTC);
+    }
     @Autowired GroupInquiryUseCase inquiries;
     @Autowired UserStorePort users;
     @Autowired CustomerAccountLifecycleUseCase lifecycle;
@@ -85,6 +94,34 @@ class GroupInquiryUseCaseIT {
         lifecycle.withdraw(new CustomerAccountLifecycleUseCase.WithdrawCommand(owner.getId(), owner.getCredentialVersion(), true));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM group_inquiries", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM group_inquiry_activities", Integer.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("서울 날짜로 오늘과 지난 연락을 순서대로 조회하고 종료·해제된 상담은 제외한다")
+    void followUpsRespectSeoulDateAndClosure() {
+        var overdue = inquiries.create(null, details("지난 연락"));
+        var today = inquiries.create(null, details("오늘 연락"));
+        var future = inquiries.create(null, details("내일 연락"));
+        var closed = inquiries.create(null, details("종료 문의"));
+        var todayDate = LocalDate.of(2026, 9, 6);
+        inquiries.scheduleContact(overdue.inquiry().getId(), 0, todayDate.minusDays(1), 99L);
+        var scheduled = inquiries.scheduleContact(today.inquiry().getId(), 0, todayDate, 99L);
+        inquiries.scheduleContact(future.inquiry().getId(), 0, todayDate.plusDays(1), 99L);
+        inquiries.scheduleContact(closed.inquiry().getId(), 0, todayDate, 99L);
+        inquiries.update(closed.inquiry().getId(), 1, GroupInquiryStatus.CLOSED, "상담 종료", 99L);
+        var first = inquiries.followUps(null, 1);
+        assertThat(first.content()).singleElement().satisfies(row -> assertThat(row.inquiry().getId()).isEqualTo(overdue.inquiry().getId()));
+        assertThat(first.hasMore()).isTrue();
+        var second = inquiries.followUps(first.nextCursor(), 1);
+        assertThat(second.content()).singleElement().satisfies(row -> assertThat(row.inquiry().getId()).isEqualTo(today.inquiry().getId()));
+        assertThat(second.hasMore()).isFalse();
+        assertThatThrownBy(() -> inquiries.scheduleContact(today.inquiry().getId(), 0, null, 99L)).isInstanceOf(HappyGalleryException.class);
+        assertThat(scheduled.activities().getFirst().note()).contains("2026-09-06");
+        inquiries.scheduleContact(today.inquiry().getId(), 1, null, 99L);
+        assertThat(inquiries.followUps(null, 20).content()).hasSize(1);
+        assertThat(inquiries.detailForAdmin(closed.inquiry().getId()).view().inquiry().getNextContactOn()).isNull();
+        assertThatThrownBy(() -> inquiries.scheduleContact(closed.inquiry().getId(), 2, todayDate, 99L))
+                .isInstanceOf(HappyGalleryException.class);
     }
 
     private GroupInquiryDetails details(String organization) {

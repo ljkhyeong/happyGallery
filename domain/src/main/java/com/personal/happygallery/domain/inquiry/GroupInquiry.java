@@ -12,6 +12,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "group_inquiries")
@@ -32,6 +33,8 @@ public class GroupInquiry {
     private LocalDateTime createdAt;
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    @Column(name = "next_contact_on")
+    private LocalDate nextContactOn;
     @Version private long version;
 
     protected GroupInquiry() {}
@@ -49,9 +52,19 @@ public class GroupInquiry {
         if (version != expectedVersion) throw new HappyGalleryException(ErrorCode.CONFLICT, "다른 관리자가 상담을 변경했습니다. 새로고침 후 다시 확인해 주세요.");
         status.requireTransitionTo(next);
         status = next;
+        if (next == GroupInquiryStatus.CLOSED) nextContactOn = null;
         updatedAt = now.isAfter(updatedAt) ? now : updatedAt.plusNanos(1000);
     }
 
+    public void scheduleContact(long expectedVersion, LocalDate date, LocalDateTime now) {
+        if (status == GroupInquiryStatus.CLOSED) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "종료한 상담은 다시 연 뒤 연락일을 지정해 주세요.");
+        }
+        recordConsultation(expectedVersion, status, now);
+        nextContactOn = date;
+    }
+
+    public LocalDate getNextContactOn() { return nextContactOn; }
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Source getSource() { return source; }

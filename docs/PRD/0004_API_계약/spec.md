@@ -4297,3 +4297,13 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 - `GET /api/v1/me/default-shipping-address`: `{version, shippingAddress}`. 미등록이면 `shippingAddress=null`, 최초 변경 번호는 0이다.
 - `PUT` 같은 경로: `{version, shippingAddress}`로 저장하고 204 반환. `DELETE` 같은 경로: 필수 쿼리 `version`으로 삭제하고 204 반환. 오래된 변경 번호는 409 `CONFLICT`. 저장·삭제마다 변경 번호를 증가시킨다.
 - 회원 세션의 본인 주소만 접근한다. CSRF 보호를 유지하며 주소 형식은 주문 배송지와 동일하다.
+
+### 단체 문의 다음 연락일
+
+- `PUT /api/v1/admin/group-inquiries/{id}/next-contact`: `{version, nextContactOn}`. 서울 기준 `YYYY-MM-DD`, 생략·null은 연락일 해제다. 관리자 상세 응답에 필수 nullable `nextContactOn`을 추가한다.
+- `GET /api/v1/admin/group-inquiries/follow-ups?cursor&size`: 오늘 또는 이전 연락일이 지정된 미종료 문의를 연락일·ID 오름차순 커서 페이지로 조회한다. 응답 `{content:[{id,organization,status,nextContactOn}],nextCursor,hasMore}`. 기본 20, 최대 100. 연락처와 상담 메모는 목록에 포함하지 않는다.
+- 종료한 상담은 연락일 지정을 400으로 거절하고 먼저 상담을 다시 열도록 안내한다. 오래된 변경 번호는 409. 기존 상담 상태·메모 수정 API는 유지한다.
+
+### 관리자 재입고 대기 현황
+
+`GET /api/v1/admin/restock-demand?productId&page&size`는 상품·옵션별 대기 인원 내림차순 페이지를 반환한다. 상품 번호는 선택, 페이지 기본 0, 크기 기본 20·최대 100이다. 응답은 `{content:[{productId,productName,productVariantId,optionLabel,waitingCount}],page,size,totalCount,totalPages}`. 옵션 번호는 기성품일 때 null이며 옵션 표시명은 신청 당시 기록을 사용한다. 해지·발송 완료·탈퇴·휴대폰 미인증 회원, 판매 중지 상품·비활성 옵션을 제외한다. 발송 결과가 SENT이면 신청 상태 갱신 전이라도 제외한다. 개인정보는 포함하지 않는다.

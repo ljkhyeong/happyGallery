@@ -17,6 +17,8 @@ import com.personal.happygallery.domain.inquiry.GroupInquiryDetails;
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import com.personal.happygallery.domain.time.Clocks;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -102,6 +104,31 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
         inquiries.saveAndFlush(inquiry);
         activities.save(new GroupInquiryActivity(id, adminId, previous, status, encryptor.encrypt(normalizedNote), now));
         return detail(inquiry);
+    }
+
+    @Override
+    public Detail scheduleContact(Long id, long version, LocalDate nextContactOn, Long adminId) {
+        var inquiry = inquiries.findByIdForUpdate(id).orElseThrow(NotFoundException.supplier("단체 수업 문의"));
+        var previous = inquiry.getNextContactOn();
+        var now = LocalDateTime.now(clock);
+        inquiry.scheduleContact(version, nextContactOn, now);
+        inquiries.saveAndFlush(inquiry);
+        String note = "다음 연락일: " + (previous == null ? "미지정" : previous)
+                + " → " + (nextContactOn == null ? "미지정" : nextContactOn);
+        activities.save(new GroupInquiryActivity(id, adminId, inquiry.getStatus(), inquiry.getStatus(), encryptor.encrypt(note), now));
+        return detail(inquiry);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CursorPage<View> followUps(String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        var after = cursor == null ? null : CursorUtils.decode(cursor);
+        var today = LocalDate.now(clock.withZone(Clocks.SEOUL));
+        var rows = inquiries.findFollowUps(today, after == null ? null : after.timestamp().toLocalDate(),
+                after == null ? null : after.id(), pageSize + 1);
+        return CursorPage.of(rows.stream().map(this::view).toList(), pageSize,
+                value -> CursorUtils.encode(value.inquiry().getNextContactOn().atStartOfDay(), value.inquiry().getId()));
     }
 
     private View view(GroupInquiry inquiry) {
