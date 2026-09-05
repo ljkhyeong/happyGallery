@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Nav } from "react-bootstrap";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router";
-import type { NotificationResponse } from "@/generated/api/notification";
+import { notificationTarget } from "./notificationTarget";
+import { Link } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { LoadingSpinner } from "@/shared/ui/LoadingSpinner";
 import { useUnreadCount, useNotificationList, useMarkAsRead, useMarkAllAsRead } from "./useNotifications";
@@ -192,38 +193,9 @@ export function NotificationBell() {
               })
             )}
           </Card.Body>
+          <Card.Footer className="text-center"><Link to="/my/notifications" onClick={() => setOpen(false)}>알림 전체 보기</Link></Card.Footer>
         </Card>
       )}
     </div>
   );
-}
-
-function notificationTarget(notification: NotificationResponse): string | null {
-  const aggregateId = notification.aggregateId;
-  switch (notification.aggregateType) {
-    case "ORDER":
-      return aggregateId ? `/my/orders/${aggregateId}` : "/my/orders";
-    case "BOOKING":
-      return aggregateId ? `/my/bookings/${aggregateId}` : "/my/bookings";
-    case "RESTOCK_ALERT":
-      return "/my#my-restock-alerts";
-    case "PASS_PURCHASE":
-      return "/my/passes";
-    case "INQUIRY":
-      return "/my/inquiries";
-    case "REVIEW":
-    case "REVIEW_MODERATION_ACTION":
-      return "/my/reviews";
-    default:
-      return fallbackTarget(notification.eventType);
-  }
-}
-
-function fallbackTarget(eventType: string): string | null {
-  if (eventType.startsWith("ORDER_") || eventType === "ORDER_REFUNDED") return "/my/orders";
-  if (eventType.startsWith("BOOKING_") || eventType === "DEPOSIT_REFUNDED"
-    || eventType.startsWith("REMINDER_")) return "/my/bookings";
-  if (eventType.startsWith("PASS_")) return "/my/passes";
-  if (eventType.startsWith("REVIEW_")) return "/my/reviews";
-  return null;
 }

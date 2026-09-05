@@ -33,6 +33,7 @@ export default [
     route("orders/new", "./routes/client/order-create.tsx"),
     route("guest/orders", "./routes/client/order-detail.tsx"),
     route("my", "./routes/client/my.tsx"),
+    route("my/notifications", "./routes/client/my-notifications.tsx"),
     route("my/orders", "./routes/client/my-orders.tsx"),
     route("my/bookings/:id", "./routes/client/my-booking-detail.tsx"),
     route("my/bookings", "./routes/client/my-bookings.tsx"),

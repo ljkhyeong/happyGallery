@@ -51,6 +51,7 @@ export interface UnreadCountResponse {
 export type ListMyNotificationsParams = {
 page?: number;
 size?: number;
+unreadOnly?: boolean;
 };
 
 export const getListMyNotificationsUrl = (params?: ListMyNotificationsParams,) => {

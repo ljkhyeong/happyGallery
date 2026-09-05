@@ -25,11 +25,11 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
     }
 
     @Override
-    public List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size) {
+    public List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size, boolean unreadOnly) {
         int offset = PageParams.offset(page, size);
         List<NotificationOutbox> notifications = (userId != null)
-                ? outboxPort.findSentByUserId(userId, size, offset)
-                : outboxPort.findSentByGuestId(guestId, size, offset);
+                ? outboxPort.findSentByUserId(userId, unreadOnly, size, offset)
+                : outboxPort.findSentByGuestId(guestId, unreadOnly, size, offset);
 
         return notifications.stream()
                 .map(outbox -> new NotificationView(

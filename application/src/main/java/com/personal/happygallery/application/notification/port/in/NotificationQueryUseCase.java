@@ -12,7 +12,7 @@ public interface NotificationQueryUseCase {
         public boolean isRead() { return readAt != null; }
     }
 
-    List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size);
+    List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size, boolean unreadOnly);
 
     long countUnread(Long userId, Long guestId);
 

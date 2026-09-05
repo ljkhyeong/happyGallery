@@ -3299,7 +3299,7 @@ Cookie: HG_SESSION={sessionToken}
 
 #### 2.12.7 회원 알림함
 
-- `GET /api/v1/me/notifications?page=0&size=20`
+- `GET /api/v1/me/notifications?page=0&size=20&unreadOnly=false`
   - 응답:
 
 ```json
@@ -3326,6 +3326,7 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - `page`는 0 이상, `size`는 1~100이어야 하며 표현 가능한 OFFSET 범위를 넘으면 `400 INVALID_INPUT`으로 거절한다.
+- `unreadOnly`는 기본 `false`다. `true`이면 읽지 않은 알림만 추린 뒤 페이지를 나눈다.
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
 - 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.

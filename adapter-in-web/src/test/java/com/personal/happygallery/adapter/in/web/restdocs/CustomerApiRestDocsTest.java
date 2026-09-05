@@ -89,6 +89,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -208,7 +209,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
-        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20)))
+        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
                         NotificationEventType.ORDER_PAID,
@@ -819,6 +820,15 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].deliveredAt").value("2026-03-28T09:15:00"))
                 .andExpect(jsonPath("$[0].readAt").doesNotExist())
                 .andExpect(jsonPath("$[0].read").value(false));
+    }
+
+    @Test
+    @DisplayName("읽지 않은 알림만 페이지로 조회한다")
+    void list_unread_notifications() throws Exception {
+        mockMvc.perform(get("/api/v1/me/notifications").with(customerUser())
+                        .param("page", "1").param("size", "20").param("unreadOnly", "true"))
+                .andExpect(status().isOk());
+        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, null, 1, 20, true);
     }
 
     @Test
