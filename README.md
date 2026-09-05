@@ -124,7 +124,7 @@ npm run dev
 - `prod`가 아닌 환경에서는 실제 알림·인증 SMS·이메일 인증 SMTP·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - 스마트스토어 주문·재고·문의·정산 연동은 기본 비활성화다. 운영에서는 `SMARTSTORE_ENABLED=true`, `SMARTSTORE_CLIENT_ID`, bcrypt salt 형식의 `SMARTSTORE_CLIENT_SECRET`을 설정하고 위임 판매자 방식이면 `SMARTSTORE_ACCOUNT_TYPE=SELLER`, `SMARTSTORE_ACCOUNT_ID`도 함께 주입한다. 활성화한 시점부터 변경 주문을 매분 수집하며 과거 주문을 소급 차감하지 않는다. 배송정보 암호문은 기존 데이터 키 회전 명령에서 다른 배송지 암호문과 함께 재암호화한다.
 - 연결된 스마트스토어 원상품 번호를 바꾸거나 연동을 해제할 때는 기존 원상품의 판매 중지와 재고 확인을 완료했다고 확인해야 한다. 서버는 기존 원상품 주문 수집을 마치고 재고 미반영 주문이 없는지 확인한 뒤 최신 매핑 개정으로 저장·삭제한다. 변경·해제 후 기존 원상품 재고는 자동 보정하지 않지만 과거 연결은 늦게 들어온 기존 주문 식별에만 보존한다.
-- k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 노트북 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
+- k3s 운영 배포의 Prometheus 경보는 내부 Alertmanager를 거쳐 저장소 밖 Secret으로 주입한 외부 HTTPS webhook에 전달한다. 운영 VM 자체 장애 감시는 별도 외부 uptime 서비스가 필요하다.
 - 운영 환경은 DB·Redis를 readiness에 포함하고, 환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업·스마트스토어 주문 처리 결과 미확정의 DB backlog, 결제·알림 CircuitBreaker 상태와 호출 결과, 모든 정기 배치의 마지막 정상 완료 시각과 이미지 저장소 용량을 Prometheus·Grafana에서 감시한다. 스마트스토어 주문·재고 동기화는 5분, 정산 대사는 2시간 동안 정상 완료가 없으면 별도 critical 경보를 보낸다. 업무 알림은 휘발성 사건 수가 아니라 아직 처리되지 않은 DB 상태를 기준으로 유지한다.
 - SMTP 장애가 주문·예약 API 전체를 비정상으로 만들지 않도록 Spring Mail health indicator는 기본 비활성화한다. 이메일 발송 장애는 알림 CircuitBreaker와 실패 로그로 관측하며, 독립 SMTP health가 필요한 환경에서만 `MAIL_HEALTH_ENABLED=true`로 켠다.
 - `prod`가 아닌 환경은 Google/Naver/Kakao OAuth 자리표시자 자격 증명으로 기동한다. 실제 제공자 로그인은 각 개발자 콘솔의 자격 증명과 localhost exact callback을 환경 변수로 설정해 검증한다.
@@ -217,7 +217,7 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 - 프론트엔드: React Router Framework Mode, React 19, Vite, TypeScript, Orval
 - 데이터베이스: MySQL 8, Flyway
 - 세션과 캐시: Redis, Spring Session
-- 인프라 목표: 단일 노트북 k3s, Kubernetes Ingress, MySQL 영속 볼륨, cluster 내부 Redis
+- 인프라 목표: 단일 클라우드 VM의 k3s, Kubernetes Ingress, MySQL 영속 볼륨, cluster 내부 Redis
 - 로컬 개발·복구 진단: Docker Compose, Nginx reverse proxy
 - 모니터링: Actuator, Prometheus, Grafana, Sentry
 - API 계약: Spring REST Docs, Springdoc OpenAPI
@@ -234,12 +234,12 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 
 ## 운영/배포
 
-AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노트북의 단일 노드 k3s다.
+목표 운영 환경은 월 2~3만 원 내외의 단일 클라우드 VM과 외부 백업 저장소다. 기존 k3s 구성을 재사용하며 초기 검토 사양은 4 vCPU·8GB RAM·100GB SSD다. 서버 구매 후보, 비용 계산과 실제 개통 순서는 [클라우드 운영 준비](deploy/cloud/README.md)를 따른다. 공급자 선택과 구매는 아직 확정하지 않았다.
 
 ```text
-브라우저 -> DNS/공유기/방화벽 -> k3s Ingress(TLS)
-                                  -> /api/* -> Spring Boot -> cluster 내부 MySQL/Redis
-                                  -> 그 외   -> React Router SSR
+브라우저 -> Cloudflare DNS -> VM 방화벽 -> k3s Ingress(TLS)
+                                          -> /api/* -> Spring Boot -> cluster 내부 MySQL/Redis
+                                          -> 그 외   -> React Router SSR
 ```
 
 - 프론트엔드와 API는 같은 origin으로 제공하고 외부에는 ingress의 HTTP/HTTPS 포트만 연다.
@@ -249,10 +249,10 @@ AWS 운영 배포는 폐기했다. 목표 운영 환경은 소유한 단일 노�
 - k3s Secret 생성은 파일별 허용 키만 받는다. 운영 모드·`prod` 단일 프로필·관리자 MFA 등록 강제·처리율 제한·Secure cookie 같은 불변식은 Secret보다 우선하는 manifest 환경 변수와 Spring context·Flyway 생성 전 환경 검증으로 고정한다.
 - 운영 관리자 로그인은 MFA 미등록 세션을 등록 전용으로 제한한다. 인증 앱을 잃었지만 복구 코드가 남아 있으면 해당 코드로 로그인한 세션에서 현재 비밀번호를 확인해 MFA를 초기화하고 다시 등록할 수 있다. 초기화는 관리자 ID별 5회/10분 fail-closed 제한을 적용한 뒤 DB 잠금과 비밀번호 확인을 수행한다. DB·미디어 복원 뒤에도 app은 자동 기동하지 않는다. 복구 묶음마다 백업 생성시각과 복구 환경 해시로 일회성 대사 토큰을 만들고, 운영자가 PG·알림·개인정보 요청 대사를 완료한 뒤 같은 토큰으로 세 확인값을 제출해야 호환 이미지를 한 번만 활성화한다.
 - 운영 프런트 Node SSR 서버는 응답별 nonce와 Toss SDK, 외부 폰트, Sentry를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
-- 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 노트북에서 DNS·공유기·방화벽·TLS·검색엔진 소유확인·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
+- 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 클라우드 VM에서 DNS·방화벽·TLS·검색엔진 소유확인·백업 중단 시간·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
-운영 목표와 불변 조건은 [ADR-0037 자가 호스팅 배포 토폴로지 기준](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을, 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 경계는 [ADR-0045 공개 페이지 SSR과 SEO 전달 경계](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
+운영 목표와 예산은 [ADR-0049 저예산 클라우드 운영 기준](docs/ADR/0049_저예산_클라우드_운영_기준/adr.md)을 따른다. [ADR-0037](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)의 배포·데이터 보호 조건은 클라우드 VM에도 유지한다. 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 경계는 [ADR-0045](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
 
 ## 주요 환경 변수
 
