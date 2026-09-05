@@ -2575,7 +2575,7 @@ Authorization: Bearer {token}
 - 정책:
   - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 재처리할 수 있다.
   - 성공 시 `SUCCEEDED`, 명시적 거절 시 `FAILED`, 실행 전 일시 실패 시 `RETRYABLE`, 결과 불명 시 `RECONCILIATION_REQUIRED`가 된다.
-  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 취소 사유에 포함한 최초 멱등키, 요청 금액, `DONE` 상태, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`가 모두 일치하면 `SUCCEEDED`로 화해한다.
+  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 취소 사유에 포함한 최초 멱등키, 요청 금액, `DONE` 상태, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`가 모두 일치하면 `SUCCEEDED`로 변경한다.
   - 해당 멱등키의 취소 내역이 없고 결제 상태가 미취소로 명확하면 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 식별자·금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
   - PG 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
   - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
@@ -3752,7 +3752,7 @@ Content-Type: application/json
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - `orderId`, `amount`는 모든 confirm 요청에서 필수다. 0원 결제도 `amount=0`을 명시한다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
-  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
+  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 변경한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
   - 브라우저 기본 결제는 Toss `CARD` 통합창이며, 네이버페이·카카오페이를 선택하면 같은 SDK의 해당 간편결제 자체창을 연다. 이 선택은 prepare/confirm 요청 계약을 바꾸지 않는다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.

@@ -225,9 +225,9 @@ public class PaymentAttempt {
     }
 
     /**
-     * 재선점 뒤 늦게 도착한 PG 성공을 로컬 상태와 화해한다.
+     * 재선점 후 늦게 받은 PG 승인 결과를 결제 상태에 반영한다.
      * 실패 결과와 달리 외부 승인은 이미 성립한 사실이므로, 새 실행이 처리 중이거나 실패로 끝났어도
-     * 도메인 생성 전 APPROVED로 단조 전이한다.
+     * 도메인 생성 전 APPROVED로 변경한다.
      */
     public boolean reconcileLatePgApproval(String confirmedPaymentKey,
                                            String confirmedPaymentMethod,

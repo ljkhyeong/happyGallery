@@ -70,7 +70,7 @@
 | 장점 | 부모 트랜잭션 롤백 시 로컬 상태와 맞지 않는 외부 환불 호출이 발생하지 않는다 |
 | 장점 | 실행 이벤트 유실이나 인스턴스 중단 뒤에도 커밋된 환불 요청을 자동 복구한다 |
 | 장점 | 명시적 실패와 결과 불명을 구분해 성공한 환불을 실패로 오판하지 않는다 |
-| 장점 | 타임아웃 뒤 PG 조회로 실제 취소 결과를 화해한 다음에만 취소 재호출 여부를 결정한다 |
+| 장점 | 타임아웃 뒤 PG 조회로 실제 취소 결과를 확인한 뒤 취소 재호출 여부를 결정한다 |
 | 장점 | 운영자 재시도 API(`/api/v1/admin/refunds/failed`, `/retry`) 신뢰성이 올라간다 |
 | 단점 | 환불 요청 API 응답 시점에는 실제 PG 결과가 아직 `REQUESTED`일 수 있다 |
 | 대응 | 결과 기반 알림, 소유권이 검증된 고객 상세, 관리자 상태 조회·실패 목록으로 실제 PG 상태를 확인한다 |
@@ -87,7 +87,7 @@
 - `DefaultRefundRecoveryService`와 `BatchScheduler`는 미완료 환불을 주기적으로 복구
 - 상태별 미완료 건수와 처리 기준 시각(`REQUESTED=created_at`, `PROCESSING=processing_at`, `RETRYABLE/RECONCILIATION_REQUIRED=next_attempt_at`, `FAILED=updated_at`)을 DB에서 집계한다. 미래 재시도 시각의 age는 0으로 두고 실제 처리 지연과 운영자 조치 필요 backlog만 Prometheus 경보로 감시
 - `DefaultRefundQueryService`와 `AdminRefundController`는 관리자 환불 단건 상태 조회를 담당
-- 예약·주문 상세 응답은 소유권 검증 후 고객용 `amount`, `status`만 투영
+- 예약·주문 상세 응답은 소유권 확인 후 환불 금액(`amount`)과 상태(`status`)만 포함한다.
 - 프론트 고객 상세와 관리자 환불 시작 화면은 `REQUESTED`, `PROCESSING` 동안 상태를 재조회
 - `V43__harden_refund_recovery.sql`은 선점 토큰, 시도 횟수, 다음 시각, 낙관적 잠금 컬럼과 복구 인덱스를 추가
 - `V89__harden_refund_identity_and_recovery.sql`은 환불 거래 식별자 UNIQUE와 복구 후보 순환 시각·인덱스를 추가

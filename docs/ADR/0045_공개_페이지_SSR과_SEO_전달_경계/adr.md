@@ -1,4 +1,4 @@
-# ADR-0045: 공개 페이지 SSR과 SEO 전달 경계
+# ADR-0045: 공개 페이지 SSR과 검색 노출 정책
 
 **날짜**: 2026-08-22
 **상태**: Accepted
@@ -20,8 +20,7 @@ fallback으로 HTTP 200을 받았고, sitemap·canonical·`og:url`이 없었다.
 
 - 홈, 상품, 클래스, 단체 수업, 이벤트, 공지, 약관·정책·사업자 정보를
   요청 시점 SSR로 렌더링한다.
-- 회원, 결제, 관리자 경로는 검색 노출 대상이 아니므로 client-only 경계 아래서
-  기존 CSR 흐름을 유지한다.
+- 회원·결제·관리자 화면은 검색 노출 대상이 아니므로 기존 CSR 방식을 유지한다.
 - 공개 loader는 프런트엔드 Node 런타임에서 `INTERNAL_API_ORIGIN`의 백엔드 공개
   API를 호출한다. 백엔드 404는 문서 404로, 일시적 장애는 검색 색인을
   허용하지 않는 장애 응답으로 반환한다.
@@ -41,7 +40,7 @@ fallback으로 HTTP 200을 받았고, sitemap·canonical·`og:url`이 없었다.
 - 현재 버전의 `/terms`, `/privacy`만 sitemap에 포함한다. 과거 버전은
   `noindex,follow`, 알 수 없는 버전은 404로 처리한다.
 
-### 3. robots, sitemap과 HTTP 상태를 SSR 런타임이 소유한다
+### 3. SSR 서버에서 robots.txt·sitemap.xml과 HTTP 상태 코드를 제공한다
 
 - `/robots.txt`는 공개 콘텐츠 수집을 허용하고
   `Sitemap: https://happy-gallery.com/sitemap.xml`을 제공한다.

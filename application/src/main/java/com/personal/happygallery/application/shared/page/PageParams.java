@@ -3,7 +3,7 @@ package com.personal.happygallery.application.shared.page;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 
-/** 목록 조회의 페이지 번호와 크기 경계를 관리한다. */
+/** 페이지 번호와 페이지당 조회 개수를 제한한다. */
 public final class PageParams {
 
     public static final int MAX_SIZE = 100;

@@ -48,7 +48,7 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 confirm 상태 변경은 트랜잭션 책임에 따라 세 개의 package-private 서비스로 분리하고 각 변경을
 `REQUIRES_NEW`로 실행한다.
 
-- `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과와 늦은 승인 화해
+- `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과 저장과 늦게 도착한 승인 반영
 - `PaymentConfirmFulfillmentTransactionService`: 도메인 생성과 `CONFIRMED` 저장, fulfillment 실패의 보상 요청
 - `PaymentConfirmRecoveryTransactionService`: 행 잠금 아래 복구 후보 재검증, 저장된 요청 복원과 대사 전환
 
@@ -60,7 +60,7 @@ confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING
 선점마다 `payment_attempt.processing_token`에 새 UUID를 저장하고, 일반 PG 승인·실패 결과는 현재 토큰과
 일치할 때만 반영한다. 재선점 뒤 늦게 도착한 실패는 버리지만, 외부에서 이미 성립한 PG 승인 성공은
 유실하면 안 된다. 같은 orderId·금액·paymentKey 요청임을 다시 검증하고 잠금 안에서 최신 상태가
-`PROCESSING/RETRYABLE/FAILED`면 `APPROVED`로 화해한다. 이 경로는 보상 환불을 바로 시작하지 않고 fulfillment를 재개한다.
+`PROCESSING/RETRYABLE/FAILED`면 `APPROVED`로 변경한다. 이 경로는 보상 환불을 바로 시작하지 않고 fulfillment를 재개한다.
 
 `resolveConfirmationStep()`은 nullable 값과 boolean 조합 대신 `Completed`, `ReadyForFulfillment`,
 `PgConfirmationRequired`, `ZeroAmountApprovalRequired` 중 하나를 반환한다. 이 단계 결정 시
@@ -148,7 +148,7 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 `FAILED`면 저장된 이유의 `PAYMENT_FAILED`, `RECONCILIATION_REQUIRED`면
 `PAYMENT_RECONCILIATION_REQUIRED`, 보상·취소 상태면 `INVALID_INPUT`으로 종료하며 이전 요청에서 PG를 다시 호출하지 않는다.
 반면 이전 processing token의 PG 성공은 외부 승인 사실이므로, 최신 로컬 실패보다 우선해
-`APPROVED`로 화해하고 fulfillment를 이어간다.
+`APPROVED`로 변경하고 fulfillment를 이어간다.
 도메인 주문·예약에는 접근 토큰 해시만 유지하고, 재응답에 필요한 비회원 원문 토큰은
 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로만 보존한다.
 

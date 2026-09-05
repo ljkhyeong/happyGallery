@@ -13,7 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>환불 요청 레코드는 호출 유스케이스 트랜잭션에 참여하고, PG 환불 호출은 커밋 이후
  * 발행되는 실행 이벤트가 담당한다. 운영자 재시도는 트랜잭션 밖에서 동기 실행한다.
- * 예약, 주문, 8회권 환불을 처리하는 공용 경계 서비스.
+ * 예약·주문·8회권의 환불을 공통 처리한다.
  */
 @Service
 public class RefundExecutionService {

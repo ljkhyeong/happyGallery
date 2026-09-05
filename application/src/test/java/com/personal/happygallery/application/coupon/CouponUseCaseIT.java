@@ -253,7 +253,7 @@ class CouponUseCaseIT {
         }
     }
 
-    @DisplayName("같은 회원이 쿠폰을 동시에 발급해도 한 건만 생성되고 중복 요청은 충돌로 수렴한다")
+    @DisplayName("같은 회원의 동시 쿠폰 발급은 한 건만 성공하고 중복 요청은 CONFLICT 오류로 거절한다")
     @Test
     void claim_sameMemberConcurrently_issuesOnlyOnce() throws Exception {
         LocalDateTime now = now();
