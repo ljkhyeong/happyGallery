@@ -1,5 +1,6 @@
 import { Button, Card, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
+import { NotificationContext } from "@/features/notification/NotificationContext";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import { useMarkAllAsRead, useMarkAsRead, useNotificationList, useUnreadCount } from "@/features/notification/useNotifications";
 import { notificationTarget } from "@/features/notification/notificationTarget";
@@ -51,8 +52,9 @@ function NotificationInbox() {
         return (
           <Card key={notification.id} className="mb-2"><Card.Body>
             <div className="d-flex gap-3 justify-content-between align-items-start">
-              <div>
+              <div className="flex-grow-1" style={{ minWidth: 0 }}>
                 {target ? <Link to={target} onClick={() => { if (!notification.read) markRead.mutate(notification.id); }}>{label}</Link> : <strong>{label}</strong>}
+                <NotificationContext notification={notification} />
                 <div className="small text-muted mt-1">{formatDateTime(notification.deliveredAt)} · {notification.read ? "읽음" : "읽지 않음"}</div>
               </div>
               {!notification.read && <Button size="sm" variant="outline-primary" disabled={pending}

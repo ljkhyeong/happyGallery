@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Nav } from "react-bootstrap";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router";
+import { NotificationContext } from "./NotificationContext";
 import { notificationTarget } from "./notificationTarget";
 import { Link } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -158,6 +159,7 @@ export function NotificationBell() {
                     <div className="fw-semibold">
                       {NOTIFICATION_EVENT_LABEL[notification.eventType] ?? "알림 내용 확인 필요"}
                     </div>
+                    <NotificationContext notification={notification} />
                     <div className="text-muted" style={{ fontSize: "0.75rem" }}>
                       {formatRelativeTime(notification.deliveredAt)}
                     </div>

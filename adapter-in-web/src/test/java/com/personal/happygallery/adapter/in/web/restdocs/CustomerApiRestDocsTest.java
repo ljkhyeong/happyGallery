@@ -84,6 +84,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -216,7 +217,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         "ORDER",
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
-                        null)));
+                        null, "주문 #200 · 가죽 지갑", null)));
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
@@ -819,7 +820,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].aggregateId").value(200))
                 .andExpect(jsonPath("$[0].deliveredAt").value("2026-03-28T09:15:00"))
                 .andExpect(jsonPath("$[0].readAt").doesNotExist())
-                .andExpect(jsonPath("$[0].read").value(false));
+                .andExpect(jsonPath("$[0].read").value(false))
+                .andExpect(jsonPath("$[0].contextTitle").value("주문 #200 · 가죽 지갑"))
+                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()));
     }
 
     @Test

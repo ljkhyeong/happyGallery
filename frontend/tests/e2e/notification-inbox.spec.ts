@@ -1,7 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공하고 읽음 처리 후 목록을 갱신한다 @identity", async ({ page }) => {
-  const rows = Array.from({ length: 22 }, (_, index) => ({ id: 22 - index, eventType: "ORDER_PAID", aggregateType: "ORDER", aggregateId: 42,
+  const orderTitle = `주문 #42 · 가죽 지갑 ${"LongProductName".repeat(8)} 외 1건`;
+  const rows = Array.from({ length: 22 }, (_, index) => ({ id: 22 - index,
+    eventType: index === 1 ? "BOOKING_CONFIRMED" : "ORDER_PAID", aggregateType: index === 1 ? "BOOKING" : "ORDER", aggregateId: index === 1 ? 701 : 42,
+    contextTitle: index === 0 ? orderTitle : index === 1 ? "예약 #701 · 가죽공예" : null,
+    scheduledAt: index === 1 ? "2026-09-12T14:00:00" : null,
     deliveredAt: "2026-09-05T10:00:00", readAt: index === 0 ? "2026-09-05T11:00:00" : null, read: index === 0 }));
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -23,6 +27,15 @@ test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공
   });
   await page.goto("/my/notifications");
   await expect(page.getByRole("heading", { name: "전체 알림" })).toBeVisible();
+  await expect(page.getByText(orderTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText("예약 #701 · 가죽공예", { exact: true })).toBeVisible();
+  await expect(page.getByText(/현재 예약일:/)).toContainText("2026. 09. 12.");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.getByRole("button", { name: "알림", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "알림 목록" }).getByText(orderTitle, { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "다음", exact: true }).click();
   await expect(page).toHaveURL(/page=1/);
   await expect(page.getByRole("button", { name: /알림 1 읽음 처리/ })).toBeVisible();
