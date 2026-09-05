@@ -101,6 +101,29 @@ class MeBookingUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
+    @Test
+    @DisplayName("예약은 클래스명을 검색하고 예약일순으로 페이지를 나누며 검색 기호를 문자로 처리한다")
+    void searchMyBookingHistory() throws Exception {
+        Long laterId = createBooking(slot2Id);
+        Long earlierId = createBooking(slotId);
+        var first = mockMvc.perform(get("/api/v1/me/bookings/page").cookie(sessionCookie)
+                        .param("keyword", "향수").param("status", "BOOKED").param("sort", "SOONEST").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(earlierId))
+                .andExpect(jsonPath("$.hasMore").value(true)).andReturn();
+        String cursor = objectMapper.readTree(first.getResponse().getContentAsString()).get("nextCursor").asText();
+        mockMvc.perform(get("/api/v1/me/bookings/page").cookie(sessionCookie)
+                        .param("keyword", "향수").param("status", "BOOKED").param("sort", "SOONEST")
+                        .param("size", "1").param("cursor", cursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].bookingId").value(laterId))
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mockMvc.perform(get("/api/v1/me/bookings/page").cookie(sessionCookie).param("keyword", "%"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
+        mockMvc.perform(get("/api/v1/me/bookings/page").cookie(sessionCookie).param("status", "CANCELED"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
+    }
+
     @DisplayName("회원 예약 목록을 조회한다")
     @Test
     void listMyBookings() throws Exception {

@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Tag("policy")
 class TimeBoundaryPolicyTest {
 
-    // ── 취소 보상 경계 ────────────────────────────────────────────────────────
+    // ── 환불·이용 횟수 복원 마감 ────────────────────────────────────────────────────────
 
     @DisplayName("체험일 자정 경계에 따라 환불 가능 여부가 달라진다")
     @ParameterizedTest(name = "{0}")

@@ -28,6 +28,20 @@ public interface KeyRotationDataPort {
 
     void updateFulfillment(FulfillmentRotatedRow row);
 
+    List<ShippingAddressChangeRow> findShippingAddressChangesAfterId(long afterId, int limit);
+
+    void updateShippingAddressChange(ShippingAddressChangeRow row);
+
+    record ShippingAddressChangeRow(long id, String beforeAddressEnc, String afterAddressEnc)
+            implements IdentifiedRow {}
+
+    record GroupInquiryEncryptedRow(long id, String payloadEnc) implements IdentifiedRow {}
+
+    List<GroupInquiryEncryptedRow> findGroupInquiriesAfterId(long afterId, int limit);
+    void updateGroupInquiry(GroupInquiryEncryptedRow row);
+    List<GroupInquiryEncryptedRow> findGroupInquiryActivitiesAfterId(long afterId, int limit);
+    void updateGroupInquiryActivity(GroupInquiryEncryptedRow row);
+
     List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
             String afterProductOrderId, int limit);
 
@@ -49,11 +63,12 @@ public interface KeyRotationDataPort {
 
     long countSocialAccountsWithoutProviderIdEnc();
 
-    record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc)
+    record UserEncryptedRow(long id, String emailEnc, String nameEnc, String phoneEnc, String defaultShippingAddressEnc)
             implements IdentifiedRow {}
 
     record UserRotatedRow(long id, String emailEnc, String emailHmac,
-                          String nameEnc, String nameHmac, String phoneEnc, String phoneHmac) {}
+                          String nameEnc, String nameHmac, String phoneEnc, String phoneHmac,
+                          String defaultShippingAddressEnc) {}
 
     record GuestEncryptedRow(long id, String nameEnc, String phoneEnc) implements IdentifiedRow {}
 

@@ -35,6 +35,11 @@ public class Inventory {
     @Column(nullable = false)
     private int quantity;
 
+    @Column(name = "minimum_stock")
+    private Integer minimumStock;
+
+
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -43,6 +48,13 @@ public class Inventory {
     private LocalDateTime updatedAt;
 
     protected Inventory() {}
+
+    public void changeMinimumStock(Integer minimumStock, long expectedVersion) {
+        StockThresholdPolicy.requireWritable(minimumStock, expectedVersion, version);
+        this.minimumStock = minimumStock;
+    }
+
+    public Integer getMinimumStock() { return minimumStock; }
 
     /**
      * 재고 생성. 단일 작품은 quantity=1로 생성한다.

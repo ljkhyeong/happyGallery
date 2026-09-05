@@ -124,6 +124,11 @@ class KeyRotationUseCaseIT {
         Fulfillment fulfillment = fulfillmentRepository.save(Fulfillment.shipping(
                 order.getId(), oldEncryptor.encrypt("{\"address\":\"서울\"}")));
         jdbcTemplate.update("""
+                INSERT INTO shipping_address_changes(order_id, user_id, before_address_enc, after_address_enc, changed_at)
+                VALUES (?, ?, ?, ?, ?)
+                """, order.getId(), user.getId(), oldEncryptor.encrypt("이전 배송지"),
+                oldEncryptor.encrypt("새 배송지"), paidAt);
+        jdbcTemplate.update("""
                 INSERT INTO smartstore_product_orders (
                     product_order_id, order_id, origin_product_no, product_name,
                     delivery_info_enc, product_order_status, initial_quantity, remain_quantity,
@@ -160,7 +165,18 @@ class KeyRotationUseCaseIT {
         pendingAdmin.beginMfaEnrollment(oldEncryptor.encrypt("JBSWY3DPEHPK3PXP"));
         AdminUser admin = adminUserPort.save(pendingAdmin);
 
+        jdbcTemplate.update("INSERT INTO group_inquiries(user_id, source, status, details_enc, created_at, updated_at) VALUES (?, 'WEBSITE', 'RECEIVED', ?, ?, ?)",
+                user.getId(), oldEncryptor.encrypt("문의 연락처"), paidAt, paidAt);
+        Long inquiryId = jdbcTemplate.queryForObject("SELECT id FROM group_inquiries WHERE user_id = ?", Long.class, user.getId());
+        jdbcTemplate.update("INSERT INTO group_inquiry_activities(inquiry_id, to_status, note_enc, created_at) VALUES (?, 'RECEIVED', ?, ?)",
+                inquiryId, oldEncryptor.encrypt("상담 메모"), paidAt);
+
+        jdbcTemplate.update("UPDATE users SET default_shipping_address_enc = ? WHERE id = ?",
+                oldEncryptor.encrypt("기본 배송지 암호문"), user.getId());
         KeyRotationUseCase.RotationResult result = keyRotationUseCase.rotate("v1");
+        assertThat(value("users", "default_shipping_address_enc", user.getId())).startsWith("hg:v2:");
+        assertThat(activeEncryptor.decrypt(value("users", "default_shipping_address_enc", user.getId())))
+                .isEqualTo("기본 배송지 암호문");
 
         assertSoftly(softly -> {
             softly.assertThat(result.users()).isEqualTo(2);
@@ -168,6 +184,14 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.bookings()).isEqualTo(1);
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
+            softly.assertThat(result.shippingAddressChanges()).isEqualTo(1);
+            softly.assertThat(result.groupInquiries()).isEqualTo(1);
+            softly.assertThat(result.groupInquiryActivities()).isEqualTo(1);
+            softly.assertThat(value("group_inquiries", "details_enc", inquiryId)).startsWith("hg:v2:");
+            softly.assertThat(jdbcTemplate.queryForObject("SELECT note_enc FROM group_inquiry_activities WHERE inquiry_id = ?", String.class, inquiryId)).startsWith("hg:v2:");
+            var addressHistory = jdbcTemplate.queryForMap("SELECT before_address_enc, after_address_enc FROM shipping_address_changes WHERE order_id = ?", order.getId());
+            softly.assertThat((String) addressHistory.get("before_address_enc")).startsWith("hg:v2:");
+            softly.assertThat((String) addressHistory.get("after_address_enc")).startsWith("hg:v2:");
             softly.assertThat(result.smartStoreOrders()).isEqualTo(1);
             softly.assertThat(result.socialAccounts()).isEqualTo(1);
             softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);

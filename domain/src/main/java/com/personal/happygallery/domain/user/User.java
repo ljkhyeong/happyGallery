@@ -60,6 +60,12 @@ public class User {
     @Column(name = "phone_verified", nullable = false)
     private boolean phoneVerified;
 
+    @Column(name = "default_shipping_address_enc", columnDefinition = "TEXT")
+    private String defaultShippingAddressEnc;
+
+    @Column(name = "shipping_address_version", nullable = false)
+    private long shippingAddressVersion;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
@@ -126,6 +132,17 @@ public class User {
     public LocalDateTime getWithdrawnAt() { return withdrawnAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 
+    public String getDefaultShippingAddressEnc() { return defaultShippingAddressEnc; }
+    public long getShippingAddressVersion() { return shippingAddressVersion; }
+
+    public void changeDefaultShippingAddress(long expectedVersion, String encryptedAddress) {
+        if (shippingAddressVersion != expectedVersion) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "기본 배송지가 변경되었습니다. 새로고침 후 다시 확인해 주세요.");
+        }
+        defaultShippingAddressEnc = encryptedAddress;
+        shippingAddressVersion = Math.incrementExact(shippingAddressVersion);
+    }
+
     public void updateLastLoginAt(LocalDateTime loginAt) {
         this.lastLoginAt = loginAt;
     }
@@ -158,6 +175,7 @@ public class User {
         this.email = EmailAddress.required(anonymizedEmail);
         this.name = PersonalName.required(anonymizedName);
         this.phone = null;
+        this.defaultShippingAddressEnc = null;
         this.passwordHash = null;
         this.phoneVerified = false;
         this.lastLoginAt = null;

@@ -3,7 +3,7 @@ package com.personal.happygallery.domain.content;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 
-/** 문의, 상품 Q&A, 공지처럼 사용자가 작성하는 장문 콘텐츠의 저장 경계. */
+/** 문의·상품 Q&A·공지의 필수 입력과 글자 수 제한. */
 public final class ContentTextPolicy {
 
     public static final int MIN_LENGTH = 1;

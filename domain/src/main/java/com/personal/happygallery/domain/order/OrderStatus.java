@@ -33,6 +33,14 @@ public enum OrderStatus {
 	// 최종 상태
 	COMPLETED;
 
+	/** 배송 준비 전의 진행 중 주문만 배송지를 수정할 수 있다. */
+	public void requireShippingAddressWritable() {
+		if (this != PAID_APPROVAL_PENDING && this != APPROVED_FULFILLMENT_PENDING
+				&& this != IN_PRODUCTION && this != DELAY_CONSENT_PENDING && this != DELAY_ACCEPTED) {
+			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "배송 준비 전의 진행 중 주문만 배송지를 수정할 수 있습니다.");
+		}
+	}
+
 	/**
 	 * 관리자 승인/거절이 가능한 승인 대기 상태인지 확인한다.
 	 * 이미 환불된 주문은 {@link AlreadyRefundedException}을 던지고,

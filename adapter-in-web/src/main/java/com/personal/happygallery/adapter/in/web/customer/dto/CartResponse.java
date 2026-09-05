@@ -17,7 +17,7 @@ public record CartResponse(
                         i.variantPriceAdjustment(), i.textOptionPriceAdjustment(), i.price(),
                         i.specification(), i.careInstructions(), i.productionLeadDays(),
                         i.options().stream().map(ProductOptionSnapshotResponse::from).toList(),
-                        i.qty(), i.subtotal(), i.available()))
+                        i.qty(), i.subtotal(), i.available(), i.availableQuantity()))
                 .toList();
         return new CartResponse(items, view.totalAmount(), view.cartVersion());
     }

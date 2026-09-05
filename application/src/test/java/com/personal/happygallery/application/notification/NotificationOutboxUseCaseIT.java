@@ -105,7 +105,7 @@ class NotificationOutboxUseCaseIT {
                 null, user.getId(), NotificationChannel.SMS,
                 NotificationEventType.ORDER_PAID, now));
 
-        var notifications = notificationQueryUseCase.listNotifications(user.getId(), null, 0, 20);
+        var notifications = notificationQueryUseCase.listNotifications(user.getId(), null, 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(notifications)
@@ -123,6 +123,30 @@ class NotificationOutboxUseCaseIT {
         notificationQueryUseCase.markAsRead(outbox.getId(), user.getId(), null);
 
         assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isZero();
+    }
+
+    @Test
+    @DisplayName("읽지 않은 알림 필터는 읽은 알림과 타인 알림을 제외한 뒤 페이지를 나눈다")
+    void unreadInbox_filtersBeforePaging() {
+        var owner = userStorePort.save(new User("unread@example.com", "hash", "회원", "01055556666"));
+        var other = userStorePort.save(new User("other-inbox@example.com", "hash", "다른 회원", "01055557777"));
+        var now = LocalDateTime.now(clock);
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            for (int index = 0; index < 4; index++) {
+                var row = outboxRepository.save(NotificationOutbox.from(NotificationRequestedEvent.forUser(
+                        index == 3 ? other.getId() : owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", (long) index), now));
+                var at = now.plusSeconds(index);
+                row.markSent(row.markProcessing(at), at);
+                if (index == 2) row.markRead(at);
+            }
+        });
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 1, true))
+                .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(1L);
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 1, 1, true))
+                .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(0L);
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, false)).hasSize(3);
+        notificationQueryUseCase.markAllAsRead(owner.getId(), null);
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, true)).isEmpty();
     }
 
     @DisplayName("알림 이벤트가 발행된 트랜잭션이 롤백되면 outbox도 생성되지 않는다")

@@ -206,10 +206,10 @@ class CartQueryUseCaseIT {
                     .containsExactly(
                     new CartUseCase.CartItemView(
                             availableProduct.getId(), "재고 상품", availableProduct.getType(),
-                            39_000L, 2, true),
+                            39_000L, 2, true, 3),
                     new CartUseCase.CartItemView(
                             unavailableProduct.getId(), "재고 없는 상품", unavailableProduct.getType(),
-                            15_000L, 1, false));
+                            15_000L, 1, false, 0));
             softly.assertThat(cart.items())
                     .extracting(CartUseCase.CartItemView::cartItemId)
                     .containsExactly(availableItem.getId(), unavailableItem.getId());
@@ -354,6 +354,7 @@ class CartQueryUseCaseIT {
                         softly.assertThat(item.productVariantId()).isEqualTo(variantId);
                         softly.assertThat(item.price()).isEqualTo(22_000L);
                         softly.assertThat(item.available()).isTrue();
+                        softly.assertThat(item.availableQuantity()).isEqualTo(2);
                     });
             softly.assertThat(cart.items().stream()
                             .flatMap(item -> item.options().stream())
@@ -370,8 +371,21 @@ class CartQueryUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(stockChanged.items()).hasSize(2)
-                    .allSatisfy(item -> softly.assertThat(item.available()).isFalse());
+                    .allSatisfy(item -> {
+                        softly.assertThat(item.available()).isFalse();
+                        softly.assertThat(item.availableQuantity()).isEqualTo(1);
+                    });
             softly.assertThat(stockChanged.totalAmount()).isZero();
         });
+
+        productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
+                registered.product().getId(), variantId, InventoryAdjustmentType.DECREASE, 1,
+                "오프라인 추가 판매", null, "local-api-key"));
+        CartUseCase.CartView soldOut = cartUseCase.getCart(user.getId());
+        assertThat(soldOut.items()).allSatisfy(item -> {
+            assertThat(item.available()).isFalse();
+            assertThat(item.availableQuantity()).isZero();
+        });
+        assertThat(soldOut.cartVersion()).isNotEqualTo(stockChanged.cartVersion());
     }
 }

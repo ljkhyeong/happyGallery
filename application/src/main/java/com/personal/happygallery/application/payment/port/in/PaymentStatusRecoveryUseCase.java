@@ -5,7 +5,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 import java.time.Instant;
 import java.util.List;
 
-/** 휴대폰 소유 확인으로 유실된 비회원 결제 상태 조회 자격과 orderId 목록을 복구한다. */
+/** 휴대폰 번호 인증으로 유실된 비회원 결제 상태 조회 자격과 orderId 목록을 복구한다. */
 public interface PaymentStatusRecoveryUseCase {
 
     RecoveryResult recover(String phone, String verificationCode);

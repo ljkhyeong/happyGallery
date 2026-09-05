@@ -165,7 +165,7 @@ public class IssuedCoupon {
         usedAt = null;
     }
 
-    /** 아직 미사용인 쿠폰에만 exclusive 만료 경계를 반영한다. */
+    /** 사용 가능한 쿠폰은 validUntil부터 만료 처리한다. */
     public boolean expireIfReached(LocalDateTime validUntil, LocalDateTime now) {
         requireTime(validUntil);
         requireTime(now);

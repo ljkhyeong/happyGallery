@@ -15,15 +15,15 @@ public interface CartUseCase {
                         long textOptionPriceAdjustment, long price,
                         String specification, String careInstructions,
                         Integer productionLeadDays, List<OptionSnapshot> options,
-                        int qty, boolean available) {
+                        int qty, boolean available, int availableQuantity) {
         public CartItemView {
             options = List.copyOf(options);
         }
 
         public CartItemView(Long productId, String productName, ProductType productType,
-                            long price, int qty, boolean available) {
+                            long price, int qty, boolean available, int availableQuantity) {
             this(null, productId, null, productName, productType,
-                    price, 0L, 0L, price, null, null, null, List.of(), qty, available);
+                    price, 0L, 0L, price, null, null, null, List.of(), qty, available, availableQuantity);
         }
 
         public long subtotal() { return OrderAmountCalculator.addLine(0L, qty, price); }
@@ -55,7 +55,7 @@ public interface CartUseCase {
 
     CartView getCart(Long userId);
 
-    PurchasableCart getPurchasableCart(Long userId);
+    PurchasableCart getPurchasableCart(Long userId, List<Long> selectedCartItemIds);
 
     void addItem(Long userId, Long productId, Long productVariantId,
                  List<TextInput> textInputs, int qty);

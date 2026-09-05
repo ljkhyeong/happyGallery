@@ -7,6 +7,7 @@ export const NotificationResponseEventType = {
   BOOKING_RESCHEDULED: 'BOOKING_RESCHEDULED',
   BOOKING_CANCELED: 'BOOKING_CANCELED',
   BOOKING_VACANCY_AVAILABLE: 'BOOKING_VACANCY_AVAILABLE',
+  PRODUCT_RESTOCK_AVAILABLE: 'PRODUCT_RESTOCK_AVAILABLE',
   DEPOSIT_REFUNDED: 'DEPOSIT_REFUNDED',
   ORDER_PAID: 'ORDER_PAID',
   ORDER_APPROVED: 'ORDER_APPROVED',
@@ -35,12 +36,22 @@ export interface NotificationResponse {
   aggregateId: number | null;
   /** @nullable */
   aggregateType: string | null;
+  /**
+     * 본인 주문의 구매 당시 상품명, 현재 예약 클래스 또는 재입고 상품·옵션. 원본이 없거나 타인 소유이면 null
+     * @nullable
+     */
+  contextTitle: string | null;
   deliveredAt: string;
   eventType: NotificationResponseEventType;
   id: number;
   read: boolean;
   /** @nullable */
   readAt: string | null;
+  /**
+     * 예약 알림 원본의 현재 예약일시. 알림 발생 당시 일정이 아니며 예약이 아니거나 원본을 조회할 수 없으면 null
+     * @nullable
+     */
+  scheduledAt: string | null;
 }
 
 export interface UnreadCountResponse {
@@ -50,6 +61,7 @@ export interface UnreadCountResponse {
 export type ListMyNotificationsParams = {
 page?: number;
 size?: number;
+unreadOnly?: boolean;
 };
 
 export const getListMyNotificationsUrl = (params?: ListMyNotificationsParams,) => {

@@ -199,7 +199,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
     await fulfillJson(route, []);
   });
 
-  await page.goto("/my");
+  await page.goto("/my/vacancy-alerts");
   await expect(page.getByText("닫힌 회차 가죽 클래스", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "닫힌 회차 가죽 클래스 빈자리 알림 취소" }).click();
 

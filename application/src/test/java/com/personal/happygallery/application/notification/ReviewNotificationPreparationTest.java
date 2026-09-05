@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import com.personal.happygallery.application.product.port.out.RestockAlertDeliveryPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -30,7 +31,7 @@ class ReviewNotificationPreparationTest {
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-09T01:00:00Z"), ZoneId.of("Asia/Seoul"));
 
-    @DisplayName("발송 시점에 의미가 사라진 후기 알림은 외부 채널 없이 종결한다")
+    @DisplayName("발송 조건을 충족하지 않는 후기 알림은 외부 채널을 호출하지 않고 종료한다")
     @Test
     void prepareDelivery_irrelevantReviewNotification_marksObsolete() {
         NotificationOutbox outbox = reviewOutbox(10L);
@@ -123,6 +124,6 @@ class ReviewNotificationPreparationTest {
                 reminderEligibility,
                 reviewEligibility,
                 mock(ApplicationEventPublisher.class),
-                CLOCK);
+                CLOCK, mock(RestockAlertDeliveryPort.class));
     }
 }

@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-/** 회원 후기 원천의 소유권과 완료 상태를 조회한다. */
+/** 후기 대상 주문 품목·예약이 회원 본인 소유인지, 완료됐는지 조회한다. */
 public interface ReviewEligibilityPort {
 
     record ProductReviewSource(

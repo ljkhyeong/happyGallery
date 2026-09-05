@@ -154,7 +154,7 @@ class PaymentAttemptPolicyTest {
         });
     }
 
-    @DisplayName("늦게 도착한 PG 성공은 새 실행권의 실패 상태를 승인으로 화해한다")
+    @DisplayName("재선점한 요청이 실패해도 이전 요청의 PG 승인 응답이 도착하면 승인 상태로 변경한다")
     @Test
     void reconcileLatePgApproval_overridesNewerLocalFailure() {
         PaymentAttempt retryable = PaymentAttempt.startForMember(

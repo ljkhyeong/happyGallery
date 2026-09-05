@@ -628,6 +628,23 @@ export interface UpdateProductStatusRequest {
   status: UpdateProductStatusRequestStatus;
 }
 
+export interface RestockDemandResponse {
+  optionLabel: string;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  productVariantId: number | null;
+  waitingCount: number;
+}
+
+export interface RestockDemandPageResponse {
+  content: RestockDemandResponse[];
+  page: number;
+  size: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export interface SlotResponse {
   adminActive: boolean;
   bookedCount: number;
@@ -831,6 +848,40 @@ export interface ApplySmartStoreNoticeRequest {
   channelProductNos: number[];
 }
 
+export type StockLevelResponseType = typeof StockLevelResponseType[keyof typeof StockLevelResponseType];
+
+
+export const StockLevelResponseType = {
+  READY_STOCK: 'READY_STOCK',
+  MADE_TO_ORDER: 'MADE_TO_ORDER',
+} as const;
+
+export interface StockLevelResponse {
+  active: boolean;
+  lowStock: boolean;
+  /** @nullable */
+  minimumStock: number | null;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  productVariantId: number | null;
+  quantity: number;
+  type: StockLevelResponseType;
+  version: number;
+}
+
+export interface UpdateStockThresholdRequest {
+  /**
+     * null이면 재고 부족 기준을 해제하고 품절만 표시
+     * @nullable
+     */
+  minimumStock?: number | null;
+  productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
+  version: number;
+}
+
 export type UploadImageBody = {
   file: Blob;
 };
@@ -864,6 +915,15 @@ expectedMappingVersion: number;
 previousOriginConfirmed: boolean;
 };
 
+export type ListAdminRestockDemandParams = {
+/**
+ * @exclusiveMinimum 0
+ */
+productId?: number;
+page?: number;
+size?: number;
+};
+
 export type ListSlotsParams = {
 classId: number;
 };
@@ -883,6 +943,10 @@ page?: number;
  * @maximum 100
  */
 size?: number;
+};
+
+export type ListAdminStockLevelsParams = {
+productId?: number;
 };
 
 export const getListClassesUrl = () => {
@@ -1400,6 +1464,34 @@ export const changeStatus = async (id: number,
 
 
 
+export const getListAdminRestockDemandUrl = (params?: ListAdminRestockDemandParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/restock-demand?${stringifiedParams}` : `/api/v1/admin/restock-demand`
+}
+
+export const listAdminRestockDemand = async (params?: ListAdminRestockDemandParams, options?: RequestInit): Promise<RestockDemandPageResponse> => {
+
+  return generatedApiClient<RestockDemandPageResponse>(getListAdminRestockDemandUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
 export const getListSlotsUrl = (params: ListSlotsParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -1735,5 +1827,54 @@ export const applySmartStoreProductNotice = async (sellerNoticeId: number,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(applySmartStoreNoticeRequest)
+  }
+);}
+
+
+
+export const getListAdminStockLevelsUrl = (params?: ListAdminStockLevelsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/stock-levels?${stringifiedParams}` : `/api/v1/admin/stock-levels`
+}
+
+export const listAdminStockLevels = async (params?: ListAdminStockLevelsParams, options?: RequestInit): Promise<StockLevelResponse[]> => {
+
+  return generatedApiClient<StockLevelResponse[]>(getListAdminStockLevelsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateAdminStockThresholdUrl = () => {
+
+
+
+
+  return `/api/v1/admin/stock-levels/threshold`
+}
+
+export const updateAdminStockThreshold = async (updateStockThresholdRequest: UpdateStockThresholdRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateAdminStockThresholdUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateStockThresholdRequest)
   }
 );}

@@ -79,7 +79,7 @@
 
 ## 결정 7: 운영자 취소는 고객 마감과 분리하고 감사 주체를 저장한다
 
-**결정**: `POST /api/v1/admin/bookings/{bookingId}/cancel`은 `BOOKED` 예약을 운영자 사정으로 취소한다. 고객의 환불·크레딧 복구 마감을 적용하지 않고 예약금 전액 환불 또는 유효한 8회권 크레딧 복구를 시작한다. `booking_history`에는 `actor=ADMIN`, Bearer 세션의 `admin_user_id`, 입력 사유를 저장한다.
+**결정**: `POST /api/v1/admin/bookings/{bookingId}/cancel`은 `BOOKED` 예약을 운영자 사정으로 취소한다. 고객의 환불·이용 횟수 복원 마감을 적용하지 않고 예약금 전액 환불 또는 유효한 8회권 크레딧 복구를 시작한다. `booking_history`에는 `actor=ADMIN`, Bearer 세션의 `admin_user_id`, 입력 사유를 저장한다.
 
 **이유**: 공방 사정 취소의 비용을 고객에게 전가하면 안 되며, 운영자가 수행한 상태 변경은 시스템·고객 작업과 구분해 추적해야 한다.
 

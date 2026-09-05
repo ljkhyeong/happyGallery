@@ -341,6 +341,7 @@ app:
       review-report: { capacity: 10, window: 10m }
       review-image-upload: { capacity: 20, window: 10m }
       order-customer-action: { capacity: 30, window: 1m }
+      group-inquiry: { capacity: 5, window: 10m }
     subject:
       customer-login: { capacity: 10, window: 10m }
       phone-verification: { capacity: 3, window: 10m }

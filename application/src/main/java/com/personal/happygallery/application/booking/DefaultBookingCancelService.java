@@ -248,7 +248,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         bookingSupport.recordHistory(
                 booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null, null);
 
-        // 3. 환불/크레딧 복구 등 취소 보상 처리
+        // 3. 예약금 환불 또는 8회권 횟수 복원
         CancellationCompensation compensation =
                 applyCustomerCancellationCompensation(booking, slot, lockedPass);
 

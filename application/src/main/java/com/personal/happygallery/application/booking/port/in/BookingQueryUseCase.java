@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking.port.in;
 
+import com.personal.happygallery.application.booking.BookingHistoryQuery;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
@@ -19,6 +20,8 @@ public interface BookingQueryUseCase {
     List<Booking> listMyBookings(Long userId);
 
     CursorPage<Booking> listMyBookings(Long userId, String cursor, int size);
+
+    CursorPage<Booking> listMyBookings(Long userId, BookingHistoryQuery query, String cursor, int size);
 
     BookingDetail findMyBooking(Long id, Long userId);
 }

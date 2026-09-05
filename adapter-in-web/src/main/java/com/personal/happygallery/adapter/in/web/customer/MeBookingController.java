@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.application.booking.BookingHistoryQuery;
+import com.personal.happygallery.application.booking.BookingHistoryQuery.BookingHistorySort;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
@@ -66,9 +69,12 @@ public class MeBookingController {
             @Parameter(schema = @Schema(
                     type = "integer", format = "int32", defaultValue = "20",
                     minimum = "1", maximum = "100"))
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) BookingStatus status,
+            @RequestParam(defaultValue = "CREATED_DESC") BookingHistorySort sort) {
         return MyBookingPageResponse.from(
-                bookingQueryUseCase.listMyBookings(customer.userId(), cursor, size));
+                bookingQueryUseCase.listMyBookings(customer.userId(), new BookingHistoryQuery(keyword, status, sort), cursor, size));
     }
 
     @GetMapping("/{id}")

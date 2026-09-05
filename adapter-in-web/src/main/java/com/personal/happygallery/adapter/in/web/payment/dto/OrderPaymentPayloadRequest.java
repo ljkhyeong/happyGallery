@@ -48,8 +48,22 @@ public record OrderPaymentPayloadRequest(
                 defaultValue = "0",
                 minimum = "0",
                 maximum = "9007199254740991")
-        Long rewardAmount
+        Long rewardAmount,
+        @Size(min = 1, max = 100)
+        @Schema(nullable = true, description = "선택 구매할 본인 장바구니 행 ID. 생략 또는 null이면 구매 가능한 전체 항목. 지정 시 expectedCartVersion 필수")
+        List<@NotNull @Positive Long> selectedCartItemIds
 ) implements PaymentPayloadRequest {
+
+    public OrderPaymentPayloadRequest(String type, Long userId, String phone, String verificationCode,
+            String name, List<OrderItemRefRequest> items, boolean cartCheckout,
+            FulfillmentType fulfillmentType, ShippingAddressRequest shippingAddress,
+            String madeToOrderConsentVersion, boolean madeToOrderConsent,
+            PolicyAcceptanceRequest policyAcceptance, String expectedCartVersion,
+            Long issuedCouponId, Long rewardAmount) {
+        this(type, userId, phone, verificationCode, name, items, cartCheckout, fulfillmentType,
+                shippingAddress, madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance,
+                expectedCartVersion, issuedCouponId, rewardAmount, null);
+    }
 
     /** 혜택 요청 필드 도입 전 호출부 호환 생성자. */
     public OrderPaymentPayloadRequest(
@@ -87,7 +101,8 @@ public record OrderPaymentPayloadRequest(
                 policyAcceptance == null ? null : policyAcceptance.toCommand(),
                 expectedCartVersion,
                 issuedCouponId,
-                Objects.requireNonNullElse(rewardAmount, 0L));
+                Objects.requireNonNullElse(rewardAmount, 0L),
+                selectedCartItemIds);
     }
 
     @Schema(name = "OrderItemRef")

@@ -124,3 +124,62 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
     .toContain(latestProduct.name);
   await expect(page.getByText(firstProduct.name, { exact: true })).toHaveCount(0);
 });
+
+test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되고 빈 검색을 초기화할 수 있다", async ({ page }) => {
+  const selected = product("검색 조건 보존 작품");
+  const query = new URLSearchParams({ type: "READY_STOCK", category: "테스트", keyword: "보존", sort: "price_asc" });
+  const emptyQuery = new URLSearchParams({ type: "READY_STOCK", category: "테스트", keyword: "없는작품", sort: "price_asc" });
+  await replaceSsrUpstreamFixtures(
+    ssrApiFixture(`/products?${query}`, [selected]),
+    ssrApiFixture(`/products?${emptyQuery}`, []),
+    ssrApiFixture("/products", [selected]),
+    ssrApiFixture("/products/categories", ["테스트"]),
+    ssrApiFixture("/products/42", selected),
+  );
+  await page.route("**/api/v1/**", async (route) => {
+    const { pathname } = new URL(route.request().url());
+    if (pathname === "/api/v1/products" || pathname === "/api/v1/products/categories" || pathname === "/api/v1/products/42") {
+      await route.fallback();
+      return;
+    }
+    if (pathname === "/api/v1/me") {
+      await fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      return;
+    }
+    if (pathname === "/api/v1/workshop") {
+      await fulfillJson(route, { name: "해피갤러리" });
+      return;
+    }
+    if (pathname.endsWith("/reviews")) {
+      await fulfillJson(route, { content: [], filteredCount: 0, hasMore: false, nextCursor: null,
+        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+      return;
+    }
+    if (pathname.endsWith("/qna/page")) {
+      await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      return;
+    }
+    if (pathname === "/api/v1/orders/policy") {
+      await fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
+      return;
+    }
+    await fulfillJson(route, []);
+  });
+  const response = await page.goto(`/products?${query}`);
+  expect(await response?.text()).toContain(selected.name);
+  await expect(page.getByLabel("검색", { exact: true })).toHaveValue("보존");
+  await expect(page.getByLabel("정렬", { exact: true })).toHaveValue("price_asc");
+  await page.getByRole("link", { name: new RegExp(selected.name) }).click();
+  await expect(page.getByRole("heading", { name: selected.name })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByLabel("검색", { exact: true })).toHaveValue("보존");
+  await page.reload();
+  await expect(page.getByLabel("카테고리", { exact: true })).toHaveValue("테스트");
+  await expect(page.getByText(selected.name, { exact: true })).toBeVisible();
+  await page.getByLabel("검색", { exact: true }).fill("없는작품");
+  await expect(page.getByText("조건에 맞는 상품이 없습니다.")).toBeVisible();
+  await expect(page.getByLabel("검색", { exact: true })).toBeFocused();
+  await page.getByRole("button", { name: "초기화", exact: true }).click();
+  await expect(page).toHaveURL(/\/products$/);
+  await expect(page.getByText(selected.name, { exact: true })).toBeVisible();
+});

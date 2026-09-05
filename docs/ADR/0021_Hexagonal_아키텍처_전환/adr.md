@@ -88,7 +88,7 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 
 ### 7. Spring Data 저장소와 저장 포트 구현을 분리한다
 
-- `JpaRepository` 인터페이스는 Spring Data 쿼리와 엔티티 저장 기술만 소유한다.
+- `JpaRepository` 인터페이스는 Spring Data 쿼리 선언과 엔티티 저장만 담당한다.
 - `save(Entity)`를 선언하는 application 출력 포트는 `Jpa*PersistenceAdapter`가 명시적으로 구현하고
   해당 Spring Data 저장소에 위임한다.
 - application 포트의 `save(Entity)`와 Spring Data의 `save<S extends Entity>(S)`를 한 인터페이스에서

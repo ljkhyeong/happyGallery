@@ -1,5 +1,6 @@
 import type { Route } from "./+types/products";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
+import { readProductFilters } from "@/features/product/productFilters";
 import { ProductListPage } from "@/pages/ProductListPage";
 import {
   buildBreadcrumbJsonLd,
@@ -13,11 +14,12 @@ const TITLE = "수공예 작품 | 해피갤러리";
 const DESCRIPTION = "해피갤러리가 직접 만든 수공예 작품과 주문 제작 상품을 둘러보세요.";
 
 export async function loader({ request }: Route.LoaderArgs) {
+  const filters = readProductFilters(new URL(request.url).searchParams);
   const [products, categories] = await Promise.all([
-    loadProducts(request.signal),
+    loadProducts(request.signal, filters),
     loadProductCategories(request.signal),
   ]);
-  return { products, categories };
+  return { products, categories, filters };
 }
 
 export function meta({ loaderData }: Route.MetaArgs) {
@@ -43,6 +45,7 @@ export default function ProductsRoute({ loaderData }: Route.ComponentProps) {
       <ProductListPage
         initialProducts={loaderData.products}
         initialCategories={loaderData.categories}
+        initialFilters={loaderData.filters}
       />
     </>
   );

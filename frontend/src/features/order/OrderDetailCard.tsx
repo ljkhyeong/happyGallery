@@ -5,6 +5,7 @@ import type { OrderDetailResponse } from "@/shared/types";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { ShipmentTrackingActions } from "./ShipmentTrackingActions";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { OrderReorderButton } from "./OrderReorderButton";
 import { OrderOptionList } from "./OrderOptionList";
 
 interface Props {
@@ -62,6 +63,7 @@ export function OrderDetailCard({ order }: Props) {
                       showLegacySnapshotNotice
                     />
                   </div>
+                  <OrderReorderButton item={item} />
                 </td>
                 <td className="text-end">{item.qty}</td>
                 <td className="text-end">{formatKRW(item.unitPrice)}</td>

@@ -8,6 +8,7 @@ import com.personal.happygallery.application.order.port.out.ShipmentTrackingEven
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
@@ -20,6 +21,7 @@ import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.application.token.GuestTokenService;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final ShippingAddressProtector shippingAddressProtector;
     private final ShipmentTrackingEventPort trackingEventPort;
     private final PaymentReceiptQuery receiptQuery;
+    private final MemberHistoryReaderPort memberHistoryReader;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
@@ -43,7 +46,8 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                                     RefundPort refundPort,
                                     ShippingAddressProtector shippingAddressProtector,
                                     ShipmentTrackingEventPort trackingEventPort,
-                                    PaymentReceiptQuery receiptQuery) {
+                                    PaymentReceiptQuery receiptQuery,
+                                    MemberHistoryReaderPort memberHistoryReader) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
@@ -52,16 +56,24 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
         this.shippingAddressProtector = shippingAddressProtector;
         this.trackingEventPort = trackingEventPort;
         this.receiptQuery = receiptQuery;
+        this.memberHistoryReader = memberHistoryReader;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
     @Override
-    public List<Order> listMyOrders(Long userId) {
+    public List<OrderSummary> listMyOrders(Long userId) {
         return listMyOrders(userId, null, PageParams.MAX_SIZE).content();
     }
 
     @Override
-    public CursorPage<Order> listMyOrders(Long userId, String cursor, int size) {
+    public CursorPage<OrderSummary> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size) {
+        int pageSize = PageParams.requireSize(size);
+        if (query.isDefault()) return listMyOrders(userId, cursor, pageSize);
+        return withItems(memberHistoryReader.findOrders(userId, query, cursor, pageSize));
+    }
+
+    @Override
+    public CursorPage<OrderSummary> listMyOrders(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
         List<Order> orders;
@@ -72,10 +84,20 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
             orders = orderReader.findByUserIdOrderByCreatedAtDescAfterCursor(
                     userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
         }
-        return CursorPage.of(
+        return withItems(CursorPage.of(
                 orders,
                 pageSize,
-                order -> CursorUtils.encode(order.getCreatedAt(), order.getId()));
+                order -> CursorUtils.encode(order.getCreatedAt(), order.getId())));
+    }
+
+    private CursorPage<OrderSummary> withItems(CursorPage<Order> page) {
+        var ids = page.content().stream().map(Order::getId).toList();
+        if (ids.isEmpty()) return new CursorPage<>(List.of(), page.nextCursor(), page.hasMore());
+        var items = orderItemPort.findByOrderIdIn(ids).stream()
+                .collect(Collectors.groupingBy(item -> item.getOrder().getId()));
+        return new CursorPage<>(page.content().stream()
+                .map(order -> new OrderSummary(order, items.getOrDefault(order.getId(), List.of())))
+                .toList(), page.nextCursor(), page.hasMore());
     }
 
     /** 회원 — 자기 주문 상세 조회 (소유권 검증 포함) */

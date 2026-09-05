@@ -96,7 +96,7 @@ function shiftDate(days: number): string {
 }
 
 function settlementStatusLabel(status: SmartStoreSettlementIssueResponse["status"]): string {
-  if (status === "ORDER_NOT_FOUND") return "채널 주문 원장 없음";
+  if (status === "ORDER_NOT_FOUND") return "저장된 스마트스토어 주문 없음";
   if (status === "EXPECTED_AMOUNT_MISSING") return "주문 정산 예정액 없음";
   if (status === "AMOUNT_MISMATCH") return "정산 예정액 불일치";
   return "확인 필요";

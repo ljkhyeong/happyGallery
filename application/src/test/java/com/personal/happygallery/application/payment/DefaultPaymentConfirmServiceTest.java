@@ -202,7 +202,7 @@ class DefaultPaymentConfirmServiceTest {
         verify(appMetrics, never()).incrementPaymentConfirmReconciliationRequired();
     }
 
-    @DisplayName("늦게 도착한 PG 성공은 최신 로컬 실패와 화해한 뒤 fulfillment를 이어간다")
+    @DisplayName("늦게 도착한 PG 승인 응답은 실패 상태를 승인으로 변경한 뒤 주문 생성을 이어간다")
     @Test
     void confirm_stalePgSuccess_reconcilesAndFulfills() {
         PgConfirmationRequired required = paidConfirmationRequired();

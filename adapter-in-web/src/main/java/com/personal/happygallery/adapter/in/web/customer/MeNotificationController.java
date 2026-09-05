@@ -28,8 +28,9 @@ public class MeNotificationController {
     @Operation(operationId = "listMyNotifications")
     public List<NotificationResponse> list(@RequestParam(defaultValue = "0") int page,
                                            @RequestParam(defaultValue = "20") int size,
+                                           @RequestParam(defaultValue = "false") boolean unreadOnly,
                                            @AuthenticationPrincipal CustomerPrincipal customer) {
-        return notificationQuery.listNotifications(customer.userId(), null, page, size).stream()
+        return notificationQuery.listNotifications(customer.userId(), null, page, size, unreadOnly).stream()
                 .map(NotificationResponse::from)
                 .toList();
     }

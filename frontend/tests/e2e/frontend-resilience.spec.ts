@@ -115,14 +115,14 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
 
   await page.goto("/guest");
   const recoveryCard = page.locator(".card")
-    .filter({ hasText: "처리 중인 결제 결과 복구" })
+    .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
   await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
   await recoveryCard.getByLabel("인증코드").fill("123456");
-  await recoveryCard.getByRole("button", { name: "결제 결과 복구" }).click();
+  await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
-  await expect(recoveryCard.getByText("결제 상태 조회 정보를 복구했습니다.")).toBeVisible();
+  await expect(recoveryCard.getByText("결제 내역을 찾았습니다.")).toBeVisible();
   await expect.poll(() => page.evaluate(() => ({
     recovery: sessionStorage.getItem("guest_payment_status_recovery"),
     statusToken: sessionStorage.getItem("hg_payment_status_token:recovered-order"),
@@ -215,12 +215,12 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
 
   await page.goto("/guest");
   const recoveryCard = page.locator(".card")
-    .filter({ hasText: "처리 중인 결제 결과 복구" })
+    .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01011111111");
   await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
   await recoveryCard.getByLabel("인증코드").fill("123456");
-  await recoveryCard.getByRole("button", { name: "결제 결과 복구" }).click();
+  await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
   await expect.poll(() => page.evaluate(() => ({
     recovery: sessionStorage.getItem("guest_payment_status_recovery"),
@@ -229,7 +229,7 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
     ),
   }))).toEqual({ recovery: null, statusToken: null });
   await expect(
-    recoveryCard.getByText("결제 상태 조회 정보를 복구했습니다."),
+    recoveryCard.getByText("결제 내역을 찾았습니다."),
   ).toHaveCount(0);
 });
 
@@ -877,6 +877,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
         cartVersion: "a".repeat(64),
         items: [{
           available: true,
+          availableQuantity: 5,
           basePrice: 12000,
           careInstructions: null,
           cartItemId: 42,

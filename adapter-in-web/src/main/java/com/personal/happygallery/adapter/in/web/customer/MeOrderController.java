@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.application.order.OrderHistoryQuery;
+import com.personal.happygallery.application.order.OrderHistoryQuery.OrderHistorySort;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderSummary;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyOrderPageResponse;
@@ -45,9 +48,12 @@ public class MeOrderController {
             @Parameter(schema = @Schema(
                     type = "integer", format = "int32", defaultValue = "20",
                     minimum = "1", maximum = "100"))
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) OrderStatus status,
+            @RequestParam(defaultValue = "LATEST") OrderHistorySort sort) {
         return MyOrderPageResponse.from(
-                orderQueryUseCase.listMyOrders(customer.userId(), cursor, size));
+                orderQueryUseCase.listMyOrders(customer.userId(), new OrderHistoryQuery(keyword, status, sort), cursor, size));
     }
 
     @GetMapping("/{id}")

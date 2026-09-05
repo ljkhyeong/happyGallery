@@ -1,11 +1,11 @@
-# happyGallery 단일 노트북 k3s 운영
+# happyGallery 단일 노드 k3s 운영
 
-이 디렉터리는 ADR-0037의 단일 노드 운영 토폴로지를 실행 가능한 형태로 만든다. Docker Compose는 계속 로컬 개발·복구 진단용이며 이 manifest의 대체물이 아니다.
+이 디렉터리는 단일 노드 k3s의 서비스 배포·백업·복원 절차를 관리한다. 현재는 [ADR-0037](../../docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)에 따라 보유 노트북에 먼저 설치해 검증한다. OS·전원·회선·원격 백업 준비는 [노트북 설치 준비](../laptop/README.md)를 따른다. [클라우드 운영 준비](../cloud/README.md)는 대체 후보이며 VM 구매는 보류다. Docker Compose는 계속 로컬 개발·복구 진단용이며 이 manifest의 대체물이 아니다.
 
 ```text
-Internet -> router/firewall :80/:443 -> k3s Traefik
-                                      -> /api/* -> app:8080
-                                      -> 그 외   -> frontend:8080 (React Router Node SSR)
+Internet -> 공유기/호스트 방화벽 :80/:443 -> k3s Traefik
+                                   -> /api/* -> app:8080
+                                   -> 그 외   -> frontend:8080 (React Router Node SSR)
 app -> mysql:3306 (Retain PVC)
 app -> redis:6379 (비영속 세션/처리율 상태)
 prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
@@ -13,8 +13,8 @@ prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
 grafana -> prometheus:9090 (cluster 내부 전용)
 ```
 
-단일 노트북, 디스크, 전원, 공유기, 인터넷 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
-Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 노트북에 있으므로 노트북 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 노트북 밖에 별도로 둔다.
+단일 운영 호스트, 디스크, 전원, 네트워크 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
+Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 운영 호스트 밖에 별도로 둔다.
 경보 규칙의 단일 원본은 저장소 루트의 `monitoring/alerts.yml`이다. 변경 후 `./deploy/k3s/scripts/sync-prometheus-alerts.sh`를 실행하면 kustomize가 읽는 `base/prometheus-alerts.generated.yml`이 갱신된다. 생성 파일을 직접 편집하지 않으며 `validate.sh`는 원본, 생성 파일과 최종 ConfigMap 중 하나라도 달라지면 실패한다.
 
 ## 디렉터리
@@ -26,17 +26,17 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
-| `systemd/` | 노트북 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
+| `systemd/` | 운영 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
 
 ## 1. 외부 전제
 
-- Linux 노트북 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다.
+- Linux 호스트 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
-- cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 노트북에 보관한다.
-- 공개 DNS A/AAAA 레코드가 노트북의 실제 공개 주소를 가리켜야 한다. 공유기 포트 전달과 호스트 방화벽은 TCP 80/443만 허용한다.
-- CGNAT이면 일반 포트 전달만으로 외부 공개가 불가능하다. 공인 IP 또는 통제 가능한 터널/프록시를 먼저 준비하고 전달 헤더 신뢰 경계를 다시 설계한다.
-- MySQL 백업 대상은 노트북 내부 디스크가 아닌 분리된 USB 디스크, NAS 또는 원격 mount여야 한다.
+- cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 갱신 방법을 마련한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
+- 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
 
 k3s 설정 예시:
@@ -236,23 +236,23 @@ kubectl -n happygallery port-forward service/grafana 3000:3000
 
 검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 공개 경로에서는 루트 SSR HTML의 canonical·실제 본문·CSP nonce, `robots.txt`, `sitemap.xml`, 알 수 없는 route의 HTTP 404를 함께 검증한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
-호스트/공유기에서는 다음도 별도로 확인한다.
+운영 호스트와 공유기·방화벽에서는 다음도 별도로 확인한다.
 
 - 외부에서 80/443 이외 app 8080/8081, MySQL 3306, Redis 6379, Prometheus 9090 접근 불가
 - 실제 브라우저에서 Secure 세션 cookie, CSRF, Google/Naver/Kakao callback, 결제 confirm
 - 실제 클라이언트 IP별 rate-limit 분리
-- 노트북 재부팅 후 k3s, PVC와 workload 자동 복구
+- 운영 호스트 재부팅 후 k3s, PVC와 workload 자동 복구
 - `df -h`, `kubectl top` 또는 호스트 모니터링을 통한 디스크/메모리 여유
 
 ## 7. 외부 암호화 복구 백업
 
-백업 스크립트는 원래 app replica를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 이어 MySQL Pod의 dump를 stdout으로만 내보내 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록하고, 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 미디어 archive가 끝나면 원래 replica를 복구하며, 키 회전처럼 이미 0이었던 경우에는 계속 0으로 유지한다. 이 짧은 계획 중단으로 DB·미디어 백업과 애플리케이션 보존 배치·관리자 쓰기를 상호 배제한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
+백업 스크립트는 원래 app replica를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 이어 MySQL Pod의 dump를 stdout으로만 내보내 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록하고, 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 미디어 archive가 끝나면 원래 replica를 복구하며, 키 회전처럼 이미 0이었던 경우에는 계속 0으로 유지한다. 이 계획 중단으로 DB·미디어 백업과 애플리케이션 보존 배치·관리자 쓰기를 상호 배제한다. 중단 시간은 데이터 크기와 원격 전송 속도에 따라 달라지므로 실제 백업·재기동 시간을 개통 전에 측정한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
 
 app 쓰기가 중단된 상태에서 DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
 
 DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. runtime workload 목록은 `runtime-images-from-manifest.rb` 한 곳만 소유하며, 백업과 복원은 해당 release의 `manifests.yaml`과 `runtime-images.env`를 parser가 대조해 만든 key·image·digest inventory를 순서대로 처리한다. 추출한 참조는 고정 tag 또는 SHA-256 digest 형식이어야 하며, containerd의 실제 digest와 archive checksum을 기존과 같이 검증한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
-1. 복원 전용 age identity를 노트북과 분리해 보관하고 public recipient만 노트북에 둔다.
+1. 복원 전용 age identity를 운영 호스트와 분리해 보관하고 public recipient만 운영 호스트에 둔다.
 2. 외부 매체가 실제 mount된 상태에서 전용 백업 디렉터리에 marker를 한 번 만든다.
 3. 매체가 빠지면 host의 빈 mountpoint에 백업하지 않도록 marker가 없을 때 스크립트가 실패한다.
 
@@ -287,7 +287,7 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 HTTPS webhook unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 기존 `OnFailure` webhook이 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
 
-독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 노트북에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
 
@@ -332,7 +332,7 @@ export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_
 - 세 대사 완료 확인 값을 해당 복원 대사 토큰과 일치시킨 뒤에만 app/frontend digest 반영과 app scale-up
 - 토큰 marker는 활성화 직전에 `pending`에서 실행별 고유 `activating`, 성공 후 `consumed`로 원자적으로 이동해 재사용 차단. `pending -> activating` 이동에 성공해 marker 소유권을 얻은 실행만 실패 정리 수행
 
-복원 진입점은 DB 교체부터 미디어 PVC 교체와 대사 토큰 발급까지 `restores/.restore-operation.lock` 디렉터리를 원자적으로 선점한다. 정상 종료와 오류·일반 종료 신호에서는 자신이 선점한 실행 락을 정리하므로, 같은 노트북에서 서로 다른 복구 묶음을 동시에 실행해도 두 번째 실행은 DB를 DROP하기 전에 실패한다. `SIGKILL`이나 전원 차단 뒤 실행 락이 남으면 자동으로 회수하지 않는다. 복원 프로세스가 실제로 끝났는지와 DB·미디어 교체 지점을 먼저 확인한 뒤 운영자가 락을 정리한다. 이 일시 실행 락은 아래의 지속성 있는 대사 상태 marker와 별개다.
+복원 진입점은 DB 교체부터 미디어 PVC 교체와 대사 토큰 발급까지 `restores/.restore-operation.lock` 디렉터리를 원자적으로 선점한다. 정상 종료와 오류·일반 종료 신호에서는 자신이 선점한 실행 락을 정리하므로, 같은 운영 호스트에서 서로 다른 복구 묶음을 동시에 실행해도 두 번째 실행은 DB를 DROP하기 전에 실패한다. `SIGKILL`이나 전원 차단 뒤 실행 락이 남으면 자동으로 회수하지 않는다. 복원 프로세스가 실제로 끝났는지와 DB·미디어 교체 지점을 먼저 확인한 뒤 운영자가 락을 정리한다. 이 일시 실행 락은 아래의 지속성 있는 대사 상태 marker와 별개다.
 
 대사 토큰 marker는 release 상태 디렉터리와 같은 상위 경로의 `restores/`에 600 권한으로 둔다. 완료하지 않은 `pending` 또는 실행별 고유 `activating` marker가 있으면 새 복원을 시작하지 않는다. 경쟁 실행 중 `pending -> activating` 이동에 성공한 프로세스만 자기 실행 ID가 포함된 marker와 실패 정리 책임을 얻으며, 이동에 실패한 프로세스는 기존 실행의 app이나 marker를 건드리지 않고 종료한다. marker 이동 직후 일반 종료 신호가 도착해도 고유 marker 존재로 소유권을 판별한다. 활성화 시작 뒤 명령 실패, 명시적 오류, `SIGHUP`·`SIGINT`·`SIGTERM` 종료가 발생하면 소유 실행의 종료 정리가 app을 다시 0개로 내리고 Pod 종료를 확인한 뒤 marker를 `pending`으로 되돌려 같은 복원의 재시도를 허용한다. app 중지나 marker 복구를 확인하지 못했거나 `SIGKILL`·전원 차단처럼 종료 정리를 실행할 수 없으면 토큰을 임의 재사용하지 말고 app, DB, 적용 image와 현재 marker를 먼저 수동 확인한다.
 
@@ -362,4 +362,4 @@ DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, frontend SSR의 내부 API·app 8080 ingress, Ingress의 CSP 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, SSR nonce 일치, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 노트북에서만 검증할 수 있다.
+이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, frontend SSR의 내부 API·app 8080 ingress, Ingress의 CSP 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, SSR nonce 일치, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 운영 호스트에서만 검증할 수 있다.

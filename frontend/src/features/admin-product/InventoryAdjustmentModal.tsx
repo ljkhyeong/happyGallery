@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
+import { StockThresholdForm } from "./StockThresholdForm";
 import { ApiError } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -143,6 +144,7 @@ export function InventoryAdjustmentModal({
         </div>
 
         <ErrorAlert error={mutation.error} />
+        {product && <StockThresholdForm adminKey={adminKey} productId={product.id} productVariantId={productVariantId} onAuthError={onAuthError} />}
         <Form
           onSubmit={(event) => {
             event.preventDefault();

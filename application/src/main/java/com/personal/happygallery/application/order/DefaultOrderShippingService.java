@@ -8,6 +8,7 @@ import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.order.Fulfillment;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.order.OrderApprovalHistory;
@@ -64,7 +65,8 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @Override
     @OptimisticLockRetryable
     public ShippingResult prepareShipping(Long orderId, Long adminId) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
+        Order order = orderReader.findByIdForUpdate(orderId)
+                .orElseThrow(NotFoundException.supplier("주문"));
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
         order.markShippingPreparing();

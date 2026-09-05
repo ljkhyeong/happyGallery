@@ -2,7 +2,7 @@ package com.personal.happygallery.application.notification.port.out;
 
 import java.util.Optional;
 
-/** 후기 알림이 발송 시점에도 의미가 있는지 현재 원천·후기 상태와 함께 조회한다. */
+/** 현재 주문·예약·후기 상태를 확인해 알림을 받을 수신자를 조회한다. */
 public interface ReviewNotificationEligibilityPort {
 
     Optional<NotificationReminderRecipient> findOrderRequestRecipient(Long orderId);

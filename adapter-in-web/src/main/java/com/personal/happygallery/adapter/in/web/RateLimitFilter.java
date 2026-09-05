@@ -32,12 +32,17 @@ import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final List<RouteRule> ROUTE_RULES = List.of(
+            new RouteRule("GROUP_INQUIRY_IP", new OrRequestMatcher(
+                    pathPattern(POST, "/api/v1/group-inquiries"),
+                    pathPattern(POST, "/api/v1/me/group-inquiries")),
+                    FAIL_CLOSED, IpRules::groupInquiry),
             new RouteRule(
                     "CUSTOMER_LOGIN_IP",
                     pathPattern(POST, "/api/v1/auth/login"),
@@ -136,6 +141,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     "ORDER_CUSTOMER_ACTION_IP",
                     new OrRequestMatcher(
                             pathPattern(DELETE, "/api/v1/orders/{id}"),
+                            pathPattern(PUT, "/api/v1/orders/{id}/shipping-address"),
+                            pathPattern(PUT, "/api/v1/me/orders/{id}/shipping-address"),
                             pathPattern(POST, "/api/v1/orders/{id}/delay-response"),
                             pathPattern(DELETE, "/api/v1/me/orders/{id}"),
                             pathPattern(POST, "/api/v1/me/orders/{id}/delay-response")),

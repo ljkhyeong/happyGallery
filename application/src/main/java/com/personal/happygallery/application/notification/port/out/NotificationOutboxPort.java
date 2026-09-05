@@ -22,9 +22,9 @@ public interface NotificationOutboxPort {
 
     List<NotificationOutbox> findFailed(int limit);
 
-    List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset);
+    List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int limit, int offset);
 
-    List<NotificationOutbox> findSentByGuestId(Long guestId, int limit, int offset);
+    List<NotificationOutbox> findSentByGuestId(Long guestId, boolean unreadOnly, int limit, int offset);
 
     long countUnreadSentByUserId(Long userId);
 

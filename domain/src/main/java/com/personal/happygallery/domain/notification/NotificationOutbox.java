@@ -293,7 +293,7 @@ public class NotificationOutbox {
         return true;
     }
 
-    /** 발송 직전 현재 도메인 상태를 다시 확인해 의미가 사라진 알림을 종결한다. */
+    /** 발송 조건을 더 이상 충족하지 않는 알림을 OBSOLETE로 변경한다. */
     public boolean markObsolete(String token, LocalDateTime now, String reason) {
         if (!isProcessingOwnedBy(token)) {
             return false;
@@ -310,12 +310,12 @@ public class NotificationOutbox {
         if (status != NotificationOutboxStatus.OBSOLETE) {
             return false;
         }
-        if (!eventType.isTimeSensitiveReminder()
+        if (!eventType.allowsObsoleteReactivation()
                 || !idempotencyKey.equals(event.idempotencyKey())
                 || eventType != event.eventType()
                 || !Objects.equals(aggregateType, event.aggregateType())
                 || !Objects.equals(aggregateId, event.aggregateId())) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 요청만 다시 열 수 있습니다.");
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 또는 재입고 요청만 다시 열 수 있습니다.");
         }
         switch (event) {
             case ForGuest e -> {

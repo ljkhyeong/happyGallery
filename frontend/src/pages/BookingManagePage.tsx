@@ -130,8 +130,8 @@ function BookingManageContent() {
           <Badge bg="light" text="dark" className="mb-2">비회원 예약 관리</Badge>
           <h4 className="mb-2">비회원 예약 조회</h4>
           <p className="text-muted-soft mb-3">
-            완료한 비회원 예약을 조회하고, 가능한 예약은 변경하거나 취소할 수 있습니다.
-            회원은 <strong>내 정보</strong>에서 예약 목록과 상세를 바로 확인하고 더 자연스럽게 이어갈 수 있습니다.
+            비회원으로 신청한 예약을 조회하고 변경·취소 가능 여부를 확인하세요.
+            회원 예약은 <strong>내 정보</strong>에서 확인하세요.
           </p>
           <div className="d-flex flex-wrap gap-2">
             <LinkButton to="/my" variant="dark" size="sm">

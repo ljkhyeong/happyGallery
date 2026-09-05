@@ -1,38 +1,29 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Container, Row, Col } from "react-bootstrap";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ProductFilterBar } from "@/features/product/ProductFilterBar";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
-import type { ProductFilterParams, ProductSortOrder, ProductType } from "@/shared/types";
-import type { ProductDetailResponse } from "@/generated/api/product";
+import { useProductListFilters } from "@/features/product/useProductListFilters";
+import type { ListProductsParams, ProductDetailResponse } from "@/generated/api/product";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
 interface ProductListPageProps {
   initialProducts: ProductDetailResponse[];
   initialCategories: string[];
+  initialFilters: ListProductsParams;
 }
 
 export function ProductListPage({
   initialProducts,
   initialCategories,
+  initialFilters,
 }: ProductListPageProps) {
-  const [keyword, setKeyword] = useState("");
-  const [type, setType] = useState("ALL");
-  const [category, setCategory] = useState("ALL");
-  const [sort, setSort] = useState<ProductSortOrder>("newest");
-
-  const debouncedKeyword = useDebouncedValue(keyword, 300);
-  const normalizedKeyword = debouncedKeyword.trim();
-
-  const filterParams = useMemo<ProductFilterParams>(() => ({
-    ...(type !== "ALL" && { type: type as ProductType }),
-    ...(category !== "ALL" && { category }),
-    ...(normalizedKeyword && { keyword: normalizedKeyword }),
-    ...(sort !== "newest" && { sort }),
-  }), [category, normalizedKeyword, sort, type]);
+  const { filters: filterParams, keyword, setKeyword, updateFilter, resetFilters } = useProductListFilters();
+  const type = filterParams.type ?? "ALL";
+  const category = filterParams.category ?? "ALL";
+  const sort = filterParams.sort ?? "newest";
 
   const hasActiveFilter = Object.keys(filterParams).length > 0;
   const productsQueryKey = useMemo(
@@ -50,7 +41,7 @@ export function ProductListPage({
     queryKey: productsQueryKey,
     queryFn: () => fetchProducts(hasActiveFilter ? filterParams : undefined),
     staleTime: PUBLIC_DATA_STALE_TIME,
-  }, hasActiveFilter ? undefined : initialProducts);
+  }, JSON.stringify(filterParams) === JSON.stringify(initialFilters) ? initialProducts : undefined);
 
   const {
     data: categories,
@@ -61,13 +52,6 @@ export function ProductListPage({
     queryFn: fetchCategories,
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialCategories);
-
-  function handleReset() {
-    setKeyword("");
-    setType("ALL");
-    setCategory("ALL");
-    setSort("newest");
-  }
 
   return (
     <Container className="page-container">
@@ -88,14 +72,14 @@ export function ProductListPage({
           keyword={keyword}
           onKeywordChange={setKeyword}
           type={type}
-          onTypeChange={setType}
+          onTypeChange={(value) => updateFilter("type", value)}
           category={category}
-          onCategoryChange={setCategory}
+          onCategoryChange={(value) => updateFilter("category", value)}
           categories={categories ?? []}
           sort={sort}
-          onSortChange={setSort}
+          onSortChange={(value) => updateFilter("sort", value)}
           resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
-          onReset={handleReset}
+          onReset={resetFilters}
         />
       </div>
 

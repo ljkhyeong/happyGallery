@@ -308,7 +308,30 @@ cursor?: string;
  * @maximum 100
  */
 size?: number;
+keyword?: string;
+status?: ListMyBookingsPageStatus;
+sort?: ListMyBookingsPageSort;
 };
+
+export type ListMyBookingsPageStatus = typeof ListMyBookingsPageStatus[keyof typeof ListMyBookingsPageStatus];
+
+
+export const ListMyBookingsPageStatus = {
+  BOOKED: 'BOOKED',
+  CANCELED: 'CANCELED',
+  NO_SHOW: 'NO_SHOW',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type ListMyBookingsPageSort = typeof ListMyBookingsPageSort[keyof typeof ListMyBookingsPageSort];
+
+
+export const ListMyBookingsPageSort = {
+  CREATED_DESC: 'CREATED_DESC',
+  SOONEST: 'SOONEST',
+  LATEST: 'LATEST',
+  DEPOSIT_DESC: 'DEPOSIT_DESC',
+} as const;
 
 export type ListAvailableSlotsParams = {
 classId: number;

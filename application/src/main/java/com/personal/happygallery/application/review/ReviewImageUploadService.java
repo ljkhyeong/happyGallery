@@ -8,7 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-/** 비트맵 정제·파일 저장·후기 참조 연결 사이의 보상 경계를 관리한다. */
+/** 이미지를 정제·저장하고, 후기 연결 실패 시 미참조 파일 삭제를 시도한다. */
 @Service
 class ReviewImageUploadService {
 

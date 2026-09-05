@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.FilterChainProxy;
@@ -59,6 +60,8 @@ class SecurityBoundaryUseCaseIT {
     @Qualifier("rateLimitFilterRegistration")
     FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration;
 
+    @Autowired JdbcTemplate jdbc;
+
     MockMvc mockMvc;
 
     @BeforeEach
@@ -71,11 +74,45 @@ class SecurityBoundaryUseCaseIT {
 
     @AfterEach
     void tearDown() {
+        jdbc.update("DELETE FROM group_inquiries");
         cleanupSupport.clearUsers();
         cleanupSupport.clearAdminUsers();
     }
 
     // csrf() 후처리기는 캐시된 테스트 컨텍스트의 공유 저장소를 바꾸므로 새 컨텍스트에서 검증한다.
+    @Test
+    @DisplayName("비회원 단체 문의는 접수만 공개하고 연락처 조회는 관리자 인증을 요구한다")
+    void groupInquiry_publicCreateDoesNotExposePrivateDetails() throws Exception {
+        var result = mockMvc.perform(post("/api/v1/group-inquiries").with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"organization":"기관","contactName":"담당자","phone":"01012345678","headcount":20,
+                        "preferredSchedule":"9월 오전","location":"강당","classInterest":"레진"}
+                        """))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("RECEIVED"))
+                .andExpect(jsonPath("$.phone").doesNotExist()).andReturn();
+        long id = objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        mockMvc.perform(get("/api/v1/group-inquiries/" + id)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/admin/group-inquiries/" + id)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/me/group-inquiries")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("비회원 배송지 수정은 CSRF를 검사한 뒤 주문 소유권 검증으로 전달한다")
+    void guestShippingAddress_reachesOwnershipCheck() throws Exception {
+        String body = """
+                {"version":0,"shippingAddress":{"recipientName":"수령인","phone":"01012345678",
+                "postalCode":"12345","addressLine1":"충주시 계명대로 161","addressLine2":"1층"}}
+                """;
+        mockMvc.perform(put("/api/v1/orders/999999999/shipping-address")
+                        .header("X-Access-Token", "invalid-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/orders/999999999/shipping-address").with(csrf())
+                        .header("X-Access-Token", "invalid-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+    }
+
     @DisplayName("발급받은 SPA CSRF 쿠키를 헤더로 보내면 상태 변경 요청이 통과한다")
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.BEFORE_METHOD)

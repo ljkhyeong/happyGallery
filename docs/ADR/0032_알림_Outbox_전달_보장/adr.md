@@ -52,13 +52,13 @@
   회원에게 귀속됐으면 과거 Guest 전화번호나 Guest 알림함으로 보내지 않는다.
 - 현재 적격성 판단에는 `event_type + aggregate_type + aggregate_id`와 주입된 `Clock`을 사용한다.
   예약이 취소·완료·변경됐거나, 8회권이 만료·소진·환불됐거나, 주문이 픽업 완료·만료 상태가 된 경우처럼
-  현재 의미가 사라진 요청은 sender와 `notification_log`를 호출하지 않고 `OBSOLETE`로 종결한다.
+  발송 조건을 충족하지 않는 요청은 sender와 `notification_log`를 호출하지 않고 `OBSOLETE`로 종결한다.
 - `REMINDER_D1`은 발송 시점 기준 내일 `[tomorrowStart, dayAfterStart)`의 `BOOKED` 예약에만,
   `REMINDER_SAME_DAY`는 07:00 이후 `(now, tomorrowStart)`의 아직 시작하지 않은 오늘 `BOOKED` 예약에만 유효하다.
   즉 D-1의 날짜 시작 경계는 포함(`>=`)하고 당일의 현재 시각 경계는 제외(`>`)한다. 8회권은 `(now, now+7d]`에 만료되고 잔여 횟수가 있을 때,
   픽업은 `PICKUP_READY`이며 마감이 `(now, now+2h]`에 있을 때만 유효하다.
 - `OBSOLETE` 전이도 `PROCESSING` 상태와 현재 `processing_token`을 확인하고 `processed_at`을 기록한다.
-  관리자는 `FAILED`만 다시 열 수 있으므로, 의미가 사라진 리마인드를 수동 재처리해 뒤늦게 발송할 수 없다.
+  관리자는 `FAILED`만 다시 열 수 있으므로, 발송 조건을 충족하지 않는 알림을 수동 재처리해 뒤늦게 발송할 수 없다.
 - 예약 재변경이나 픽업 마감 연장처럼 같은 aggregate가 미래 유효 구간에 다시 들어오면 정기 리마인드 후보 조회는
   `OBSOLETE` 행을 미발송 이력으로 보고 같은 멱등키 행을 잠근 뒤 `PENDING`으로 재활성화한다. 새 outbox를 만들지 않고
   현재 회원·비회원 수신자를 갱신하며, 이 자동 전이는 시간 의존 리마인드에만 허용한다.
@@ -116,7 +116,7 @@
   자동 중복 가능성은 낮추지만, 실제 미발송이었다면 운영 확인 전까지 전달이 지연되는 가용성 비용을 감수한다.
 - `notification_outbox`의 `SENT` 행은 회원 알림함 목록·읽지 않은 건수·읽음 처리의 원본이자 동일 도메인 이벤트의 멱등 기록이다. 알림함의 전달 시각은 도메인 이벤트 발생 시각이 아니라 외부 채널 전달 성공 후 로컬 `SENT`가 확정된 `processed_at`이다. `notification_log`는 카카오톡·SMS fallback을 포함한 채널별 감사 이력으로만 사용하므로 한 outbox에서 로그가 여러 건 생겨도 알림함은 중복되지 않는다.
 - 알림함 원본 전환 migration 이전에 이미 `SENT`였던 outbox는 `read_at=processed_at`으로 이관해 과거 알림 전체가 새 미확인 알림으로 보이지 않게 한다.
-- 발송 완료 `SENT`, 현재 의미가 사라진 `OBSOLETE`, 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`, 실행 중인 `PROCESSING`, 제공자 결과 대기·조회 상태인 `DELIVERY_PENDING`·`DELIVERY_CHECKING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
+- 발송 완료 `SENT`, 발송 조건 미충족으로 종료된 `OBSOLETE`, 자동 재시도를 모두 소진한 최종 `FAILED` outbox는 처리 종료 시각인 `processed_at`부터 180일 보존한다. 채널 감사 로그도 180일 보존하며, 매일 보존 배치가 100건씩 짧게 삭제한다. 이 기간을 알림함 조회, 운영자 최종 실패 재처리와 동일 이벤트 멱등 보장 기간으로 공개한다. 아직 재시도 가능한 `PENDING`, 실행 중인 `PROCESSING`, 제공자 결과 대기·조회 상태인 `DELIVERY_PENDING`·`DELIVERY_CHECKING` outbox는 생성 시각이 오래돼도 자동 삭제하지 않는다.
 
 ---
 
@@ -157,3 +157,17 @@
 - 1:1 문의·상품 Q&A 답변 트랜잭션에 `INQUIRY_ANSWERED`·`PRODUCT_QNA_ANSWERED` 회원 outbox 요청 적용
 - outbox 트랜잭션 보장 테스트:
   - `NotificationOutboxUseCaseIT`
+
+## 상품 재입고 알림
+
+- `product_restock_alerts`는 회원·상품·옵션의 대기 중 신청을 `active_key` UNIQUE로 하나만 유지한다. 상품 옵션의 복합 FK로 조합 소속을 검증한다. 별도의 전화번호를 저장하지 않고 발송 시 회원의 현재 전화번호를 사용한다.
+- `RestockAlertScheduler`는 기본 60초마다 100건씩 ID 커서로 순회하며 각 신청을 짧은 트랜잭션에서 확인한다. 입고·취소·환불·스마트스토어 등 재고가 늘어나는 모든 경로를 현재 수량 기준으로 포착한다. 외부 채널 호출은 기존 Outbox dispatcher가 맡는다.
+- `PRODUCT_RESTOCK_AVAILABLE + RESTOCK_ALERT + alertId`를 수신자 단위 멱등키로 접수한다. 상태가 QUEUED여도 중복 신청 키를 유지하고 Outbox SENT가 확인되면 NOTIFIED로 끝내 키를 해제한다.
+- 발송 직전에 회원 활성·휴대폰 확인·신청 상태·상품 및 옵션 활성·해당 재고를 한 조회로 확인한다. 부적격이면 OBSOLETE로 끝내며, 해지하지 않은 신청의 재고가 다시 생기면 동일 Outbox 행을 재활성화한다. 발송 완료와 실패 결과 불명은 자동으로 재활성화하지 않는다. 이미 외부 전송을 시작한 메시지는 취소로 회수할 수 없다.
+- 운영 Alimtalk 템플릿은 `HG_PRODUCT_RESTOCK`이다. 공급자 등록 전에는 기존 카카오 실패→SMS 정책을 사용한다. 외부 채널의 전달 보장 한계와 Outbox 180일 보존 기준은 위 공통 정책을 따른다.
+
+## 알림 목록의 관련 정보
+
+- 본인에게 발송 완료된 알림을 페이지 조회한 뒤, 해당 알림 ID만 대상으로 주문·예약·재입고 원본을 한 번의 추가 조회로 연결한다. 수신자와 원본 소유자가 모두 일치해야 이름·일정을 반환한다.
+- 주문명은 `order_items.product_name`의 구매 당시 스냅샷을 사용한다. 예약과 재입고는 현재 클래스·일정·상품 정보이며, 예약 시각은 화면에서 “현재 예약일”로 구분한다. 원본이 사라지거나 소유권이 바뀌면 관련 정보는 null이고 기존 알림 종류·전달 시각·읽음 상태는 유지한다.
+- 알림 본문 복제나 새 외부 메시지 발송 없이 조회 응답만 보강한다. Outbox 처리·재시도·멱등 정책은 변경하지 않는다.

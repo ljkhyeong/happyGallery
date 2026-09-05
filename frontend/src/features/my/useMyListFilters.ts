@@ -9,23 +9,29 @@ interface MyListFilterUpdate {
 interface UseMyListFiltersOptions {
   defaultSort: string;
   legacyStatusParam?: string;
+  statusValues?: readonly string[];
+  sortValues?: readonly string[];
 }
 
 export function useMyListFilters({
   defaultSort,
   legacyStatusParam,
+  statusValues,
+  sortValues,
 }: UseMyListFiltersOptions) {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchQuery = searchParams.get("q") ?? "";
-  const statusFilter =
+  const requestedStatus =
     searchParams.get("status") ??
     (legacyStatusParam ? searchParams.get(legacyStatusParam) : null) ??
     "ALL";
-  const sortValue = searchParams.get("sort") ?? defaultSort;
+  const requestedSort = searchParams.get("sort") ?? defaultSort;
+  const statusFilter = !statusValues || statusValues.includes(requestedStatus) ? requestedStatus : "ALL";
+  const sortValue = !sortValues || sortValues.includes(requestedSort) ? requestedSort : defaultSort;
 
   function updateFilters(next: MyListFilterUpdate) {
     const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = (next.q ?? searchQuery).trim();
+    const nextQuery = next.q ?? searchQuery;
     const nextStatus = next.status ?? statusFilter;
     const nextSort = next.sort ?? sortValue;
 

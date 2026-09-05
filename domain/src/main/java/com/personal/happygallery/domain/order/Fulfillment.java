@@ -116,6 +116,16 @@ public class Fulfillment {
         return fulfillment;
     }
 
+    /** 조회한 버전이 일치할 때 암호화된 배송지를 변경한다. */
+    public void changeShippingAddress(String encryptedAddress, long expectedVersion) {
+        requireShippingType();
+        if (version != expectedVersion) {
+            throw new HappyGalleryException(ErrorCode.CONFLICT,
+                    "배송 정보가 변경되었습니다. 최신 배송지를 확인한 뒤 다시 저장해 주세요.");
+        }
+        this.shippingAddressEnc = Objects.requireNonNull(encryptedAddress);
+    }
+
     /** 예상 출고일을 갱신한다. */
     public void setExpectedShipDate(LocalDate expectedShipDate) {
         requireShippingType();

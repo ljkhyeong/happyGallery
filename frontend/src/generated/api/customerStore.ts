@@ -1,4 +1,70 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export interface GroupInquiryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  classInterest: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  contactName: string;
+  /**
+     * @minLength 0
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  location: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  message?: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  organization: string;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     */
+  phone: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+}
+
+export type GroupInquiryReceiptResponseStatus = typeof GroupInquiryReceiptResponseStatus[keyof typeof GroupInquiryReceiptResponseStatus];
+
+
+export const GroupInquiryReceiptResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface GroupInquiryReceiptResponse {
+  id: number;
+  status: GroupInquiryReceiptResponseStatus;
+}
+
 export type ProductOptionSnapshotResponseType = typeof ProductOptionSnapshotResponseType[keyof typeof ProductOptionSnapshotResponseType];
 
 
@@ -25,6 +91,11 @@ export const CartItemResponseProductType = {
 
 export interface CartItemResponse {
   available: boolean;
+  /**
+     * 같은 상품·옵션 조합에서 구매 가능한 현재 수량. 판매 중지·변경된 옵션은 0. 같은 조합의 선택 수량 합계를 이 값과 비교한다
+     * @minimum 0
+     */
+  availableQuantity: number;
   basePrice: number;
   /** @nullable */
   careInstructions: string | null;
@@ -113,6 +184,137 @@ export interface MergeCartRequest {
      * @maxItems 100
      */
   items: MergeCartItemRequest[];
+}
+
+export interface SavedShippingAddress {
+  addressLine1: string;
+  /** @nullable */
+  addressLine2: string | null;
+  phone: string;
+  postalCode: string;
+  recipientName: string;
+}
+
+export interface DefaultShippingAddressResponse {
+  shippingAddress: SavedShippingAddress | null;
+  version: number;
+}
+
+export interface ShippingAddress {
+  /** @minLength 1 */
+  addressLine1: string;
+  /** @nullable */
+  addressLine2?: string | null;
+  /** @minLength 1 */
+  phone: string;
+  /**
+     * @minLength 1
+     * @pattern ^[0-9]{5}$
+     */
+  postalCode: string;
+  /** @minLength 1 */
+  recipientName: string;
+}
+
+export interface UpdateShippingAddressRequest {
+  shippingAddress: ShippingAddress;
+  version: number;
+}
+
+export type FavoriteResponseTargetType = typeof FavoriteResponseTargetType[keyof typeof FavoriteResponseTargetType];
+
+
+export const FavoriteResponseTargetType = {
+  PRODUCT: 'PRODUCT',
+  CLASS: 'CLASS',
+} as const;
+
+export interface FavoriteResponse {
+  active: boolean;
+  createdAt: string;
+  id: number;
+  name: string;
+  targetId: number;
+  targetType: FavoriteResponseTargetType;
+}
+
+export interface FavoritePageResponse {
+  content: FavoriteResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface FavoriteStatusResponse {
+  saved: boolean;
+}
+
+export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
+
+
+export const GroupInquirySummaryResponseSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type GroupInquirySummaryResponseStatus = typeof GroupInquirySummaryResponseStatus[keyof typeof GroupInquirySummaryResponseStatus];
+
+
+export const GroupInquirySummaryResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface GroupInquirySummaryResponse {
+  classInterest: string;
+  createdAt: string;
+  headcount: number;
+  id: number;
+  location: string;
+  organization: string;
+  preferredSchedule: string;
+  source: GroupInquirySummaryResponseSource;
+  status: GroupInquirySummaryResponseStatus;
+}
+
+export interface GroupInquiryPageResponse {
+  content: GroupInquirySummaryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface MyGroupInquiryChange {
+  createdAt: string;
+  id: number;
+  note: string;
+}
+
+export interface MyGroupInquiryResponse {
+  changes: MyGroupInquiryChange[];
+  summary: GroupInquirySummaryResponse;
+  version: number;
+}
+
+export interface UpdateMyGroupInquiryRequest {
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+  version: number;
+}
+
+export interface CancelMyGroupInquiryRequest {
+  version: number;
 }
 
 export interface ClaimGuestRecordsRequest {
@@ -247,8 +449,16 @@ export const MyOrderSummaryStatus = {
   COMPLETED: 'COMPLETED',
 } as const;
 
+export interface MyOrderItemSummary {
+  options: string[];
+  orderItemId: number;
+  productName: string;
+  quantity: number;
+}
+
 export interface MyOrderSummary {
   createdAt: string;
+  items: MyOrderItemSummary[];
   orderId: number;
   /** @nullable */
   paidAt: string | null;
@@ -459,6 +669,7 @@ export interface FulfillmentDto {
   /** @nullable */
   trackingUpdatedAt: string | null;
   type: FulfillmentDtoType;
+  version: number;
 }
 
 export type OrderOptionSnapshotResponseType = typeof OrderOptionSnapshotResponseType[keyof typeof OrderOptionSnapshotResponseType];
@@ -601,6 +812,61 @@ export interface MemberPassRefundResponse {
   refundStatus: MemberPassRefundResponseRefundStatus;
 }
 
+export type RestockAlertResponseStatus = typeof RestockAlertResponseStatus[keyof typeof RestockAlertResponseStatus];
+
+
+export const RestockAlertResponseStatus = {
+  WAITING: 'WAITING',
+  QUEUED: 'QUEUED',
+  NOTIFIED: 'NOTIFIED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface RestockAlertResponse {
+  createdAt: string;
+  id: number;
+  /** @nullable */
+  notifiedAt: string | null;
+  optionLabel: string;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  productVariantId: number | null;
+  status: RestockAlertResponseStatus;
+}
+
+export interface RestockAlertRequest {
+  productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
+}
+
+export type DeleteMyDefaultShippingAddressParams = {
+/**
+ * @minimum 0
+ */
+version: number;
+};
+
+export type ListMyFavoritesParams = {
+type?: ListMyFavoritesType;
+cursor?: string;
+size?: number;
+};
+
+export type ListMyFavoritesType = typeof ListMyFavoritesType[keyof typeof ListMyFavoritesType];
+
+
+export const ListMyFavoritesType = {
+  PRODUCT: 'PRODUCT',
+  CLASS: 'CLASS',
+} as const;
+
+export type ListMyGroupInquiriesParams = {
+cursor?: string;
+size?: number;
+};
+
 export type ListMyInquiriesPageParams = {
 cursor?: string;
 /**
@@ -617,7 +883,43 @@ cursor?: string;
  * @maximum 100
  */
 size?: number;
+keyword?: string;
+status?: ListMyOrdersPageStatus;
+sort?: ListMyOrdersPageSort;
 };
+
+export type ListMyOrdersPageStatus = typeof ListMyOrdersPageStatus[keyof typeof ListMyOrdersPageStatus];
+
+
+export const ListMyOrdersPageStatus = {
+  PAID_APPROVAL_PENDING: 'PAID_APPROVAL_PENDING',
+  APPROVED_FULFILLMENT_PENDING: 'APPROVED_FULFILLMENT_PENDING',
+  REJECTED: 'REJECTED',
+  CUSTOMER_CANCELED: 'CUSTOMER_CANCELED',
+  AUTO_REFUND_TIMEOUT: 'AUTO_REFUND_TIMEOUT',
+  IN_PRODUCTION: 'IN_PRODUCTION',
+  DELAY_CONSENT_PENDING: 'DELAY_CONSENT_PENDING',
+  DELAY_ACCEPTED: 'DELAY_ACCEPTED',
+  DELAY_REJECTED_CANCELED: 'DELAY_REJECTED_CANCELED',
+  SHIPPING_PREPARING: 'SHIPPING_PREPARING',
+  SHIPPED: 'SHIPPED',
+  DELIVERED: 'DELIVERED',
+  PICKUP_READY: 'PICKUP_READY',
+  PICKED_UP: 'PICKED_UP',
+  PICKUP_EXPIRED: 'PICKUP_EXPIRED',
+  PICKUP_FORFEITED: 'PICKUP_FORFEITED',
+  COMPLETED: 'COMPLETED',
+} as const;
+
+export type ListMyOrdersPageSort = typeof ListMyOrdersPageSort[keyof typeof ListMyOrdersPageSort];
+
+
+export const ListMyOrdersPageSort = {
+  LATEST: 'LATEST',
+  OLDEST: 'OLDEST',
+  AMOUNT_DESC: 'AMOUNT_DESC',
+  AMOUNT_ASC: 'AMOUNT_ASC',
+} as const;
 
 export type ListMyPassesPageParams = {
 cursor?: string;
@@ -626,7 +928,49 @@ cursor?: string;
  * @maximum 100
  */
 size?: number;
+keyword?: string;
+status?: ListMyPassesPageStatus;
+sort?: ListMyPassesPageSort;
 };
+
+export type ListMyPassesPageStatus = typeof ListMyPassesPageStatus[keyof typeof ListMyPassesPageStatus];
+
+
+export const ListMyPassesPageStatus = {
+  ACTIVE: 'ACTIVE',
+  USED_UP: 'USED_UP',
+  EXPIRED: 'EXPIRED',
+} as const;
+
+export type ListMyPassesPageSort = typeof ListMyPassesPageSort[keyof typeof ListMyPassesPageSort];
+
+
+export const ListMyPassesPageSort = {
+  PURCHASE_DESC: 'PURCHASE_DESC',
+  EXPIRY_ASC: 'EXPIRY_ASC',
+  CREDITS_DESC: 'CREDITS_DESC',
+} as const;
+
+export const getCreateGuestGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/group-inquiries`
+}
+
+export const createGuestGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+
+  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateGuestGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
 
 export const getGetMyCartUrl = () => {
 
@@ -729,6 +1073,287 @@ export const mergeMyCartItems = async (mergeCartRequest: MergeCartRequest, optio
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(mergeCartRequest)
+  }
+);}
+
+
+
+export const getDeleteMyDefaultShippingAddressUrl = (params: DeleteMyDefaultShippingAddressParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/default-shipping-address?${stringifiedParams}` : `/api/v1/me/default-shipping-address`
+}
+
+export const deleteMyDefaultShippingAddress = async (params: DeleteMyDefaultShippingAddressParams, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getDeleteMyDefaultShippingAddressUrl(params),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetMyDefaultShippingAddressUrl = () => {
+
+
+
+
+  return `/api/v1/me/default-shipping-address`
+}
+
+export const getMyDefaultShippingAddress = async ( options?: RequestInit): Promise<DefaultShippingAddressResponse> => {
+
+  return generatedApiClient<DefaultShippingAddressResponse>(getGetMyDefaultShippingAddressUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSaveMyDefaultShippingAddressUrl = () => {
+
+
+
+
+  return `/api/v1/me/default-shipping-address`
+}
+
+export const saveMyDefaultShippingAddress = async (updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getSaveMyDefaultShippingAddressUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateShippingAddressRequest)
+  }
+);}
+
+
+
+export const getListMyFavoritesUrl = (params?: ListMyFavoritesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/favorites?${stringifiedParams}` : `/api/v1/me/favorites`
+}
+
+export const listMyFavorites = async (params?: ListMyFavoritesParams, options?: RequestInit): Promise<FavoritePageResponse> => {
+
+  return generatedApiClient<FavoritePageResponse>(getListMyFavoritesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRemoveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const removeMyFavorite = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRemoveMyFavoriteUrl(type,targetId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+export const getGetMyFavoriteStatusUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const getMyFavoriteStatus = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<FavoriteStatusResponse> => {
+
+  return generatedApiClient<FavoriteStatusResponse>(getGetMyFavoriteStatusUrl(type,targetId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getSaveMyFavoriteUrl = (type: 'PRODUCT' | 'CLASS',
+    targetId: number,) => {
+
+
+
+
+  return `/api/v1/me/favorites/${type}/${targetId}`
+}
+
+export const saveMyFavorite = async (type: 'PRODUCT' | 'CLASS',
+    targetId: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getSaveMyFavoriteUrl(type,targetId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+);}
+
+
+
+export const getListMyGroupInquiriesUrl = (params?: ListMyGroupInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/group-inquiries?${stringifiedParams}` : `/api/v1/me/group-inquiries`
+}
+
+export const listMyGroupInquiries = async (params?: ListMyGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+
+  return generatedApiClient<GroupInquiryPageResponse>(getListMyGroupInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreateMyGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/me/group-inquiries`
+}
+
+export const createMyGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+
+  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateMyGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
+
+export const getGetMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}`
+}
+
+export const getMyGroupInquiry = async (id: number, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getGetMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}`
+}
+
+export const updateMyGroupInquiry = async (id: number,
+    updateMyGroupInquiryRequest: UpdateMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getUpdateMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateMyGroupInquiryRequest)
+  }
+);}
+
+
+
+export const getCancelMyGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/group-inquiries/${id}/cancel`
+}
+
+export const cancelMyGroupInquiry = async (id: number,
+    cancelMyGroupInquiryRequest: CancelMyGroupInquiryRequest, options?: RequestInit): Promise<MyGroupInquiryResponse> => {
+
+  return generatedApiClient<MyGroupInquiryResponse>(getCancelMyGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cancelMyGroupInquiryRequest)
   }
 );}
 
@@ -1001,6 +1626,28 @@ export const respondToMyOrderDelay = async (id: number,
 
 
 
+export const getUpdateMyOrderShippingAddressUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/orders/${id}/shipping-address`
+}
+
+export const updateMyOrderShippingAddress = async (id: number,
+    updateShippingAddressRequest: UpdateShippingAddressRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getUpdateMyOrderShippingAddressUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateShippingAddressRequest)
+  }
+);}
+
+
+
 export const getListMyPassesUrl = () => {
 
 
@@ -1085,6 +1732,69 @@ export const refundMyPass = async (id: number, options?: RequestInit): Promise<M
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getListMyRestockAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/me/restock-alerts`
+}
+
+export const listMyRestockAlerts = async ( options?: RequestInit): Promise<RestockAlertResponse[]> => {
+
+  return generatedApiClient<RestockAlertResponse[]>(getListMyRestockAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRegisterMyRestockAlertUrl = () => {
+
+
+
+
+  return `/api/v1/me/restock-alerts`
+}
+
+export const registerMyRestockAlert = async (restockAlertRequest: RestockAlertRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRegisterMyRestockAlertUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(restockAlertRequest)
+  }
+);}
+
+
+
+export const getCancelMyRestockAlertUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/restock-alerts/${id}`
+}
+
+export const cancelMyRestockAlert = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getCancelMyRestockAlertUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
 
 
   }

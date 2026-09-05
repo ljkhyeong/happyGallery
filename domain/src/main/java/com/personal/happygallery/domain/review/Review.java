@@ -238,7 +238,7 @@ public class Review {
         return true;
     }
 
-    /** 개인정보성 본문을 지우되 숨김 이력에 따른 원천 예약 여부는 보존한다. */
+    /** 후기 내용을 삭제하되 재작성 금지 여부({@code recreationBlocked})는 유지한다. */
     public void softDelete(LocalDateTime deletedAt) {
         requireActive();
         LocalDateTime now = Objects.requireNonNull(deletedAt, "후기 삭제 시각은 필수입니다.");

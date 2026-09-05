@@ -359,7 +359,7 @@ public class Order {
         this.accessToken = null;
     }
 
-    /** 휴대폰 소유 확인 후 비회원 주문의 관리 토큰을 교체한다. */
+    /** 휴대폰 번호 인증 후 비회원 주문의 관리 토큰을 교체한다. */
     public void replaceGuestAccessToken(String accessToken) {
         if (guestId == null) {
             throw new IllegalStateException("회원 주문에는 비회원 접근 토큰을 발급할 수 없습니다.");

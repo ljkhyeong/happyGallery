@@ -1,3 +1,5 @@
+import { RestockDemandSection } from "@/features/admin-product/RestockDemandSection";
+import { GroupInquiryFollowUpSection } from "@/features/admin-inquiry/GroupInquiryFollowUpSection";
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, Container, Form, Nav } from "react-bootstrap";
 import { useSearchParams } from "react-router";
@@ -28,6 +30,7 @@ import { SmartStoreAccountingSection } from "@/features/admin-payment-reconcilia
 import { PassActionPanel } from "@/features/admin-pass/PassActionPanel";
 import { AdminQnaSection } from "@/features/admin-qna/AdminQnaSection";
 import { SmartStoreInquirySection } from "@/features/admin-qna/SmartStoreInquirySection";
+import { AdminGroupInquirySection } from "@/features/admin-inquiry/AdminGroupInquirySection";
 import { AdminInquirySection } from "@/features/admin-inquiry/AdminInquirySection";
 import { AdminNoticeSection } from "@/features/admin-notice/AdminNoticeSection";
 import { AdminEventSection } from "@/features/admin-event/AdminEventSection";
@@ -46,7 +49,7 @@ const ADMIN_VIEWS = [
   {
     value: "today",
     label: "오늘 할 일",
-    description: "금전·전달 장애와 오늘 처리할 주문·예약을 우선 확인합니다.",
+    description: "결제·환불·알림 오류와 오늘 처리할 주문·예약을 확인합니다.",
   },
   {
     value: "overview",
@@ -78,7 +81,7 @@ const ADMIN_VIEWS = [
   {
     value: "support",
     label: "고객 응대",
-    description: "공지사항과 상품 문의, 1:1 문의를 처리합니다.",
+    description: "공지사항과 상품 문의, 1:1 문의와 단체 수업 상담을 처리합니다.",
   },
   {
     value: "reviews",
@@ -382,8 +385,11 @@ export function AdminPage() {
               initialStatus="PAID_APPROVAL_PENDING"
             />
           </AdminPanel>
-          <AdminPanel title="품절 상품·옵션 조합">
+          <AdminPanel title="품절·재고 부족 상품과 옵션">
             <OutOfStockProductSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="연락할 단체 문의">
+            <GroupInquiryFollowUpSection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="오늘 예약">
             <BookingListSection adminKey={adminKey} onAuthError={handleAuthError} />
@@ -456,6 +462,9 @@ export function AdminPage() {
           <AdminPanel title="상품 등록">
             <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
+          <AdminPanel title="재입고 알림 대기 현황">
+            <RestockDemandSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="상품 목록">
             <ProductListSection
               adminKey={adminKey}
@@ -497,6 +506,9 @@ export function AdminPage() {
           </AdminPanel>
           <AdminPanel title="스마트스토어 상품 공지">
             <SmartStoreNoticeSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
+          <AdminPanel title="단체 수업 문의">
+            <AdminGroupInquirySection token={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
           <AdminPanel title="1:1 문의 관리">
             <AdminInquirySection token={adminKey} onAuthError={handleAuthError} />

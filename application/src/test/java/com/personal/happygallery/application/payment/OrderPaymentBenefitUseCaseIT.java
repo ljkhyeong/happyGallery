@@ -2,6 +2,9 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.adapter.out.persistence.coupon.IssuedCouponRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
+import com.personal.happygallery.application.cart.port.in.CartUseCase;
+import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
+import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.application.coupon.port.in.CouponAdminUseCase;
 import com.personal.happygallery.application.coupon.port.in.CouponDefinitionCommand;
 import com.personal.happygallery.application.coupon.port.in.CouponMemberUseCase;
@@ -64,6 +67,7 @@ import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.times;
@@ -75,6 +79,8 @@ import static org.mockito.Mockito.when;
 @TestPropertySource(properties = "app.order.shipping-fee=3000")
 class OrderPaymentBenefitUseCaseIT {
 
+    @Autowired CartUseCase cartUseCase;
+    @Autowired CartItemStorePort cartItemStorePort;
     @Autowired PaymentPrepareUseCase prepareUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentAttemptExpiryBatchUseCase expiryUseCase;
@@ -106,6 +112,7 @@ class OrderPaymentBenefitUseCaseIT {
 
     @AfterEach
     void tearDown() {
+        cleanupSupport.clearCartData();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearUsers();
     }
@@ -436,6 +443,42 @@ class OrderPaymentBenefitUseCaseIT {
             softly.assertThat(orderRepository.count()).isZero();
         });
         verifyNoInteractions(paymentProvider);
+    }
+
+    @Test
+    @DisplayName("선택 구매는 선택 상품에만 혜택과 배송비를 적용하고 미선택 상품과 추가 수량을 남긴다")
+    void selectedCartCheckout_preservesUnselectedItemsAndAddedQuantity() {
+        User user = createUser("selected-cart@example.com", "01081001090");
+        Product selected = createProduct("이번에 구매할 상품", 10_000L, 10);
+        Product unselected = createProduct("다음에 구매할 상품", 30_000L, 10);
+        CartItem selectedItem = cartItemStorePort.save(new CartItem(
+                user.getId(), selected.getId(), 2, LocalDateTime.now(clock)));
+        cartItemStorePort.save(new CartItem(user.getId(), unselected.getId(), 1, LocalDateTime.now(clock)));
+        IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
+        creditReward(user, 4_000L);
+        String version = cartUseCase.getCart(user.getId()).cartVersion();
+        PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true,
+                        FulfillmentType.SHIPPING,
+                        new ShippingAddress("회원", "01081001090", "06236", "서울시 강남구 1", null),
+                        null, false, null, version, coupon.getId(), 4_000L, List.of(selectedItem.getId())),
+                AuthContext.member(user.getId())));
+        cartUseCase.updateItemQty(user.getId(), selectedItem.getId(), 3);
+        var result = confirmUseCase.confirm(customerCommand("selected-cart-key", prepared, user));
+        Order order = orderRepository.findById(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(prepared.amount()).isEqualTo(17_000L);
+            softly.assertThat(order.getProductAmount()).isEqualTo(20_000L);
+            softly.assertThat(order.getShippingFee()).isEqualTo(3_000L);
+            softly.assertThat(order.getCouponDiscountAmount()).isEqualTo(2_000L);
+            softly.assertThat(order.getRewardUsedAmount()).isEqualTo(4_000L);
+            softly.assertThat(orderItemPort.findByOrderIdIn(List.of(order.getId()))).hasSize(1);
+            softly.assertThat(cartUseCase.getCart(user.getId()).items())
+                    .extracting(CartUseCase.CartItemView::productId, CartUseCase.CartItemView::qty)
+                    .containsExactlyInAnyOrder(
+                            tuple(selected.getId(), 1),
+                            tuple(unselected.getId(), 1));
+        });
     }
 
     private PrepareResult prepare(User user,

@@ -68,6 +68,11 @@ export default defineConfig({
     "me-phone-controller",
   ]),
   customerStoreApi: generatedApi("./src/generated/api/customerStore.ts", [
+    "me-favorite-controller",
+    "me-default-shipping-address-controller",
+    "me-restock-alert-controller",
+    "me-group-inquiry-controller",
+    "group-inquiry-controller",
     "me-cart-controller",
     "me-guest-claim-controller",
     "me-inquiry-controller",
@@ -113,6 +118,8 @@ export default defineConfig({
     "admin-coupon-controller",
   ]),
   adminCatalogApi: generatedApi("./src/generated/api/adminCatalog.ts", [
+    "admin-stock-controller",
+    "admin-restock-demand-controller",
     "admin-class-controller",
     "admin-media-controller",
     "admin-product-controller",
@@ -130,6 +137,7 @@ export default defineConfig({
   ]),
   adminOperationsApi: generatedApi("./src/generated/api/adminOperations.ts", [
     "admin-inquiry-controller",
+    "admin-group-inquiry-controller",
     "admin-notification-controller",
     "admin-pass-controller",
     "admin-payment-reconciliation-controller",

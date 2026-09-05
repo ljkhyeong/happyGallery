@@ -2,8 +2,10 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { Alert, Container, Card, Button, Row, Col, Modal, Table } from "react-bootstrap";
+import { Alert, Container, Card, Button, Row, Col, Modal, Table, Form } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { productQuantities, productSkuKey } from "@/features/product/purchaseStock";
+import type { CartItemIdentifier, CartItemView } from "@/features/cart/guestCartView";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
@@ -49,6 +51,7 @@ export function CartPage() {
 }
 
 function CartContent() {
+  const [excludedItemIds, setExcludedItemIds] = useState<Set<CartItemIdentifier>>(new Set());
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [issuedCouponId, setIssuedCouponId] = useState<number | null>(null);
   const [rewardAmount, setRewardAmount] = useState(0);
@@ -56,7 +59,7 @@ function CartContent() {
   const { isAuthenticated, user } = useCustomerAuth();
   const {
     items,
-    totalAmount,
+    totalAmount: cartTotalAmount,
     cartVersion,
     isLoading,
     error: cartError,
@@ -74,8 +77,18 @@ function CartContent() {
     user?.name,
     user?.phone ?? undefined,
   );
-  const availableItems = items.filter((item) => item.available);
-  const requiresMadeToOrderConsent = isAuthenticated && availableItems.some(
+  const canSelect = (item: CartItemView) => item.available
+    || (isAuthenticated && item.qty <= item.availableQuantity);
+  const availableItems = items.filter(canSelect);
+  const selectedItems = availableItems.filter((item) => !excludedItemIds.has(item.cartItemId));
+  const selectedQuantities = productQuantities(selectedItems);
+  const stockExceededItems = selectedItems.filter((item, index) =>
+    (selectedQuantities.get(productSkuKey(item)) ?? 0) > item.availableQuantity
+    && selectedItems.findIndex((other) => productSkuKey(other) === productSkuKey(item)) === index);
+  const totalAmount = isAuthenticated
+    ? selectedItems.reduce((sum, item) => sum + item.subtotal, 0)
+    : cartTotalAmount;
+  const requiresMadeToOrderConsent = isAuthenticated && selectedItems.some(
     (item) => item.productType === "MADE_TO_ORDER",
   );
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
@@ -94,6 +107,10 @@ function CartContent() {
         items: [],
         cartCheckout: true,
         expectedCartVersion: cartVersion,
+        selectedCartItemIds: selectedItems.map((item) => {
+          if (typeof item.cartItemId !== "number") throw new Error("장바구니를 다시 불러와 주세요.");
+          return item.cartItemId;
+        }),
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
         ...(issuedCouponId === null ? {} : { issuedCouponId }),
@@ -104,9 +121,9 @@ function CartContent() {
         checkoutSelection,
         context: "ORDER",
         payload,
-        orderName: availableItems.length === 1
-          ? `${availableItems[0]?.productName ?? "장바구니 상품"} 주문`
-          : `장바구니 상품 ${availableItems.length}건`,
+        orderName: selectedItems.length === 1
+          ? `${selectedItems[0]?.productName ?? "장바구니 상품"} 주문`
+          : `장바구니 상품 ${selectedItems.length}건`,
         customerKey: `member_${user.id}`,
         customerName: user.name,
         returnHint: { customerName: user.name, returnPath: "/cart" },
@@ -119,6 +136,13 @@ function CartContent() {
       }
     },
   });
+  const changeSelection = (next: Set<CartItemIdentifier>) => {
+    setExcludedItemIds(next);
+    setIssuedCouponId(null);
+    setRewardAmount(0);
+    checkout.reset();
+  };
+  const selectionDisabled = checkout.isPending || isItemMutationPending || isRefetching;
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(checkout.error);
   const cartSnapshotConflict = isCartSnapshotConflict(checkout.error);
   const mergeRecovery = guestCartMergeIssue && (
@@ -210,7 +234,7 @@ function CartContent() {
   }
 
   const handleCheckout = async () => {
-    if (!cartVersion || isItemMutationPending || isRefetching || guestCartMergeIssue) {
+    if (!cartVersion || selectedItems.length === 0 || stockExceededItems.length > 0 || isItemMutationPending || isRefetching || guestCartMergeIssue) {
       return;
     }
     try {
@@ -245,6 +269,14 @@ function CartContent() {
         <Col lg={8}>
           <Card>
             <Card.Body className="p-0">
+              {isAuthenticated && <div className="p-3 border-bottom">
+                <Form.Check id="cart-select-all" label={`전체 선택 (${selectedItems.length}/${availableItems.length})`}
+                  checked={availableItems.length > 0 && selectedItems.length === availableItems.length}
+                  disabled={selectionDisabled || availableItems.length === 0}
+                  onChange={(event) => changeSelection(event.target.checked
+                    ? new Set() : new Set(availableItems.map((item) => item.cartItemId)))} />
+                <div className="small text-muted mt-1">선택하지 않은 상품은 결제 후에도 장바구니에 남습니다.</div>
+              </div>}
               <Table responsive className="mb-0">
                 <thead>
                   <tr>
@@ -256,8 +288,18 @@ function CartContent() {
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.cartItemId} className={item.available ? "" : "text-muted"}>
+                    <tr key={item.cartItemId} className={canSelect(item) ? "" : "text-muted"}>
                       <td>
+                        {isAuthenticated && <Form.Check className="mb-2"
+                          id={`cart-select-${item.cartItemId}`} label={`${item.productName} 선택`}
+                          checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
+                          disabled={selectionDisabled || !canSelect(item)}
+                          onChange={(event) => {
+                            const next = new Set(excludedItemIds);
+                            if (event.target.checked) next.delete(item.cartItemId);
+                            else next.add(item.cartItemId);
+                            changeSelection(next);
+                          }} />}
                         <Link to={`/products/${item.productId}`} className="text-decoration-none">
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
@@ -276,7 +318,7 @@ function CartContent() {
                           </div>
                         )}
                         {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
-                        {!item.available && !item.quantityWarning && (
+                        {!canSelect(item) && !item.quantityWarning && (
                           <div>
                             <span className="badge bg-secondary">구매 불가</span>
                             <div className="small text-danger">
@@ -290,7 +332,7 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={isItemMutationPending || item.qty <= 1}
+                            disabled={checkout.isPending || isItemMutationPending || item.qty <= 1}
                             onClick={() => {
                               void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
                             }}
@@ -301,7 +343,7 @@ function CartContent() {
                           <Button
                             variant="outline-secondary"
                             size="sm"
-                            disabled={isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
+                            disabled={checkout.isPending || isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
                             onClick={() => {
                               void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
                             }}
@@ -316,7 +358,7 @@ function CartContent() {
                           variant="link"
                           size="sm"
                           className="text-danger p-0"
-                          disabled={isItemMutationPending}
+                          disabled={checkout.isPending || isItemMutationPending}
                           onClick={() => {
                             void removeItem(item.cartItemId).catch(() => undefined);
                           }}
@@ -337,8 +379,8 @@ function CartContent() {
             <Card.Body>
               <h5 className="mb-3">주문 요약</h5>
               <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">상품 수</span>
-                <span>{items.length}종</span>
+                <span className="text-muted">{isAuthenticated ? "선택 상품" : "상품 수"}</span>
+                <span>{isAuthenticated ? selectedItems.length : items.length}종</span>
               </div>
               {!isAuthenticated ? (
                 <>
@@ -361,6 +403,11 @@ function CartContent() {
                 </>
               ) : (
                 <>
+                  {selectedItems.length === 0 && <Alert variant="info">구매할 상품을 선택해 주세요.</Alert>}
+                  {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
+                    {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
+                    현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
+                  </Alert>)}
                   <div className="border-top pt-3 mb-3">
                     <MemberOrderBenefits
                       productAmount={totalAmount}
@@ -418,7 +465,7 @@ function CartContent() {
                     variant="primary"
                     size="lg"
                     className="w-100"
-                    disabled={checkout.isPending || availableItems.length === 0
+                    disabled={checkout.isPending || selectedItems.length === 0 || stockExceededItems.length > 0
                       || !cartVersion
                       || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
                       || !isFulfillmentComplete(fulfillment) || !consent.ready}

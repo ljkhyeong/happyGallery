@@ -974,7 +974,7 @@ Authorization: Bearer {token}
   - `RETURN_REVIEW`: 반품 완료품의 판매 가능 여부와 재고 복원 여부 확인 필요
   - `STATUS_REVIEW`: 서버가 아직 재고 정책을 정하지 않은 네이버 주문 상태
 - `inventoryAppliedQuantity`는 해당 상품 주문 때문에 현재 내부 공유 재고에서 차감된 수량이다. 다음 동기화는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량을 합한 목표 수량과의 차이만 변경한다. 검수 대기 또는 판매 불가로 종료한 반품은 계속 차감된 수량에 포함된다.
-- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 수동 재고 결정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
+- 주문 응답의 `pendingReturnQuantity`는 현재 미검수 반품 수량이며 `returnReviewVersion`은 그 검수 대상의 확인값이다. `inventoryResolutionVersion`은 재고 반영 방법 지정 대상의 확인값이다. 세 값은 항상 반환하며 화면에서 만들거나 해석하지 않고 확인창을 열 때 받은 값을 요청에 그대로 보낸다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution
@@ -1214,7 +1214,7 @@ X-Access-Token: {accessToken}
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
 - `cancelPolicy.cancellable`은 고객이 현재 예약을 직접 취소할 수 있는지를 뜻한다. 잔금 결제가 완료된 유료 예약은 `false`며 관리자 정산이 필요하다.
 - `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 크레딧 복구가 가능한지를 뜻한다.
-- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 취소 보상 마감 시각이다.
+- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 예약금 환불·8회권 횟수 복원 마감 시각이다.
 - 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 이 코드를 사용자에게 노출하지 않고 크레딧 미복구 한국어 경고로 변환해 취소 전에 표시한다.
 - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
 
@@ -1290,10 +1290,10 @@ X-Access-Token: {accessToken}
   - `400 INVALID_INPUT` — 변경 인원이 1명 미만이거나 현재 인원 이상
   - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
   - `409 BOOKING_CONFLICT` — 인원 변경 중 예약 슬롯이 바뀌거나 동시 수정 충돌
-  - `422 CHANGE_NOT_ALLOWED` — 취소 보상 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
+  - `422 CHANGE_NOT_ALLOWED` — 예약금 환불 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
 - 정책:
   - 예약은 `BOOKED`를 유지하며 1명 이상만 남길 수 있다. 전원 취소는 전체 예약 취소 API를 사용한다.
-  - 취소 보상 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
+  - 예약금 환불 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
   - 현재 예약금과 잔금을 변경 전 인원 대비 변경 후 인원 비율로 정수 내림해 다시 계산하고, 줄어든 예약금만 PG 부분환불로 요청한다.
   - 줄인 인원만큼 슬롯 정원을 즉시 반납하고 `PARTICIPANTS_REDUCED` 이력을 누적한다.
   - 같은 예약을 여러 번 줄일 수 있으며 각 요청은 별도 환불 이력을 가진다. 응답의 `refund`는 이번 요청의 환불 진행 상태다.
@@ -2575,7 +2575,7 @@ Authorization: Bearer {token}
 - 정책:
   - `FAILED`, `RETRYABLE`, `RECONCILIATION_REQUIRED` 상태를 재처리할 수 있다.
   - 성공 시 `SUCCEEDED`, 명시적 거절 시 `FAILED`, 실행 전 일시 실패 시 `RETRYABLE`, 결과 불명 시 `RECONCILIATION_REQUIRED`가 된다.
-  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 취소 사유에 포함한 최초 멱등키, 요청 금액, `DONE` 상태, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`가 모두 일치하면 `SUCCEEDED`로 화해한다.
+  - `RECONCILIATION_REQUIRED`는 Toss cancel을 바로 다시 호출하지 않는다. `paymentKey`로 결제와 취소 내역을 조회해 취소 사유에 포함한 최초 멱등키, 요청 금액, `DONE` 상태, `transactionKey`, 결제 상태 `CANCELED|PARTIAL_CANCELED`가 모두 일치하면 `SUCCEEDED`로 변경한다.
   - 해당 멱등키의 취소 내역이 없고 결제 상태가 미취소로 명확하면 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 식별자·금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
   - PG 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
   - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
@@ -2674,7 +2674,7 @@ GET /api/v1/policies/current
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver, Kakao OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google, Naver, Kakao 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
-- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 메일함 소유 확인을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
+- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 이메일 인증을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
 - Kakao는 `is_email_valid=true`, `is_email_verified=true`인 카카오계정 이메일과 닉네임을 모두 요구한다. 처음 보는 Kakao provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
@@ -3078,6 +3078,19 @@ Cookie: HG_SESSION={sessionToken}
 - `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
 - `POST /api/v1/me/orders/{id}/delay-response` — 제작 지연 제안 수락/거절
 
+세 페이지 API는 선택적인 `keyword`, `status`, `sort`로 **전체 회원 이력**을 먼저 검색·정렬한 뒤 페이지를 나눈다. `keyword`는 앞뒤 공백을 제거하고 최대 100자로 정제하며 주문·8회권 번호의 부분 일치, 예약 번호 또는 클래스명의 부분 일치를 지원한다. `%`, `_`는 검색 문자로 처리한다. 전체 상태를 조회할 때는 `status`를 생략한다.
+
+| 목록 | `status` | `sort`와 생략 시 기본값 |
+| --- | --- | --- |
+| 주문 | `OrderStatus` 값 | `LATEST`(기본, 생성일 내림차순), `OLDEST`, `AMOUNT_DESC`, `AMOUNT_ASC` |
+| 예약 | `BOOKED`, `CANCELED`, `NO_SHOW`, `COMPLETED` | `CREATED_DESC`(기본, 생성일 내림차순), `SOONEST`(예약일 오름차순), `LATEST`(예약일 내림차순), `DEPOSIT_DESC` |
+| 8회권 | `ACTIVE`, `USED_UP`, `EXPIRED` | `PURCHASE_DESC`(기본), `EXPIRY_ASC`, `CREDITS_DESC` |
+
+- `ACTIVE`는 잔여 횟수가 있고 만료 시각 전인 건, `EXPIRED`는 잔여 횟수가 있고 만료 시각에 도달한 건, `USED_UP`은 잔여 횟수가 없는 건이다. 이 목록 분류는 환불 요청 가능 여부를 대신하지 않는다.
+- `size`는 기본 20, 1~100이며 응답은 기존 `{content,nextCursor,hasMore}`를 유지한다. 검색·정렬 조건을 바꾸면 커서를 비운다. 정렬값이 같으면 거래 번호를 같은 방향으로 정렬한다.
+- 검색·상태 필터 없이 기본 정렬을 쓰면 기존 생성일·구매일 커서를 유지한다. 나머지 커서는 회원·목록·검색·상태·정렬에 귀속하며 다른 조건으로 재사용하면 `400 INVALID_INPUT`을 반환한다. 잘못된 enum·커서·페이지 크기도 400으로 거절한다.
+- 예약일·잔여 횟수처럼 바뀔 수 있는 정렬값은 조회 시점의 값을 사용한다. 변경·취소·환불 후에는 목록을 새로 조회한다. 기존 배열 조회 경로와 기본 정렬 동작은 바꾸지 않는다.
+
 회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
 회원 주문 상세·예약 상세와 8회권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 8회권 목록은 영수증을 일괄 조회한다.
@@ -3130,7 +3143,7 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
-- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다.
+- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 기본 정렬은 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다. 회원 주문·예약·8회권의 검색·정렬 확장은 2.12.3의 조건별 커서 규칙을 따른다.
 - 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 크레딧이 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
 - 신규 `REGULAR_CRAFT_8`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
 - 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
@@ -3239,7 +3252,8 @@ Cookie: HG_SESSION={sessionToken}
       "options": [],
       "qty": 2,
       "subtotal": 78000,
-      "available": true
+      "available": true,
+      "availableQuantity": 5
     }
   ],
   "totalAmount": 78000,
@@ -3266,6 +3280,8 @@ Cookie: HG_SESSION={sessionToken}
 - `DELETE /api/v1/me/cart/items/{cartItemId}`
   - 응답: `204 No Content`
 - 장바구니 결제는 별도 checkout API를 두지 않는다. `POST /api/v1/payments/prepare`에 `context=ORDER`, `payload.userId`, `payload.cartCheckout=true`, `payload.items=[]`를 보내 시작한다.
+- 선택 구매는 `payload.selectedCartItemIds`에 본인 장바구니 행 ID를 1~100개 전달하고 `expectedCartVersion`을 반드시 지정한다. 생략 또는 null이면 기존 구매 가능한 전체 항목을 사용한다. 빈 배열·중복·다른 회원이나 구매 불가 항목·일반 주문에서의 지정은 400 `INVALID_INPUT`, 버전 불일치는 409 `CART_SNAPSHOT_CHANGED`다. 가격·수량·쿠폰 최소 금액·적립금 한도는 선택된 서버 항목 기준으로 확정하고, 배송비는 기존 배송 방식별 정책을 적용한다. confirm은 준비한 행의 수량만 차감해 미선택 상품을 남긴다.
+- 선택 항목은 본인 장바구니에서 먼저 추린 뒤 재고를 합산한다. 각 행의 수량이 `availableQuantity` 이하면 선택할 수 있으며, 같은 상품·옵션 조합의 선택 합계가 재고를 넘으면 prepare는 `409 INVENTORY_NOT_ENOUGH`로 거절한다. 각인 두 행이 각각 1개이고 재고가 1개라면 한 행만 선택해 구매할 수 있다. 판매 중지·변경된 옵션·한 행 자체의 재고 부족은 위의 구매 불가 항목에 해당한다.
 
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
@@ -3280,13 +3296,14 @@ Cookie: HG_SESSION={sessionToken}
 - 상품 상세의 회원 다건 담기도 `/api/v1/me/cart/merge`를 사용한다. 선택한 모든 항목을 한 요청으로 전송하고 결과가 불명확한 재시도에는 같은 멱등키를 사용한다. 비회원은 한 번의 로컬 장바구니 잠금·저장으로 반영한다.
 - 클라이언트는 병합 응답을 확인할 때까지 회원·멱등키·상품 스냅샷을 바꾸지 않는다. 로컬 항목은 요청 당시 계보를 함께 보존하고 성공 후 같은 계보의 스냅샷 수량만 차감한다. 도중에 추가된 수량은 새 멱등키로 이어서 병합하며, 로그아웃 뒤 상품을 삭제하고 다시 담아 새 계보가 된 수량은 이전 계정의 늦은 성공 응답이 차감하지 않는다. 계보 식별자는 브라우저 내부 값이며 API 요청에는 보내지 않는다.
 - 같은 브라우저의 여러 탭은 비회원 장바구니 추가·수량 변경·삭제와 병합의 최신 로컬 조회부터 성공분 제거까지를 같은 탭 간 잠금으로 직렬화한다. 한 탭의 로컬 변경은 다른 탭에도 반영하며, 병합 응답 뒤 보류 요청이 이미 정리됐더라도 응답을 받은 탭은 자신이 전송한 계보 스냅샷을 제거한다.
-- 상품이 `ACTIVE`가 아니거나 같은 SKU의 장바구니 합산 수량보다 재고가 적으면 관련 항목을 모두 `available=false`로 표시하며, checkout 시 구매 가능한 항목만 주문으로 전환한다.
-- `cartVersion`은 항목 순서·표시 정보·수량·구매 가능 여부를 SHA-256으로 만든 불투명 스냅샷 식별자다. 클라이언트는 값을 해석하거나 직접 만들지 않고 결제 준비의 `expectedCartVersion`으로 그대로 돌려보낸다.
+- 상품이 `ACTIVE`가 아니거나 같은 SKU의 장바구니 합산 수량보다 재고가 적으면 관련 항목을 모두 `available=false`로 표시한다. `totalAmount`는 `available=true`인 행의 소계 합계다. 선택 ID를 생략한 기존 checkout은 이 기준으로 구매 가능한 항목만 주문으로 전환한다.
+- `availableQuantity`는 필수·non-null인 0 이상의 정수이며 현재 판매 가능한 상품·옵션 조합의 수량이다. 판매 중지·변경된 옵션·재고 없음은 0이다. 선택 구매 화면은 `available` 대신 각 행 수량과 `availableQuantity`로 선택 가능 여부를 판단하고, 선택한 SKU별 합계를 다시 비교한다. 선택 금액은 선택된 행의 `subtotal` 합계로 계산한다.
+- `cartVersion`은 항목 순서·표시 정보·수량·구매 가능 여부·현재 구매 가능 수량을 SHA-256으로 만든 불투명 스냅샷 식별자다. 구매 가능 여부가 그대로여도 `availableQuantity`가 바뀌면 버전이 변경된다. 클라이언트는 값을 해석하거나 직접 만들지 않고 결제 준비의 `expectedCartVersion`으로 그대로 돌려보낸다.
 - 장바구니 prepare는 같은 회원의 장바구니 변경과 직렬화한 뒤 `expectedCartVersion`을 현재 스냅샷과 비교한다. 다르면 `409 CART_SNAPSHOT_CHANGED`로 최신 장바구니 확인을 요구하고 결제 시도를 만들지 않는다. 일치하면 구매 가능한 항목만 서버에서 선택하고, confirm 성공 시 prepare에서 확정한 수량만 차감한다. 결제 진행 중 추가한 같은 상품 수량과 다른 상품은 유지한다.
 
 #### 2.12.7 회원 알림함
 
-- `GET /api/v1/me/notifications?page=0&size=20`
+- `GET /api/v1/me/notifications?page=0&size=20&unreadOnly=false`
   - 응답:
 
 ```json
@@ -3298,7 +3315,9 @@ Cookie: HG_SESSION={sessionToken}
     "aggregateId": 42,
     "deliveredAt": "2026-03-28T09:15:00",
     "readAt": null,
-    "read": false
+    "read": false,
+    "contextTitle": "주문 #42 · 가죽 지갑 외 1건",
+    "scheduledAt": null
   }
 ]
 ```
@@ -3313,12 +3332,15 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - `page`는 0 이상, `size`는 1~100이어야 하며 표현 가능한 OFFSET 범위를 넘으면 `400 INVALID_INPUT`으로 거절한다.
+- `unreadOnly`는 기본 `false`다. `true`이면 읽지 않은 알림만 추린 뒤 페이지를 나눈다.
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
+- `contextTitle`과 `scheduledAt`은 항상 반환하며 값이 없으면 null이다. 주문은 주문 번호·첫 상품의 구매 당시 이름·나머지 주문 행 수, 예약은 예약 번호·현재 클래스명, 재입고는 현재 상품명·신청 옵션을 표시한다. 다른 알림 종류나 원본 삭제·소유권 불일치는 관련 정보를 비운다.
+- `scheduledAt`은 조회 시점의 현재 예약 시작 시각(서울 현지 시각)이며 알림 발생 당시 일정이 아니다. 화면에 “현재 예약일”이라고 표시한다. 주문·재입고 알림에서는 null이다. 목록과 상단 알림 팝오버가 같은 정보를 사용한다.
 - 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.
 - 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
 - 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
-- 발송 완료, 현재 의미가 사라져 발송 없이 종결된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
+- 발송 완료, 발송 조건을 충족하지 않아 발송 없이 종료된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
 
 ### 2.13 공개 Product Q&A API
 #### 2.13.1 상품 Q&A 목록 조회
@@ -3587,7 +3609,7 @@ Content-Type: application/json
   - V97 이전 구형 prepare 중 상품 유형이 없고 주문제작 동의도 없는 항목은 당시 기성품으로 해석해 `READY_STOCK` 주문 항목으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남은 prepare는 구매조건을 재현할 수 없으므로 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다. 이미 PG 승인이 저장된 구형 주문제작 시도가 자동 복구되면 주문을 만들지 않고 기존 보상 환불 경계로 격리한다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
-  - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 `/api/v1` 클라이언트 호환을 위해 필드는 선택형이지만 현재 웹 클라이언트는 항상 전송한다.
+  - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 전체 구매 요청에서는 버전을 생략할 수 있지만, `selectedCartItemIds`를 지정한 선택 구매에는 버전이 필수다. 현재 웹 클라이언트는 선택한 행 ID와 버전을 항상 전송한다.
   - `issuedCouponId`와 `rewardAmount`는 회원 `ORDER`에서만 사용할 수 있다. 쿠폰은 공개 발급으로 회원이 보유한 미사용 쿠폰 1장만 허용하고, 상품 합계가 최소 주문 금액 이상일 때 배송비를 제외한 상품 금액에서 할인한다. 적립금은 쿠폰 적용 뒤 상품 금액까지만 1P=1원으로 사용할 수 있어 배송비에는 적용되지 않는다.
   - prepare는 결제 시도와 같은 트랜잭션에서 발급 쿠폰 행을 배타 잠그고 쿠폰 정의 행을 공유 잠금 조회한 뒤 쿠폰과 적립금을 30분 동안 예약한다. 관리자 비활성화가 먼저 커밋되면 과거 조회 스냅샷이 있더라도 결제 견적을 `422 CHANGE_NOT_ALLOWED`로 거절하고, 서로 다른 회원의 같은 정의 결제 견적은 병렬로 처리한다. confirm 성공 시 쿠폰을 사용 완료하고 적립금을 차감하며, prepare 만료·PG 최종 거절·보상 환불 완료처럼 결제가 최종적으로 성립하지 않은 경우 예약을 멱등 해제한다. 결과가 불명확한 재시도·대사 상태에서는 중복 사용을 막기 위해 예약을 유지한다.
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
@@ -3599,7 +3621,7 @@ Content-Type: application/json
   - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`가 필수이며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
   - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 8회권 사용 예약에서 사용한다.
   - `PassPayload`의 필수 필드는 `type`, `userId`다.
-  - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의, `expectedCartVersion`, `issuedCouponId`, `rewardAmount`는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
+  - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의, `expectedCartVersion`, `selectedCartItemIds`, `issuedCouponId`, `rewardAmount`는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
   - 회원 응답의 `statusToken`은 `null`이다. 비회원 응답에는 30일 만료 HMAC 서명 토큰을 반환하며 프론트는 URL이 아닌 session storage에 보관한다. DB에는 서명 토큰 전체의 SHA-256 해시만 저장한다.
 
@@ -3730,7 +3752,7 @@ Content-Type: application/json
   - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - `orderId`, `amount`는 모든 confirm 요청에서 필수다. 0원 결제도 `amount=0`을 명시한다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
-  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 화해한다.
+  - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 변경한다.
   - Toss `Idempotency-Key`는 prepare에서 생성한 `orderId`를 사용하며 같은 결제 재시도에서 변경하지 않는다.
   - 브라우저 기본 결제는 Toss `CARD` 통합창이며, 네이버페이·카카오페이를 선택하면 같은 SDK의 해당 간편결제 자체창을 연다. 이 선택은 prepare/confirm 요청 계약을 바꾸지 않는다. 예약의 최종 `paymentMethod`는 prepare 화면값이 아니라 PG 승인·조회 응답의 실제 `method`로 저장한다.
   - Toss 승인 응답의 `paymentKey`, `orderId`는 confirm 요청값과 모두 같아야 한다. 다르면 성공으로 저장하지 않고 같은 멱등키로 재확인 가능한 실패로 처리한다.
@@ -3946,7 +3968,7 @@ Content-Type: application/json
 }
 ```
 
-- 기존 인증 코드 발송 API로 SMS 소유 확인을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
+- 기존 인증 코드 발송 API로 SMS 인증을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
 - 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
 - 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환하며, 기존 응답 배열은 유형별 최신 100건으로 제한한다.
 - 전체 복구 이력은 같은 토큰을 `X-Access-Token`으로 보내 `GET /api/v1/guest-records/recovery/orders?cursor={cursor}&size=20`와 `GET /api/v1/guest-records/recovery/bookings?cursor={cursor}&size=20`에서 `{content,nextCursor,hasMore}`로 조회한다. `size`는 1~100이고 `(createdAt,id)` 내림차순 커서를 사용한다.
@@ -4201,7 +4223,7 @@ file={JPEG|PNG|WebP binary}
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
-| 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
+| 422 | `REFUND_NOT_ALLOWED` | 예약금 환불 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
@@ -4233,3 +4255,80 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 ---
 
 문서 끝.
+
+### 배송지 수정
+
+- `PUT /api/v1/me/orders/{id}/shipping-address`: 로그인 회원의 주문을 수정한다.
+- `PUT /api/v1/orders/{id}/shipping-address`: `X-Access-Token`으로 비회원 소유권을 확인한다.
+- 요청: `version`(필수, 0 이상), `shippingAddress`(필수, 결제 요청과 동일한 수령인·휴대폰·5자리 우편번호·기본/상세 주소). 성공은 `204`이며 상세를 다시 조회한다.
+- 상세 `fulfillment.version`을 요청에 전달한다. 이전 버전이면 `409 CONFLICT`, 잘못된 소유권·조회 코드는 `404`, 픽업이나 수정 불가 상태는 `400 INVALID_INPUT`이다.
+- 승인 대기·이행 대기·제작 중·지연 동의 대기·지연 수락 상태에서만 허용한다. 배송 준비부터와 취소·종결 주문은 거절한다. 주문 금액·품목·수령 방식은 변경하지 않는다.
+
+### 관리자 재고 부족 기준
+
+- `GET /api/v1/admin/stock-levels?productId={id}`: 상품 필터는 선택 사항이다. 기성품 재고와 주문제작 옵션 조합의 현재 수량·최소 보유 수량·버전·활성 여부·`lowStock`을 반환한다.
+- `PUT /api/v1/admin/stock-levels/threshold`: `productId`, `version`은 필수다. 기성품은 `productVariantId=null`, 주문제작은 같은 상품의 조합 번호를 전달한다. `minimumStock`은 0 이상 정수이며 null 또는 누락이면 기준을 해제한다. 성공은 `204`다.
+- 현재 재고 버전이 다르면 `409 CONFLICT`, 다른 상품의 조합은 `404`, 음수나 잘못된 상품·조합 지정은 `400`이다. 수량을 직접 바꾸거나 스마트스토어 재고 전송을 요청하지 않는다.
+- 판매 중인 상품·활성 조합만 경고한다. 설정한 기준 이하인 재고를 부족으로 표시하고, 미설정 항목은 기존처럼 수량 0에서만 품절로 표시한다.
+
+### 회원 재입고 알림
+
+- `POST /api/v1/me/restock-alerts`: `productId` 필수, 기성품은 `productVariantId=null`, 주문제작은 품절인 활성 조합 번호를 전달한다. 현재 판매 중인 품절 상품만 신청 가능하며 휴대폰 번호 인증이 필요하다. 성공은 `204`, 같은 회원·상품·조합의 대기 중 신청은 하나로 유지한다.
+- `GET /api/v1/me/restock-alerts`: 본인 신청의 상품명·선택 옵션·상태·신청 및 발송 시각을 반환한다. 상태는 `WAITING`(입고 대기), `QUEUED`(알림 접수), `NOTIFIED`(발송 완료), `CANCELED`(해지)다.
+- `DELETE /api/v1/me/restock-alerts/{id}`: 본인의 대기·접수된 신청을 해지한다. 성공은 `204`, 다른 회원의 번호는 `404`다.
+- 신청 옵션의 실제 판매 가능 수량을 약 1분마다 확인한다. 다른 옵션 입고·판매 중지·비활성 옵션·탈퇴 회원·해지된 신청은 발송하지 않는다. 발송 전 다시 품절되면 같은 알림 요청을 다음 입고 때 재사용한다.
+- 알림은 구매 우선권이나 재고 예약을 보장하지 않는다. 외부 발송을 이미 시작한 메시지는 해지로 회수할 수 없다.
+
+### 단체 수업 문의
+
+| 경로 | 요청과 응답 |
+| --- | --- |
+| `POST /api/v1/group-inquiries` | 비회원 접수. CSRF 필요. 201 `{id,status}` 반환 |
+| `POST /api/v1/me/group-inquiries` | 회원 세션의 사용자로 접수. 201 `{id,status}` 반환 |
+| `GET /api/v1/me/group-inquiries` | 본인 문의만 조회. `cursor`, `size`(기본 20, 1~100), `{content,nextCursor,hasMore}` |
+| `GET /api/v1/admin/group-inquiries` | 관리자 조회. `status,inquiryId,source,from,to` 선택, 동일 커서 계약 |
+| `POST /api/v1/admin/group-inquiries` | 외부 문의를 `EXTERNAL` 출처로 등록. 201 관리자 상세 반환 |
+| `GET /api/v1/admin/group-inquiries/{id}` | 문의 조건·담당 연락처·버전·상담 이력 조회 |
+| `PUT /api/v1/admin/group-inquiries/{id}` | 필수 `version`(0 이상), `status`, `note`(공백 불가, 2000자 이하). 갱신 상세 반환 |
+
+접수 본문: 필수 `organization`·`preferredSchedule`·`location`·`classInterest`(각 200자 이하), `contactName`(100자 이하), `phone`(국내 휴대폰), `headcount`(1~500); `email`·`message`는 누락/null 가능하며 추가 요청은 2000자 이하이다. 회원 ID와 출처는 본문으로 받지 않는다. 본인 이력과 관리자 목록은 연락처·메모를 제외한 요약이며 상세·상담 이력은 관리자에게만 반환한다.
+
+상태는 `RECEIVED`, `CONSULTING`, `CONFIRMED`, `CLOSED`, `CANCELED`, 출처는 `WEBSITE`, `EXTERNAL`이다. 접수→상담 중/종료, 상담 중→확정/종료, 확정→상담 중/종료, 종료→상담 중 전환과 같은 상태의 메모 추가를 허용한다. 버전·상태 충돌은 409, 잘못된 입력·커서는 400, 미존재 문의는 404다. 공개 접수는 동일 IP 5회/10분을 공유하고 초과 429, 제한 저장소 장애 503을 반환한다.
+
+### 회원 주문 목록 상품 검색
+
+- `GET /api/v1/me/orders/page`의 `keyword`는 주문 번호 또는 구매 당시 상품명 부분 일치로 검색한다. `%`, `_`는 일반 문자로 취급한다. 현재 상품명 변경은 과거 주문 검색에 영향을 주지 않는다.
+- 기존 배열·페이지 목록 모두 `items`를 포함한다. 각 항목은 `orderItemId`, `productName`, `quantity`, `options`(옵션명·값 문자열 배열)이며 구매 당시 기록을 사용한다.
+- 본인 주문 조건과 정렬·커서 규칙을 유지하고, 상품 검색으로 동일 주문이 중복되지 않는다.
+
+### 회원 기본 배송지
+
+- `GET /api/v1/me/default-shipping-address`: `{version, shippingAddress}`. 미등록이면 `shippingAddress=null`, 최초 변경 번호는 0이다.
+- `PUT` 같은 경로: `{version, shippingAddress}`로 저장하고 204 반환. `DELETE` 같은 경로: 필수 쿼리 `version`으로 삭제하고 204 반환. 오래된 변경 번호는 409 `CONFLICT`. 저장·삭제마다 변경 번호를 증가시킨다.
+- 회원 세션의 본인 주소만 접근한다. CSRF 보호를 유지하며 주소 형식은 주문 배송지와 동일하다.
+
+### 단체 문의 다음 연락일
+
+- `PUT /api/v1/admin/group-inquiries/{id}/next-contact`: `{version, nextContactOn}`. 서울 기준 `YYYY-MM-DD`, 생략·null은 연락일 해제다. 관리자 상세 응답에 필수 nullable `nextContactOn`을 추가한다.
+- `GET /api/v1/admin/group-inquiries/follow-ups?cursor&size`: 오늘 또는 이전 연락일이 지정된 종료·고객 취소를 제외한 문의를 연락일·ID 오름차순 커서 페이지로 조회한다. 응답 `{content:[{id,organization,status,nextContactOn}],nextCursor,hasMore}`. 기본 20, 최대 100. 연락처와 상담 메모는 목록에 포함하지 않는다.
+- 종료한 상담은 연락일 지정을 400으로 거절하고 먼저 상담을 다시 열도록 안내한다. 오래된 변경 번호는 409. 기존 상담 상태·메모 수정 API는 유지한다.
+
+### 관리자 재입고 대기 현황
+
+`GET /api/v1/admin/restock-demand?productId&page&size`는 상품·옵션별 대기 인원 내림차순 페이지를 반환한다. 상품 번호는 선택, 페이지 기본 0, 크기 기본 20·최대 100이다. 응답은 `{content:[{productId,productName,productVariantId,optionLabel,waitingCount}],page,size,totalCount,totalPages}`. 옵션 번호는 기성품일 때 null이며 옵션 표시명은 신청 당시 기록을 사용한다. 해지·발송 완료·탈퇴·휴대폰 미인증 회원, 판매 중지 상품·비활성 옵션을 제외한다. 발송 결과가 SENT이면 신청 상태 갱신 전이라도 제외한다. 개인정보는 포함하지 않는다.
+
+### 회원 상품·클래스 찜
+
+- `GET /api/v1/me/favorites?type&cursor&size`: 본인 찜을 저장 시각·ID 최신순 커서 페이지로 조회한다. `type`은 선택 `PRODUCT`·`CLASS`, 기본 크기 20·최대 100. `{content:[{id,targetType,targetId,name,active,createdAt}],nextCursor,hasMore}`를 반환한다.
+- `GET /api/v1/me/favorites/{type}/{targetId}`: `{saved}`로 저장 여부를 조회한다. `PUT` 같은 경로는 저장, `DELETE`는 해제하고 모두 204를 반환한다. 중복 저장과 반복 해제는 한 번 수행한 결과를 유지한다.
+- 현재 활성 상품·클래스만 신규 저장할 수 있다. 저장 이후 중지된 항목은 내 목록에 `active=false`로 표시하며 해제할 수 있다. 대상을 물리 삭제하면 찜도 함께 삭제된다.
+- 회원 세션과 CSRF 보호를 적용하고 요청 본문으로 다른 회원 ID를 받지 않는다. 찜은 전화번호 인증 없이 로그인 회원에게 제공한다.
+
+### 회원 단체 문의 수정·취소와 관리자 검색
+
+- `GET /api/v1/me/group-inquiries/{id}`는 본인의 `summary`, `version`, `changes[] {id,note,createdAt}`를 반환한다. 변경 이력은 회원의 일정·인원 수정과 취소만 포함하며 관리자 상담 메모·연락일·연락처는 포함하지 않는다.
+- `PUT /api/v1/me/group-inquiries/{id}`는 `{version,headcount,preferredSchedule}`를 받는다. 모두 필수이며 version은 0 이상, 인원은 1~500명, 일정은 공백이 아닌 200자 이하다.
+- `POST /api/v1/me/group-inquiries/{id}/cancel`은 `{version}`을 받아 `CANCELED`(고객 취소)로 변경하고 다음 연락일을 해제한다. 수정·취소 성공은 최신 상세를 `200 OK`로 반환한다.
+- 수정·취소는 현재 상태가 `RECEIVED` 또는 `CONSULTING`일 때만 가능하다. 타인·비회원 문의는 `404 NOT_FOUND`, 화면 버전 불일치 또는 확정·종료·취소 상태는 `409 CONFLICT`다. 관리자도 `CANCELED` 문의를 다시 열 수 없다.
+- `GET /api/v1/admin/group-inquiries`는 기존 `status,cursor,size`에 선택 조건 `inquiryId,source,from,to`를 추가한다. 번호는 양수이며 경로는 `WEBSITE|EXTERNAL`, 날짜는 서울 접수일 기준 `YYYY-MM-DD`다. 시작일 00시 이상, 종료일 다음날 00시 미만을 조회하며 날짜 역전은 `400 INVALID_INPUT`이다. 모든 조건을 적용한 뒤 기존 접수 시각·ID 역순으로 페이지를 나눈다.
+- 관리자 상세 이력에 필수 `memberAction`을 추가한다. `true`는 회원 변경이고, `false`이면서 `adminId=null`인 기존 기록은 로컬 관리자 작업이다.

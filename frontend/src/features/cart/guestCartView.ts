@@ -44,6 +44,7 @@ export function projectGuestCartItems(
       qty: item.qty,
       subtotal: price * item.qty,
       available,
+      availableQuantity: product.available && configurationValid ? limit : 0,
       maxQuantity: configurationValid ? Math.max(0, limit - skuQuantity + item.qty) : 0,
       quantityWarning: product.available && configurationValid && skuQuantity > limit
         ? `같은 상품·옵션 조합은 합계 ${limit}개까지 주문할 수 있습니다. 수량을 줄여 주세요.`
@@ -70,6 +71,7 @@ function unavailableGuestItem(item: GuestCartItem): CartItemView {
     qty: item.qty,
     subtotal: 0,
     available: false,
+    availableQuantity: 0,
     maxQuantity: 0,
     specification: null,
     careInstructions: null,

@@ -5,6 +5,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui
 import { formatKRW, formatDateTime } from "@/shared/lib";
 
 interface Props {
+  previewSize?: number;
   bookings: MyBookingSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
@@ -18,6 +19,7 @@ export function MyBookingsSection({
   error,
   isFetching,
   onRetry,
+  previewSize = 5,
 }: Props) {
   return (
     <section id="my-bookings" className="mb-4">
@@ -27,14 +29,14 @@ export function MyBookingsSection({
           <p className="text-muted-soft small mb-0">다가오는 예약과 지난 예약 상태를 확인하고 상세로 이동합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {bookings && <span className="text-muted-soft small">표시 중 {bookings.length}건</span>}
+          {bookings && <span className="text-muted-soft small">표시 중 {Math.min(bookings.length, previewSize)}건</span>}
           <Link to="/my/bookings" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
-      {bookings && bookings.length > 0 && bookings.slice(0, 5).map((b) => (
+      {bookings && bookings.length > 0 && bookings.slice(0, previewSize).map((b) => (
         <Card
           key={b.bookingId}
           as={Link}
@@ -59,8 +61,8 @@ export function MyBookingsSection({
           </Card.Body>
         </Card>
       ))}
-      {bookings && bookings.length > 5 && (
-        <p className="text-muted-soft small mt-2 mb-0">최근 5건만 표시합니다.</p>
+      {bookings && bookings.length > previewSize && (
+        <p className="text-muted-soft small mt-2 mb-0">최근 {previewSize}건만 표시합니다.</p>
       )}
     </section>
   );

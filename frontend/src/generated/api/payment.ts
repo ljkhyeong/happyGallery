@@ -139,6 +139,13 @@ export type OrderPayload = Omit<PaymentPayload, 'type'> & ({
      * @nullable
      */
   rewardAmount?: number | null;
+  /**
+     * 선택 구매할 본인 장바구니 행 ID. 생략 또는 null이면 구매 가능한 전체 항목. 지정 시 expectedCartVersion 필수
+     * @minItems 1
+     * @maxItems 100
+     * @nullable
+     */
+  selectedCartItemIds?: number[] | null;
   shippingAddress?: ShippingAddress | null;
   /** @nullable */
   userId?: number | null;

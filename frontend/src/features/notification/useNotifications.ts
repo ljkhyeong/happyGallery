@@ -15,10 +15,10 @@ export function useUnreadCount(enabled: boolean) {
   });
 }
 
-export function useNotificationList(page: number, enabled: boolean) {
+export function useNotificationList(page: number, enabled: boolean, unreadOnly = false) {
   return useQuery({
-    queryKey: [...NOTIFICATION_KEY, page],
-    queryFn: () => fetchNotifications(page),
+    queryKey: [...NOTIFICATION_KEY, page, unreadOnly],
+    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchNotifications(page, 20, unreadOnly, signal)),
     enabled,
   });
 }

@@ -163,7 +163,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     const orderRow = orderCard.locator("tbody tr").filter({ hasText: approvalPendingOrder.orderNumber }).first();
     await expect(orderRow).toBeVisible();
     await orderRow.getByRole("button", { name: "거절" }).click();
-    const rejectDialog = page.getByRole("dialog", { name: "주문 거절 영향 확인" });
+    const rejectDialog = page.getByRole("dialog", { name: "주문 거절 및 환불 안내" });
     await expect(rejectDialog).toBeVisible();
     await rejectDialog.getByRole("button", { name: "거절 및 환불 요청" }).click();
 
