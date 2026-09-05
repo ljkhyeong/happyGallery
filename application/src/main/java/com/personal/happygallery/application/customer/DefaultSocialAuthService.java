@@ -124,7 +124,7 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
             }
             throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_ALREADY_LINKED);
         }
-        if (socialAccountReader.findByUserIdAndProvider(command.userId(), command.provider()).isPresent()) {
+        if (socialAccountReader.existsByUserIdAndProvider(command.userId(), command.provider())) {
             throw new HappyGalleryException(ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED);
         }
 

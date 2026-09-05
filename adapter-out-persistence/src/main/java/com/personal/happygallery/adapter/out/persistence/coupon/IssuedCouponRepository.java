@@ -19,7 +19,7 @@ public interface IssuedCouponRepository
     Optional<IssuedCoupon> findByIdForUpdate(@Param("id") Long id);
 
     @Override
-    Optional<IssuedCoupon> findByUserIdAndDefinitionId(Long userId, Long definitionId);
+    boolean existsByUserIdAndDefinitionId(Long userId, Long definitionId);
 
     @Override
     boolean existsByDefinitionId(Long definitionId);
