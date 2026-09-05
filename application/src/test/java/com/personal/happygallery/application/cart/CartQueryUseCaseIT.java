@@ -24,6 +24,8 @@ import java.util.UUID;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.ClassPathResource;
@@ -286,6 +288,30 @@ class CartQueryUseCaseIT {
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.CONFLICT));
+    }
+
+    @ParameterizedTest
+    @CsvSource({"49, true", "50, false"})
+    @DisplayName("같은 장바구니 항목의 병합 합계는 99개까지 허용하고 100개는 거절한다")
+    void mergeItems_duplicateLinesRespectQuantityLimit(int additionalQuantity, boolean accepted) {
+        User user = userStore.save(new User(
+                "cart-limit@example.com", "hashed", "수량 제한 회원", "01098765432"));
+        Product product = productStore.save(readyStockProduct("수량 제한 상품", 10_000L));
+        inventoryStore.save(inventory(product, 200));
+        List<CartUseCase.MergeItem> items = List.of(
+                new CartUseCase.MergeItem(product.getId(), 50),
+                new CartUseCase.MergeItem(product.getId(), additionalQuantity));
+
+        if (accepted) {
+            cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), items);
+            assertThat(cartUseCase.getCart(user.getId()).items()).singleElement()
+                    .extracting(CartUseCase.CartItemView::qty).isEqualTo(99);
+        } else {
+            assertThatThrownBy(() -> cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), items))
+                    .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+            assertThat(cartUseCase.getCart(user.getId()).items()).isEmpty();
+        }
     }
 
     @DisplayName("장바구니 추가·병합·수량 변경은 SKU 재고를 초과할 수 없다")

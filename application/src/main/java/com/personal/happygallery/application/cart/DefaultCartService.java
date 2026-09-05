@@ -43,7 +43,6 @@ import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -199,7 +198,11 @@ public class DefaultCartService implements CartUseCase {
         requireAvailableStock(
                 Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
 
-        Optional.ofNullable(indexCartLines(existingItems).get(candidate.getLineKey()))
+        existingItems.stream()
+                .filter(item -> CartItem.lineKey(
+                        item.getProductId(), item.getProductVariantId(), item.getTextInputs())
+                        .equals(candidate.getLineKey()))
+                .min(Comparator.comparing(CartItem::getId))
                 .ifPresentOrElse(
                         existing -> existing.addQty(qty, changedAt),
                         () -> cartItemStore.save(candidate));
@@ -240,13 +243,9 @@ public class DefaultCartService implements CartUseCase {
                         textInputs, requested.qty()));
                 continue;
             }
-            try {
-                int quantity = Math.addExact(pending.quantity(), requested.qty());
-                OrderAmountCalculator.requireQuantity(quantity);
-                pendingByLineKey.put(lineKey, pending.withQuantity(quantity));
-            } catch (ArithmeticException exception) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 수량이 너무 큽니다.");
-            }
+            int quantity = pending.quantity() + requested.qty();
+            OrderAmountCalculator.requireQuantity(quantity);
+            pendingByLineKey.put(lineKey, pending.withQuantity(quantity));
         }
 
         List<Long> productIds = pendingByLineKey.values().stream()
