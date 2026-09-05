@@ -218,3 +218,5 @@
 - `docs/Idea/0015_다중_인스턴스용_Redis_도입/idea.md`
 - `docs/Idea/0036_Spring_Security_전면_전환_검토/idea.md`
 - `docs/PRD/0004_API_계약/spec.md`
+
+- 단체 수업 문의의 회원 귀속은 `/me/group-inquiries`의 현재 세션에서만 정한다. 공개 비회원 접수에는 회원 ID를 받지 않으며 공개 상세 조회는 열지 않는다. 회원 탈퇴 트랜잭션은 해당 회원의 단체 문의와 상담 이력을 함께 삭제한다.

@@ -1,4 +1,152 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
+
+
+export const GroupInquirySummaryResponseSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type GroupInquirySummaryResponseStatus = typeof GroupInquirySummaryResponseStatus[keyof typeof GroupInquirySummaryResponseStatus];
+
+
+export const GroupInquirySummaryResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface GroupInquirySummaryResponse {
+  classInterest: string;
+  createdAt: string;
+  headcount: number;
+  id: number;
+  location: string;
+  organization: string;
+  preferredSchedule: string;
+  source: GroupInquirySummaryResponseSource;
+  status: GroupInquirySummaryResponseStatus;
+}
+
+export interface GroupInquiryPageResponse {
+  content: GroupInquirySummaryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface GroupInquiryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  classInterest: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  contactName: string;
+  /**
+     * @minLength 0
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  location: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  message?: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  organization: string;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     */
+  phone: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+}
+
+/**
+ * @nullable
+ */
+export type ActivityResponseFromStatus = typeof ActivityResponseFromStatus[keyof typeof ActivityResponseFromStatus] | null;
+
+
+export const ActivityResponseFromStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export type ActivityResponseToStatus = typeof ActivityResponseToStatus[keyof typeof ActivityResponseToStatus];
+
+
+export const ActivityResponseToStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface ActivityResponse {
+  /** @nullable */
+  adminId: number | null;
+  createdAt: string;
+  /** @nullable */
+  fromStatus: ActivityResponseFromStatus;
+  id: number;
+  note: string;
+  toStatus: ActivityResponseToStatus;
+}
+
+export interface AdminGroupInquiryResponse {
+  activities: ActivityResponse[];
+  details: GroupInquiryRequest;
+  summary: GroupInquirySummaryResponse;
+  version: number;
+}
+
+export type GroupInquiryUpdateRequestStatus = typeof GroupInquiryUpdateRequestStatus[keyof typeof GroupInquiryUpdateRequestStatus];
+
+
+export const GroupInquiryUpdateRequestStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface GroupInquiryUpdateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  note: string;
+  status: GroupInquiryUpdateRequestStatus;
+  version: number;
+}
+
 export interface AdminInquiryResponse {
   content: string;
   createdAt: string;
@@ -444,6 +592,22 @@ export interface SmartStoreSettlementSyncResponse {
   successCount: number;
 }
 
+export type ListAdminGroupInquiriesParams = {
+status?: ListAdminGroupInquiriesStatus;
+cursor?: string;
+size?: number;
+};
+
+export type ListAdminGroupInquiriesStatus = typeof ListAdminGroupInquiriesStatus[keyof typeof ListAdminGroupInquiriesStatus];
+
+
+export const ListAdminGroupInquiriesStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
 export type ListAdminInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -464,6 +628,98 @@ export type GetSmartStoreAccountingReportParams = {
 from: string;
 to: string;
 };
+
+export const getListAdminGroupInquiriesUrl = (params?: ListAdminGroupInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries?${stringifiedParams}` : `/api/v1/admin/group-inquiries`
+}
+
+export const listAdminGroupInquiries = async (params?: ListAdminGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+
+  return generatedApiClient<GroupInquiryPageResponse>(getListAdminGroupInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreateAdminGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries`
+}
+
+export const createAdminGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getCreateAdminGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
+
+export const getGetAdminGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}`
+}
+
+export const getAdminGroupInquiry = async (id: number, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getGetAdminGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateAdminGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}`
+}
+
+export const updateAdminGroupInquiry = async (id: number,
+    groupInquiryUpdateRequest: GroupInquiryUpdateRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getUpdateAdminGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryUpdateRequest)
+  }
+);}
+
+
 
 export const getListAdminInquiriesUrl = (params?: ListAdminInquiriesParams,) => {
   const normalizedParams = new URLSearchParams();

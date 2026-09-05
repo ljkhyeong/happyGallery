@@ -136,3 +136,5 @@ DB connection을 점유하지 않게 한다.
 - [ADR-0037 자가 호스팅 배포 토폴로지](../0037_자가_호스팅_배포_토폴로지_기준/adr.md)
 
 - 회원·비회원 배송지 수정 PUT도 `ORDER_CUSTOMER_ACTION_IP`를 적용한다. 비회원 경로는 CSRF 확인 후 조회 코드로 소유권을 검증한다.
+
+- `GROUP_INQUIRY_IP`는 비회원 `/api/v1/group-inquiries`와 회원 `/api/v1/me/group-inquiries`의 POST를 동일 IP 버킷 5회/10분으로 제한한다. `app.rate-limit.ip.group-inquiry`에서 조정한다. 외부 채널 문의를 입력하는 관리자 API는 기존 관리자 한도를 사용한다. 공개 접수는 Redis 장애 시 fail-closed한다.

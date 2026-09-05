@@ -1,4 +1,69 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export interface GroupInquiryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  classInterest: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  contactName: string;
+  /**
+     * @minLength 0
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  location: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  message?: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  organization: string;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     */
+  phone: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+}
+
+export type GroupInquiryReceiptResponseStatus = typeof GroupInquiryReceiptResponseStatus[keyof typeof GroupInquiryReceiptResponseStatus];
+
+
+export const GroupInquiryReceiptResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface GroupInquiryReceiptResponse {
+  id: number;
+  status: GroupInquiryReceiptResponseStatus;
+}
+
 export type ProductOptionSnapshotResponseType = typeof ProductOptionSnapshotResponseType[keyof typeof ProductOptionSnapshotResponseType];
 
 
@@ -113,6 +178,43 @@ export interface MergeCartRequest {
      * @maxItems 100
      */
   items: MergeCartItemRequest[];
+}
+
+export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
+
+
+export const GroupInquirySummaryResponseSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type GroupInquirySummaryResponseStatus = typeof GroupInquirySummaryResponseStatus[keyof typeof GroupInquirySummaryResponseStatus];
+
+
+export const GroupInquirySummaryResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export interface GroupInquirySummaryResponse {
+  classInterest: string;
+  createdAt: string;
+  headcount: number;
+  id: number;
+  location: string;
+  organization: string;
+  preferredSchedule: string;
+  source: GroupInquirySummaryResponseSource;
+  status: GroupInquirySummaryResponseStatus;
+}
+
+export interface GroupInquiryPageResponse {
+  content: GroupInquirySummaryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export interface ClaimGuestRecordsRequest {
@@ -652,6 +754,11 @@ export interface RestockAlertRequest {
   productVariantId?: number | null;
 }
 
+export type ListMyGroupInquiriesParams = {
+cursor?: string;
+size?: number;
+};
+
 export type ListMyInquiriesPageParams = {
 cursor?: string;
 /**
@@ -735,6 +842,27 @@ export const ListMyPassesPageSort = {
   EXPIRY_ASC: 'EXPIRY_ASC',
   CREDITS_DESC: 'CREDITS_DESC',
 } as const;
+
+export const getCreateGuestGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/group-inquiries`
+}
+
+export const createGuestGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+
+  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateGuestGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
 
 export const getGetMyCartUrl = () => {
 
@@ -837,6 +965,55 @@ export const mergeMyCartItems = async (mergeCartRequest: MergeCartRequest, optio
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(mergeCartRequest)
+  }
+);}
+
+
+
+export const getListMyGroupInquiriesUrl = (params?: ListMyGroupInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/me/group-inquiries?${stringifiedParams}` : `/api/v1/me/group-inquiries`
+}
+
+export const listMyGroupInquiries = async (params?: ListMyGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+
+  return generatedApiClient<GroupInquiryPageResponse>(getListMyGroupInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreateMyGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/me/group-inquiries`
+}
+
+export const createMyGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<GroupInquiryReceiptResponse> => {
+
+  return generatedApiClient<GroupInquiryReceiptResponse>(getCreateMyGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
   }
 );}
 

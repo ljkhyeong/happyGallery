@@ -4269,3 +4269,19 @@ Spring MVC가 확정한 `Allow`, content negotiation 등 표준 응답 헤더는
 - `DELETE /api/v1/me/restock-alerts/{id}`: 본인의 대기·접수된 신청을 해지한다. 성공은 `204`, 다른 회원의 번호는 `404`다.
 - 신청 옵션의 실제 판매 가능 수량을 약 1분마다 확인한다. 다른 옵션 입고·판매 중지·비활성 옵션·탈퇴 회원·해지된 신청은 발송하지 않는다. 발송 전 다시 품절되면 같은 알림 요청을 다음 입고 때 재사용한다.
 - 알림은 구매 우선권이나 재고 예약을 보장하지 않는다. 외부 발송을 이미 시작한 메시지는 해지로 회수할 수 없다.
+
+### 단체 수업 문의
+
+| 경로 | 요청과 응답 |
+| --- | --- |
+| `POST /api/v1/group-inquiries` | 비회원 접수. CSRF 필요. 201 `{id,status}` 반환 |
+| `POST /api/v1/me/group-inquiries` | 회원 세션의 사용자로 접수. 201 `{id,status}` 반환 |
+| `GET /api/v1/me/group-inquiries` | 본인 문의만 조회. `cursor`, `size`(기본 20, 1~100), `{content,nextCursor,hasMore}` |
+| `GET /api/v1/admin/group-inquiries` | 관리자 전체/상태별 조회. `status` 선택, 동일 커서 계약 |
+| `POST /api/v1/admin/group-inquiries` | 외부 문의를 `EXTERNAL` 출처로 등록. 201 관리자 상세 반환 |
+| `GET /api/v1/admin/group-inquiries/{id}` | 문의 조건·담당 연락처·버전·상담 이력 조회 |
+| `PUT /api/v1/admin/group-inquiries/{id}` | 필수 `version`(0 이상), `status`, `note`(공백 불가, 2000자 이하). 갱신 상세 반환 |
+
+접수 본문: 필수 `organization`·`preferredSchedule`·`location`·`classInterest`(각 200자 이하), `contactName`(100자 이하), `phone`(국내 휴대폰), `headcount`(1~500); `email`·`message`는 누락/null 가능하며 추가 요청은 2000자 이하이다. 회원 ID와 출처는 본문으로 받지 않는다. 본인 이력과 관리자 목록은 연락처·메모를 제외한 요약이며 상세·상담 이력은 관리자에게만 반환한다.
+
+상태는 `RECEIVED`, `CONSULTING`, `CONFIRMED`, `CLOSED`, 출처는 `WEBSITE`, `EXTERNAL`이다. 접수→상담 중/종료, 상담 중→확정/종료, 확정→상담 중/종료, 종료→상담 중 전환과 같은 상태의 메모 추가를 허용한다. 버전·상태 충돌은 409, 잘못된 입력·커서는 400, 미존재 문의는 404다. 공개 접수는 동일 IP 5회/10분을 공유하고 초과 429, 제한 저장소 장애 503을 반환한다.

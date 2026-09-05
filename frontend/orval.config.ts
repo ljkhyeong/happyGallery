@@ -69,6 +69,8 @@ export default defineConfig({
   ]),
   customerStoreApi: generatedApi("./src/generated/api/customerStore.ts", [
     "me-restock-alert-controller",
+    "me-group-inquiry-controller",
+    "group-inquiry-controller",
     "me-cart-controller",
     "me-guest-claim-controller",
     "me-inquiry-controller",
@@ -132,6 +134,7 @@ export default defineConfig({
   ]),
   adminOperationsApi: generatedApi("./src/generated/api/adminOperations.ts", [
     "admin-inquiry-controller",
+    "admin-group-inquiry-controller",
     "admin-notification-controller",
     "admin-pass-controller",
     "admin-payment-reconciliation-controller",

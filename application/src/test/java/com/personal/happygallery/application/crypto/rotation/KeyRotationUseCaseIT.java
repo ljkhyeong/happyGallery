@@ -165,6 +165,12 @@ class KeyRotationUseCaseIT {
         pendingAdmin.beginMfaEnrollment(oldEncryptor.encrypt("JBSWY3DPEHPK3PXP"));
         AdminUser admin = adminUserPort.save(pendingAdmin);
 
+        jdbcTemplate.update("INSERT INTO group_inquiries(user_id, source, status, details_enc, created_at, updated_at) VALUES (?, 'WEBSITE', 'RECEIVED', ?, ?, ?)",
+                user.getId(), oldEncryptor.encrypt("문의 연락처"), paidAt, paidAt);
+        Long inquiryId = jdbcTemplate.queryForObject("SELECT id FROM group_inquiries WHERE user_id = ?", Long.class, user.getId());
+        jdbcTemplate.update("INSERT INTO group_inquiry_activities(inquiry_id, to_status, note_enc, created_at) VALUES (?, 'RECEIVED', ?, ?)",
+                inquiryId, oldEncryptor.encrypt("상담 메모"), paidAt);
+
         KeyRotationUseCase.RotationResult result = keyRotationUseCase.rotate("v1");
 
         assertSoftly(softly -> {
@@ -174,6 +180,10 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.paymentAttempts()).isEqualTo(1);
             softly.assertThat(result.fulfillments()).isEqualTo(1);
             softly.assertThat(result.shippingAddressChanges()).isEqualTo(1);
+            softly.assertThat(result.groupInquiries()).isEqualTo(1);
+            softly.assertThat(result.groupInquiryActivities()).isEqualTo(1);
+            softly.assertThat(value("group_inquiries", "details_enc", inquiryId)).startsWith("hg:v2:");
+            softly.assertThat(jdbcTemplate.queryForObject("SELECT note_enc FROM group_inquiry_activities WHERE inquiry_id = ?", String.class, inquiryId)).startsWith("hg:v2:");
             var addressHistory = jdbcTemplate.queryForMap("SELECT before_address_enc, after_address_enc FROM shipping_address_changes WHERE order_id = ?", order.getId());
             softly.assertThat((String) addressHistory.get("before_address_enc")).startsWith("hg:v2:");
             softly.assertThat((String) addressHistory.get("after_address_enc")).startsWith("hg:v2:");

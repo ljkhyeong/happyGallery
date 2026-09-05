@@ -240,6 +240,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, PUBLIC_READ_PATHS)
                         .permitAll()
                         .requestMatchers(HttpMethod.POST,
+                                "/api/v1/group-inquiries",
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/logout",

@@ -1,6 +1,35 @@
 {
   "components" : {
     "schemas" : {
+      "ActivityResponse" : {
+        "properties" : {
+          "adminId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "fromStatus" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : [ "string", "null" ]
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "note" : {
+            "type" : "string"
+          },
+          "toStatus" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "adminId", "createdAt", "fromStatus", "id", "note", "toStatus" ],
+        "type" : "object"
+      },
       "AddCartItemRequest" : {
         "properties" : {
           "productId" : {
@@ -366,6 +395,28 @@
           }
         },
         "required" : [ "active", "discountType", "discountValue", "id", "maxDiscountAmount", "minOrderAmount", "name", "publiclyClaimable", "validFrom", "validUntil", "version" ],
+        "type" : "object"
+      },
+      "AdminGroupInquiryResponse" : {
+        "properties" : {
+          "activities" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ActivityResponse"
+            },
+            "type" : "array"
+          },
+          "details" : {
+            "$ref" : "#/components/schemas/GroupInquiryRequest"
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/GroupInquirySummaryResponse"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "activities", "details", "summary", "version" ],
         "type" : "object"
       },
       "AdminInquiryPageResponse" : {
@@ -3320,6 +3371,147 @@
           }
         },
         "required" : [ "carrier", "carrierCode", "expectedShipDate", "pickupDeadlineAt", "shippingAddress", "trackingEvents", "trackingNumber", "trackingRegistrationStatus", "trackingStatus", "trackingStatusText", "trackingUpdatedAt", "type", "version" ],
+        "type" : "object"
+      },
+      "GroupInquiryPageResponse" : {
+        "properties" : {
+          "content" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GroupInquirySummaryResponse"
+            },
+            "type" : "array"
+          },
+          "hasMore" : {
+            "type" : "boolean"
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "content", "hasMore", "nextCursor" ],
+        "type" : "object"
+      },
+      "GroupInquiryReceiptResponse" : {
+        "properties" : {
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "status" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "id", "status" ],
+        "type" : "object"
+      },
+      "GroupInquiryRequest" : {
+        "properties" : {
+          "classInterest" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "contactName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "email" : {
+            "maxLength" : 254,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "headcount" : {
+            "format" : "int32",
+            "maximum" : 500,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "location" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "message" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : [ "string", "null" ]
+          },
+          "organization" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "phone" : {
+            "maxLength" : 30,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "preferredSchedule" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "classInterest", "contactName", "headcount", "location", "organization", "phone", "preferredSchedule" ],
+        "type" : "object"
+      },
+      "GroupInquirySummaryResponse" : {
+        "properties" : {
+          "classInterest" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "headcount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "location" : {
+            "type" : "string"
+          },
+          "organization" : {
+            "type" : "string"
+          },
+          "preferredSchedule" : {
+            "type" : "string"
+          },
+          "source" : {
+            "enum" : [ "WEBSITE", "EXTERNAL" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "classInterest", "createdAt", "headcount", "id", "location", "organization", "preferredSchedule", "source", "status" ],
+        "type" : "object"
+      },
+      "GroupInquiryUpdateRequest" : {
+        "properties" : {
+          "note" : {
+            "maxLength" : 2000,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "note", "status", "version" ],
         "type" : "object"
       },
       "GuestClaimPreviewResponse" : {
@@ -10358,6 +10550,137 @@
         "tags" : [ "admin-event-controller" ]
       }
     },
+    "/api/v1/admin/group-inquiries" : {
+      "get" : {
+        "operationId" : "listAdminGroupInquiries",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "enum" : [ "RECEIVED", "CONSULTING", "CONFIRMED", "CLOSED" ],
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-group-inquiry-controller" ]
+      },
+      "post" : {
+        "operationId" : "createAdminGroupInquiry",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GroupInquiryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "admin-group-inquiry-controller" ]
+      }
+    },
+    "/api/v1/admin/group-inquiries/{id}" : {
+      "get" : {
+        "operationId" : "getAdminGroupInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-group-inquiry-controller" ]
+      },
+      "put" : {
+        "operationId" : "updateAdminGroupInquiry",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GroupInquiryUpdateRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminGroupInquiryResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "admin-group-inquiry-controller" ]
+      }
+    },
     "/api/v1/admin/inquiries" : {
       "get" : {
         "operationId" : "listAdminInquiries",
@@ -15071,6 +15394,34 @@
         "tags" : [ "event-controller" ]
       }
     },
+    "/api/v1/group-inquiries" : {
+      "post" : {
+        "operationId" : "createGuestGroupInquiry",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GroupInquiryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupInquiryReceiptResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "group-inquiry-controller" ]
+      }
+    },
     "/api/v1/guest-records/payment-status-recovery" : {
       "post" : {
         "operationId" : "recoverGuestPaymentStatuses",
@@ -15666,6 +16017,67 @@
           }
         },
         "tags" : [ "me-email-controller" ]
+      }
+    },
+    "/api/v1/me/group-inquiries" : {
+      "get" : {
+        "operationId" : "listMyGroupInquiries",
+        "parameters" : [ {
+          "in" : "query",
+          "name" : "cursor",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "default" : 20,
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupInquiryPageResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-group-inquiry-controller" ]
+      },
+      "post" : {
+        "operationId" : "createMyGroupInquiry",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GroupInquiryRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GroupInquiryReceiptResponse"
+                }
+              }
+            },
+            "description" : "Created"
+          }
+        },
+        "tags" : [ "me-group-inquiry-controller" ]
       }
     },
     "/api/v1/me/guest-claims" : {

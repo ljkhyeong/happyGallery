@@ -2,6 +2,9 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminDashboardController;
 import com.personal.happygallery.adapter.in.web.admin.AdminInquiryController;
+import com.personal.happygallery.adapter.in.web.admin.AdminGroupInquiryController;
+import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
+import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import com.personal.happygallery.adapter.in.web.admin.AdminNoticeController;
 import com.personal.happygallery.adapter.in.web.admin.AdminProductQnaController;
 import com.personal.happygallery.adapter.in.web.admin.AdminReviewController;
@@ -211,12 +214,51 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 eq(71L), eq(ReviewReportStatus.ACCEPTED), any(), eq(ADMIN_USER_ID)))
                 .thenReturn(acceptedReport);
 
+        var groupInquiries = mock(GroupInquiryUseCase.class);
+        var groupDetail = GroupInquiryRestDocsFixtures.detail();
+        when(groupInquiries.detailForAdmin(51L)).thenReturn(groupDetail);
+        when(groupInquiries.listForAdmin(isNull(), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(groupDetail.view()), null, false));
+        when(groupInquiries.createExternal(eq(ADMIN_USER_ID), any())).thenReturn(groupDetail);
+        when(groupInquiries.update(51L, 0L, GroupInquiryStatus.CONSULTING, "일정 협의 중", ADMIN_USER_ID)).thenReturn(groupDetail);
+
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
+                new AdminGroupInquiryController(groupInquiries),
                 new AdminDashboardController(dashboardQueryUseCase),
                 new AdminNoticeController(noticeAdminUseCase, noticeQueryUseCase),
                 new AdminProductQnaController(qnaUseCase),
                 new AdminInquiryController(inquiryUseCase),
                 new AdminReviewController(adminReviewUseCase));
+    }
+
+    @Test
+    @DisplayName("관리자 단체 문의 목록을 문서화한다")
+    void admin_group_inquiry_list() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/group-inquiries").with(adminUser()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(51));
+    }
+    @Test
+    @DisplayName("관리자에게 단체 문의의 연락처와 상담 이력을 제공한다")
+    void admin_group_inquiry_detail() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/group-inquiries/51").with(adminUser()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.details.phone").value("01012345678"))
+                .andExpect(jsonPath("$.activities[0].note").value("일정 협의 중"));
+    }
+    @Test
+    @DisplayName("관리자는 외부 채널로 받은 단체 문의를 등록한다")
+    void admin_group_inquiry_create() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/group-inquiries").with(adminUser())
+                        .contentType(APPLICATION_JSON).content(GroupInquiryRestDocsFixtures.REQUEST))
+                .andExpect(status().isCreated());
+    }
+    @Test
+    @DisplayName("관리자는 읽은 버전과 함께 상담 상태와 메모를 저장한다")
+    void admin_group_inquiry_update() throws Exception {
+        mockMvc.perform(put("/api/v1/admin/group-inquiries/51").with(adminUser())
+                        .contentType(APPLICATION_JSON).content("""
+                        {"version":0,"status":"CONSULTING","note":"일정 협의 중"}
+                        """))
+                .andExpect(status().isOk());
     }
 
     @Test

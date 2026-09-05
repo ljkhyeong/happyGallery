@@ -39,6 +39,10 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private static final List<RouteRule> ROUTE_RULES = List.of(
+            new RouteRule("GROUP_INQUIRY_IP", new OrRequestMatcher(
+                    pathPattern(POST, "/api/v1/group-inquiries"),
+                    pathPattern(POST, "/api/v1/me/group-inquiries")),
+                    FAIL_CLOSED, IpRules::groupInquiry),
             new RouteRule(
                     "CUSTOMER_LOGIN_IP",
                     pathPattern(POST, "/api/v1/auth/login"),

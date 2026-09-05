@@ -35,6 +35,13 @@ public interface KeyRotationDataPort {
     record ShippingAddressChangeRow(long id, String beforeAddressEnc, String afterAddressEnc)
             implements IdentifiedRow {}
 
+    record GroupInquiryEncryptedRow(long id, String payloadEnc) implements IdentifiedRow {}
+
+    List<GroupInquiryEncryptedRow> findGroupInquiriesAfterId(long afterId, int limit);
+    void updateGroupInquiry(GroupInquiryEncryptedRow row);
+    List<GroupInquiryEncryptedRow> findGroupInquiryActivitiesAfterId(long afterId, int limit);
+    void updateGroupInquiryActivity(GroupInquiryEncryptedRow row);
+
     List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
             String afterProductOrderId, int limit);
 

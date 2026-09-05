@@ -177,6 +177,28 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     }
 
     @Override
+    public List<GroupInquiryEncryptedRow> findGroupInquiriesAfterId(long afterId, int limit) {
+        return jdbc.sql("SELECT id, details_enc AS payload_enc FROM group_inquiries WHERE id > :afterId ORDER BY id LIMIT :limit")
+                .param("afterId", afterId).param("limit", limit).query(GroupInquiryEncryptedRow.class).list();
+    }
+
+    @Override
+    public void updateGroupInquiry(GroupInquiryEncryptedRow row) {
+        jdbc.sql("UPDATE group_inquiries SET details_enc = :payloadEnc WHERE id = :id").paramSource(row).update();
+    }
+
+    @Override
+    public List<GroupInquiryEncryptedRow> findGroupInquiryActivitiesAfterId(long afterId, int limit) {
+        return jdbc.sql("SELECT id, note_enc AS payload_enc FROM group_inquiry_activities WHERE id > :afterId ORDER BY id LIMIT :limit")
+                .param("afterId", afterId).param("limit", limit).query(GroupInquiryEncryptedRow.class).list();
+    }
+
+    @Override
+    public void updateGroupInquiryActivity(GroupInquiryEncryptedRow row) {
+        jdbc.sql("UPDATE group_inquiry_activities SET note_enc = :payloadEnc WHERE id = :id").paramSource(row).update();
+    }
+
+    @Override
     public List<SmartStoreOrderEncryptedRow> findSmartStoreOrdersAfterProductOrderId(
             String afterProductOrderId, int limit) {
         return jdbc.sql("""
