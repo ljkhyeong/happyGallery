@@ -258,6 +258,8 @@ public class SecurityConfig {
                                 "/api/v1/orders/{orderId}/claims",
                                 "/api/v1/orders/{id}/delay-response")
                         .permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/orders/{id}/shipping-address")
+                        .permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 "/api/v1/bookings/{bookingId}/reschedule",
                                 "/api/v1/bookings/{bookingId}/participants")

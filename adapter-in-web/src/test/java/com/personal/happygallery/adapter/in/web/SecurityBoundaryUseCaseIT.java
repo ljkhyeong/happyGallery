@@ -76,6 +76,23 @@ class SecurityBoundaryUseCaseIT {
     }
 
     // csrf() 후처리기는 캐시된 테스트 컨텍스트의 공유 저장소를 바꾸므로 새 컨텍스트에서 검증한다.
+    @Test
+    @DisplayName("비회원 배송지 수정은 CSRF를 검사한 뒤 주문 소유권 검증으로 전달한다")
+    void guestShippingAddress_reachesOwnershipCheck() throws Exception {
+        String body = """
+                {"version":0,"shippingAddress":{"recipientName":"수령인","phone":"01012345678",
+                "postalCode":"12345","addressLine1":"충주시 계명대로 161","addressLine2":"1층"}}
+                """;
+        mockMvc.perform(put("/api/v1/orders/999999999/shipping-address")
+                        .header("X-Access-Token", "invalid-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/api/v1/orders/999999999/shipping-address").with(csrf())
+                        .header("X-Access-Token", "invalid-token")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isNotFound());
+    }
+
     @DisplayName("발급받은 SPA CSRF 쿠키를 헤더로 보내면 상태 변경 요청이 통과한다")
     @Test
     @DirtiesContext(methodMode = DirtiesContext.MethodMode.BEFORE_METHOD)
