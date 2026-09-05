@@ -14,7 +14,7 @@ Google OIDC는 `email_verified=true`인 프로필을 제공하지만 Naver 프�
 
 그 결과 Naver로 처음 가입한 회원은 `users.email_enc/email_hmac=null`로 시작한다. 이 회원이
 이메일 로그인과 비밀번호 재설정에 사용할 기준 이메일을 직접 등록하려면 provider 프로필과 독립된
-메일함 소유 확인, 동시 등록 경합 제어와 기존 세션 폐기가 필요하다.
+이메일 인증, 동시 등록 경합 제어와 기존 세션 폐기가 필요하다.
 
 ## 결정
 

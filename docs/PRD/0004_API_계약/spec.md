@@ -1214,7 +1214,7 @@ X-Access-Token: {accessToken}
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
 - `cancelPolicy.cancellable`은 고객이 현재 예약을 직접 취소할 수 있는지를 뜻한다. 잔금 결제가 완료된 유료 예약은 `false`며 관리자 정산이 필요하다.
 - `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 크레딧 복구가 가능한지를 뜻한다.
-- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 취소 보상 마감 시각이다.
+- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 예약금 환불·8회권 횟수 복원 마감 시각이다.
 - 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 이 코드를 사용자에게 노출하지 않고 크레딧 미복구 한국어 경고로 변환해 취소 전에 표시한다.
 - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
 
@@ -1290,10 +1290,10 @@ X-Access-Token: {accessToken}
   - `400 INVALID_INPUT` — 변경 인원이 1명 미만이거나 현재 인원 이상
   - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
   - `409 BOOKING_CONFLICT` — 인원 변경 중 예약 슬롯이 바뀌거나 동시 수정 충돌
-  - `422 CHANGE_NOT_ALLOWED` — 취소 보상 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
+  - `422 CHANGE_NOT_ALLOWED` — 예약금 환불 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
 - 정책:
   - 예약은 `BOOKED`를 유지하며 1명 이상만 남길 수 있다. 전원 취소는 전체 예약 취소 API를 사용한다.
-  - 취소 보상 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
+  - 예약금 환불 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
   - 현재 예약금과 잔금을 변경 전 인원 대비 변경 후 인원 비율로 정수 내림해 다시 계산하고, 줄어든 예약금만 PG 부분환불로 요청한다.
   - 줄인 인원만큼 슬롯 정원을 즉시 반납하고 `PARTICIPANTS_REDUCED` 이력을 누적한다.
   - 같은 예약을 여러 번 줄일 수 있으며 각 요청은 별도 환불 이력을 가진다. 응답의 `refund`는 이번 요청의 환불 진행 상태다.
@@ -2674,7 +2674,7 @@ GET /api/v1/policies/current
 - 회원 로그인은 이메일/비밀번호(local)와 Google, Naver, Kakao OAuth2를 함께 지원한다.
 - 소셜 계정은 `user_social_accounts`에 `(provider, provider_id_hmac)`로 저장한다. 한 회원은 Google, Naver, Kakao 계정을 각각 하나씩 연결할 수 있다.
 - Google은 `email_verified=true`인 이메일만 기준 이메일 후보로 수용한다. 처음 보는 Google provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
-- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 메일함 소유 확인을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
+- Naver 프로필 이메일은 검증된 기준 이메일로 간주하지 않아 충돌 조회와 신규 회원 저장에 사용하지 않는다. 신규 Naver 회원은 provider ID와 이름으로 생성하며 기준 이메일은 `null`이다. 이메일이 없는 로그인 회원은 2.12.0.5.2의 별도 이메일 인증을 마친 뒤 기준 이메일을 한 번 등록할 수 있다.
 - Kakao는 `is_email_valid=true`, `is_email_verified=true`인 카카오계정 이메일과 닉네임을 모두 요구한다. 처음 보는 Kakao provider ID의 검증 이메일이 기존 회원과 겹치면 자동 연결하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다.
 - 소셜 로그인으로 새로 생성된 회원은 `password_hash`가 비어 있을 수 있다.
 - 이메일 로그인은 존재하지 않는 계정과 로컬 비밀번호가 없는 소셜 전용 계정에도 고정 dummy BCrypt 해시를 한 번 비교하고 모두 `401 INVALID_CREDENTIALS`로 응답한다. 정규화 이메일별 시도는 10회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
@@ -3340,7 +3340,7 @@ Cookie: HG_SESSION={sessionToken}
 - `readAt != null`이면 `read=true`로 본다.
 - 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
 - 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
-- 발송 완료, 현재 의미가 사라져 발송 없이 종결된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
+- 발송 완료, 발송 조건을 충족하지 않아 발송 없이 종료된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
 
 ### 2.13 공개 Product Q&A API
 #### 2.13.1 상품 Q&A 목록 조회
@@ -3968,7 +3968,7 @@ Content-Type: application/json
 }
 ```
 
-- 기존 인증 코드 발송 API로 SMS 소유 확인을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
+- 기존 인증 코드 발송 API로 SMS 인증을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
 - 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
 - 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환하며, 기존 응답 배열은 유형별 최신 100건으로 제한한다.
 - 전체 복구 이력은 같은 토큰을 `X-Access-Token`으로 보내 `GET /api/v1/guest-records/recovery/orders?cursor={cursor}&size=20`와 `GET /api/v1/guest-records/recovery/bookings?cursor={cursor}&size=20`에서 `{content,nextCursor,hasMore}`로 조회한다. `size`는 1~100이고 `(createdAt,id)` 내림차순 커서를 사용한다.
@@ -4223,7 +4223,7 @@ file={JPEG|PNG|WebP binary}
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
-| 422 | `REFUND_NOT_ALLOWED` | 취소 보상 마감 이후 환불 요청 |
+| 422 | `REFUND_NOT_ALLOWED` | 예약금 환불 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
