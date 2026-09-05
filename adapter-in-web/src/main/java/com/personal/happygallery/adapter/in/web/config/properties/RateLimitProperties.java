@@ -36,7 +36,8 @@ public record RateLimitProperties(
             @Valid @NotNull Rule clientMonitoring,
             @Valid @NotNull Rule reviewReport,
             @Valid @NotNull Rule reviewImageUpload,
-            @Valid @NotNull Rule orderCustomerAction
+            @Valid @NotNull Rule orderCustomerAction,
+            @Valid @NotNull Rule groupInquiry
     ) {}
 
     public record SubjectRules(

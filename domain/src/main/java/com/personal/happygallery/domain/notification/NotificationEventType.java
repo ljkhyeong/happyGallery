@@ -10,6 +10,8 @@ public enum NotificationEventType {
     BOOKING_CANCELED,
     /** 만석 회차 빈자리 발생 */
     BOOKING_VACANCY_AVAILABLE,
+    /** 신청한 상품 또는 옵션 조합 재입고 */
+    PRODUCT_RESTOCK_AVAILABLE,
     /** 예약금 환불 */
     DEPOSIT_REFUNDED,
     /** 주문 결제 완료 */
@@ -53,6 +55,10 @@ public enum NotificationEventType {
     /** 픽업 마감 2시간 전 알림 (배치) */
     PICKUP_DEADLINE_REMINDER;
 
+    public boolean allowsObsoleteReactivation() {
+        return isTimeSensitiveReminder() || this == PRODUCT_RESTOCK_AVAILABLE;
+    }
+
     public boolean isTimeSensitiveReminder() {
         return switch (this) {
             case REMINDER_D1, REMINDER_SAME_DAY, PASS_EXPIRY_SOON, PICKUP_DEADLINE_REMINDER -> true;
@@ -60,6 +66,7 @@ public enum NotificationEventType {
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
                     BOOKING_VACANCY_AVAILABLE,
+                    PRODUCT_RESTOCK_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,
@@ -88,6 +95,7 @@ public enum NotificationEventType {
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
                     BOOKING_VACANCY_AVAILABLE,
+                    PRODUCT_RESTOCK_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,

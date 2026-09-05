@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { RestockAlertButton } from "./RestockAlertButton";
 import { Alert, Button, Form, Table } from "react-bootstrap";
 import type {
   ProductDetailResponse,
@@ -147,6 +148,7 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
         </Form.Text>
       )}
       {message && <Alert variant="warning" className="py-2 mb-0">{message}</Alert>}
+      {selectedVariant && selectedVariant.quantity === 0 && <RestockAlertButton productId={product.id} productVariantId={selectedVariant.id} />}
       <Button type="button" variant="outline-dark" onClick={addLine}>
         선택한 옵션 추가
       </Button>

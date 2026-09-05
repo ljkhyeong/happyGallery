@@ -8,11 +8,16 @@ public interface NotificationQueryUseCase {
 
     record NotificationView(Long id, NotificationEventType eventType,
                             String aggregateType, Long aggregateId,
-                            LocalDateTime deliveredAt, LocalDateTime readAt) {
+                            LocalDateTime deliveredAt, LocalDateTime readAt,
+                            String contextTitle, LocalDateTime scheduledAt) {
+        public NotificationView(Long id, NotificationEventType eventType, String aggregateType,
+                                Long aggregateId, LocalDateTime deliveredAt, LocalDateTime readAt) {
+            this(id, eventType, aggregateType, aggregateId, deliveredAt, readAt, null, null);
+        }
         public boolean isRead() { return readAt != null; }
     }
 
-    List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size);
+    List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size, boolean unreadOnly);
 
     long countUnread(Long userId, Long guestId);
 

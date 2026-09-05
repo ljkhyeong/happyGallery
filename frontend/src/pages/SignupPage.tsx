@@ -146,7 +146,7 @@ export function SignupPage() {
                 <div className="mb-4">
                   <PhoneVerificationStep
                     purpose="SIGNUP"
-                    title="휴대폰 소유 확인"
+                    title="휴대폰 번호 인증"
                     initialPhone={phone}
                     confirmLabel="인증코드 적용"
                     onVerified={(verifiedPhone, code) => {

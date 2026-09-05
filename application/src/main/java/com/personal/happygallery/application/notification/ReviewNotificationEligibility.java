@@ -36,6 +36,7 @@ class ReviewNotificationEligibility {
                     BOOKING_RESCHEDULED,
                     BOOKING_CANCELED,
                     BOOKING_VACANCY_AVAILABLE,
+                    PRODUCT_RESTOCK_AVAILABLE,
                     DEPOSIT_REFUNDED,
                     ORDER_PAID,
                     ORDER_APPROVED,

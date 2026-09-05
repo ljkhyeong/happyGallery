@@ -1,5 +1,18 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.order.port.in.OrderShippingAddressUseCase;
+import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
+import com.personal.happygallery.application.order.port.out.FulfillmentPort;
+import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
@@ -56,7 +69,91 @@ class OrderCustomerActionUseCaseIT {
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
 
+    @Autowired OrderShippingAddressUseCase addressUseCase;
+    @Autowired OrderShippingUseCase shippingUseCase;
+    @Autowired FulfillmentPort fulfillmentPort;
+    @Autowired ShippingAddressProtector addressProtector;
+    @Autowired JdbcTemplate jdbc;
+    @Autowired PlatformTransactionManager transactionManager;
+
     OrderTestHelper orderHelper;
+
+    private static final ShippingAddress UPDATED_ADDRESS = new ShippingAddress(
+            "새 수령인", "01012345678", "12345", "서울시 변경 주소 12", "201호");
+
+    @Test
+    @DisplayName("본인 주문의 배송지를 암호화해 변경하고 이전 버전과 다른 고객의 수정은 거절한다")
+    void updateShippingAddress_preservesAuditAndRejectsStaleVersion() {
+        var fixture = orderHelper.createReadyStockPaidShippingOrder("주소 변경 상품", 40_000L, 3_000L);
+        var order = fixture.order();
+        var before = fulfillmentPort.findByOrderId(order.getId()).orElseThrow();
+        assertThatThrownBy(() -> addressUseCase.updateMember(order.getId(), Long.MAX_VALUE,
+                before.getVersion(), UPDATED_ADDRESS)).isInstanceOf(NotFoundException.class);
+        addressUseCase.updateMember(order.getId(), order.getUserId(), before.getVersion(), UPDATED_ADDRESS);
+        var after = fulfillmentPort.findByOrderId(order.getId()).orElseThrow();
+        assertThat(addressProtector.decrypt(after.getShippingAddressEnc())).isEqualTo(UPDATED_ADDRESS);
+        var audit = jdbc.queryForMap("SELECT * FROM shipping_address_changes WHERE order_id = ?", order.getId());
+        assertThat(audit.get("before_address_enc")).isEqualTo(before.getShippingAddressEnc());
+        assertThat(audit.get("after_address_enc")).isEqualTo(after.getShippingAddressEnc());
+        assertThat(audit.get("user_id")).isEqualTo(order.getUserId());
+        assertThat(after.getShippingAddressEnc()).doesNotContain(UPDATED_ADDRESS.addressLine1());
+        assertThat(orderStateProbe.getOrder(order.getId()).getTotalAmount()).isEqualTo(43_000L);
+        assertThatThrownBy(() -> addressUseCase.updateMember(order.getId(), order.getUserId(),
+                before.getVersion(), UPDATED_ADDRESS)).isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CONFLICT));
+        var pickup = orderHelper.createReadyStockPaidOrder("픽업 변경 거절 상품", 20_000L).order();
+        assertThatThrownBy(() -> addressUseCase.updateMember(pickup.getId(), pickup.getUserId(),
+                0L, UPDATED_ADDRESS)).isInstanceOf(HappyGalleryException.class);
+    }
+
+    @Test
+    @DisplayName("비회원은 주문 조회 코드로 배송지를 변경하고 잘못된 코드는 거절된다")
+    void updateGuestAddress_requiresAccessToken() {
+        var fixture = createGuestMadeToOrder("비회원 주소 상품", 50_000L, FulfillmentType.SHIPPING);
+        var order = fixture.order();
+        long version = fulfillmentPort.findByOrderId(order.getId()).orElseThrow().getVersion();
+        assertThatThrownBy(() -> addressUseCase.updateGuest(order.getId(), "wrong-token", version,
+                UPDATED_ADDRESS)).isInstanceOf(NotFoundException.class);
+        addressUseCase.updateGuest(order.getId(), fixture.accessToken(), version, UPDATED_ADDRESS);
+        assertThat(jdbc.queryForObject("SELECT guest_id FROM shipping_address_changes WHERE order_id = ?",
+                Long.class, order.getId())).isEqualTo(order.getGuestId());
+    }
+
+    @Test
+    @DisplayName("배송 준비가 주문 잠금을 먼저 확보하면 동시에 요청된 배송지 수정은 거절된다")
+    void shippingPreparation_serializesAddressChange() throws Exception {
+        var order = orderHelper.createReadyStockPaidShippingOrder("동시 주소 상품", 30_000L, 3_000L).order();
+        orderApprovalUseCase.approve(order.getId(), 1L);
+        var original = fulfillmentPort.findByOrderId(order.getId()).orElseThrow();
+        var prepared = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var preparing = executor.submit(() -> new TransactionTemplate(transactionManager).executeWithoutResult(tx -> {
+                shippingUseCase.prepareShipping(order.getId(), 1L);
+                prepared.countDown();
+                try {
+                    if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("테스트 대기 시간 초과");
+                } catch (InterruptedException exception) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(exception);
+                }
+            }));
+            try {
+                assertThat(prepared.await(10, TimeUnit.SECONDS)).isTrue();
+                var updating = executor.submit(() -> assertThatThrownBy(() -> addressUseCase.updateMember(
+                        order.getId(), order.getUserId(), original.getVersion(), UPDATED_ADDRESS))
+                        .isInstanceOf(HappyGalleryException.class));
+                release.countDown();
+                preparing.get(10, TimeUnit.SECONDS);
+                updating.get(10, TimeUnit.SECONDS);
+            } finally {
+                release.countDown();
+            }
+        }
+        assertThat(fulfillmentPort.findByOrderId(order.getId()).orElseThrow().getShippingAddressEnc())
+                .isEqualTo(original.getShippingAddressEnc());
+    }
+
 
     @BeforeEach
     void setUp() {
@@ -174,6 +271,10 @@ class OrderCustomerActionUseCaseIT {
     }
 
     private GuestOrderFixture createGuestMadeToOrder(String name, long price) {
+        return createGuestMadeToOrder(name, price, FulfillmentType.PICKUP);
+    }
+
+    private GuestOrderFixture createGuestMadeToOrder(String name, long price, FulfillmentType type) {
         Product product = productStorePort.save(new Product(
                 name,
                 ProductType.MADE_TO_ORDER,
@@ -192,8 +293,8 @@ class OrderCustomerActionUseCaseIT {
                         product.getId(), product.getName(), product.getType(), 1, price,
                         product.getSpecification(), product.getCareInstructions(),
                         product.getProductionLeadDays())),
-                FulfillmentType.PICKUP,
-                null,
+                type,
+                type == FulfillmentType.SHIPPING ? UPDATED_ADDRESS : null,
                 0L,
                 MadeToOrderConsent.current(LocalDateTime.of(2026, 1, 1, 0, 0)));
         return new GuestOrderFixture(product, result.order(), result.rawAccessToken());

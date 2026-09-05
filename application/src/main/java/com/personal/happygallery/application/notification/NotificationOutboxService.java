@@ -47,7 +47,7 @@ public class NotificationOutboxService {
     }
 
     private boolean reactivateObsolete(NotificationRequestedEvent event, LocalDateTime now) {
-        if (!event.eventType().isTimeSensitiveReminder()) {
+        if (!event.eventType().allowsObsoleteReactivation()) {
             return false;
         }
         var existing = outboxPort.findByIdempotencyKeyForUpdate(event.idempotencyKey());

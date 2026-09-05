@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.order.OrderHistoryQuery;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -31,9 +32,15 @@ public interface OrderQueryUseCase {
         }
     }
 
-    List<Order> listMyOrders(Long userId);
+    record OrderSummary(Order order, List<OrderItem> items) {
+        public OrderSummary { items = List.copyOf(items); }
+    }
 
-    CursorPage<Order> listMyOrders(Long userId, String cursor, int size);
+    List<OrderSummary> listMyOrders(Long userId);
+
+    CursorPage<OrderSummary> listMyOrders(Long userId, String cursor, int size);
+
+    CursorPage<OrderSummary> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size);
 
     OrderDetail findMyOrder(Long id, Long userId);
 

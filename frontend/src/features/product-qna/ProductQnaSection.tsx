@@ -145,7 +145,7 @@ function ProductQnaContent({ productId }: Props) {
                 ? "Q&A 불러오는 중..."
                 : qnaHasNextPage
                   ? "Q&A 더 보기"
-                  : "Q&A 소유 정보 다시 불러오기"}
+                  : "내가 쓴 Q&A 확인"}
             </Button>
           </div>
         )}

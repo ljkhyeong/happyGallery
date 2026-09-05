@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
+import com.personal.happygallery.application.pass.PassHistoryQuery;
+import com.personal.happygallery.application.pass.PassHistoryQuery.PassHistorySort;
+import com.personal.happygallery.application.pass.PassHistoryQuery.PassHistoryStatus;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyPassSummary;
 import com.personal.happygallery.adapter.in.web.customer.dto.MyPassPageResponse;
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberPassRefundResponse;
@@ -54,9 +57,12 @@ public class MePassController {
             @Parameter(schema = @Schema(
                     type = "integer", format = "int32", defaultValue = "20",
                     minimum = "1", maximum = "100"))
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) PassHistoryStatus status,
+            @RequestParam(defaultValue = "PURCHASE_DESC") PassHistorySort sort) {
         return MyPassPageResponse.from(
-                passQueryUseCase.listMyPasses(customer.userId(), cursor, size));
+                passQueryUseCase.listMyPasses(customer.userId(), new PassHistoryQuery(keyword, status, sort), cursor, size));
     }
 
     @GetMapping("/{id}")

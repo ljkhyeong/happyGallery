@@ -1,5 +1,5 @@
 export const ACTION_LABELS: Record<string, string> = {
-  INVENTORY_RESOLVED: "수동 재고 결정",
+  INVENTORY_RESOLVED: "재고 반영 방법 지정",
   ORDER_CONFIRMED: "발주 확인",
   ORDER_DISPATCHED: "발송 처리",
   ORDER_DELAYED: "발송 지연",

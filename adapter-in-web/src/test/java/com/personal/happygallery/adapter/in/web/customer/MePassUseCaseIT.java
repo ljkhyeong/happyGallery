@@ -93,6 +93,34 @@ class MePassUseCaseIT {
         cleanupSupport.clearUsers();
     }
 
+    @Test
+    @DisplayName("8회권은 만료 여부와 잔여 횟수를 서버에서 구분하고 잔여 횟수순 페이지를 조회한다")
+    void searchMyPassHistory() throws Exception {
+        Long lowCreditsId = purchasePass();
+        Long highCreditsId = purchasePass();
+        Long expiredId = purchasePass();
+        jdbcTemplate.update("UPDATE pass_purchases SET remaining_credits = 2 WHERE id = ?", lowCreditsId);
+        jdbcTemplate.update("UPDATE pass_purchases SET expires_at = '2020-01-01 00:00:00' WHERE id = ?", expiredId);
+        var first = mockMvc.perform(get("/api/v1/me/passes/page").cookie(sessionCookie)
+                        .param("status", "ACTIVE").param("sort", "CREDITS_DESC").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passId").value(highCreditsId))
+                .andExpect(jsonPath("$.hasMore").value(true)).andReturn();
+        String cursor = objectMapper.readTree(first.getResponse().getContentAsString()).get("nextCursor").asText();
+        mockMvc.perform(get("/api/v1/me/passes/page").cookie(sessionCookie)
+                        .param("status", "ACTIVE").param("sort", "CREDITS_DESC")
+                        .param("size", "1").param("cursor", cursor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passId").value(lowCreditsId))
+                .andExpect(jsonPath("$.hasMore").value(false));
+        mockMvc.perform(get("/api/v1/me/passes/page").cookie(sessionCookie)
+                        .param("status", "EXPIRED").param("sort", "EXPIRY_ASC").param("keyword", expiredId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].passId").value(expiredId));
+        mockMvc.perform(get("/api/v1/me/passes/page").cookie(sessionCookie).param("status", "USED_UP"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
+    }
+
     @DisplayName("회원 8회권 목록과 페이지는 결제 영수증을 함께 조회한다")
     @Test
     void listMyPasses() throws Exception {

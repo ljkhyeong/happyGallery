@@ -98,7 +98,7 @@ public class OrderFulfiller implements PaymentFulfiller {
             if (item.productType() == null) {
                 if (op.madeToOrderConsent() != null) {
                     containsLegacyMadeToOrder = true;
-                    // APPROVED는 fulfillment 실패로 넘겨 기존 PG 보상 환불 경계를 사용한다.
+                    // APPROVED는 주문 생성 실패로 처리해 기존 PG 보상 환불을 요청한다.
                     if (!deferApprovedLegacyFailure
                             || attempt.getStatus() != PaymentAttemptStatus.APPROVED) {
                         throw legacyMadeToOrderPayload();

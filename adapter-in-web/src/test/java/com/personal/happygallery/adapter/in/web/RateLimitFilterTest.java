@@ -39,6 +39,16 @@ class RateLimitFilterTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    @Test
+    @DisplayName("단체 문의는 회원과 비회원 접수를 같은 IP 한도로 제한한다")
+    void groupInquiries_sharePublicSubmissionLimit() throws Exception {
+        RateLimitFilter filter = filter(new TestRateLimits().build(), mockRedis());
+        for (int index = 0; index < 5; index++) {
+            assertThat(perform(filter, "POST", "/api/v1/group-inquiries").getStatus()).isEqualTo(200);
+        }
+        assertThat(perform(filter, "POST", "/api/v1/me/group-inquiries").getStatus()).isEqualTo(429);
+    }
+
     @DisplayName("API가 아닌 경로는 처리율 제한 없이 통과한다")
     @Test
     void passesThrough_whenPathIsNotRateLimited() throws Exception {
@@ -570,7 +580,8 @@ class RateLimitFilterTest {
                             perMinute(clientMonitoring),
                             perMinute(reviewReport),
                             perMinute(reviewImageUpload),
-                            perMinute(orderCustomerAction)
+                            perMinute(orderCustomerAction),
+                            perMinute(5)
                     ),
                     new SubjectRules(
                             perMinute(100),

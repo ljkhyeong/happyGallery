@@ -29,7 +29,7 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
     @Override
     public List<UserEncryptedRow> findUsersAfterId(long afterId, int limit) {
         return jdbc.sql("""
-                        SELECT id, email_enc, name_enc, phone_enc
+                        SELECT id, email_enc, name_enc, phone_enc, default_shipping_address_enc
                         FROM users
                         WHERE id > :afterId
                         ORDER BY id
@@ -47,7 +47,8 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         UPDATE users
                         SET email_enc = :emailEnc, email_hmac = :emailHmac,
                             name_enc = :nameEnc, name_hmac = :nameHmac,
-                            phone_enc = :phoneEnc, phone_hmac = :phoneHmac
+                            phone_enc = :phoneEnc, phone_hmac = :phoneHmac,
+                            default_shipping_address_enc = :defaultShippingAddressEnc
                         WHERE id = :id
                         """)
                 .paramSource(row)
@@ -155,6 +156,47 @@ class JdbcKeyRotationDataAdapter implements KeyRotationDataPort {
                         """)
                 .paramSource(row)
                 .update();
+    }
+
+    @Override
+    public List<ShippingAddressChangeRow> findShippingAddressChangesAfterId(long afterId, int limit) {
+        return jdbc.sql("""
+                        SELECT id, before_address_enc, after_address_enc FROM shipping_address_changes
+                        WHERE id > :afterId ORDER BY id LIMIT :limit
+                        """)
+                .param("afterId", afterId).param("limit", limit)
+                .query(ShippingAddressChangeRow.class).list();
+    }
+
+    @Override
+    public void updateShippingAddressChange(ShippingAddressChangeRow row) {
+        jdbc.sql("""
+                        UPDATE shipping_address_changes
+                        SET before_address_enc = :beforeAddressEnc, after_address_enc = :afterAddressEnc
+                        WHERE id = :id
+                        """).paramSource(row).update();
+    }
+
+    @Override
+    public List<GroupInquiryEncryptedRow> findGroupInquiriesAfterId(long afterId, int limit) {
+        return jdbc.sql("SELECT id, details_enc AS payload_enc FROM group_inquiries WHERE id > :afterId ORDER BY id LIMIT :limit")
+                .param("afterId", afterId).param("limit", limit).query(GroupInquiryEncryptedRow.class).list();
+    }
+
+    @Override
+    public void updateGroupInquiry(GroupInquiryEncryptedRow row) {
+        jdbc.sql("UPDATE group_inquiries SET details_enc = :payloadEnc WHERE id = :id").paramSource(row).update();
+    }
+
+    @Override
+    public List<GroupInquiryEncryptedRow> findGroupInquiryActivitiesAfterId(long afterId, int limit) {
+        return jdbc.sql("SELECT id, note_enc AS payload_enc FROM group_inquiry_activities WHERE id > :afterId ORDER BY id LIMIT :limit")
+                .param("afterId", afterId).param("limit", limit).query(GroupInquiryEncryptedRow.class).list();
+    }
+
+    @Override
+    public void updateGroupInquiryActivity(GroupInquiryEncryptedRow row) {
+        jdbc.sql("UPDATE group_inquiry_activities SET note_enc = :payloadEnc WHERE id = :id").paramSource(row).update();
     }
 
     @Override

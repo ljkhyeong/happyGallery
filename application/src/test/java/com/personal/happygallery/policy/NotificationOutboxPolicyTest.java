@@ -77,7 +77,7 @@ class NotificationOutboxPolicyTest {
         assertThat(outbox.getStatus()).isEqualTo(NotificationOutboxStatus.FAILED);
     }
 
-    @DisplayName("현재 의미가 사라진 리마인드는 실행권 소유자만 재시도 없는 종결 상태로 바꾼다")
+    @DisplayName("현재 처리 토큰으로만 알림을 OBSOLETE로 변경하고 직접 재선점을 거절한다")
     @Test
     void markObsolete_requiresCurrentProcessingTokenAndTerminatesOutbox() {
         NotificationOutbox outbox = newOutbox();

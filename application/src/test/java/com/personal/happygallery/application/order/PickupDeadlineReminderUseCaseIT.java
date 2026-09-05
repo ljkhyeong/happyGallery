@@ -180,9 +180,9 @@ class PickupDeadlineReminderUseCaseIT {
                 .filter(candidate -> candidate.getGuestId() == null)
                 .toList();
         var currentOwnerInbox = notificationQueryUseCase.listNotifications(
-                currentOwner.getId(), null, 0, 20);
+                currentOwner.getId(), null, 0, 20, false);
         var previousOwnerInbox = notificationQueryUseCase.listNotifications(
-                null, previousOwner.getId(), 0, 20);
+                null, previousOwner.getId(), 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(sent.getStatus()).isEqualTo(NotificationOutboxStatus.SENT);

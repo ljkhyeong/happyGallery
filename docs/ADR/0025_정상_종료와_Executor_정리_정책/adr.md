@@ -102,7 +102,7 @@ Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 
 ### 5. 외부 호출 timeout용 `ThreadPoolTaskExecutor`는 제한 큐와 빠른 정리를 사용한다
 
-`BoundedExecutorFactory`는 PG와 알림 채널 timeout executor에 공통으로 필요한 생성 정책을 소유한다.
+`BoundedExecutorFactory`는 PG와 알림 채널 timeout executor에 공통으로 적용할 생성 설정을 관리한다.
 
 - Boot `ThreadPoolTaskExecutorBuilder` 기반 Spring bean lifecycle
 - core/max pool 크기가 같은 고정 thread pool

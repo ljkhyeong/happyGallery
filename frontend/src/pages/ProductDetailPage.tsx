@@ -1,3 +1,4 @@
+import { FavoriteButton } from "@/features/my/Favorites";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -42,6 +43,7 @@ import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
 import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { RestockAlertButton } from "@/features/product/RestockAlertButton";
 import { saveGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
@@ -230,6 +232,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                 </span>
               </div>
               <h1 className="store-detail-title">{product.name}</h1>
+              <FavoriteButton type="PRODUCT" targetId={product.id} />
               <p className="text-muted-soft store-section-desc store-detail-description">
                 {product.description || (product.type === "MADE_TO_ORDER"
                   ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."
@@ -345,6 +348,9 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               </section>
 
               <div className="store-purchase-summary">
+                {!hasConfiguredOptions && !product.available && (
+                  <RestockAlertButton productId={product.id} productVariantId={product.type === "MADE_TO_ORDER" ? product.variants.find((variant) => variant.active)?.id ?? null : null} />
+                )}
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
                   <span className="store-purchase-line">{selectedQuantity}개</span>

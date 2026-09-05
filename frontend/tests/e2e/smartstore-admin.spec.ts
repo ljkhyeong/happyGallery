@@ -1,4 +1,9 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import type { RestockDemandPageResponse } from "../../src/generated/api/adminCatalog";
+import type {
+  GroupInquiryFollowUpPageResponse,
+  GroupInquiryPageResponse,
+} from "../../src/generated/api/adminOperations";
 
 async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -13,6 +18,21 @@ async function prepareAdmin(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") return json(route, {}, 401);
+    if (pathname === "/api/v1/admin/group-inquiries") {
+      return json(route, {
+        content: [], hasMore: false, nextCursor: null,
+      } satisfies GroupInquiryPageResponse);
+    }
+    if (pathname === "/api/v1/admin/group-inquiries/follow-ups") {
+      return json(route, {
+        content: [], hasMore: false, nextCursor: null,
+      } satisfies GroupInquiryFollowUpPageResponse);
+    }
+    if (pathname === "/api/v1/admin/restock-demand") {
+      return json(route, {
+        content: [], page: 0, size: 20, totalCount: 0, totalPages: 0,
+      } satisfies RestockDemandPageResponse);
+    }
     if (pathname.includes("smartstore-inquiries") && pathname.endsWith("/page")) {
       return json(route, inquiryPage([]));
     }
@@ -142,7 +162,7 @@ test("@admin 반품 택배사 계약은 펼칠 때 조회하고 주문 수거 �
   expect(reads).toBe(1);
 });
 
-test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하고 수동 재고 결정을 저장한다", async ({ page }) => {
+test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하고 재고 반영 방법을 지정한다", async ({ page }) => {
   await prepareAdmin(page);
   const reads: Array<Record<string, string>> = [];
   let resolutionBody: Record<string, unknown> | undefined;
@@ -202,7 +222,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
     id: 71,
     action: "INVENTORY_RESOLVED",
     status: "SUCCEEDED",
-    requestSummary: "상품 1, 재고 결정 APPLY_REMAINING, 사유: 스마트스토어 옵션과 내부 상품을 확인",
+    requestSummary: "상품 1, 재고 반영 방법 APPLY_REMAINING, 사유: 스마트스토어 옵션과 내부 상품을 확인",
     resultCode: null,
     resultMessage: null,
     changedByAdminId: 1,
@@ -237,10 +257,10 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   });
   await page.getByRole("button", { name: "다음", exact: true }).click();
   await expect.poll(() => reads.at(-1)).toMatchObject({ cursor: "next-page" });
-  await page.getByRole("button", { name: "상품 연결·재고 결정", exact: true }).click();
+  await page.getByRole("button", { name: "상품 연결·재고 반영 방법", exact: true }).click();
   await page.getByLabel("내부 상품").selectOption("1");
   await page.getByLabel("처리 사유").fill("스마트스토어 옵션과 내부 상품을 확인");
-  await page.getByRole("button", { name: "상품 연결과 재고 결정 저장", exact: true }).click();
+  await page.getByRole("button", { name: "상품 연결과 재고 반영 방법 저장", exact: true }).click();
 
   await expect.poll(() => resolutionBody).toEqual({
     productId: 1,
@@ -250,11 +270,11 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
     resolutionVersion: "resolution-1",
   });
   await page.getByRole("button", { name: "주문 처리", exact: true }).click();
-  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("수동 재고 결정");
+  await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("재고 반영 방법 지정");
   await expect(page.getByRole("region", { name: "주문 처리 이력" })).toContainText("운영 관리자");
 });
 
-test("@admin 스마트스토어 미확정 요청을 대사하고 미반영 주문 처리 화면으로 이동한다", async ({ page }) => {
+test("@admin 스마트스토어 요청의 반영 여부를 확인하고 미반영 주문 처리 화면으로 이동한다", async ({ page }) => {
   await prepareAdmin(page);
   let reconciled = false;
   let reconciliationBody: Record<string, unknown> | undefined;
@@ -371,8 +391,8 @@ test("@admin 스마트스토어 미확정 요청을 대사하고 미반영 주�
   });
   await panel.getByRole("button", { name: "네이버 상태 확인", exact: true }).click();
   await expect(page.getByText("발주: NOT_YET", { exact: true })).toBeVisible();
-  await page.getByLabel("대사 결과").selectOption("NOT_APPLIED");
-  await page.getByLabel("대사 근거").fill("네이버 발주 상태가 미처리임을 확인");
+  await page.getByLabel("반영 여부 확인 결과").selectOption("NOT_APPLIED");
+  await page.getByLabel("확인 근거").fill("네이버 발주 상태가 미처리임을 확인");
   await page.getByRole("button", { name: "미반영 저장 후 주문 화면 열기", exact: true }).click();
 
   await expect.poll(() => reconciliationBody).toEqual({

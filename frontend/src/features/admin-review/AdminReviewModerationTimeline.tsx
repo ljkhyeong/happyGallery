@@ -65,7 +65,7 @@ export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError 
                     evidence={action.evidence}
                     adminKey={adminKey}
                     onAuthError={onAuthError}
-                    unavailableMessage="이전 운영 이력이라 당시 후기 증거를 복구할 수 없습니다."
+                    unavailableMessage="이전 기록이라 당시 후기 내용을 확인할 수 없습니다."
                   />
                 </li>
               ))}

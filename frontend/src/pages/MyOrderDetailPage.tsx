@@ -7,6 +7,7 @@ import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { getMyOrder } from "@/generated/api/customerStore";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
+import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
@@ -90,6 +91,7 @@ export function MyOrderDetailPage() {
       {error && <ErrorAlert error={error} />}
       <ErrorAlert error={cancelMutation.error ?? delayMutation.error} />
       <OrderDetailCard order={order} />
+      <ShippingAddressEditPanel order={order} onSaved={() => queryClient.invalidateQueries({ queryKey: queryKeys.member.orders.all })} />
       {order.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={order.receiptUrl} /></div>}
       <OrderCustomerActionPanel
         status={order.status}

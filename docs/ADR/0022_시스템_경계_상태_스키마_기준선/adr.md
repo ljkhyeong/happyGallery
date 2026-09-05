@@ -38,7 +38,12 @@
 
 현재 잠금과 충돌 처리 기준:
 
+- 단체 수업 문의: `group_inquiries`에 회원 ID(비회원·외부 문의는 null), 웹/외부 출처, 상태, 암호화 문의 조건, 접수·변경 시각과 버전을 저장한다. `group_inquiry_activities`는 관리자 ID·전후 상태·암호화 메모를 남긴다. 상세 수정은 문의 행 잠금 후 화면 버전과 상태를 검사하며 이력도 같은 트랜잭션에서 저장한다.
+
+- 배송지 수정과 배송 준비 시작: 같은 주문 row lock으로 직렬화하고, 배송지 수정은 이행 정보의 조회 버전을 비교한다. `shipping_address_changes`에 변경 전후 암호문·회원/비회원 ID·시각을 같은 트랜잭션으로 저장한다. 주소 이력은 주문과 함께 보존·삭제하며 데이터 키 회전 대상에 포함한다.
 - 슬롯 정원: `SELECT ... FOR UPDATE` + `booked_count`
+- 재입고 알림: `product_restock_alerts`에 회원·상품·옵션별 신청과 WAITING/QUEUED/NOTIFIED/CANCELED 상태를 저장한다. 대기 중 키는 UNIQUE이고 상품·회원·옵션 삭제 시 신청도 삭제한다.
+- 재고 부족 안내 기준: `inventory.minimum_stock`, `product_variants.minimum_stock`에 null 또는 0 이상 정수를 저장한다.
 - 단일 작품 재고: row lock 또는 version 기반 낙관적 락
 - 주문 승인, 자동 환불, 픽업 만료, 8회권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
 - 공지 관리자 수정·삭제와 공방 프로필 수정: 조회 응답 `version`과 변경 요청 `expectedVersion`의
@@ -86,7 +91,7 @@
 
 - `admin_user`
   - `id`, `username(unique)`, `password_hash`, `credential_version`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
-  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
+  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - 인증되지 않은 요청이 운영자 계정을 잠그는 것을 막기 위해 V103에서 `failed_login_attempts`, `locked_until`을 제거한다. 로그인 남용은 IP 처리율 제한·MFA·감사 이력으로 통제하고, TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
 - `admin_mfa_challenge`
   - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
@@ -106,9 +111,9 @@
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
   - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
-  - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 작업 강도만 승격할 때는 버전을 유지한다.
+  - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
-  - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 소유 확인 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
+  - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 인증 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
   - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
   - 종결 주문·예약의 `user_id`와 운영 이력은 유지한다. 관리자 과거 이력은 활성 회원 조회와 분리된 명시적 조회를 사용해 탈퇴 회원도 `MEMBER`로 반환하되, 익명화된 이름과 제거된 전화번호만 노출한다.
 - `user_social_accounts`
@@ -160,7 +165,7 @@
 - `smartstore_order_action_history`
   - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
   - V174는 외부 호출 전 실패를 `NOT_SENT`로 구분하고, 결과 미확정 요청의 수동 확인 결과·근거·관리자·시각을 nullable 열로 추가한다. 대사 정보는 전부 비어 있거나 결과·근거·관리자 이름·시각이 함께 존재하도록 `CHECK` 제약으로 강제한다.
-  - 외부 주문 요청은 호출 전후의 별도 짧은 트랜잭션으로 기록하고 수동 재고 결정은 주문·재고 변경과 같은 트랜잭션으로 기록한다. 주문 원장이 없어도 실패 요청을 보존해야 하므로 상품 주문 FK는 두지 않는다.
+  - 외부 주문 요청은 호출 전후의 별도 짧은 트랜잭션으로 기록하고 재고 반영 방법 지정은 주문·재고 변경과 같은 트랜잭션으로 기록한다. 주문 원장이 없어도 실패 요청을 보존해야 하므로 상품 주문 FK는 두지 않는다.
 - `smartstore_order_sync_state`
   - `id=1` 단일 행에 변경 피드의 `last_changed_from`, `more_sequence`, 처리 시작 시각, 마지막으로 관측한 `integration_enabled`와 활성화 대기 경계 `pending_activation_from`을 저장한다. 배치는 이 행을 잠가 한 실행만 커서를 선점하고, 외부 호출 뒤 성공한 경우에만 다음 커서로 이동한다.
   - 연동 중지 기간은 선점이 없거나 시작 후 5분 이상 지났을 때 조회 시작점을 현재 시각으로 옮기고 페이지·처리 시작 시각을 비운다. 유효한 실행은 보호하며 만료된 이전 실행의 완료 요청은 거절한다.
@@ -214,7 +219,7 @@
   - `V106`은 기존 0원 이하 환불 행을 자동 보정하지 않고 atomic `ALTER TABLE`을 실패시킨다. 배포 전 `refunds.amount <= 0` 데이터를 확인하고 근거에 따라 정리해야 한다.
   - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
   - `status(REQUESTED|PROCESSING|RETRYABLE|RECONCILIATION_REQUIRED|SUCCEEDED|FAILED)`, `processing_at`, `processing_token`, `attempt_count`, `next_attempt_at`, `last_recovery_at`, `created_at`, `updated_at`, `version`
-  - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 취소 사유에 포함한 멱등키·금액·상태·거래 식별자가 모두 일치하는 실제 완료 취소면 성공으로 화해하고, 해당 멱등키의 취소가 없으며 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
+  - `RECONCILIATION_REQUIRED` 재선점은 취소 재호출보다 PG 취소 내역 조회를 먼저 수행한다. 취소 사유에 포함한 멱등키·금액·상태·거래 식별자가 모두 일치하는 실제 완료 취소면 환불 성공으로 처리하고, 해당 멱등키의 취소가 없으며 미취소가 확정된 경우만 `RETRYABLE`로 전환한다.
   - 자동 복구는 `last_recovery_at`, 생성 시각, ID 순으로 후보를 순환해 반복 실패 환불이 뒤 요청을 계속 막지 않게 한다.
 - `payment_attempt`
   - `id`, `order_id_external`, `context(ORDER|BOOKING|PASS)`, `amount`, `status`
@@ -524,3 +529,25 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `docs/ADR/0021_Hexagonal_아키텍처_전환/adr.md`
 - `docs/ADR/0036_개인정보_평문_제거와_블라인드_인덱스_기준/adr.md`
 - `docs/PRD/0001_기준_스펙/spec.md`
+
+### 단체 수업 문의의 개인정보 경계
+
+문의 조건 전체와 이력 메모는 암호화된 JSON/문자열로 보존한다. 목록은 페이지당 최대 100건을 읽고 요약만 노출한다. 연락처는 검증된 회원 전화번호·비회원 거래 소유권과 별개이며 주문·예약 생성에 사용하지 않는다. 회원 탈퇴 시 문의와 이력은 함께 삭제한다. 문의 등록은 회원 잠금 뒤 활성 여부를 검사해 탈퇴와 경합해도 삭제된 회원의 새 문의를 만들지 않는다. 외부 문의는 특정 회원에게 자동 귀속하지 않는다. 키 교체는 문의 본문과 이력 암호문도 기존 전체 롤백 트랜잭션에서 재암호화한다.
+
+### 회원 기본 배송지
+
+`V179`는 `users.default_shipping_address_enc`와 `shipping_address_version`을 추가한다. 회원당 기본 배송지는 한 개이며 주문 배송지 스냅샷과 별도 보관한다. 회원 행 잠금과 주소 전용 변경 번호로 탈퇴·동시 수정 충돌을 처리한다. 주소는 기존 배송지 JSON 암호화를 재사용하고 사용자 키 회전에 함께 포함한다. 회원 탈퇴 시 암호문을 제거한다.
+
+### 단체 문의 연락 예정일
+
+`V180`은 `group_inquiries.next_contact_on` 날짜와 조회 인덱스를 추가한다. 서울 업무 날짜를 저장하며 기존 문의 행 잠금·변경 번호로 상태 변경과 직렬화한다. 상태를 종료할 때 연락일을 해제한다. 운영자 변경 이력은 기존 암호화 활동 기록을 사용한다.
+
+### 회원 상품·클래스 찜
+
+`V181`은 `member_favorites`를 추가한다. 상품·클래스 각각의 FK와 한 대상만 지정하는 CHECK, 회원별 대상 유일키로 중복·잘못된 참조를 방지한다. 회원 행 잠금 뒤 대상 행을 확인하므로 중복 저장과 탈퇴 삭제를 직렬화한다. 조회는 상품·클래스 이름과 활성 상태를 함께 읽으며 개인 데이터는 회원 ID로 제한한다. 회원 탈퇴는 찜을 삭제하고 대상 물리 삭제는 FK cascade로 정리한다.
+
+### 단체 문의의 고객 취소와 변경 이력 구분
+
+- V182는 `group_inquiries.status` CHECK에 `CANCELED`를 추가한다. 취소는 기존 `CLOSED`(관리자 상담 종료)와 구분하고 문의 행 잠금·버전 확인 뒤 저장한다.
+- V183의 `group_inquiry_activities.member_action`은 기존 행을 `false`로 유지한다. 관리자 ID가 비어 있는 로컬 관리자 기록도 관리자 메모이므로 회원 이력 조회의 근거로 `admin_id IS NULL`을 사용하지 않는다. 회원 변경만 `member_action=true`로 저장하고 공개한다.
+- 새 취소 상태 저장 이후에는 이 상태를 모르는 이전 애플리케이션으로 롤백하지 않는다. 배포 시 서버·웹·API 계약을 함께 반영한다.

@@ -15,7 +15,7 @@ export function AdminReviewEvidence({
   evidence,
   adminKey,
   onAuthError,
-  unavailableMessage = "당시 후기 증거를 복구할 수 없는 이전 운영 이력입니다.",
+  unavailableMessage = "이전 기록이라 당시 후기 내용을 확인할 수 없습니다.",
 }: Props) {
   if (!evidence) {
     return <Alert variant="secondary" className="small mt-2 mb-0">{unavailableMessage}</Alert>;

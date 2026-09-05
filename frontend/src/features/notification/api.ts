@@ -5,8 +5,8 @@ import {
   markMyNotificationAsRead,
 } from "@/generated/api/notification";
 
-export function fetchNotifications(page: number, size: number = 20) {
-  return listMyNotifications({ page, size });
+export function fetchNotifications(page: number, size: number = 20, unreadOnly = false, signal?: AbortSignal) {
+  return listMyNotifications({ page, size, unreadOnly }, { signal });
 }
 
 export function fetchUnreadCount() {

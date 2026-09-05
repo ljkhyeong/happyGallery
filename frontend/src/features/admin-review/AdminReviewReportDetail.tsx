@@ -61,7 +61,7 @@ export function AdminReviewReportDetail({
         evidence={report.evidence}
         adminKey={adminKey}
         onAuthError={onAuthError}
-        unavailableMessage="이 신고는 이전 데이터라 당시 후기 증거를 복구할 수 없습니다."
+        unavailableMessage="이전 신고라 당시 후기 내용을 확인할 수 없습니다."
       />
       <Button
         type="button"

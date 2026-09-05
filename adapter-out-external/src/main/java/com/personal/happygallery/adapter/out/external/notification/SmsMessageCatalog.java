@@ -20,6 +20,8 @@ public final class SmsMessageCatalog {
             case BOOKING_CONFIRMED -> PREFIX + recipientName + "님, 예약이 확정되었습니다.";
             case BOOKING_RESCHEDULED -> PREFIX + recipientName + "님, 예약이 변경되었습니다.";
             case BOOKING_CANCELED -> PREFIX + recipientName + "님, 예약이 취소되었습니다.";
+            case PRODUCT_RESTOCK_AVAILABLE -> PREFIX + recipientName
+                    + "님, 신청한 상품 또는 옵션이 재입고되었습니다. 내 정보의 재입고 알림에서 확인해 주세요.";
             case BOOKING_VACANCY_AVAILABLE -> PREFIX + recipientName
                     + "님, 신청한 만석 회차에 빈자리가 생겼습니다. 예약 화면에서 확인해 주세요.";
             case DEPOSIT_REFUNDED -> PREFIX + recipientName + "님, 예약금이 환불되었습니다.";

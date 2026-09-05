@@ -103,13 +103,13 @@ test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 �
   await page.goto("/my/orders");
   await expect(page.getByText("주문 #101")).toBeVisible();
   await expect(page.getByText("주문 #102")).toHaveCount(0);
-  await expect(page.getByText("1건 표시 중 · 불러온 주문 1건")).toBeVisible();
+  await expect(page.getByText("검색 결과 1건 표시 중 · 더 보기로 계속 조회")).toBeVisible();
 
   await page.getByRole("button", { name: "주문 더 보기" }).click();
 
   await expect(page.getByText("주문 #101")).toBeVisible();
   await expect(page.getByText("주문 #102")).toBeVisible();
-  await expect(page.getByText("2건 표시 중 · 불러온 주문 2건")).toBeVisible();
+  await expect(page.getByText("검색 결과 2건 표시 중")).toBeVisible();
   expect(requestedCursors[0]).toBeNull();
   expect(requestedCursors.at(-1)).toBe("orders-next");
 });
@@ -350,6 +350,15 @@ test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 
 
   await page.route("**/api/v1/admin/**", async (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname === "/api/v1/admin/smartstore-notices") {
+      await fulfillJson(route, { notices: [], page: 0, size: 20, totalElements: 0, totalPages: 0 });
+      return;
+    }
+    if (url.pathname === "/api/v1/admin/smartstore-inquiries/page"
+        || url.pathname === "/api/v1/admin/smartstore-inquiries/customers/page") {
+      await fulfillJson(route, { content: [], page: 0, size: 50, totalCount: 0, totalPages: 0 });
+      return;
+    }
     if (url.pathname === "/api/v1/admin/products") {
       await fulfillJson(route, [{ id: 42, name: "관리 Q&A 작품" }]);
       return;
@@ -507,3 +516,48 @@ test("예약 생성의 8회권 후보는 첫 페이지에 없더라도 다음 �
   expect(requestedCursors[0]).toBeNull();
   expect(requestedCursors.at(-1)).toBe("passes-next");
 });
+
+for (const scenario of [
+  { path: "orders", label: "주문 번호·상품명 검색", more: "주문 더 보기", sort: "AMOUNT_DESC", status: "DELIVERED",
+    item: { orderId: 9090, status: "DELIVERED", totalAmount: 12000, createdAt: "2026-08-01T12:00:00", paidAt: null } },
+  { path: "bookings", label: "예약 검색", more: "예약 더 보기", sort: "LATEST", status: "CANCELED",
+    item: { bookingId: 9090, status: "CANCELED", className: "이력 검색 클래스", startAt: "2099-01-01T10:00:00", participantCount: 1, depositAmount: 10000 } },
+  { path: "passes", label: "8회권 번호 검색", more: "8회권 더 보기", sort: "CREDITS_DESC", status: "EXPIRED",
+    item: { passId: 9090, planName: "정규 공예 8회권", planCode: "REGULAR_CRAFT_8", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 8, totalPrice: 240000, refund: null, receiptUrl: null } },
+]) {
+  test(`회원 ${scenario.path} 검색은 조건을 서버로 보내고 빈 결과에서도 조건을 바꿀 수 있다`, async ({ page }) => {
+    const requests: URL[] = [];
+    await page.route("**/api/v1/**", async (route) => {
+      if (await fulfillCommon(route)) return;
+      const url = new URL(route.request().url());
+      if (url.pathname === `/api/v1/me/${scenario.path}/page`) {
+        requests.push(url);
+        const filtered = url.searchParams.has("keyword") || url.searchParams.has("status");
+        const next = url.searchParams.has("cursor");
+        const hasMore = !filtered && !next;
+        await fulfillJson(route, {
+          content: next || url.searchParams.get("keyword") === "없는내역" ? [] : [scenario.item],
+          hasMore, nextCursor: hasMore ? "previous-filter-cursor" : null,
+        });
+        return;
+      }
+      await fulfillJson(route, []);
+    });
+    await page.goto(`/my/${scenario.path}`);
+    await page.getByRole("button", { name: scenario.more, exact: true }).click();
+    await expect.poll(() => requests.some((url) => url.searchParams.has("cursor"))).toBe(true);
+    await page.getByLabel(scenario.label, { exact: true }).fill("9090");
+    await expect.poll(() => requests.at(-1)?.searchParams.get("keyword")).toBe("9090");
+    expect(requests.at(-1)?.searchParams.get("cursor")).toBeNull();
+    await page.getByLabel("정렬", { exact: true }).selectOption(scenario.sort);
+    await page.getByLabel("상태", { exact: true }).selectOption(scenario.status);
+    await expect.poll(() => requests.at(-1)?.searchParams.get("status")).toBe(scenario.status);
+    expect(requests.at(-1)?.searchParams.get("sort")).toBe(scenario.sort);
+    expect(requests.at(-1)?.searchParams.get("cursor")).toBeNull();
+    await page.getByLabel(scenario.label, { exact: true }).fill("없는내역");
+    await expect(page.getByText(/검색 조건에 맞는 .* 내역이 없습니다/)).toBeVisible();
+    await expect(page.getByLabel("상태", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "초기화", exact: true }).click();
+    await expect(page.getByLabel(scenario.label, { exact: true })).toHaveValue("");
+  });
+}

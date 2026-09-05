@@ -108,7 +108,7 @@ class BookingCancelUseCaseIT {
         awaitLogCount(notificationLogProbe, 1);
         cleanupSupport.clearNotificationLogs();
 
-        // 취소 — 취소 보상 마감 이전 슬롯이므로 환불 가능
+        // 취소 — 예약금 환불 마감 이전 슬롯이므로 환불 가능
         mockMvc.perform(delete("/api/v1/bookings/{id}", bookingId)
                         .header("X-Access-Token", createdBooking.accessToken()))
                 .andExpect(status().isOk())
@@ -221,7 +221,7 @@ class BookingCancelUseCaseIT {
         });
     }
 
-    @DisplayName("취소 보상 마감이 지난 예약은 인원 부분취소를 거절한다")
+    @DisplayName("예약금 환불 마감이 지난 예약은 인원 부분취소를 거절한다")
     @Test
     void reduceParticipants_afterRefundDeadline_rejectedWithoutStateChange() throws Exception {
         LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
@@ -344,13 +344,13 @@ class BookingCancelUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // 취소 보상 마감 이후 취소 — 환불 불가, refund 미생성
+    // 예약금 환불 마감 이후 취소 — 환불 불가, refund 미생성
     // -----------------------------------------------------------------------
 
     @DisplayName("환불 불가 구간에서 예약을 취소하면 환불이 생성되지 않는다")
     @Test
     void cancel_notRefundable_noRefundCreated() throws Exception {
-        // 오늘 14:00 시작하는 슬롯 — 취소 보상 마감(오늘 00:00)이 이미 지남 → 환불 불가
+        // 오늘 14:00 시작하는 슬롯 — 예약금 환불 마감(오늘 00:00)이 이미 지남 → 환불 불가
         LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotStorePort.save(slot(cls, today14, today14.plusHours(2)));
 

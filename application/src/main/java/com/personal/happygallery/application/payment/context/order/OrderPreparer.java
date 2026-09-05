@@ -46,6 +46,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.function.Function;
 import org.springframework.stereotype.Component;
@@ -120,14 +121,14 @@ public class OrderPreparer implements PaymentPreparer {
         if (op.rewardAmount() < 0L) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "사용할 적립금은 0원 이상이어야 합니다.");
         }
-        if (!op.cartCheckout() && op.expectedCartVersion() != null) {
+        if (!op.cartCheckout() && (op.expectedCartVersion() != null || op.selectedCartItemIds() != null)) {
             throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "장바구니 버전은 장바구니 결제에만 사용할 수 있습니다.");
+                    ErrorCode.INVALID_INPUT, "장바구니 버전과 선택 항목은 장바구니 결제에만 사용할 수 있습니다.");
         }
 
         List<ItemToPrepare> items;
         if (op.cartCheckout()) {
-            items = cartItems(auth.userId(), op.expectedCartVersion());
+            items = cartItems(auth.userId(), op.expectedCartVersion(), op.selectedCartItemIds());
         } else if (CollectionUtils.isEmpty(op.items())) {
             items = List.of();
         } else {
@@ -258,14 +259,23 @@ public class OrderPreparer implements PaymentPreparer {
         return MadeToOrderConsent.current(LocalDateTime.now(clock));
     }
 
-    private List<ItemToPrepare> cartItems(Long userId, String expectedCartVersion) {
-        PurchasableCart cart = cartUseCase.getPurchasableCart(userId);
+    private List<ItemToPrepare> cartItems(Long userId, String expectedCartVersion, List<Long> selectedCartItemIds) {
+        if (selectedCartItemIds != null && (expectedCartVersion == null
+                || selectedCartItemIds.isEmpty() || selectedCartItemIds.size() > 100
+                || selectedCartItemIds.stream().anyMatch(id -> id == null || id < 1)
+                || new HashSet<>(selectedCartItemIds).size() != selectedCartItemIds.size())) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
+                    "선택 구매에는 최신 장바구니 버전과 중복 없는 항목이 필요합니다.");
+        }
+        PurchasableCart cart = cartUseCase.getPurchasableCart(userId, selectedCartItemIds);
         if (expectedCartVersion != null && !expectedCartVersion.equals(cart.cartVersion())) {
             throw new HappyGalleryException(ErrorCode.CART_SNAPSHOT_CHANGED);
         }
-        return cart.items().stream()
-                .map(ItemToPrepare::from)
-                .toList();
+        if (selectedCartItemIds != null && cart.items().size() != selectedCartItemIds.size()) {
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
+                    "선택한 항목 중 현재 장바구니에서 구매할 수 없는 상품이 있습니다.");
+        }
+        return cart.items().stream().map(ItemToPrepare::from).toList();
     }
 
     private List<ItemToPrepare> mergeDirectItems(List<OrderItemRef> requestedItems) {

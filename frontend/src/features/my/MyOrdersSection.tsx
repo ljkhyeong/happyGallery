@@ -1,3 +1,4 @@
+import { OrderItemSummary } from "@/features/my/OrderItemSummary";
 import { Card, Col, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import type { MyOrderSummary } from "./api";
@@ -5,6 +6,7 @@ import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui
 import { formatKRW, formatDateTime } from "@/shared/lib";
 
 interface Props {
+  previewSize?: number;
   orders: MyOrderSummary[] | undefined;
   isLoading: boolean;
   error: Error | null;
@@ -18,28 +20,30 @@ export function MyOrdersSection({
   error,
   isFetching,
   onRetry,
+  previewSize = 5,
 }: Props) {
   return (
     <section id="my-orders" className="mb-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
           <h6 className="mb-1">내 주문</h6>
-          <p className="text-muted-soft small mb-0">최근 5건의 주문 진행 상태를 빠르게 확인합니다.</p>
+          <p className="text-muted-soft small mb-0">최근 {previewSize}건의 주문 진행 상태를 빠르게 확인합니다.</p>
         </div>
         <div className="d-flex align-items-center gap-3">
-          {orders && <span className="text-muted-soft small">표시 중 {orders.length}건</span>}
+          {orders && <span className="text-muted-soft small">표시 중 {Math.min(orders.length, previewSize)}건</span>}
           <Link to="/my/orders" className="my-inline-link small">전체 보기</Link>
         </div>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {orders && orders.length === 0 && <EmptyState message="주문 내역이 없습니다." />}
-      {orders && orders.length > 0 && orders.slice(0, 5).map((o) => (
+      {orders && orders.length > 0 && orders.slice(0, previewSize).map((o) => (
         <Card key={o.orderId} as={Link} to={`/my/orders/${o.orderId}`} className="mb-2 text-decoration-none my-list-card border-0">
           <Card.Body className="py-3 px-3">
             <Row className="align-items-center g-2">
               <Col xs={12} md={4}>
                 <div className="fw-semibold small">주문 #{o.orderId}</div>
+                <OrderItemSummary items={o.items} />
                 <small className="text-muted-soft">
                   {o.paidAt ? `결제 ${formatDateTime(o.paidAt)}` : formatDateTime(o.createdAt)}
                 </small>
@@ -54,8 +58,8 @@ export function MyOrdersSection({
           </Card.Body>
         </Card>
       ))}
-      {orders && orders.length > 5 && (
-        <p className="text-muted-soft small mt-2 mb-0">최근 5건만 표시합니다.</p>
+      {orders && orders.length > previewSize && (
+        <p className="text-muted-soft small mt-2 mb-0">최근 {previewSize}건만 표시합니다.</p>
       )}
     </section>
   );

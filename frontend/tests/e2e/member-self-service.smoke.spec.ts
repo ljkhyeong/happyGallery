@@ -63,7 +63,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
   await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
-  await page.getByLabel("주문 번호 검색").fill(String(orderId));
+  await page.getByLabel("주문 번호·상품명 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
   await expect(page).toHaveURL(new RegExp(`/my/orders/${orderId}$`));
 
@@ -149,8 +149,8 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
 
   await page.getByRole("button", { name: "예약 취소" }).click();
   const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
-  await expect(cancelDialog.getByText("사용한 8회권 1회가 이용 가능 횟수로 복구됩니다.")).toBeVisible();
-  await cancelDialog.getByRole("button", { name: "예약 취소 및 1회 복구" }).click();
+  await expect(cancelDialog.getByText("사용한 8회권 1회를 돌려드립니다.")).toBeVisible();
+  await cancelDialog.getByRole("button", { name: "예약 취소 및 1회 복원" }).click();
   await expect(page.getByText("취소됨")).toBeVisible();
 
   await page.goto("/my/bookings");
@@ -267,13 +267,13 @@ test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불
   await page.getByRole("button", { name: "예약 취소" }).click();
 
   await expect(page.getByText(
-    "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다. 취소 후에도 이용 횟수는 차감된 상태로 유지됩니다.",
+    "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다.",
   )).toBeVisible();
   await expect(page.getByText("D-1(전날 00:00) 이후에는 예약금 환불이 불가합니다.")).toHaveCount(0);
 
   await page.getByRole("button", { name: "1회 차감 유지하고 취소" }).click();
   await expect(page.getByText(
-    "예약이 취소되었습니다. 사용한 8회권 1회는 복구되지 않았습니다.",
+    "예약이 취소되었습니다. 사용한 8회권 1회는 돌려드리지 않습니다.",
   )).toBeVisible();
 
   passBooking = false;
@@ -284,7 +284,7 @@ test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불
   await page.getByRole("button", { name: "예약 취소" }).click();
 
   const depositCancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
-  await expect(depositCancelDialog.getByText("환불·크레딧 복구 마감")).toBeVisible();
+  await expect(depositCancelDialog.getByText("환불·이용 횟수 복원 마감")).toBeVisible();
   await expect(depositCancelDialog.getByText("₩15,000", { exact: true })).toBeVisible();
   await expect(depositCancelDialog.getByText(
     "취소 마감이 지나 예약금 ₩15,000은 환불되지 않습니다. 예약만 취소됩니다.",

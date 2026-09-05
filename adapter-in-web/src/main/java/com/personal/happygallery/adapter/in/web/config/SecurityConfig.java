@@ -240,6 +240,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, PUBLIC_READ_PATHS)
                         .permitAll()
                         .requestMatchers(HttpMethod.POST,
+                                "/api/v1/group-inquiries",
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/logout",
@@ -257,6 +258,8 @@ public class SecurityConfig {
                                 "/api/v1/slots/{slotId}/vacancy-alerts",
                                 "/api/v1/orders/{orderId}/claims",
                                 "/api/v1/orders/{id}/delay-response")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/orders/{id}/shipping-address")
                         .permitAll()
                         .requestMatchers(HttpMethod.PATCH,
                                 "/api/v1/bookings/{bookingId}/reschedule",

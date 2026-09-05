@@ -208,7 +208,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
             <div className="mb-3">
               <PhoneVerificationStep
                 purpose="SIGNUP"
-                title="휴대폰 소유 확인"
+                title="휴대폰 번호 인증"
                 initialPhone={signupPhone}
                 confirmLabel="인증코드 적용"
                 onVerified={(phone, code) => {

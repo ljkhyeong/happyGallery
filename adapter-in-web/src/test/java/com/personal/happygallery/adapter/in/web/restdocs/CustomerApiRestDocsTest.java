@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.application.pass.PassHistoryQuery;
+import com.personal.happygallery.application.booking.BookingHistoryQuery;
+import com.personal.happygallery.application.order.OrderHistoryQuery;
 import com.personal.happygallery.adapter.in.web.customer.CustomerSessionBinder;
 import com.personal.happygallery.adapter.in.web.customer.CustomerAuthController;
 import com.personal.happygallery.adapter.in.web.customer.CustomerCredentialController;
@@ -81,11 +84,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.hamcrest.Matchers.startsWith;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -171,11 +176,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(
-                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true)),
+                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true, 5)),
                         39000L,
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
-        when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(bookingQueryUseCase.listMyBookings(eq(CUSTOMER_USER_ID), any(BookingHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(booking), "cursor-next", true));
         when(bookingQueryUseCase.findMyBooking(100L, CUSTOMER_USER_ID))
                 .thenReturn(new BookingQueryUseCase.BookingDetail(booking, null,
@@ -192,26 +197,27 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(vacancyAlert.getStatus()).thenReturn(VacancyAlertStatus.WAITING);
         when(vacancyAlertUseCase.registerMember(42L, CUSTOMER_USER_ID)).thenReturn(vacancyAlert);
         when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(vacancyAlert));
-        when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(order));
-        when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
-                .thenReturn(new CursorPage<>(List.of(order), "cursor-next", true));
+        var orderSummary = new OrderQueryUseCase.OrderSummary(order, orderDetail.items());
+        when(orderQueryUseCase.listMyOrders(CUSTOMER_USER_ID)).thenReturn(List.of(orderSummary));
+        when(orderQueryUseCase.listMyOrders(eq(CUSTOMER_USER_ID), any(OrderHistoryQuery.class), isNull(), eq(20)))
+                .thenReturn(new CursorPage<>(List.of(orderSummary), "cursor-next", true));
         when(orderQueryUseCase.findMyOrder(200L, CUSTOMER_USER_ID)).thenReturn(orderDetail);
         PassQueryUseCase.PassView passView = new PassQueryUseCase.PassView(pass, null,
                 "https://dashboard.tosspayments.com/receipt/pass");
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
-        when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
+        when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), any(PassHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
-        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20)))
+        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
                         NotificationEventType.ORDER_PAID,
                         "ORDER",
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
-                        null)));
+                        null, "주문 #200 · 가죽 지갑", null)));
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
@@ -548,7 +554,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("장바구니 조회 API를 문서화한다")
     void get_cart() throws Exception {
         mockMvc.perform(get("/api/v1/me/cart").with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].availableQuantity").value(5));
     }
 
     @Test
@@ -646,7 +653,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_bookings_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/bookings/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "향수")
+                        .param("status", "BOOKED")
+                        .param("sort", "SOONEST"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].bookingId").value(100))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
@@ -738,7 +748,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_orders_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "200")
+                        .param("status", "PAID_APPROVAL_PENDING")
+                        .param("sort", "AMOUNT_DESC"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].orderId").value(200))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
@@ -765,7 +778,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void list_my_passes_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes/page")
                         .with(customerUser())
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("keyword", "300")
+                        .param("status", "ACTIVE")
+                        .param("sort", "EXPIRY_ASC"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].passId").value(300))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
@@ -805,7 +821,18 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].aggregateId").value(200))
                 .andExpect(jsonPath("$[0].deliveredAt").value("2026-03-28T09:15:00"))
                 .andExpect(jsonPath("$[0].readAt").doesNotExist())
-                .andExpect(jsonPath("$[0].read").value(false));
+                .andExpect(jsonPath("$[0].read").value(false))
+                .andExpect(jsonPath("$[0].contextTitle").value("주문 #200 · 가죽 지갑"))
+                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()));
+    }
+
+    @Test
+    @DisplayName("읽지 않은 알림만 페이지로 조회한다")
+    void list_unread_notifications() throws Exception {
+        mockMvc.perform(get("/api/v1/me/notifications").with(customerUser())
+                        .param("page", "1").param("size", "20").param("unreadOnly", "true"))
+                .andExpect(status().isOk());
+        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, null, 1, 20, true);
     }
 
     @Test

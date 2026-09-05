@@ -130,7 +130,7 @@ class DefaultCustomerAuthServiceTest {
         assertThat(lockedUser.getLastLoginAt()).isNull();
     }
 
-    @DisplayName("다른 로그인이 먼저 해시를 승격해도 같은 비밀번호면 로그인을 계속한다")
+    @DisplayName("다른 로그인 요청이 먼저 BCrypt 강도를 높여도 같은 비밀번호면 로그인을 계속한다")
     @Test
     void login_acceptsConcurrentHashUpgradeForSamePassword() {
         DefaultCustomerAuthService service = createService();

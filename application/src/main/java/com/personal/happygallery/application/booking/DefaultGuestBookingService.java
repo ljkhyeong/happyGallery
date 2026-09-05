@@ -53,7 +53,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         this.clock = clock;
     }
 
-    /** 휴대폰 인증 코드를 생성·저장하고 전용 SMS 경계로 발송한다. */
+    /** 휴대폰 인증 코드를 생성·저장하고 SMS로 발송한다. */
     @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public PhoneVerification sendVerificationCode(String phone, PhoneVerificationPurpose purpose) {

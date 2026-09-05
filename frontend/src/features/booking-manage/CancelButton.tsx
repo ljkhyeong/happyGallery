@@ -32,13 +32,13 @@ function resolvePolicyNotice(
     return {
       variant: "warning",
       message:
-        "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다. 취소 후에도 이용 횟수는 차감된 상태로 유지됩니다.",
+        "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다.",
     } as const;
   }
   if (cancelPolicy.passCreditRestorable) {
     return {
       variant: "info",
-      message: "사용한 8회권 1회가 이용 가능 횟수로 복구됩니다.",
+      message: "사용한 8회권 1회를 돌려드립니다.",
     } as const;
   }
   if (cancelPolicy.manualCompensationRequired) {
@@ -71,7 +71,7 @@ function resolveConfirmLabel(
     return "1회 차감 유지하고 취소";
   }
   if (cancelPolicy.passCreditRestorable) {
-    return "예약 취소 및 1회 복구";
+    return "예약 취소 및 1회 복원";
   }
   if (cancelPolicy.manualCompensationRequired
     || (cancelPolicy.refundable && depositAmount > 0)) {
@@ -127,10 +127,10 @@ export function CancelButton({
     let variant: "success" | "warning" | "info";
 
     if (passBooking && !res.refundable) {
-      message = "예약이 취소되었습니다. 사용한 8회권 1회는 복구되지 않았습니다.";
+      message = "예약이 취소되었습니다. 사용한 8회권 1회는 돌려드리지 않습니다.";
       variant = "warning";
     } else if (passBooking) {
-      message = "예약이 취소되었고 사용한 8회권 1회가 이용 가능 횟수에 다시 반영되었습니다.";
+      message = "예약이 취소되었습니다. 사용한 8회권 1회를 돌려드렸습니다.";
       variant = "success";
     } else if (res.manualCompensationRequired) {
       message = "예약이 취소되었습니다. 공방에서 예약금 환불을 확인한 뒤 안내해 드립니다.";
@@ -186,7 +186,7 @@ export function CancelButton({
           <ErrorAlert error={mutation.error} />
           <p className="mb-3">예약을 취소하면 되돌릴 수 없습니다. 아래 내용을 확인해 주세요.</p>
           <dl className="row small mb-3">
-            <dt className="col-6">환불·크레딧 복구 마감</dt>
+            <dt className="col-6">환불·이용 횟수 복원 마감</dt>
             <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
             {!passBooking && (
               <>

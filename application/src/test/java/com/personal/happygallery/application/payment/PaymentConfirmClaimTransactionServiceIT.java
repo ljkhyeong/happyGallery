@@ -111,7 +111,7 @@ class PaymentConfirmClaimTransactionServiceIT {
         });
     }
 
-    @DisplayName("새 실행권 실패 뒤 도착한 이전 PG 성공은 APPROVED로 화해한다")
+    @DisplayName("재선점한 요청이 실패해도 이전 요청의 PG 승인 응답이 도착하면 APPROVED로 변경한다")
     @Test
     void reconcileLatePgApproval_afterNewOwnerFailure_restoresExternalApproval() {
         PreparedPass prepared = preparePass("payment-reconcile@example.com", "01022223333");

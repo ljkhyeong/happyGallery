@@ -50,13 +50,14 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             FROM NotificationOutbox n
             WHERE n.userId = :userId
               AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND (:unreadOnly = false OR n.readAt IS NULL)
             ORDER BY n.processedAt DESC, n.id DESC
             """)
-    List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, Pageable pageable);
+    List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, boolean unreadOnly, Pageable pageable);
 
     @Override
-    default List<NotificationOutbox> findSentByUserId(Long userId, int limit, int offset) {
-        return findSentByUserId(userId, PageRequest.of(offset / limit, limit));
+    default List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int limit, int offset) {
+        return findSentByUserId(userId, unreadOnly, PageRequest.of(offset / limit, limit));
     }
 
     @Query("""
@@ -64,13 +65,14 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
             FROM NotificationOutbox n
             WHERE n.guestId = :guestId
               AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
+              AND (:unreadOnly = false OR n.readAt IS NULL)
             ORDER BY n.processedAt DESC, n.id DESC
             """)
-    List<NotificationOutbox> findSentByGuestId(@Param("guestId") Long guestId, Pageable pageable);
+    List<NotificationOutbox> findSentByGuestId(@Param("guestId") Long guestId, boolean unreadOnly, Pageable pageable);
 
     @Override
-    default List<NotificationOutbox> findSentByGuestId(Long guestId, int limit, int offset) {
-        return findSentByGuestId(guestId, PageRequest.of(offset / limit, limit));
+    default List<NotificationOutbox> findSentByGuestId(Long guestId, boolean unreadOnly, int limit, int offset) {
+        return findSentByGuestId(guestId, unreadOnly, PageRequest.of(offset / limit, limit));
     }
 
     @Override

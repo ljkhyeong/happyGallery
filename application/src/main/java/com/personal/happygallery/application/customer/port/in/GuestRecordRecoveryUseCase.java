@@ -9,7 +9,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
-/** 휴대폰 소유 확인을 거쳐 만료된 비회원 주문·예약 접근 권한을 복구한다. */
+/** 휴대폰 번호 인증을 거쳐 만료된 비회원 주문·예약 접근 권한을 복구한다. */
 public interface GuestRecordRecoveryUseCase {
 
     RecoveryResult recover(String phone, String verificationCode);

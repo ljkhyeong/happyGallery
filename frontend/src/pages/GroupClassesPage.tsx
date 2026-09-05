@@ -1,3 +1,4 @@
+import { GroupInquirySection } from "@/features/group-inquiry/GroupInquirySection";
 import { Button, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
@@ -77,6 +78,8 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
             ))}
           </ol>
         </section>
+
+        <GroupInquirySection />
 
         <section className="group-class-inquiry">
           <div>

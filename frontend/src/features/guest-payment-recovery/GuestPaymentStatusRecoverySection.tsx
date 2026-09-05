@@ -77,9 +77,9 @@ export function GuestPaymentStatusRecoverySection() {
       <Card.Body className="p-4">
         <PhoneVerificationStep
           purpose="GUEST_PAYMENT_STATUS_RECOVERY"
-          title="처리 중인 결제 결과 복구"
-          description="결제 완료 화면을 닫았거나 결제 상태 조회 정보가 없다면 결제 때 사용한 휴대폰 번호를 인증하세요. 해당 번호의 결제 목록과 상태 조회 권한을 복구합니다."
-          confirmLabel="결제 결과 복구"
+          title="결제 결과 다시 확인"
+          description="결제에 사용한 휴대폰 번호를 인증하면 결제 목록과 처리 결과를 다시 확인할 수 있습니다."
+          confirmLabel="결제 결과 다시 확인"
           confirming={recovery.isPending}
           onReset={() => {
             recovery.reset();
@@ -100,7 +100,7 @@ export function GuestPaymentStatusRecoverySection() {
         {result && result.payments.length > 0 && recoveryView && (
           <div className="mt-4">
             <Alert variant="success">
-              결제 상태 조회 정보를 복구했습니다. {formatDateTime(result.expiresAt)}까지 확인할 수 있습니다.
+              결제 내역을 찾았습니다. {formatDateTime(result.expiresAt)}까지 확인할 수 있습니다.
             </Alert>
             <ListGroup>
               {result.payments.map((payment) => (

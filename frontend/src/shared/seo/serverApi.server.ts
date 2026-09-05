@@ -19,6 +19,7 @@ import {
   getListProductCategoriesUrl,
   getListProductsUrl,
   type ProductDetailResponse,
+  type ListProductsParams,
 } from "@/generated/api/product";
 import {
   getGetWorkshopProfileUrl,
@@ -57,8 +58,8 @@ export function requirePublicId(value: string | undefined): number {
   return Number(value);
 }
 
-export function loadProducts(signal?: AbortSignal): Promise<ProductDetailResponse[]> {
-  return serverGet(getListProductsUrl(), signal);
+export function loadProducts(signal?: AbortSignal, filters?: ListProductsParams): Promise<ProductDetailResponse[]> {
+  return serverGet(getListProductsUrl(filters), signal);
 }
 
 export function loadProduct(id: number, signal?: AbortSignal): Promise<ProductDetailResponse> {

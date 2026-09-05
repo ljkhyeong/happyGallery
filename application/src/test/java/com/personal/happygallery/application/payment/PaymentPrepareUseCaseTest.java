@@ -717,6 +717,35 @@ class PaymentPrepareUseCaseTest {
                 acceptedPolicies());
     }
 
+    @Test
+    @DisplayName("선택 구매는 빈 선택과 중복 및 다른 회원이나 구매 불가 항목을 거절한다")
+    void prepare_rejectsInvalidCartSelection() {
+        User user = userStorePort.save(new User("cart-select@example.com", "hashed", "회원", "01012120001"));
+        User other = userStorePort.save(new User("cart-other@example.com", "hashed", "다른 회원", "01012120002"));
+        Product product = productStorePort.save(readyStockProduct("선택 상품", 10_000L));
+        inventoryStorePort.save(inventory(product, 1));
+        CartItem own = cartItemStorePort.save(new CartItem(user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        CartItem foreign = cartItemStorePort.save(new CartItem(other.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        Product soldOut = productStorePort.save(readyStockProduct("품절 상품", 20_000L));
+        inventoryStorePort.save(inventory(soldOut, 0));
+        CartItem unavailable = cartItemStorePort.save(new CartItem(user.getId(), soldOut.getId(), 1, LocalDateTime.now(clock)));
+        String version = cartUseCase.getCart(user.getId()).cartVersion();
+        for (List<Long> selection : List.of(List.<Long>of(), List.of(own.getId(), own.getId()),
+                List.of(own.getId(), foreign.getId()), List.of(unavailable.getId()))) {
+            assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(PaymentContext.ORDER,
+                    new OrderPayload(user.getId(), null, null, null, List.of(), true,
+                            FulfillmentType.PICKUP, null, null, false, null, version, null, 0L, selection),
+                    AuthContext.member(user.getId()))))
+                    .isInstanceOfSatisfying(HappyGalleryException.class,
+                            error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        }
+        assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(PaymentContext.ORDER,
+                new OrderPayload(user.getId(), null, null, null, List.of(), true,
+                        FulfillmentType.PICKUP, null, null, false, null, null, null, 0L, List.of(own.getId())),
+                AuthContext.member(user.getId())))).isInstanceOf(HappyGalleryException.class);
+        assertThat(paymentAttemptRepository.count()).isZero();
+    }
+
     private OrderPayload cartOrderPayload(Long userId, String expectedCartVersion) {
         return new OrderPayload(
                 userId,

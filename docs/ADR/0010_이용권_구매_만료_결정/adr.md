@@ -103,7 +103,7 @@
 - 중복 방지: 사용자 성공 로그나 멱등키 문자열 형식이 아니라 `notification_outbox(event_type, aggregate_type, aggregate_id)`를 기준으로 한다.
 - 배치 전체를 하나의 트랜잭션으로 묶지 않는다. 각 알림 outbox 저장 실패는 해당 8회권 실패로 집계하고 다른 구매 건은 계속 처리한다.
 - outbox를 선점한 뒤에도 같은 범위와 `remaining_credits > 0`을 다시 조회한다. 그사이 만료·소진·환불되어
-  안내 의미가 사라졌으면 외부 채널을 호출하지 않고 outbox를 `OBSOLETE`로 종결한다.
+  발송 조건을 충족하지 않으면 외부 채널을 호출하지 않고 outbox를 `OBSOLETE`로 종결한다.
 
 ---
 

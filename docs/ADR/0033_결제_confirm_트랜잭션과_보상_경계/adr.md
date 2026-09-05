@@ -48,7 +48,7 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 confirm 상태 변경은 트랜잭션 책임에 따라 세 개의 package-private 서비스로 분리하고 각 변경을
 `REQUIRES_NEW`로 실행한다.
 
-- `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과와 늦은 승인 화해
+- `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과 저장과 늦게 도착한 승인 반영
 - `PaymentConfirmFulfillmentTransactionService`: 도메인 생성과 `CONFIRMED` 저장, fulfillment 실패의 보상 요청
 - `PaymentConfirmRecoveryTransactionService`: 행 잠금 아래 복구 후보 재검증, 저장된 요청 복원과 대사 전환
 
@@ -60,7 +60,7 @@ confirm 선점 조회에는 비관적 쓰기 잠금을 사용한다. `PROCESSING
 선점마다 `payment_attempt.processing_token`에 새 UUID를 저장하고, 일반 PG 승인·실패 결과는 현재 토큰과
 일치할 때만 반영한다. 재선점 뒤 늦게 도착한 실패는 버리지만, 외부에서 이미 성립한 PG 승인 성공은
 유실하면 안 된다. 같은 orderId·금액·paymentKey 요청임을 다시 검증하고 잠금 안에서 최신 상태가
-`PROCESSING/RETRYABLE/FAILED`면 `APPROVED`로 화해한다. 이 경로는 보상 환불을 바로 시작하지 않고 fulfillment를 재개한다.
+`PROCESSING/RETRYABLE/FAILED`면 `APPROVED`로 변경한다. 이 경로는 보상 환불을 바로 시작하지 않고 fulfillment를 재개한다.
 
 `resolveConfirmationStep()`은 nullable 값과 boolean 조합 대신 `Completed`, `ReadyForFulfillment`,
 `PgConfirmationRequired`, `ZeroAmountApprovalRequired` 중 하나를 반환한다. 이 단계 결정 시
@@ -148,7 +148,7 @@ fulfillment의 `VerifiedGuestResolver`는 현재
 `FAILED`면 저장된 이유의 `PAYMENT_FAILED`, `RECONCILIATION_REQUIRED`면
 `PAYMENT_RECONCILIATION_REQUIRED`, 보상·취소 상태면 `INVALID_INPUT`으로 종료하며 이전 요청에서 PG를 다시 호출하지 않는다.
 반면 이전 processing token의 PG 성공은 외부 승인 사실이므로, 최신 로컬 실패보다 우선해
-`APPROVED`로 화해하고 fulfillment를 이어간다.
+`APPROVED`로 변경하고 fulfillment를 이어간다.
 도메인 주문·예약에는 접근 토큰 해시만 유지하고, 재응답에 필요한 비회원 원문 토큰은
 `payment_attempt.fulfilled_access_token_enc`에 AES-GCM 암호문으로만 보존한다.
 
@@ -211,9 +211,9 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - 회원 prepare는 `payment_attempt.owner_user_id`를 저장하고 조회 시 현재 고객 세션과 비교한다.
 - 비회원 prepare는 30일 만료 HMAC 서명 토큰을 발급한다. 원문은 응답으로만 전달하고
   `payment_attempt.status_access_token_hash`에는 서명 토큰 전체의 SHA-256 해시만 저장한다. 별도로 정규화 휴대폰의
-  active HMAC을 `owner_phone_hmac`에 저장해 브라우저 저장소 전체 유실에도 SMS 소유 확인으로 결제 목록을 찾는다.
+  active HMAC을 `owner_phone_hmac`에 저장해 브라우저 저장소 전체 유실에도 SMS 인증으로 결제 목록을 찾는다.
 - `orderId`는 조회 키일 뿐 인증 자격이 아니다. 결제 미존재와 소유권 불일치는 모두 `NOT_FOUND`로 처리한다.
-- SMS 소유 확인 복구는 active·previous 휴대폰 HMAC 후보로 최근 30일 최종 결제와 미종결 결제를 찾고 ID 순으로
+- SMS 인증 복구는 active·previous 휴대폰 HMAC 후보로 최근 30일 최종 결제와 미종결 결제를 찾고 ID 순으로
   잠근 뒤 공통 새 상태 조회 토큰으로 모두 교체한다. 응답이 `orderId` 목록을 함께 주므로 기존 orderId가 없어도
   복구할 수 있고, 이전 상태 조회 토큰은 즉시 무효가 된다.
 - 고객 응답은 진행 단계와 금액, 완료된 도메인 연결 정보만 제공한다. 내부 실패 사유, 환불 ID와 PG 키는
@@ -240,7 +240,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 | 장점 | prepare 이후 상품·클래스·8회권 가격이 바뀌어도 PG 승인 금액과 저장 도메인 금액이 일치한다 |
 | 장점 | 저장에 성공한 PG 승인 후 로컬 실패가 durable한 보상 환불과 운영자 재시도 대상으로 남는다 |
 | 장점 | 고객이 재결제하지 않고 승인·보상환불 진행 결과를 안전하게 확인할 수 있다 |
-| 장점 | 비회원이 브라우저 저장소 전체를 잃어도 SMS 소유 확인으로 결제 orderId와 상태 조회 자격을 함께 복구한다 |
+| 장점 | 비회원이 브라우저 저장소 전체를 잃어도 SMS 인증으로 결제 orderId와 상태 조회 자격을 함께 복구한다 |
 | 장점 | 보상 요청 저장 트랜잭션까지 실패해도 남은 결제 중간 상태를 배치가 자동 재개한다 |
 | 단점 | confirm 상태와 보상 상태가 늘어나 운영 조회가 복잡해진다 |
 | 단점 | 비회원 confirm 재응답을 위해 결제 시도 보존 기간 동안 접근 토큰 암호문을 추가 관리한다 |
@@ -279,3 +279,10 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `V58__track_refund_success_time.sql`
 - `V60__normalize_revenue_timestamps_to_seoul.sql`
 - `V76__secure_payment_attempt_status_lookup.sql`
+
+## 장바구니 선택 구매
+
+- 결제 요청의 `selectedCartItemIds`는 선택 의사만 전달한다. 회원 잠금과 장바구니 버전 확인 후 서버가 본인 장바구니의 구매 가능한 행을 대조하고 가격·수량·혜택을 확정한다. 선택 구매는 버전을 필수로 받고, 생략한 기존 요청은 전체 구매를 유지한다.
+- 선택 구매는 전체 장바구니의 재고 부족 표시로 행을 제외하지 않는다. 본인 소유의 선택 행 중 개별 수량이 현재 판매 가능 수량 안에 드는 행을 추리고, 주문 준비에서 선택 행의 SKU 합계를 검증한다. 따라서 각인 문구가 달라 분리된 두 행 중 일부만 구매할 수 있고, 두 행을 함께 선택한 초과 주문은 거절한다.
+- 장바구니 응답에 `availableQuantity`를 추가하고 스냅샷 버전에 포함한다. 기존 `available`과 `totalAmount`의 전체 구매 의미는 유지하며, 선택 구매 화면은 현재 구매 가능 수량과 선택 행으로 가능 여부·합계를 계산한다.
+- 저장된 결제 스냅샷과 confirm 차감 계약은 그대로 활용한다. 미선택 상품을 스냅샷에 포함하지 않아 결제 후에도 남기며, 준비 후 추가 수량과 재생성 행의 보존 규칙도 유지한다.

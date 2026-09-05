@@ -199,8 +199,8 @@ function ReconciliationModal({
             자동으로 같은 요청을 다시 보내지 않습니다. 위 상태나 네이버 판매자센터에서 실제 반영 여부를 확인한 뒤 선택하세요.
           </Alert>
           <Form.Group className="mb-3">
-            <Form.Label>확인 결과</Form.Label>
-            <Form.Select aria-label="대사 결과" value={outcome}
+            <Form.Label>반영 여부 확인 결과</Form.Label>
+            <Form.Select aria-label="반영 여부 확인 결과" value={outcome}
               onChange={(event) => setOutcome(
                 event.target.value as ReconcileSmartStoreOrderActionRequestOutcome,
               )}>
@@ -211,7 +211,7 @@ function ReconciliationModal({
           <Form.Group>
             <Form.Label>확인 근거</Form.Label>
             <Form.Control as="textarea" rows={3} required maxLength={500}
-              aria-label="대사 근거" value={note}
+              aria-label="확인 근거" value={note}
               onChange={(event) => setNote(event.target.value)}
               placeholder="확인한 주문 상태, 운송장 또는 판매자센터 처리 결과를 입력하세요." />
           </Form.Group>

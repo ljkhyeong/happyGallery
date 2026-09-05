@@ -1,12 +1,15 @@
 import {
   listMyBookings as requestRecentMyBookings,
   listMyBookingsPage,
+  type ListMyBookingsPageParams,
 } from "@/generated/api/booking";
 import {
   listMyOrders as requestRecentMyOrders,
   listMyOrdersPage,
+  type ListMyOrdersPageParams,
   listMyPasses as requestRecentMyPasses,
   listMyPassesPage,
+  type ListMyPassesPageParams,
   refundMyPass as requestMyPassRefund,
 } from "@/generated/api/customerStore";
 import type { MyPassSummary } from "@/generated/api/customerStore";
@@ -23,9 +26,9 @@ export function fetchRecentMyOrders(signal?: AbortSignal) {
   return requestRecentMyOrders({ signal });
 }
 
-export function fetchMyOrdersPage(cursor?: string, signal?: AbortSignal) {
+export function fetchMyOrdersPage(cursor?: string, signal?: AbortSignal, filters?: Omit<ListMyOrdersPageParams, "cursor" | "size">) {
   return listMyOrdersPage(
-    { cursor, size: MY_HISTORY_PAGE_SIZE },
+    { ...filters, cursor, size: MY_HISTORY_PAGE_SIZE },
     { signal },
   );
 }
@@ -34,9 +37,9 @@ export function fetchRecentMyBookings(signal?: AbortSignal) {
   return requestRecentMyBookings({ signal });
 }
 
-export function fetchMyBookingsPage(cursor?: string, signal?: AbortSignal) {
+export function fetchMyBookingsPage(cursor?: string, signal?: AbortSignal, filters?: Omit<ListMyBookingsPageParams, "cursor" | "size">) {
   return listMyBookingsPage(
-    { cursor, size: MY_HISTORY_PAGE_SIZE },
+    { ...filters, cursor, size: MY_HISTORY_PAGE_SIZE },
     { signal },
   );
 }
@@ -45,9 +48,9 @@ export function fetchRecentMyPasses(signal?: AbortSignal) {
   return requestRecentMyPasses({ signal });
 }
 
-export function fetchMyPassesPage(cursor?: string, signal?: AbortSignal) {
+export function fetchMyPassesPage(cursor?: string, signal?: AbortSignal, filters?: Omit<ListMyPassesPageParams, "cursor" | "size">) {
   return listMyPassesPage(
-    { cursor, size: MY_HISTORY_PAGE_SIZE },
+    { ...filters, cursor, size: MY_HISTORY_PAGE_SIZE },
     { signal },
   );
 }

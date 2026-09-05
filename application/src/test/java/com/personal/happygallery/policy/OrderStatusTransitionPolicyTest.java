@@ -4,6 +4,7 @@ import com.personal.happygallery.domain.error.AlreadyRefundedException;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.ProductionRefundNotAllowedException;
 import com.personal.happygallery.domain.order.OrderStatus;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,23 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
  */
 @Tag("policy")
 class OrderStatusTransitionPolicyTest {
+
+    @DisplayName("배송지는 배송 준비 전의 진행 중 주문에서만 수정할 수 있다")
+    @Test
+    void requireShippingAddressWritable_rejectsPreparedAndFinishedOrders() {
+        assertSoftly(softly -> {
+            for (OrderStatus status : OrderStatus.values()) {
+                if (Set.of(OrderStatus.PAID_APPROVAL_PENDING, OrderStatus.APPROVED_FULFILLMENT_PENDING,
+                        OrderStatus.IN_PRODUCTION, OrderStatus.DELAY_CONSENT_PENDING,
+                        OrderStatus.DELAY_ACCEPTED).contains(status)) {
+                    softly.assertThatCode(status::requireShippingAddressWritable).doesNotThrowAnyException();
+                } else {
+                    softly.assertThatThrownBy(status::requireShippingAddressWritable)
+                            .isInstanceOf(HappyGalleryException.class);
+                }
+            }
+        });
+    }
 
     @DisplayName("승인 대기 검증은 환불 상태와 다른 종결 상태를 구분한다")
     @Test

@@ -1,4 +1,193 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type GroupInquirySummaryResponseSource = typeof GroupInquirySummaryResponseSource[keyof typeof GroupInquirySummaryResponseSource];
+
+
+export const GroupInquirySummaryResponseSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type GroupInquirySummaryResponseStatus = typeof GroupInquirySummaryResponseStatus[keyof typeof GroupInquirySummaryResponseStatus];
+
+
+export const GroupInquirySummaryResponseStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface GroupInquirySummaryResponse {
+  classInterest: string;
+  createdAt: string;
+  headcount: number;
+  id: number;
+  location: string;
+  organization: string;
+  preferredSchedule: string;
+  source: GroupInquirySummaryResponseSource;
+  status: GroupInquirySummaryResponseStatus;
+}
+
+export interface GroupInquiryPageResponse {
+  content: GroupInquirySummaryResponse[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface GroupInquiryRequest {
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  classInterest: string;
+  /**
+     * @minLength 0
+     * @maxLength 100
+     */
+  contactName: string;
+  /**
+     * @minLength 0
+     * @maxLength 254
+     * @nullable
+     */
+  email?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 500
+     */
+  headcount: number;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  location: string;
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     * @nullable
+     */
+  message?: string | null;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  organization: string;
+  /**
+     * @minLength 0
+     * @maxLength 30
+     */
+  phone: string;
+  /**
+     * @minLength 0
+     * @maxLength 200
+     */
+  preferredSchedule: string;
+}
+
+/**
+ * @nullable
+ */
+export type ActivityResponseFromStatus = typeof ActivityResponseFromStatus[keyof typeof ActivityResponseFromStatus] | null;
+
+
+export const ActivityResponseFromStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export type ActivityResponseToStatus = typeof ActivityResponseToStatus[keyof typeof ActivityResponseToStatus];
+
+
+export const ActivityResponseToStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface ActivityResponse {
+  /** @nullable */
+  adminId: number | null;
+  createdAt: string;
+  /** @nullable */
+  fromStatus: ActivityResponseFromStatus;
+  id: number;
+  memberAction: boolean;
+  note: string;
+  toStatus: ActivityResponseToStatus;
+}
+
+export interface AdminGroupInquiryResponse {
+  activities: ActivityResponse[];
+  details: GroupInquiryRequest;
+  /** @nullable */
+  nextContactOn: string | null;
+  summary: GroupInquirySummaryResponse;
+  version: number;
+}
+
+export type GroupInquiryFollowUpStatus = typeof GroupInquiryFollowUpStatus[keyof typeof GroupInquiryFollowUpStatus];
+
+
+export const GroupInquiryFollowUpStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface GroupInquiryFollowUp {
+  id: number;
+  nextContactOn: string;
+  organization: string;
+  status: GroupInquiryFollowUpStatus;
+}
+
+export interface GroupInquiryFollowUpPageResponse {
+  content: GroupInquiryFollowUp[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export type GroupInquiryUpdateRequestStatus = typeof GroupInquiryUpdateRequestStatus[keyof typeof GroupInquiryUpdateRequestStatus];
+
+
+export const GroupInquiryUpdateRequestStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface GroupInquiryUpdateRequest {
+  /**
+     * @minLength 0
+     * @maxLength 2000
+     */
+  note: string;
+  status: GroupInquiryUpdateRequestStatus;
+  version: number;
+}
+
+export interface GroupInquiryContactRequest {
+  /**
+     * 서울 날짜. 생략 또는 null이면 연락 예정일 해제
+     * @nullable
+     */
+  nextContactOn?: string | null;
+  version: number;
+}
+
 export interface AdminInquiryResponse {
   content: string;
   createdAt: string;
@@ -35,6 +224,7 @@ export const FailedNotificationResponseEventType = {
   BOOKING_RESCHEDULED: 'BOOKING_RESCHEDULED',
   BOOKING_CANCELED: 'BOOKING_CANCELED',
   BOOKING_VACANCY_AVAILABLE: 'BOOKING_VACANCY_AVAILABLE',
+  PRODUCT_RESTOCK_AVAILABLE: 'PRODUCT_RESTOCK_AVAILABLE',
   DEPOSIT_REFUNDED: 'DEPOSIT_REFUNDED',
   ORDER_PAID: 'ORDER_PAID',
   ORDER_APPROVED: 'ORDER_APPROVED',
@@ -443,6 +633,40 @@ export interface SmartStoreSettlementSyncResponse {
   successCount: number;
 }
 
+export type ListAdminGroupInquiriesParams = {
+status?: ListAdminGroupInquiriesStatus;
+source?: ListAdminGroupInquiriesSource;
+inquiryId?: number;
+from?: string;
+to?: string;
+cursor?: string;
+size?: number;
+};
+
+export type ListAdminGroupInquiriesStatus = typeof ListAdminGroupInquiriesStatus[keyof typeof ListAdminGroupInquiriesStatus];
+
+
+export const ListAdminGroupInquiriesStatus = {
+  RECEIVED: 'RECEIVED',
+  CONSULTING: 'CONSULTING',
+  CONFIRMED: 'CONFIRMED',
+  CLOSED: 'CLOSED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export type ListAdminGroupInquiriesSource = typeof ListAdminGroupInquiriesSource[keyof typeof ListAdminGroupInquiriesSource];
+
+
+export const ListAdminGroupInquiriesSource = {
+  WEBSITE: 'WEBSITE',
+  EXTERNAL: 'EXTERNAL',
+} as const;
+
+export type ListAdminGroupInquiryFollowUpsParams = {
+cursor?: string;
+size?: number;
+};
+
 export type ListAdminInquiriesParams = {
 cursor?: string;
 size?: number;
@@ -463,6 +687,148 @@ export type GetSmartStoreAccountingReportParams = {
 from: string;
 to: string;
 };
+
+export const getListAdminGroupInquiriesUrl = (params?: ListAdminGroupInquiriesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries?${stringifiedParams}` : `/api/v1/admin/group-inquiries`
+}
+
+export const listAdminGroupInquiries = async (params?: ListAdminGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+
+  return generatedApiClient<GroupInquiryPageResponse>(getListAdminGroupInquiriesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getCreateAdminGroupInquiryUrl = () => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries`
+}
+
+export const createAdminGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getCreateAdminGroupInquiryUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryRequest)
+  }
+);}
+
+
+
+export const getListAdminGroupInquiryFollowUpsUrl = (params?: ListAdminGroupInquiryFollowUpsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries/follow-ups?${stringifiedParams}` : `/api/v1/admin/group-inquiries/follow-ups`
+}
+
+export const listAdminGroupInquiryFollowUps = async (params?: ListAdminGroupInquiryFollowUpsParams, options?: RequestInit): Promise<GroupInquiryFollowUpPageResponse> => {
+
+  return generatedApiClient<GroupInquiryFollowUpPageResponse>(getListAdminGroupInquiryFollowUpsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getGetAdminGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}`
+}
+
+export const getAdminGroupInquiry = async (id: number, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getGetAdminGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getUpdateAdminGroupInquiryUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}`
+}
+
+export const updateAdminGroupInquiry = async (id: number,
+    groupInquiryUpdateRequest: GroupInquiryUpdateRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getUpdateAdminGroupInquiryUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryUpdateRequest)
+  }
+);}
+
+
+
+export const getScheduleAdminGroupInquiryContactUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/admin/group-inquiries/${id}/next-contact`
+}
+
+export const scheduleAdminGroupInquiryContact = async (id: number,
+    groupInquiryContactRequest: GroupInquiryContactRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+
+  return generatedApiClient<AdminGroupInquiryResponse>(getScheduleAdminGroupInquiryContactUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInquiryContactRequest)
+  }
+);}
+
+
 
 export const getListAdminInquiriesUrl = (params?: ListAdminInquiriesParams,) => {
   const normalizedParams = new URLSearchParams();

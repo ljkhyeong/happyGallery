@@ -120,7 +120,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           <RiskActionButton
             buttonLabel="거절"
             confirmLabel="거절 및 환불 요청"
-            title="주문 거절 영향 확인"
+            title="주문 거절 및 환불 안내"
             impact="주문을 거절하면 확보한 상품 재고를 복구하고 전액 환불 요청을 접수합니다. 주문 상태 변경은 즉시 반영되지만 결제사 환불 완료 여부는 별도로 확인해야 합니다."
             disabled={disabled}
             pending={pending}
@@ -184,7 +184,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
         <RiskActionButton
           buttonLabel="고객 거절 주문 취소"
           confirmLabel="주문 취소 및 환불 요청"
-          title="지연 제안 거절 영향 확인"
+          title="주문 취소 및 환불 안내"
           impact="고객이 제작 지연 제안을 거절한 주문을 취소하고 전액 환불 요청을 접수합니다. 확보한 재고는 복구되며 결제사 환불 완료 여부는 별도로 확인해야 합니다."
           disabled={disabled}
           pending={pending}

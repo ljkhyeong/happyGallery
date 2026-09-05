@@ -1,6 +1,8 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
+import com.personal.happygallery.adapter.in.web.admin.AdminRestockDemandController;
+import com.personal.happygallery.application.product.port.in.RestockDemandUseCase;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
 import com.personal.happygallery.adapter.in.web.admin.AdminMediaController;
@@ -262,7 +264,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "2026082912345678",
                         SmartStoreOrderAction.INVENTORY_RESOLVED,
                         SmartStoreOrderActionStatus.SUCCEEDED,
-                        "상품 1, 옵션 조합 31, 재고 결정 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
+                        "상품 1, 옵션 조합 31, 재고 반영 방법 APPLY_REMAINING, 목표 적용 2개, 사유: 매핑 확인",
                         null,
                         null,
                         ADMIN_USER_ID,
@@ -354,7 +356,11 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(bookingCalendarUseCase.updateSettings(any())).thenReturn(calendarSettings);
         when(bookingCalendarUseCase.createTimeBlock(any())).thenReturn(timeBlock);
 
+        var restockDemand = mock(RestockDemandUseCase.class);
+        when(restockDemand.list(null, 0, 20)).thenReturn(OffsetPage.of(List.of(
+                new RestockDemandUseCase.Demand(42L, "레진 키링", 50L, "색상: 파랑", 3L)), 0, 20, 1));
         mockMvc = mockMvc(restDocumentation, SNIPPET_GROUP,
+                new AdminRestockDemandController(restockDemand),
                 new AdminLoginController(adminAuthUseCase, new AdminBearerTokenResolver()),
                 new AdminCredentialController(adminCredentialUseCase),
                 new AdminMfaController(adminMfaUseCase),
@@ -368,6 +374,14 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 new AdminClassController(classManagementUseCase, classQueryUseCase),
                 new AdminSlotController(
                         slotManagementUseCase, slotQueryUseCase, bookingCalendarUseCase));
+    }
+
+    @Test
+    @DisplayName("관리자 재입고 대기 현황은 상품·옵션별 인원만 제공한다")
+    void list_restock_demand() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/restock-demand").with(adminUser()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].waitingCount").value(3))
+                .andExpect(jsonPath("$.content[0].phone").doesNotExist());
     }
 
     @Test
@@ -813,7 +827,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 스마트스토어 주문 수동 재고 결정 API를 문서화한다")
+    @DisplayName("관리자 스마트스토어 주문 재고 반영 방법 지정 API를 문서화한다")
     void admin_resolve_smartstore_order_inventory() throws Exception {
         mockMvc.perform(post("/api/v1/admin/smartstore-orders/{productOrderId}/inventory-resolution",
                         "2026082912345678")
