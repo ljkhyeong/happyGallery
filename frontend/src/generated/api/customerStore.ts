@@ -623,6 +623,35 @@ export interface MemberPassRefundResponse {
   refundStatus: MemberPassRefundResponseRefundStatus;
 }
 
+export type RestockAlertResponseStatus = typeof RestockAlertResponseStatus[keyof typeof RestockAlertResponseStatus];
+
+
+export const RestockAlertResponseStatus = {
+  WAITING: 'WAITING',
+  QUEUED: 'QUEUED',
+  NOTIFIED: 'NOTIFIED',
+  CANCELED: 'CANCELED',
+} as const;
+
+export interface RestockAlertResponse {
+  createdAt: string;
+  id: number;
+  /** @nullable */
+  notifiedAt: string | null;
+  optionLabel: string;
+  productId: number;
+  productName: string;
+  /** @nullable */
+  productVariantId: number | null;
+  status: RestockAlertResponseStatus;
+}
+
+export interface RestockAlertRequest {
+  productId: number;
+  /** @nullable */
+  productVariantId?: number | null;
+}
+
 export type ListMyInquiriesPageParams = {
 cursor?: string;
 /**
@@ -1186,6 +1215,69 @@ export const refundMyPass = async (id: number, options?: RequestInit): Promise<M
   {
     ...options,
     method: 'POST'
+
+
+  }
+);}
+
+
+
+export const getListMyRestockAlertsUrl = () => {
+
+
+
+
+  return `/api/v1/me/restock-alerts`
+}
+
+export const listMyRestockAlerts = async ( options?: RequestInit): Promise<RestockAlertResponse[]> => {
+
+  return generatedApiClient<RestockAlertResponse[]>(getListMyRestockAlertsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+export const getRegisterMyRestockAlertUrl = () => {
+
+
+
+
+  return `/api/v1/me/restock-alerts`
+}
+
+export const registerMyRestockAlert = async (restockAlertRequest: RestockAlertRequest, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getRegisterMyRestockAlertUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(restockAlertRequest)
+  }
+);}
+
+
+
+export const getCancelMyRestockAlertUrl = (id: number,) => {
+
+
+
+
+  return `/api/v1/me/restock-alerts/${id}`
+}
+
+export const cancelMyRestockAlert = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return generatedApiClient<void>(getCancelMyRestockAlertUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
 
 
   }

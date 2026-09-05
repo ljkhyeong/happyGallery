@@ -157,3 +157,11 @@
 - 1:1 문의·상품 Q&A 답변 트랜잭션에 `INQUIRY_ANSWERED`·`PRODUCT_QNA_ANSWERED` 회원 outbox 요청 적용
 - outbox 트랜잭션 보장 테스트:
   - `NotificationOutboxUseCaseIT`
+
+## 상품 재입고 알림
+
+- `product_restock_alerts`는 회원·상품·옵션의 대기 중 신청을 `active_key` UNIQUE로 하나만 유지한다. 상품 옵션의 복합 FK로 조합 소속을 검증한다. 별도의 전화번호를 저장하지 않고 발송 시 회원의 현재 전화번호를 사용한다.
+- `RestockAlertScheduler`는 기본 60초마다 100건씩 ID 커서로 순회하며 각 신청을 짧은 트랜잭션에서 확인한다. 입고·취소·환불·스마트스토어 등 재고가 늘어나는 모든 경로를 현재 수량 기준으로 포착한다. 외부 채널 호출은 기존 Outbox dispatcher가 맡는다.
+- `PRODUCT_RESTOCK_AVAILABLE + RESTOCK_ALERT + alertId`를 수신자 단위 멱등키로 접수한다. 상태가 QUEUED여도 중복 신청 키를 유지하고 Outbox SENT가 확인되면 NOTIFIED로 끝내 키를 해제한다.
+- 발송 직전에 회원 활성·휴대폰 확인·신청 상태·상품 및 옵션 활성·해당 재고를 한 조회로 확인한다. 부적격이면 OBSOLETE로 끝내며, 해지하지 않은 신청의 재고가 다시 생기면 동일 Outbox 행을 재활성화한다. 발송 완료와 실패 결과 불명은 자동으로 재활성화하지 않는다. 이미 외부 전송을 시작한 메시지는 취소로 회수할 수 없다.
+- 운영 Alimtalk 템플릿은 `HG_PRODUCT_RESTOCK`이다. 공급자 등록 전에는 기존 카카오 실패→SMS 정책을 사용한다. 외부 채널의 전달 보장 한계와 Outbox 180일 보존 기준은 위 공통 정책을 따른다.

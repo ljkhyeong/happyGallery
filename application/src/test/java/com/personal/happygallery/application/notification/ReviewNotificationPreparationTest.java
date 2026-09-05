@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import com.personal.happygallery.application.product.port.out.RestockAlertDeliveryPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -123,6 +124,6 @@ class ReviewNotificationPreparationTest {
                 reminderEligibility,
                 reviewEligibility,
                 mock(ApplicationEventPublisher.class),
-                CLOCK);
+                CLOCK, mock(RestockAlertDeliveryPort.class));
     }
 }

@@ -3139,7 +3139,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "PRODUCT_RESTOCK_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "lastError" : {
@@ -4494,7 +4494,7 @@
             "type" : "string"
           },
           "eventType" : {
-            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
+            "enum" : [ "BOOKING_CONFIRMED", "BOOKING_RESCHEDULED", "BOOKING_CANCELED", "BOOKING_VACANCY_AVAILABLE", "PRODUCT_RESTOCK_AVAILABLE", "DEPOSIT_REFUNDED", "ORDER_PAID", "ORDER_APPROVED", "ORDER_PICKUP_READY", "ORDER_SHIPPED", "ORDER_DELAY_REQUESTED", "ORDER_REFUNDED", "ORDER_CLAIM_RESOLVED", "ORDER_EXCHANGE_COMPLETED", "PASS_PURCHASED", "PASS_REFUNDED", "INQUIRY_ANSWERED", "PRODUCT_QNA_ANSWERED", "REVIEW_REQUEST", "REVIEW_HIDDEN", "REVIEW_REPUBLISHED", "REVIEW_OWNER_REPLIED", "REMINDER_D1", "REMINDER_SAME_DAY", "PASS_EXPIRY_SOON", "PICKUP_DEADLINE_REMINDER" ],
             "type" : "string"
           },
           "id" : {
@@ -6468,6 +6468,56 @@
           }
         },
         "required" : [ "restoreStock", "reviewVersion" ],
+        "type" : "object"
+      },
+      "RestockAlertRequest" : {
+        "properties" : {
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          }
+        },
+        "required" : [ "productId" ],
+        "type" : "object"
+      },
+      "RestockAlertResponse" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "notifiedAt" : {
+            "format" : "date-time",
+            "type" : [ "string", "null" ]
+          },
+          "optionLabel" : {
+            "type" : "string"
+          },
+          "productId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "productName" : {
+            "type" : "string"
+          },
+          "productVariantId" : {
+            "format" : "int64",
+            "type" : [ "integer", "null" ]
+          },
+          "status" : {
+            "enum" : [ "WAITING", "QUEUED", "NOTIFIED", "CANCELED" ],
+            "type" : "string"
+          }
+        },
+        "required" : [ "createdAt", "id", "notifiedAt", "optionLabel", "productId", "productName", "productVariantId", "status" ],
         "type" : "object"
       },
       "RevenueBreakdownResponse" : {
@@ -16507,6 +16557,66 @@
           }
         },
         "tags" : [ "customer-credential-controller" ]
+      }
+    },
+    "/api/v1/me/restock-alerts" : {
+      "get" : {
+        "operationId" : "listMyRestockAlerts",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "items" : {
+                    "$ref" : "#/components/schemas/RestockAlertResponse"
+                  },
+                  "type" : "array"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "me-restock-alert-controller" ]
+      },
+      "post" : {
+        "operationId" : "registerMyRestockAlert",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/RestockAlertRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-restock-alert-controller" ]
+      }
+    },
+    "/api/v1/me/restock-alerts/{id}" : {
+      "delete" : {
+        "operationId" : "cancelMyRestockAlert",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "No Content"
+          }
+        },
+        "tags" : [ "me-restock-alert-controller" ]
       }
     },
     "/api/v1/me/reviews" : {

@@ -310,12 +310,12 @@ public class NotificationOutbox {
         if (status != NotificationOutboxStatus.OBSOLETE) {
             return false;
         }
-        if (!eventType.isTimeSensitiveReminder()
+        if (!eventType.allowsObsoleteReactivation()
                 || !idempotencyKey.equals(event.idempotencyKey())
                 || eventType != event.eventType()
                 || !Objects.equals(aggregateType, event.aggregateType())
                 || !Objects.equals(aggregateId, event.aggregateId())) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 요청만 다시 열 수 있습니다.");
+            throw new HappyGalleryException(ErrorCode.CONFLICT, "같은 리마인드 또는 재입고 요청만 다시 열 수 있습니다.");
         }
         switch (event) {
             case ForGuest e -> {

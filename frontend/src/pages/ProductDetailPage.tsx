@@ -42,6 +42,7 @@ import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
 import { productQuantityLimit } from "@/features/product/purchaseStock";
+import { RestockAlertButton } from "@/features/product/RestockAlertButton";
 import { saveGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
@@ -345,6 +346,9 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               </section>
 
               <div className="store-purchase-summary">
+                {!hasConfiguredOptions && !product.available && (
+                  <RestockAlertButton productId={product.id} productVariantId={product.type === "MADE_TO_ORDER" ? product.variants.find((variant) => variant.active)?.id ?? null : null} />
+                )}
                 <div className="d-flex justify-content-between align-items-center mb-2">
                   <span className="text-muted-soft store-purchase-line">선택 수량</span>
                   <span className="store-purchase-line">{selectedQuantity}개</span>

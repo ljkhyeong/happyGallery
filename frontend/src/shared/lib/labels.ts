@@ -54,6 +54,7 @@ export const NOTIFICATION_EVENT_LABEL: Record<string, string> = {
   BOOKING_CONFIRMED: "예약 확정",
   BOOKING_RESCHEDULED: "예약 변경",
   BOOKING_CANCELED: "예약 취소",
+  PRODUCT_RESTOCK_AVAILABLE: "상품 재입고 안내",
   BOOKING_VACANCY_AVAILABLE: "예약 빈자리 안내",
   DEPOSIT_REFUNDED: "예약금 환불",
   ORDER_PAID: "주문 결제 완료",

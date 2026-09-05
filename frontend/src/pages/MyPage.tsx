@@ -25,6 +25,7 @@ import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { MyPassesSection } from "@/features/my/MyPassesSection";
 import { MyInquiriesSection } from "@/features/my/MyInquiriesSection";
 import { MyVacancyAlertsSection } from "@/features/my/MyVacancyAlertsSection";
+import { MyRestockAlertsSection } from "@/features/my/MyRestockAlertsSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
 import { CustomerSessionChangedError, queryKeys } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
@@ -331,6 +332,7 @@ function MyPageContent() {
       />
 
       <MyVacancyAlertsSection />
+      <MyRestockAlertsSection />
 
       <MyPassesSection
         passes={passes}

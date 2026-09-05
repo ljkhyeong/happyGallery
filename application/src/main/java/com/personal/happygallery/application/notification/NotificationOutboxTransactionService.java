@@ -8,6 +8,8 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
+import com.personal.happygallery.application.product.port.out.RestockAlertDeliveryPort;
+import java.util.Objects;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -29,19 +31,21 @@ class NotificationOutboxTransactionService {
     private final ReviewNotificationEligibility reviewEligibility;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final RestockAlertDeliveryPort restockDelivery;
 
     NotificationOutboxTransactionService(NotificationOutboxPort outboxPort,
                                          NotificationLogStorePort notificationLogStore,
                                          NotificationReminderEligibility reminderEligibility,
                                          ReviewNotificationEligibility reviewEligibility,
                                          ApplicationEventPublisher eventPublisher,
-                                         Clock clock) {
+                                         Clock clock, RestockAlertDeliveryPort restockDelivery) {
         this.outboxPort = outboxPort;
         this.notificationLogStore = notificationLogStore;
         this.reminderEligibility = reminderEligibility;
         this.reviewEligibility = reviewEligibility;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.restockDelivery = restockDelivery;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -100,6 +104,17 @@ class NotificationOutboxTransactionService {
                         : NotificationOutboxDeliveryPreparation.stale();
             }
             recipient = eligibleRecipient.get();
+        } else if (outbox.getEventType() == NotificationEventType.PRODUCT_RESTOCK_AVAILABLE) {
+            var userId = "RESTOCK_ALERT".equals(outbox.getAggregateType())
+                    ? restockDelivery.findEligibleUserId(outbox.getAggregateId())
+                            .filter(value -> Objects.equals(value, outbox.getUserId()))
+                    : Optional.<Long>empty();
+            if (userId.isEmpty()) {
+                return outbox.markObsolete(processingToken, now, "RESTOCK_NO_LONGER_AVAILABLE")
+                        ? NotificationOutboxDeliveryPreparation.obsolete()
+                        : NotificationOutboxDeliveryPreparation.stale();
+            }
+            recipient = NotificationReminderRecipient.forUser(userId.get());
         } else {
             recipient = new NotificationReminderRecipient(outbox.getGuestId(), outbox.getUserId());
         }
