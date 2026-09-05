@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Time Boundary Policy
+  short_description: happyGallery 시간 기준 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $time-boundary-policy 스킬을 사용해 happyGallery 시간 기준 작업을 진행해줘.

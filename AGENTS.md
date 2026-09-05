@@ -1,110 +1,49 @@
-# Repository Guidelines
+# happyGallery 작업 지침
 
-## 세션 시작 규칙
-- 시작 전 `HANDOFF.md` 확인
-- 코드와 다르면 즉시 갱신
+## 진행과 소통
 
-## HANDOFF 작성 규칙
-- `HANDOFF.md`는 컨텍스트 부족 또는 에이전트 교체 때 다음 에이전트가 작업을 이어받기 위한 전달 문서다.
-- 사람용 설명, 프로젝트 소개, 완료 이력, 긴 배경, 일반 운영 규칙은 적지 않는다.
-- 다음 행동에 필요한 현재 작업 상태, 남은 작업, 먼저 열 파일/플랜/스킬, 이 세션에서만 알 수 있는 결정만 적는다.
-- 이미 `README.md`, `docs/PRD`, `docs/ADR`, `plan.md`, `CLAUDE.md`, 스킬 문서에 있는 내용은 요약하지 말고 경로만 남긴다.
-- 진행 중 작업이 없으면 "진행 중 작업 없음" 수준으로 비워 둔다.
-- 길어지면 HANDOFF가 아니라 원문 문서나 플랜으로 옮기고, `HANDOFF.md`에는 다음 에이전트가 열어야 할 경로와 한 줄 이유만 남긴다.
+- 먼저 `HANDOFF.md`를 읽고, 요청에 필요한 코드·문서만 확인한다. 인계 내용이 코드와 다르면 바로 고친다.
+- 요청과 대화에서 승인된 범위는 구현·검증·커밋까지 진행한다. 일반적인 구현 선택은 판단해서 처리하고, 결과를 좌우하는 요구사항이 빠졌거나 파괴적인 작업의 범위가 불명확할 때만 질문한다.
+- 로컬 조회·수정·빌드·테스트는 바로 실행한다. 도구 권한이 필요하면 승인 절차를 사용하되, 이미 승인된 작업을 다시 물어보지 않는다. 별도 승인이 필요한 작업도 먼저 검토 가능한 결과를 준비한다.
+- 사용자 요청은 스킬 지침보다 우선한다. 스킬 때문에 진행을 멈춰야 한다면 해당 `SKILL.md` 경로와 근거 문구를 밝힌다.
+- 응답·문서·주석·PR 리뷰는 한글로 쓴다. 결과부터 설명하고, 실무 용어와 짧은 문장을 사용한다. 최종 응답에는 변경 결과, 검증 결과, `사용한 스킬:`을 적는다.
 
-## Skill 사용 기준
-- 공통 규칙은 이 문서, 도메인 세부 절차는 `happyGallery` skill 우선
-- 애매하면 `happygallery-spring-backend`
-- 최종 응답에 항상 `사용한 스킬:`
+## 스킬
 
-## 승인 및 질문 최소화 규칙
-- 불필요한 진행 확인 질문 금지
-- `ps`, `lsof`, `curl`, `git status`, `git log`, `ls`, `rg`, `sed` 같은 로컬 조회는 바로 실행
-- 빌드, 테스트, 헬스 체크, 프로세스/포트 확인도 바로 실행
-- 권한 상승이 필요하면 실패 재현 없이 바로 요청
-- 원격 작업, PR merge, 워크스페이스 밖 쓰기만 승인 흐름
-- 파괴적이거나 모호한 작업만 예외적으로 확인
-- PR은 mergeable 확인 후 충돌 없으면 바로 머지
-- 과한 재검증, 과한 상태 점검, 중복 조회 금지
+- 원본은 `.agents/skills/<이름>/SKILL.md`다. 공통 규칙은 이 문서에, 도메인 규칙은 해당 스킬에만 둔다.
+- 변경을 주로 담당하는 스킬을 선택하고, API·DB·시간·상태 규칙도 바뀔 때만 해당 보조 스킬을 함께 읽는다. 공통 백엔드 변경은 `happygallery-spring-backend`, 화면은 `happygallery-frontend-flows`, 문서는 `happygallery-documentation-flows`를 사용한다.
+- 스킬에는 적용 범위, 코드에서 놓치기 쉬운 규칙, 필요한 검증만 적는다. 구현 현황·전체 경로 목록·완료 이력은 복제하지 않는다.
+- `CLAUDE.md`도 이 문서와 같은 스킬 원본을 참조한다. 다른 경로에 프로젝트 스킬 사본을 추가하지 않는다.
 
-## 프로젝트 구조 및 모듈 책임
-- `bootstrap/`: `@SpringBootApplication`, `application*.yml`, Flyway, logback, 마스킹 layout
-- `adapter-in-web/`: 컨트롤러, 필터, resolver, 웹 전용 properties
-- `adapter-out-persistence/`: JPA repository, MyBatis mapper/adapter
-- `adapter-out-external/`: 결제, 알림, OAuth, Redis 세션, HTTP pool
-- `application/`: 유스케이스 인터페이스(`port.in`/`port.out`), service, batch, application/domain 전용 공용 test fixture
-- `test-support/`: 웹 DTO와 영속성 repository에 의존하는 통합 테스트 fixture. 테스트 classpath에서만 사용
-- `domain/`: 엔티티, 정책 enum, 도메인 예외, 핵심 규칙
-- `frontend/src/generated/api/`: OpenAPI에서 생성한 TypeScript API client와 DTO, 수동 편집 금지
-- 운영 코드 의존 방향: `bootstrap → adapter-in-web/out-* → application → domain` (ArchUnit `LayerDependencyPolicyTest`로 강제)
+## 코드와 데이터
 
-## 빌드, 테스트, 개발 명령어
-- 모든 명령은 저장소 루트 + Gradle Wrapper 기준
-- 대표 명령:
-  - `./gradlew build`
-  - `./gradlew test`
-  - `./gradlew :bootstrap:bootRun`
-  - `./gradlew :application:useCaseTest`
-  - `./gradlew :application:policyTest`
-  - `./gradlew --no-daemon :adapter-in-web:openapi3`
-  - `cd frontend && npm run api:generate`
-  - `cd frontend && npm run api:check`
-  - `cd frontend && npm run lint`
-  - `cd frontend && npm run audit:dependencies`
-  - `docker compose up -d`
-- Testcontainers 계열은 기본적으로 `./gradlew --no-daemon ...`
-- Gradle JVM, 원격 GitHub/git, Docker, Playwright는 필요 시 바로 권한 상승 실행
-- 기본 프로필은 `local`, 헬스 체크는 `http://localhost:8080/actuator/health`
+- Java 25와 Gradle Wrapper를 사용한다. 패키지는 `com.personal.happygallery.<layer>.<feature>`, DTO 이름은 `Request`/`Response`를 따른다.
+- 운영 코드 의존 방향은 `bootstrap → adapter-in-web/out-* → application → domain`이다. `LayerDependencyPolicyTest`가 이를 검사한다.
+- `bootstrap`: 실행·설정·Flyway, `adapter-in-web`: HTTP 검증·변환·인증 필터, `application`: 유스케이스·트랜잭션, `domain`: 엔티티·정책, `adapter-out-persistence`: JPA·MyBatis, `adapter-out-external`: 외부 연동을 맡는다.
+- 공용 fixture는 application/domain만 쓰면 `application/src/testFixtures`, 웹 DTO·영속성 의존이 있으면 `test-support/src/testFixtures`에 둔다. `test-support`는 테스트에서만 의존한다.
+- 리팩토링 전 `rg`로 같은 패턴을 찾아 같은 이유로 바꿀 곳을 함께 정리한다. 남기는 예외는 이유를 설명한다.
+- 이름 충돌이 없으면 FQCN 대신 import를 쓴다. adapter가 application port 메서드를 구현·재선언하면 `@Override`를 붙인다.
+- DB 변경은 Flyway로 관리한다. SQL은 `bootstrap/src/main/resources/db/migration`, Java migration은 `bootstrap/src/main/java/com/personal/happygallery/bootstrap/migration`에 둔다. 버전은 두 경로를 확인해 정하고, 적용된 migration은 수정하지 않는다.
+- 공통 설정은 `application.yml`, 환경별 설정은 `application-*.yml`에 둔다. 비밀값은 환경 변수로 주입한다.
+- Controller·웹 DTO 계약을 바꾸면 `api-contract`를 적용해 REST Docs, OpenAPI, 생성 TypeScript client를 같은 커밋에서 갱신한다. 생성 파일은 직접 편집하지 않는다.
 
-## 코딩 스타일 및 테스트 기준
-- Java 25, Gradle toolchain, `com.personal.happygallery.<layer>.<feature>` 패키지 구조 유지
-- 클래스 `UpperCamelCase`, 메서드/필드 `lowerCamelCase`, DTO는 `Request`/`Response`
-- 컨트롤러는 검증/변환, 흐름은 서비스, 정책은 도메인에 둔다
-- 리팩토링할 때는 수정 대상 주변만 보지 말고 `rg`로 동일/유사 패턴이 코드베이스에 더 있는지 먼저 확인한다.
-- 동일한 리팩토링 이유가 성립하는 중복 패턴은 한 번에 같이 정리한다. 의도적으로 남겨야 하면 왜 남겼는지 답변이나 문서에 명시한다.
-- import로 충분한 타입은 FQCN(`@org...`, `@jakarta...`)으로 본문에 직접 쓰지 않는다. 어노테이션도 일반 import를 사용하고, FQCN 표기는 이름 충돌을 피할 수 없는 예외적인 경우에만 허용한다.
-- application port 메서드를 adapter에서 명시적으로 재선언하거나 구현하면 `@Override`를 붙인다. adapter 전용 신규 쿼리에는 붙이지 않는다.
-- Controller/웹 DTO 계약을 바꾸면 REST Docs, `docs/PRD/0004_API_계약/openapi3.json`, 생성 TypeScript client를 같은 커밋에서 갱신한다.
-- OpenAPI 연동 엔드포인트는 고유하고 안정적인 `operationId`, 필수값, nullable, enum을 명세에 표현한다.
-- `frontend/src/generated/api/`는 직접 편집하지 않는다. 연동된 서버 DTO는 생성 타입을 사용하고 화면 전용 form/view model만 수동 타입으로 둔다.
-- 테스트는 JUnit 5
-- 정책 테스트는 `*PolicyTest`, 통합 흐름은 `@UseCaseIT` / `*UseCaseIT`
-- 모든 테스트 메서드에 `@DisplayName` 한글 문장 사용
-- 코드 수정 후에는 변경 범위 최소 테스트부터 실행
-- 소스 코드를 수정하면 관련 문서를 항상 함께 갱신한다. 최소 `README.md`, `HANDOFF.md`, `docs/PRD`, `docs/ADR`, API 계약 문서 중 영향 범위를 확인하고 구현과 문서가 어긋난 상태로 두지 않는다.
-- 구현 변경 시 관련 PRD, ADR, 운영 문서도 함께 반영
+## 검증
 
-## DB 및 설정 변경 규칙
-- DB 변경은 `bootstrap/src/main/resources/db/migration` 아래 Flyway만 사용
-- 파일명은 `V<number>__description.sql`
-- 환경별 설정은 `application-*.yml`, 공통은 `application.yml`
-- 비밀값은 환경 변수로 주입, 저장소 하드코딩 금지
+- 변경을 확인할 수 있는 최소 검사부터 실행한다. 통과 후에는 추가 변경·실패·미해결 문제가 있을 때만 검사를 확대하거나 반복한다.
+- 구현을 그대로 따라 쓰는 테스트나 문구 수정용 테스트는 추가하지 않는다. 테스트 전략은 ADR-0027을 따른다.
+- JUnit 5를 사용하고 테스트 메서드에는 한글 `@DisplayName`을 붙인다. 정책은 `*PolicyTest`, 통합 흐름은 `@UseCaseIT` / `*UseCaseIT`로 구분한다.
+- Gradle 명령은 저장소 루트에서 실행하고, Testcontainers 검사는 `--no-daemon`을 붙인다. 구체적인 대상은 해당 스킬에서 선택한다.
 
-## 문서 작성 규칙
-- 현재 활성 실행 계획은 저장소 루트 `plan.md`에만 기록
-- 간단한 개선/리팩토링 아이디어는 저장소 루트 `simple-idea.md`에 기록
-- `simple-idea.md`는 `As-Is | To-Be` 두 열 표로 한 줄씩 누적
-- 완료된 임시 실행 계획은 `docs/1Pager`에 남기지 않음
-- 오래 유지해야 하는 문서만 `docs/<Category>/0001_<topic>` 형식으로 관리
-- 기준 스펙 문서는 `docs/PRD/0001_기준_스펙/spec.md`
-- 요구사항 변경은 PRD와 구현 동시 갱신, 설계 변경은 ADR도 함께 검토
-- 회고 문서는 `docs/Retrospective`에 기록
-- 문서는 추상어·내부 은어보다 사용자 기준 표현과 구현 실체를 먼저 쓰고, 현재 상태와 변경 전후가 짧게 바로 읽히게 적는다.
-- 주요 카테고리:
-  - `docs/Idea`
-  - `docs/1Pager`
-  - `docs/PRD`
-  - `docs/POC`
-  - `docs/Retrospective`
-  - `docs/ADR`
+## 문서
 
-## 커밋 및 Pull Request 가이드
-- 커밋 메시지는 `Feat:`, `Refactor:`, `Fix:`, `Test:`, `Docs:`, `Chore:`
-- 커밋 메시지 prefix 뒤 본문은 특별한 이유가 없으면 한글로, 변경 내용을 드러내는 구체적인 내용으로 작성
-- 커밋은 한 변경 의도에 집중해 작게 유지
-- 작업을 마치면 변경을 의도별로 분류해 커밋까지 완료하고 작업트리를 깨끗하게 정리한다. 원격 푸시는 사용자가 요청한 경우에만 수행한다.
-- 작업 브랜치는 `codex/work-*`
-- 기본 흐름: `codex/work-*` → `codexReview` Draft PR → `codexReview` merge → `main` PR → `main` merge
-- PR 제목/본문은 특별한 이유가 없으면 한글
-- GitHub 코드 리뷰 본문과 inline comment는 특별한 이유가 없으면 한글로 작성
-- PR 본문에는 문제, 핵심 설계 판단, 실행한 테스트, 문서 반영 여부 포함
+- 제품 동작은 `docs/PRD/0001_기준_스펙/spec.md`, HTTP 계약은 `docs/PRD/0004_API_계약/spec.md`, 설계 결정은 `docs/ADR`, 실행·운영 안내는 `README.md`와 `deploy/`가 담당한다. 구현을 바꾸면 영향받는 문서를 함께 갱신한다.
+- 활성 계획은 `plan.md`, 작은 개선안은 `simple-idea.md`의 `As-Is | To-Be` 표에 둔다. 오래 유지할 문서는 `docs/<Category>/0001_<topic>` 형식으로 관리하고, 완료된 임시 계획은 `docs/1Pager`에 남기지 않는다.
+- `HANDOFF.md`에는 진행 중 상태·남은 행동·다음에 열 경로·세션에서 결정한 내용만 적는다. 기존 문서 내용은 경로로 연결한다. 진행 중 작업이 없으면 “진행 중 작업 없음”으로 비운다.
+
+## 커밋과 PR
+
+- 작업 브랜치는 `codex/work-*`를 사용한다. 완료한 변경을 의도별로 커밋하고, 다른 작업의 변경은 보존한다.
+- 커밋은 `Feat:`, `Refactor:`, `Fix:`, `Test:`, `Docs:`, `Chore:` 뒤에 구체적인 한글 변경 내용을 적는다.
+- 원격 푸시는 사용자가 요청한 경우에만 한다. 기본 PR 순서는 작업 브랜치 → `codexReview` Draft PR·병합 → `main` PR·병합이다.
+- 병합 요청을 받으면 PR의 병합 가능 여부와 필요한 검사를 확인하고, 충돌이 없으면 재확인 질문 없이 병합한다.
+- PR 제목·본문·리뷰는 한글로 작성한다. 본문에는 문제, 핵심 설계 판단, 실행한 검증, 문서 반영 여부를 적는다.

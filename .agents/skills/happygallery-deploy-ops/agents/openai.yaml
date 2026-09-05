@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Self-host Ops
+  short_description: happyGallery 배포·운영 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-deploy-ops 스킬을 사용해 happyGallery 배포·운영 작업을 진행해줘.
