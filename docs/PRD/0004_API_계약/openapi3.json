@@ -7366,24 +7366,6 @@
         "required" : [ "availableBalance", "debtBalance", "history", "reservedBalance" ],
         "type" : "object"
       },
-      "RoadAddressResponse" : {
-        "properties" : {
-          "buildingName" : {
-            "type" : "string"
-          },
-          "jibunAddress" : {
-            "type" : "string"
-          },
-          "postalCode" : {
-            "type" : "string"
-          },
-          "roadAddress" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "buildingName", "jibunAddress", "postalCode", "roadAddress" ],
-        "type" : "object"
-      },
       "SaveSmartStoreInventoryMappingRequest" : {
         "properties" : {
           "enabled" : {
@@ -9613,37 +9595,6 @@
   },
   "openapi" : "3.1.0",
   "paths" : {
-    "/api/v1/addresses/search" : {
-      "get" : {
-        "operationId" : "searchRoadAddresses",
-        "parameters" : [ {
-          "in" : "query",
-          "name" : "keyword",
-          "required" : true,
-          "schema" : {
-            "maxLength" : 100,
-            "minLength" : 2,
-            "type" : "string"
-          }
-        } ],
-        "responses" : {
-          "200" : {
-            "content" : {
-              "*/*" : {
-                "schema" : {
-                  "items" : {
-                    "$ref" : "#/components/schemas/RoadAddressResponse"
-                  },
-                  "type" : "array"
-                }
-              }
-            },
-            "description" : "OK"
-          }
-        },
-        "tags" : [ "road-address-controller" ]
-      }
-    },
     "/api/v1/admin/auth/login" : {
       "post" : {
         "operationId" : "adminLogin",

@@ -4016,27 +4016,8 @@ Content-Type: application/json
   두 충돌 모두 `409 CONFLICT`를 반환한다.
 - 기존 네이버톡톡 사용 여부 불리언 필드는 제거하고 `naverTalkUrl`로 대체한다. 네이버톡톡 문의 제공 여부는 `naverTalkUrl` 값의 존재로 판단하며, 클라이언트는 응답 URL을 그대로 링크에 사용한다.
 - 기준 프로필은 제공된 대표자명, 전자우편주소와 통신판매업 신고번호를 저장한다. `prod`에서는 이 값들과 연락처·주소·사업자등록번호가 모두 입력되기 전 결제 prepare를 `503 SERVICE_UNAVAILABLE`로 차단한다.
-- 관리자 공방 주소와 주문 배송지는 아래 도로명주소 검색 결과의 `postalCode`, `roadAddress`를 적용하거나 직접 입력할 수 있다.
-
-```http
-GET /api/v1/addresses/search?keyword=계명대로%20161
-```
-
-```json
-[
-  {
-    "postalCode": "27360",
-    "roadAddress": "충청북도 충주시 계명대로 161",
-    "jibunAddress": "충청북도 충주시 연수동 1615",
-    "buildingName": "해피갤러리"
-  }
-]
-```
-
-- `operationId`: `searchRoadAddresses`
-- 인증 없이 조회하며 `keyword`는 2~100자다. 최대 10건을 반환한다.
-- 연동 비활성·외부 장애: `503 SERVICE_UNAVAILABLE`. 프런트는 기존 직접 입력을 유지한다.
-- 승인키는 백엔드에만 저장하고 브라우저가 공식 주소 API를 직접 호출하지 않는다.
+- 관리자 공방 주소와 주문 배송지는 [Kakao 우편번호 검색창](https://postcode.map.kakao.com/guide)에서 선택한 우편번호·도로명주소를 적용하거나 직접 입력할 수 있다. 도로명주소가 없는 결과는 선택한 주소를 사용한다.
+- 주소 검색은 브라우저에서 무료 SDK로 처리하며 별도 API 키와 앱 서버 주소 검색 엔드포인트가 없다. 검색 장애 때도 직접 입력은 가능하다.
 
 #### 2.19.2 이미지 업로드·조회
 
