@@ -277,6 +277,8 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호
 
 공휴일은 [한국천문연구원 특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 무료 활용 신청 후 `PUBLIC_HOLIDAY_SERVICE_KEY`를 주입하고 `PUBLIC_HOLIDAY_ENABLED=true`로 켠다. 매일 04:20(서울)에 현재 연도와 다음 연도를 갱신하며, 조회 실패 때는 마지막 정상 스냅샷을 보존한다. 해당 연도 데이터가 없으면 기존 공휴일 계산을 사용한다.
 
+개인 캘린더 추가는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 ICS 파일을 생성하며 외부 계정 연동이 필요 없다.
+
 외부 HTTP 풀의 `keep-alive`는 서버가 연결 유지 시간을 보내지 않을 때 기본값으로 적용한다. 같은 값으로 연결 최대 수명과 유휴 연결 정리 기준도 설정한다.
 
 | 이름 | 위치 | 설명 |

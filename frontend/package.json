@@ -34,6 +34,7 @@
     "bootstrap": "^5.3.8",
     "compression": "^1.8.1",
     "express": "^5.2.1",
+    "ical.js": "^2.2.1",
     "isbot": "^5.2.1",
     "lucide-react": "^1.25.0",
     "react": "^19.2.8",
