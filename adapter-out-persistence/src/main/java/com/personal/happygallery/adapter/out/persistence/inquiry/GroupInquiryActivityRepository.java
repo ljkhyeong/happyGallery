@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface GroupInquiryActivityRepository extends JpaRepository<GroupInquiryActivity, Long>, GroupInquiryActivityPort {
     @Override
     List<GroupInquiryActivity> findByInquiryIdOrderByIdDesc(Long inquiryId);
+
+    @Override
+    List<GroupInquiryActivity> findByInquiryIdAndMemberActionTrueOrderByIdDesc(Long inquiryId);
 }

@@ -46,8 +46,8 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     @Override
     public View create(Long userId, GroupInquiryDetails details) {
-        if (userId != null && !members.requireActiveForUpdate(userId).isActive()) {
-            throw new NotFoundException("회원");
+        if (userId != null) {
+            members.requireActiveForUpdate(userId);
         }
         return save(userId, GroupInquiry.Source.WEBSITE, details);
     }
@@ -141,8 +141,7 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
     }
 
     private MemberDetail memberDetail(GroupInquiry inquiry) {
-        var changes = activities.findByInquiryIdOrderByIdDesc(inquiry.getId()).stream()
-                .filter(GroupInquiryActivity::isMemberAction)
+        var changes = activities.findByInquiryIdAndMemberActionTrueOrderByIdDesc(inquiry.getId()).stream()
                 .map(activity -> new ActivityView(activity, encryptor.decrypt(activity.getNoteEnc()))).toList();
         return new MemberDetail(view(inquiry), changes);
     }
