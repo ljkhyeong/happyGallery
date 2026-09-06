@@ -21,6 +21,7 @@ subprojects {
 	apply plugin: 'java-library'
 	apply plugin: 'io.spring.dependency-management'
 	ext['httpcore5.version'] = '5.4.3'
+	ext['tomcat.version'] = '11.0.25'
 
 	java {
 		toolchain {
