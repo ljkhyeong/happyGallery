@@ -24,7 +24,7 @@ public final class ProportionalAmountAllocator {
         } catch (ArithmeticException exception) {
             throw invalid();
         }
-        if (amount > baseSum || (baseSum == 0L && amount != 0L)) {
+        if (amount > baseSum) {
             throw invalid();
         }
         if (amount == 0L) {
@@ -48,7 +48,6 @@ public final class ProportionalAmountAllocator {
                         .thenComparingInt(Share::index))
                 .limit(remainderUnits)
                 .forEach(Share::addOne);
-        shares.sort(Comparator.comparingInt(Share::index));
         return shares.stream().map(Share::amount).toList();
     }
 

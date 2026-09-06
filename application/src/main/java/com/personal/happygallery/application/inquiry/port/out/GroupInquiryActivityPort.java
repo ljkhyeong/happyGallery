@@ -6,4 +6,5 @@ import java.util.List;
 public interface GroupInquiryActivityPort {
     GroupInquiryActivity save(GroupInquiryActivity activity);
     List<GroupInquiryActivity> findByInquiryIdOrderByIdDesc(Long inquiryId);
+    List<GroupInquiryActivity> findByInquiryIdAndMemberActionTrueOrderByIdDesc(Long inquiryId);
 }

@@ -157,7 +157,7 @@ public class DefaultProductAdminService implements ProductAdminUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<InventoryAdjustment> listRecentInventoryAdjustments(Long productId) {
-        if (productReaderPort.findById(productId).isEmpty()) {
+        if (!productReaderPort.existsById(productId)) {
             throw new NotFoundException("상품");
         }
         return adjustmentHistoryPort.findRecentByProductId(productId);

@@ -47,10 +47,6 @@ public class OrderClaimItem {
         this.quantity = quantity;
     }
 
-    public void allocateApprovedRefundAmount(long amount) {
-        allocateApprovedRefund(amount, 0L);
-    }
-
     /** 승인된 고객 반환액과 그중 적립금 복원액을 상품 단위로 함께 고정한다. */
     public void allocateApprovedRefund(long customerRefundAmount, long rewardRestoreAmount) {
         if (customerRefundAmount < 0L

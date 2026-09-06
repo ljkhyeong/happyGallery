@@ -42,10 +42,8 @@ public class ReviewEvidenceRetentionService {
             deleted += reports.size();
         }
         if (deleted < limit) {
-            var expired = evidencePort.findExpired(now, limit - deleted);
-            var evidence = evidencePort.findByIds(expired.stream()
-                    .map(snapshot -> snapshot.getId())
-                    .toList());
+            var expiredIds = evidencePort.findExpiredIds(now, limit - deleted);
+            var evidence = evidencePort.findByIds(expiredIds);
             List<String> removedImageUrls = evidence.stream()
                     .flatMap(snapshot -> snapshot.getImageUrls().stream())
                     .distinct()

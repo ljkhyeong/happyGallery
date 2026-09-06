@@ -151,10 +151,7 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
     }
 
     private List<BookingClass> lockAllClasses() {
-        List<Long> ids = classReaderPort.findAll().stream()
-                .map(BookingClass::getId)
-                .sorted()
-                .toList();
+        List<Long> ids = classReaderPort.findAllIdsOrderByIdAsc();
         if (ids.isEmpty()) return List.of();
         return classReaderPort.findAllByIdForUpdate(ids);
     }

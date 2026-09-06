@@ -135,7 +135,7 @@ public class DefaultEventService implements EventQueryUseCase, EventAdminUseCase
 
     private void requireExistingCoupon(Long couponDefinitionId) {
         if (couponDefinitionId != null
-                && couponDefinitionReader.findById(couponDefinitionId).isEmpty()) {
+                && !couponDefinitionReader.existsById(couponDefinitionId)) {
             throw new NotFoundException("연결 쿠폰");
         }
     }

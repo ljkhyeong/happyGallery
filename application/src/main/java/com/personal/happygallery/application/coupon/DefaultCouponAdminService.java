@@ -45,7 +45,6 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     @Override
     @Transactional
     public CouponDefinition create(CouponDefinitionCommand command) {
-        requireCommand(command);
         return definitionStore.saveAndFlush(new CouponDefinition(
                 command.name(),
                 command.discountType(),
@@ -63,7 +62,6 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
     public CouponDefinition update(Long definitionId,
                                    long expectedVersion,
                                    CouponDefinitionCommand command) {
-        requireCommand(command);
         CouponDefinition definition = findDefinitionForUpdate(definitionId);
         requireExpectedVersion(definition, expectedVersion);
         if (issuedCouponReader.existsByDefinitionId(definitionId)
@@ -108,12 +106,6 @@ public class DefaultCouponAdminService implements CouponAdminUseCase {
                 || !Objects.equals(definition.getMaxDiscountAmount(), command.maxDiscountAmount())
                 || !Objects.equals(definition.getValidFrom(), command.validFrom())
                 || !Objects.equals(definition.getValidUntil(), command.validUntil());
-    }
-
-    private static void requireCommand(CouponDefinitionCommand command) {
-        if (command == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "쿠폰 정의가 누락되었습니다.");
-        }
     }
 
     private static void requireExpectedVersion(CouponDefinition definition, long expectedVersion) {

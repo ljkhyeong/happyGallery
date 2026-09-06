@@ -31,5 +31,8 @@ public interface ReviewModerationActionRepository
     }
 
     @Override
-    void deleteAll(Iterable<? extends ReviewModerationAction> actions);
+    default void deleteAll(List<ReviewModerationAction> actions) {
+        flush();
+        deleteAllInBatch(actions);
+    }
 }

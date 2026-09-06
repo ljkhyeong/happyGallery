@@ -9,6 +9,8 @@ public interface CouponDefinitionReaderPort {
 
     Optional<CouponDefinition> findById(Long id);
 
+    boolean existsById(Long id);
+
     Optional<CouponDefinition> findByIdForUpdate(Long id);
 
     Optional<CouponDefinition> findByIdForSharedLock(Long id);

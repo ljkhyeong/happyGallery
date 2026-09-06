@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Entity Migration Sync
+  short_description: happyGallery DB 변경 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $entity-migration-sync 스킬을 사용해 happyGallery DB 변경 작업을 진행해줘.

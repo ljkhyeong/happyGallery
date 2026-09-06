@@ -30,17 +30,17 @@ public interface ReviewEvidenceSnapshotRepository
     }
 
     @Query("""
-            SELECT s FROM ReviewEvidenceSnapshot s
+            SELECT s.id FROM ReviewEvidenceSnapshot s
             WHERE s.retentionUntil IS NOT NULL
               AND s.retentionUntil <= :now
             ORDER BY s.retentionUntil ASC, s.id ASC
             """)
-    List<ReviewEvidenceSnapshot> findExpiredPage(
+    List<Long> findExpiredIdsPage(
             @Param("now") LocalDateTime now, Pageable pageable);
 
     @Override
-    default List<ReviewEvidenceSnapshot> findExpired(LocalDateTime now, int limit) {
-        return findExpiredPage(now, PageRequest.ofSize(limit));
+    default List<Long> findExpiredIds(LocalDateTime now, int limit) {
+        return findExpiredIdsPage(now, PageRequest.ofSize(limit));
     }
 
     @Override

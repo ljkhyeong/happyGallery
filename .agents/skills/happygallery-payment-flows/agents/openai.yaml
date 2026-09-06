@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Payment Flows
+  short_description: happyGallery 결제·환불 실행 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-payment-flows 스킬을 사용해 happyGallery 결제·환불 실행 작업을 진행해줘.

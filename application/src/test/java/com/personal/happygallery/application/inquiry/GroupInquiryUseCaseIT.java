@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.port.in.CustomerAccountLif
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.GroupInquiry;
 import com.personal.happygallery.domain.inquiry.GroupInquiryDetails;
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
@@ -92,6 +93,8 @@ class GroupInquiryUseCaseIT {
         var inquiry = inquiries.create(owner.getId(), details("탈퇴 기관"));
         inquiries.update(inquiry.inquiry().getId(), 0, GroupInquiryStatus.CONSULTING, "연락처 상담", 99L);
         lifecycle.withdraw(new CustomerAccountLifecycleUseCase.WithdrawCommand(owner.getId(), owner.getCredentialVersion(), true));
+        assertThatThrownBy(() -> inquiries.create(owner.getId(), details("탈퇴 후 접수")))
+                .isInstanceOf(NotFoundException.class);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM group_inquiries", Integer.class)).isZero();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM group_inquiry_activities", Integer.class)).isZero();
     }

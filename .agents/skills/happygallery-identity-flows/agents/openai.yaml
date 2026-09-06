@@ -1,0 +1,5 @@
+interface:
+  display_name: HG Identity Flows
+  short_description: happyGallery 회원 인증·휴대폰 확인 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-identity-flows 스킬을 사용해 happyGallery 회원 인증·휴대폰 확인 작업을
+    진행해줘.

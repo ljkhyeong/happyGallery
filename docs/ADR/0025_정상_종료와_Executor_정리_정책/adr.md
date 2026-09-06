@@ -72,9 +72,12 @@
 반복 `@Scheduled` 작업은 요청 문맥을 전달할 대상이 아니며, 주기 실행 future에 한 번 fork된
 Sentry scope가 다음 실행에도 재사용되는 것을 피한다.
 
-1. 제출 시점의 `MDC.getCopyOfContextMap()`으로 문맥을 복사한다.
+1. Spring `ContextPropagatingTaskDecorator`와 Micrometer `Slf4jThreadLocalAccessor`로 제출 시점의 MDC를 복사한다.
 2. Sentry scope를 fork해 비동기 작업의 오류 추적 문맥을 이어간다.
 3. 작업 실행 직전에 MDC를 주입하고 종료 후 worker thread의 이전 문맥을 복원한다.
+
+MDC 전용 `ContextRegistry`를 사용한다. `clearMissing(true)`로 요청 MDC가 없을 때도
+작업 중 기존 문맥을 지우며, 성공·실패 후 복원은 라이브러리에 맡긴다.
 
 이 정책의 목적:
 

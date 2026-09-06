@@ -1,0 +1,4 @@
+interface:
+  display_name: HappyGallery Backend
+  short_description: happyGallery 공통 백엔드 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-spring-backend 스킬을 사용해 happyGallery 공통 백엔드 작업을 진행해줘.

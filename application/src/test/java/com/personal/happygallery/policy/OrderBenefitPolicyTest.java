@@ -42,6 +42,16 @@ class OrderBenefitPolicyTest {
     }
 
     @Test
+    @DisplayName("배분 기준 합계가 0원이면 0원 배분만 허용한다")
+    void proportionalAllocation_zeroBaseAcceptsOnlyZeroAmount() {
+        assertThat(ProportionalAmountAllocator.allocate(0L, List.of(0L, 0L)))
+                .containsExactly(0L, 0L);
+        assertThatThrownBy(() -> ProportionalAmountAllocator.allocate(1L, List.of(0L, 0L)))
+                .isInstanceOf(HappyGalleryException.class)
+                .hasMessage("혜택 금액 배분 기준이 올바르지 않습니다.");
+    }
+
+    @Test
     @DisplayName("품목 할인과 적립금 합계가 상품 금액을 넘으면 거부한다")
     void itemPricing_rejectsOverDiscount() {
         assertThatThrownBy(() -> new OrderItemPricing(10_000L, 8_000L, 3_000L, 0L))
