@@ -261,6 +261,53 @@ class ProductInventoryUseCaseIT {
     }
 
     @Test
+    @DisplayName("여러 옵션 조합의 재고 변경은 활성 매핑이 있는 상품마다 동기화를 한 번만 요청한다")
+    void variantStockChanges_requestSyncOncePerMappedProduct() {
+        var optionProduct = productAdminUseCase.register(madeToOrderCommand(
+                List.of(selectGroup("color", 0, true, "red", "blue")),
+                List.of(
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "red")), 0, 3, true),
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "blue")), 0, 3, true))));
+        var otherProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        var disabledProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        var unmappedProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long optionProductId = optionProduct.product().getId();
+        Long otherProductId = otherProduct.product().getId();
+        mappingPort.saveAll(List.of(
+                new SmartStoreStockMapping(optionProductId,
+                        optionProduct.options().variants().get(0).id(), 123L, 101L, true),
+                new SmartStoreStockMapping(optionProductId,
+                        optionProduct.options().variants().get(1).id(), 123L, 102L, true),
+                new SmartStoreStockMapping(otherProductId,
+                        otherProduct.options().variants().getFirst().id(), 124L, 103L, true),
+                new SmartStoreStockMapping(disabledProduct.product().getId(),
+                        disabledProduct.options().variants().getFirst().id(), 125L, 104L, false)));
+        var adjustments = List.of(optionProduct, otherProduct, disabledProduct, unmappedProduct).stream()
+                .flatMap(product -> product.options().variants().stream())
+                .map(variant -> new VariantAdjustment(variant.id(), 1))
+                .toList();
+
+        variantStockService.deductAll(adjustments);
+
+        var firstSync = stockSyncPort.findByProductId(optionProductId).orElseThrow();
+        var otherSync = stockSyncPort.findByProductId(otherProductId).orElseThrow();
+        assertThat(firstSync.getRequestVersion()).isEqualTo(1);
+        assertThat(otherSync.getRequestVersion()).isEqualTo(1);
+        assertThat(firstSync.getGeneration()).isNotEqualTo(otherSync.getGeneration());
+        assertThat(stockSyncPort.findByProductId(disabledProduct.product().getId())).isEmpty();
+        assertThat(stockSyncPort.findByProductId(unmappedProduct.product().getId())).isEmpty();
+
+        variantStockService.restoreAll(adjustments);
+
+        var requestedAgain = stockSyncPort.findByProductId(optionProductId).orElseThrow();
+        var otherRequestedAgain = stockSyncPort.findByProductId(otherProductId).orElseThrow();
+        assertThat(requestedAgain.getRequestVersion()).isEqualTo(2);
+        assertThat(otherRequestedAgain.getRequestVersion()).isEqualTo(2);
+        assertThat(requestedAgain.getGeneration()).isEqualTo(firstSync.getGeneration());
+        assertThat(otherRequestedAgain.getGeneration()).isEqualTo(otherSync.getGeneration());
+    }
+
+    @Test
     @DisplayName("현재 조합만 다시 매핑하고 과거 연결은 재고 0으로 보내며 원격 옵션 재사용 시 중복 전송하지 않는다")
     void saveSmartStoreMapping_preservesRetiredOptionsForZeroStock() {
         var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
