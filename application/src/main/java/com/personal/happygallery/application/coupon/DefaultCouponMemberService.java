@@ -49,7 +49,7 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
                 .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
         LocalDateTime now = LocalDateTime.now(clock);
         definition.requirePubliclyClaimableAt(now);
-        if (issuedCouponReader.findByUserIdAndDefinitionId(userId, definitionId).isPresent()) {
+        if (issuedCouponReader.existsByUserIdAndDefinitionId(userId, definitionId)) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "이미 발급받은 쿠폰입니다.");
         }
         IssuedCoupon issuedCoupon = issuedCouponStore.save(

@@ -16,6 +16,8 @@ public interface ClassReaderPort {
     /** 여러 클래스 행을 PK 오름차순으로 잠근다. */
     List<BookingClass> findAllByIdForUpdate(List<Long> ids);
 
+    List<Long> findAllIdsOrderByIdAsc();
+
     List<BookingClass> findAll();
 
     List<BookingClass> findAllActive();

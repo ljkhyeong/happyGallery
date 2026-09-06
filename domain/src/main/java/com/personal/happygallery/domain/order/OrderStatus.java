@@ -95,13 +95,6 @@ public enum OrderStatus {
 		}
 	}
 
-	/** {@link #IN_PRODUCTION} 상태인지 확인한다. */
-	public void requireInProduction() {
-		if (this != IN_PRODUCTION) {
-			throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "제작 중 상태에서만 가능합니다.");
-		}
-	}
-
 	/** 승인 전 기성품 주문에 지연을 제안할 수 있는지 확인한다. */
 	public void requireReadyStockDelayProposable() {
 		if (this != PAID_APPROVAL_PENDING) {

@@ -37,7 +37,6 @@ RuntimeException
         ├── AlreadyRefundedException      (409)
         ├── InventoryNotEnoughException   (409)
         ├── CapacityExceededException     (409)
-        ├── RefundNotAllowedException     (422)
         ├── ChangeNotAllowedException     (422)
         ├── PassExpiredException          (422)
         └── NotFoundException             (404)

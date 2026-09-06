@@ -232,6 +232,11 @@ class SocialAuthUseCaseIT {
         long linkedCredentialVersion = userRepository.findById(naverLogin.user().getId())
                 .orElseThrow()
                 .getCredentialVersion();
+        assertThatThrownBy(() -> socialAuth.linkSocialAccount(new SocialLinkCommand(
+                naverLogin.user().getId(), linkedCredentialVersion,
+                SocialProvider.GOOGLE, "another-google-account-id", true)))
+                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.SOCIAL_PROVIDER_ALREADY_LINKED));
         socialAuth.unlinkSocialAccount(new SocialUnlinkCommand(
                 naverLogin.user().getId(),
                 linkedCredentialVersion,

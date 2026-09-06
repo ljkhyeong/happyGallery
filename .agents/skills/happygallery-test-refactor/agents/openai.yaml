@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Test Refactor
+  short_description: happyGallery 테스트 정리 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-test-refactor 스킬을 사용해 happyGallery 테스트 정리 작업을 진행해줘.

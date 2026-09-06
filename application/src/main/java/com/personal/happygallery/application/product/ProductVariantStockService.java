@@ -106,7 +106,7 @@ public class ProductVariantStockService {
 
     private void requestSmartStoreSync(List<ProductVariant> variants) {
         smartStoreStockSyncQueuePort.requestIfMapped(
-                variants.stream().map(ProductVariant::getProductId).distinct().toList(),
+                variants.stream().map(ProductVariant::getProductId).toList(),
                 LocalDateTime.now(clock));
     }
 

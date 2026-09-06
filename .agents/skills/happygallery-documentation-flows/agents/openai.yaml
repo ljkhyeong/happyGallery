@@ -1,0 +1,4 @@
+interface:
+  display_name: happyGallery Docs
+  short_description: happyGallery 문서 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-documentation-flows 스킬을 사용해 happyGallery 문서 작업을 진행해줘.

@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.out.external.http;
 
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.DefaultConnectionKeepAliveStrategy;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
@@ -30,19 +29,12 @@ public class PooledHttpClientFactory {
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(Timeout.of(props.acquireTimeout()))
                 .setResponseTimeout(Timeout.of(props.timeout()))
+                .setConnectionKeepAlive(TimeValue.of(props.keepAlive()))
                 .build();
 
         return HttpClients.custom()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
-                .setKeepAliveStrategy((response, context) -> {
-                    TimeValue keepAlive = DefaultConnectionKeepAliveStrategy.INSTANCE
-                            .getKeepAliveDuration(response, context);
-                    if (TimeValue.isPositive(keepAlive)) {
-                        return keepAlive;
-                    }
-                    return TimeValue.of(props.keepAlive());
-                })
                 .evictExpiredConnections()
                 .evictIdleConnections(TimeValue.of(props.keepAlive()))
                 .build();

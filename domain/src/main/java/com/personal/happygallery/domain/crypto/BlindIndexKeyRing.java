@@ -44,14 +44,6 @@ public final class BlindIndexKeyRing {
         return List.copyOf(candidates);
     }
 
-    public String indexWith(String keyId, String plaintext) {
-        BlindIndexer indexer = indexers.get(keyId);
-        if (indexer == null) {
-            throw new IllegalArgumentException("HMAC 키를 찾을 수 없습니다: " + keyId);
-        }
-        return indexer.index(plaintext);
-    }
-
     public String activeKeyId() {
         return activeKeyId;
     }

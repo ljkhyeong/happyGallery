@@ -8,7 +8,7 @@ public interface IssuedCouponReaderPort {
 
     Optional<IssuedCoupon> findByIdForUpdate(Long id);
 
-    Optional<IssuedCoupon> findByUserIdAndDefinitionId(Long userId, Long definitionId);
+    boolean existsByUserIdAndDefinitionId(Long userId, Long definitionId);
 
     boolean existsByDefinitionId(Long definitionId);
 

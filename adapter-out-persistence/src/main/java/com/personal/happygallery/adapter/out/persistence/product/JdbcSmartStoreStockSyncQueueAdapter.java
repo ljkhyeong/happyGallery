@@ -4,6 +4,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreStockSyn
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -41,7 +42,10 @@ public class JdbcSmartStoreStockSyncQueueAdapter implements SmartStoreStockSyncQ
     @Override
     public void requestIfMapped(Collection<Long> productIds, LocalDateTime now) {
         Timestamp requestedAt = Timestamp.valueOf(now);
-        productIds.stream().distinct().forEach(productId -> jdbcTemplate.update(
-                REQUEST_SQL, productId, requestedAt, UUID.randomUUID().toString(), productId));
+        List<Object[]> requests = productIds.stream().distinct()
+                .map(productId -> new Object[] {
+                        productId, requestedAt, UUID.randomUUID().toString(), productId})
+                .toList();
+        jdbcTemplate.batchUpdate(REQUEST_SQL, requests);
     }
 }

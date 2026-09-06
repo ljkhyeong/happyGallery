@@ -50,8 +50,8 @@ class JpaSocialAccountPersistenceAdapter implements SocialAccountReaderPort, Soc
     }
 
     @Override
-    public Optional<SocialAccount> findByUserIdAndProvider(Long userId, SocialProvider provider) {
-        return repository.findByUserIdAndProvider(userId, provider);
+    public boolean existsByUserIdAndProvider(Long userId, SocialProvider provider) {
+        return repository.existsByUserIdAndProvider(userId, provider);
     }
 
     @Override

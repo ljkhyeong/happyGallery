@@ -70,7 +70,7 @@ class SmartStoreInventoryMappingService {
 
     @Transactional(readOnly = true)
     public MappingChangePlan planChange(Long productId, SaveMappingCommand command) {
-        if (productReaderPort.findById(productId).isEmpty()) {
+        if (!productReaderPort.existsById(productId)) {
             throw new NotFoundException("상품");
         }
         List<SmartStoreStockMapping> current = mappings(productId);
@@ -131,7 +131,7 @@ class SmartStoreInventoryMappingService {
 
     @Transactional(readOnly = true)
     public Optional<MappingResult> getMapping(Long productId) {
-        if (productReaderPort.findById(productId).isEmpty()) {
+        if (!productReaderPort.existsById(productId)) {
             throw new NotFoundException("상품");
         }
         List<SmartStoreStockMapping> mappings = mappings(productId);
@@ -140,7 +140,7 @@ class SmartStoreInventoryMappingService {
 
     @Transactional(readOnly = true)
     public void planDelete(Long productId, DeleteMappingCommand command) {
-        if (productReaderPort.findById(productId).isEmpty()) {
+        if (!productReaderPort.existsById(productId)) {
             throw new NotFoundException("상품");
         }
         List<SmartStoreStockMapping> current = mappings(productId);
@@ -183,7 +183,7 @@ class SmartStoreInventoryMappingService {
 
     @Transactional(readOnly = true)
     public List<MappingHistoryResult> listMappingHistory(Long productId) {
-        if (productReaderPort.findById(productId).isEmpty()) {
+        if (!productReaderPort.existsById(productId)) {
             throw new NotFoundException("상품");
         }
         return mappingHistoryPort.findRecentByProductId(productId).stream()

@@ -17,7 +17,7 @@ Naver와 Kakao 로그인을 추가하면 비밀번호 회원이 Google, Naver, K
 1. `users`는 서비스 회원 자체만 나타내고 인증 제공자 컬럼을 두지 않는다.
 2. 소셜 계정은 `user_social_accounts`에 분리한다.
 3. 외부 provider ID는 원문 대신 `provider_id_hmac`로 저장하고 `(provider, provider_id_hmac)`를 유일하게 유지해 외부 계정 하나가 여러 회원에 연결되지 않도록 한다.
-4. `(user_id, provider)`를 유일하게 유지해 한 회원은 제공자별 계정을 하나씩만 연결한다.
+4. `(user_id, provider)`를 유일하게 유지해 한 회원은 제공자별 계정을 하나씩만 연결한다. 연결 전 중복 확인은 `existsByUserIdAndProvider`로 수행하며 엔티티를 적재하지 않는다.
 5. 소셜 로그인 시 외부 계정이 이미 연결되어 있으면 해당 회원으로 로그인한다. 처음 보는 Google 또는 Kakao 계정의 검증 이메일이 기존 기준 이메일과 겹치면 자동 병합하지 않고 `SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다. Naver 프로필 이메일은 충돌 조회에 사용하지 않는다.
 6. Spring Security OAuth2 Client가 만든 authorization request와 OAuth `state`는 callback 전까지만 서버 세션에 저장하고, callback에서 일치 여부를 확인한 뒤 제거한다.
 7. 제공자별 authorize/token/profile 응답 차이는 OAuth2 Client와 web security 어댑터가 처리하고, 애플리케이션 서비스는 공통 `SocialLoginCommand(provider, providerId, verifiedEmail, name)`만 사용한다. `verifiedEmail`은 Google과 Kakao만 전달하고 Naver는 `null`이다.

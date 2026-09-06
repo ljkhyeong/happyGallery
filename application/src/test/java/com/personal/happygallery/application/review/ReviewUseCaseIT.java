@@ -1053,6 +1053,58 @@ class ReviewUseCaseIT {
     }
 
     @Test
+    @DisplayName("후기 보존 배치는 건수 제한을 지키며 심사 이력과 신고를 먼저 지운 뒤 사진 증거를 삭제한다")
+    void evidenceRetentionRespectsBatchLimitAndDeletionOrder() {
+        User owner = createUser("review-batch-owner@example.com", "01074000030", "보존 배치 작성자");
+        User reporter = createUser("review-batch-reporter@example.com", "01074000031", "보존 배치 신고자");
+        AdminUser admin = adminUserRepository.saveAndFlush(
+                new AdminUser("review-batch-admin", "password-hash"));
+        createdAdminId = admin.getId();
+        for (int index = 0; index < 2; index++) {
+            ProductOrderSource source = createProductOrderSource(owner, true, "보존 배치 상품 " + index);
+            ReviewUseCase.ReviewItem review = memberReviewUseCase.createProductReview(
+                    owner.getId(), source.orderItem().getId(), 1, "운영 확인이 필요한 후기");
+            imageAttachmentService.attach(owner.getId(), review.id(), "/images/retention-" + index + ".webp");
+            ReviewUseCase.ReviewReportItem report = reviewInteractionUseCase.createReport(
+                    reporter.getId(), review.id(), ReviewReportReason.OTHER, "내용 확인 요청");
+            ReviewUseCase.ReviewItem current = adminReviewUseCase.getAdminReview(review.id());
+            adminReviewUseCase.updateStatus(
+                    review.id(), ReviewStatus.HIDDEN, "운영 확인 후 숨김",
+                    current.contentRevision(), current.version(), admin.getId());
+            adminReviewUseCase.decideReport(
+                    report.id(), ReviewReportStatus.ACCEPTED, "신고 확인", admin.getId());
+        }
+        LocalDateTime deadline = LocalDateTime.now(clock).plusYears(3);
+
+        int firstBatch = evidenceRetentionService.deleteExpiredBatch(deadline, 3);
+
+        assertSoftly(softly -> {
+            softly.assertThat(firstBatch).isEqualTo(3);
+            softly.assertThat(tableCount("review_moderation_actions")).isZero();
+            softly.assertThat(tableCount("review_reports")).isEqualTo(1L);
+            softly.assertThat(tableCount("review_evidence_snapshots")).isEqualTo(4L);
+        });
+
+        int secondBatch = evidenceRetentionService.deleteExpiredBatch(deadline, 3);
+
+        assertSoftly(softly -> {
+            softly.assertThat(secondBatch).isEqualTo(3);
+            softly.assertThat(tableCount("review_reports")).isZero();
+            softly.assertThat(tableCount("review_evidence_snapshots")).isEqualTo(2L);
+            softly.assertThat(tableCount("review_evidence_snapshot_images")).isEqualTo(2L);
+        });
+
+        int lastBatch = evidenceRetentionService.deleteExpiredBatch(deadline, 3);
+
+        assertSoftly(softly -> {
+            softly.assertThat(lastBatch).isEqualTo(2);
+            softly.assertThat(tableCount("review_evidence_snapshots")).isZero();
+            softly.assertThat(tableCount("review_evidence_snapshot_images")).isZero();
+            softly.assertThat(tableCount("review_images")).isEqualTo(2L);
+        });
+    }
+
+    @Test
     @DisplayName("공식 답글은 수정 시 최초 시각을 유지하고 이미지 중간 삭제 뒤 빈 순서를 재사용한다")
     void replyAndImageAttachmentLifecycleIsStable() {
         User owner = createUser("review-media-owner@example.com", "01074000014", "미디어 후기 회원");

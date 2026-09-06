@@ -26,6 +26,9 @@ public interface CouponDefinitionRepository
     Optional<CouponDefinition> findById(Long id);
 
     @Override
+    boolean existsById(Long id);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM CouponDefinition c WHERE c.id = :id")
     Optional<CouponDefinition> findByIdForUpdate(@Param("id") Long id);

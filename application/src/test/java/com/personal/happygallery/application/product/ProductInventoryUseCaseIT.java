@@ -3,6 +3,8 @@ package com.personal.happygallery.application.product;
 import com.jayway.jsonpath.JsonPath;
 import com.personal.happygallery.application.product.port.in.StockThresholdUseCase;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
@@ -132,6 +134,36 @@ class ProductInventoryUseCaseIT {
         cleanupSupport.clearProductData();
     }
 
+    @ParameterizedTest
+    @ValueSource(longs = {-10000L, PaymentAmountPolicy.MAX_AMOUNT, Long.MAX_VALUE})
+    @DisplayName("옵션 가격이 0원 이하이거나 금액 상한을 넘으면 상품 등록을 롤백한다")
+    void registerVariant_rejectsInvalidPrice(long adjustment) {
+        var command = madeToOrderCommand(List.of(), List.of(
+                new VariantDefinition(List.of(), adjustment, 1, true)));
+
+        assertThatThrownBy(() -> productAdminUseCase.register(command))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThat(productRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("직접입력 옵션 합계가 금액 상한을 넘으면 기존 조합 가격을 보존한다")
+    void updateVariant_rejectsTotalAboveLimit() {
+        var product = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of())).product();
+        var groups = List.of(new OptionGroupDefinition(
+                "engraving", ProductOptionType.TEXT, "각인", false, 0,
+                null, 20, PaymentAmountPolicy.MAX_AMOUNT - 10000L, List.of()));
+        var command = madeToOrderCommand(groups, List.of(
+                new VariantDefinition(List.of(), 1L, 1, true)));
+
+        assertThatThrownBy(() -> productAdminUseCase.update(product.getId(), command))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
+        assertThat(optionConfigurationService.get(product.getId(), true).variants())
+                .singleElement().satisfies(variant -> assertThat(variant.priceAdjustment()).isZero());
+    }
+
     @Test
     @DisplayName("기본 조합 상품 정보를 수정해도 판매 후 재고를 보존하고 재고 조정은 이력을 남긴다")
     void updateDefaultVariant_preservesStockAfterSale() {
@@ -226,6 +258,53 @@ class ProductInventoryUseCaseIT {
             softly.assertThat(removed.options().variants()).extracting(ProductOptions.Variant::id).containsExactly(defaultId);
             softly.assertThat(variantRepository.findWithSelectionsByProductId(productId)).hasSize(3);
         });
+    }
+
+    @Test
+    @DisplayName("여러 옵션 조합의 재고 변경은 활성 매핑이 있는 상품마다 동기화를 한 번만 요청한다")
+    void variantStockChanges_requestSyncOncePerMappedProduct() {
+        var optionProduct = productAdminUseCase.register(madeToOrderCommand(
+                List.of(selectGroup("color", 0, true, "red", "blue")),
+                List.of(
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "red")), 0, 3, true),
+                        new VariantDefinition(List.of(new SelectionDefinition("color", "blue")), 0, 3, true))));
+        var otherProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        var disabledProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        var unmappedProduct = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long optionProductId = optionProduct.product().getId();
+        Long otherProductId = otherProduct.product().getId();
+        mappingPort.saveAll(List.of(
+                new SmartStoreStockMapping(optionProductId,
+                        optionProduct.options().variants().get(0).id(), 123L, 101L, true),
+                new SmartStoreStockMapping(optionProductId,
+                        optionProduct.options().variants().get(1).id(), 123L, 102L, true),
+                new SmartStoreStockMapping(otherProductId,
+                        otherProduct.options().variants().getFirst().id(), 124L, 103L, true),
+                new SmartStoreStockMapping(disabledProduct.product().getId(),
+                        disabledProduct.options().variants().getFirst().id(), 125L, 104L, false)));
+        var adjustments = List.of(optionProduct, otherProduct, disabledProduct, unmappedProduct).stream()
+                .flatMap(product -> product.options().variants().stream())
+                .map(variant -> new VariantAdjustment(variant.id(), 1))
+                .toList();
+
+        variantStockService.deductAll(adjustments);
+
+        var firstSync = stockSyncPort.findByProductId(optionProductId).orElseThrow();
+        var otherSync = stockSyncPort.findByProductId(otherProductId).orElseThrow();
+        assertThat(firstSync.getRequestVersion()).isEqualTo(1);
+        assertThat(otherSync.getRequestVersion()).isEqualTo(1);
+        assertThat(firstSync.getGeneration()).isNotEqualTo(otherSync.getGeneration());
+        assertThat(stockSyncPort.findByProductId(disabledProduct.product().getId())).isEmpty();
+        assertThat(stockSyncPort.findByProductId(unmappedProduct.product().getId())).isEmpty();
+
+        variantStockService.restoreAll(adjustments);
+
+        var requestedAgain = stockSyncPort.findByProductId(optionProductId).orElseThrow();
+        var otherRequestedAgain = stockSyncPort.findByProductId(otherProductId).orElseThrow();
+        assertThat(requestedAgain.getRequestVersion()).isEqualTo(2);
+        assertThat(otherRequestedAgain.getRequestVersion()).isEqualTo(2);
+        assertThat(requestedAgain.getGeneration()).isEqualTo(firstSync.getGeneration());
+        assertThat(otherRequestedAgain.getGeneration()).isEqualTo(otherSync.getGeneration());
     }
 
     @Test

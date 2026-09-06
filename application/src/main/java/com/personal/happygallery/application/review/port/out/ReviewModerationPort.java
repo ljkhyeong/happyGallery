@@ -12,5 +12,5 @@ public interface ReviewModerationPort {
 
     List<ReviewModerationAction> findBefore(LocalDateTime cutoff, int limit);
 
-    void deleteAll(Iterable<? extends ReviewModerationAction> actions);
+    void deleteAll(List<ReviewModerationAction> actions);
 }

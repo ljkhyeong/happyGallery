@@ -30,6 +30,7 @@ dependencies {
 	implementation 'org.springframework.retry:spring-retry:2.0.12'
 	implementation 'org.springframework.security:spring-security-crypto'
 	implementation 'io.micrometer:micrometer-core'
+	implementation 'io.micrometer:context-propagation'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'

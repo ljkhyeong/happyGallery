@@ -13,7 +13,7 @@ public interface ReviewEvidencePort {
 
     List<ReviewEvidenceSnapshot> findByIds(List<Long> snapshotIds);
 
-    List<ReviewEvidenceSnapshot> findExpired(LocalDateTime now, int limit);
+    List<Long> findExpiredIds(LocalDateTime now, int limit);
 
     void deleteAll(Iterable<? extends ReviewEvidenceSnapshot> snapshots);
 }
