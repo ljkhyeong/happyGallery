@@ -35,7 +35,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
     quantity: 5,
   });
   await page.goto("/orders/new");
-  await page.getByRole("button", { name: "비회원 다중 상품 주문 계속" }).click();
+  await page.getByRole("button", { name: "여러 상품 직접 선택" }).click();
   await completePhoneVerification(page, guestPhone);
   await page.getByLabel("주문자 이름").fill(guestName);
   await page.getByLabel("상품").selectOption(String(product.id));
@@ -96,7 +96,7 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   });
 
   await page.goto("/orders/new");
-  await page.getByRole("button", { name: "비회원 다중 상품 주문 계속" }).click();
+  await page.getByRole("button", { name: "여러 상품 직접 선택" }).click();
   await completePhoneVerification(page, guestPhone);
   await page.getByLabel("주문자 이름").fill(guestName);
   await page.getByLabel("상품").selectOption(String(product.id));

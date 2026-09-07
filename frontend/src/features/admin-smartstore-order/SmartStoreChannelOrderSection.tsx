@@ -62,7 +62,7 @@ const ATTENTION_LABELS: Record<
   Exclude<SmartStoreChannelOrderResponseAttentionReason, null>,
   string
 > = {
-  MAPPING_REQUIRED: "상품·옵션 매핑 필요",
+  MAPPING_REQUIRED: "상품·옵션 연결 필요",
   STOCK_SHORTAGE: "내부 재고 부족",
   RETURN_REVIEW: "반품 검수 필요",
   STATUS_REVIEW: "새 주문 상태 확인 필요",
@@ -210,7 +210,7 @@ export function SmartStoreChannelOrderSection({
           }}
         >
           <option value="">모든 확인 사유</option>
-          <option value="MAPPING_REQUIRED">상품·옵션 매핑 필요</option>
+          <option value="MAPPING_REQUIRED">상품·옵션 연결 필요</option>
           <option value="STOCK_SHORTAGE">내부 재고 부족</option>
           <option value="RETURN_REVIEW">반품 검수 필요</option>
           <option value="STATUS_REVIEW">새 주문 상태 확인 필요</option>

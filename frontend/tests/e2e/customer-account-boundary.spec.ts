@@ -937,12 +937,12 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
     await page.goto("/guest");
     await expect(page.getByText(customerA.name).first()).toBeVisible();
     const recoverySection = page
-      .getByRole("heading", { name: "주문·예약 조회 정보 복구" })
+      .getByRole("heading", { name: "주문·예약 조회 코드 재발급" })
       .locator("..");
     await recoverySection.getByLabel("휴대폰 번호").fill("01011111111");
     await recoverySection.getByRole("button", { name: "인증코드 발송" }).click();
     await recoverySection.getByLabel("인증코드").fill("123456");
-    await recoverySection.getByRole("button", { name: "조회 정보 복구" }).click();
+    await recoverySection.getByRole("button", { name: "조회 코드 재발급" }).click();
 
     await expect(page.getByText("주문 #701")).toBeVisible();
     await page.getByText("주문 #701").click();
@@ -1419,7 +1419,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("B 주문자 정보")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "비회원 다중 상품 주문 계속" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "여러 상품 직접 선택" })).toBeVisible();
 
   await page.goto(`/login?redirect=${encodeURIComponent("/orders/new")}`);
   await page.getByLabel("이메일").fill(customerA.email);

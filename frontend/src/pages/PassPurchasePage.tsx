@@ -42,7 +42,7 @@ export function PassPurchasePage() {
       <Card className="mb-3">
         <Card.Body>
           <h6 className="mb-3">정규 공예 8회권</h6>
-          {policyQuery.isLoading && <LoadingSpinner text="판매 정책 확인 중..." />}
+          {policyQuery.isLoading && <LoadingSpinner text="가격·이용 기간 확인 중..." />}
           <ErrorAlert
             error={policyQuery.error}
             onRetry={() => { void policyQuery.refetch(); }}
@@ -78,7 +78,7 @@ export function PassPurchasePage() {
               </li>
             ) : (
               <li className="mb-2">
-                이용 기간은 판매 정책을 확인한 뒤 표시합니다.
+                이용 기간을 확인하고 있습니다.
               </li>
             )}
             <li className="mb-2">
@@ -94,7 +94,7 @@ export function PassPurchasePage() {
             </li>
           </ul>
           <p className="text-muted-soft small mb-0">
-            표시 금액과 이용 기간은 결제 전에 최신 판매 정책으로 다시 확인합니다.
+            가격과 이용 기간은 결제 전에 다시 확인합니다.
           </p>
         </Card.Body>
       </Card>

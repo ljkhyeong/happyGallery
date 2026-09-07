@@ -247,7 +247,7 @@ test("@payment 수동 주문서도 초안을 만들고 저장 실패 시 현재 
   await mockGuestCheckout(page);
   await page.goto("/orders/new");
   await expect(page).toHaveURL(/draftId=/);
-  await page.getByRole("button", { name: "비회원 다중 상품 주문 계속", exact: true }).click();
+  await page.getByRole("button", { name: "여러 상품 직접 선택", exact: true }).click();
   await completeGuestOrderForm(page, false);
   await page.getByLabel("상품", { exact: true }).selectOption("80");
   await page.getByRole("button", { name: "추가", exact: true }).click();

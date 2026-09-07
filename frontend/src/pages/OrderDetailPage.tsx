@@ -143,7 +143,7 @@ function OrderDetailContent() {
           <h4 className="mb-2">비회원 주문 조회</h4>
           <p className="text-muted-soft mb-3">
             완료한 비회원 주문과 현재 처리 상태를 확인할 수 있습니다.
-            주문을 계속 관리할 계획이면 회원으로 전환해 <strong>내 정보</strong>에서 바로 확인하는 흐름을 권장합니다.
+            로그인 또는 가입 후 비회원 주문을 <strong>내 정보</strong>로 가져올 수 있습니다.
           </p>
           <div className="d-flex flex-wrap gap-2">
             <LinkButton to="/my" variant="dark" size="sm">

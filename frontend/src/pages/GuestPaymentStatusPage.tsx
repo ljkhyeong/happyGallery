@@ -98,8 +98,8 @@ export function GuestPaymentStatusPage() {
     return (
       <Container className="page-container" style={{ maxWidth: 640 }}>
         <Alert variant="warning">
-          <Alert.Heading className="fs-5">결제 상태 조회 정보가 필요합니다</Alert.Heading>
-          <p className="mb-0">결제 때 사용한 휴대폰 번호를 인증해 조회 정보를 복구해 주세요.</p>
+          <Alert.Heading className="fs-5">휴대폰 인증 후 결제 결과를 확인해 주세요</Alert.Heading>
+          <p className="mb-0">결제 때 사용한 휴대폰 번호를 인증해 주세요.</p>
         </Alert>
         <LinkButton to="/guest" variant="primary">휴대폰 인증하기</LinkButton>
       </Container>
@@ -121,7 +121,7 @@ export function GuestPaymentStatusPage() {
           &larr; 비회원 조회
         </Link>
         <ErrorAlert error={error} />
-        <LinkButton to="/guest" variant="primary">조회 정보 다시 복구하기</LinkButton>
+        <LinkButton to="/guest" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>
       </Container>
     );
   }
@@ -141,7 +141,7 @@ export function GuestPaymentStatusPage() {
   return (
     <Container className="page-container" style={{ maxWidth: 640 }}>
       <Link to="/guest" className="text-decoration-none small d-inline-block mb-3">
-        &larr; 복구한 결제 목록
+        &larr; 조회한 결제 목록
       </Link>
       <div className="mb-4">
         <div className="my-section-kicker mb-2">결제 처리 현황</div>

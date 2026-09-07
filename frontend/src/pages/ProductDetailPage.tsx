@@ -489,7 +489,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                       </LinkButton>
                     )}
                     <p className="store-purchase-helper mb-0 mt-2">
-                      비회원 주문은 별도 경로로 이어지며, 선택한 상품과 수량을 미리 담아둡니다.
+                      선택한 상품과 수량으로 비회원 주문을 시작합니다.
                     </p>
                   </section>
                 ) : null}

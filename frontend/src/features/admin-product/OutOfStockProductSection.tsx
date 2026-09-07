@@ -61,7 +61,7 @@ export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
   return (
     <Table responsive hover size="sm" className="mb-0">
       <thead>
-        <tr><th>상품</th><th>유형</th><th>재고 항목</th><th>현재 / 기준</th><th></th></tr>
+        <tr><th>상품</th><th>유형</th><th>재고 항목</th><th>현재 재고 / 최소 보유 수량</th><th></th></tr>
       </thead>
       <tbody>
         {items.map(({ product, variant, quantity, minimumStock }) => (

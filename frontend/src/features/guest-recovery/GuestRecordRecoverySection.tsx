@@ -142,9 +142,9 @@ export function GuestRecordRecoverySection() {
       <Card.Body className="p-4">
         <PhoneVerificationStep
           purpose="GUEST_RECORD_RECOVERY"
-          title="주문·예약 조회 정보 복구"
+          title="주문·예약 조회 코드 재발급"
           description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
-          confirmLabel="조회 정보 복구"
+          confirmLabel="조회 코드 재발급"
           confirming={recovery.isPending}
           onReset={() => {
             recovery.reset();
@@ -164,7 +164,7 @@ export function GuestRecordRecoverySection() {
 
         {recoveryPagesLoading && (
           <div className="mt-4">
-            <LoadingSpinner text="복구한 주문·예약을 불러오는 중..." />
+            <LoadingSpinner text="주문·예약을 불러오는 중..." />
           </div>
         )}
 
@@ -188,7 +188,7 @@ export function GuestRecordRecoverySection() {
         {result && hasRecords && recoveryView && (
           <div className="mt-4">
             <Alert variant="success">
-              조회 정보를 복구했습니다. 새 조회 코드는 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
+              조회 코드를 재발급했습니다. 새 코드는 {formatDateTime(result.expiresAt)}까지 사용할 수 있습니다.
             </Alert>
 
             <Row className="g-4">

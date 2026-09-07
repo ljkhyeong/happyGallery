@@ -41,7 +41,7 @@ function GuestLookupContent() {
           <Badge bg="light" text="dark" className="mb-3">비회원 조회</Badge>
           <h3 className="mb-2">비회원 조회 안내</h3>
           <p className="text-muted-soft mb-3">
-            완료한 주문과 예약, 결제 도중 놓친 처리 결과를 여기서 확인할 수 있습니다.
+            비회원 주문·예약과 결제 결과를 확인할 수 있습니다.
             계속 관리할 예정이라면 회원가입 후 <strong>내 정보</strong>로 이력을 가져올 수 있습니다.
           </p>
           <div className="guest-route-note mb-0">

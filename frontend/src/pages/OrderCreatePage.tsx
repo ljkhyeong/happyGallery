@@ -193,7 +193,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         <Badge bg="light" text="dark" className="mb-2">비회원 주문</Badge>
         <h4 className="mb-2">비회원 주문</h4>
         <p className="text-muted-soft mb-3">
-          회원 주문은 상품 상세에서 바로 진행하는 것이 기본 경로입니다.
           비회원 주문이나 여러 상품을 한 번에 주문할 때 이 화면에서 계속 진행할 수 있습니다.
         </p>
         <div className="d-flex flex-wrap gap-2">
@@ -217,7 +216,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       {shouldShowManualEntryGate ? (
         <Card className="mb-4 border-0 my-claim-card">
           <Card.Body className="p-4">
-            <div className="legacy-order-step-label mb-2">권장 경로 확인</div>
             <h5 className="mb-2">주문할 상품을 먼저 선택해 주세요</h5>
             <p className="text-muted-soft mb-3">
               작품 목록에서 원하는 상품과 수량을 먼저 고르면 주문 정보를 자동으로 채워드립니다.
@@ -227,7 +225,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               <div className="guest-route-note-title">주문 안내</div>
               <div className="small text-muted-soft">
                 상품 선택이 아직 없다면 먼저 작품을 둘러보는 편이 간편합니다.
-                계속 진행하면 비회원 다중 상품 주문을 수동으로 입력할 수 있습니다.
+                여러 상품을 직접 선택해 주문할 수도 있습니다.
               </div>
             </div>
             <div className="d-flex flex-wrap gap-2">
@@ -255,7 +253,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                   setManualEntryConfirmed(true);
                 }}
               >
-                비회원 다중 상품 주문 계속
+                여러 상품 직접 선택
               </Button>
             </div>
           </Card.Body>
