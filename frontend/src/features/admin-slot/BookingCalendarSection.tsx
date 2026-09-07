@@ -355,7 +355,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                     disabled={!canEditSelectedDate || dayMutation.isPending}
                     onClick={() => dayMutation.mutate("DEFAULT")}
                   >
-                    기본값 사용
+                    기본 운영 설정 적용
                   </Button>
                   <Button
                     size="sm"

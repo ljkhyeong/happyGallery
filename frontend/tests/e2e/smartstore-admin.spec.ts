@@ -258,7 +258,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
   await page.getByRole("button", { name: "다음", exact: true }).click();
   await expect.poll(() => reads.at(-1)).toMatchObject({ cursor: "next-page" });
   await page.getByRole("button", { name: "상품 연결·재고 반영 방법", exact: true }).click();
-  await page.getByLabel("내부 상품").selectOption("1");
+  await page.getByLabel("해피갤러리 상품").selectOption("1");
   await page.getByLabel("처리 사유").fill("스마트스토어 옵션과 내부 상품을 확인");
   await page.getByRole("button", { name: "상품 연결과 재고 반영 방법 저장", exact: true }).click();
 

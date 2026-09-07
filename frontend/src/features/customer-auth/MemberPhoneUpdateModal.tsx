@@ -103,7 +103,7 @@ export function MemberPhoneUpdateModal({
             purpose={currentPhone ? "MEMBER_PHONE_CHANGE" : "MEMBER_PHONE_REGISTRATION"}
             key={`${show}-${currentPhone ?? "none"}`}
             title="휴대폰 인증"
-            description="인증된 번호는 연락과 비회원 이력 확인에 사용됩니다."
+            description="인증된 번호는 연락과 비회원 주문·예약 확인에 사용됩니다."
             confirmLabel={currentPhone ? "인증하고 변경" : "인증하고 등록"}
             confirming={update.isPending}
             onVerified={(phone, verificationCode) => update.mutate({ phone, verificationCode })}

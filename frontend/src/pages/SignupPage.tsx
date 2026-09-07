@@ -1,6 +1,6 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
-import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
+import { Container, Form, Button, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
@@ -62,7 +62,7 @@ export function SignupPage() {
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
               <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "비회원 이력 가져오기" : "회원가입"}
+                {claimIntent ? "비회원 주문·예약 가져오기" : "회원가입"}
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
@@ -71,8 +71,8 @@ export function SignupPage() {
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
-                  ? "가입이 끝나면 내 정보에서 비회원 이력 가져오기를 바로 이어서 진행할 수 있습니다."
-                  : "회원가입 후 내 정보에서 주문, 예약, 8회권을 한 곳에서 확인하고 관리할 수 있습니다."}
+                  ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
+                  : "가입 후 내 정보에서 주문·예약·8회권을 확인하고 관리하세요."}
               </p>
               {claimIntent && (name || phone) && (
                 <div className="auth-prefill-card mb-4">
@@ -84,7 +84,7 @@ export function SignupPage() {
                 </div>
               )}
               <div className="auth-benefit-list mb-4">
-                <div className="auth-benefit-item">회원 주문, 예약, 8회권 전체 목록과 필터 제공</div>
+                <div className="auth-benefit-item">주문·예약·8회권을 상태별로 조회</div>
                 <div className="auth-benefit-item">비회원 주문·예약을 가져와 내 정보에서 조회</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
@@ -99,16 +99,6 @@ export function SignupPage() {
             <Card.Body className="p-4 p-lg-5">
               <h3 className="mb-3">회원가입</h3>
               <ErrorAlert error={error} />
-              {claimIntent && (
-                <Alert variant="info">
-                  같은 휴대폰 번호로 가입하면 <strong>내 정보</strong>로 이동한 뒤 비회원 이력 가져오기를 바로 이어서 진행할 수 있습니다.
-                </Alert>
-              )}
-              {!claimIntent && (
-                <p className="text-muted-soft small mb-4">
-                  가입이 끝나면 작품 주문, 예약, 8회권 이용을 같은 회원 계정으로 이어갈 수 있습니다.
-                </p>
-              )}
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3" controlId="email">
                   <Form.Label>이메일</Form.Label>

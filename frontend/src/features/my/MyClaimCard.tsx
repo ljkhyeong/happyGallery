@@ -17,7 +17,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
             <div>
               <strong>회원가입이 완료되었습니다.</strong>
               <div className="small text-muted-soft">
-                같은 번호의 비회원 이력이 있다면 지금 바로 가져올 수 있습니다.
+                같은 휴대폰 번호로 남긴 비회원 주문·예약을 가져올 수 있습니다.
               </div>
             </div>
             <div className="d-flex flex-wrap gap-2">
@@ -32,8 +32,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
         )}
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
-            <div className="my-section-kicker mb-2">비회원 이력</div>
-            <h6 className="mb-1">비회원 이력 가져오기</h6>
+            <h6 className="mb-1">비회원 주문·예약 가져오기</h6>
             <p className="text-muted-soft small mb-0">
               {!user.phone
                 ? "휴대폰 번호를 등록하면 같은 번호로 남긴 비회원 주문과 예약을 가져올 수 있습니다."
@@ -50,7 +49,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
             {!user.phone
               ? "휴대폰 등록"
               : user.phoneVerified
-                ? "이력 가져오기"
+                ? "주문·예약 가져오기"
                 : "휴대폰 확인 후 가져오기"}
           </Button>
         </div>

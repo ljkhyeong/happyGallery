@@ -218,16 +218,9 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
           <Card.Body className="p-4">
             <h5 className="mb-2">주문할 상품을 먼저 선택해 주세요</h5>
             <p className="text-muted-soft mb-3">
-              작품 목록에서 원하는 상품과 수량을 먼저 고르면 주문 정보를 자동으로 채워드립니다.
-              여러 상품을 직접 선택해 주문하려면 아래에서 계속 진행할 수 있습니다.
+              작품 목록에서 상품과 수량을 고르면 주문서에 자동으로 입력됩니다.
+              여러 상품을 직접 선택할 수도 있습니다.
             </p>
-            <div className="guest-route-note mb-3">
-              <div className="guest-route-note-title">주문 안내</div>
-              <div className="small text-muted-soft">
-                상품 선택이 아직 없다면 먼저 작품을 둘러보는 편이 간편합니다.
-                여러 상품을 직접 선택해 주문할 수도 있습니다.
-              </div>
-            </div>
             <div className="d-flex flex-wrap gap-2">
               <LinkButton to="/products" variant="dark" size="sm">
                 상품 먼저 고르기

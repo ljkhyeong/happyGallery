@@ -28,7 +28,7 @@ export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError 
   });
 
   return (
-    <section className="admin-review-audit mt-3" aria-label="후기 운영 이력">
+    <section className="admin-review-audit mt-3" aria-label="후기 공개 상태 변경 이력">
       <Button
         type="button"
         size="sm"
@@ -38,11 +38,11 @@ export function AdminReviewModerationTimeline({ reviewId, adminKey, onAuthError 
         onClick={() => setExpanded((current) => !current)}
       >
         {expanded ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
-        운영 이력 {expanded ? "접기" : "보기"}
+        공개 상태 변경 이력 {expanded ? "접기" : "보기"}
       </Button>
       {expanded && (
         <div className="admin-review-audit-content">
-          {query.isLoading && <LoadingSpinner text="운영 이력을 불러오는 중입니다" />}
+          {query.isLoading && <LoadingSpinner text="공개 상태 변경 이력을 불러오는 중입니다" />}
           <ErrorAlert
             error={query.error}
             onRetry={() => void query.refetch()}

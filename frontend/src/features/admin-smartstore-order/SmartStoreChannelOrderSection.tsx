@@ -63,7 +63,7 @@ const ATTENTION_LABELS: Record<
   string
 > = {
   MAPPING_REQUIRED: "상품·옵션 연결 필요",
-  STOCK_SHORTAGE: "내부 재고 부족",
+  STOCK_SHORTAGE: "해피갤러리 재고 부족",
   RETURN_REVIEW: "반품 검수 필요",
   STATUS_REVIEW: "새 주문 상태 확인 필요",
 };
@@ -152,7 +152,7 @@ export function SmartStoreChannelOrderSection({
     onMutate: ({ order }) => setPendingId(order.productOrderId),
     onSuccess: (_, variables) => {
       toast.show(variables.restoreStock
-        ? "반품 검수 수량을 내부 재고에 복원했습니다."
+        ? "반품 검수 수량을 해피갤러리 재고에 복원했습니다."
         : "판매 불가 반품으로 확인하고 재고를 복원하지 않았습니다.");
       setReturnReviewOrder(null);
       invalidate();
@@ -211,7 +211,7 @@ export function SmartStoreChannelOrderSection({
         >
           <option value="">모든 확인 사유</option>
           <option value="MAPPING_REQUIRED">상품·옵션 연결 필요</option>
-          <option value="STOCK_SHORTAGE">내부 재고 부족</option>
+          <option value="STOCK_SHORTAGE">해피갤러리 재고 부족</option>
           <option value="RETURN_REVIEW">반품 검수 필요</option>
           <option value="STATUS_REVIEW">새 주문 상태 확인 필요</option>
         </Form.Select>
@@ -254,7 +254,7 @@ export function SmartStoreChannelOrderSection({
               <th>상품·옵션</th>
               <th>주문 상태</th>
               <th>수량</th>
-              <th>내부 재고 반영</th>
+              <th>해피갤러리 재고 반영</th>
               <th>확인 사유</th>
               <th>변경일</th>
               <th></th>
@@ -488,9 +488,9 @@ function InventoryResolutionModal({
             </Alert>
           )}
           <Form.Group className="mb-3">
-            <Form.Label>내부 상품</Form.Label>
+            <Form.Label>해피갤러리 상품</Form.Label>
             <Form.Select
-              aria-label="내부 상품"
+              aria-label="해피갤러리 상품"
               required
               value={productId}
               disabled={productsQuery.isLoading}

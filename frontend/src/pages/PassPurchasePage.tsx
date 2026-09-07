@@ -59,7 +59,7 @@ export function PassPurchasePage() {
                 <dd className="col-6 text-end mb-0">결제일 포함 {policyQuery.data.validityDays}일</dd>
               </dl>
               <p className="text-muted-soft small mb-0">
-                8회권 사용 가능으로 표시된 비향수 정규 공예 클래스에서만 사용할 수 있습니다.
+                향수를 제외한 정규 공예 클래스 중 ‘8회권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
                 예약할 때 이용권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
               </p>
             </>
@@ -89,7 +89,7 @@ export function PassPurchasePage() {
               취소 마감 전에는 차감한 1회가 복구되지만, 마감 후 취소하면 복구되지 않습니다.
             </li>
             <li>
-              만료 전 환불은 남은 횟수와 자동 취소되는 미래 예약 횟수를 합산해 회당 구매
+              만료 전 환불액은 남은 횟수와 자동 취소되는 예약 횟수를 합산해 회당 구매
               단가로 계산합니다. 만료된 이용권은 환불할 수 없습니다.
             </li>
           </ul>

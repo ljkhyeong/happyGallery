@@ -259,8 +259,8 @@ export function AdminBookingCreateModal({
               </Col>
             </Row>
             <p className="small text-muted-soft mt-3 mb-0">
-              금액은 현재 클래스 가격과 인원에 따라 자동 계산됩니다. 직접 받은 예약금이 있는
-              예약을 취소하면 고객에게 반환할 금액이 관리자 할 일에 남습니다.
+              클래스 가격과 인원에 따라 금액을 자동 계산합니다. 예약금 입금 완료로 등록한 예약을
+              취소하면 환불할 금액이 ‘오늘 할 일’에 표시됩니다.
             </p>
           </Form>
         ) : null}

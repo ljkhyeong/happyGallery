@@ -48,7 +48,7 @@ export function MyBookingDetailCard({ booking }: Props) {
             <span>{BOOKING_BALANCE_STATUS_LABEL[booking.balanceStatus] ?? "확인 필요"}</span>
           </Col>
           <Col xs={6}>
-            <small className="text-muted-soft d-block">결제 경로</small>
+            <small className="text-muted-soft d-block">결제 방식</small>
             <span>{booking.passBooking ? "8회권 사용" : "예약금 결제"}</span>
           </Col>
         </Row>

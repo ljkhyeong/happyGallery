@@ -273,9 +273,7 @@ export function OrderListSection({
         </Modal.Header>
         <Modal.Body>
           <Alert variant="warning" className="mb-0 small">
-            모든 주문을 환불 없이 미수령 상태로 종료합니다. 기성품은 다시 판매할 수 있도록
-            재고만 복구하고 주문제작 재고는 변경하지 않습니다. 고객 응대 후 환불이 필요한
-            주문은 미수령 처리 뒤 개별 주문의 관리자 예외 환불을 사용해 주세요.
+            모든 주문을 환불 없이 미수령으로 종료합니다. 기성품 재고는 복구하고 주문제작 재고는 유지합니다. 고객과 상담 후 환불이 필요하면 개별 주문의 ‘관리자 예외 환불’을 사용하세요.
           </Alert>
         </Modal.Body>
         <Modal.Footer>

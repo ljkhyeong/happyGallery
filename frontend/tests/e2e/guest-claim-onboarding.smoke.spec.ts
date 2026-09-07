@@ -71,11 +71,11 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
   await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
 
   await page.getByRole("button", { name: /가져오기/ }).first().click();
-  const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 이력 가져오기" }).first();
+  const claimDialog = page.getByRole("dialog").filter({ hasText: "비회원 주문·예약 가져오기" }).first();
   await expect(claimDialog).toBeVisible();
   await expect(claimDialog.getByText(`주문 #${orderId}`)).toBeVisible();
   await expect(claimDialog.getByText(`${bookingClass.name} #${bookingId}`)).toBeVisible();
-  await claimDialog.getByRole("button", { name: "선택한 이력 가져오기" }).click();
+  await claimDialog.getByRole("button", { name: "선택한 주문·예약 가져오기" }).click();
 
   await expect(page.getByText("휴대폰 인증 완료")).toBeVisible();
   await expect(page.getByText(`주문 #${orderId}`)).toBeVisible();
@@ -107,7 +107,7 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await page.getByRole("button", { name: "결제 진행하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "회원가입하고 이력 가져오기" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "회원가입하고 주문·예약 가져오기" })).toBeVisible();
   await page.getByRole("link", { name: "비회원 주문 확인하기" }).click();
 
   await expect(page.getByRole("heading", { name: "비회원 주문 조회" })).toBeVisible();

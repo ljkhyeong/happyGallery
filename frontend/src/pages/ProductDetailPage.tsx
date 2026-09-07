@@ -235,8 +235,8 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
               <FavoriteButton type="PRODUCT" targetId={product.id} />
               <p className="text-muted-soft store-section-desc store-detail-description">
                 {product.description || (product.type === "MADE_TO_ORDER"
-                  ? "주문 승인 후 제작을 시작하는 공방 제작 상품입니다."
-                  : "재고 수량 기준으로 바로 주문을 접수하는 판매 상품입니다.")}
+                  ? "주문 승인 후 제작하는 상품입니다."
+                  : "재고가 있으면 바로 주문할 수 있는 상품입니다.")}
               </p>
               <div className="store-detail-price-block">
                 <span>기본가</span>

@@ -50,22 +50,21 @@ export function LoginPage() {
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
               <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "비회원 이력 가져오기" : "회원 로그인"}
+                {claimIntent ? "비회원 주문·예약 가져오기" : "회원 로그인"}
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
-                  ? "기존 비회원 이력을 회원 계정으로 이어서 가져오세요"
+                  ? "비회원 주문·예약을 내 정보로 가져오세요"
                   : "로그인하고 주문, 예약, 8회권을 계속 관리하세요"}
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
-                  ? "로그인 후 내 정보에서 비회원 이력 가져오기를 바로 이어서 진행합니다."
+                  ? "로그인 후 내 정보에서 가져올 주문·예약을 선택하세요."
                   : "회원은 내 정보에서 주문, 예약, 8회권을 추가 인증 없이 바로 확인할 수 있습니다."}
               </p>
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">주문, 예약, 8회권을 한 화면에서 관리</div>
-                <div className="auth-benefit-item">같은 번호의 비회원 이력 가져오기</div>
-                <div className="auth-benefit-item">기존 비회원 주문과 예약도 계속 조회 가능</div>
+                <div className="auth-benefit-item">같은 번호의 비회원 주문·예약 가져오기</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
                 <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>
