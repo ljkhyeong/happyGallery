@@ -9,8 +9,8 @@
 ## 왜 이 문서가 필요한가
 
 알림 발송과 Google, Naver, Kakao OAuth 호출은 모두 외부 HTTP 의존성이 있다.
-연결 풀 없이 호출하면 느린 외부 서비스 하나가 다른 호출까지 쉽게 끌어내린다.
-Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도 같은 외부 HTTP 경계에 포함된다.
+느린 외부 서비스의 요청이 다른 요청까지 지연시키지 않도록 연결 풀을 서비스별로 분리한다.
+Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도 외부 HTTP 호출에 포함된다.
 
 ---
 

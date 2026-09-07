@@ -28,7 +28,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
 | `systemd/` | 운영 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
 
-## 1. 외부 전제
+## 1. 배포 전 준비
 
 - Linux 호스트 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
@@ -56,19 +56,21 @@ sudo k3s secrets-encrypt status
 
 `bootstrap-cluster.sh`는 노드가 정확히 한 개인지 확인하고 Traefik이 외부 요청의 임의 `X-Forwarded-*` 헤더를 무조건 신뢰하지 않도록 설정한다. NetworkPolicy는 `kube-system` 전체가 아니라 `app.kubernetes.io/name=traefik` Pod만 app/frontend/ACME solver에 접근하게 하므로 설치 후 이 label도 검사한다. 별도 프록시나 터널을 앞에 추가하면 해당 프록시 IP만 Traefik trusted IP로 지정하고 실제 IP, HTTPS scheme, rate-limit 버킷을 다시 검증해야 한다.
 
-### 프런트엔드 CSP 기준선
+### 프런트엔드 CSP 설정
 
-브라우저 자원 정책은 HTML을 반환하는 `frontend/src/entry.server.tsx`가 소유한다. SSR 서버는 요청마다 새 nonce를 만들어 CSP 헤더와 React Router·stream renderer에 같은 값을 전달한다. Traefik Ingress에는 CSP를 중복 설정하지 않는다. 현재 정책은 다음 자원을 명시적으로 반영한다.
+CSP 헤더는 HTML을 반환하는 `frontend/src/entry.server.tsx`에서 만든다. SSR 서버는 요청마다 새 nonce를 생성해 CSP 헤더와 React Router·스트림 렌더러에 같은 값을 전달한다. Traefik Ingress에는 CSP를 중복 설정하지 않는다. 허용 자원은 다음과 같다.
 
-- same-origin API·정적 자원과 `data:` 이미지·폰트
+- 동일 출처의 API·정적 자원과 `data:` 이미지·폰트
 - Toss Payments SDK와 결제 도메인
 - jsDelivr Pretendard, Google Fonts
-- Sentry ingest 도메인
+- Sentry 이벤트 수집 도메인
 - SSR inline script와 JSON-LD의 요청별 nonce
 
-현재는 `Content-Security-Policy-Report-Only`이므로 위반을 차단하지 않는다. `report-uri`나 `report-to`도 아직 없어서 중앙 수집되는 것이 아니라 브라우저 개발자 도구 콘솔에서만 확인할 수 있다. 공개 전 k3s 프런트 이미지를 실제 HTTPS 경로로 열고 홈, 로그인, 결제창 호출과 Sentry 이벤트 전송을 확인한다. 예상하지 않은 출처가 없다는 것을 확인하고 중앙 수집 경로와 개인정보 처리 기준을 정한 뒤 enforced CSP 전환을 별도 변경으로 수행한다.
+현재는 `Content-Security-Policy-Report-Only`이므로 위반 요청을 차단하지 않는다. `report-uri`와 `report-to`를 설정하지 않아 위반 내역은 브라우저 개발자 도구 콘솔에서만 확인할 수 있다.
 
-운영 Node 서버는 React Router Express adapter를 사용하고 request access log를 남기지 않는다. Toss 성공 callback의 `paymentKey`와 `orderId`를 포함한 query가 Pod 로그에 들어가지 않게 하는 경계이며, 애플리케이션 오류 로그는 기존 마스킹·안전 메시지 기준을 유지한다.
+공개 전 k3s 프런트엔드를 실제 HTTPS 주소로 열어 홈·로그인·결제창과 Sentry 이벤트 전송을 확인한다. 예상하지 않은 출처가 없는지 확인하고 보고 수집 위치와 개인정보 처리 기준을 정한 뒤, 별도 변경으로 CSP 차단 모드를 적용한다.
+
+운영 Node 서버는 React Router Express adapter를 사용하고 HTTP 접근 로그를 남기지 않는다. Toss 성공 콜백 URL의 `paymentKey`와 `orderId`가 Pod 로그에 저장되는 것을 막기 위해서다. 애플리케이션 오류 로그에는 기존 마스킹·안전 메시지 기준을 적용한다.
 
 `validate.sh`는 Ingress가 CSP를 중복 소유하지 않는지 검사한다. `verify.sh`는 실제 HTTPS 응답의 CSP nonce와 SSR inline script nonce가 같은지 확인한다. 허용 출처는 배포 전 실제 브라우저 콘솔에서 확인하며, 구조화 데이터 본문은 정적 hash 대신 같은 요청 nonce를 사용한다.
 
@@ -108,11 +110,22 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 
 `alert-webhook-url`에는 Alertmanager JSON을 받을 외부 HTTPS endpoint 한 줄만 둔다. URL은 `happygallery-alertmanager` Secret의 파일로 mount되며 manifest, release metadata와 로그에는 기록하지 않는다. critical은 1시간, warning은 4시간 반복 간격으로 같은 receiver에 전달하고 해결 알림도 보낸다. 최초 rollout 전에 수신 서비스에서 테스트 alert가 실제 도착하는지 확인한다.
 
-Kubernetes Secret은 base64 인코딩일 뿐 자체 암호화가 아니다. k3s datastore 암호화, kubeconfig/host 접근 제한, off-device 복구 키 보관을 함께 적용한다. `create-secrets.sh`는 세 env 파일에서 예제와 일치하는 허용 키만 받으며, `SPRING_PROFILES_ACTIVE` 같은 운영 불변식 우회 키를 거부한다. 운영 모드·`prod` 단일 프로필·처리율 제한·Secure cookie·management port·전달 헤더·Actuator 상세 노출은 Secret보다 우선하는 Deployment `env`로 고정된다. 애플리케이션은 환경 후처리 단계에서 관리자 API key 비활성화와 MFA 등록 강제를 포함한 핵심 보안값을 검증해 Spring context, DataSource와 Flyway가 만들어지기 전에 잘못된 운영 설정을 거부한다. 또한 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꾸는 동작을 거부한다. MySQL 공식 이미지의 초기화 환경 변수는 기존 데이터 디렉터리의 계정 비밀번호를 바꾸지 않기 때문이다.
+Kubernetes Secret은 base64 인코딩이며 자체 암호화가 아니다. k3s 데이터 저장소 암호화, kubeconfig·호스트 접근 제한과 다른 장치의 복구 키 보관을 함께 적용한다.
+
+- `create-secrets.sh`는 세 env 파일에서 예제의 허용 키만 받는다. `SPRING_PROFILES_ACTIVE`처럼 필수 운영 설정을 바꿀 수 있는 키는 거부한다.
+- 운영 모드·`prod` 단일 프로필·처리율 제한·Secure cookie·관리 포트·전달 헤더·Actuator 상세 노출은 Secret보다 우선하는 Deployment `env`로 고정한다.
+- 애플리케이션은 환경 후처리 단계에서 관리자 API key 비활성화와 MFA 등록 강제 등 핵심 보안값을 검증한다. 잘못된 설정은 Spring context·DataSource·Flyway 생성 전에 거부한다.
+- 기존 MySQL PVC가 있으면 DB 비밀번호를 Secret에서만 바꿀 수 없다. MySQL 이미지의 초기화 환경 변수는 기존 DB 계정의 비밀번호를 변경하지 않기 때문이다.
 
 기존 `happygallery-app` Secret의 active/previous AES·HMAC·guest token 키와 key ID는 일반 교체를 거부한다. 기존 MySQL PVC에서 이 Secret이 유실됐다면 새 키를 만들지 말고 분리 보관한 기존 키링을 먼저 복구한다. Toss/OAuth/알림 같은 일반 app Secret을 바꾸면 `kubectl -n happygallery rollout restart deployment/app`으로 새 Pod에 반영한다.
 
-데이터 키 회전은 keyring과 `provider_id_enc`를 지원하는 app 이미지를 먼저 일반 rollout한 뒤 유지보수 창에서 실행한다. 이 저장소는 운영 미개시이므로 해당 이미지를 최초 운영 기준선으로 삼는다. 접두사 없는 암호문만 읽는 구 binary가 이미 운영 중인 별도 환경에서는 트래픽을 받기 전에 version-aware reader를 먼저 배포해야 하며, `hg:<keyId>:` 쓰기가 시작된 뒤에는 구 binary만 되돌리지 않고 forward fix 또는 회전 전 백업 복원을 선택한다. 새 키 파일과 기존 `backup.env`를 모두 600 권한으로 준비하고, 구키와 신키의 recovery copy가 DB 백업과 분리돼 있는지 먼저 확인한다. key ID는 retained backup의 키를 식별하므로 과거 ID를 다른 키에 재사용하지 않는다.
+데이터 암호화 키는 다음 순서로 교체한다.
+
+1. 키링과 `provider_id_enc`를 지원하는 app 이미지를 먼저 배포한다. 아직 운영을 시작하지 않았으므로 이 버전부터 운영에 사용한다.
+2. 별도 환경에서 접두사 없는 암호문만 읽는 구버전을 운영 중이라면, 트래픽을 받기 전에 키 버전을 읽을 수 있는 애플리케이션을 배포한다.
+3. 새 키 파일과 기존 `backup.env`를 모두 600 권한으로 준비한다. 이전 키와 새 키의 복구 사본이 DB 백업과 분리돼 있는지 확인한 뒤 유지보수 시간에 교체한다.
+
+`hg:<keyId>:` 형식으로 저장하기 시작한 뒤에는 구버전 이미지로만 되돌릴 수 없다. 수정 버전을 배포하거나 키 교체 전 백업을 복원한다. key ID는 보관 중인 백업의 키를 식별하므로 다른 키에 재사용하지 않는다.
 
 ```bash
 sudo install -m 600 -o "$USER" -g "$(id -gn)" \
@@ -135,14 +148,27 @@ CONFIRM_DATA_KEY_ROTATION=rotate-happygallery-data-keys \
 
 성공 직후 `/etc/happygallery/app.env`도 현재 runtime Secret과 같은 active/previous 상태로 갱신한다. 값은 로그에 출력되지 않으므로 새 키 파일과 분리 보관한 구키를 사용한다. `PREVIOUS_ENCRYPT_KEYS`와 `PREVIOUS_HMAC_KEYS` 형식은 `sourceKeyId=64자리hex`이며, `GUEST_TOKEN_PREVIOUS_HMAC_SECRET`에는 구 guest key를 둔다. 이전 키가 남아 있는 동안 새 회전을 시작할 수 없다.
 
-기존 소셜 계정은 다음 OAuth 로그인 때 `provider_id_enc`와 새 HMAC을 lazy backfill한다. 비회원 결제 휴대폰 HMAC은 암호화 payload가 남아 있으면 Job이 새 키로 재생성한다. 만료 결제처럼 payload가 이미 제거된 행은 구 HMAC과 키 ID를 30일 보존 정리 때까지 유지한다. 구 guest token verifier는 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값(기본 720시간)에 1시간 안전 여유를 더한 시각까지 유지한다. 같은 키로 서명한 비회원 결제 인증 증거도 있으므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제가 모두 완료·보상·대사 종결된 뒤 previous AES/HMAC/guest 키를 한 번에 제거한다.
+기존 데이터와 이전 키는 다음과 같이 처리한다.
+
+- 소셜 계정의 `provider_id_enc`와 새 HMAC은 다음 OAuth 로그인 때 채운다.
+- 비회원 결제 휴대폰 HMAC은 암호화 payload가 남아 있으면 Job이 새 키로 생성한다. payload가 삭제된 행은 이전 HMAC과 키 ID를 30일 보존 후 정리할 때까지 유지한다.
+- 이전 비회원 토큰 검증 키는 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값(기본 720시간)에 1시간을 더한 시각까지 유지한다.
+- 키 교체 전에 준비된 비회원 결제 중 아직 주문·예약을 생성할 수 있는 결제가 있다면, 모두 완료되거나 보상 환불·대사가 끝날 때까지 기다린다. 토큰 보존기한과 결제 처리 조건을 모두 충족한 뒤 previous AES/HMAC/guest 키를 함께 제거한다.
 
 ```bash
 CONFIRM_DATA_KEY_FINALIZATION=finalize-happygallery-data-keys \
   ./deploy/k3s/scripts/finalize-data-key-rotation.sh
 ```
 
-finalize는 `user_social_accounts.provider_id_enc IS NULL`, active 키 ID가 아닌 `payment_attempt.owner_phone_hmac`과 `admin_user.totp_secret_enc`, 회전 경계 전에 준비된 fulfillment 가능 비회원 결제가 모두 0건이고 guest 보존기한이 지났는지 확인한다. app을 0 replica로 만든 뒤 같은 조건을 다시 확인하고 previous 키를 제거해 원래 replica를 복구하며, 실패 시 app을 0으로 유지한다. `finalizing` 단계에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다. runtime에서 제거한 구키도 해당 키에 결합된 보존 백업이 남아 있는 동안 off-device recovery bundle에서는 폐기하지 않는다.
+finalize는 다음 항목이 모두 0건이고 이전 비회원 토큰의 보존기한이 지났는지 확인한다.
+
+- `user_social_accounts.provider_id_enc IS NULL`인 소셜 계정
+- active 키 ID를 사용하지 않는 `payment_attempt.owner_phone_hmac`과 `admin_user.totp_secret_enc`
+- 키 교체 전에 준비됐으며 아직 주문·예약을 생성할 수 있는 비회원 결제
+
+app을 0 replica로 중지한 뒤 같은 조건을 다시 확인하고 previous 키를 제거한다. 성공하면 원래 replica 수로 복구하고, 실패하면 app을 중지 상태로 유지한다. `finalizing`에서 중단되면 같은 명령으로 재개한다. 성공 후 `/etc/happygallery/app.env`의 세 previous 값도 비운다.
+
+실행 환경에서 제거한 이전 키도 해당 키로 복원할 백업이 남아 있으면 다른 장치의 복구 묶음에 계속 보관한다.
 
 기존 MySQL 자격증명은 유지보수 창에서 DB 계정과 Kubernetes Secret을 함께 회전한다. 새 비밀번호는 저장소 밖 600 권한 파일로 준비하고, 성공 후 `/etc/happygallery/mysql.env`의 `MYSQL_ROOT_PASSWORD`/`MYSQL_PASSWORD`와 `/etc/happygallery/app.env`의 `DB_PASSWORD`도 같은 값으로 갱신한다. 스크립트는 app Pod가 실제로 모두 종료된 뒤 두 계정을 한 SQL 문장으로 바꾸고, Secret 갱신, MySQL 재시작, app 재기동 순서로 처리한다. `started`, `db-updated`, `secrets-updated`, `completed` 단계를 Secret annotation에 기록해 같은 회전 파일로 재개하며, 중간 실패 시 app은 중지 상태로 남긴다. `completed` 기록이 있어도 DB root/app 접속, MySQL·app Secret 값, 원래 app replica 복구 여부를 다시 확인하고 drift가 있으면 같은 목표로 복구한다. 부분 실패와 완료 응답 유실 재개 경로는 `scripts/validate.sh`의 fake kubectl 실행 테스트로 검증한다.
 
@@ -198,7 +224,7 @@ https://<PUBLIC_HOST>/api/v1/auth/social/callback/kakao
 
 cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시 외부 TCP 80 접근이 필요하다. 공개 서비스는 Traefik 80/443뿐이며 app, MySQL, Redis, Prometheus, Alertmanager와 Actuator는 ClusterIP/Pod 네트워크 밖으로 노출하지 않는다.
 
-## 5. 최초 rollout과 후속 rollout
+## 5. 최초 배포와 업데이트
 
 최초 배포:
 
@@ -339,9 +365,9 @@ export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_
 
 활성화 후 회원 로그인, 개인정보 복호화, 이름/전화번호 HMAC 조회, 주문·예약·결제 이력, 상품 이미지 응답과 Flyway 상태를 확인한다. 백업 시점의 active/previous AES·HMAC 키링을 잃었거나 다른 키를 쓰면 데이터 복구가 완료된 것이 아니다. guest token 연속성이 필요하면 백업 시점 guest active/previous 키도 함께 복구한다.
 
-## 9. rollback
+## 9. 롤백
 
-release 디렉터리에는 secret 값이 아닌 렌더링 manifest와 tag/digest 이미지 식별자만 남는다. DB/Flyway는 이미지 rollback으로 되돌아가지 않으므로 명시적 확인 없이는 실행되지 않는다.
+release 디렉터리에는 생성한 매니페스트와 tag/digest 이미지 식별자만 저장하며 비밀값은 남기지 않는다. 이미지 롤백은 DB와 Flyway 적용 내역을 되돌리지 않으므로 아래 확인값이 있어야 실행된다.
 
 ```bash
 export CONFIRM_ROLLBACK='<이전 IMAGE_TAG>'
@@ -350,10 +376,13 @@ export ACKNOWLEDGE_DATABASE_NOT_ROLLED_BACK=true
   "$HOME/.local/state/happygallery/releases/<이전 release 디렉터리>"
 ```
 
-rollback은 보존된 전체 manifest를 재적용하지 않는다. digest로 고정한 app/frontend Deployment 이미지와 app의 `SENTRY_RELEASE`만 되돌리며 MySQL StatefulSet, PVC, Redis, StorageClass, ClusterIssuer, NetworkPolicy 등 stateful/cluster 리소스는 변경하지 않는다. 이전 digest 별칭이 containerd에 남아 있어야 하며, 이전 애플리케이션이 현재 DB schema와 양방향 호환되지 않으면 rollback 대신 DB 복원 또는 수정 배포를 선택한다. DB를 복원해 app이 0인 상태에서는 ready replica를 전제로 하는 rollback 대신 `activate-restored-release.sh`를 사용한다.
+롤백은 digest로 고정한 app/frontend Deployment 이미지와 app의 `SENTRY_RELEASE`만 되돌린다. 이전 매니페스트 전체를 재적용하거나 MySQL StatefulSet·PVC·Redis·StorageClass·ClusterIssuer·NetworkPolicy를 변경하지 않는다.
 
-특히 V102 이후의 DB는 V102 이전 binary와 호환되지 않는다. 이전 image가 필요하면 V102 적용 전
-DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image만 내리는 rollback은 수행하지 않는다.
+- 이전 digest 별칭이 containerd에 남아 있어야 한다.
+- 이전 애플리케이션과 현재 DB 스키마가 양방향으로 호환되지 않으면 DB 복원이나 수정 배포를 선택한다.
+- DB 복원 후 app이 0 replica인 상태에서는 `activate-restored-release.sh`를 사용한다. 일반 롤백은 준비된 replica가 있어야 실행할 수 있다.
+
+V102 이후 DB는 V102 이전 애플리케이션과 호환되지 않는다. 이전 이미지가 필요하면 V102 적용 전 DB 복구 묶음도 함께 복원한다. 현재 DB를 유지한 채 이미지만 되돌리면 안 된다.
 
 ## 10. 정적 검증
 
@@ -363,4 +392,13 @@ DB 복구 묶음을 함께 복원해야 하며, 현재 DB를 유지한 채 image
 ./deploy/k3s/scripts/validate.sh
 ```
 
-이 검증은 Kustomize 렌더링, YAML 파싱, Prometheus 경보·Grafana 대시보드 단일 원본 drift, release manifest의 runtime 이미지 추출, shell 구문, probe/종료 유예와 Retain PVC·내부 Prometheus/OAuth callback, app/frontend digest 고정, 운영 불변식의 명시적 환경 변수 고정과 Secret 우회 키 거부, frontend SSR의 내부 API·app 8080 ingress, Ingress의 CSP 비중복, Redis·Prometheus·Alertmanager·Grafana 단일 인스턴스의 `Recreate`, 백업 timer의 `Asia/Seoul` 시각과 DB·미디어 백업 중 app 쓰기 중단·원복, heartbeat watchdog의 독립 실행과 정체 감지, 복원 전 Pod 종료, 데이터 복원 뒤 자동 기동 금지, PG·알림·개인정보 요청 대사 확인과 호환 digest 선반영 순서, 활성화 중 명령 실패·명시적 오류·HUP/INT/TERM 종료의 app drain과 marker 복구, stateful rollback 금지, 데이터 결합 키·DB·Redis Secret 단독 교체 방지, 기존 클러스터의 미디어 PVC 사전 생성, `recovery.env` 최종 게시와 DB·미디어·release sidecar 전체 검증, 데이터 키 회전의 app drain/fresh backup/동일 digest Job/runtime Secret/Redis/app 순서, finalize의 소셜 백필·guest 보존기한·실패 drain, 직접 공개 Service와 `latest` 금지를 확인한다. 실제 TLS, DNS, 방화벽, containerd import, PVC binding, SSR nonce 일치, 브라우저 CSP 콘솔, 백업 mount와 restore/키 회전 성공은 대상 운영 호스트에서만 검증할 수 있다.
+이 명령은 다음 설정과 스크립트를 검사한다.
+
+- 기본 형식: Kustomize 렌더링, YAML 파싱, shell 구문, Prometheus 경보·Grafana 대시보드 원본과 배포본의 일치, 릴리스 매니페스트에서 실행 이미지 추출.
+- 배포·통신: probe·종료 유예, Retain PVC, 내부 Prometheus 접근, OAuth 콜백, app/frontend digest 고정, SSR 내부 API와 app 8080 수신 허용, Ingress의 CSP 비중복. Redis·Prometheus·Alertmanager·Grafana는 단일 인스턴스 `Recreate`인지 확인한다.
+- 운영 설정: 필수 환경 변수 고정, Secret의 우회 키 거부, 직접 공개 Service와 `latest` 금지, 데이터와 연결된 암호화 키·DB·Redis Secret의 단독 교체 방지.
+- 백업: timer의 `Asia/Seoul` 시각, DB·미디어 백업 중 app 쓰기 중단과 원복, 독립 heartbeat watchdog의 정체 감지, 기존 클러스터의 미디어 PVC 사전 생성. DB·미디어·릴리스 부속 파일을 모두 검증한 뒤 `recovery.env`를 최종 게시하는지 확인한다.
+- 복원·재기동: 복원 전 Pod 종료, 복원 후 자동 기동 금지, PG·알림·개인정보 요청 내역 대조, 호환 digest 선반영. 재기동 중 명령 실패·명시적 오류·HUP/INT/TERM 종료 시 app을 중단하고 marker를 복구하는지, 상태 저장 리소스의 롤백을 막는지 확인한다.
+- 키 교체: app 중단 → 새 백업 → 동일 digest의 Job → 실행용 Secret → Redis → app 순서를 확인한다. finalize는 소셜 데이터 변환 완료, 비회원 토큰 보존기한, 실패 시 app 중단을 검사한다.
+
+실제 TLS·DNS·방화벽, containerd 이미지 반입, PVC 연결, SSR nonce 일치, 브라우저 CSP 콘솔, 백업 마운트와 복원·키 교체 성공 여부는 운영 호스트에서 확인해야 한다.
