@@ -6,6 +6,8 @@ import java.util.Optional;
 
 public interface IssuedCouponReaderPort {
 
+    Optional<IssuedCoupon> findById(Long id);
+
     Optional<IssuedCoupon> findByIdForUpdate(Long id);
 
     boolean existsByUserIdAndDefinitionId(Long userId, Long definitionId);

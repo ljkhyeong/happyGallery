@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -65,7 +66,7 @@ export function SignupPage() {
               </Badge>
               <h2 className="mb-3">
                 {claimIntent
-                  ? "같은 번호의 비회원 이력을 회원 계정으로 연결할 준비가 됐습니다"
+                  ? "같은 휴대폰 번호로 가입한 뒤 비회원 주문·예약을 가져오세요"
                   : "회원가입하고 주문과 예약을 한 번에 관리하세요"}
               </h2>
               <p className="text-muted-soft mb-4">
@@ -84,8 +85,7 @@ export function SignupPage() {
               )}
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">회원 주문, 예약, 8회권 전체 목록과 필터 제공</div>
-                <div className="auth-benefit-item">비회원 이력 가져오기와 후속 조회를 내 정보에서 관리</div>
-                <div className="auth-benefit-item">상품 상세, 예약, 8회권 흐름에서 같은 세션 유지</div>
+                <div className="auth-benefit-item">비회원 주문·예약을 가져와 내 정보에서 조회</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
                 <Link to="/products" className="auth-inline-link">스토어 둘러보기</Link>
@@ -130,8 +130,9 @@ export function SignupPage() {
                     minLength={8}
                     maxLength={72}
                   />
+                  <PasswordLengthFeedback value={password} />
                   <Form.Text className="text-muted">
-                    8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+                    8자 이상 입력하세요.
                   </Form.Text>
                 </Form.Group>
                 <Form.Group className="mb-3" controlId="name">

@@ -55,6 +55,21 @@ export interface OrderCustomerActionResponse {
   status: OrderCustomerActionResponseStatus;
 }
 
+/**
+ * 주문에 사용한 쿠폰의 현재 상태. 쿠폰 미사용 주문은 null
+ * @nullable
+ */
+export type OrderDetailResponseCouponStatus = typeof OrderDetailResponseCouponStatus[keyof typeof OrderDetailResponseCouponStatus] | null;
+
+
+export const OrderDetailResponseCouponStatus = {
+  AVAILABLE: 'AVAILABLE',
+  RESERVED: 'RESERVED',
+  REDEEMED: 'REDEEMED',
+  EXPIRED: 'EXPIRED',
+  CANCELED: 'CANCELED',
+} as const;
+
 export type OrderDetailResponseStatus = typeof OrderDetailResponseStatus[keyof typeof OrderDetailResponseStatus];
 
 
@@ -260,6 +275,11 @@ export interface OrderDetailResponse {
   /** @nullable */
   approvalDeadlineAt: string | null;
   couponDiscountAmount: number;
+  /**
+     * 주문에 사용한 쿠폰의 현재 상태. 쿠폰 미사용 주문은 null
+     * @nullable
+     */
+  couponStatus: OrderDetailResponseCouponStatus;
   fulfillment: FulfillmentDto | null;
   /** @nullable */
   issuedCouponId: number | null;

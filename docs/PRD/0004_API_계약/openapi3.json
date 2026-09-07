@@ -5167,6 +5167,11 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "couponStatus" : {
+            "description" : "주문에 사용한 쿠폰의 현재 상태. 쿠폰 미사용 주문은 null",
+            "enum" : [ "AVAILABLE", "RESERVED", "REDEEMED", "EXPIRED", "CANCELED" ],
+            "type" : [ "string", "null" ]
+          },
           "fulfillment" : {
             "oneOf" : [ {
               "$ref" : "#/components/schemas/FulfillmentDto"
@@ -5234,7 +5239,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "receiptUrl", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
+        "required" : [ "approvalDeadlineAt", "couponDiscountAmount", "couponStatus", "fulfillment", "issuedCouponId", "items", "orderId", "orderNumber", "paidAt", "pgPaidAmount", "productAmount", "receiptUrl", "refund", "rewardEarnBase", "rewardUsedAmount", "shippingFee", "status", "totalAmount" ],
         "type" : "object"
       },
       "OrderItemRef" : {

@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { Button, Form } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
@@ -47,6 +48,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               disabled={mutation.isPending}
               onChange={(event) => setCurrentPassword(event.target.value)}
             />
+            <PasswordLengthFeedback value={currentPassword} />
           </Form.Group>
         </div>
         <div className="col-md-4">
@@ -64,6 +66,7 @@ export function AdminPasswordChangeForm({ adminKey, onAuthError, onChanged }: Pr
               disabled={mutation.isPending}
               onChange={(event) => setNewPassword(event.target.value)}
             />
+            <PasswordLengthFeedback value={newPassword} />
             <Form.Control.Feedback id="admin-new-password-error" type="invalid">
               새 비밀번호는 10자 이상이어야 합니다.
             </Form.Control.Feedback>

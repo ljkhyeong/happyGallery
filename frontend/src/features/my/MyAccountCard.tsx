@@ -80,9 +80,7 @@ export function MyAccountCard({
           <div>
             <h6 className="mb-1">회원 탈퇴</h6>
             <p className="text-muted-soft small mb-0">
-              처리가 끝나지 않은 결제·주문·반품·교환·예약·환불 또는 예약 취소 뒤 공방 확인이 필요한 항목이 있으면 탈퇴할 수 없습니다.
-              결제에 사용 중인 적립금, 회수할 적립금, 사용 가능한 8회권이 있는 경우도 같습니다.
-              각 내역을 정리한 뒤 다시 시도해 주세요.
+              진행 중인 거래가 있으면 탈퇴가 제한됩니다. 신청 시 해당 내역을 안내합니다.
             </p>
           </div>
           <Button variant="outline-danger" size="sm" onClick={onWithdraw}>

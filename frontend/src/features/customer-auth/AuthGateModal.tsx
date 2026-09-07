@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useEffect, useState } from "react";
 import { Modal, Button, Form, Nav, Alert } from "react-bootstrap";
 import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
@@ -169,6 +170,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
                 maxLength={72}
               />
+              <PasswordLengthFeedback value={password} />
             </Form.Group>
             <Button
               type="submit"
@@ -197,6 +199,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
                 maxLength={72}
               />
+              <PasswordLengthFeedback value={password} />
             </Form.Group>
             <Form.Group className="mb-2" controlId="gate-signup-name">
               <Form.Label className="small">이름</Form.Label>

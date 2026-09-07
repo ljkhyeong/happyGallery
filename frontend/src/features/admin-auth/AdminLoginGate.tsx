@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { Button, Card, Form, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
@@ -138,6 +139,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   maxLength={72}
                   disabled={loading}
                 />
+                <PasswordLengthFeedback value={password} />
               </Form.Group>
               <Button
                 type="submit"

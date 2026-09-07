@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
@@ -184,6 +185,7 @@ export function AdminMfaSettings({
                     disabled={recoverMfa.isPending}
                     onChange={(event) => setCurrentPassword(event.target.value)}
                   />
+                  <PasswordLengthFeedback value={currentPassword} />
                 </Form.Group>
               </div>
               <div className="col-md-4">
@@ -226,6 +228,7 @@ export function AdminMfaSettings({
                   disabled={disableMfa.isPending}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
+                <PasswordLengthFeedback value={currentPassword} />
               </Form.Group>
             </div>
             <div className="col-md-5">

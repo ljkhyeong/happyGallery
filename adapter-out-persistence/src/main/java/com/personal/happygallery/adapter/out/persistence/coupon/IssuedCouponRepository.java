@@ -14,6 +14,9 @@ public interface IssuedCouponRepository
         extends JpaRepository<IssuedCoupon, Long>, IssuedCouponReaderPort {
 
     @Override
+    Optional<IssuedCoupon> findById(Long id);
+
+    @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM IssuedCoupon c WHERE c.id = :id")
     Optional<IssuedCoupon> findByIdForUpdate(@Param("id") Long id);

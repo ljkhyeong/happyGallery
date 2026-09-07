@@ -1511,6 +1511,7 @@ X-Access-Token: {accessToken}
   "pgPaidAmount": 106000,
   "rewardEarnBase": 103000,
   "issuedCouponId": 81,
+  "couponStatus": "REDEEMED",
   "paidAt": "2026-03-08T20:30:00",
   "approvalDeadlineAt": "2026-03-09T20:30:00",
   "items": [
@@ -1572,6 +1573,7 @@ X-Access-Token: {accessToken}
   - 신규 주문의 `fulfillment`는 결제 confirm 시 함께 생성되며 고객이 선택한 `type`, 예상 출고일, 픽업 마감, 배송 추적 정보와 배송지를 반환한다. 배송 출발 뒤에는 `carrierCode`, `carrier`, `trackingNumber`, 외부 배송조회 등록 상태, 현재 택배 상태·표시 문구·갱신 시각과 시간순 `trackingEvents`를 반환한다. 배송지는 소유권이 확인된 상세에서만 복호화하며 `PICKUP`은 `shippingAddress=null`이다.
   - `shippingFee`는 prepare 당시 서버 정책 스냅샷이다. `productAmount`는 할인 전 상품 합계, `totalAmount`는 상품 합계와 배송비에서 쿠폰만 차감한 금액, `pgPaidAmount`는 여기서 적립금까지 차감해 PG로 승인한 금액이다. 픽업 주문의 배송비는 0원이다.
   - 쿠폰은 배송비를 제외한 상품 금액에 회원당 1장만 적용한다. `rewardEarnBase`는 상품 금액에서 쿠폰 할인과 적립금 사용을 뺀 신규 적립 기준이며, `issuedCouponId`는 쿠폰을 쓰지 않은 주문에서 `null`이다.
+  - `couponStatus`는 주문에 사용한 쿠폰의 현재 상태(`AVAILABLE`, `RESERVED`, `REDEEMED`, `EXPIRED`, `CANCELED`)이며 쿠폰 미사용 주문은 `null`이다. 미사용 상태의 쿠폰은 조회 시 유효기간과 사용 중지 여부도 반영하되 저장 상태를 변경하지 않는다. 환불 완료 화면은 이 값으로 재사용 가능 여부를 안내한다.
   - 각 항목의 `grossAmount`, `couponDiscountAmount`, `rewardUsedAmount`, `netPaidAmount`는 주문 전체 혜택을 원 단위로 비례 배분한 불변 스냅샷이다. 항목 합계는 주문의 상품·쿠폰·적립금·적립 기준 금액과 각각 일치한다.
   - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
@@ -3045,9 +3047,10 @@ Cookie: HG_SESSION={sessionToken}
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
   - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 현재 자격 버전과 다름
-  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불 또는 사용 가능한 미만료 8회권이 있음
+  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불, 사용 가능한 미만료 8회권, 결제에 사용 중이거나 회수할 적립금이 있음
 - 정책:
   - 비밀번호 또는 현재 연결된 소셜 계정으로 최근 본인 확인을 먼저 완료한다. 화면의 `탈퇴` 확인 문자열은 의사 확인이며 이 소유권 증명을 대신하지 않는다.
+  - `ACCOUNT_WITHDRAWAL_BLOCKED`의 `message`에는 해당 회원의 실제 제한 사유만 줄바꿈(`\n`)으로 구분해 반환한다. 화면은 각 사유를 목록으로 표시한다. 예: `사용 가능한 8회권이 있습니다.\n처리 중인 환불이 있습니다.`
   - 회원 행을 잠그고 차단 활동을 다시 확인해 탈퇴와 새 거래 생성을 직렬화한다.
   - 잠근 회원 행의 현재 `credential_version`이 세션 재인증 증명의 예상 버전과 다르면 탈퇴하지 않는다.
   - 이메일·이름은 재사용 가능한 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한다. `withdrawnAt`과 새 자격 버전을 저장하며 주문·예약·정산 이력은 보존한다.

@@ -523,6 +523,7 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
         couponDiscountAmount: 0,
         fulfillment: null,
         issuedCouponId: null,
+        couponStatus: null,
         items: [{
           basePrice: 12000,
           careInstructions: null,
@@ -612,6 +613,7 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
     }],
     orderId: 75,
     orderNumber: "HG-BENEFIT-75",
+    couponStatus: "AVAILABLE",
     receiptUrl: null,
     paidAt: "2026-08-08T10:00:00",
     pgPaidAmount: 7000,
@@ -668,6 +670,7 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
         issuedCouponId: 72,
         orderId: 76,
         orderNumber: "HG-COUPON-ONLY-76",
+        couponStatus: "EXPIRED",
         pgPaidAmount: 0,
         refund: {
           amount: 0,
@@ -704,19 +707,19 @@ test("@smoke @order 주문 혜택과 환불 구성 요소를 서버 스냅샷대
   await expect(orderCard.locator("tfoot tr").filter({ hasText: "카드·간편결제 금액" })).toContainText("₩7,000");
 
   const refundAlert = orderCard.getByRole("alert").filter({ hasText: "환불 완료" });
-  await expect(refundAlert).toContainText("₩10,000의 고객 반환 처리가 완료되었습니다.");
+  await expect(refundAlert).toContainText("₩10,000 환불이 완료되었습니다.");
   await expect(refundAlert.getByText(/결제사 환불 ₩7,000 · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/적립금 복원 3,000P · 완료/)).toBeVisible();
   await expect(refundAlert.getByText(/지급 적립금 회수 70P · 완료/)).toBeVisible();
-  await expect(refundAlert.getByText(/쿠폰 사용 상태 정리 · 완료/)).toBeVisible();
+  await expect(refundAlert.getByText(/쿠폰을 다시 사용할 수 있습니다./)).toBeVisible();
 
   await page.goto("/my/orders/76");
   const couponOnlyCard = page.locator(".card").filter({ hasText: "HG-COUPON-ONLY-76" }).first();
   await expect(couponOnlyCard.getByRole("alert").getByText(
-    "결제 금액 반환 없이 쿠폰 사용 상태 정리가 완료되었습니다.",
+    "환불할 결제 금액은 없습니다.",
   )).toBeVisible();
   await expect(couponOnlyCard.getByRole("alert").getByText(
-    /쿠폰 사용 상태 정리 · 완료/,
+    /쿠폰 유효기간이 지나 다시 사용할 수 없습니다./,
   )).toBeVisible();
 });
 
@@ -764,6 +767,7 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
         couponDiscountAmount: 0,
         fulfillment: null,
         issuedCouponId: null,
+        couponStatus: null,
         items: [{
           basePrice: 15000,
           careInstructions: null,

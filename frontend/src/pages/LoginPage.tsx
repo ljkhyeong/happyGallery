@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
@@ -83,11 +84,6 @@ export function LoginPage() {
                   로그인 후 <strong>내 정보</strong>에서 비회원 주문과 예약을 바로 가져올 수 있습니다.
                 </Alert>
               )}
-              {!claimIntent && (
-                <p className="text-muted-soft small mb-4">
-                  지금 로그인하면 최근 주문 상태, 예약 상세, 8회권 잔여 횟수를 내 정보에서 바로 이어서 볼 수 있습니다.
-                </p>
-              )}
               <Form onSubmit={handleSubmit}>
                 <Form.Group className="mb-3" controlId="email">
                   <Form.Label>이메일</Form.Label>
@@ -118,6 +114,7 @@ export function LoginPage() {
                     minLength={8}
                     maxLength={72}
                   />
+                  <PasswordLengthFeedback value={password} />
                 </Form.Group>
                 <Button
                   type="submit"

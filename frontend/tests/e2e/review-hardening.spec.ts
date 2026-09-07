@@ -925,6 +925,7 @@ test("@smoke 후기 작성 폼은 첫 입력으로 이동하고 취소 후 작�
         couponDiscountAmount: 0,
         fulfillment: null,
         issuedCouponId: null,
+        couponStatus: null,
         items: [{
           basePrice: 12000,
           careInstructions: null,
