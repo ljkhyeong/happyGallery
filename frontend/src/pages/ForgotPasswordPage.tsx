@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, Container, Form } from "react-bootstrap";
@@ -42,7 +43,7 @@ export function ForgotPasswordPage() {
         <Card.Body className="p-4 p-lg-5">
           <h3 className="mb-2">비밀번호 재설정</h3>
           <p className="text-muted-soft small mb-4">
-            가입한 이메일과 검증된 휴대폰 번호를 입력하세요.
+            가입한 이메일과 인증한 휴대폰 번호를 입력하세요.
           </p>
           <ErrorAlert error={mutation.error} />
 
@@ -69,8 +70,9 @@ export function ForgotPasswordPage() {
               aria-describedby="reset-password-help"
               required
             />
+            <PasswordLengthFeedback value={newPassword} />
             <Form.Text id="reset-password-help" className="text-muted">
-              8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+              8자 이상 입력하세요.
             </Form.Text>
           </Form.Group>
           <Form.Group className="mb-4" controlId="reset-password-confirmation">

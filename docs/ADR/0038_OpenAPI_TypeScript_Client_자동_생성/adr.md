@@ -17,12 +17,12 @@
 ### 1. Controller와 웹 DTO에서 OpenAPI를 생성한다
 
 - Springdoc은 테스트 클래스패스에서만 전체 `/api/v1/**` 명세를 생성한다. 운영 애플리케이션에는 Swagger UI나 명세 endpoint를 노출하지 않는다.
-- `:adapter-in-web:openApiTest`가 속성 키를 정렬한 `adapter-in-web/build/api-spec/openapi3.json`을 만들고, `:adapter-in-web:openapi3`가 커밋 대상 `docs/PRD/0004_API_계약/openapi3.json`을 갱신한다. 정렬은 프레임워크의 속성 순서 차이로 생기는 거짓 drift를 막는다.
+- `:adapter-in-web:openApiTest`가 속성 키를 정렬한 `adapter-in-web/build/api-spec/openapi3.json`을 만들고, `:adapter-in-web:openapi3`가 커밋 대상 `docs/PRD/0004_API_계약/openapi3.json`을 갱신한다. 정렬하면 속성 순서만 다른 명세를 계약 변경으로 오인하지 않는다.
 - OpenAPI 3.1에서 Swagger가 nullable 객체 참조를 `$ref`와 `type: null`의 교집합으로 만드는 경우, 생성 단계 customizer가 `oneOf: [객체 참조, null]`로 정규화한다. DTO는 nullable 여부만 선언하고 생성 파일은 수동 보정하지 않는다.
 - `verifyOpenApi`는 생성 결과와 커밋된 스냅샷을 비교하며 `check`에 포함된다.
 - REST Docs는 실제 HTTP 예시·상태·에러 계약 검증으로 계속 유지한다. 같은 정보를 두 도구에 모두 손으로 기술하지 않는다.
 
-### 2. Orval 생성 client는 기존 HTTP 경계를 사용한다
+### 2. Orval 생성 client는 공용 HTTP 클라이언트를 사용한다
 
 - Orval은 커밋된 OpenAPI 스냅샷에서 TypeScript 요청 함수와 서버 DTO를 `frontend/src/generated/api`에 생성한다.
 - 생성 함수는 `generatedApiClient` custom mutator를 통해 기존 `api()`를 호출한다. 인증, CSRF, timeout, 오류 변환과 관측 동작은 바뀌지 않는다.

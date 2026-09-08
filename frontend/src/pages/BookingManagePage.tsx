@@ -160,7 +160,7 @@ function BookingManageContent() {
           <div className="guest-route-note mt-3">
             <div className="guest-route-note-title">조회 안내</div>
             <div className="small text-muted-soft">
-              비회원 예약은 조회 코드로 관리할 수 있고, 회원가입 후에는 같은 번호의 이력을 내 정보로 가져올 수 있습니다.
+              비회원 예약은 조회 코드로 관리할 수 있고, 회원가입 후에는 같은 휴대폰 번호의 예약을 내 정보로 가져올 수 있습니다.
             </div>
           </div>
         </Card.Body>

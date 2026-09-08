@@ -190,7 +190,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
         </Col>
         <Col xs={12} md={6}>
           <Form.Group controlId="admin-class-target-audience">
-            <Form.Label>대상 안내</Form.Label>
+            <Form.Label>추천 대상</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}

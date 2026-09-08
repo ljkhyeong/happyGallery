@@ -14,7 +14,7 @@ function GuestCompletionActions({ children }: { children: ReactNode }) {
     <div className="d-flex flex-wrap gap-2">
       {children}
       <LinkButton to={signupHref} variant="outline-dark">
-        회원가입하고 이력 가져오기
+        회원가입하고 주문·예약 가져오기
       </LinkButton>
     </div>
   );

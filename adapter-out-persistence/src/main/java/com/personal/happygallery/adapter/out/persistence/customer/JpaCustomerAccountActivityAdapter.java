@@ -10,6 +10,8 @@ import com.personal.happygallery.adapter.out.persistence.reward.RewardAccountRep
 import com.personal.happygallery.application.customer.port.out.CustomerAccountActivityPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -43,14 +45,16 @@ class JpaCustomerAccountActivityAdapter implements CustomerAccountActivityPort {
     }
 
     @Override
-    public boolean hasBlockingActivity(Long userId, LocalDateTime now) {
-        return orderRepository.existsUnfinishedByUserId(userId)
-                || orderClaimRepository.existsActiveByUserId(userId)
-                || bookingRepository.existsBookedByUserId(userId)
-                || bookingCancellationTaskRepository.existsPendingByUserId(userId)
-                || passPurchaseRepository.existsUsableByUserId(userId, now)
-                || refundRepository.existsUnresolvedByUserId(userId)
-                || paymentAttemptReader.existsNonTerminalByOwnerUserId(userId)
-                || rewardAccountRepository.existsBlockingWithdrawal(userId);
+    public List<BlockingActivity> findBlockingActivities(Long userId, LocalDateTime now) {
+        List<BlockingActivity> activities = new ArrayList<>();
+        if (orderRepository.existsUnfinishedByUserId(userId)) activities.add(BlockingActivity.ORDER);
+        if (orderClaimRepository.existsActiveByUserId(userId)) activities.add(BlockingActivity.CLAIM);
+        if (bookingRepository.existsBookedByUserId(userId)) activities.add(BlockingActivity.BOOKING);
+        if (bookingCancellationTaskRepository.existsPendingByUserId(userId)) activities.add(BlockingActivity.CANCELLATION_TASK);
+        if (passPurchaseRepository.existsUsableByUserId(userId, now)) activities.add(BlockingActivity.PASS);
+        if (refundRepository.existsUnresolvedByUserId(userId)) activities.add(BlockingActivity.REFUND);
+        if (paymentAttemptReader.existsNonTerminalByOwnerUserId(userId)) activities.add(BlockingActivity.PAYMENT);
+        if (rewardAccountRepository.existsBlockingWithdrawal(userId)) activities.add(BlockingActivity.REWARD);
+        return List.copyOf(activities);
     }
 }

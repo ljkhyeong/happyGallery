@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Form, Modal } from "react-bootstrap";
 import { ApiError } from "@/shared/api";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
 import { ErrorAlert } from "@/shared/ui";
@@ -92,7 +92,14 @@ export function AccountWithdrawalModal({
       ) : (
         <Form onSubmit={submit}>
           <Modal.Body>
-            <ErrorAlert error={withdrawal.error} />
+            {withdrawal.error instanceof ApiError && withdrawal.error.is("ACCOUNT_WITHDRAWAL_BLOCKED") ? (
+              <Alert variant="danger" role="alert">
+                <p className="mb-2">다음 내역이 있어 탈퇴할 수 없습니다.</p>
+                <ul className="mb-0">
+                  {withdrawal.error.message.split("\n").map((reason) => <li key={reason}>{reason}</li>)}
+                </ul>
+              </Alert>
+            ) : <ErrorAlert error={withdrawal.error} />}
             <p className="small">
               탈퇴하면 계정과 소셜 로그인이 해제되고 개인정보가 익명화됩니다. 주문과 예약의 거래 기록은 보존됩니다.
             </p>

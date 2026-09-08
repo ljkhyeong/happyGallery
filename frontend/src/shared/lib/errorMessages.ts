@@ -49,7 +49,7 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   POLICY_CONSENT_REQUIRED: "현재 이용약관과 개인정보처리방침을 확인하고 동의해 주세요.",
   PHONE_ALREADY_IN_USE: "이미 다른 계정에서 사용 중인 휴대폰 번호입니다.",
   ACCOUNT_WITHDRAWAL_BLOCKED:
-    "처리가 끝나지 않은 결제·주문·반품·교환·예약·환불 또는 예약 취소 뒤 공방 확인이 필요한 항목이 있어 탈퇴할 수 없습니다. 결제에 사용 중인 적립금, 회수할 적립금, 사용 가능한 8회권이 있는 경우도 같습니다. 각 내역을 정리한 뒤 다시 시도해 주세요.",
+    "처리 중인 내역이 있어 탈퇴할 수 없습니다. 안내된 내역을 확인해 주세요.",
   PAYMENT_METHOD_NOT_ALLOWED: "이 결제에 사용할 수 없는 결제 수단입니다. 다른 결제 수단을 선택해 주세요.",
   PAYMENT_CONFIRM_IN_PROGRESS: "결제 처리 중입니다. 잠시 후 다시 확인해 주세요.",
   PAYMENT_RECONCILIATION_REQUIRED: "결제 승인 여부를 확인하고 있습니다. 새로 결제하지 말고 고객센터에 문의해 주세요.",

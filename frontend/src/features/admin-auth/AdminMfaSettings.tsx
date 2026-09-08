@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
@@ -162,9 +163,7 @@ export function AdminMfaSettings({
       return (
         <div>
           <Alert variant="warning">
-            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없다면 현재 비밀번호를
-            확인한 뒤 2단계 인증을 초기화할 수 있습니다. 초기화하면 이 세션과 기존
-            복구 코드가 모두 폐기되며, 다시 로그인해 인증 앱을 등록해야 합니다.
+            복구 코드로 로그인했습니다. 인증 앱을 사용할 수 없으면 현재 비밀번호로 2단계 인증을 초기화하세요. 초기화하면 로그아웃되고 기존 복구 코드는 사용할 수 없습니다. 다시 로그인해 인증 앱을 등록해 주세요.
           </Alert>
           <Form
             onSubmit={(event) => {
@@ -184,6 +183,7 @@ export function AdminMfaSettings({
                     disabled={recoverMfa.isPending}
                     onChange={(event) => setCurrentPassword(event.target.value)}
                   />
+                  <PasswordLengthFeedback value={currentPassword} />
                 </Form.Group>
               </div>
               <div className="col-md-4">
@@ -226,6 +226,7 @@ export function AdminMfaSettings({
                   disabled={disableMfa.isPending}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
+                <PasswordLengthFeedback value={currentPassword} />
               </Form.Group>
             </div>
             <div className="col-md-5">

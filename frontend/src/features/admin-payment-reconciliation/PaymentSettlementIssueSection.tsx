@@ -59,8 +59,8 @@ export function PaymentSettlementIssueSection({ adminKey, onAuthError }: Props) 
 }
 
 function statusLabel(status: PaymentSettlementIssueResponse["status"]): string {
-  if (status === "LOCAL_PAYMENT_NOT_FOUND") return "로컬 결제 승인 없음";
-  if (status === "LOCAL_REFUND_NOT_FOUND") return "로컬 환불 완료 없음";
+  if (status === "LOCAL_PAYMENT_NOT_FOUND") return "사이트에 결제 승인 기록 없음";
+  if (status === "LOCAL_REFUND_NOT_FOUND") return "사이트에 환불 완료 기록 없음";
   if (status === "IDENTIFIER_MISMATCH") return "결제번호 불일치";
   if (status === "AMOUNT_MISMATCH") return "금액 불일치";
   return "확인 필요";

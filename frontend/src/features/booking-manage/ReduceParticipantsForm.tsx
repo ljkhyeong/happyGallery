@@ -127,7 +127,7 @@ export function ReduceParticipantsForm({
             <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
           </dl>
           <Alert variant="info" className="mb-0 py-2 small">
-            최종 환불액은 서버가 현재 예약 금액을 기준으로 다시 계산하며, 결제사 처리 완료까지 시간이 걸릴 수 있습니다.
+            최종 환불액은 현재 예약 금액으로 다시 계산합니다. 결제사 처리에는 시간이 걸릴 수 있습니다.
           </Alert>
         </Modal.Body>
         <Modal.Footer>

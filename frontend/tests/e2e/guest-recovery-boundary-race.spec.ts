@@ -119,13 +119,13 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
 
   await page.goto("/guest");
   const recoveryCard = page.locator(".card")
-    .filter({ hasText: "주문·예약 조회 정보 복구" })
+    .filter({ hasText: "주문·예약 조회 코드 재발급" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
   await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
   await recoveryCard.getByLabel("인증코드").fill("123456");
   currentMember = nextMember;
-  await recoveryCard.getByRole("button", { name: "조회 정보 복구" }).click();
+  await recoveryCard.getByRole("button", { name: "조회 코드 재발급" }).click();
 
   await expect(page.getByRole("link", { name: nextMember.name, exact: true }).first())
     .toBeVisible();

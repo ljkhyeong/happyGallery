@@ -322,12 +322,12 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
 
   await page.goto("/guest");
   const recoveryCard = page.locator(".card")
-    .filter({ hasText: "주문·예약 조회 정보 복구" })
+    .filter({ hasText: "주문·예약 조회 코드 재발급" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
   await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
   await recoveryCard.getByLabel("인증코드").fill("123456");
-  await recoveryCard.getByRole("button", { name: "조회 정보 복구" }).click();
+  await recoveryCard.getByRole("button", { name: "조회 코드 재발급" }).click();
 
   await expect(recoveryCard.getByText("주문 #701")).toBeVisible();
   await expect(recoveryCard.getByText("주문 #999")).toHaveCount(0);

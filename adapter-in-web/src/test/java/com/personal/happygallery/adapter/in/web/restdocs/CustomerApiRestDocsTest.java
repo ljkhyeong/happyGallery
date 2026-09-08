@@ -83,11 +83,16 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
+import com.personal.happygallery.domain.error.ErrorCode;
+
+import com.personal.happygallery.domain.error.HappyGalleryException;
+
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
@@ -464,6 +469,20 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
+    @DisplayName("탈퇴 제한 응답에 실제 사유 목록을 반환한다")
+    void withdraw_account_blocked() throws Exception {
+        String reasons = "사용 가능한 8회권이 있습니다.\n처리 중인 환불이 있습니다.";
+        doThrow(new HappyGalleryException(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED, reasons))
+                .when(accountLifecycleUseCase).withdraw(any());
+        mockMvc.perform(delete("/api/v1/me")
+                        .session(recentlyAuthenticatedSession())
+                        .with(customerUser()))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWAL_BLOCKED"))
+                .andExpect(jsonPath("$.message").value(reasons));
+    }
+
+    @Test
     @DisplayName("연결된 소셜 계정 조회 API를 문서화한다")
     void get_social_accounts() throws Exception {
         mockMvc.perform(get("/api/v1/me/social-accounts").with(customerUser()))
@@ -763,7 +782,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     void get_my_order() throws Exception {
         mockMvc.perform(get("/api/v1/me/orders/{id}", 200L).with(customerUser()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"));
+                .andExpect(jsonPath("$.orderNumber").value("ORD-00000200"))
+                .andExpect(jsonPath("$.couponStatus").value(nullValue()));
     }
 
     @Test

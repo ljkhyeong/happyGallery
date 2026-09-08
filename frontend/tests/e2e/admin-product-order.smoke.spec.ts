@@ -135,7 +135,7 @@ test("P8-5 @payment @admin 환불 실패 주문을 관리자 화면에서 재처
     });
 
     await page.goto("/orders/new");
-    await page.getByRole("button", { name: "비회원 다중 상품 주문 계속" }).click();
+    await page.getByRole("button", { name: "여러 상품 직접 선택" }).click();
     await completePhoneVerification(page, phone);
     await page.getByLabel("주문자 이름").fill(ordererName);
     await page.getByLabel("상품").selectOption(String(product.id));

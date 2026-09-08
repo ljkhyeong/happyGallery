@@ -169,7 +169,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
   return (
     <div>
       <p className="text-muted-soft mb-4">
-        모든 날짜와 시간을 기본으로 열고, 예약을 받을 수 없는 날짜나 시간만 닫습니다.
+        기본 운영시간에서 예약을 받지 않을 날짜와 시간만 설정하세요.
         실제 예약 회차는 고객이 일정을 조회할 때 자동으로 준비됩니다.
       </p>
 
@@ -355,7 +355,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                     disabled={!canEditSelectedDate || dayMutation.isPending}
                     onClick={() => dayMutation.mutate("DEFAULT")}
                   >
-                    기본값 사용
+                    기본 운영 설정 적용
                   </Button>
                   <Button
                     size="sm"

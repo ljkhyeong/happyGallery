@@ -185,7 +185,7 @@ export function OrderDetailCard({ order }: Props) {
             </Row>
           </>
         )}
-        <RefundProgressAlert refund={order.refund} />
+        <RefundProgressAlert refund={order.refund} couponStatus={order.couponStatus} />
       </Card.Body>
     </Card>
   );

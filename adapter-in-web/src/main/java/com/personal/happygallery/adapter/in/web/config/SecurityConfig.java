@@ -65,7 +65,6 @@ public class SecurityConfig {
             CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH,
             CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH,
             "/api/v1/policies/current",
-            "/api/v1/addresses/search",
             "/api/v1/payments/{orderId}",
             "/api/v1/payments/pass-policy",
             "/api/v1/bookings/{bookingId}",

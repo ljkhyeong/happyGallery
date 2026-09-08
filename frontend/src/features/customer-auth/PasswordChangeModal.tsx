@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState, type FormEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Modal } from "react-bootstrap";
@@ -85,6 +86,7 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               required
               autoFocus
             />
+            <PasswordLengthFeedback value={currentPassword} />
           </Form.Group>
           <Form.Group className="mb-3" controlId="new-password">
             <Form.Label>새 비밀번호</Form.Label>
@@ -102,12 +104,13 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               }
               required
             />
+            <PasswordLengthFeedback value={newPassword} />
             <Form.Control.Feedback id="new-password-error" type="invalid">
               현재 비밀번호와 다른 값을 입력하세요.
             </Form.Control.Feedback>
             {!sameAsCurrentPassword && (
               <Form.Text id="new-password-help" className="text-muted">
-                8자 이상, UTF-8 기준 72바이트 이하로 입력하세요.
+                8자 이상 입력하세요.
               </Form.Text>
             )}
           </Form.Group>

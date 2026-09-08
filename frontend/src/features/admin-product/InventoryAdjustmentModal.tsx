@@ -162,7 +162,7 @@ export function InventoryAdjustmentModal({
                 setShowImpactConfirm(false);
               }}
             >
-              입고·복구
+              재고 추가
             </Button>
             <Button
               type="button"
@@ -172,7 +172,7 @@ export function InventoryAdjustmentModal({
                 setShowImpactConfirm(false);
               }}
             >
-              오프라인 판매·폐기
+              재고 차감
             </Button>
           </ButtonGroup>
 

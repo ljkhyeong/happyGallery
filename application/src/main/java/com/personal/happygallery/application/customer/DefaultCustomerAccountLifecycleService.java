@@ -14,6 +14,7 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.user.User;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,8 +61,12 @@ public class DefaultCustomerAccountLifecycleService implements CustomerAccountLi
             throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
         }
         LocalDateTime now = LocalDateTime.now(clock);
-        if (accountActivity.hasBlockingActivity(command.userId(), now)) {
-            throw new HappyGalleryException(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED);
+        var blockingActivities = accountActivity.findBlockingActivities(command.userId(), now);
+        if (!blockingActivities.isEmpty()) {
+            String reasons = blockingActivities.stream()
+                    .map(CustomerAccountActivityPort.BlockingActivity::message)
+                    .collect(Collectors.joining("\n"));
+            throw new HappyGalleryException(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED, reasons);
         }
 
         long invalidatedCredentialVersion = user.getCredentialVersion();

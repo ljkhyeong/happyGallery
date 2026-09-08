@@ -46,7 +46,7 @@ function StockThresholdEditor({ row, adminKey, onAuthError }: Props & { row: Sto
         <Form.Label>최소 보유 수량</Form.Label>
         <InputGroup>
           <Form.Control type="number" min={0} step={1} value={minimum} disabled={mutation.isPending} placeholder="미설정" onChange={(event) => setMinimum(event.target.value)} />
-          <Button type="submit" disabled={!valid || mutation.isPending}>기준 저장</Button>
+          <Button type="submit" disabled={!valid || mutation.isPending}>최소 수량 저장</Button>
         </InputGroup>
         <Form.Text>이 수량 이하이면 오늘 할 일에 표시합니다. 비워서 저장하면 품절만 표시합니다.</Form.Text>
       </Form.Group>

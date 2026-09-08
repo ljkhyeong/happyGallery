@@ -115,7 +115,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
           <Alert variant="danger" className="mb-0">
             <p className="mb-2">이 후기를 삭제할까요? 삭제한 후기는 복구할 수 없습니다.</p>
             <p className="small mb-2">
-              비공개 처리 이력이 없는 후기는 완료 내역에서 다시 작성할 수 있지만, 공방에서 비공개 처리한 이력이 있는 후기는 삭제해도 같은 이용 건으로 다시 작성할 수 없습니다.
+              공방이 비공개로 처리한 적이 있는 후기는 삭제해도 같은 이용 건에 다시 작성할 수 없습니다. 그 외에는 완료 내역에서 다시 작성할 수 있습니다.
             </p>
             <div className="d-flex gap-2">
               <Button

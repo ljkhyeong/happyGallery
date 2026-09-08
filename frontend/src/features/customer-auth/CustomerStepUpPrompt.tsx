@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
@@ -102,6 +103,7 @@ export function CustomerStepUpPrompt({
               required
               autoFocus
             />
+            <PasswordLengthFeedback value={password} />
           </Form.Group>
           <Button
             type="submit"
