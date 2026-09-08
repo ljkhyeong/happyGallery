@@ -73,11 +73,4 @@ public final class TimeBoundary {
     public static LocalDateTime passExpiresAtLocal(ZonedDateTime purchasedAt) {
         return passExpiresAt(purchasedAt).toLocalDateTime();
     }
-
-    /**
-     * 만료 알림 시점. 만료일 7일 전.
-     */
-    public static ZonedDateTime passNotificationAt(ZonedDateTime expiresAt) {
-        return expiresAt.minusDays(7);
-    }
 }

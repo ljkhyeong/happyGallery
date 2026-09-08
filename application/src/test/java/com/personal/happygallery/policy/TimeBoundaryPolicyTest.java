@@ -69,17 +69,6 @@ class TimeBoundaryPolicyTest {
                 .isEqualTo(ZonedDateTime.of(2026, 4, 1, 0, 0, 0, 0, Clocks.SEOUL));
     }
 
-    // ── 만료 7일 전 알림 ──────────────────────────────────────────────────────
-
-    @DisplayName("8회권 만료 알림 시각은 만료 7일 전이다")
-    @Test
-    void pass_notificationAt_7DaysBeforeExpiry() {
-        ZonedDateTime expiresAt = ZonedDateTime.of(2026, 4, 1, 0, 0, 0, 0, Clocks.SEOUL);
-
-        assertThat(TimeBoundary.passNotificationAt(expiresAt))
-                .isEqualTo(ZonedDateTime.of(2026, 3, 25, 0, 0, 0, 0, Clocks.SEOUL));
-    }
-
     private static Stream<Arguments> refundBoundaryCases() {
         LocalDate experienceDate = LocalDate.of(2026, 3, 1);
         ZonedDateTime deadline = experienceDate.atStartOfDay(Clocks.SEOUL);
