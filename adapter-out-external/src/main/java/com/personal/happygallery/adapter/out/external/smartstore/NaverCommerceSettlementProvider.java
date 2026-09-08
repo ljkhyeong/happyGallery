@@ -5,6 +5,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.function.IntFunction;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -36,90 +39,53 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
 
     @Override
     public List<SettlementItem> findByPayDate(LocalDate payDate) {
-        List<SettlementItem> results = new ArrayList<>();
-        int page = 1;
-        int totalPages;
-        do {
-            SettlementResponse response = fetch(payDate, page);
-            SettlementPage settlementPage = response.data() == null
-                    ? new SettlementPage(response.elements(), response.pagination())
-                    : response.data();
-            List<SettlementContent> elements = settlementPage.elements() == null
-                    ? List.of()
-                    : settlementPage.elements();
-            elements.stream().map(NaverCommerceSettlementProvider::toItem).forEach(results::add);
-            totalPages = settlementPage.pagination() == null
-                    ? page
-                    : settlementPage.pagination().totalPages();
-            page++;
-        } while (page <= totalPages);
-        return List.copyOf(results);
+        return readPages(page -> fetch(payDate, page), NaverCommerceSettlementProvider::toItem);
     }
 
     @Override
     public List<DailySettlement> findDailySettlements(LocalDate from, LocalDate to) {
-        List<DailySettlement> results = new ArrayList<>();
-        int page = 1;
-        int totalPages;
-        do {
-            DailySettlementResponse response = fetchDailySettlements(from, to, page);
-            DailySettlementPage settlementPage = response.data() == null
-                    ? new DailySettlementPage(response.elements(), response.pagination())
-                    : response.data();
-            List<DailySettlementContent> elements = settlementPage.elements() == null
-                    ? List.of() : settlementPage.elements();
-            elements.stream().map(NaverCommerceSettlementProvider::toDailySettlement)
-                    .forEach(results::add);
-            totalPages = totalPages(settlementPage.pagination(), page);
-            page++;
-        } while (page <= totalPages);
-        return List.copyOf(results);
+        return readPages(page -> fetchDailySettlements(from, to, page),
+                NaverCommerceSettlementProvider::toDailySettlement);
     }
 
     @Override
     public List<CommissionDetail> findCommissionDetails(LocalDate from, LocalDate to) {
         List<CommissionDetail> results = new ArrayList<>();
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
-            int page = 1;
-            int totalPages;
-            do {
-                CommissionResponse response = fetchCommissions(date, page);
-                CommissionPage commissionPage = response.data() == null
-                        ? new CommissionPage(response.elements(), response.pagination())
-                        : response.data();
-                List<CommissionContent> elements = commissionPage.elements() == null
-                        ? List.of() : commissionPage.elements();
-                elements.stream().map(NaverCommerceSettlementProvider::toCommissionDetail)
-                        .forEach(results::add);
-                totalPages = totalPages(commissionPage.pagination(), page);
-                page++;
-            } while (page <= totalPages);
+            LocalDate payDate = date;
+            results.addAll(readPages(page -> fetchCommissions(payDate, page),
+                    NaverCommerceSettlementProvider::toCommissionDetail));
         }
         return List.copyOf(results);
     }
 
     @Override
     public List<DailyVat> findDailyVat(LocalDate from, LocalDate to) {
-        List<DailyVat> results = new ArrayList<>();
+        return readPages(page -> fetchVat(from, to, page),
+                NaverCommerceSettlementProvider::toDailyVat);
+    }
+
+    private static <T, R> List<R> readPages(
+            IntFunction<PageResponse<T>> fetchPage, Function<T, R> mapper) {
+        List<R> results = new ArrayList<>();
         int page = 1;
         int totalPages;
         do {
-            VatResponse response = fetchVat(from, to, page);
-            VatPage vatPage = response.data() == null
-                    ? new VatPage(response.elements(), response.pagination())
+            PageResponse<T> response = fetchPage.apply(page);
+            Page<T> current = response.data() == null
+                    ? new Page<>(response.elements(), response.pagination())
                     : response.data();
-            List<VatContent> elements = vatPage.elements() == null
-                    ? List.of() : vatPage.elements();
-            elements.stream().map(NaverCommerceSettlementProvider::toDailyVat)
-                    .forEach(results::add);
-            totalPages = totalPages(vatPage.pagination(), page);
+            if (current.elements() != null) {
+                current.elements().stream().map(mapper).forEach(results::add);
+            }
+            totalPages = current.pagination() == null ? page : current.pagination().totalPages();
             page++;
         } while (page <= totalPages);
         return List.copyOf(results);
     }
 
-    private SettlementResponse fetch(LocalDate payDate, int page) {
-        SettlementResponse response = accessTokenProvider.authorized(token -> restClient.get()
+    private PageResponse<SettlementContent> fetch(LocalDate payDate, int page) {
+        PageResponse<SettlementContent> response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path("/external/v1/pay-settle/settle/case")
                         .queryParam("searchDate", payDate)
                         .queryParam("periodType", PAY_DATE)
@@ -129,16 +95,16 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                         .build())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
-                .body(SettlementResponse.class));
+                .body(new ParameterizedTypeReference<PageResponse<SettlementContent>>() {}));
         if (response == null) {
             throw new IllegalStateException("스마트스토어 정산 응답이 비어 있습니다.");
         }
         return response;
     }
 
-    private DailySettlementResponse fetchDailySettlements(
+    private PageResponse<DailySettlementContent> fetchDailySettlements(
             LocalDate from, LocalDate to, int page) {
-        DailySettlementResponse response = accessTokenProvider.authorized(token -> restClient.get()
+        PageResponse<DailySettlementContent> response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path("/external/v1/pay-settle/settle/daily")
                         .queryParam("startDate", from)
                         .queryParam("endDate", to)
@@ -147,15 +113,15 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                         .build())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
-                .body(DailySettlementResponse.class));
+                .body(new ParameterizedTypeReference<PageResponse<DailySettlementContent>>() {}));
         if (response == null) {
             throw new IllegalStateException("스마트스토어 일별 정산 응답이 비어 있습니다.");
         }
         return response;
     }
 
-    private CommissionResponse fetchCommissions(LocalDate date, int page) {
-        CommissionResponse response = accessTokenProvider.authorized(token -> restClient.get()
+    private PageResponse<CommissionContent> fetchCommissions(LocalDate date, int page) {
+        PageResponse<CommissionContent> response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path(
                                 "/external/v1/pay-settle/settle/commission-details")
                         .queryParam("searchDate", date)
@@ -166,15 +132,15 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                         .build())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
-                .body(CommissionResponse.class));
+                .body(new ParameterizedTypeReference<PageResponse<CommissionContent>>() {}));
         if (response == null) {
             throw new IllegalStateException("스마트스토어 수수료 응답이 비어 있습니다.");
         }
         return response;
     }
 
-    private VatResponse fetchVat(LocalDate from, LocalDate to, int page) {
-        VatResponse response = accessTokenProvider.authorized(token -> restClient.get()
+    private PageResponse<VatContent> fetchVat(LocalDate from, LocalDate to, int page) {
+        PageResponse<VatContent> response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path("/external/v1/pay-settle/vat/daily")
                         .queryParam("startDate", from)
                         .queryParam("endDate", to)
@@ -183,7 +149,7 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                         .build())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
-                .body(VatResponse.class));
+                .body(new ParameterizedTypeReference<PageResponse<VatContent>>() {}));
         if (response == null) {
             throw new IllegalStateException("스마트스토어 부가세 응답이 비어 있습니다.");
         }
@@ -237,10 +203,6 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                 content.merchantId(), content.merchantName());
     }
 
-    private static int totalPages(Pagination pagination, int currentPage) {
-        return pagination == null ? currentPage : pagination.totalPages();
-    }
-
     private static long amount(BigDecimal value) {
         if (value == null) {
             throw new IllegalStateException("스마트스토어 정산 금액이 비어 있습니다.");
@@ -252,16 +214,9 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
         return value == null ? null : value.longValueExact();
     }
 
-    private record SettlementResponse(
-            List<SettlementContent> elements,
-            Pagination pagination,
-            SettlementPage data
-    ) {}
+    private record PageResponse<T>(List<T> elements, Pagination pagination, Page<T> data) {}
 
-    private record SettlementPage(
-            List<SettlementContent> elements,
-            Pagination pagination
-    ) {}
+    private record Page<T>(List<T> elements, Pagination pagination) {}
 
     private record Pagination(int page, int size, int totalPages, long totalElements) {}
 
@@ -280,17 +235,6 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
             BigDecimal sellingInterlockCommissionAmount,
             BigDecimal benefitSettleAmount,
             BigDecimal settleExpectAmount
-    ) {}
-
-    private record DailySettlementResponse(
-            List<DailySettlementContent> elements,
-            Pagination pagination,
-            DailySettlementPage data
-    ) {}
-
-    private record DailySettlementPage(
-            List<DailySettlementContent> elements,
-            Pagination pagination
     ) {}
 
     private record DailySettlementContent(
@@ -316,17 +260,6 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
             String merchantName
     ) {}
 
-    private record CommissionResponse(
-            List<CommissionContent> elements,
-            Pagination pagination,
-            CommissionPage data
-    ) {}
-
-    private record CommissionPage(
-            List<CommissionContent> elements,
-            Pagination pagination
-    ) {}
-
     private record CommissionContent(
             String orderNo,
             String productOrderId,
@@ -346,14 +279,6 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
             BigDecimal commissionAmount,
             BigDecimal maximumSellingInterlockCommissionAmount
     ) {}
-
-    private record VatResponse(
-            List<VatContent> elements,
-            Pagination pagination,
-            VatPage data
-    ) {}
-
-    private record VatPage(List<VatContent> elements, Pagination pagination) {}
 
     private record VatContent(
             LocalDate settleBasisDate,

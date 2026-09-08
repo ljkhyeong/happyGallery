@@ -27,7 +27,7 @@ class NaverCommerceSettlementProviderTest {
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 
     @Test
-    @DisplayName("지급일 기준 정산 내역과 수수료를 공식 페이지 응답에서 읽는다")
+    @DisplayName("정산의 모든 페이지를 순서대로 읽고 data 안의 응답도 처리한다")
     void findByPayDate_readsSettlementPage() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -64,18 +64,32 @@ class NaverCommerceSettlementProviderTest {
                             "benefitSettleAmount":0,
                             "settleExpectAmount":67000
                           }],
-                          "pagination":{"page":1,"size":1000,"totalPages":1,"totalElements":1}
+                          "pagination":{"page":1,"size":1000,"totalPages":2,"totalElements":2}
                         }
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString("/external/v1/pay-settle/settle/case")))
+                .andExpect(queryParam("searchDate", "2026-08-29"))
+                .andExpect(queryParam("pageNumber", "2"))
+                .andRespond(withSuccess("""
+                        {"data":{"elements":[{
+                          "productOrderId":"po-2",
+                          "paySettleAmount":10000,
+                          "benefitSettleAmount":0,
+                          "settleExpectAmount":9000
+                        }]}}
                         """, MediaType.APPLICATION_JSON));
 
         var items = provider.findByPayDate(LocalDate.of(2026, 8, 29));
 
         server.verify();
-        assertThat(items).singleElement().satisfies(item -> {
+        assertThat(items).extracting(item -> item.productOrderId())
+                .containsExactly("po-1", "po-2");
+        assertThat(items.getFirst()).satisfies(item -> {
             assertThat(item.productOrderId()).isEqualTo("po-1");
             assertThat(item.paySettleAmount()).isEqualTo(70000L);
             assertThat(item.settleExpectAmount()).isEqualTo(67000L);
         });
+        assertThat(items.getLast().paySettleAmount()).isEqualTo(10000L);
     }
 
     @Test
@@ -110,6 +124,7 @@ class NaverCommerceSettlementProviderTest {
         server.expect(requestTo(containsString(
                         "/external/v1/pay-settle/settle/commission-details")))
                 .andExpect(queryParam("searchDate", "2026-07-01"))
+                .andExpect(queryParam("pageNumber", "1"))
                 .andRespond(withSuccess("""
                         {"elements":[{
                           "orderNo":"order-1","productOrderId":"po-1",
@@ -123,6 +138,11 @@ class NaverCommerceSettlementProviderTest {
                           "maximumSellingInterlockCommissionAmount":500
                         }],"pagination":{"page":1,"size":1000,"totalPages":1,"totalElements":1}}
                         """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-settle/settle/commission-details")))
+                .andExpect(queryParam("searchDate", "2026-07-02"))
+                .andExpect(queryParam("pageNumber", "1"))
+                .andRespond(withSuccess("{\"data\":{}}", MediaType.APPLICATION_JSON));
         server.expect(requestTo(containsString("/external/v1/pay-settle/vat/daily")))
                 .andExpect(queryParam("startDate", "2026-07-01"))
                 .andExpect(queryParam("endDate", "2026-07-01"))
@@ -138,7 +158,7 @@ class NaverCommerceSettlementProviderTest {
 
         LocalDate date = LocalDate.of(2026, 7, 1);
         var settlements = provider.findDailySettlements(date, date);
-        var commissions = provider.findCommissionDetails(date, date);
+        var commissions = provider.findCommissionDetails(date, date.plusDays(1));
         var vat = provider.findDailyVat(date, date);
 
         server.verify();
