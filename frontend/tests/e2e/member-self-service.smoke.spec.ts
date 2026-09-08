@@ -65,7 +65,11 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
   await page.getByLabel("상태", { exact: true }).selectOption("PAID_APPROVAL_PENDING");
   await page.getByLabel("주문 번호·상품명 검색").fill(String(orderId));
   await page.getByText(`주문 #${orderId}`).click();
-  await expect(page).toHaveURL(new RegExp(`/my/orders/${orderId}$`));
+  await expect(page).toHaveURL((url) =>
+    url.pathname === `/my/orders/${orderId}`
+    && url.searchParams.get("status") === "PAID_APPROVAL_PENDING"
+    && url.searchParams.get("q") === String(orderId),
+  );
 
   await page.getByRole("button", { name: "주문 취소" }).click();
   const refundDialog = page.getByRole("dialog", { name: "주문 취소 및 환불 요청" });
