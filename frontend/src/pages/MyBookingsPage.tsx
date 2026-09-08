@@ -3,7 +3,7 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
@@ -22,6 +22,7 @@ const BOOKING_SORT_OPTIONS = [
 ];
 
 export function MyBookingsPage() {
+  const { search } = useLocation();
   const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
     useMyListFilters({
@@ -143,7 +144,7 @@ export function MyBookingsPage() {
         <Card
           key={booking.bookingId}
           as={Link}
-          to={`/my/bookings/${booking.bookingId}`}
+          to={{ pathname: `/my/bookings/${booking.bookingId}`, search }}
           className="mb-2 text-decoration-none my-list-card border-0"
         >
           <Card.Body className="py-3 px-3">
