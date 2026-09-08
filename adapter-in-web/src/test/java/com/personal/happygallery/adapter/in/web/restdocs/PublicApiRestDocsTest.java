@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
-import com.personal.happygallery.adapter.in.web.address.RoadAddressController;
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
 import com.personal.happygallery.adapter.in.web.booking.BookingVacancyAlertController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
@@ -19,7 +18,6 @@ import com.personal.happygallery.adapter.in.web.product.ProductReviewController;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.workshop.WorkshopProfileController;
 import com.personal.happygallery.adapter.in.web.webhook.TossPaymentWebhookController;
-import com.personal.happygallery.application.address.port.in.RoadAddressSearchUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingVacancyAlertUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase;
@@ -116,7 +114,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     private GuestRecordRecoveryUseCase guestRecordRecoveryUseCase;
     private SubjectRateLimitGuard rateLimitGuard;
     private WorkshopProfileUseCase workshopProfileUseCase;
-    private RoadAddressSearchUseCase roadAddressSearchUseCase;
     private PaymentWebhookUseCase paymentWebhookUseCase;
 
     @BeforeEach
@@ -143,7 +140,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         guestRecordRecoveryUseCase = mock(GuestRecordRecoveryUseCase.class);
         rateLimitGuard = mock(SubjectRateLimitGuard.class);
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
-        roadAddressSearchUseCase = mock(RoadAddressSearchUseCase.class);
         paymentWebhookUseCase = mock(PaymentWebhookUseCase.class);
 
         ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
@@ -275,12 +271,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 "https://smartstore.naver.com/happygallery",
                 LocalDateTime.of(2026, 5, 1, 21, 0));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
-        when(roadAddressSearchUseCase.search("계명대로 161")).thenReturn(List.of(
-                new RoadAddressSearchUseCase.RoadAddress(
-                        "27360",
-                        "충청북도 충주시 계명대로 161",
-                        "충청북도 충주시 연수동 1615",
-                        "해피갤러리")));
 
         mockMvc = mockMvc(restDocumentation,
                 new ProductController(productQueryUseCase),
@@ -298,20 +288,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
                 new NoticeController(noticeQueryUseCase),
                 new WorkshopProfileController(workshopProfileUseCase),
-                new RoadAddressController(roadAddressSearchUseCase),
                 new TossPaymentWebhookController(paymentWebhookUseCase),
                 new GuestRecordRecoveryController(
                         guestRecordRecoveryUseCase, paymentStatusRecoveryUseCase, rateLimitGuard),
                 new ClientMonitoringController(clientMonitoringUseCase));
-    }
-
-    @Test
-    @DisplayName("도로명주소 검색 API를 문서화한다")
-    void search_road_addresses() throws Exception {
-        mockMvc.perform(get("/api/v1/addresses/search")
-                        .param("keyword", "계명대로 161"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].postalCode").value("27360"));
     }
 
     @Test

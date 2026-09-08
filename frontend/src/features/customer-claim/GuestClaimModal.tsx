@@ -80,7 +80,7 @@ export function GuestClaimModal({
           ]);
           requireCurrent();
           toast.show(
-            `비회원 이력을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건`,
+            `비회원 주문·예약을 가져왔습니다. 주문 ${data.claimedOrderCount}건, 예약 ${data.claimedBookingCount}건`,
           );
           onClose();
         },
@@ -127,7 +127,7 @@ export function GuestClaimModal({
       centered
     >
       <Modal.Header closeButton>
-        <Modal.Title id="guest-claim-title" className="fs-6">비회원 이력 가져오기</Modal.Title>
+        <Modal.Title id="guest-claim-title" className="fs-6">비회원 주문·예약 가져오기</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <p className="text-muted-soft small mb-3">
@@ -139,7 +139,7 @@ export function GuestClaimModal({
           <PhoneVerificationStep
             purpose="GUEST_CLAIM"
             title="휴대폰 재인증"
-            description="회원 조회는 로그인으로 가능하지만, 기존 비회원 이력을 가져오려면 같은 번호인지 한 번 더 확인합니다."
+            description="주문·예약에 사용한 휴대폰 번호를 한 번 더 인증해 주세요."
             initialPhone={normalizePhone(phone)}
             lockPhone
             confirmLabel="인증하고 불러오기"
@@ -147,7 +147,7 @@ export function GuestClaimModal({
           />
         ) : (
           <>
-            {previewQuery.isLoading && !preview && <p className="mb-0">비회원 이력을 확인하는 중입니다...</p>}
+            {previewQuery.isLoading && !preview && <p className="mb-0">비회원 주문·예약을 불러오는 중...</p>}
 
             {preview && (
               <Stack gap={3}>
@@ -159,7 +159,7 @@ export function GuestClaimModal({
                 {preview.orders.length === 0 &&
                   preview.bookings.length === 0 && (
                     <Alert variant="light" className="mb-0">
-                      현재 가져올 비회원 이력이 없습니다.
+                      가져올 비회원 주문·예약이 없습니다.
                     </Alert>
                   )}
 
@@ -244,7 +244,7 @@ export function GuestClaimModal({
           }
           onClick={() => claimMutation.mutate()}
         >
-          {claimMutation.isPending ? "가져오는 중..." : "선택한 이력 가져오기"}
+          {claimMutation.isPending ? "가져오는 중..." : "선택한 주문·예약 가져오기"}
         </Button>
       </Modal.Footer>
     </Modal>

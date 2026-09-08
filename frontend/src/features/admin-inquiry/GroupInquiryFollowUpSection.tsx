@@ -16,7 +16,7 @@ export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: str
     refetchInterval: 60_000,
   });
   return <div id="group-inquiry-follow-ups">
-    <p className="small text-muted">오늘과 예정일이 지난 문의를 오래된 연락일 순으로 표시합니다.</p>
+    <p className="small text-muted">연락 예정일이 오늘까지인 문의를 오래된 순서로 표시합니다.</p>
     {query.isLoading && <LoadingSpinner />}
     <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
     {query.data?.content.length === 0 && <EmptyState message="오늘까지 연락할 단체 문의가 없습니다." />}

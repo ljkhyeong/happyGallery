@@ -156,7 +156,7 @@ function ConsultationForm({ detail, token, onAuthError }: Props & { detail: Admi
       <ErrorAlert error={mutation.error} />
       <Button type="submit" disabled={mutation.isPending || contactMutation.isPending || canceled || !note.trim()}>{mutation.isPending ? "저장 중..." : "상담 저장"}</Button>
     </Form>
-    <p className="small text-muted mt-2">확정은 상담 결과를 기록합니다. 결제나 일반 클래스 예약은 자동 생성되지 않습니다.</p>
+    <p className="small text-muted mt-2">상담 결과만 ‘확정’으로 기록합니다. 결제·클래스 예약은 자동 생성되지 않습니다.</p>
     {detail.activities.map((activity) => <div key={activity.id} className="border-top py-2 small">
       <strong>{GROUP_INQUIRY_STATUS[activity.toStatus]}</strong> · {formatDateTime(activity.createdAt)} · {activity.memberAction ? "회원" : activity.adminId === null ? "로컬 관리자" : `관리자 ${activity.adminId}`}
       <div style={{ whiteSpace: "pre-wrap" }}>{activity.note}</div>

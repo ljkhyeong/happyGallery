@@ -5,6 +5,7 @@ import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.coupon.IssuedCouponStatus;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.ShippingAddress;
@@ -41,6 +42,9 @@ public record OrderDetailResponse(
         long rewardEarnBase,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         Long issuedCouponId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true,
+                description = "주문에 사용한 쿠폰의 현재 상태. 쿠폰 미사용 주문은 null")
+        IssuedCouponStatus couponStatus,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
         LocalDateTime paidAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
@@ -219,6 +223,7 @@ public record OrderDetailResponse(
                 order.getPgPaidAmount(),
                 order.getRewardEarnBase(),
                 order.getIssuedCouponId(),
+                detail.couponStatus(),
                 order.getPaidAt(),
                 order.getApprovalDeadlineAt(),
                 detail.items().stream().map(ItemDto::from).toList(),

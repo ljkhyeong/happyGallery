@@ -34,8 +34,8 @@ export function ProductCard({ product }: Props) {
         </Card.Title>
         <p className="product-card-copy text-muted-soft mb-3 flex-grow-1">
           {product.description || (product.type === "MADE_TO_ORDER"
-            ? "승인 후 제작이 시작되는 예약 제작 상품"
-            : "재고 수량 기준으로 바로 주문 가능한 상품")}
+            ? "주문 승인 후 제작하는 상품"
+            : "재고가 있으면 바로 주문할 수 있는 상품")}
         </p>
         <div className="d-flex justify-content-between align-items-end pt-2 product-card-divider">
           <span className="product-card-price">

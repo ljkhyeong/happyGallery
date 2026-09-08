@@ -121,7 +121,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
             buttonLabel="거절"
             confirmLabel="거절 및 환불 요청"
             title="주문 거절 및 환불 안내"
-            impact="주문을 거절하면 확보한 상품 재고를 복구하고 전액 환불 요청을 접수합니다. 주문 상태 변경은 즉시 반영되지만 결제사 환불 완료 여부는 별도로 확인해야 합니다."
+            impact="주문은 즉시 거절되고 재고가 복구됩니다. 전액 환불을 요청하며, 환불 완료 여부는 별도로 확인해 주세요."
             disabled={disabled}
             pending={pending}
             onConfirm={() => mutations.reject.mutate(orderId)}
@@ -185,7 +185,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           buttonLabel="고객 거절 주문 취소"
           confirmLabel="주문 취소 및 환불 요청"
           title="주문 취소 및 환불 안내"
-          impact="고객이 제작 지연 제안을 거절한 주문을 취소하고 전액 환불 요청을 접수합니다. 확보한 재고는 복구되며 결제사 환불 완료 여부는 별도로 확인해야 합니다."
+          impact="지연 제안을 거절한 주문을 취소하고 재고를 복구합니다. 전액 환불을 요청하며, 환불 완료 여부는 별도로 확인해 주세요."
           disabled={disabled}
           pending={pending}
           onConfirm={() => mutations.delayCancel.mutate(orderId)}
@@ -278,7 +278,7 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           buttonLabel="관리자 예외 환불"
           confirmLabel="전액 환불 요청"
           title="미수령 주문 예외 환불 확인"
-          impact="미수령으로 종료된 주문의 전액 환불을 요청합니다. 기성품 재고는 만료 처리 때 이미 복구됐고 주문제작 재고는 판매 재고가 아니므로 재고 수량은 변경하지 않습니다. 주문 상태는 즉시 바뀌지만 결제사 환불 완료 여부는 별도로 확인해야 합니다."
+          impact="미수령 주문의 전액 환불을 요청합니다. 기성품 재고는 이미 복구됐으며 주문제작 재고는 변경하지 않습니다. 주문 상태는 즉시 바뀌고, 환불 완료 여부는 별도로 확인해 주세요."
           disabled={disabled}
           pending={pending}
           onConfirm={() => mutations.missedPickupRefund.mutate(orderId)}

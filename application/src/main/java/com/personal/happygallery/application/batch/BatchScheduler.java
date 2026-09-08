@@ -37,7 +37,7 @@ import org.springframework.stereotype.Component;
  *   <li>매분 50초: 스마트스토어 변경 주문 수집과 내부 재고 반영</li>
  *   <li>매분 55초: 내부 최신 재고를 스마트스토어에 반영</li>
  *   <li>매시간 50분: 최근 7일 스마트스토어 정산 내역 대사</li>
- *   <li>매월 1일 04:20: 공식 공휴일 연도별 스냅샷 동기화</li>
+ *   <li>매일 04:20: 공식 공휴일 연도별 스냅샷 동기화</li>
  *   <li>매일 03:30: 보존 기간이 지난 결제·휴대폰 인증 개인정보 정리</li>
  * </ul>
  */
@@ -207,9 +207,9 @@ public class BatchScheduler {
         return paymentWebhookBatchUseCase.processPendingReceipts();
     }
 
-    /** 공식 공휴일 연도별 스냅샷을 갱신한다. 매월 1일 04:20 실행. */
+    /** 공식 공휴일 연도별 스냅샷을 갱신한다. 매일 04:20 실행. */
     @BatchJob(id = "public_holiday_snapshot", value = "공식 공휴일 동기화")
-    @Scheduled(cron = "0 20 4 1 * *", zone = Clocks.SEOUL_ID)
+    @Scheduled(cron = "0 20 4 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPublicHolidaySnapshotSync() {
         return publicHolidaySyncUseCase.syncAnnualSnapshots();
     }

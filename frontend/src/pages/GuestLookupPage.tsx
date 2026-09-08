@@ -41,19 +41,8 @@ function GuestLookupContent() {
           <Badge bg="light" text="dark" className="mb-3">비회원 조회</Badge>
           <h3 className="mb-2">비회원 조회 안내</h3>
           <p className="text-muted-soft mb-3">
-            완료한 주문과 예약, 결제 도중 놓친 처리 결과를 여기서 확인할 수 있습니다.
-            계속 관리할 예정이라면 회원가입 후 <strong>내 정보</strong>로 이력을 가져올 수 있습니다.
+            비회원 주문·예약과 결제 결과를 확인할 수 있습니다.
           </p>
-          <div className="guest-route-note mb-0">
-            <div className="guest-route-note-title">이용 방법</div>
-            <div className="small text-muted-soft">
-              1. 지금은 비회원 조회 정보로 확인
-              <br />
-              2. 계속 관리할 예정이면 로그인 또는 회원가입
-              <br />
-              3. 같은 번호의 이력을 회원 계정으로 가져오기
-            </div>
-          </div>
         </Card.Body>
       </Card>
 
@@ -88,10 +77,10 @@ function GuestLookupContent() {
         <Card.Body className="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-start">
           <div>
             <div className="my-section-kicker mb-2">회원으로 계속 이용하기</div>
-            <h5 className="mb-2">비회원 이력을 회원 내 정보로 가져오세요</h5>
+            <h5 className="mb-2">비회원 주문·예약을 내 정보로 가져오세요</h5>
             <p className="text-muted-soft small mb-0">
-              로그인 또는 회원가입 후 같은 번호의 비회원 주문과 예약을 내 정보로 가져오면
-              이후에는 조회 코드를 다시 입력하지 않고 한 화면에서 관리할 수 있습니다.
+              로그인 또는 가입 후 같은 휴대폰 번호의 주문·예약을 가져오세요.
+              이후에는 조회 코드 없이 내 정보에서 확인할 수 있습니다.
             </p>
           </div>
           <div className="d-flex flex-wrap gap-2">

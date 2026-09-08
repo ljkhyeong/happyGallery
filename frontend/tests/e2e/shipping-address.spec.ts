@@ -33,16 +33,56 @@ for (const member of [true, false]) {
       });
       return json([]);
     });
+    let scriptRequests = 0;
+    await page.route("https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js", async (route) => {
+      scriptRequests += 1;
+      if (!member) return route.abort();
+      return route.fulfill({ contentType: "application/javascript", body: `
+        window.kakao = { Postcode: class {
+          constructor(options) { this.options = options; }
+          embed(container) {
+            const button = document.createElement("button");
+            button.textContent = "충주시 계명대로 161 선택";
+            button.onclick = () => this.options.oncomplete({
+              zonecode: "27360", roadAddress: "충청북도 충주시 계명대로 161",
+              address: "충청북도 충주시 연수동 1615"
+            });
+            container.replaceChildren(button);
+          }
+        }};
+      ` });
+    });
+    if (!member) await page.setViewportSize({ width: 375, height: 812 });
     await page.goto(member ? "/my/orders/200" : "/guest/orders");
     if (!member) {
       await page.getByLabel("주문 번호", { exact: true }).fill("200");
       await page.getByLabel("조회 코드", { exact: true }).fill("guest-address-token");
       await page.getByRole("button", { name: "조회", exact: true }).click();
     }
+    await expect(page.getByRole("button", { name: "배송지 수정", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "배송지 수정", exact: true }).click();
-    await page.getByLabel("기본 주소", { exact: true }).fill("변경한 기본 주소");
+    await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+    const searchDialog = page.getByRole("dialog", { name: "도로명주소 검색", exact: true });
+    if (member) {
+      await searchDialog.getByRole("button", { name: "충주시 계명대로 161 선택" }).click();
+      await expect(page.getByLabel("우편번호", { exact: true })).toHaveValue("27360");
+      await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("충청북도 충주시 계명대로 161");
+      await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+      await searchDialog.getByRole("button", { name: "충주시 계명대로 161 선택" }).click();
+      expect(scriptRequests).toBe(1);
+    } else {
+      await expect(searchDialog.getByRole("alert")).toBeVisible();
+      await searchDialog.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+      await expect(searchDialog.getByRole("alert")).toBeVisible();
+      expect(scriptRequests).toBe(2);
+      await searchDialog.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByLabel("기본 주소", { exact: true }).fill("변경한 기본 주소");
+    }
     await page.getByRole("button", { name: "배송지 저장", exact: true }).click();
-    await expect(page.getByText("(12345) 변경한 기본 주소 101호", { exact: true })).toBeVisible();
+    await expect(page.getByText(member
+      ? "(27360) 충청북도 충주시 계명대로 161 101호"
+      : "(12345) 변경한 기본 주소 101호", { exact: true })).toBeVisible();
     expect(requests).toHaveLength(1);
     status = "SHIPPING_PREPARING";
     if (member) await page.reload();

@@ -74,7 +74,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
           <thead>
             <tr>
               <th>환불 번호</th>
-              <th>대상</th>
+              <th>환불 대상</th>
               <th className="text-end">금액</th>
               <th>상태</th>
               <th className="text-end">처리 시도</th>
@@ -158,7 +158,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
           {retryTarget && (
             <>
               <dl className="row small mb-3">
-                <dt className="col-5">대상</dt>
+                <dt className="col-5">환불 대상</dt>
                 <dd className="col-7">{refundTarget(retryTarget)}</dd>
                 <dt className="col-5">환불 금액</dt>
                 <dd className="col-7 fw-semibold">{formatKRW(retryTarget.amount)}</dd>

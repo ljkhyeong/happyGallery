@@ -1,3 +1,4 @@
+import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge, Button, Form, Modal, Spinner } from "react-bootstrap";
@@ -275,6 +276,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
               required
               autoFocus
             />
+            <PasswordLengthFeedback value={password} />
           </Modal.Body>
           <Modal.Footer>
             {(linkedProviders?.length ?? 0) > 0 && pendingAction && (

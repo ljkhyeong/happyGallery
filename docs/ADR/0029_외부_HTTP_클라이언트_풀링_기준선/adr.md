@@ -1,7 +1,7 @@
 # ADR-0029: 외부 HTTP 클라이언트 풀 설정
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-08-27
+**최종 갱신**: 2026-09-07
 **상태**: Accepted
 
 ---
@@ -9,8 +9,8 @@
 ## 왜 이 문서가 필요한가
 
 알림 발송과 Google, Naver, Kakao OAuth 호출은 모두 외부 HTTP 의존성이 있다.
-연결 풀 없이 호출하면 느린 외부 서비스 하나가 다른 호출까지 쉽게 끌어내린다.
-Toss Payments confirm/cancel, Delivery API 운송장 등록, 도로명주소 검색과 공휴일 조회도 같은 외부 HTTP 경계에 포함된다.
+느린 외부 서비스의 요청이 다른 요청까지 지연시키지 않도록 연결 풀을 서비스별로 분리한다.
+Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도 외부 HTTP 호출에 포함된다.
 
 ---
 
@@ -32,7 +32,6 @@ Toss Payments confirm/cancel, Delivery API 운송장 등록, 도로명주소 검
   - Kakao OAuth
   - Toss Payments
   - Delivery API 배송조회
-  - 주소기반산업지원서비스 도로명주소
   - 공공데이터포털 한국천문연구원 특일 정보
 
 ### 2. 타임아웃과 풀 크기는 서비스별 프로퍼티로 관리한다
@@ -48,7 +47,6 @@ Toss Payments confirm/cancel, Delivery API 운송장 등록, 도로명주소 검
 - Google/Naver/Kakao OAuth provider별 max connections: 10
 - Toss Payments max connections: 10
 - Delivery API: acquire 0.5초, connect 1초, read/response 3초, max connections 10
-- 도로명주소: acquire 0.5초, connect 1초, read/response 3초, max connections 10
 - 공휴일: acquire 0.5초, connect 1초, read/response 5초, max connections 5
 - acquire·connect·response·keep-alive는 각 `@ConfigurationProperties`에서 `Duration`으로 바인딩한다. `PooledHttpClientFactory`는 임의의 밀리초 변환 없이 Apache HttpClient 5의 `Timeout.of(Duration)`와 `TimeValue.of(Duration)`에 전달한다.
 - 기존 `*_TIMEOUT_MILLIS`·`*_KEEP_ALIVE_MILLIS` 환경 변수는 숫자 계약을 유지하고 `application.yml`에서 `ms` 단위를 붙인다.

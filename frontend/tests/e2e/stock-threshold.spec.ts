@@ -29,7 +29,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   });
   await page.goto("/admin?view=products&productId=42");
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("3");
-  await page.getByRole("button", { name: "기준 저장", exact: true }).click();
+  await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect(page.getByText("최소 보유 수량을 저장했습니다.", { exact: true })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();
@@ -38,7 +38,7 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   await expect(panel.getByText("재고 부족", { exact: true })).toBeVisible();
   await panel.getByRole("link", { name: "재고 조정" }).click();
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("");
-  await page.getByRole("button", { name: "기준 저장", exact: true }).click();
+  await page.getByRole("button", { name: "최소 수량 저장", exact: true }).click();
   await expect.poll(() => minimumStock).toBeNull();
   await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await page.getByRole("button", { name: "오늘 할 일", exact: true }).click();

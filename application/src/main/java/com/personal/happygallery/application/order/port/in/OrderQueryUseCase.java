@@ -3,6 +3,7 @@ package com.personal.happygallery.application.order.port.in;
 import com.personal.happygallery.application.order.OrderHistoryQuery;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.coupon.IssuedCouponStatus;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -24,7 +25,8 @@ public interface OrderQueryUseCase {
             ShippingAddress shippingAddress,
             List<ShipmentTrackingEvent> trackingEvents,
             Refund refund,
-            String receiptUrl
+            String receiptUrl,
+            IssuedCouponStatus couponStatus
     ) {
         public OrderDetail {
             items = List.copyOf(items);

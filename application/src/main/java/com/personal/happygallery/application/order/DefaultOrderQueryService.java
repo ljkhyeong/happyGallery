@@ -1,6 +1,9 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
+import com.personal.happygallery.application.coupon.port.out.CouponDefinitionReaderPort;
+import com.personal.happygallery.application.coupon.port.out.IssuedCouponReaderPort;
+import com.personal.happygallery.domain.coupon.IssuedCouponStatus;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
@@ -19,6 +22,8 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.application.token.GuestTokenService;
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -38,6 +43,9 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private final ShipmentTrackingEventPort trackingEventPort;
     private final PaymentReceiptQuery receiptQuery;
     private final MemberHistoryReaderPort memberHistoryReader;
+    private final IssuedCouponReaderPort issuedCouponReader;
+    private final CouponDefinitionReaderPort couponDefinitionReader;
+    private final Clock clock;
 
     public DefaultOrderQueryService(OrderReaderPort orderReader,
                                     OrderItemPort orderItemPort,
@@ -47,7 +55,10 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                                     ShippingAddressProtector shippingAddressProtector,
                                     ShipmentTrackingEventPort trackingEventPort,
                                     PaymentReceiptQuery receiptQuery,
-                                    MemberHistoryReaderPort memberHistoryReader) {
+                                    MemberHistoryReaderPort memberHistoryReader,
+                                    IssuedCouponReaderPort issuedCouponReader,
+                                    CouponDefinitionReaderPort couponDefinitionReader,
+                                    Clock clock) {
         this.orderReader = orderReader;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
@@ -57,6 +68,9 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
         this.trackingEventPort = trackingEventPort;
         this.receiptQuery = receiptQuery;
         this.memberHistoryReader = memberHistoryReader;
+        this.issuedCouponReader = issuedCouponReader;
+        this.couponDefinitionReader = couponDefinitionReader;
+        this.clock = clock;
     }
 
     /** 회원 — 자기 주문 목록 조회 */
@@ -137,6 +151,20 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
                 shippingAddress,
                 trackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()),
                 refundPort.findDirectByOrderId(order.getId()).orElse(null),
-                receiptQuery.findReceipt(PaymentContext.ORDER, order.getId()));
+                receiptQuery.findReceipt(PaymentContext.ORDER, order.getId()),
+                couponStatus(order));
+    }
+
+    private IssuedCouponStatus couponStatus(Order order) {
+        if (order.getIssuedCouponId() == null) return null;
+        var issued = issuedCouponReader.findById(order.getIssuedCouponId())
+                .filter(coupon -> coupon.isOwnedBy(order.getUserId()))
+                .orElseThrow(NotFoundException.supplier("쿠폰"));
+        if (issued.getStatus() != IssuedCouponStatus.AVAILABLE) return issued.getStatus();
+        var definition = couponDefinitionReader.findById(issued.getDefinitionId())
+                .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
+        if (!definition.isActive()) return IssuedCouponStatus.CANCELED;
+        return LocalDateTime.now(clock).isBefore(definition.getValidUntil())
+                ? IssuedCouponStatus.AVAILABLE : IssuedCouponStatus.EXPIRED;
     }
 }

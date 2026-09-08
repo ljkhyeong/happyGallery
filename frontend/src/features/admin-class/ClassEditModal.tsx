@@ -152,7 +152,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
             </Col>
             <Col xs={12} md={6}>
               <Form.Group controlId="admin-edit-class-audience">
-                <Form.Label>대상 안내</Form.Label>
+                <Form.Label>추천 대상</Form.Label>
                 <Form.Control as="textarea" rows={3} value={targetAudience} maxLength={1000} onChange={(e) => setTargetAudience(e.target.value)} />
               </Form.Group>
             </Col>

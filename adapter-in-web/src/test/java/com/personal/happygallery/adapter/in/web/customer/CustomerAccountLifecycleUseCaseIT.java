@@ -121,7 +121,8 @@ class CustomerAccountLifecycleUseCaseIT {
                         .with(csrf())
                         .session(customerSession(user)))
                 .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWAL_BLOCKED"));
+                .andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWAL_BLOCKED"))
+                .andExpect(jsonPath("$.message").value("사용 가능한 8회권이 있습니다."));
 
         assertThat(userReader.findById(user.getId())).isPresent();
     }

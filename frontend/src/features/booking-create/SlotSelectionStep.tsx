@@ -193,7 +193,7 @@ export function SlotSelectionStep({
           <div className="d-flex flex-wrap gap-4 small">
             {selectedClass.targetAudience && (
               <div>
-                <strong className="d-block mb-1">대상</strong>
+                <strong className="d-block mb-1">추천 대상</strong>
                 <span>{selectedClass.targetAudience}</span>
               </div>
             )}
