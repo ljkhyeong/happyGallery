@@ -1,5 +1,5 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, Container } from "react-bootstrap";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
@@ -22,6 +22,7 @@ import { queryKeys } from "@/shared/api";
 import { BookingReviewSection } from "@/features/review/BookingReviewSection";
 
 export function MyBookingDetailPage() {
+  const { search } = useLocation();
   const { id } = useParams<{ id: string }>();
   const bookingId = Number(id);
   const validBookingId = isPositiveSafeIntegerString(id);
@@ -31,7 +32,9 @@ export function MyBookingDetailPage() {
   const {
     data: booking,
     isLoading,
+    isFetching,
     error,
+    refetch,
   } = useQuery({
     queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => fetchMyBooking(bookingId),
@@ -45,7 +48,7 @@ export function MyBookingDetailPage() {
 
   if (!validBookingId) return <NotFoundPage />;
 
-  if (authLoading || isLoading) {
+  if (authLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }
 
@@ -60,19 +63,13 @@ export function MyBookingDetailPage() {
     );
   }
 
-  if (error && !booking) {
-    return <Container className="page-container"><ErrorAlert error={error} /></Container>;
-  }
-
-  if (!booking) return null;
-
-  const isBooked = booking.status === "BOOKED";
+  const isBooked = booking?.status === "BOOKED";
 
   return (
     <Container className="page-container" style={{ maxWidth: 720 }}>
       <div className="my-detail-header">
         <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-3">
-          <Link to="/my/bookings" className="text-decoration-none small">
+          <Link to={{ pathname: "/my/bookings", search }} className="text-decoration-none small">
             &larr; 내 예약
           </Link>
           <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
@@ -86,76 +83,80 @@ export function MyBookingDetailPage() {
         </p>
       </div>
 
-      <MyBookingDetailCard booking={booking} />
-      {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
+      <ErrorAlert error={error} onRetry={() => void refetch()} retrying={isFetching} />
+      {isLoading && <LoadingSpinner />}
+      {booking && (
+        <>
+          <MyBookingDetailCard booking={booking} />
+          {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
 
-      {error && <ErrorAlert error={error} />}
-
-      <BookingReviewSection
-        bookingId={booking.bookingId}
-        className={booking.className}
-      />
-
-      {isBooked && (
-        <Card className="mt-4 border-0 my-action-card">
-          <Card.Header>예약 변경</Card.Header>
-          <Card.Body>
-            <p className="text-muted-soft small">
-              예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
-            </p>
-            <RescheduleForm
-              classId={booking.classId}
-              className={booking.className}
-              currentSlotId={booking.slotId}
-              currentStartAt={booking.startAt}
-              participantCount={booking.participantCount}
-              onReschedule={(newSlotId) =>
-                rescheduleMyBooking(booking.bookingId, newSlotId)}
-              onSuccess={() =>
-                queryClient.invalidateQueries({
-                  queryKey: queryKeys.member.bookings.all,
-                })}
-              successMessage="회원 예약이 변경되었습니다."
-            />
-          </Card.Body>
-        </Card>
-      )}
-
-      {isBooked && booking.participantCount > 1 && (
-        <Card className="mt-3 border-0 my-action-card">
-          <Card.Header>예약 인원 변경</Card.Header>
-          <Card.Body>
-            <p className="text-muted-soft small">
-              취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
-            </p>
-            <ReduceParticipantsForm
-              participantCount={booking.participantCount}
-              depositAmount={booking.depositAmount}
-              cancelPolicy={booking.cancelPolicy}
-              passBooking={booking.passBooking}
-              onReduce={(participantCount) =>
-                reduceMyBookingParticipants(booking.bookingId, participantCount)}
-              onSuccess={() =>
-                queryClient.invalidateQueries({
-                  queryKey: queryKeys.member.bookings.all,
-                })}
-            />
-          </Card.Body>
-        </Card>
-      )}
-
-      {isBooked && (
-        <div className="mt-3">
-          <CancelButton
-            onCancel={() => cancelMyBooking(booking.bookingId)}
-            onSuccess={() =>
-              queryClient.invalidateQueries({
-                queryKey: queryKeys.member.bookings.all,
-              })}
-            cancelPolicy={booking.cancelPolicy}
-            depositAmount={booking.depositAmount}
+          <BookingReviewSection
+            bookingId={booking.bookingId}
+            className={booking.className}
           />
-        </div>
+
+          {isBooked && (
+            <Card className="mt-4 border-0 my-action-card">
+              <Card.Header>예약 변경</Card.Header>
+              <Card.Body>
+                <p className="text-muted-soft small">
+                  예약 가능한 다른 날짜와 시간으로 바로 변경합니다. 변경 후에는 예약 상세에 새 일정이 표시됩니다.
+                </p>
+                <RescheduleForm
+                  classId={booking.classId}
+                  className={booking.className}
+                  currentSlotId={booking.slotId}
+                  currentStartAt={booking.startAt}
+                  participantCount={booking.participantCount}
+                  onReschedule={(newSlotId) =>
+                    rescheduleMyBooking(booking.bookingId, newSlotId)}
+                  onSuccess={() =>
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.member.bookings.all,
+                    })}
+                  successMessage="회원 예약이 변경되었습니다."
+                />
+              </Card.Body>
+            </Card>
+          )}
+
+          {isBooked && booking.participantCount > 1 && (
+            <Card className="mt-3 border-0 my-action-card">
+              <Card.Header>예약 인원 변경</Card.Header>
+              <Card.Body>
+                <p className="text-muted-soft small">
+                  취소 마감 전에는 한 명 이상을 남겨 일부 인원만 취소할 수 있습니다.
+                </p>
+                <ReduceParticipantsForm
+                  participantCount={booking.participantCount}
+                  depositAmount={booking.depositAmount}
+                  cancelPolicy={booking.cancelPolicy}
+                  passBooking={booking.passBooking}
+                  onReduce={(participantCount) =>
+                    reduceMyBookingParticipants(booking.bookingId, participantCount)}
+                  onSuccess={() =>
+                    queryClient.invalidateQueries({
+                      queryKey: queryKeys.member.bookings.all,
+                    })}
+                />
+              </Card.Body>
+            </Card>
+          )}
+
+          {isBooked && (
+            <div className="mt-3">
+              <CancelButton
+                onCancel={() => cancelMyBooking(booking.bookingId)}
+                onSuccess={() =>
+                  queryClient.invalidateQueries({
+                    queryKey: queryKeys.member.bookings.all,
+                  })}
+                cancelPolicy={booking.cancelPolicy}
+                depositAmount={booking.depositAmount}
+              />
+            </div>
+          )}
+        </>
       )}
     </Container>
   );
