@@ -60,7 +60,7 @@ export function MyOrderDetailPage() {
       <Container className="page-container" style={{ maxWidth: 640 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="회원 주문 상세는 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+          description="로그인하면 주문 상세를 확인할 수 있습니다."
         />
       </Container>
     );
@@ -77,10 +77,10 @@ export function MyOrderDetailPage() {
             스토어 둘러보기
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Order</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">주문 상세</h4>
         <p className="text-muted-soft small mb-0">
-          현재 주문 상태와 배송·수령 정보를 확인할 수 있습니다.
+          주문 상태와 배송·수령 정보를 확인하세요.
         </p>
       </div>
       <ErrorAlert error={error} onRetry={() => void refetch()} retrying={isFetching} />

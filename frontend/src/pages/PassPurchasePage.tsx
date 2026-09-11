@@ -73,8 +73,8 @@ export function PassPurchasePage() {
           <ul className="small text-muted-soft ps-3 mb-3">
             {policyQuery.data ? (
               <li className="mb-2">
-                결제일을 포함해 {policyQuery.data.validityDays}일 동안 사용할 수 있으며,
-                마지막 사용 가능일 다음 날 00:00부터 남은 횟수는 환불 없이 소멸합니다.
+                결제일 포함 {policyQuery.data.validityDays}일간 사용할 수 있습니다.
+                마지막 사용 가능일 다음 날 00:00에 남은 횟수는 환불 없이 소멸합니다.
               </li>
             ) : (
               <li className="mb-2">
@@ -82,19 +82,18 @@ export function PassPurchasePage() {
               </li>
             )}
             <li className="mb-2">
-              예약 한 건마다 1회가 차감됩니다. 결석하거나 변경 가능 시각이 지난 뒤 이용하지
-              않아도 1회는 소모되며 별도 보강은 제공되지 않습니다.
+              예약마다 1회가 차감됩니다. 결석해도 차감한 횟수는 복구되지 않으며, 보강 수업은 없습니다.
             </li>
             <li className="mb-2">
-              취소 마감 전에는 차감한 1회가 복구되지만, 마감 후 취소하면 복구되지 않습니다.
+              취소 마감 전 취소하면 1회가 복구됩니다. 마감 후에는 복구되지 않습니다.
             </li>
             <li>
-              만료 전 환불액은 남은 횟수와 자동 취소되는 예약 횟수를 합산해 회당 구매
-              단가로 계산합니다. 만료된 이용권은 환불할 수 없습니다.
+              만료 전 환불 시, 남은 횟수와 자동 취소되는 예약 횟수를 합쳐 회당 구매 금액으로 환불합니다.
+              만료된 이용권은 환불할 수 없습니다.
             </li>
           </ul>
           <p className="text-muted-soft small mb-0">
-            가격과 이용 기간은 결제 전에 다시 확인합니다.
+            결제 전 금액과 이용 기간을 확인해 주세요.
           </p>
         </Card.Body>
       </Card>

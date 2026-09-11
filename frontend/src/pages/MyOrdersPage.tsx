@@ -91,7 +91,7 @@ export function MyOrdersPage() {
       <Container className="page-container" style={{ maxWidth: 720 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="회원 주문 목록은 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+          description="로그인하면 내 주문을 확인할 수 있습니다."
         />
       </Container>
     );
@@ -108,7 +108,7 @@ export function MyOrdersPage() {
             상품 보러가기
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Orders</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">전체 주문</h4>
         <p className="text-muted-soft small mb-0">
           주문 상태와 결제 금액을 확인하고, 원하는 주문을 검색하세요.

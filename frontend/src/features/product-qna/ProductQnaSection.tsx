@@ -152,7 +152,7 @@ function ProductQnaContent({ productId }: Props) {
 
         {!isAuthenticated && (
           <p className="text-muted-soft small mt-2 mb-0">
-            Q&A 작성은 로그인 후 이용 가능합니다.
+            로그인 후 상품 문의를 작성할 수 있습니다.
           </p>
         )}
       </Card.Body>

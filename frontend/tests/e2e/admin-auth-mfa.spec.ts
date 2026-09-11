@@ -121,8 +121,8 @@ test("P8-MFA-RECOVERY @admin 복구 코드 세션은 현재 비밀번호 확인 
   await page.getByLabel("인증 코드 또는 복구 코드").fill("aaaa-bbbb-cccc-0001");
   await page.getByRole("button", { name: "확인", exact: true }).click();
 
-  await expect(page.getByRole("button", { name: "복구 진행" })).toBeVisible();
-  await page.getByRole("button", { name: "복구 진행" }).click();
+  await expect(page.getByRole("button", { name: "2단계 인증 설정" })).toBeVisible();
+  await page.getByRole("button", { name: "2단계 인증 설정" }).click();
 
   const mfaPanel = page.locator("section").filter({
     has: page.getByRole("heading", { name: "2단계 인증", exact: true }),

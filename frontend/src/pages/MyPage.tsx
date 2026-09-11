@@ -221,7 +221,7 @@ function MyPageContent() {
         <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
         <MyAuthGateCard
           title="로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요"
-          description="로그인하면 내 주문·예약·이용권과 쿠폰·적립금을 추가 휴대폰 인증 없이 확인할 수 있습니다."
+          description="로그인하면 추가 휴대폰 인증 없이 주문·예약·이용권과 쿠폰·적립금을 확인할 수 있습니다."
           showGuestLinks
         />
       </Container>
@@ -255,7 +255,7 @@ function MyPageContent() {
     } catch (error) {
       if (error instanceof CustomerSessionChangedError) return;
       toast.show(
-        "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
+        "로그아웃 여부를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "danger",
       );
     } finally {

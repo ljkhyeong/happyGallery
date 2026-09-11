@@ -120,7 +120,7 @@ function MyPassesContent() {
           setRefundTarget(null);
           if (result.refundStatus) {
             toast.show(
-              `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
+              `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 예정된 예약 ${result.canceledBookings}건 취소`,
               "info",
             );
           } else {
@@ -139,7 +139,7 @@ function MyPassesContent() {
       <Container className="page-container" style={{ maxWidth: 720 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="회원 이용권 목록은 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+          description="로그인하면 내 이용권을 확인할 수 있습니다."
         />
       </Container>
     );
@@ -156,7 +156,7 @@ function MyPassesContent() {
             4회권 구매
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Passes</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">전체 이용권</h4>
         <p className="text-muted-soft small mb-0">
           이용권의 남은 횟수와 만료일을 확인하세요.

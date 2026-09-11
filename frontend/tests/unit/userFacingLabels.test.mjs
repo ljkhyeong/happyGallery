@@ -58,7 +58,7 @@ test("회원과 결제 오류는 서비스에서 사용하는 쉬운 용어로 �
   assert.match(getUserMessage("ACCOUNT_WITHDRAWAL_BLOCKED"), /탈퇴할 수 없습니다/);
   assert.equal(
     getUserMessage("REFUND_NOT_ALLOWED"),
-    "현재 이 항목은 환불할 수 없습니다. 환불 조건과 진행 상태를 확인해 주세요.",
+    "환불할 수 없습니다. 환불 조건과 처리 상태를 확인해 주세요.",
   );
   assert.equal(getUserMessage("REVIEW_REPORT_ALREADY_EXISTS"), "이미 신고한 후기입니다.");
   assert.match(getUserMessage("PAYMENT_RESULT_RETENTION_EXPIRED"), /이용권 내역/);

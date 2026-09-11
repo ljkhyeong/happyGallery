@@ -142,7 +142,7 @@ function OrderDetailContent() {
           <Badge bg="light" text="dark" className="mb-2">비회원 주문 관리</Badge>
           <h4 className="mb-2">비회원 주문 조회</h4>
           <p className="text-muted-soft mb-3">
-            완료한 비회원 주문과 현재 처리 상태를 확인할 수 있습니다.
+            비회원 주문의 상품과 주문 상태를 확인하세요.
             로그인 또는 가입 후 비회원 주문을 <strong>내 정보</strong>로 가져올 수 있습니다.
           </p>
           <div className="d-flex flex-wrap gap-2">

@@ -55,12 +55,12 @@ export function LoginPage() {
               <h2 className="mb-3">
                 {claimIntent
                   ? "비회원 주문·예약을 내 정보로 가져오세요"
-                  : "로그인하고 주문, 예약, 이용권을 계속 관리하세요"}
+                  : "로그인하고 내 주문·예약·이용권을 확인하세요"}
               </h2>
               <p className="text-muted-soft mb-4">
                 {claimIntent
                   ? "로그인 후 내 정보에서 가져올 주문·예약을 선택하세요."
-                  : "회원은 내 정보에서 주문, 예약, 이용권을 추가 인증 없이 바로 확인할 수 있습니다."}
+                  : "로그인하면 추가 인증 없이 이용 내역을 확인할 수 있습니다."}
               </p>
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">주문, 예약, 이용권을 한 화면에서 관리</div>

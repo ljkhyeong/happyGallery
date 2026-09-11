@@ -253,7 +253,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
             <section className="store-detail-facts" aria-labelledby="product-information-title">
               <div className="store-detail-section-heading">
                 <h2 id="product-information-title">작품 안내</h2>
-                <span>Piece information</span>
+                <span>상품 정보</span>
               </div>
               <div className="store-detail-terms">
                 <ProductPurchaseTerms
@@ -277,7 +277,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
             <Card.Body className="p-4 p-xl-5">
               <header className="store-order-sheet-header">
                 <div>
-                  <div className="store-purchase-kicker">Atelier order</div>
+                  <div className="store-purchase-kicker">상품 주문</div>
                   <h2>공방 주문표</h2>
                   <p>원하는 옵션을 고른 뒤 주문 방법을 선택해 주세요.</p>
                 </div>
@@ -294,7 +294,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                 </div>
                 {selectionChanged && (
                   <Alert variant="info" className="py-2">
-                    상품 가격 또는 옵션 정보가 변경되었습니다. 현재 표시된 옵션과 금액을 확인해 주세요.
+                    상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.
                   </Alert>
                 )}
                 {hasConfiguredOptions ? (

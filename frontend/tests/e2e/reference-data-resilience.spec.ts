@@ -122,7 +122,7 @@ test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 �
     .toBeVisible();
   await expect(page.getByText(/결제일 포함 90일/)).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();
-  await expect(page.getByText(/결제일 포함 45일/)).toBeVisible();
+  await expect(page.getByText("결제일 포함 45일", { exact: true })).toBeVisible();
 });
 
 test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 복구한다", async ({ page }) => {

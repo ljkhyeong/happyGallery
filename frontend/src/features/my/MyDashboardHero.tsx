@@ -20,7 +20,7 @@ export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Pro
             <div className="my-section-kicker mb-2">내 정보</div>
             <h3 className="mb-2">{user.name}님, 다시 오셨네요</h3>
             <p className="text-muted-soft mb-3">
-              최근 주문, 예약, 이용권과 쿠폰·적립금 현황을 내 정보에서 관리할 수 있습니다.
+              주문·예약 내역과 이용권·쿠폰·적립금을 확인하세요.
             </p>
             <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
               <Badge bg={user.phoneVerified ? "success" : "secondary"}>

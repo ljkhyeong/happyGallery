@@ -34,8 +34,8 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
       const message = pending
         ? "결제사에서 승인 여부를 확인하지 못했습니다. 잠시 후 다시 확인해 주세요."
         : result.status === "CONFIRMED"
-          ? "결제사 승인 내역을 확인하고 결제 후속 처리를 완료했습니다."
-          : "결제사에 승인 내역이 없어 결제 실패로 정리했습니다.";
+          ? "결제사 승인 내역을 확인하고 반영했습니다."
+          : "결제사에 승인 내역이 없어 결제 실패로 처리했습니다.";
       toast.show(message, pending ? "warning" : "success");
       queryClient.invalidateQueries({ queryKey });
     },

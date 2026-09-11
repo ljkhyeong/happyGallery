@@ -69,7 +69,7 @@ export function Layout() {
     } catch (error) {
       if (error instanceof CustomerSessionChangedError) return;
       toast.show(
-        "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
+        "로그아웃 여부를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "danger",
       );
     } finally {

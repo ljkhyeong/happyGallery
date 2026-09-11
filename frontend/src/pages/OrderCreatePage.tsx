@@ -193,7 +193,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         <Badge bg="light" text="dark" className="mb-2">비회원 주문</Badge>
         <h4 className="mb-2">비회원 주문</h4>
         <p className="text-muted-soft mb-3">
-          비회원 주문이나 여러 상품을 한 번에 주문할 때 이 화면에서 계속 진행할 수 있습니다.
+          로그인 없이 한 번에 여러 상품을 주문할 수 있습니다.
         </p>
         <div className="d-flex flex-wrap gap-2">
           <LinkButton to="/products" variant="dark" size="sm">
@@ -207,8 +207,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         </div>
         {hasPrefilledItem && (
           <Alert variant="info" className="mt-3 mb-0">
-            상품 상세에서 선택한 상품과 수량을 미리 담아두었습니다.
-            필요하면 아래에서 다른 상품을 추가하거나 삭제할 수 있습니다.
+            선택한 상품과 수량을 주문서에 담았습니다.
+            아래에서 상품을 추가하거나 삭제할 수 있습니다.
           </Alert>
         )}
       </div>

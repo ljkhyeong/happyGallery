@@ -483,7 +483,7 @@ test("@payment 선택한 옵션은 상품 재조회 뒤 현재 이름과 단가�
   await expect(row).toContainText("₩17,500");
   await expect(row.getByRole("spinbutton")).toHaveValue("2");
   await expect(page.locator(".store-purchase-summary")).toContainText("₩35,000");
-  await expect(page.getByText("상품 가격 또는 옵션 정보가 변경되었습니다. 현재 표시된 옵션과 금액을 확인해 주세요.")).toBeVisible();
+  await expect(page.getByText("상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.")).toBeVisible();
   await page.goto("/cart");
   await expect(page.locator("tbody tr")).toContainText("₩35,000");
 });
