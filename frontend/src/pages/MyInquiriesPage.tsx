@@ -88,11 +88,11 @@ export function MyInquiriesPage() {
               </div>
             </div>
             <div className="mt-2 small">
-              <div className="bg-light p-2 rounded">{inquiry.content}</div>
+              <div className="bg-light p-2 rounded text-break" style={{ whiteSpace: "pre-wrap" }}>{inquiry.content}</div>
               {inquiry.replyContent && (
                 <div className="mt-2 p-2 rounded" style={{ background: "#f0f4ff" }}>
                   <strong className="small">답변</strong>
-                  <div>{inquiry.replyContent}</div>
+                  <div className="text-break" style={{ whiteSpace: "pre-wrap" }}>{inquiry.replyContent}</div>
                 </div>
               )}
             </div>
