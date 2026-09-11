@@ -342,7 +342,7 @@ export function BookingListSection({
                         <Form.Check
                           type="switch"
                           id={`booking-arrears-${b.bookingId}`}
-                          label="잔금을 아직 받지 못함"
+                          label="잔금 미수"
                           checked={b.arrears}
                           disabled={mutationPending}
                           onChange={(event) => arrearsMutation.mutate({
@@ -358,9 +358,9 @@ export function BookingListSection({
                           size="sm"
                           variant="outline-primary"
                           title={parseApiDateTime(b.endAt) > Date.now()
-                            ? "수업 종료 후 완료할 수 있습니다."
+                            ? "수업 종료 후 완료 처리할 수 있습니다."
                             : b.balanceStatus === "UNPAID" && !b.arrears
-                              ? "잔금을 받았거나 아직 받지 못한 것으로 표시해 주세요."
+                              ? "잔금 수령 또는 미수 여부를 먼저 표시해 주세요."
                               : undefined}
                           disabled={
                             mutationPending
@@ -369,18 +369,18 @@ export function BookingListSection({
                           }
                           onClick={() => completeMutation.mutate(b.bookingId)}
                         >
-                          수업 완료로 처리
+                          수업 완료
                         </Button>
                         <Button
                           size="sm"
                           variant="outline-danger"
                           title={parseApiDateTime(b.endAt) > Date.now()
-                            ? "수업 종료 후 고객 불참으로 표시할 수 있습니다."
+                            ? "수업 종료 후 미참석으로 처리할 수 있습니다."
                             : undefined}
                           disabled={mutationPending || parseApiDateTime(b.endAt) > Date.now()}
                           onClick={() => noShowMutation.mutate(b.bookingId)}
                         >
-                          고객 불참으로 처리
+                          미참석 처리
                         </Button>
                         <Button
                           size="sm"

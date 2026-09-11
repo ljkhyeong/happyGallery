@@ -153,7 +153,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         context: "ORDER",
         payload,
         onPrepared: !user ? () => resetVerification(
-          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+          "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
         orderName: items.length === 1 && items[0]
           ? `상품 주문 (${items[0].qty}개)`
@@ -170,7 +170,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
     onError: (error) => {
       consent.handleSubmissionError(error);
       if (!user && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
-        resetVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+        resetVerification("인증번호가 올바르지 않거나 만료되었습니다. 새 인증번호를 받아 주세요.");
       }
     },
   });

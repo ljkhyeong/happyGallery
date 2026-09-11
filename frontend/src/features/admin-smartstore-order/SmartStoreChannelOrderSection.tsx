@@ -843,7 +843,7 @@ function SmartStoreOrderDetailModal({
       }
     },
     onSuccess: async () => {
-      toast.show("스마트스토어에 주문 처리를 요청했습니다. 변경 상태는 주문 동기화 후 반영됩니다.");
+      toast.show("스마트스토어에 주문 처리를 요청했습니다. 주문 상태는 다음 자동 조회 후 갱신됩니다.");
       onChanged();
       await queryClient.invalidateQueries({
         queryKey: ["admin", "smartstore-orders", "detail", productOrderId],

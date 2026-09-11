@@ -139,7 +139,7 @@ export function SignupPage() {
                     purpose="SIGNUP"
                     title="휴대폰 번호 인증"
                     initialPhone={phone}
-                    confirmLabel="인증코드 적용"
+                    confirmLabel="입력 완료"
                     onVerified={(verifiedPhone, code) => {
                       setPhone(verifiedPhone);
                       setVerificationCode(code);

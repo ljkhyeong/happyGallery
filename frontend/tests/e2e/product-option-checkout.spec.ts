@@ -81,9 +81,9 @@ async function mockGuestCheckout(page: Page) {
 
 async function verifyGuestOrderPhone(page: Page) {
   await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
-  await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
-  await expect(page.getByLabel("인증코드", { exact: true })).toBeVisible();
-  await page.getByLabel("인증코드", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "인증번호 발송", exact: true }).click();
+  await expect(page.getByLabel("인증번호", { exact: true })).toBeVisible();
+  await page.getByLabel("인증번호", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
 }
 
@@ -347,8 +347,8 @@ test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 �
   await page.getByRole("button", { name: /비회원 주문하기/ }).click();
 
   await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
-  await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
-  await page.getByLabel("인증코드", { exact: true }).fill("123456");
+  await page.getByRole("button", { name: "인증번호 발송", exact: true }).click();
+  await page.getByLabel("인증번호", { exact: true }).fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   const brownItem = page.locator(".list-group-item").filter({ hasText: "색상: 브라운" });
   await expect(brownItem.getByText("각인 문구: <A> & B (+₩1,000)", { exact: true })).toBeVisible();

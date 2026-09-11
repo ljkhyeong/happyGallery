@@ -118,8 +118,8 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
-  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
-  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "인증번호 발송" }).click();
+  await recoveryCard.getByLabel("인증번호").fill("123456");
   await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
   await expect(recoveryCard.getByText("결제 내역을 찾았습니다.")).toBeVisible();
@@ -218,8 +218,8 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01011111111");
-  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
-  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "인증번호 발송" }).click();
+  await recoveryCard.getByLabel("인증번호").fill("123456");
   await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
   await expect.poll(() => page.evaluate(() => ({

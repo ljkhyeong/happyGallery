@@ -487,8 +487,8 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
 
   await page.goto("/orders/new?productId=42&qty=1");
   await page.getByLabel("휴대폰 번호").fill("01033333333");
-  await page.getByRole("button", { name: "인증코드 발송" }).click();
-  await page.getByLabel("인증코드").fill("123456");
+  await page.getByRole("button", { name: "인증번호 발송" }).click();
+  await page.getByLabel("인증번호").fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   await page.getByLabel("주문자 이름").fill("비회원 주문자");
   await expect(page.getByLabel("상품")).toContainText("비회원 지연 결제 작품");
@@ -940,8 +940,8 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       .getByRole("heading", { name: "주문·예약 조회 코드 재발급" })
       .locator("..");
     await recoverySection.getByLabel("휴대폰 번호").fill("01011111111");
-    await recoverySection.getByRole("button", { name: "인증코드 발송" }).click();
-    await recoverySection.getByLabel("인증코드").fill("123456");
+    await recoverySection.getByRole("button", { name: "인증번호 발송" }).click();
+    await recoverySection.getByLabel("인증번호").fill("123456");
     await recoverySection.getByRole("button", { name: "조회 코드 재발급" }).click();
 
     await expect(page.getByText("주문 #701")).toBeVisible();

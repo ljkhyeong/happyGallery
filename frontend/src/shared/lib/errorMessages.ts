@@ -2,11 +2,11 @@ import type { ErrorCode } from "@/shared/types/error";
 
 const ERROR_MESSAGES: Record<ErrorCode, string> = {
   INVALID_INPUT: "입력값이 올바르지 않습니다. 다시 확인해 주세요.",
-  PHONE_VERIFICATION_FAILED: "휴대폰 인증에 실패했습니다. 인증코드를 확인해 주세요.",
+  PHONE_VERIFICATION_FAILED: "휴대폰 인증에 실패했습니다. 인증번호를 확인해 주세요.",
   EMAIL_VERIFICATION_FAILED: "이메일 인증에 실패했습니다. 인증번호를 확인하거나 다시 받아 주세요.",
   UNAUTHORIZED: "인증이 필요합니다. 다시 로그인해 주세요.",
   INVALID_CREDENTIALS: "로그인 정보가 올바르지 않습니다.",
-  PASSWORD_RESET_FAILED: "입력한 계정 정보 또는 인증코드가 올바르지 않습니다.",
+  PASSWORD_RESET_FAILED: "입력한 계정 정보 또는 인증번호가 올바르지 않습니다.",
   LOCAL_PASSWORD_NOT_SET: "휴대폰 인증으로 로그인 비밀번호를 먼저 설정해 주세요.",
   PASSWORD_UNCHANGED: "현재와 다른 비밀번호를 입력해 주세요.",
   SOCIAL_LOGIN_FAILED: "소셜 로그인에 실패했습니다. 다시 시도해 주세요.",

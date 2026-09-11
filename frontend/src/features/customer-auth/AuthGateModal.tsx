@@ -213,7 +213,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                 purpose="SIGNUP"
                 title="휴대폰 번호 인증"
                 initialPhone={signupPhone}
-                confirmLabel="인증코드 적용"
+                confirmLabel="입력 완료"
                 onVerified={(phone, code) => {
                   setSignupPhone(normalizePhone(phone));
                   setSignupVerificationCode(code);

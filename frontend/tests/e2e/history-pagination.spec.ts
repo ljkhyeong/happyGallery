@@ -325,8 +325,8 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
     .filter({ hasText: "주문·예약 조회 코드 재발급" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
-  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
-  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "인증번호 발송" }).click();
+  await recoveryCard.getByLabel("인증번호").fill("123456");
   await recoveryCard.getByRole("button", { name: "조회 코드 재발급" }).click();
 
   await expect(recoveryCard.getByText("주문 #701")).toBeVisible();

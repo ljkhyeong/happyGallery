@@ -86,7 +86,7 @@ export function ReduceParticipantsForm({
         }}
       >
         <Form.Group controlId={`booking-participant-count-${participantCount}`}>
-          <Form.Label>남길 예약 인원</Form.Label>
+          <Form.Label>변경 후 예약 인원</Form.Label>
           <Form.Select
             value={nextParticipantCount}
             onChange={(event) => setNextParticipantCount(Number(event.target.value))}
@@ -99,7 +99,7 @@ export function ReduceParticipantsForm({
           </Form.Text>
         </Form.Group>
         <Button type="submit" variant="outline-warning" className="mt-3">
-          인원 부분취소
+          예약 인원 줄이기
         </Button>
       </Form>
 
@@ -110,13 +110,13 @@ export function ReduceParticipantsForm({
         centered
       >
         <Modal.Header closeButton>
-          <Modal.Title id={titleId}>예약 인원 부분취소</Modal.Title>
+          <Modal.Title id={titleId}>예약 인원 줄이기</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={mutation.error} />
           <p>
             현재 {participantCount}명 예약을 {nextParticipantCount}명으로 변경합니다.
-            줄인 인원만큼 회차 자리가 다시 열립니다.
+            취소한 인원만큼 다른 고객이 예약할 수 있습니다.
           </p>
           <dl className="row small mb-3">
             <dt className="col-6">취소 인원</dt>
@@ -127,7 +127,7 @@ export function ReduceParticipantsForm({
             <dd className="col-6 text-end mb-0">{formatDateTime(cancelPolicy.deadlineAt)}</dd>
           </dl>
           <Alert variant="info" className="mb-0 py-2 small">
-            최종 환불액은 현재 예약 금액으로 다시 계산합니다. 결제사 처리에는 시간이 걸릴 수 있습니다.
+            환불액은 현재 예약 금액에 따라 확정됩니다. 환불 완료까지는 시간이 걸릴 수 있습니다.
           </Alert>
         </Modal.Body>
         <Modal.Footer>

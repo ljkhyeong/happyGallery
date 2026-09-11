@@ -296,7 +296,7 @@ function BookingCreateContent({
         context: "BOOKING",
         payload,
         onPrepared: guest ? () => resetGuestVerification(
-          "인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.",
+          "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
         orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: member ? `member_${member.id}` : undefined,
@@ -311,7 +311,7 @@ function BookingCreateContent({
     },
     onError: (error, actor) => {
       if (actor?.guest && error instanceof ApiError && error.code === "PHONE_VERIFICATION_FAILED") {
-        resetGuestVerification("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.");
+        resetGuestVerification("인증번호가 올바르지 않거나 만료되었습니다. 새 인증번호를 받아 주세요.");
       }
     },
   });

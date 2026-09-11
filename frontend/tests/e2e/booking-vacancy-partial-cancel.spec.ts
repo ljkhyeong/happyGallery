@@ -326,10 +326,10 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
 
   await page.goto(`/my/bookings/${bookingId}`);
   await expect(page.getByText("3명", { exact: true })).toBeVisible();
-  await page.getByLabel("남길 예약 인원").selectOption("2");
-  await page.getByRole("button", { name: "인원 부분취소" }).click();
+  await page.getByLabel("변경 후 예약 인원").selectOption("2");
+  await page.getByRole("button", { name: "예약 인원 줄이기" }).click();
 
-  const dialog = page.getByRole("dialog", { name: "예약 인원 부분취소" });
+  const dialog = page.getByRole("dialog", { name: "예약 인원 줄이기" });
   await expect(dialog.getByText("현재 3명 예약을 2명으로 변경합니다."))
     .toBeVisible();
   await dialog.getByRole("button", { name: "1명 부분취소" }).click();

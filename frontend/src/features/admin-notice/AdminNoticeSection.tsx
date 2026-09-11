@@ -206,7 +206,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                     onClick={() => {
                       setEditVersion(conflict.version);
                       setConflict(null);
-                      toast.show("내 입력 내용은 그대로 유지했습니다. 다른 관리자의 변경 내용을 확인한 뒤 다시 저장해 주세요.");
+                      toast.show("입력 내용은 유지했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
                     }}
                   >
                     내 초안 유지
