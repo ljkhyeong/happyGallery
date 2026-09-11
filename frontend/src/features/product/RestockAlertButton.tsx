@@ -5,6 +5,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LinkButton, useToast } from "@/shared/ui";
+import { productDetailHref } from "./navigation";
 
 export const restockAlertsKey = ["me", "restock-alerts"] as const;
 
@@ -30,7 +31,7 @@ export function RestockAlertButton({ productId, productVariantId }: { productId:
     ),
   });
   if (isLoading) return null;
-  if (!isAuthenticated) return <LinkButton to={buildAuthPageHref("/login", { redirectTo: `/products/${productId}` })} variant="outline-primary">로그인하고 재입고 알림 받기</LinkButton>;
+  if (!isAuthenticated) return <LinkButton to={buildAuthPageHref("/login", { redirectTo: productDetailHref(productId, productVariantId) })} variant="outline-primary">로그인하고 재입고 알림 받기</LinkButton>;
   if (!user?.phoneVerified) return <LinkButton to="/my" variant="outline-primary">휴대폰 인증 후 재입고 알림 받기</LinkButton>;
   return (
     <div className="my-2">

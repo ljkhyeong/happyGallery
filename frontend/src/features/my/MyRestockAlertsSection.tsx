@@ -3,6 +3,7 @@ import { Badge, Button, Card } from "react-bootstrap";
 import { Link } from "react-router";
 import { listMyRestockAlerts, cancelMyRestockAlert } from "@/generated/api/customerStore";
 import { restockAlertsKey } from "@/features/product/RestockAlertButton";
+import { productDetailHref } from "@/features/product/navigation";
 import { runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, EmptyState, LoadingSpinner } from "@/shared/ui";
 
@@ -28,7 +29,7 @@ export function MyRestockAlertsSection() {
         <Card key={alert.id} className="mb-2 border-0 my-list-card">
           <Card.Body className="d-flex justify-content-between align-items-center gap-2 py-3">
             <div>
-              <Link to={`/products/${alert.productId}`}>{alert.productName}</Link>
+              <Link to={productDetailHref(alert.productId, alert.productVariantId)}>{alert.productName}</Link>
               <div className="small text-muted">{alert.optionLabel}</div>
               <Badge bg="secondary">{STATUS_LABELS[alert.status]}</Badge>
             </div>

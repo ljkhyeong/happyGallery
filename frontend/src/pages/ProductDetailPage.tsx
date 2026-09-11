@@ -1,7 +1,7 @@
 import { FavoriteButton } from "@/features/my/Favorites";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { Alert, Container, Card, Button, Form, Row, Col } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
@@ -44,6 +44,7 @@ import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
 import { productQuantityLimit } from "@/features/product/purchaseStock";
 import { RestockAlertButton } from "@/features/product/RestockAlertButton";
+import { productDetailHref } from "@/features/product/navigation";
 import { saveGuestOrderDraft } from "@/features/order/guestOrderDraft";
 import { PublicReviewSection } from "@/features/review/PublicReviewSection";
 import type { ProductDetailResponse } from "@/generated/api/product";
@@ -54,10 +55,12 @@ import {
 
 export function ProductDetailPage({ initialProduct }: { initialProduct: ProductDetailResponse }) {
   const { sessionVersion } = useCustomerAuth();
-  return <ProductDetailContent key={sessionVersion} initialProduct={initialProduct} />;
+  const [searchParams] = useSearchParams();
+  const variantId = searchParams.get("variantId");
+  return <ProductDetailContent key={`${sessionVersion}:${initialProduct.id}:${variantId ?? ""}`} initialProduct={initialProduct} variantId={variantId} />;
 }
 
-function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetailResponse }) {
+function ProductDetailContent({ initialProduct, variantId }: { initialProduct: ProductDetailResponse; variantId: string | null }) {
   const productId = initialProduct.id;
   const productQueryKey = useMemo(
     () => queryKeys.catalog.productDetail(productId),
@@ -179,6 +182,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
   if (!product) return null;
 
   const hasConfiguredOptions = product.optionGroups.length > 0 || purchaseLines.length > 0;
+  const linkedVariant = product.variants.find((variant) => variant.active && String(variant.id) === variantId);
   const selectionViews = purchaseLines.map((line) => productSelectionView(product, line));
   const selectionChanged = selectionViews.some((view, index) => {
     const initial = productSelectionView(initialProduct, purchaseLines[index]!);
@@ -202,7 +206,7 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
     && [...selectedQuantities].every(([variantId, quantity]) => quantity <= productQuantityLimit(product, variantId));
   const canCheckout = canBuy && isFulfillmentComplete(fulfillment);
   const guestFallbackPath = `/orders/new?productId=${productId}&qty=${qty}`;
-  const memberRedirectPath = `/products/${productId}`;
+  const memberRedirectPath = productDetailHref(productId, linkedVariant?.id);
   const loginHref = buildAuthPageHref("/login", { redirectTo: memberRedirectPath });
   const signupHref = buildAuthPageHref("/signup", { redirectTo: memberRedirectPath });
 
@@ -297,9 +301,15 @@ function ProductDetailContent({ initialProduct }: { initialProduct: ProductDetai
                     상품 가격이나 옵션이 변경되었습니다. 옵션과 금액을 다시 확인해 주세요.
                   </Alert>
                 )}
+                {variantId !== null && !linkedVariant && (
+                  <Alert variant="warning" className="py-2">
+                    해당 옵션은 현재 판매하지 않습니다. 현재 상품의 옵션과 가격을 확인해 주세요.
+                  </Alert>
+                )}
                 {hasConfiguredOptions ? (
                   <ProductPurchaseOptions
                     product={product}
+                    initialVariant={linkedVariant}
                     lines={purchaseLines}
                     onChange={setPurchaseLines}
                   />
