@@ -114,7 +114,7 @@ test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 �
   expect(requestedCursors.at(-1)).toBe("orders-next");
 });
 
-test("공개 Q&A 더 보기는 같은 크기의 내 Q&A 페이지도 함께 전진시켜 비밀글 소유권을 판정한다", async ({ page }) => {
+test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함께 전진시켜 비밀글 소유권을 판정한다", async ({ page }) => {
   const publicCursors: Array<string | null> = [];
   const ownerCursors: Array<string | null> = [];
   const product = {
@@ -224,10 +224,10 @@ test("공개 Q&A 더 보기는 같은 크기의 내 Q&A 페이지도 함께 전�
 
   await page.goto("/products/42");
   await expect(page.getByText("첫 번째 공개 질문")).toBeVisible();
-  await page.getByRole("button", { name: "Q&A 더 보기" }).click();
+  await page.getByRole("button", { name: "문의 더 보기" }).click();
 
   await expect(page.getByText("두 번째 비밀 질문")).toBeVisible();
-  await expect(page.getByRole("button", { name: "작성자 전용 내용 보기" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "내 문의 보기" })).toBeVisible();
   expect(publicCursors[0]).toBeNull();
   expect(publicCursors.at(-1)).toBe("public-next");
   expect(ownerCursors[0]).toBeNull();

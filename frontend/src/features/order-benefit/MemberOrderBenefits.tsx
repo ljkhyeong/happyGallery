@@ -83,10 +83,10 @@ export function MemberOrderBenefits({
     <div>
       <h6 className="mb-1">쿠폰·적립금</h6>
       <p className="text-muted-soft small mb-3">
-        회원 상품 주문에만 적용됩니다. 배송비를 제외한 상품 금액 기준이며 결제 전에 최신 할인액을 다시 확인합니다.
+        회원 상품 주문에 사용하며 배송비는 제외됩니다. 할인액은 결제 전에 확정됩니다.
       </p>
 
-      {isLoading && <LoadingSpinner text="사용 가능한 혜택을 확인하는 중입니다" />}
+      {isLoading && <LoadingSpinner text="쿠폰·적립금 조회 중..." />}
       <ErrorAlert
         error={couponsQuery.error}
         onRetry={() => { void couponsQuery.refetch(); }}
@@ -117,7 +117,7 @@ export function MemberOrderBenefits({
         <Form.Text>
           {selectableCoupons.length > 0
             ? `현재 주문에 사용할 수 있는 쿠폰 ${selectableCoupons.length}장`
-            : "현재 상품 금액에 사용할 수 있는 쿠폰이 없습니다."}
+            : "이 주문에 사용할 수 있는 쿠폰이 없습니다."}
         </Form.Text>
       </Form.Group>
 

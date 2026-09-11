@@ -78,7 +78,7 @@ export function MyInquiriesPage() {
               <div>
                 <div className="d-flex align-items-center gap-2 mb-1">
                   <Badge bg={inquiry.hasReply ? "info" : "secondary"} className="badge-sm">
-                    {inquiry.hasReply ? "답변완료" : "답변대기"}
+                    {inquiry.hasReply ? "답변 완료" : "답변 대기"}
                   </Badge>
                   <span className="fw-semibold small">{inquiry.title}</span>
                 </div>

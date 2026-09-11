@@ -262,8 +262,21 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       });
       return;
     }
-    if (pathname === "/api/v1/admin/inquiries") {
+    if (pathname === "/api/v1/admin/inquiries"
+      || pathname === "/api/v1/admin/group-inquiries") {
       await fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/page") {
+      await fulfillJson(route, { content: [], totalPages: 0, totalCount: 0, page: 0, size: 50 });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/template") {
+      await fulfillJson(route, { content: "", questionType: "", subject: "" });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-notices") {
+      await fulfillJson(route, { notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
       return;
     }
     if (pathname === "/api/v1/admin/notices"
@@ -285,7 +298,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
   await publicCard.getByRole("button", { name: "내용 보기" }).click();
   await expect(publicCard.getByText("공개 질문 본문", { exact: true })).toBeVisible();
   const secretCard = qnaCard(page, "비밀 질문");
-  await secretCard.getByRole("button", { name: "작성자 전용 내용 보기" }).click();
+  await secretCard.getByRole("button", { name: "내 문의 보기" }).click();
   await expect(secretCard.getByText("비밀 질문 본문", { exact: true })).toBeVisible();
 
   await navigateInApp(page, "/admin?view=support");
@@ -294,26 +307,26 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
   const publicAdminCard = qnaPanel.getByText("공개 질문", { exact: true }).locator(
     "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' card ')][1]",
   );
-  await publicAdminCard.getByRole("textbox", { name: "Q&A 답변" }).fill("공개 답변");
+  await publicAdminCard.getByRole("textbox", { name: "상품 문의 답변" }).fill("공개 답변");
   await publicAdminCard.getByRole("button", { name: "답변", exact: true }).click();
   await expect(qnaPanel.getByText("공개 질문", { exact: true })).toHaveCount(0);
 
   const secretAdminCard = qnaPanel.getByText("비밀 질문", { exact: true }).locator(
     "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' card ')][1]",
   );
-  await secretAdminCard.getByRole("textbox", { name: "Q&A 답변" }).fill("비밀 답변");
+  await secretAdminCard.getByRole("textbox", { name: "상품 문의 답변" }).fill("비밀 답변");
   await secretAdminCard.getByRole("button", { name: "답변", exact: true }).click();
   await expect(qnaPanel.getByText("비밀 질문", { exact: true })).toHaveCount(0);
 
   await navigateInApp(page, "/products/42");
   const refreshedPublicCard = qnaCard(page, "공개 질문");
   const refreshedSecretCard = qnaCard(page, "비밀 질문");
-  await expect(refreshedPublicCard.getByText("답변완료", { exact: true })).toBeVisible();
-  await expect(refreshedSecretCard.getByText("답변완료", { exact: true })).toBeVisible();
+  await expect(refreshedPublicCard.getByText("답변 완료", { exact: true })).toBeVisible();
+  await expect(refreshedSecretCard.getByText("답변 완료", { exact: true })).toBeVisible();
 
   await refreshedPublicCard.getByRole("button", { name: "내용 보기" }).click();
   await expect(refreshedPublicCard.getByText("공개 답변", { exact: true })).toBeVisible();
-  await refreshedSecretCard.getByRole("button", { name: "작성자 전용 내용 보기" }).click();
+  await refreshedSecretCard.getByRole("button", { name: "내 문의 보기" }).click();
   await expect(refreshedSecretCard.getByText("비밀 답변", { exact: true })).toBeVisible();
 
   expect(publicListReads).toBeGreaterThanOrEqual(2);

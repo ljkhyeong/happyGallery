@@ -1387,7 +1387,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
   });
 
   await page.goto("/products/42");
-  await page.getByRole("button", { name: "작성자 전용 내용 보기" }).click();
+  await page.getByRole("button", { name: "내 문의 보기" }).click();
   await expect(page.getByText("A 계정만 볼 수 있는 내용")).toBeVisible();
 
   await page.getByRole("button", { name: "택배 배송" }).click();
@@ -1396,14 +1396,14 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("A 계정만 볼 수 있는 내용")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "작성자 전용 내용 보기" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "내 문의 보기" })).toHaveCount(0);
 
   await page.goto(`/login?redirect=${encodeURIComponent("/products/42")}`);
   await page.getByLabel("이메일").fill(customerB.email);
   await page.getByLabel("비밀번호").fill("password123!");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
 
-  await expect(page.getByText("작성자만 볼 수 있는 비밀글입니다.")).toBeVisible();
+  await expect(page.getByText("작성자와 공방만 볼 수 있는 비밀글입니다.")).toBeVisible();
   await page.getByRole("button", { name: "택배 배송" }).click();
   await expect(page.getByLabel("받는 분")).toHaveValue(customerB.name);
   await expect(page.getByLabel("연락처")).toHaveValue(customerB.phone);

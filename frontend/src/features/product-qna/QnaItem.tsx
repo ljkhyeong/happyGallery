@@ -54,7 +54,7 @@ export function QnaItem({ item, productId, owned }: Props) {
           <div className="flex-grow-1">
             <div className="d-flex align-items-center gap-2 mb-1">
               {item.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
-              {item.hasReply && <Badge bg="info" className="badge-sm">답변완료</Badge>}
+              {item.hasReply && <Badge bg="info" className="badge-sm">답변 완료</Badge>}
               <span className="fw-semibold small">{displayTitle}</span>
             </div>
             <div className="text-muted-soft" style={{ fontSize: "0.8rem" }}>
@@ -76,14 +76,14 @@ export function QnaItem({ item, productId, owned }: Props) {
                 >
                   <ChevronDown size={14} aria-hidden="true" />
                   <span className="ms-1">
-                    {detailQuery.isFetching ? "불러오는 중..." : "작성자 전용 내용 보기"}
+                    {detailQuery.isFetching ? "불러오는 중..." : "내 문의 보기"}
                   </span>
                 </Button>
                 <ErrorAlert error={detailQuery.error} />
               </>
             )}
             {owned === false && (
-              <span className="text-muted-soft small">작성자만 볼 수 있는 비밀글입니다.</span>
+              <span className="text-muted-soft small">작성자와 공방만 볼 수 있는 비밀글입니다.</span>
             )}
           </div>
         )}
@@ -93,7 +93,7 @@ export function QnaItem({ item, productId, owned }: Props) {
             <div className="bg-light p-2 rounded">{displayContent}</div>
             {displayReply && (
               <div className="mt-2 p-2 rounded" style={{ background: "#f0f4ff" }}>
-                <strong className="small">관리자 답변</strong>
+                <strong className="small">공방 답변</strong>
                 <div>{displayReply}</div>
               </div>
             )}

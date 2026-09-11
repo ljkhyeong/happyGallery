@@ -34,7 +34,7 @@ export function QnaCreateForm({ productId }: Props) {
           secret,
         }),
       () => {
-        toast.show("Q&A가 등록되었습니다.");
+        toast.show("상품 문의를 등록했습니다.");
         setTitle("");
         setContent("");
         setSecret(false);
@@ -52,7 +52,7 @@ export function QnaCreateForm({ productId }: Props) {
   if (!open) {
     return (
       <Button variant="outline-primary" size="sm" onClick={() => setOpen(true)}>
-        질문 작성
+        문의 작성
       </Button>
     );
   }
@@ -64,7 +64,7 @@ export function QnaCreateForm({ productId }: Props) {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <h6 className="mb-3">질문 작성</h6>
+        <h6 className="mb-3">문의 작성</h6>
         <Form onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}>
           <Form.Group className="mb-2" controlId={titleControlId}>
             <Form.Label>제목</Form.Label>
@@ -84,7 +84,7 @@ export function QnaCreateForm({ productId }: Props) {
             <Form.Control
               as="textarea"
               rows={3}
-              placeholder="질문 내용을 입력하세요"
+              placeholder="문의 내용을 입력하세요"
               maxLength={CONTENT_BODY_MAX_LENGTH}
               value={content}
               onChange={(e) => setContent(e.target.value)}

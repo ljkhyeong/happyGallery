@@ -99,9 +99,9 @@ function AdminInquiryItem({
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">
               {inquiry.replyContent ? (
-                <Badge bg="info" className="badge-sm">답변완료</Badge>
+                <Badge bg="info" className="badge-sm">답변 완료</Badge>
               ) : (
-                <Badge bg="warning" className="badge-sm">답변대기</Badge>
+                <Badge bg="warning" className="badge-sm">답변 대기</Badge>
               )}
               <span className="fw-semibold small">{inquiry.title}</span>
             </div>

@@ -16,7 +16,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   return (
     <Card className="mt-4"><Card.Body>
       <h2 className="h6">문의 상세 · 접수 번호 {id}</h2>
-      <Button size="sm" variant="link" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>최신 문의 불러오기</Button>
+      <Button size="sm" variant="link" disabled={query.isFetching} onClick={() => { void query.refetch(); }}>문의 새로고침</Button>
       {query.isLoading && <LoadingSpinner />}
       <ErrorAlert error={query.error} />
       {query.data && <MemberInquiryForm key={query.data.version} detail={query.data} />}
@@ -77,7 +77,7 @@ function MemberInquiryForm({ detail }: { detail: MyGroupInquiryResponse }) {
       )}
       <Modal show={confirmCancel} onHide={() => { if (!mutation.isPending) setConfirmCancel(false); }} centered>
         <Modal.Header closeButton={!mutation.isPending}><Modal.Title>단체 수업 문의 취소</Modal.Title></Modal.Header>
-        <Modal.Body>접수 번호 {summary.id}의 상담을 취소합니다. 취소 후에는 새 문의를 접수해 주세요.{mutationError}</Modal.Body>
+        <Modal.Body>문의 #{summary.id}를 취소합니다. 상담이 필요하면 새로 문의해 주세요.{mutationError}</Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" disabled={mutation.isPending} onClick={() => setConfirmCancel(false)}>돌아가기</Button>
           <Button variant="danger" disabled={mutation.isPending} onClick={() => mutation.mutate("cancel")}>문의 취소 확인</Button>

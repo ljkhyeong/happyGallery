@@ -25,16 +25,16 @@ export function PaymentSettlementIssueSection({ adminKey, onAuthError }: Props) 
     if (error instanceof ApiError && error.status === 401) return null;
     return <ErrorAlert error={error} />;
   }
-  if (!data?.length) return <EmptyState message="PG 정산과 다른 결제·환불 내역이 없습니다." />;
+  if (!data?.length) return <EmptyState message="결제사 정산과 불일치하는 결제·환불 내역이 없습니다." />;
 
   return (
     <Table responsive hover size="sm">
       <thead>
         <tr>
-          <th>거래키</th>
+          <th>거래 번호</th>
           <th>구분</th>
-          <th className="text-end">거래금액</th>
-          <th className="text-end">지급예정액</th>
+          <th className="text-end">거래 금액</th>
+          <th className="text-end">지급 예정액</th>
           <th>확인 필요 사유</th>
           <th>조회일</th>
         </tr>
