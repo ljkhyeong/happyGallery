@@ -95,7 +95,7 @@ public class Booking {
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
 
-    /** 8회권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
+    /** 이용권 결제 연결 (V5에서 추가). null이면 예약금 결제. */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "pass_purchase_id")
     private PassPurchase passPurchase;
@@ -115,7 +115,7 @@ public class Booking {
         if (passPurchase != null && participantCount != 1) {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT,
-                    "8회권 예약은 1명만 예약할 수 있습니다.");
+                    "이용권 예약은 1명만 예약할 수 있습니다.");
         }
         this.guest = guest;
         this.userId = userId;
@@ -178,7 +178,7 @@ public class Booking {
                 depositAmount, balanceAmount, paymentMethod, null, null, BookingSource.WEB);
     }
 
-    /** 회원 8회권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
+    /** 회원 이용권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
     public static Booking forMemberPass(
             User member, Slot slot, PassPurchase passPurchase) {
         return forMemberPass(member, slot, passPurchase, 1);
@@ -276,7 +276,7 @@ public class Booking {
         }
         if (isPassBooking()) {
             throw new HappyGalleryException(
-                    ErrorCode.CHANGE_NOT_ALLOWED, "8회권 예약은 인원을 줄일 수 없습니다.");
+                    ErrorCode.CHANGE_NOT_ALLOWED, "이용권 예약은 인원을 줄일 수 없습니다.");
         }
         if (newParticipantCount < 1 || newParticipantCount >= participantCount) {
             throw new HappyGalleryException(
@@ -390,7 +390,7 @@ public class Booking {
         }
     }
 
-    /** 8회권으로 결제된 예약인지 여부. */
+    /** 이용권으로 결제된 예약인지 여부. */
     public boolean isPassBooking() {
         return passPurchase != null;
     }

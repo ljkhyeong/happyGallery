@@ -137,10 +137,10 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 1: 8회권 예약 시 USE ledger(-1), remaining=7
+    // Proof 1: 이용권 예약 시 USE ledger(-1), remaining=7
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권으로 예약하면 크레딧이 차감된다")
+    @DisplayName("이용권으로 예약하면 크레딧이 차감된다")
     @Test
     void book_with_pass_consumes_credit() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -167,7 +167,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("prepare 후 클래스가 8회권 사용 불가로 바뀌면 confirm에서 다시 거절한다")
+    @DisplayName("prepare 후 클래스가 이용권 사용 불가로 바뀌면 confirm에서 다시 거절한다")
     @Test
     void book_with_regularCraftPass_forIneligibleCraftClass_returns422WithoutMutation() throws Exception {
         BookingClass ineligibleClass = classRepository.save(new BookingClass(
@@ -215,7 +215,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("정책 도입 전에 구매한 8회권은 기존처럼 향수 클래스에도 사용할 수 있다")
+    @DisplayName("정책 도입 전에 구매한 이용권은 기존처럼 향수 클래스에도 사용할 수 있다")
     @Test
     void book_with_legacyPass_forPerfumeClass_preservesPreviousContract() throws Exception {
         jdbcTemplate.update(
@@ -237,7 +237,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("같은 8회권으로 서로 다른 클래스에 동시에 예약해도 크레딧과 원장이 모두 반영된다")
+    @DisplayName("같은 이용권으로 서로 다른 클래스에 동시에 예약해도 크레딧과 원장이 모두 반영된다")
     @Test
     void concurrentBookings_withSamePass_areSerializedByPassLock() throws Exception {
         int bookingCount = 4;
@@ -292,17 +292,17 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 2: 8회권 횟수 복원 마감 이전 취소 → REFUND ledger(+1), remaining=8 복구
+    // Proof 2: 이용권 횟수 복원 마감 이전 취소 → REFUND ledger(+1), remaining=8 복구
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 예약을 기한 내 취소하면 크레딧이 환불된다")
+    @DisplayName("이용권 예약을 기한 내 취소하면 크레딧이 환불된다")
     @Test
     void cancel_pass_booking_timely_refunds_credit() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
 
         Long bookingId = createPassBooking(slot.getId());
 
-        // 취소 (FUTURE = 2030년 → 8회권 횟수 복원 마감 이전이므로 횟수 복원 가능)
+        // 취소 (FUTURE = 2030년 → 이용권 횟수 복원 마감 이전이므로 횟수 복원 가능)
         mockMvc.perform(delete("/api/v1/me/bookings/{id}", bookingId)
                         .with(csrf())
                         .cookie(sessionCookie))
@@ -323,7 +323,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("만료된 8회권 예약을 취소하면 크레딧을 복구하지 않고 잔액을 소멸시킨다")
+    @DisplayName("만료된 이용권 예약을 취소하면 크레딧을 복구하지 않고 잔액을 소멸시킨다")
     @Test
     void cancel_expiredPassBooking_doesNotRestoreCredit() throws Exception {
         Slot slot = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -353,13 +353,13 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 3: 8회권 횟수 복원 마감 이후 취소 → 크레딧 소멸 유지 (remaining=7)
+    // Proof 3: 이용권 횟수 복원 마감 이후 취소 → 크레딧 소멸 유지 (remaining=7)
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 예약을 늦게 취소하면 크레딧이 소멸된다")
+    @DisplayName("이용권 예약을 늦게 취소하면 크레딧이 소멸된다")
     @Test
     void cancel_pass_booking_late_loses_credit() throws Exception {
-        // 오늘 14:00 시작 슬롯 — 8회권 횟수 복원 마감(오늘 00:00) 이미 지남
+        // 오늘 14:00 시작 슬롯 — 이용권 횟수 복원 마감(오늘 00:00) 이미 지남
         LocalDateTime today14 = LocalDateTime.now(clock).toLocalDate().atTime(14, 0);
         Slot slot = slotRepository.save(slot(cls, today14, today14.plusHours(2)));
 
@@ -442,7 +442,7 @@ class PassCreditUsageUseCaseIT {
     // Proof 5: 전체 환불 → 미래 예약 자동 취소 + REFUND ledger + remaining=0
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 전체 환불 시 미래 예약이 취소되고 잔여 크레딧이 소멸된다")
+    @DisplayName("이용권 전체 환불 시 미래 예약이 취소되고 잔여 크레딧이 소멸된다")
     @Test
     void refund_pass_cancels_future_bookings_and_empties_credits() throws Exception {
         Slot slot1 = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
@@ -510,7 +510,7 @@ class PassCreditUsageUseCaseIT {
         });
     }
 
-    @DisplayName("만료된 8회권은 전체 환불을 거절하고 EXPIRE 원장을 한 번만 기록한다")
+    @DisplayName("만료된 이용권은 전체 환불을 거절하고 EXPIRE 원장을 한 번만 기록한다")
     @Test
     void refund_expiredPass_isRejectedAndExpiredOnce() throws Exception {
         jdbcTemplate.update(
@@ -537,7 +537,7 @@ class PassCreditUsageUseCaseIT {
         verify(paymentProvider, never()).refund(any(), anyLong(), any());
     }
 
-    @DisplayName("8회권 전체 환불 PG 실패 시 FAILED 환불 이력을 남긴다")
+    @DisplayName("이용권 전체 환불 PG 실패 시 FAILED 환불 이력을 남긴다")
     @Test
     void refund_pass_pgFailure_recordsFailedRefund() throws Exception {
         when(paymentProvider.refund(any(), anyLong(), any()))
@@ -602,7 +602,7 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(jsonPath("$.code").value("PASS_CREDIT_INSUFFICIENT"));
     }
 
-    @DisplayName("prepare 후 만료 시각에 도달한 8회권은 confirm에서 다시 422를 반환한다")
+    @DisplayName("prepare 후 만료 시각에 도달한 이용권은 confirm에서 다시 422를 반환한다")
     @Test
     void book_with_pass_at_expiry_returns_422() throws Exception {
         PassPurchase expiredPass = passPurchase(

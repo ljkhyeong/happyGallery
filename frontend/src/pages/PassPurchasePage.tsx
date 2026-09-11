@@ -21,7 +21,7 @@ export function PassPurchasePage() {
         checkoutSelection,
         context: "PASS",
         payload: { type: "PASS", userId: user.id },
-        orderName: "8회권",
+        orderName: "4회권",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
@@ -37,11 +37,11 @@ export function PassPurchasePage() {
 
   return (
     <Container className="page-container" style={{ maxWidth: 540 }}>
-      <h4 className="mb-4">8회권 구매</h4>
+      <h4 className="mb-4">4회권 구매</h4>
 
       <Card className="mb-3">
         <Card.Body>
-          <h6 className="mb-3">정규 공예 8회권</h6>
+          <h6 className="mb-3">정규 공예 4회권</h6>
           {policyQuery.isLoading && <LoadingSpinner text="가격·이용 기간 확인 중..." />}
           <ErrorAlert
             error={policyQuery.error}
@@ -59,7 +59,7 @@ export function PassPurchasePage() {
                 <dd className="col-6 text-end mb-0">결제일 포함 {policyQuery.data.validityDays}일</dd>
               </dl>
               <p className="text-muted-soft small mb-0">
-                향수를 제외한 정규 공예 클래스 중 ‘8회권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
+                향수를 제외한 정규 공예 클래스 중 ‘이용권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
                 예약할 때 이용권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
               </p>
             </>

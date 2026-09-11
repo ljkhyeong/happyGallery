@@ -122,7 +122,7 @@ class PaymentPrepareUseCaseTest {
         cleanupSupport.clearUsers();
     }
 
-    @DisplayName("prepare는 주문 예약 8회권 금액을 서버 기준으로 확정하고 결제 시도를 저장한다")
+    @DisplayName("prepare는 주문 예약 이용권 금액을 서버 기준으로 확정하고 결제 시도를 저장한다")
     @Test
     void prepare_calculatesServerOwnedAmountsAndStoresAttempts() {
         User user = userStorePort.save(new User("payment-prepare@example.com", "hashed", "회원", "01012341234"));
@@ -308,11 +308,11 @@ class PaymentPrepareUseCaseTest {
                             tuple(
                                     PolicyConsentType.TERMS_OF_SERVICE,
                                     PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
-                                    "2026-08-08-v1"),
+                                    "2026-09-11-v1"),
                             tuple(
                                     PolicyConsentType.PRIVACY_POLICY,
                                     PolicyConsentPurpose.GUEST_ORDER_PAYMENT,
-                                    "2026-08-11-v2"));
+                                    "2026-09-11-v1"));
         });
         assertThatThrownBy(() -> statusQueryUseCase.getStatus(
                 prepared.orderId(), AuthContext.guest(), "wrong-token"))
@@ -491,7 +491,7 @@ class PaymentPrepareUseCaseTest {
                 .isInstanceOf(InventoryNotEnoughException.class);
     }
 
-    @DisplayName("예약 prepare는 0명과 슬롯 정원 초과 및 다인 8회권 예약을 거절한다")
+    @DisplayName("예약 prepare는 0명과 슬롯 정원 초과 및 다인 이용권 예약을 거절한다")
     @Test
     void prepare_rejectsParticipantCountOutsideBookingPolicy() {
         User user = userStorePort.save(new User(
@@ -543,7 +543,7 @@ class PaymentPrepareUseCaseTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
 
-    @DisplayName("8회권 예약 prepare는 소유권과 현재 사용 가능 여부 및 클래스 적용 정책을 확인한다")
+    @DisplayName("이용권 예약 prepare는 소유권과 현재 사용 가능 여부 및 클래스 적용 정책을 확인한다")
     @Test
     void prepare_validatesPassBeforeCreatingPaymentAttempt() {
         User user = userStorePort.save(new User(
@@ -567,7 +567,7 @@ class PaymentPrepareUseCaseTest {
                 passPurchase(user.getId(), now, 320_000L));
         PassPurchase depletedPass =
                 passPurchase(user.getId(), now.plusDays(30), 320_000L);
-        for (int credit = 0; credit < PassPurchase.TOTAL_CREDITS; credit++) {
+        for (int credit = 0; credit < depletedPass.getTotalCredits(); credit++) {
             depletedPass.useCredit(now);
         }
         depletedPass = passPurchaseStorePort.save(depletedPass);
@@ -599,7 +599,7 @@ class PaymentPrepareUseCaseTest {
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PASS_NOT_APPLICABLE));
     }
 
-    @DisplayName("예약 prepare는 일반 결제와 8회권 모두 결제 시도 생성 전에 슬롯 상태를 확인한다")
+    @DisplayName("예약 prepare는 일반 결제와 이용권 모두 결제 시도 생성 전에 슬롯 상태를 확인한다")
     @Test
     void prepare_rejectsUnavailableSlotBeforePaymentAttempt() {
         User user = userStorePort.save(new User(

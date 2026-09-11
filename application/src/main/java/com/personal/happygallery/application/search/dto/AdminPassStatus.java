@@ -3,7 +3,7 @@ package com.personal.happygallery.application.search.dto;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.LocalDateTime;
 
-/** 관리자 조회에서 8회권의 사용·환불 상태를 한눈에 구분하기 위한 파생 상태. */
+/** 관리자 조회에서 이용권의 사용·환불 상태를 한눈에 구분하기 위한 파생 상태. */
 public enum AdminPassStatus {
     ACTIVE,
     USED_UP,

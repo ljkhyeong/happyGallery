@@ -220,8 +220,8 @@ function MyPageContent() {
       <Container className="page-container" style={{ maxWidth: 760 }}>
         <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
         <MyAuthGateCard
-          title="로그인하고 주문, 예약, 8회권을 한 곳에서 관리하세요"
-          description="로그인하면 내 주문·예약·8회권과 쿠폰·적립금을 추가 휴대폰 인증 없이 확인할 수 있습니다."
+          title="로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요"
+          description="로그인하면 내 주문·예약·이용권과 쿠폰·적립금을 추가 휴대폰 인증 없이 확인할 수 있습니다."
           showGuestLinks
         />
       </Container>
@@ -286,7 +286,7 @@ function MyPageContent() {
           />
         )}
 
-      {passesLoading && <LoadingSpinner text="8회권 현황을 확인하고 있습니다" />}
+      {passesLoading && <LoadingSpinner text="이용권 현황을 확인하고 있습니다" />}
       <ErrorAlert error={passesError} onRetry={() => { void refetchPasses(); }} retrying={passesFetching} />
       <MyManagementLinks />
 

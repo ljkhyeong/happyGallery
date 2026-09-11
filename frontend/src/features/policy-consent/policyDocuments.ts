@@ -1,4 +1,6 @@
 import type { ComponentType } from "react";
+import { TermsPolicy20260911V1 } from "./documents/TermsPolicy20260911V1";
+import { PrivacyPolicy20260911V1 } from "./documents/PrivacyPolicy20260911V1";
 import { PrivacyPolicy20260721V1 } from "./documents/PrivacyPolicy20260721V1";
 import { PrivacyPolicy20260808V1 } from "./documents/PrivacyPolicy20260808V1";
 import { PrivacyPolicy20260811V1 } from "./documents/PrivacyPolicy20260811V1";
@@ -10,6 +12,7 @@ import {
   POLICY_VERSION_2026_08_08_V1,
   POLICY_VERSION_2026_08_11_V1,
   POLICY_VERSION_2026_08_11_V2,
+  POLICY_VERSION_2026_09_11_V1,
 } from "./policyVersions";
 
 type PolicyDocumentRegistry = Readonly<Record<string, ComponentType>>;
@@ -17,6 +20,7 @@ type PolicyDocumentRegistry = Readonly<Record<string, ComponentType>>;
 export const TERMS_POLICY_DOCUMENTS: PolicyDocumentRegistry = Object.freeze({
   [POLICY_VERSION_2026_07_21_V1]: TermsPolicy20260721V1,
   [POLICY_VERSION_2026_08_08_V1]: TermsPolicy20260808V1,
+  [POLICY_VERSION_2026_09_11_V1]: TermsPolicy20260911V1,
 });
 
 export const PRIVACY_POLICY_DOCUMENTS: PolicyDocumentRegistry = Object.freeze({
@@ -24,6 +28,7 @@ export const PRIVACY_POLICY_DOCUMENTS: PolicyDocumentRegistry = Object.freeze({
   [POLICY_VERSION_2026_08_08_V1]: PrivacyPolicy20260808V1,
   [POLICY_VERSION_2026_08_11_V1]: PrivacyPolicy20260811V1,
   [POLICY_VERSION_2026_08_11_V2]: PrivacyPolicy20260811V2,
+  [POLICY_VERSION_2026_09_11_V1]: PrivacyPolicy20260911V1,
 });
 
 export function resolvePolicyDocument(

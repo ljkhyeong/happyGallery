@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { path: "/group-classes", label: "단체수업" },
   { path: "/products", label: "작품" },
   { path: "/events", label: "이벤트" },
-  { path: "/passes/purchase", label: "8회권" },
+  { path: "/passes/purchase", label: "4회권" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {

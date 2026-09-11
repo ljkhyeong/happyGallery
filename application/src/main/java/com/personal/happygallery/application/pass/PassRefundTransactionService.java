@@ -49,7 +49,7 @@ class PassRefundTransactionService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     Optional<PassRefundResult> refundIfActive(Long passId) {
         PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
-                .orElseThrow(NotFoundException.supplier("8회권"));
+                .orElseThrow(NotFoundException.supplier("이용권"));
         return refundLockedPass(pass);
     }
 
@@ -57,7 +57,7 @@ class PassRefundTransactionService {
     Optional<PassRefundResult> refundOwnedIfActive(Long passId, Long userId) {
         PassPurchase pass = passPurchaseReader.findByIdForUpdate(passId)
                 .filter(lockedPass -> Objects.equals(lockedPass.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("8회권"));
+                .orElseThrow(NotFoundException.supplier("이용권"));
         return refundLockedPass(pass);
     }
 

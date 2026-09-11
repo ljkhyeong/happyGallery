@@ -101,7 +101,7 @@ class SubjectRateLimitGuardTest {
     private static Stream<Arguments> repeatedSubjectRequests() {
         return Stream.of(
                 Arguments.of(
-                        "8회권 환불",
+                        "이용권 환불",
                         "PASS_REFUND_USER",
                         (Consumer<SubjectRateLimitGuard>) guard -> guard.checkPassRefund(42L)),
                 Arguments.of(

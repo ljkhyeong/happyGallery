@@ -97,6 +97,6 @@ export function PaymentReconciliationSection({ adminKey, onAuthError }: Props) {
 function contextLabel(context: PaymentReconciliationRequiredResponse["context"]): string {
   if (context === "ORDER") return "주문";
   if (context === "BOOKING") return "예약";
-  if (context === "PASS") return "8회권";
+  if (context === "PASS") return "이용권";
   return "-";
 }

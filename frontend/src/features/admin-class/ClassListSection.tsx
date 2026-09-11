@@ -61,7 +61,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
             <th>소요 시간</th>
             <th>회차 정원</th>
             <th className="text-end">가격</th>
-            <th>8회권</th>
+            <th>이용권</th>
             <th>운영 상태</th>
             <th></th>
           </tr>

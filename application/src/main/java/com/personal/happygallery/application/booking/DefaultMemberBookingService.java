@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 회원 예약 생성 서비스.
- * DefaultGuestBookingService와 동일한 슬롯/8회권 로직을 따르되, 휴대폰 인증 대신 세션 userId를 사용한다.
+ * DefaultGuestBookingService와 동일한 슬롯/이용권 로직을 따르되, 휴대폰 인증 대신 세션 userId를 사용한다.
  */
 @Service
 @Transactional
@@ -58,7 +58,7 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
         return creationSupport.saveAndComplete(booking, slot);
     }
 
-    /** 회원이 소유한 8회권 크레딧으로 예약을 생성한다. */
+    /** 회원이 소유한 이용권 크레딧으로 예약을 생성한다. */
     @Override
     public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
         return createMemberPassBooking(userId, slotId, passId, 1);

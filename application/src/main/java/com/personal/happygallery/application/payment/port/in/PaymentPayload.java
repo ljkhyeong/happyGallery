@@ -161,7 +161,7 @@ public sealed interface PaymentPayload {
     record OrderTextInput(String groupKey, String value) {}
 
     /**
-     * 예약 결제 payload. 회원 8회권 사용 시 {@code passId}만 세팅(amount=0).
+     * 예약 결제 payload. 회원 이용권 사용 시 {@code passId}만 세팅(amount=0).
      */
     record BookingPayload(
             Long userId,
@@ -198,6 +198,6 @@ public sealed interface PaymentPayload {
         }
     }
 
-    /** 8회권 구매 payload. 회원 전용 — userId 필수. */
+    /** 이용권 구매 payload. 회원 전용 — userId 필수. */
     record PassPayload(Long userId) implements PaymentPayload {}
 }

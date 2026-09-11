@@ -23,9 +23,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 회원 8회권 조회·정산 환불 API.
+ * 회원 이용권 조회·정산 환불 API.
  *
- * <p>8회권 구매는 {@code POST /api/v1/payments/prepare} → {@code /confirm} 경로로 일원화됨.
+ * <p>이용권 구매는 {@code POST /api/v1/payments/prepare} → {@code /confirm} 경로로 일원화됨.
  */
 @RestController
 @RequestMapping("/api/v1/me/passes")

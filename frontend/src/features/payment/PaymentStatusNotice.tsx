@@ -20,10 +20,10 @@ function paymentContextCopy(context: PaymentStatusResponse["context"]) {
       };
     case "PASS":
       return {
-        completedHeading: "8회권 결제가 완료되었습니다",
-        creationFailed: "8회권을 발급하지 못해",
-        notCreated: "8회권이 발급되지 않았으며",
-        restartLocation: "8회권 구매 화면",
+        completedHeading: "이용권 결제가 완료되었습니다",
+        creationFailed: "이용권을 발급하지 못해",
+        notCreated: "이용권이 발급되지 않았으며",
+        restartLocation: "4회권 구매 화면",
       };
   }
 }

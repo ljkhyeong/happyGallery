@@ -13,7 +13,7 @@ public interface CustomerAccountActivityPort {
         CLAIM("진행 중인 반품·교환이 있습니다."),
         BOOKING("예정된 예약이 있습니다."),
         CANCELLATION_TASK("예약 취소 후 공방 확인이 필요한 내역이 있습니다."),
-        PASS("사용 가능한 8회권이 있습니다."),
+        PASS("사용 가능한 이용권이 있습니다."),
         REFUND("처리 중인 환불이 있습니다."),
         PAYMENT("처리 중인 결제가 있습니다."),
         REWARD("결제에 사용 중이거나 회수할 적립금이 있습니다.");

@@ -19,7 +19,7 @@ public interface PaymentPrepareUseCase {
     record PrepareCommand(PaymentContext context, PaymentPayload payload, AuthContext auth) {}
 
     /**
-     * prepare 결과. amount가 0이면 PG 호출 없이 바로 {@link PaymentConfirmUseCase}를 호출해도 된다 (8회권 사용 예약 등).
+     * prepare 결과. amount가 0이면 PG 호출 없이 바로 {@link PaymentConfirmUseCase}를 호출해도 된다 (이용권 사용 예약 등).
      */
     record PrepareResult(String orderId, long amount, PaymentContext context, String statusToken) {}
 

@@ -21,7 +21,7 @@ import {
 const CONTEXT_LABELS = {
   ORDER: "주문",
   BOOKING: "예약",
-  PASS: "8회권",
+  PASS: "이용권",
 } as const;
 
 interface RecoveryView {

@@ -16,12 +16,10 @@ import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import java.util.OptionalInt;
 
-/** 8회권 구매 — pass_purchases 테이블 */
+/** 이용권 구매 — pass_purchases 테이블 */
 @Entity
 @Table(name = "pass_purchases")
 public class PassPurchase {
-
-    public static final int TOTAL_CREDITS = 8;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,19 +65,19 @@ public class PassPurchase {
         this.purchasedAt = purchasedAt;
         this.expiresAt = expiresAt;
         this.plan = plan;
-        this.totalCredits = TOTAL_CREDITS;
-        this.remainingCredits = TOTAL_CREDITS;
+        this.totalCredits = plan.getTotalCredits();
+        this.remainingCredits = totalCredits;
         this.totalPrice = totalPrice;
     }
 
-    /** 회원 8회권 구매 생성. */
+    /** 회원 이용권 구매 생성. */
     public static PassPurchase forMember(Long userId,
                                          LocalDateTime purchasedAt,
                                          LocalDateTime expiresAt,
                                          long totalPrice,
                                          PassPlan plan) {
         if (userId == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 회원 정보가 누락되었습니다.");
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 회원 정보가 누락되었습니다.");
         }
         return new PassPurchase(userId, purchasedAt, expiresAt, totalPrice, plan);
     }

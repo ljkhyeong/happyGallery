@@ -54,8 +54,8 @@ export function MyStatsRow({
             <div className="my-stat-value">{remainingCredits}</div>
             <div className="text-muted-soft small">
               {activePassCount > 0
-                ? `사용 가능한 8회권 ${activePassCount}건의 남은 횟수`
-                : "사용 가능한 8회권이 없습니다."}
+                ? `사용 가능한 이용권 ${activePassCount}건의 남은 횟수`
+                : "사용 가능한 이용권이 없습니다."}
             </div>
           </Card.Body>
         </Card>

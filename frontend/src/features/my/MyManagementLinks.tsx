@@ -4,7 +4,7 @@ import { Link } from "react-router";
 const links = [
   { to: "/my/orders", title: "전체 주문", description: "주문 상태·배송·취소" },
   { to: "/my/bookings", title: "전체 예약", description: "일정 변경·예약 취소" },
-  { to: "/my/passes", title: "내 8회권", description: "남은 횟수·만료·환불" },
+  { to: "/my/passes", title: "내 이용권", description: "남은 횟수·만료·환불" },
   { to: "/my/favorites", title: "내 찜", description: "관심 상품과 클래스" },
   { to: "/my/shipping-address", title: "기본 배송지", description: "배송지 저장·수정" },
   { to: "/my/notifications", title: "전체 알림", description: "읽지 않은 알림과 이전 알림" },

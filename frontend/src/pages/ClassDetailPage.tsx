@@ -57,7 +57,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
                   {bookingClass.category === "PERFUME" ? "향수 클래스" : "공예 클래스"}
                 </Badge>
                 {bookingClass.passEligible && bookingClass.category !== "PERFUME" && (
-                  <Badge bg="light" text="dark">8회권 사용 가능</Badge>
+                  <Badge bg="light" text="dark">이용권 사용 가능</Badge>
                 )}
               </div>
               <p className="store-section-kicker mb-2">HappyGallery Class</p>

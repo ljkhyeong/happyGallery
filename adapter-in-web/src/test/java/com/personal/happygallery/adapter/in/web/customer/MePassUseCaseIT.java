@@ -94,7 +94,7 @@ class MePassUseCaseIT {
     }
 
     @Test
-    @DisplayName("8회권은 만료 여부와 잔여 횟수를 서버에서 구분하고 잔여 횟수순 페이지를 조회한다")
+    @DisplayName("이용권은 만료 여부와 잔여 횟수를 서버에서 구분하고 잔여 횟수순 페이지를 조회한다")
     void searchMyPassHistory() throws Exception {
         Long lowCreditsId = purchasePass();
         Long highCreditsId = purchasePass();
@@ -121,7 +121,7 @@ class MePassUseCaseIT {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
     }
 
-    @DisplayName("회원 8회권 목록과 페이지는 결제 영수증을 함께 조회한다")
+    @DisplayName("회원 이용권 목록과 페이지는 결제 영수증을 함께 조회한다")
     @Test
     void listMyPasses() throws Exception {
         Long passId = purchasePass();
@@ -136,9 +136,9 @@ class MePassUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].passId").isNumber())
                 .andExpect(jsonPath("$[0].receiptUrl").value(receiptUrl))
-                .andExpect(jsonPath("$[0].planCode").value("REGULAR_CRAFT_8"))
-                .andExpect(jsonPath("$[0].planName").value("정규 공예 8회권"))
-                .andExpect(jsonPath("$[0].totalCredits").value(8));
+                .andExpect(jsonPath("$[0].planCode").value("REGULAR_CRAFT_4"))
+                .andExpect(jsonPath("$[0].planName").value("정규 공예 4회권"))
+                .andExpect(jsonPath("$[0].totalCredits").value(4));
 
         mockMvc.perform(get("/api/v1/me/passes/page")
                         .cookie(sessionCookie)
@@ -149,7 +149,7 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.hasMore").value(false));
     }
 
-    @DisplayName("회원 8회권 상세를 조회한다")
+    @DisplayName("회원 이용권 상세를 조회한다")
     @Test
     void getMyPassDetail() throws Exception {
         Long passId = purchasePass();
@@ -158,20 +158,20 @@ class MePassUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.passId").value(passId))
-                .andExpect(jsonPath("$.totalCredits").value(8))
-                .andExpect(jsonPath("$.remainingCredits").value(8))
+                .andExpect(jsonPath("$.totalCredits").value(4))
+                .andExpect(jsonPath("$.remainingCredits").value(4))
                 .andExpect(jsonPath("$.receiptUrl").value(nullValue()))
-                .andExpect(jsonPath("$.totalPrice").value(240000));
+                .andExpect(jsonPath("$.totalPrice").value(120000));
     }
 
-    @DisplayName("인증 없이 회원 8회권 목록을 조회하면 401을 반환한다")
+    @DisplayName("인증 없이 회원 이용권 목록을 조회하면 401을 반환한다")
     @Test
     void listMyPasses_noAuth_returns401() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes"))
                 .andExpect(status().isUnauthorized());
     }
 
-    @DisplayName("회원이 본인 8회권을 환불하면 미래 예약과 잔여 횟수를 함께 정산한다")
+    @DisplayName("회원이 본인 이용권을 환불하면 미래 예약과 잔여 횟수를 함께 정산한다")
     @Test
     void refundMyPass_cancelsFutureBookingAndStartsRefund() throws Exception {
         Long passId = savePass(userId);
@@ -200,7 +200,7 @@ class MePassUseCaseIT {
                                 assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED)));
     }
 
-    @DisplayName("회원이 타인의 8회권 환불을 요청하면 존재 여부를 숨긴다")
+    @DisplayName("회원이 타인의 이용권 환불을 요청하면 존재 여부를 숨긴다")
     @Test
     void refundOtherUsersPass_returns404WithoutMutation() throws Exception {
         Long passId = savePass(userId);
@@ -218,7 +218,7 @@ class MePassUseCaseIT {
         assertThat(refundRepository.findByPassPurchaseId(passId)).isEmpty();
     }
 
-    @DisplayName("인증 없이 8회권 환불을 요청하면 401을 반환한다")
+    @DisplayName("인증 없이 이용권 환불을 요청하면 401을 반환한다")
     @Test
     void refundMyPass_noAuth_returns401() throws Exception {
         mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 1L).with(csrf()))

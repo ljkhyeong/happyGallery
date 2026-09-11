@@ -233,7 +233,7 @@ function refundTarget(refund: FailedRefundResponse): string {
   }
   if (refund.orderId != null) return `주문 ${refund.orderId}`;
   if (refund.bookingId != null) return `예약 ${refund.bookingId}`;
-  if (refund.passPurchaseId != null) return `8회권 ${refund.passPurchaseId}`;
+  if (refund.passPurchaseId != null) return `이용권 ${refund.passPurchaseId}`;
   if (refund.paymentAttemptId != null) return `결제 확인 번호 #${refund.paymentAttemptId}`;
   return "-";
 }

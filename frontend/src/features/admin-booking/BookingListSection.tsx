@@ -69,9 +69,9 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
       ? REFUND_STATUS_LABEL[result.depositRefundStatus]
       : "확인 필요"}`
     : result.passCreditRestored
-      ? "8회권 1회 복구"
+      ? "이용권 1회 복구"
       : result.manualCompensationRequired
-        ? "직접 받은 예약금 반환 또는 8회권 보상 협의 필요"
+        ? "직접 받은 예약금 반환 또는 이용권 보상 협의 필요"
         : "자동 환불 없음";
   const balance = result.balanceSettlementRequired
     ? "고객에게 받은 잔금 직접 반환 필요"
@@ -308,7 +308,7 @@ export function BookingListSection({
                 <td><StatusBadge status={b.status} audience="admin" /></td>
                 <td>
                   {b.passBooking ? (
-                    <Badge bg="info">8회권</Badge>
+                    <Badge bg="info">이용권</Badge>
                   ) : (
                     <small>예약금 {formatKRW(b.depositAmount)}</small>
                   )}
@@ -431,7 +431,7 @@ export function BookingListSection({
             </p>
           )}
           <p className="mb-3">
-            예약을 취소하고 예약금 환불 또는 8회권 1회 복구를 시작합니다.
+            예약을 취소하고 예약금 환불 또는 이용권 1회 복구를 시작합니다.
             이미 받은 잔금은 결과에 따라 고객에게 직접 반환해야 할 수 있습니다.
           </p>
           <Form.Group controlId="admin-booking-cancel-reason">

@@ -66,7 +66,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                   <div><dt>소요시간</dt><dd>{bookingClass.durationMin}분</dd></div>
                   <div><dt>회차 정원</dt><dd>{bookingClass.capacity}명</dd></div>
                   <div>
-                    <dt>8회권</dt>
+                    <dt>이용권</dt>
                     <dd>
                       {bookingClass.passEligible && bookingClass.category !== "PERFUME"
                         ? "사용 가능"
@@ -100,7 +100,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         <section className="class-followup-links" aria-label="다른 수업 방식">
           <Link to="/passes/purchase">
             <span>꾸준히 배우고 싶다면</span>
-            <strong>정규 공예 8회권</strong>
+            <strong>정규 공예 4회권</strong>
             <span aria-hidden="true">↗</span>
           </Link>
           <Link to="/group-classes">

@@ -786,6 +786,7 @@ export type MyPassSummaryPlanCode = typeof MyPassSummaryPlanCode[keyof typeof My
 export const MyPassSummaryPlanCode = {
   LEGACY_ALL_CLASSES: 'LEGACY_ALL_CLASSES',
   REGULAR_CRAFT_8: 'REGULAR_CRAFT_8',
+  REGULAR_CRAFT_4: 'REGULAR_CRAFT_4',
 } as const;
 
 export interface MyPassSummary {

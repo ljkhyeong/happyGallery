@@ -55,7 +55,7 @@ public class AdminPassController {
     }
 
     /**
-     * 8회권 전체 환불 — 미래 예약 자동 취소 + 잔여 크레딧 소멸.
+     * 이용권 전체 환불 — 미래 예약 자동 취소 + 잔여 크레딧 소멸.
      * PG 환불 이력은 성공/실패 상태로 응답하고, 실패 건은 재시도 대상이 된다.
      */
     @PostMapping("/{passId}/refund")

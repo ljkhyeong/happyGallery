@@ -63,10 +63,10 @@ public class BookingPreparer implements PaymentPreparer {
         boolean passBooking = bp.passId() != null;
         if (passBooking) {
             if (!auth.isMember() || !auth.userId().equals(bp.userId())) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 사용 예약은 회원 인증이 필요합니다.");
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 사용 예약은 회원 인증이 필요합니다.");
             }
             if (bp.participantCount() != 1) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 예약은 1명만 예약할 수 있습니다.");
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 예약은 1명만 예약할 수 있습니다.");
             }
         } else {
             if (bp.paymentMethod() == null) {
@@ -90,7 +90,7 @@ public class BookingPreparer implements PaymentPreparer {
         if (passBooking) {
             PassPurchase pass = passPurchaseReader.findById(bp.passId())
                     .filter(candidate -> Objects.equals(candidate.getUserId(), auth.userId()))
-                    .orElseThrow(NotFoundException.supplier("8회권"));
+                    .orElseThrow(NotFoundException.supplier("이용권"));
             pass.requireApplicableToClass(slot.classCategory(), slot.classPassEligible());
             pass.requireUsableAt(LocalDateTime.now(clock));
             return new PreparedPayment(0L, preparedForMember(bp, 0L, 0L));

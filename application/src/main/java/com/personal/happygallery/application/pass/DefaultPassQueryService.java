@@ -44,7 +44,7 @@ public class DefaultPassQueryService implements PassQueryUseCase {
         this.clock = clock;
     }
 
-    /** 회원 — 자기 8회권 목록 조회 */
+    /** 회원 — 자기 이용권 목록 조회 */
     @Override
     public List<PassView> listMyPasses(Long userId) {
         return listMyPasses(userId, null, PageParams.MAX_SIZE).content();
@@ -94,12 +94,12 @@ public class DefaultPassQueryService implements PassQueryUseCase {
                 .toList();
     }
 
-    /** 회원 — 자기 8회권 상세 조회 (소유권 검증 포함) */
+    /** 회원 — 자기 이용권 상세 조회 (소유권 검증 포함) */
     @Override
     public PassView findMyPass(Long id, Long userId) {
         PassPurchase pass = passPurchaseReader.findById(id)
                 .filter(p -> Objects.equals(p.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("8회권"));
+                .orElseThrow(NotFoundException.supplier("이용권"));
         return new PassView(pass, refundPort.findByPassPurchaseId(id).orElse(null),
                 receiptQuery.findReceipt(PaymentContext.PASS, id));
     }

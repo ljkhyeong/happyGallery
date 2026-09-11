@@ -1,4 +1,4 @@
-# ADR-0010: 8회권 구매/만료 구현 결정
+# ADR-0010: 이용권 구매/만료 구현 결정
 
 - **날짜**: 2026-02-26
 - **상태**: 승인됨
@@ -8,7 +8,7 @@
 
 ## 컨텍스트
 
-8회권(Pass/Credit) MVP 첫 단계로, 구매 생성과 만료 소멸 기능을 구현한다.
+이용권(Pass/Credit) MVP 첫 단계로, 구매 생성과 만료 소멸 기능을 구현한다.
 기존에 `pass_purchases`, `pass_ledger` 테이블(V2 마이그레이션)과 `PassLedgerType` enum이 존재하며,
 엔티티/Repository/서비스만 신규 작성하면 된다.
 
@@ -18,7 +18,7 @@
 
 ### 0. 구매 시점에 이용권 계획을 스냅샷으로 저장
 
-**결정**: 신규 구매는 `PassPlan.REGULAR_CRAFT_8`로 확정하고 `pass_purchases.plan_code`에 저장한다.
+**결정**: 신규 구매는 `PassPlan.REGULAR_CRAFT_4`로 확정하고 `pass_purchases.plan_code`에 저장한다.
 계획은 표시 이름과 사용 가능 클래스 정책을 함께 가진 판매 계약이다. 정책을 바꿀 때 기존 enum 상수의 의미를
 수정하지 않고 새 계획 코드를 추가한다. 정책 도입 전 구매 건은 `LEGACY_ALL_CLASSES`로 이관한다.
 
@@ -72,7 +72,7 @@
 
 ### 4. `EARN` ledger: 회원 구매 생성 시점에 즉시 기록
 
-**결정**: 결제 confirm이 회원 8회권 구매를 확정하면 `purchaseForMember()`가 `PassPurchase`를 저장하고 같은 트랜잭션에서 `PassLedger(EARN, totalCredits)`를 기록한다.
+**결정**: 결제 confirm이 회원 이용권 구매를 확정하면 `purchaseForMember()`가 `PassPurchase`를 저장하고 같은 트랜잭션에서 `PassLedger(EARN, totalCredits)`를 기록한다.
 
 **이유**: "크레딧이 돈이다" 원칙 — 크레딧 잔액 변동은 반드시 ledger 기록이 선행 또는 동반되어야 한다.
 
@@ -88,7 +88,7 @@
 
 ---
 
-### 6. 만료 7일 전 알림: 구매한 8회권별 정확히 1회
+### 6. 만료 7일 전 알림: 구매한 이용권별 정확히 1회
 
 **결정**: 만료 임박 알림은 아직 만료되지 않았고 7일 이내 만료되는 건을 대상으로 하고,
 `PASS_EXPIRY_SOON + PASS_PURCHASE + passId`가 같은 outbox가 이미 있으면 재요청하지 않는다.
@@ -96,12 +96,12 @@
 **이유**:
 - "7일 전 알림"을 7일 동안 반복 발송하지 않기 위해서
 - 수동 트리거와 정기 스케줄이 함께 있어도 같은 날 중복 발송을 막아야 하기 때문
-- 같은 회원이 여러 8회권을 구매했으면 각 구매 건의 만료를 별도로 안내해야 하기 때문
+- 같은 회원이 여러 이용권을 구매했으면 각 구매 건의 만료를 별도로 안내해야 하기 때문
 
 **구현 메모**:
 - 대상 범위: `(now, now+7d]`
 - 중복 방지: 사용자 성공 로그나 멱등키 문자열 형식이 아니라 `notification_outbox(event_type, aggregate_type, aggregate_id)`를 기준으로 한다.
-- 배치 전체를 하나의 트랜잭션으로 묶지 않는다. 각 알림 outbox 저장 실패는 해당 8회권 실패로 집계하고 다른 구매 건은 계속 처리한다.
+- 배치 전체를 하나의 트랜잭션으로 묶지 않는다. 각 알림 outbox 저장 실패는 해당 이용권 실패로 집계하고 다른 구매 건은 계속 처리한다.
 - outbox를 선점한 뒤에도 같은 범위와 `remaining_credits > 0`을 다시 조회한다. 그사이 만료·소진·환불되어
   발송 조건을 충족하지 않으면 외부 채널을 호출하지 않고 outbox를 `OBSOLETE`로 종결한다.
 
@@ -132,23 +132,31 @@
 
 ## Update (2026-03-19)
 
-8회권 구매를 회원 전용으로 전환했다 (Idea-0018).
+이용권 구매를 회원 전용으로 전환했다 (Idea-0018).
 
 - guest 구매 엔드포인트 제거: `POST /passes/guest`, `POST /passes/purchase`
 - 당시 회원 구매 엔드포인트로 단일화: `POST /api/v1/me/passes` (2026-04-26 결제 API 도입으로 아래 Update 기준으로 대체)
 - 신규 guest 구매 진입점은 제거
-- guest 소유 8회권 상태와 claim 흐름도 함께 제거
+- guest 소유 이용권 상태와 claim 흐름도 함께 제거
 
 ## Update (2026-04-26)
 
-결제 진입점 도입으로 회원 8회권 구매 생성 경로를 다시 일원화했다.
+결제 진입점 도입으로 회원 이용권 구매 생성 경로를 다시 일원화했다.
 
 - 구매 생성: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`
-- `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 8회권 조회 전용으로 유지한다.
+- `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 이용권 조회 전용으로 유지한다.
 - 가격은 클라이언트가 보내지 않고 서버 설정 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)으로 확정한다.
 
 ## Update (2026-07-21)
 
 - 신규 구매의 계획은 `REGULAR_CRAFT_8`로 고정하고 `plan_code`에 스냅샷으로 저장한다.
-- 회원 8회권 목록·상세는 `planCode`, `planName`과 환불 진행 상태를 함께 반환한다.
-- 정규 공예 8회권은 `passEligible=true`이면서 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
+- 회원 이용권 목록·상세는 `planCode`, `planName`과 환불 진행 상태를 함께 반환한다.
+- 정규 공예 이용권은 `passEligible=true`이면서 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
+
+## 2026-09-11: 4회권 판매 전환
+
+- 신규 결제는 `REGULAR_CRAFT_4`로 준비한다. 계획별 총 횟수는 4회·8회로 구분하고 구매 시 잔여 횟수와 함께 저장한다.
+- prepare에 계획 코드를 저장해 confirm에서도 같은 상품을 발급한다. 코드 없는 이전 결제 JSON은 `REGULAR_CRAFT_8`로 해석한다.
+- 기존 구매 행과 적용된 migration은 수정하지 않는다. 사용·환불은 저장된 총 횟수와 결제 금액을 따른다.
+- 유효기간은 90일이며 기본 판매가는 120,000원으로 변경해 회당 30,000원을 유지한다. 판매가는 `PASS_TOTAL_PRICE`로 설정한다.
+- 새 약관·개인정보처리방침은 `2026-09-11-v1`이고 이전 문서와 동의 이력은 보존한다.

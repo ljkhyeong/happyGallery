@@ -54,13 +54,13 @@ const ADMIN_VIEWS = [
   {
     value: "overview",
     label: "현황·검색",
-    description: "매출과 운영 지표를 보고 고객의 주문·예약·8회권 이용 내역을 함께 검색합니다.",
+    description: "매출과 운영 지표를 보고 고객의 주문·예약·이용권 이용 내역을 함께 검색합니다.",
   },
   { value: "orders", label: "주문", description: "주문 승인부터 배송·매장 수령과 교환·환불 요청까지 처리합니다." },
   {
     value: "bookings",
-    label: "예약·8회권",
-    description: "날짜별 예약과 8회권 사용 현황·환불·만료를 관리합니다.",
+    label: "예약·이용권",
+    description: "날짜별 예약과 이용권 사용 현황·환불·만료를 관리합니다.",
   },
   { value: "products", label: "상품", description: "상품 정보와 판매 상태, 재고를 관리합니다." },
   {
@@ -451,7 +451,7 @@ export function AdminPage() {
               focusBookingId={focusedBookingId}
             />
           </AdminPanel>
-          <AdminPanel title="8회권 관리">
+          <AdminPanel title="이용권 관리">
             <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 잠긴 8회권의 만료 여부를 확인하고 잔액과 원장을 같은 트랜잭션에서 정리한다. */
+/** 잠긴 이용권의 만료 여부를 확인하고 잔액과 원장을 같은 트랜잭션에서 정리한다. */
 @Component
 class PassExpirationSupport {
 

@@ -361,7 +361,7 @@ function BookingCreateContent({
               />
               <Form.Text className="text-muted">
                 {paymentPath === "pass"
-                  ? "8회권 예약은 본인 1명만 이용할 수 있습니다."
+                  ? "이용권 예약은 본인 1명만 이용할 수 있습니다."
                   : `현재 최대 ${selectedSlot.remainingCapacity}명까지 예약할 수 있습니다.`}
               </Form.Text>
             </Form.Group>
@@ -381,7 +381,7 @@ function BookingCreateContent({
                 {isAuthenticated && (
                   <Form.Check
                     inline type="radio"
-                    id="booking-path-pass" label="8회권 사용"
+                    id="booking-path-pass" label="이용권 사용"
                     name="paymentPath"
                     checked={paymentPath === "pass"}
                     disabled={passesLoading || availablePasses.length === 0}
@@ -405,7 +405,7 @@ function BookingCreateContent({
             {requestedPassNeedsFallback && !passFallbackAccepted && (
               <Alert variant="warning">
                 <p className="mb-2">
-                  링크에서 선택한 8회권을 이 클래스에 사용할 수 없습니다.
+                  링크에서 선택한 이용권을 이 클래스에 사용할 수 없습니다.
                   이용권 상태를 다시 확인하거나 예약금 결제로 계속할 수 있습니다.
                 </p>
                 <Button
@@ -450,7 +450,7 @@ function BookingCreateContent({
               </Row>
             ) : (
               <Form.Group controlId="booking-pass" className="mb-3">
-                <Form.Label>사용할 8회권</Form.Label>
+                <Form.Label>사용할 이용권</Form.Label>
                 <Form.Select
                   value={passId}
                   onChange={(e) => setPassId(e.target.value)}
@@ -458,10 +458,10 @@ function BookingCreateContent({
                 >
                   <option value="">
                     {passesLoading
-                      ? "8회권을 불러오는 중입니다"
+                      ? "이용권을 불러오는 중입니다"
                       : availablePasses.length === 0
-                        ? "사용 가능한 8회권이 없습니다"
-                        : "8회권을 선택하세요"}
+                        ? "사용 가능한 이용권이 없습니다"
+                        : "이용권을 선택하세요"}
                   </option>
                   {availablePasses.map((pass) => (
                     <option key={pass.passId} value={pass.passId}>
@@ -476,7 +476,7 @@ function BookingCreateContent({
             )}
             {!isAuthenticated && (
               <p className="text-muted-soft small mb-0">
-                8회권 예약은 로그인한 회원만 이용할 수 있습니다.
+                이용권 예약은 로그인한 회원만 이용할 수 있습니다.
               </p>
             )}
           </Card.Body>
@@ -515,7 +515,7 @@ function BookingCreateContent({
           ? "선택 내용 확인 중..."
           : startPayment.isPending
           ? paymentPath === "pass" ? "예약 처리 중..." : "결제창 여는 중..."
-          : paymentPath === "pass" ? "8회권으로 예약하기" : "결제 진행하기"}
+          : paymentPath === "pass" ? "이용권으로 예약하기" : "결제 진행하기"}
       </Button>
 
       <AuthGateModal

@@ -57,10 +57,10 @@ public final class TimeBoundary {
         return isChangeable(slotStartAt.atZone(Clocks.SEOUL), clock);
     }
 
-    // ── 8회권 만료 ─────────────────────────────────────────────────────────────
+    // ── 이용권 만료 ─────────────────────────────────────────────────────────────
 
     /**
-     * 8회권 만료 시점. 결제일 포함 90일의 다음날 00시를 exclusive 만료 경계로 둔다.
+     * 이용권 만료 시점. 결제일 포함 90일의 다음날 00시를 exclusive 만료 경계로 둔다.
      */
     public static ZonedDateTime passExpiresAt(ZonedDateTime purchasedAt) {
         return purchasedAt.withZoneSameInstant(Clocks.SEOUL)
@@ -69,7 +69,7 @@ public final class TimeBoundary {
                 .atStartOfDay(Clocks.SEOUL);
     }
 
-    /** 8회권 만료 시점을 LocalDateTime으로 반환한다. */
+    /** 이용권 만료 시점을 LocalDateTime으로 반환한다. */
     public static LocalDateTime passExpiresAtLocal(ZonedDateTime purchasedAt) {
         return passExpiresAt(purchasedAt).toLocalDateTime();
     }

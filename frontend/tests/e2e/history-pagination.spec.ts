@@ -433,7 +433,7 @@ test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 
   expect(requestedCursors).toContain("admin-qna-next");
 });
 
-test("예약 생성의 8회권 후보는 첫 페이지에 없더라도 다음 페이지까지 순회한다", async ({ page }) => {
+test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 페이지까지 순회한다", async ({ page }) => {
   const requestedCursors: Array<string | null> = [];
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.stack ?? error.message));
@@ -453,7 +453,7 @@ test("예약 생성의 8회권 후보는 첫 페이지에 없더라도 다음 �
         durationMin: 120,
         id: 42,
         imageUrl: null,
-        name: "페이지 8회권 클래스",
+        name: "페이지 이용권 클래스",
         passEligible: true,
         preparationInfo: null,
         price: 50000,
@@ -512,7 +512,7 @@ test("예약 생성의 8회권 후보는 첫 페이지에 없더라도 다음 �
   await page.waitForTimeout(500);
   expect(pageErrors).toEqual([]);
   await page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ }).click();
-  await expect(page.getByLabel("사용할 8회권")).toHaveValue("9");
+  await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
   expect(requestedCursors[0]).toBeNull();
   expect(requestedCursors.at(-1)).toBe("passes-next");
 });
@@ -522,7 +522,7 @@ for (const scenario of [
     item: { orderId: 9090, status: "DELIVERED", totalAmount: 12000, createdAt: "2026-08-01T12:00:00", paidAt: null } },
   { path: "bookings", label: "예약 검색", more: "예약 더 보기", sort: "LATEST", status: "CANCELED",
     item: { bookingId: 9090, status: "CANCELED", className: "이력 검색 클래스", startAt: "2099-01-01T10:00:00", participantCount: 1, depositAmount: 10000 } },
-  { path: "passes", label: "8회권 번호 검색", more: "8회권 더 보기", sort: "CREDITS_DESC", status: "EXPIRED",
+  { path: "passes", label: "이용권 번호 검색", more: "이용권 더 보기", sort: "CREDITS_DESC", status: "EXPIRED",
     item: { passId: 9090, planName: "정규 공예 8회권", planCode: "REGULAR_CRAFT_8", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 8, totalPrice: 240000, refund: null, receiptUrl: null } },
 ]) {
   test(`회원 ${scenario.path} 검색은 조건을 서버로 보내고 빈 결과에서도 조건을 바꿀 수 있다`, async ({ page }) => {

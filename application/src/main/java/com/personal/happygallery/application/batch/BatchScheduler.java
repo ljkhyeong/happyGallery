@@ -27,8 +27,8 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 만료 처리, 픽업 마감 2시간 전 알림</li>
- *   <li>매일 00:00: 8회권 크레딧 소멸</li>
- *   <li>매시간: 예약 D-1·당일 및 8회권 만료 7일 전 알림 catch-up</li>
+ *   <li>매일 00:00: 이용권 크레딧 소멸</li>
+ *   <li>매시간: 예약 D-1·당일 및 이용권 만료 7일 전 알림 catch-up</li>
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
  *   <li>매분 25초: 외부 배송조회 서비스 운송장 등록</li>
@@ -109,15 +109,15 @@ public class BatchScheduler {
         return pickupExpireBatchUseCase.expirePickups();
     }
 
-    /** 만료된 8회권 크레딧 소멸. 매일 00:00 실행. */
-    @BatchJob(id = "pass_expiry", value = "8회권 크레딧 소멸")
+    /** 만료된 이용권 크레딧 소멸. 매일 00:00 실행. */
+    @BatchJob(id = "pass_expiry", value = "이용권 크레딧 소멸")
     @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiry() {
         return passExpiryBatchUseCase.expireAll();
     }
 
-    /** 8회권 만료 7일 전 알림. 중단 뒤 보충할 수 있도록 매시간 15분 실행. */
-    @BatchJob(id = "pass_expiry_notification", value = "8회권 만료 7일 전 알림")
+    /** 이용권 만료 7일 전 알림. 중단 뒤 보충할 수 있도록 매시간 15분 실행. */
+    @BatchJob(id = "pass_expiry_notification", value = "이용권 만료 7일 전 알림")
     @Scheduled(cron = "0 15 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();

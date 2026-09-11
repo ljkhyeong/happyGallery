@@ -54,7 +54,7 @@ class AdminPassQueryUseCaseIT {
         cleanup();
     }
 
-    @DisplayName("관리자는 회원명, 정규화 전화번호, 표시용 8회권 번호로 같은 8회권을 검색한다")
+    @DisplayName("관리자는 회원명, 정규화 전화번호, 표시용 이용권 번호로 같은 이용권을 검색한다")
     @Test
     void searchByCustomerIdentityAndPassNumber() throws Exception {
         LocalDateTime now = LocalDateTime.now(clock);
@@ -99,7 +99,7 @@ class AdminPassQueryUseCaseIT {
                 .andExpect(jsonPath("$.content[0].expectedRefundAmount").value(320_000));
     }
 
-    @DisplayName("환불이 접수된 8회권 상세는 만료나 소진보다 환불 진행 상태를 우선한다")
+    @DisplayName("환불이 접수된 이용권 상세는 만료나 소진보다 환불 진행 상태를 우선한다")
     @Test
     void getPass_prioritizesRefundStatus() throws Exception {
         LocalDateTime now = LocalDateTime.now(clock);

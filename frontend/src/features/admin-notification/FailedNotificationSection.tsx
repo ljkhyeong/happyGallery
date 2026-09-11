@@ -100,7 +100,7 @@ function aggregateLabel(notification: FailedNotificationResponse): string {
   const labels: Record<string, string> = {
     ORDER: "주문",
     BOOKING: "예약",
-    PASS: "8회권",
+    PASS: "이용권",
     INQUIRY: "1:1 문의",
     PRODUCT_QNA: "상품 문의",
     REVIEW: "후기",

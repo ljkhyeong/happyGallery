@@ -58,7 +58,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
 
   await logoutCustomer(page);
   await page.goto("/my");
-  await expect(page.getByText("로그인하고 주문, 예약, 8회권을 한 곳에서 관리하세요")).toBeVisible();
+  await expect(page.getByText("로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요")).toBeVisible();
 
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
@@ -82,7 +82,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
     .toBeVisible();
 });
 
-test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에서 바로 확인할 수 있다", async ({ page, request }) => {
+test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에서 바로 확인할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
@@ -104,18 +104,18 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await page.goto("/passes/purchase");
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "내 8회권 확인하기" })).toBeVisible();
-  await page.getByRole("link", { name: "내 8회권 확인하기" }).click();
+  await expect(page.getByRole("link", { name: "내 이용권 확인하기" })).toBeVisible();
+  await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
   await expect(page).toHaveURL(/\/my\/passes$/);
-  await expect(page.getByText("전체 8회권")).toBeVisible();
+  await expect(page.getByText("전체 이용권")).toBeVisible();
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {
     throw new Error("Member pass list text was empty");
   }
-  const passId = extractFirstNumber(passCardText, "8회권 #");
+  const passId = extractFirstNumber(passCardText, "4회권 #");
   await page.getByLabel("상태", { exact: true }).selectOption("사용 가능");
-  await page.getByLabel("8회권 번호 검색").fill(String(passId));
-  await expect(page.getByText(`8회권 #${passId}`)).toBeVisible();
+  await page.getByLabel("이용권 번호 검색").fill(String(passId));
+  await expect(page.getByText(`4회권 #${passId}`)).toBeVisible();
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
@@ -153,7 +153,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
 
   await page.getByRole("button", { name: "예약 취소" }).click();
   const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
-  await expect(cancelDialog.getByText("사용한 8회권 1회를 돌려드립니다.")).toBeVisible();
+  await expect(cancelDialog.getByText("사용한 이용권 1회를 돌려드립니다.")).toBeVisible();
   await cancelDialog.getByRole("button", { name: "예약 취소 및 1회 복원" }).click();
   await expect(page.getByText("취소됨")).toBeVisible();
 
@@ -163,7 +163,7 @@ test("P8-7 @payment 회원은 8회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
 
-test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불가를 구분해 안내한다", async ({
+test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 불가를 구분해 안내한다", async ({
   baseURL,
   context,
   page,
@@ -207,7 +207,7 @@ test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불
       body: JSON.stringify({
         id: 101,
         email: "pass-warning@example.com",
-        name: "8회권 회원",
+        name: "이용권 회원",
         phone: "01012345678",
         phoneVerified: true,
       }),
@@ -241,7 +241,7 @@ test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불
         classId: 1,
         slotId: 88,
         status: canceled ? "CANCELED" : "BOOKED",
-        className: passBooking ? "8회권 취소 경고 클래스" : "당일 예약금 취소 경고 클래스",
+        className: passBooking ? "이용권 취소 경고 클래스" : "당일 예약금 취소 경고 클래스",
         startAt: "2026-07-12T18:00:00",
         endAt: "2026-07-12T19:00:00",
         participantCount: 1,
@@ -265,19 +265,19 @@ test("P8-10 @payment 취소 마감 후 8회권 미복구와 예약금 환불 불
   });
 
   await page.goto(`/my/bookings/${bookingId}`);
-  await expect(page.getByText("8회권 취소 경고 클래스")).toBeVisible();
+  await expect(page.getByText("이용권 취소 경고 클래스")).toBeVisible();
   await expect(page.getByText("1명", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "예약 취소" }).click();
 
   await expect(page.getByText(
-    "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다.",
+    "취소 마감이 지나 사용한 이용권 1회는 돌려드리지 않습니다.",
   )).toBeVisible();
   await expect(page.getByText("D-1(전날 00:00) 이후에는 예약금 환불이 불가합니다.")).toHaveCount(0);
 
   await page.getByRole("button", { name: "1회 차감 유지하고 취소" }).click();
   await expect(page.getByText(
-    "예약이 취소되었습니다. 사용한 8회권 1회는 돌려드리지 않습니다.",
+    "예약이 취소되었습니다. 사용한 이용권 1회는 돌려드리지 않습니다.",
   )).toBeVisible();
 
   passBooking = false;

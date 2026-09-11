@@ -4712,7 +4712,7 @@
             "type" : "integer"
           },
           "planCode" : {
-            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8" ],
+            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8", "REGULAR_CRAFT_4" ],
             "type" : "string"
           },
           "planName" : {

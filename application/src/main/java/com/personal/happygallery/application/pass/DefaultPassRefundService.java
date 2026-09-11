@@ -17,7 +17,7 @@ public class DefaultPassRefundService implements PassRefundUseCase, MemberPassRe
     }
 
     /**
-     * 8회권 전체 환불. 관리자와 소유권 검증을 마친 회원 호출이 같은 정산 흐름을 사용한다.
+     * 이용권 전체 환불. 관리자와 소유권 검증을 마친 회원 호출이 같은 정산 흐름을 사용한다.
      *
      * <ol>
      *   <li>미래 BOOKED 예약 자동 취소 (슬롯 booked_count--, 이력 기록)</li>

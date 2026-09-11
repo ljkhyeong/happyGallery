@@ -13,7 +13,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 public interface PaymentConfirmUseCase {
 
     /**
-     * confirm 입력. paymentKey가 null이면 amount=0 경로(예: 8회권 사용 예약)로 간주하고 PG 호출을 생략한다.
+     * confirm 입력. paymentKey가 null이면 amount=0 경로(예: 이용권 사용 예약)로 간주하고 PG 호출을 생략한다.
      * 고객 요청과 서버 내부 복구가 검증을 우회하는 의도를 호출부에서 명확히 드러내도록 생성 경로를 분리한다.
      */
     record ConfirmCommand(
