@@ -177,6 +177,7 @@ function BookingCreateContent({
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
   const requestedClassId = Number(searchParams.get("classId"));
+  const requestedSlotId = Number(searchParams.get("slotId"));
   const initialClassId = selectedClass?.id
     ?? (Number.isSafeInteger(requestedClassId) && requestedClassId > 0
       ? requestedClassId
@@ -335,6 +336,9 @@ function BookingCreateContent({
         <Card.Body>
           <SlotSelectionStep
             initialClassId={initialClassId}
+            initialSlotId={initialClassId === requestedClassId
+              && Number.isSafeInteger(requestedSlotId) && requestedSlotId > 0
+              ? requestedSlotId : null}
             selectedSlot={selectedSlot}
             onSelect={(slot) => setSelectedSlot(slot)}
             onDeselect={() => setSelectedSlot(null)}

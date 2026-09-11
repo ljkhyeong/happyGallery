@@ -723,6 +723,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.alertId").value(700))
                 .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.classId").value(1))
                 .andExpect(jsonPath("$.className").value("향수 원데이"))
                 .andExpect(jsonPath("$.startAt").value("2026-05-07T19:00:00"))
                 .andExpect(jsonPath("$.endAt").value("2026-05-07T21:00:00"))
@@ -733,16 +734,26 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("회원 빈자리 알림 목록 API를 문서화한다")
     void list_my_vacancy_alerts() throws Exception {
+        BookingVacancyAlert notified = mock(BookingVacancyAlert.class);
+        Slot notifiedSlot = RestDocsFixtures.slot();
+        when(notified.getId()).thenReturn(699L);
+        when(notified.getSlot()).thenReturn(notifiedSlot);
+        when(notified.getStatus()).thenReturn(VacancyAlertStatus.NOTIFIED);
+        BookingVacancyAlert waiting = vacancyAlertUseCase.listMember(CUSTOMER_USER_ID).getFirst();
+        when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(waiting, notified));
         mockMvc.perform(get("/api/v1/me/vacancy-alerts")
                         .with(customerUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].alertId").value(700))
                 .andExpect(jsonPath("$[0].slotId").value(42))
+                .andExpect(jsonPath("$[0].classId").value(1))
                 .andExpect(jsonPath("$[0].className").value("향수 원데이"))
                 .andExpect(jsonPath("$[0].startAt").value("2026-05-07T19:00:00"))
                 .andExpect(jsonPath("$[0].endAt").value("2026-05-07T21:00:00"))
                 .andExpect(jsonPath("$[0].status").value("WAITING"))
-                .andExpect(jsonPath("$[0].accessToken").isEmpty());
+                .andExpect(jsonPath("$[0].accessToken").isEmpty())
+                .andExpect(jsonPath("$[1].status").value("NOTIFIED"))
+                .andExpect(jsonPath("$[1].classId").value(1));
     }
 
     @Test

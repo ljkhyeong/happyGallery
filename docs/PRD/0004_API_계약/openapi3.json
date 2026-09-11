@@ -9469,6 +9469,10 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "classId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "className" : {
             "type" : "string"
           },
@@ -9489,7 +9493,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "accessToken", "alertId", "className", "endAt", "slotId", "startAt", "status" ],
+        "required" : [ "accessToken", "alertId", "classId", "className", "endAt", "slotId", "startAt", "status" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {

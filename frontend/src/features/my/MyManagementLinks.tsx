@@ -9,7 +9,7 @@ const links = [
   { to: "/my/shipping-address", title: "기본 배송지", description: "배송지 저장·수정" },
   { to: "/my/notifications", title: "전체 알림", description: "읽지 않은 알림과 이전 알림" },
   { to: "/my/restock-alerts", title: "재입고 알림 신청", description: "품절 상품 알림 관리" },
-  { to: "/my/vacancy-alerts", title: "예약 빈자리 알림 신청", description: "마감된 회차 알림 관리" },
+  { to: "/my/vacancy-alerts", title: "빈자리 알림", description: "신청 내역·예약 가능 여부 확인" },
   { to: "/my/group-inquiries", title: "단체 수업 문의", description: "접수 내역과 상담 상태" },
   { to: "/my/inquiries", title: "내 문의", description: "상품·예약 관련 문의" },
 ];
