@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import { Container } from "react-bootstrap";
-import { Link } from "react-router";
+import { Button, Container, Form } from "react-bootstrap";
+import { Link, useSearchParams } from "react-router";
 import leatherClass from "@/assets/happygallery/leather-class.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -11,6 +11,8 @@ import type { ClassResponse } from "@/generated/api/booking";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
 export function ClassListPage({ initialClasses }: { initialClasses: ClassResponse[] }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const passEligibleOnly = searchParams.get("passEligible") === "true";
   const {
     data: classes,
     error: classesError,
@@ -20,6 +22,19 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialClasses);
+  const visibleClasses = passEligibleOnly
+    ? classes?.filter((bookingClass) => bookingClass.passEligible && bookingClass.category !== "PERFUME")
+    : classes;
+
+  function updatePassFilter(enabled: boolean) {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (enabled) next.set("passEligible", "true");
+      else next.delete("passEligible");
+      return next;
+    }, { preventScrollReset: true });
+  }
+
   const heroStyle = { "--hg-class-hero-image": `url(${leatherClass})` } as CSSProperties;
 
   return (
@@ -39,12 +54,31 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
           <LinkButton to="/group-classes" variant="outline-dark">단체수업 문의</LinkButton>
         </header>
 
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+          <Form.Check
+            id="class-pass-filter"
+            label="이용권 사용 가능 수업만"
+            checked={passEligibleOnly}
+            onChange={(event) => updatePassFilter(event.target.checked)}
+          />
+          {visibleClasses && <span className="small text-muted-soft" role="status">수업 {visibleClasses.length}개</span>}
+        </div>
+
         {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
         <ErrorAlert error={classesError} />
-        {classes?.length === 0 && <EmptyState message="예약 가능한 클래스를 준비하고 있습니다." />}
+        {visibleClasses?.length === 0 && (
+          <div className="text-center">
+            <EmptyState message={passEligibleOnly
+              ? "이용권을 사용할 수 있는 수업이 없습니다."
+              : "예약 가능한 클래스를 준비하고 있습니다."} />
+            {passEligibleOnly && (
+              <Button variant="outline-dark" onClick={() => updatePassFilter(false)}>전체 수업 보기</Button>
+            )}
+          </div>
+        )}
 
         <div className="class-catalog-list">
-          {classes?.map((bookingClass) => (
+          {visibleClasses?.map((bookingClass) => (
             <article
               className={bookingClass.imageUrl ? "class-catalog-item has-media" : "class-catalog-item"}
               key={bookingClass.id}

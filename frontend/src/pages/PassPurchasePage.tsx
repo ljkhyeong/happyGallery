@@ -64,6 +64,9 @@ export function PassPurchasePage() {
               </p>
             </>
           )}
+          <LinkButton to="/classes?passEligible=true" variant="outline-primary" className="mt-3">
+            이용권 사용 가능 수업 보기
+          </LinkButton>
         </Card.Body>
       </Card>
 
