@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
+import { Alert, Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchClasses, fetchUpcomingSlots } from "./api";
 import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -123,6 +123,12 @@ export function SlotSelectionStep({
         onRetry={() => { void refetchClasses(); }}
         retrying={classesFetching}
       />
+      {classes !== undefined && initialClassId != null
+        && !classes.some((bookingClass) => bookingClass.id === initialClassId) && (
+        <Alert variant="info">
+          이 수업은 현재 예약할 수 없습니다. 다른 수업을 선택해 주세요.
+        </Alert>
+      )}
 
       {classes !== undefined && (
         <Row className="g-2 mb-3">

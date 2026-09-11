@@ -153,8 +153,11 @@ function BookingManageContent() {
             >
               회원가입
             </LinkButton>
-            <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
-              새 예약 만들기
+            <LinkButton
+              to={booking ? `/bookings/new?classId=${booking.classId}` : "/bookings/new"}
+              variant="outline-secondary" size="sm"
+            >
+              {booking ? "같은 수업 예약" : "새 예약 만들기"}
             </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
