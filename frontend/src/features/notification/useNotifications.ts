@@ -1,5 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { runForCurrentCustomer } from "@/shared/api";
+import {
+  captureCustomerSession,
+  isCurrentCustomerSession,
+  requireCurrentCustomerSession,
+  runForCurrentCustomer,
+  type CustomerSessionSnapshot,
+} from "@/shared/api";
+import { useToast } from "@/shared/ui";
 import { fetchNotifications, fetchUnreadCount, markAsRead, markAllAsRead } from "./api";
 
 const NOTIFICATION_KEY = ["me", "notifications"] as const;
@@ -23,28 +30,39 @@ export function useNotificationList(page: number, enabled: boolean, unreadOnly =
   });
 }
 
-export function useMarkAsRead() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: number) => runForCurrentCustomer(
-      () => markAsRead(id),
-      () => Promise.all([
-        queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] }),
-        queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] }),
-      ]),
-    ),
-  });
+interface NotificationReadRequest {
+  id?: number;
+  notifyOnError?: boolean;
 }
 
-export function useMarkAllAsRead() {
+interface OwnedNotificationReadRequest extends NotificationReadRequest {
+  customerSession: CustomerSessionSnapshot;
+}
+
+export function useReadNotifications() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => runForCurrentCustomer(
-      markAllAsRead,
-      () => Promise.all([
-        queryClient.invalidateQueries({ queryKey: [...NOTIFICATION_KEY] }),
-        queryClient.invalidateQueries({ queryKey: [...UNREAD_KEY] }),
-      ]),
+  const toast = useToast();
+  const mutation = useMutation({
+    mutationFn: ({ id, customerSession }: OwnedNotificationReadRequest) => runForCurrentCustomer(
+      () => {
+        requireCurrentCustomerSession(customerSession);
+        return id === undefined ? markAllAsRead() : markAsRead(id);
+      },
+      () => queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEY }),
     ),
+    onError: (_error, request) => {
+      if (request.notifyOnError && isCurrentCustomerSession(request.customerSession)) {
+        toast.show("알림을 읽음 처리하지 못했습니다. 알림 목록에서 다시 시도해 주세요.", "danger");
+      }
+    },
   });
+  return {
+    ...mutation,
+    mutate: (request: NotificationReadRequest) => mutation.mutate({
+      ...request, customerSession: captureCustomerSession(),
+    }),
+    mutateAsync: (request: NotificationReadRequest) => mutation.mutateAsync({
+      ...request, customerSession: captureCustomerSession(),
+    }),
+  };
 }

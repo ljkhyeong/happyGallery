@@ -1130,6 +1130,7 @@
 .notification-popover {
   top: calc(100% + 0.5rem);
   z-index: 1050;
+  background: var(--hg-surface);
   width: min(20rem, calc(100vw - 1rem));
   max-width: calc(100vw - 1rem);
 }
