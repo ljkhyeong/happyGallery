@@ -607,7 +607,7 @@ textarea {
   }
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 991.98px) {
   .app-navbar .navbar-collapse {
     padding-block: 1rem 1.25rem;
     border-top: 1px solid var(--hg-border);
@@ -620,32 +620,9 @@ textarea {
   .app-signup-link {
     margin-top: 0.5rem;
   }
-
-  .store-hero {
-    min-height: 680px;
-    align-items: end;
-    background-image:
-      linear-gradient(0deg, rgba(247, 243, 234, 0.98) 0%, rgba(247, 243, 234, 0.92) 45%, rgba(247, 243, 234, 0.18) 78%),
-      var(--hg-hero-image);
-    background-position: 62% center;
-  }
-
-  .store-hero-content {
-    padding-block: 15rem 3rem;
-  }
-
-  .store-hero-title {
-    font-size: 3.65rem;
-  }
-
 }
 
 @media (max-width: 575.98px) {
-  .store-hero-actions {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
   .store-section-header {
     align-items: flex-start;
     flex-direction: column;

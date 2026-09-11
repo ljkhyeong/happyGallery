@@ -100,10 +100,10 @@ export function HomePage({
           <div className="store-hero-content">
             <p className="store-hero-badge">충주 계명대로 공예공방</p>
             <h1 className="store-hero-title">해피갤러리</h1>
-            <p className="store-hero-lead">손으로 만드는 즐거움이 오래 남는 곳</p>
+            <p className="store-hero-lead">손으로 만드는 즐거움</p>
             <p className="store-hero-copy">
-              원데이클래스부터 자격증반과 창업반까지,
-              다양한 공예를 배우고 나만의 작품을 완성해 보세요.
+              원데이클래스부터 자격증반·창업반까지.
+              공예를 배우고 나만의 작품을 만들어 보세요.
             </p>
             <div className="store-hero-actions">
               <LinkButton to="/classes" variant="dark" size="lg">클래스 둘러보기</LinkButton>
@@ -115,19 +115,12 @@ export function HomePage({
         </Container>
       </section>
 
-      <section className="home-band home-updates-section anim-fade-up">
-        <Container className="home-updates-grid">
-          <NoticeListWidget initialNotices={initialNotices} />
-          <FeaturedEventWidget initialEvents={initialEvents} />
-        </Container>
-      </section>
-
       <section className="home-band home-class-section anim-fade-up">
         <Container>
           <div className="store-section-header home-section-heading">
             <div>
               <p className="store-section-kicker">해피갤러리 클래스</p>
-              <h2 className="store-section-title">오늘의 체험부터 오래 배우는 과정까지</h2>
+              <h2 className="store-section-title">나만의 작품을 만드는 클래스</h2>
               <p className="store-section-desc">
                 처음 만드는 분도 편안하게 시작할 수 있도록 수업별 시간과 준비물을 안내합니다.
               </p>
@@ -143,7 +136,7 @@ export function HomePage({
 
           <div className="home-class-layout">
             <figure className="home-class-media">
-              <img src={leatherClass} alt="해피갤러리 가죽공예 수업" />
+              <img src={leatherClass} alt="해피갤러리 가죽공예 수업" loading="lazy" />
             </figure>
             <div className="home-class-list">
               {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
@@ -169,10 +162,37 @@ export function HomePage({
         </Container>
       </section>
 
+      <section className="home-band home-product-section anim-fade-up anim-delay-3">
+        <Container>
+          <div className="store-section-header home-section-heading">
+            <div>
+              <p className="store-section-kicker">공방 작품</p>
+              <h2 className="store-section-title">공방에서 만든 핸드메이드 작품</h2>
+              <p className="store-section-desc">바로 구매할 수 있는 작품과 주문 제작 작품을 함께 소개합니다.</p>
+            </div>
+            <Link to="/products" className="store-section-link">
+              모든 작품 보기 <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+          {productsLoading && <LoadingSpinner />}
+          <ErrorAlert error={productsError} />
+          {featuredProducts.length > 0 && (
+            <Row xs={1} sm={2} md={3} className="g-4">
+              {featuredProducts.map((product) => (
+                <Col key={product.id}><ProductCard product={product} /></Col>
+              ))}
+            </Row>
+          )}
+          {!productsLoading && !productsError && featuredProducts.length === 0 && (
+            <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
+          )}
+        </Container>
+      </section>
+
       <section className="home-group-band anim-fade-up anim-delay-1">
         <Container className="home-editorial-layout">
           <figure className="home-editorial-media">
-            <img src={groupResinClass} alt="해피갤러리 단체 레진아트 수업" />
+            <img src={groupResinClass} alt="해피갤러리 단체 레진아트 수업" loading="lazy" />
           </figure>
           <div className="home-editorial-copy">
             <p className="store-section-kicker">단체·기관 수업</p>
@@ -182,6 +202,13 @@ export function HomePage({
             </p>
             <LinkButton to="/group-classes" variant="light">단체수업 알아보기</LinkButton>
           </div>
+        </Container>
+      </section>
+
+      <section className="home-band home-updates-section anim-fade-up">
+        <Container className="home-updates-grid">
+          <NoticeListWidget initialNotices={initialNotices} />
+          <FeaturedEventWidget initialEvents={initialEvents} />
         </Container>
       </section>
 
@@ -209,35 +236,8 @@ export function HomePage({
             )}
           </div>
           <figure className="home-story-media">
-            <img src={upcyclingClass} alt="해피갤러리 업사이클링 공예 수업 기록" />
+            <img src={upcyclingClass} alt="해피갤러리 업사이클링 공예 수업 기록" loading="lazy" />
           </figure>
-        </Container>
-      </section>
-
-      <section className="home-band home-product-section anim-fade-up anim-delay-3">
-        <Container>
-          <div className="store-section-header home-section-heading">
-            <div>
-              <p className="store-section-kicker">공방 작품</p>
-              <h2 className="store-section-title">해피갤러리에서 만든 작품을 만나보세요</h2>
-              <p className="store-section-desc">바로 구매할 수 있는 작품과 주문 제작 작품을 함께 소개합니다.</p>
-            </div>
-            <Link to="/products" className="store-section-link">
-              모든 작품 보기 <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-          {productsLoading && <LoadingSpinner />}
-          <ErrorAlert error={productsError} />
-          {featuredProducts.length > 0 && (
-            <Row xs={1} sm={2} md={3} className="g-4">
-              {featuredProducts.map((product) => (
-                <Col key={product.id}><ProductCard product={product} /></Col>
-              ))}
-            </Row>
-          )}
-          {!productsLoading && !productsError && featuredProducts.length === 0 && (
-            <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
-          )}
         </Container>
       </section>
 

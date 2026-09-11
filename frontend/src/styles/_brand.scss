@@ -21,8 +21,17 @@
   font-weight: 700;
 }
 
+.store-hero-content,
+.home-band,
+.home-group-band,
+.class-catalog-hero,
+.class-catalog-page {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
 .home-band {
-  padding-block: clamp(4.5rem, 8vw, 7.5rem);
+  padding-block: clamp(3rem, 6vw, 5.5rem);
 }
 
 .home-section-heading,
@@ -39,11 +48,10 @@
 
 .home-craft-specialties {
   max-width: 62rem;
-  margin: 0 0 clamp(2.5rem, 5vw, 4rem);
+  margin: 0 0 1.75rem;
   color: var(--hg-olive);
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.3rem;
-  line-height: 2;
+  font-size: 0.875rem;
+  line-height: 1.8;
 }
 
 .home-class-layout {
@@ -64,7 +72,7 @@
 }
 
 .home-class-media {
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 4 / 3;
 }
 
 .home-class-media img,
@@ -465,16 +473,20 @@
 .class-catalog-hero,
 .group-class-hero {
   position: relative;
-  min-height: clamp(440px, 68svh, 650px);
   display: flex;
   align-items: end;
   isolation: isolate;
 }
 
+.group-class-hero {
+  min-height: clamp(440px, 68svh, 650px);
+}
+
 .class-catalog-hero {
+  min-height: 260px;
   color: #FFFFFF;
   background-image: var(--hg-class-hero-image);
-  background-position: center;
+  background-position: center 42%;
   background-size: cover;
 }
 
@@ -487,12 +499,15 @@
   background: rgba(25, 30, 27, 0.48);
 }
 
-.class-catalog-hero-copy {
-  max-width: 40rem;
-  padding-block: clamp(3rem, 7vw, 5.5rem);
+.class-catalog-hero::before {
+  background: linear-gradient(90deg, rgba(25, 30, 27, 0.84), rgba(25, 30, 27, 0.35));
 }
 
-.class-catalog-hero .store-section-kicker,
+.class-catalog-hero-copy {
+  max-width: 40rem;
+  padding-block: 3rem;
+}
+
 .group-class-hero .store-section-kicker {
   color: #E8C3CA;
 }
@@ -508,6 +523,10 @@
   letter-spacing: 0;
 }
 
+.class-catalog-hero h1 {
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+}
+
 .class-catalog-hero-copy > p:last-child,
 .group-class-hero-inner p:last-child {
   max-width: 34rem;
@@ -517,15 +536,18 @@
 }
 
 .class-catalog-header {
-  margin-bottom: 3rem;
+  margin-bottom: 0;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--hg-border);
+}
+
+.class-catalog-page {
+  padding-block: clamp(2rem, 4vw, 3.5rem);
 }
 
 .class-catalog-header h2 {
   margin: 0;
   font-family: "Gowun Batang", Georgia, serif;
-  font-size: 3rem;
+  font-size: 1.75rem;
   font-weight: 400;
 }
 
@@ -535,21 +557,15 @@
 
 .class-catalog-item {
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: 1.5rem clamp(1.5rem, 4vw, 4rem);
-  padding-block: clamp(2rem, 5vw, 3.5rem);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem 2rem;
+  padding-block: 2rem;
   border-bottom: 1px solid var(--hg-border);
 }
 
 .class-catalog-item.has-media {
-  grid-template-columns: 3.5rem minmax(0, 1fr) minmax(14rem, 0.55fr);
-}
-
-.class-catalog-number {
-  color: var(--hg-burgundy);
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-size: 1.2rem;
-  font-weight: 700;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
+  align-items: start;
 }
 
 .class-catalog-title-row {
@@ -557,22 +573,24 @@
   justify-content: space-between;
   gap: 1rem;
   align-items: baseline;
+  flex-wrap: wrap;
 }
 
 .class-catalog-title-row h3 {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
   font-family: "Gowun Batang", Georgia, serif;
-  font-size: 2.15rem;
+  font-size: 1.75rem;
   font-weight: 400;
 }
 
 .class-catalog-title-row strong {
   flex: 0 0 auto;
-  font-size: 0.95rem;
+  font-size: 1.125rem;
 }
 
 .class-catalog-description {
   max-width: 42rem;
+  margin-block: 0.75rem 0;
   color: var(--hg-ink-soft);
   line-height: 1.8;
   white-space: pre-line;
@@ -580,13 +598,15 @@
 
 .class-catalog-meta {
   display: grid;
-  gap: 0.55rem;
-  margin: 1.5rem 0 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 1.25rem 0;
 }
 
-.class-catalog-meta > div {
+.class-catalog-meta-wide {
+  grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr);
+  grid-template-columns: 4rem minmax(0, 1fr);
   gap: 1rem;
 }
 
@@ -605,22 +625,17 @@
   aspect-ratio: 4 / 3;
 }
 
-.class-catalog-book-link {
-  grid-column: 2;
-  justify-self: start;
-  color: var(--hg-burgundy);
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.class-catalog-item.has-media .class-catalog-book-link {
-  grid-column: 2 / 4;
+.class-catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
 }
 
 .class-followup-links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: clamp(4rem, 8vw, 7rem);
+  margin-top: 3rem;
   border-block: 1px solid var(--hg-dark);
 }
 
@@ -779,25 +794,11 @@
     order: 1;
   }
 
-  .class-catalog-item.has-media {
-    grid-template-columns: 3rem minmax(0, 1fr);
-  }
-
-  .class-catalog-media {
-    grid-column: 2;
-    max-width: 34rem;
-  }
-
-  .class-catalog-item.has-media .class-catalog-book-link {
-    grid-column: 2;
-  }
-
   .group-class-inquiry {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .class-catalog-hero h1,
   .group-class-hero h1 {
     font-size: 4.25rem;
   }
@@ -805,26 +806,51 @@
 
 @media (max-width: 767.98px) {
   .store-hero {
-    min-height: clamp(520px, calc(84svh - 72px), 620px);
-    background-position: center, 58% center;
+    min-height: 0;
+    align-items: end;
+    background-image:
+      linear-gradient(0deg, rgba(247, 243, 234, 0.99) 0%, rgba(247, 243, 234, 0.95) 44%, rgba(247, 243, 234, 0.08) 88%),
+      var(--hg-hero-image);
+    background-position: center, 62% center;
   }
 
   .store-hero-content {
-    padding-block: 12rem 2.5rem;
+    padding-block: 10rem 2.5rem;
   }
 
   .store-hero-title {
-    font-size: 3.65rem;
+    font-size: clamp(3rem, 12vw, 4rem);
+  }
+
+  .store-hero-lead {
+    font-size: 1.4rem;
   }
 
   .store-hero-copy {
     font-size: 0.95rem;
   }
 
-  .home-section-heading,
-  .class-catalog-header {
+  .store-hero-actions {
+    gap: 1rem;
+  }
+
+  .store-hero-actions .btn {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  .home-section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .class-catalog-header {
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .home-class-list {
+    grid-row: 1;
   }
 
   .home-updates-grid {
@@ -881,9 +907,16 @@
     grid-row: 1 / 3;
   }
 
-  .class-catalog-hero,
   .group-class-hero {
     min-height: 520px;
+  }
+
+  .class-catalog-hero {
+    min-height: 220px;
+  }
+
+  .class-catalog-hero-copy {
+    padding-block: 2rem;
   }
 
   .home-editorial-copy h2,
@@ -894,13 +927,8 @@
     font-size: 2.25rem;
   }
 
-  .class-catalog-hero h1,
   .group-class-hero h1 {
     font-size: 2.5rem;
-  }
-
-  .class-catalog-header h2 {
-    font-size: 2.25rem;
   }
 
   .class-catalog-title-row h3 {
@@ -909,25 +937,18 @@
 
   .class-catalog-item,
   .class-catalog-item.has-media {
-    grid-template-columns: 2.25rem minmax(0, 1fr);
-    gap: 1.25rem 1rem;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
   }
 
   .class-catalog-title-row {
     align-items: flex-start;
     flex-direction: column;
-    gap: 0;
+    gap: 0.5rem;
   }
 
-  .class-catalog-media,
-  .class-catalog-book-link,
-  .class-catalog-item.has-media .class-catalog-book-link {
-    grid-column: 2;
-  }
-
-  .class-catalog-meta > div {
-    grid-template-columns: 1fr;
-    gap: 0.1rem;
+  .class-catalog-media {
+    aspect-ratio: 16 / 10;
   }
 
   .class-followup-links,
@@ -948,7 +969,6 @@
 }
 
 @media (max-width: 359.98px) {
-  .class-catalog-hero h1,
   .group-class-hero h1 {
     font-size: 2.15rem;
   }
