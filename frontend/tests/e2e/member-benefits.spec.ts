@@ -100,6 +100,15 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
     name: "여름 공개 쿠폰",
     discountValue: 3000,
   };
+  const pastCoupons = Array.from({ length: 100 }, (_, index) => ({
+    ...availableCoupon,
+    id: 1000 + index,
+    definitionId: 1000 + index,
+    name: `사용한 쿠폰 ${index + 1}`,
+    status: "REDEEMED",
+    claimedAt: "2026-08-09T10:00:00",
+    usedAt: "2026-08-09T11:00:00",
+  }));
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -139,8 +148,8 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
       await fulfillJson(
         route,
         claimed
-          ? [availableCoupon, reservedCoupon, newlyClaimedCoupon]
-          : [availableCoupon, reservedCoupon],
+          ? [newlyClaimedCoupon, ...pastCoupons.slice(0, 99), availableCoupon, reservedCoupon]
+          : [...pastCoupons, availableCoupon, reservedCoupon],
       );
       return;
     }
@@ -249,7 +258,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   const claimableCard = page.locator(".card").filter({ hasText: "여름 공개 쿠폰" }).first();
   await claimableCard.getByRole("button", { name: "쿠폰 받기" }).click();
   await expect(page.getByText("현재 새로 받을 수 있는 쿠폰이 없습니다.")).toBeVisible();
-  await expect(page.getByText("사용 가능 2장 · 전체 3장")).toBeVisible();
+  await expect(page.getByText("사용 가능 2장 · 조회 102장")).toBeVisible();
 
   await page.goto(checkout.path);
   await expect(page.getByText("혜택 적용 작품", { exact: true }).first()).toBeVisible();

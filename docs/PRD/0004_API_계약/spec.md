@@ -4088,7 +4088,7 @@ file={JPEG|PNG|WebP binary}
 #### 2.20.3 회원 쿠폰
 
 - `GET /api/v1/me/coupons/claimable` — 현재 공개 발급 가능하고 이 회원이 아직 발급받지 않은 쿠폰 정의를 최신순 최대 100개 조회
-- `GET /api/v1/me/coupons` — 회원에게 발급된 쿠폰 최근 100개
+- `GET /api/v1/me/coupons` — 최근 발급 100개와 사용 가능(`AVAILABLE`)·결제 처리 중(`RESERVED`)인 모든 쿠폰을 중복 없이 조회한다. 발급 시각·ID 역순이며 응답은 100개를 넘을 수 있다. 조회 중 만료·사용 중지가 반영된 쿠폰은 최근 100개에 속할 때만 남긴다.
 - `POST /api/v1/me/coupons` + `{ "definitionId": 10 }` — 공개 쿠폰 1장 발급
 
 ```json

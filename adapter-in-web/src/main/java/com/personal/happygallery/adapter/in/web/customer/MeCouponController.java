@@ -28,7 +28,8 @@ public class MeCouponController {
     }
 
     @GetMapping
-    @Operation(operationId = "listMyCoupons")
+    @Operation(operationId = "listMyCoupons",
+            description = "최근 발급 100개와 사용 가능·결제 처리 중인 모든 쿠폰을 중복 없이 최신 발급순으로 조회한다.")
     public List<MyCouponResponse> list(
             @AuthenticationPrincipal CustomerPrincipal customer) {
         return couponMemberUseCase.listMyCoupons(customer.userId()).stream()

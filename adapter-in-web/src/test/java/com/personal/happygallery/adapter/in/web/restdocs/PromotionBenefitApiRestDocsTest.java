@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminCouponController;
 import com.personal.happygallery.adapter.in.web.admin.AdminEventController;
@@ -69,8 +70,13 @@ class PromotionBenefitApiRestDocsTest extends RestDocsTestSupport {
 
         when(couponMemberUseCase.listClaimableCoupons(CUSTOMER_USER_ID))
                 .thenReturn(List.of(definition));
+        IssuedCoupon reserved = mock(IssuedCoupon.class);
+        when(reserved.getId()).thenReturn(16L);
+        when(reserved.getStatus()).thenReturn(IssuedCouponStatus.RESERVED);
+        when(reserved.getClaimedAt()).thenReturn(START_AT.plusHours(10));
+        when(reserved.getReservedAt()).thenReturn(START_AT.plusDays(7).plusHours(12));
         when(couponMemberUseCase.listMyCoupons(CUSTOMER_USER_ID))
-                .thenReturn(List.of(issuedView));
+                .thenReturn(List.of(issuedView, new CouponMemberUseCase.IssuedCouponView(reserved, definition)));
         when(couponMemberUseCase.claim(CUSTOMER_USER_ID, 10L)).thenReturn(issuedView);
         when(couponAdminUseCase.list()).thenReturn(List.of(definition));
         when(couponAdminUseCase.get(10L)).thenReturn(definition);
@@ -123,10 +129,12 @@ class PromotionBenefitApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("회원 보유 쿠폰 목록 API를 문서화한다")
+    @DisplayName("회원 최근 이력과 사용 가능·결제 중 쿠폰 목록 API를 문서화한다")
     void member_coupon_list() throws Exception {
         mockMvc.perform(get("/api/v1/me/coupons").with(customerUser()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("AVAILABLE"))
+                .andExpect(jsonPath("$[1].status").value("RESERVED"));
     }
 
     @Test

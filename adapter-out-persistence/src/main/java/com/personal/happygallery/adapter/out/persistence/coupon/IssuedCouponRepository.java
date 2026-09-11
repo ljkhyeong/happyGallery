@@ -2,7 +2,9 @@ package com.personal.happygallery.adapter.out.persistence.coupon;
 
 import com.personal.happygallery.application.coupon.port.out.IssuedCouponReaderPort;
 import com.personal.happygallery.domain.coupon.IssuedCoupon;
+import com.personal.happygallery.domain.coupon.IssuedCouponStatus;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -29,4 +31,7 @@ public interface IssuedCouponRepository
 
     @Override
     List<IssuedCoupon> findTop100ByUserIdOrderByClaimedAtDescIdDesc(Long userId);
+
+    @Override
+    List<IssuedCoupon> findByUserIdAndStatusIn(Long userId, Collection<IssuedCouponStatus> statuses);
 }

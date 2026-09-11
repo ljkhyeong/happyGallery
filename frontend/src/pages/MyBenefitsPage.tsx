@@ -216,8 +216,9 @@ function MyBenefitsContent() {
           <div>
             <h5 id="owned-coupons-heading" className="mb-0">보유 쿠폰</h5>
           </div>
-          <span className="text-muted-soft small">사용 가능 {availableCoupons.length}장 · 전체 {coupons.length}장</span>
+          <span className="text-muted-soft small">사용 가능 {availableCoupons.length}장 · 조회 {coupons.length}장</span>
         </div>
+        <p className="small text-muted-soft">사용 가능·결제 처리 중 쿠폰과 최근 발급 이력 100장을 표시합니다.</p>
         {couponsQuery.isLoading && <LoadingSpinner text="보유 쿠폰 조회 중..." />}
         <ErrorAlert
           error={couponsQuery.error}
