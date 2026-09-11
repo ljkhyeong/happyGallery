@@ -39,9 +39,12 @@ test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변�
   await page.getByLabel("참여 인원", { exact: true }).fill("30");
   await page.getByLabel("희망 일정", { exact: true }).fill("11월 오후");
   await page.getByRole("button", { name: "변경 저장" }).click();
-  await expect(page.getByText("문의가 변경되었거나 수정할 수 없는 상태입니다. 최신 문의를 불러와 확인해 주세요.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("alert")).toContainText("문의가 변경되었습니다. 입력 내용은 유지했습니다.");
   await expect(page.getByLabel("참여 인원", { exact: true })).toHaveValue("30");
   await page.getByRole("button", { name: "문의 새로고침" }).click();
+  await expect(page.getByLabel("참여 인원", { exact: true })).toHaveValue("30");
+  await expect(page.getByRole("button", { name: "변경 저장" })).toBeDisabled();
+  await page.getByRole("button", { name: "최신 내용 불러오기" }).click();
   await expect(page.getByLabel("참여 인원", { exact: true })).toHaveValue("20");
   await page.getByLabel("참여 인원", { exact: true }).fill("30");
   await page.getByLabel("희망 일정", { exact: true }).fill("11월 오후");
