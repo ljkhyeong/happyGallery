@@ -258,6 +258,88 @@ function smartStoreNotice(id: number): SmartStoreNoticeResponse {
   };
 }
 
+for (const kind of ["공지", "검수"] as const) {
+  test(`@admin 스마트스토어 ${kind} 목록은 100건 이후 조회와 실패 복구를 지원한다`, async ({ page }) => {
+    await prepareAdmin(page);
+    const basePath = kind === "공지" ? "/api/v1/admin/smartstore-notices"
+      : "/api/v1/admin/products/smartstore-inspections";
+    let unavailable = true;
+    let removed = false;
+    let pending: Route | undefined;
+    const reads: number[] = [];
+    const writes: string[] = [];
+    await page.route(`**${basePath}**`, (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== "GET") {
+        writes.push(url.pathname);
+        pending = route;
+        return;
+      }
+      if (url.pathname !== basePath) return json(route, smartStoreNotice(2));
+      const currentPage = Number(url.searchParams.get("page"));
+      reads.push(currentPage);
+      expect(url.searchParams.get("size")).toBe("100");
+      if (currentPage === 2 && unavailable) return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : removed ? [] : [101];
+      return json(route, {
+        ...(kind === "공지" ? { notices: ids.map(smartStoreNotice) } : {
+          products: ids.map((id) => ({
+            channelProductNo: id, reason: `검수 사유 ${id}`, action: "상품 정보 수정",
+            restorationRequestAvailable: true,
+          })),
+        }),
+        page: currentPage, size: 100, totalElements: removed ? 100 : 101, totalPages: removed ? 1 : 2,
+      });
+    });
+    await page.goto(kind === "공지" ? "/admin?view=support" : "/admin?view=today");
+    const panel = page.locator(".admin-workspace-panel").filter({
+      has: page.getByRole("heading", {
+        name: kind === "공지" ? "스마트스토어 상품 공지" : "스마트스토어 상품 검수 확인", exact: true,
+      }),
+    });
+    const rowText = (id: number) => kind === "공지" ? `공지 ${id}` : `검수 사유 ${id}`;
+    await expect(panel.getByText(rowText(100), { exact: true })).toBeVisible();
+    const navigation = panel.getByRole("navigation", { name: `스마트스토어 ${kind} 페이지` });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeDisabled();
+    expect(reads).toEqual([1]);
+    if (kind === "공지") {
+      await panel.getByRole("row").filter({ has: page.getByText("공지 2", { exact: true }) })
+        .getByRole("button", { name: "수정", exact: true }).click();
+      await expect(page.getByRole("dialog").getByPlaceholder("공지 내용")).toHaveValue("공지 2 본문");
+      await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    }
+    await navigation.getByRole("button", { name: "다음 페이지" }).click();
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeEnabled();
+    await expect(navigation.getByRole("button", { name: "다음 페이지" })).toBeDisabled();
+    unavailable = false;
+    await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(panel.getByText(rowText(101), { exact: true })).toBeVisible();
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeHidden();
+    await expect(navigation.getByRole("button", { name: "다음 페이지" })).toBeDisabled();
+    expect(reads).toContain(2);
+    await navigation.getByRole("button", { name: "이전 페이지" }).click();
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeVisible();
+    await navigation.getByRole("button", { name: "다음 페이지" }).click();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(navigation).toBeVisible();
+    expect(await navigation.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const lastRow = panel.getByRole("row").filter({ hasText: rowText(101) });
+    page.on("dialog", (dialog) => dialog.accept());
+    await lastRow.getByRole("button", {
+      name: kind === "공지" ? "삭제" : "수정 반영 후 복원 요청", exact: true,
+    }).click();
+    await expect.poll(() => writes).toEqual([`${basePath}/101${kind === "공지" ? "" : "/restore"}`]);
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeDisabled();
+    removed = true;
+    await pending!.fulfill({ status: 204 });
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeVisible();
+    await expect(panel.getByText(rowText(101), { exact: true })).toBeHidden();
+    await expect(navigation).toBeHidden();
+  });
+}
+
 for (const scenario of [
   {
     timezoneId: "America/Los_Angeles", now: "2028-02-29T15:30:00Z", today: "2028-03-01",
