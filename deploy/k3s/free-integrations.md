@@ -14,6 +14,7 @@
 | 유동 공인 IP | Cloudflare DNS API + cloudflare-ddns | 별도 k3s addon 제공. 홈서버에서 5분마다 IPv4 확인 |
 | HTTPS | cert-manager + Let's Encrypt | 기존 자동 발급·갱신 사용. HTTP-01 검증용 TCP 80 유지 |
 | 외부 장애 감시 | HetrixTools 무료 Website·Cron Job Monitor | 공개 URL 2개와 백업 1개 감시. 계정 설정과 systemd 연결 필요 |
+| 운영 알림 | Telegram Bot API + Alertmanager | [서버 경보·복구·백업 실패 연결](telegram-alerts.md). 봇 토큰·채팅 ID 설정 후 사용 |
 | 백업 보관 | 기존 암호화 백업 + 보유한 외부 저장소 | 같은 집 밖의 저장 공간 필요. 무료 무제한 저장소를 전제하지 않음 |
 
 배송 상태 자동 갱신은 **추가 이용료 없는 택배사 공식 API**로 제한한다. 웹훅·배치 중 어떤 방식을 쓰는지와 무료 여부는 별개다. Delivery API는 국내 신규 무료 운영 플랜이 없으므로 연결 대상에서 제외하고 `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 공식 사이트 링크만으로 해피갤러리 DB의 배송 상태가 자동 갱신되지는 않는다. 주문 배송 완료는 기존대로 관리자가 확정한다. [Delivery API FAQ](https://www.deliveryapi.co.kr/faq)

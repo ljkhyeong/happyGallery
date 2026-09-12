@@ -44,10 +44,30 @@ module AlertDelivery
     value
   end
 
-  def self.smtp_settings(app_file, alert_file)
+  def self.alert_settings(alert_file)
     alerts = parse_env(private_contents(alert_file))
-    unknown = alerts.keys - ['ALERT_EMAIL_TO']
+    provider = alerts.fetch('ALERT_PROVIDER', 'smtp')
+    keys = case provider
+           when 'smtp' then %w[ALERT_PROVIDER ALERT_EMAIL_TO]
+           when 'telegram' then %w[ALERT_PROVIDER TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID]
+           else raise ConfigError, 'ALERT_PROVIDER는 smtp 또는 telegram이어야 합니다.'
+           end
+    unknown = alerts.keys - keys
     raise ConfigError, "알림 환경 파일의 허용되지 않은 키: #{unknown.join(', ')}" unless unknown.empty?
+    alerts
+  end
+
+  def self.telegram_settings(alerts)
+    token = required(alerts, 'TELEGRAM_BOT_TOKEN')
+    raise ConfigError, 'TELEGRAM_BOT_TOKEN 형식이 올바르지 않습니다.' unless /\A[0-9]+:[A-Za-z0-9_-]+\z/.match?(token)
+    chat = required(alerts, 'TELEGRAM_CHAT_ID')
+    raise ConfigError, 'TELEGRAM_CHAT_ID에는 0이 아닌 정수 채팅 ID를 입력하세요.' unless
+      /\A-?[1-9][0-9]*\z/.match?(chat) && (-2**63...2**63).cover?(chat.to_i)
+    { 'token' => token, 'chat_id' => chat.to_i }
+  end
+
+  def self.smtp_settings(app_file, alert_file)
+    alerts = alert_settings(alert_file)
     app = parse_env(private_contents(app_file))
     raise ConfigError, '장애 메일에는 EMAIL_VERIFICATION_PROVIDER=smtp가 필요합니다.' unless
       app.fetch('EMAIL_VERIFICATION_PROVIDER', 'smtp') == 'smtp'
@@ -72,6 +92,7 @@ module AlertDelivery
   def self.render(app_file, alert_file, output_dir)
     config = YAML.safe_load(File.read(File.expand_path('../alertmanager.yml', __dir__)))
     input = private_contents(alert_file)
+    alerts = alert_settings(alert_file) unless input.start_with?('https://')
     files = {}
     if input.start_with?('https://')
       url = input.strip
@@ -80,6 +101,20 @@ module AlertDelivery
         uri.is_a?(URI::HTTPS) && uri.host && !url.match?(/\s/) &&
         !uri.userinfo && !uri.fragment && !url.include?('example.com')
       files['webhook-url'] = url
+    elsif alerts['ALERT_PROVIDER'] == 'telegram'
+      telegram = telegram_settings(alerts)
+      configure_receivers(config, 'telegram', {
+        'api_url' => 'https://api.telegram.org',
+        'bot_token_file' => "#{SECRET_PATH}/telegram-bot-token",
+        'chat_id' => telegram['chat_id'],
+        'parse_mode' => '',
+        'send_resolved' => true,
+        'http_config' => { 'follow_redirects' => false },
+        'message' => "happyGallery {{ if eq .Status \"firing\" }}경보{{ else }}복구{{ end }}\n" \
+                     "{{ range .Alerts }}{{ .Labels.alertname }} ({{ .Labels.severity }})\n" \
+                     "{{ .Annotations.summary }}\n{{ end }}"
+      })
+      files['telegram-bot-token'] = telegram['token']
     else
       smtp = smtp_settings(app_file, alert_file)
       config['global'].merge!(
@@ -90,14 +125,7 @@ module AlertDelivery
         'smtp_require_tls' => true,
         'smtp_tls_config' => { 'server_name' => smtp['host'], 'min_version' => 'TLS12' }
       )
-      ([config['route']] + config['route'].fetch('routes')).each do |route|
-        route['receiver'] = route.fetch('receiver').sub('webhook-', 'email-')
-      end
-      config.fetch('receivers').each do |receiver|
-        receiver['name'] = receiver.fetch('name').sub('webhook-', 'email-')
-        receiver.delete('webhook_configs')
-        receiver['email_configs'] = [{ 'to' => smtp['to'], 'send_resolved' => true }]
-      end
+      configure_receivers(config, 'email', { 'to' => smtp['to'], 'send_resolved' => true })
       files['smtp-password'] = smtp['password']
     end
     # JSON은 YAML의 부분 집합이다. 문자열을 직접 치환하지 않아 특수문자를 보존한다.
@@ -109,6 +137,49 @@ module AlertDelivery
       File.open(File.join(output_dir, name), File::WRONLY | File::CREAT | File::EXCL, 0o600) do |file|
         file.write(contents)
       end
+    end
+  end
+
+  def self.configure_receivers(config, channel, delivery)
+    ([config['route']] + config['route'].fetch('routes')).each do |route|
+      route['receiver'] = route.fetch('receiver').sub('webhook-', "#{channel}-")
+    end
+    config.fetch('receivers').each do |receiver|
+      receiver['name'] = receiver.fetch('name').sub('webhook-', "#{channel}-")
+      receiver.delete('webhook_configs')
+      receiver["#{channel}_configs"] = [delivery]
+    end
+  end
+
+  def self.send_notification(app_file, alert_file, subject, body)
+    alerts = alert_settings(alert_file)
+    if alerts['ALERT_PROVIDER'] == 'telegram'
+      send_telegram(telegram_settings(alerts), "#{subject}\n#{body}")
+    else
+      send_email(app_file, alert_file, subject, body)
+    end
+  end
+
+  def self.send_telegram(settings, text)
+    require 'net/http'
+    require 'openssl'
+    require 'timeout'
+    raise ConfigError, 'Telegram 알림 본문은 1~4,096자여야 합니다.' unless (1..4096).cover?(text.length)
+    uri = URI("https://api.telegram.org/bot#{settings['token']}/sendMessage")
+    request = Net::HTTP::Post.new(uri.request_uri, 'Content-Type' => 'application/json')
+    request.body = JSON.generate('chat_id' => settings['chat_id'], 'text' => text,
+                                 'allow_paid_broadcast' => false)
+    client = Net::HTTP.new(uri.host, uri.port)
+    client.use_ssl = true
+    client.verify_mode = OpenSSL::SSL::VERIFY_PEER
+    client.min_version = OpenSSL::SSL::TLS1_2_VERSION
+    client.open_timeout = 3
+    client.read_timeout = 10
+    client.write_timeout = 10
+    client.max_retries = 0
+    response = Timeout.timeout(20) { client.request(request) }
+    unless response.code == '200' && JSON.parse(response.body)['ok'] == true
+      raise ConfigError, 'Telegram이 알림을 접수하지 않았습니다. 봇 권한·채팅 ID·요청 제한을 확인하세요.'
     end
   end
 
@@ -149,15 +220,15 @@ if $PROGRAM_NAME == __FILE__
       AlertDelivery.render(*ARGV)
     when 'send'
       raise AlertDelivery::ConfigError, '사용법: alert-delivery.rb send <app.env> <alertmanager.env> <제목> <본문>' unless ARGV.size == 4
-      AlertDelivery.send_email(*ARGV)
-      puts '장애 알림 메일을 SMTP 서버에 접수했습니다. 수신함에서 도착을 확인하세요.'
+      AlertDelivery.send_notification(*ARGV)
+      puts '장애 알림을 발송 서비스에 접수했습니다. 수신 채널에서 도착을 확인하세요.'
     else
       raise AlertDelivery::ConfigError, 'render 또는 send 명령을 지정하세요.'
     end
   rescue AlertDelivery::ConfigError => error
     abort "오류: #{error.message}"
   rescue StandardError => error
-    # SMTP 제공자 응답에는 주소 등 개인정보가 포함될 수 있다.
+    # 제공자 응답과 요청 URL에는 주소·봇 토큰이 포함될 수 있다.
     abort "알림 설정/전송 실패: #{error.class} (자격 증명과 서버 응답은 출력하지 않습니다.)"
   end
 end
