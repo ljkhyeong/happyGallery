@@ -41,6 +41,8 @@ docker build --pull \
     -f deploy/k3s/images/Dockerfile.app \
     -t "$app_image" .
 
+"$SCRIPT_DIR/verify-app-image.sh" "$app_image"
+
 info "프런트 이미지를 빌드합니다: $frontend_image"
 docker build --pull \
     --label "org.opencontainers.image.revision=$image_tag" \
@@ -92,9 +94,17 @@ for reference in \
     "$app_image@$app_image_digest" \
     "$frontend_image@$frontend_image_digest"; do
     source_image=${reference%@*}
-    if ! containerd_has_image "$reference"; then
-        k3s_ctr images tag "$source_image" "$reference" >/dev/null
-    fi
+    # CRI는 tag@digest 조회 시 tag를 제외한다. 백업용 기존 이름도 함께 보존한다.
+    digest_reference="${source_image%:*}@${reference#*@}"
+    for alias_reference in "$reference" "$digest_reference"; do
+        if containerd_has_image "$alias_reference"; then
+            alias_digest=$(containerd_image_digest "$alias_reference")
+            [ "$alias_digest" = "${reference#*@}" ] \
+                || die "기존 이미지 별칭의 digest가 다릅니다: $alias_reference"
+        else
+            k3s_ctr images tag "$source_image" "$alias_reference" >/dev/null
+        fi
+    done
 done
 
 cat <<EOF

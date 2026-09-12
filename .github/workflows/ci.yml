@@ -224,7 +224,9 @@ jobs:
         run: |
           APP_JAR=bootstrap/build/libs/happygallery-app.jar
           test -f "$APP_JAR"
+          chmod 600 "$APP_JAR"
           docker build --build-arg "APP_JAR=$APP_JAR" -f deploy/k3s/images/Dockerfile.app -t happygallery-app:ci .
+          ./deploy/k3s/scripts/verify-app-image.sh happygallery-app:ci
           docker build --build-arg "VITE_TOSS_CLIENT_KEY=test_ck_ci" -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:ci .
 
       - name: Scan backend image
