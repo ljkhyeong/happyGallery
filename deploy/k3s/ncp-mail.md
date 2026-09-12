@@ -1,11 +1,17 @@
 # 네이버 클라우드 인증 메일
 
-회원 이메일 소유 확인에 한국 리전 Cloud Outbound Mailer를 사용한다. SMTP 대신 HTTP API로 메일 한 건을 접수하며 회원 인증 API와 코드 유효 시간은 그대로 유지한다.
+회원 이메일 소유 확인에 한국 리전 Cloud Outbound Mailer를 선택할 수 있다. 기본값은 기존 SMTP이며, `EMAIL_VERIFICATION_PROVIDER=ncp`일 때 HTTP API로 인증 메일을 접수한다.
+
+## 요금과 사용 조건
+
+- 한국 리전은 월 1,000건까지 무료이며 초과분은 건당 0.45원(VAT 별도)이다. 기본 발송 한도는 월 100만 건으로 무료 한도보다 크다. [공식 요금표](https://m.ncloud.com/charge/price/ko), [서비스 발송 한도](https://www.ncloud.com/api-cms/service-product/static/cloudOutboundMailer)
+- 현재 앱에는 월 1,000건 초과 발송을 차단하는 기능이 없다. 인증 요청 제한·큐·타임아웃은 월 과금을 막지 않는다. 같은 계정의 다른 메일 발송도 고려해야 하므로 이 앱의 요청 수만으로 무료 사용을 보장하지 않는다.
+- 추가요금 없이 운영하려면 활성화 전에 제공자에게 무료 한도 초과 발송을 차단할 수 있는지 확인한다. 공식 안내는 한도 변경 신청 절차를 제공하며, 1,000건에서 자동 차단된다고 안내하지 않는다. 차단 조건이 확인되지 않으면 무과금 구성의 메일 서비스로 선택하지 않는다. [발송 한도 변경 안내](https://guide.ncloud-docs.com/docs/cloudoutboundmailer-troubleshoot-common)
 
 ## 서비스와 발신 도메인 준비
 
-1. Ncloud 콘솔에서 한국 리전 Cloud Outbound Mailer 이용을 신청한다.
-2. 발신 도메인 `mail.happy-gallery.com`을 등록한다. 콘솔이 표시하는 소유 확인·SPF·DKIM DNS 레코드를 Cloudflare에 그대로 추가하고 인증 완료를 확인한다. 기존 SPF 레코드를 중복 생성하지 않는다.
+1. Ncloud 사업자 계정으로 한국 리전 Cloud Outbound Mailer 이용을 신청한다. 개인 계정은 이용할 수 없다. [계정 조건](https://guide.ncloud-docs.com/docs/cloudoutboundmailer-troubleshoot-common)
+2. 발신 도메인 `mail.happy-gallery.com`을 등록한다. 콘솔 안내에 따라 소유 확인·SPF·DKIM DNS 레코드를 Cloudflare에 추가하고 SPF·DKIM 사용 상태와 DMARC 인증 완료를 확인한다. 기존 SPF 레코드를 중복 생성하지 않는다. 네이버는 SPF·DKIM·DMARC가 모두 완료되지 않으면 Gmail 발송을 실패 처리한다. [Gmail 발송 조건](https://guide.ncloud-docs.com/docs/sens-troubleshoot-mail)
 3. 메일 발송 권한이 있는 Ncloud API Access Key와 Secret Key를 발급한다. 네이버 로그인에 사용하는 Client ID·Secret과 다른 키다. 키와 전체 환경 파일을 로그·채팅·Git에 남기지 않는다.
 4. 발신 주소는 인증한 도메인의 `no-reply@mail.happy-gallery.com`을 사용한다.
 
@@ -50,7 +56,7 @@ set -o pipefail
 
 ## 실제 발송 확인
 
-배포 후 본인 계정의 이메일 인증을 한 번 요청해 네이버 콘솔 접수 이력, 본인 수신함, 인증 코드 등록 성공을 확인한다. 자동 테스트는 실제 메일을 발송하지 않는다.
+배포 후 본인 계정의 이메일 인증을 한 번 요청해 네이버 콘솔의 최종 발송 결과, 본인 수신함, 인증 코드 등록 성공을 확인한다. Gmail 수신도 확인해 도메인 인증 누락을 점검한다. 자동 테스트는 실제 메일을 발송하지 않는다.
 
 - 성공 응답은 요청 ID가 있고 접수 건수가 1일 때만 인정한다. 수신함 도착이나 스팸 분류까지 보장하지 않는다.
 - HTTP 자동 재시도·리다이렉트와 SMTP 자동 fallback은 사용하지 않는다. 응답 유실 뒤 중복 발송을 막기 위해서다.

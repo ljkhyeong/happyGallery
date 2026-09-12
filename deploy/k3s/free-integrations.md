@@ -18,6 +18,8 @@
 | 운영 알림 | Telegram Bot API + Alertmanager | [서버 경보·복구·백업 실패 연결](telegram-alerts.md). 봇 토큰·채팅 ID 설정 후 사용 |
 | 백업 보관 | 기존 암호화 백업 + 보유한 외부 저장소 | 같은 집 밖의 저장 공간 필요. 무료 무제한 저장소를 전제하지 않음 |
 
+선택형 [네이버 인증 메일 API](ncp-mail.md)는 월 1,000건을 넘으면 과금되며, 현재 코드는 월 발송 상한을 강제하지 않는다. 무료 한도 초과 차단이 확인되기 전에는 무과금 구성에 포함하지 않는다. 기본 메일 전송 방식은 기존 SMTP다. [공식 요금표](https://m.ncloud.com/charge/price/ko)
+
 배송 상태 자동 갱신은 **추가 이용료 없는 택배사 공식 API**로 제한한다. 웹훅·배치 중 어떤 방식을 쓰는지와 무료 여부는 별개다. Delivery API는 국내 신규 무료 운영 플랜이 없으므로 연결 대상에서 제외하고 `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 공식 사이트 링크만으로 해피갤러리 DB의 배송 상태가 자동 갱신되지는 않는다. 주문 배송 완료는 기존대로 관리자가 확정한다. [Delivery API FAQ](https://www.deliveryapi.co.kr/faq)
 
 ### 무료 배송 API 대상
