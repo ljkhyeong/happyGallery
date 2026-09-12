@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import type { RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
+import type { BookingCalendarResponse, RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
+import type { SmartStoreChannelOrderResponse } from "../../src/generated/api/adminOrder";
 import type {
   GroupInquiryFollowUpPageResponse,
   GroupInquiryPageResponse,
@@ -113,6 +114,135 @@ function smartStoreNotice(id: number): SmartStoreNoticeResponse {
     displayStartDate: null, displayEndDate: null, popup: false,
     popupStartDate: null, popupEndDate: null,
   };
+}
+
+for (const scenario of [
+  {
+    timezoneId: "America/Los_Angeles", now: "2028-02-29T15:30:00Z", today: "2028-03-01",
+    weekFrom: "2028-02-24", monthFrom: "2028-03-01", monthTo: "2028-03-31",
+    previousFrom: "2028-02-01", previousTo: "2028-02-29", dispatchDate: "2028-03-01T00:30",
+  },
+  {
+    timezoneId: "Pacific/Kiritimati", now: "2027-12-31T14:30:00Z", today: "2027-12-31",
+    weekFrom: "2027-12-25", monthFrom: "2027-12-01", monthTo: "2027-12-31",
+    previousFrom: "2027-11-01", previousTo: "2027-11-30", dispatchDate: "2027-12-31T23:30",
+  },
+]) {
+  test.describe(`한국 시간 ${scenario.timezoneId}`, () => {
+    test.use({ timezoneId: scenario.timezoneId });
+
+    test("@admin 공지의 전시·중요·팝업 시각을 한국 시간으로 조회하고 저장한다", async ({ page }) => {
+      await prepareAdmin(page);
+      let saved: Record<string, unknown> | undefined;
+      const notice = {
+        ...smartStoreNotice(1), importantNotice: true, popup: true,
+        displayStartDate: "2030-01-01T00:00:00Z", displayEndDate: "2030-01-01T01:00:00Z",
+        importantNoticeStartDate: "2030-01-01T09:00:00+09:00", importantNoticeEndDate: "2030-01-01T10:00:00+09:00",
+        popupStartDate: "2030-01-01T00:00:00Z", popupEndDate: "2030-01-01T01:00:00Z",
+      } satisfies SmartStoreNoticeResponse;
+      await page.route("**/api/v1/admin/smartstore-notices**", (route) => {
+        if (route.request().method() === "PUT") {
+          saved = route.request().postDataJSON();
+          return json(route, { sellerNoticeId: 1 });
+        }
+        return json(route, new URL(route.request().url()).pathname.endsWith("/1") ? notice : {
+          notices: [notice], page: 1, size: 100, totalElements: 1, totalPages: 1,
+        });
+      });
+      await page.goto("/admin?view=support");
+      await page.getByRole("row").filter({ hasText: "공지 1" })
+        .getByRole("button", { name: "수정", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      const dates = dialog.locator('input[type="datetime-local"]');
+      await expect(dates).toHaveCount(6);
+      for (let index = 0; index < 6; index++) {
+        await expect(dates.nth(index)).toHaveValue(index % 2 ? "2030-01-01T10:00" : "2030-01-01T09:00");
+        await dates.nth(index).fill(index % 2 ? "2030-01-01T10:30" : "2030-01-01T09:30");
+      }
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(saved).toMatchObject({
+        displayStartDate: "2030-01-01T00:30:00.000Z", displayEndDate: "2030-01-01T01:30:00.000Z",
+        importantNoticeStartDate: "2030-01-01T00:30:00.000Z", importantNoticeEndDate: "2030-01-01T01:30:00.000Z",
+        popupStartDate: "2030-01-01T00:30:00.000Z", popupEndDate: "2030-01-01T01:30:00.000Z",
+      });
+    });
+
+    test("@admin 정산 기간·발송 시각·예약 캘린더는 한국의 월말과 오늘을 사용한다", async ({ page }) => {
+      await prepareAdmin(page);
+      await page.clock.setFixedTime(new Date(scenario.now));
+      let accountingRange: Record<string, string> | undefined;
+      let synchronized: Record<string, unknown> | undefined;
+      let dispatched: Record<string, unknown> | undefined;
+      let calendarRange: Record<string, string> | undefined;
+      await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => {
+        accountingRange = Object.fromEntries(new URL(route.request().url()).searchParams);
+        return json(route, { ...accountingRange, vatAvailableThrough: scenario.previousTo,
+          dailySettlements: [], commissionDetails: [], dailyVat: [] });
+      });
+      await page.route("**/api/v1/admin/smartstore-settlements/synchronize", (route) => {
+        synchronized = route.request().postDataJSON();
+        return json(route, { successCount: 0, issueCount: 0 });
+      });
+      const order = {
+        productOrderId: "po-time", orderId: "order-time", originProductNo: 1,
+        itemNo: null, productId: 1, productVariantId: null, productName: "발송 시각 확인 상품",
+        productOption: null, productOrderStatus: "PAYED", claimType: null, claimStatus: null,
+        initialQuantity: 1, remainQuantity: 1, inventoryAppliedQuantity: 1,
+        attentionReason: null, paymentDate: null, lastChangedAt: "2027-12-01T10:00:00",
+        pendingReturnQuantity: 0, returnReviewVersion: "R0:0", inventoryResolutionVersion: "v1",
+      } satisfies SmartStoreChannelOrderResponse;
+      await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
+        json(route, { content: [order], hasMore: false, nextCursor: null }));
+      await page.route("**/api/v1/admin/smartstore-orders/dispatch", (route) => {
+        dispatched = route.request().postDataJSON();
+        return json(route, { successProductOrderIds: ["po-time"], failures: [] });
+      });
+      await page.route("**/api/v1/admin/order-claims?**", (route) =>
+        json(route, { content: [], hasMore: false, nextCursor: null }));
+      await page.route("**/api/v1/admin/slots/calendar?**", (route) => {
+        calendarRange = Object.fromEntries(new URL(route.request().url()).searchParams);
+        return json(route, {
+          settings: { openTime: "10:00", closeTime: "19:00", slotIntervalMin: 30,
+            blockPublicHolidays: true, version: 1 },
+          days: [{ date: scenario.today, effectiveAvailability: "OPEN", overrideMode: "DEFAULT",
+            publicHoliday: false, timeBlocks: [] }],
+        } satisfies BookingCalendarResponse);
+      });
+      await page.goto("/admin?view=orders");
+      await expect.poll(() => accountingRange).toEqual({ from: scenario.previousFrom, to: scenario.previousTo });
+      const settlement = page.locator(".admin-workspace-panel").filter({
+        has: page.getByRole("heading", { name: "스마트스토어 정산 불일치", exact: true }),
+      });
+      await expect(settlement.locator('input[type="date"]').nth(0)).toHaveValue(scenario.weekFrom);
+      await expect(settlement.locator('input[type="date"]').nth(1)).toHaveValue(scenario.today);
+      await settlement.getByRole("button", { name: "선택 기간 조회", exact: true }).click();
+      await expect.poll(() => synchronized).toEqual({ from: scenario.weekFrom, to: scenario.today });
+
+      await page.getByLabel("po-time 선택", { exact: true }).check();
+      await page.getByRole("button", { name: "선택 주문 발송", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.locator('input[type="datetime-local"]')).toHaveValue(scenario.dispatchDate);
+      await dialog.getByPlaceholder("택배사 코드").fill("EPOST");
+      await dialog.getByPlaceholder("운송장 번호").fill("1234567890123");
+      await dialog.getByRole("button", { name: "일괄 발송", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(dispatched).toMatchObject({ orders: [{ productOrderId: "po-time", dispatchDate: scenario.dispatchDate }] });
+
+      await page.goto("/admin?view=classes");
+      await expect.poll(() => calendarRange).toEqual({ dateFrom: scenario.monthFrom, dateTo: scenario.monthTo });
+      const calendar = page.locator(".admin-workspace-panel").filter({
+        has: page.getByRole("heading", { name: "예약 캘린더", exact: true }),
+      });
+      await expect(calendar.getByRole("heading", { name: scenario.today, exact: true })).toBeVisible();
+      await calendar.getByRole("button", { name: "이전 달", exact: true }).click();
+      await expect.poll(() => calendarRange).toEqual({ dateFrom: scenario.previousFrom, dateTo: scenario.previousTo });
+      await calendar.getByRole("button", { name: "다음 달", exact: true }).click();
+      await expect(calendar.getByRole("heading", {
+        name: scenario.timezoneId === "America/Los_Angeles" ? "2028년 3월" : "2027년 12월", exact: true,
+      })).toBeVisible();
+    });
+  });
 }
 
 test("@admin 스마트스토어 공지 조회 실패 시 이전 초안을 저장하지 않고 다시 조회한다", async ({ page }) => {

@@ -16,6 +16,7 @@ import {
 import { ApiError, invalidateSlotAvailability, queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { formatDateInput } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import {
   HalfHourDaySchedule,
@@ -37,25 +38,23 @@ interface SettingsForm {
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 function dateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return date.toISOString().slice(0, 10);
 }
 
+// 한국 날짜를 UTC 자정에 고정해 브라우저 시간대와 관계없이 월·요일을 계산한다.
 function firstDayOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
 function lastDayOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0));
 }
 
 export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const today = useMemo(() => dateKey(new Date()), []);
-  const [month, setMonth] = useState(() => firstDayOfMonth(new Date()));
+  const today = useMemo(() => formatDateInput(Date.now()), []);
+  const [month, setMonth] = useState(() => firstDayOfMonth(new Date(`${today}T00:00:00Z`)));
   const [selectedDate, setSelectedDate] = useState(today);
   const [dayReason, setDayReason] = useState("");
   const [blockStart, setBlockStart] = useState("12:00");
@@ -159,7 +158,7 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const leadingBlankCount = firstDayOfMonth(month).getDay();
+  const leadingBlankCount = firstDayOfMonth(month).getUTCDay();
   const canEditSelectedDate = selectedDate >= today;
   const mutationError = settingsMutation.error
     ?? dayMutation.error
@@ -269,16 +268,16 @@ export function BookingCalendarSection({ adminKey, onAuthError }: Props) {
                 variant="outline-secondary"
                 size="sm"
                 aria-label="이전 달"
-                onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+                onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1)))}
               >
                 <ChevronLeft size={18} />
               </Button>
-              <h6 className="mb-0">{month.getFullYear()}년 {month.getMonth() + 1}월</h6>
+              <h6 className="mb-0">{month.getUTCFullYear()}년 {month.getUTCMonth() + 1}월</h6>
               <Button
                 variant="outline-secondary"
                 size="sm"
                 aria-label="다음 달"
-                onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+                onClick={() => setMonth(new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1)))}
               >
                 <ChevronRight size={18} />
               </Button>

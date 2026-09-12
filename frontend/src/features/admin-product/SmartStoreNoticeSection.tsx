@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDateTimeInput, parseApiDateTime } from "@/shared/lib";
 import { Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import type {
   SaveSmartStoreNoticeRequest,
@@ -319,12 +320,9 @@ function NoticeDateFields({ form, onChange }: {
 }
 
 function toIso(value: string): string | undefined {
-  return value ? new Date(value).toISOString() : undefined;
+  return value ? new Date(parseApiDateTime(value)).toISOString() : undefined;
 }
 
 function toLocalDateTime(value: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return value ? formatDateTimeInput(parseApiDateTime(value)) : "";
 }

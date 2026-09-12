@@ -4,7 +4,7 @@ import { Alert, Button, Form, Table } from "react-bootstrap";
 import type { SmartStoreSettlementIssueResponse } from "@/generated/api/adminOperations";
 import { fetchSmartStoreSettlementIssues, synchronizeSmartStoreSettlementRange } from "./api";
 import { ApiError } from "@/shared/api";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateInput, formatDateTime, formatKRW } from "@/shared/lib";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -16,8 +16,8 @@ interface Props {
 
 export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
-  const [from, setFrom] = useState(shiftDate(-6));
-  const [to, setTo] = useState(shiftDate(0));
+  const [from, setFrom] = useState(() => shiftDate(-6));
+  const [to, setTo] = useState(() => shiftDate(0));
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-settlements", "issues"],
     queryFn: () => fetchSmartStoreSettlementIssues(adminKey),
@@ -87,12 +87,9 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
 }
 
 function shiftDate(days: number): string {
-  const value = new Date();
-  value.setDate(value.getDate() + days);
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const value = new Date(`${formatDateInput(Date.now())}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
 }
 
 function settlementStatusLabel(status: SmartStoreSettlementIssueResponse["status"]): string {

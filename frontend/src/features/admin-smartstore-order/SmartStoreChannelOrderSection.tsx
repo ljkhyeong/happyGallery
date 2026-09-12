@@ -22,7 +22,7 @@ import { fetchProducts } from "@/features/admin-product/api";
 import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 import {
   approveSmartStoreCancel,
@@ -605,7 +605,7 @@ function BulkDispatchModal({
   const toast = useToast();
   const [deliveryMethod, setDeliveryMethod] = useState("DELIVERY");
   const [deliveryCompanyCode, setDeliveryCompanyCode] = useState("");
-  const [dispatchDate, setDispatchDate] = useState(currentLocalDateTime());
+  const [dispatchDate, setDispatchDate] = useState(() => formatDateTimeInput(Date.now()));
   const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const dispatch = useAdminMutation(onAuthError, {
     mutationFn: () => dispatchSmartStoreOrders(adminKey, {
@@ -1391,12 +1391,6 @@ function DeliveryCompanyDatalist() {
     <option value="KDEXP">경동택배</option>
     <option value="DAESIN">대신택배</option>
   </datalist>;
-}
-
-function currentLocalDateTime(): string {
-  const date = new Date();
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function amount(value: number | null): string {
