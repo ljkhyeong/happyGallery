@@ -684,6 +684,48 @@ class OrderProductionUseCaseIT {
         assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId())).isEmpty();
     }
 
+    @Test
+    @DisplayName("오래된 배송 이력이 늦게 도착해도 최신 배송 상태와 이력을 유지한다")
+    void trackingUpdate_ignoresOlderHistory() {
+        Order order = shipOrder("우체국택배", "1111111111111");
+        TrackingUpdate latest = postTracking(order.getId(), ShipmentTrackingStatus.DELIVERED);
+        TrackingUpdate delayed = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
+                "1111111111111", ShipmentTrackingStatus.IN_TRANSIT, "발송",
+                List.of(new TrackingEvent(LocalDateTime.of(2026, 9, 12, 9, 0),
+                        ShipmentTrackingStatus.IN_TRANSIT, "발송", "서울우체국", null)));
+        shipmentTrackingWebhookUseCase.apply(List.of(latest));
+        LocalDateTime updatedAt = orderStateProbe.findFulfillmentByOrderId(order.getId())
+                .orElseThrow().getTrackingUpdatedAt();
+
+        shipmentTrackingWebhookUseCase.apply(List.of(delayed));
+
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getTrackingStatus()).isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(fulfillment.getTrackingUpdatedAt()).isEqualTo(updatedAt);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()))
+                .singleElement().satisfies(event -> {
+                    assertThat(event.getStatus()).isEqualTo(ShipmentTrackingStatus.DELIVERED);
+                    assertThat(event.getOccurredAt()).isEqualTo(LocalDateTime.of(2026, 9, 12, 10, 0));
+                });
+    }
+
+    @Test
+    @DisplayName("배송 응답에 이력이 없으면 상태만 갱신하고 저장된 이력은 지우지 않는다")
+    void trackingUpdate_preservesHistoryWhenMissing() {
+        Order order = shipOrder("우체국택배", "1111111111111");
+        shipmentTrackingWebhookUseCase.apply(List.of(postTracking(order.getId(), ShipmentTrackingStatus.IN_TRANSIT)));
+        TrackingUpdate withoutHistory = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
+                "1111111111111", ShipmentTrackingStatus.DELIVERED, "배달완료", List.of());
+
+        shipmentTrackingWebhookUseCase.apply(List.of(withoutHistory));
+        shipmentTrackingWebhookUseCase.apply(List.of(withoutHistory));
+
+        assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow().getTrackingStatus())
+                .isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()))
+                .singleElement().extracting("status").isEqualTo(ShipmentTrackingStatus.IN_TRANSIT);
+    }
+
     private Order shipOrder(String carrier, String trackingNumber) {
         Order order = orderHelper.createMadeToOrderPaidShippingOrder("배송조회 상품", 100000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);

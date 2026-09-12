@@ -25,6 +25,11 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
 
     @Override
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM Fulfillment f WHERE f.orderId = :orderId")
+    Optional<Fulfillment> findByOrderIdForUpdate(@Param("orderId") Long orderId);
+
+    @Override
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT f FROM Fulfillment f WHERE f.id = :id")
     Optional<Fulfillment> findByIdForUpdate(@Param("id") Long id);
 

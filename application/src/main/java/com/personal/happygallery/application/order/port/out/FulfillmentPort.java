@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface FulfillmentPort {
     <S extends Fulfillment> S save(S fulfillment);
     Optional<Fulfillment> findByOrderId(Long orderId);
+    Optional<Fulfillment> findByOrderIdForUpdate(Long orderId);
     Optional<Fulfillment> findByIdForUpdate(Long id);
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
     List<Long> findTrackingRefreshCandidateIds(LocalDateTime checkedBefore, int limit);
