@@ -40,7 +40,10 @@ public class TossPaymentSettlementProvider implements PaymentSettlementProvider 
                             .build())
                     .retrieve()
                     .body(new ParameterizedTypeReference<>() {});
-            if (response == null || response.isEmpty()) {
+            if (response == null) {
+                throw new IllegalStateException("토스 정산 응답이 비어 있습니다.");
+            }
+            if (response.isEmpty()) {
                 break;
             }
             response.stream().map(SettlementResponse::toItem).forEach(results::add);

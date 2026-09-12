@@ -226,6 +226,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - 거래 소유권을 확인한 뒤 `context + fulfilled_domain_id`로 유료 `CONFIRMED` 영수증만 읽는다. 회원에게 귀속된 비회원 거래도 현재 거래 소유권을 따르며, 8회권 목록은 ID 목록으로 일괄 조회한다. `V161` 복합 인덱스로 조회를 지원한다.
 - Toss 정산 API는 최대 60초가 걸릴 수 있으므로 confirm·cancel의 3초 풀과 분리한 전용 커넥션 풀을 사용한다. 인증 키와 base URL만 공유한다.
 - 매시간 최근 7일 정산을 다시 읽고 거래키로 upsert한다. 승인 거래는 `paymentKey`·`orderId`·금액, 취소 거래는 취소 `transactionKey`·금액을 로컬 원장과 비교한다.
+- 정산 조회는 모든 페이지를 받은 뒤 저장한다. [Toss 정산 API](https://docs.tosspayments.com/reference#정산-조회)의 빈 배열은 조회 완료로 처리하지만, 응답 본문 누락은 실패로 처리해 부분 결과를 저장하지 않는다. 다음 정기 실행에서 최근 7일을 다시 조회한다.
 - 불일치는 `payment_settlements.reconciliation_status`와 사유로 유지하고 관리자 화면에 표시한다. 외부 조회 중에는 DB 트랜잭션을 열지 않고 각 거래 반영만 짧은 새 트랜잭션에서 수행한다.
 
 ## 결과
