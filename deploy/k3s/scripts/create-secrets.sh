@@ -3,12 +3,16 @@
 set -Eeuo pipefail
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
-[ "$#" -eq 4 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env> <alert-webhook-url-file>"
+[ "$#" -eq 4 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env> <alertmanager.env|alert-webhook-url>"
 mysql_file=$1
 redis_file=$2
 app_file=$3
-alert_webhook_file=$4
+alert_file=$4
 require_command base64
+require_command ruby
+umask 077
+alert_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-alertmanager.XXXXXX")
+trap 'rm -rf "$alert_config_dir"' EXIT
 
 for file in "$mysql_file" "$redis_file" "$app_file"; do
     validate_env_file "$file"
@@ -95,13 +99,7 @@ validate_allowed_env_keys "$app_file" 애플리케이션 \
     EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY \
     SENTRY_DSN
 
-require_private_file "$alert_webhook_file"
-alert_webhook_lines=$(awk 'NF { count++ } END { print count + 0 }' "$alert_webhook_file")
-[ "$alert_webhook_lines" -eq 1 ] || die "Alertmanager webhook URL 파일에는 URL 한 줄만 있어야 합니다."
-grep -Eq '^https://[^[:space:]]+$' "$alert_webhook_file" \
-    || die "Alertmanager webhook URL은 공백 없는 https URL이어야 합니다."
-grep -q 'example\.com' "$alert_webhook_file" \
-    && die "Alertmanager 예시 URL을 실제 외부 수신 URL로 바꾸세요."
+ruby "$SCRIPT_DIR/alert-delivery.rb" render "$app_file" "$alert_file" "$alert_config_dir"
 
 for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE MYSQL_USER MYSQL_PASSWORD; do
     require_env_value "$key" "$mysql_file" >/dev/null
@@ -276,7 +274,7 @@ kube create secret generic happygallery-app \
 
 kube create secret generic happygallery-alertmanager \
     --namespace "$NAMESPACE" \
-    --from-file=webhook-url="$alert_webhook_file" \
+    --from-file="$alert_config_dir" \
     --dry-run=client -o yaml | kube apply -f - >/dev/null
 
 info "runtime Secret 4개를 생성 또는 교체했습니다. 값은 출력하지 않았습니다."

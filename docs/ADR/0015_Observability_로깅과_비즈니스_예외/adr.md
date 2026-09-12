@@ -77,7 +77,7 @@
   `monitoring/alerts.yml`을 Compose와 k3s의 단일 경보 원본으로 사용한다.
   k3s는 `sync-prometheus-alerts.sh`가 만든 `prometheus-alerts.generated.yml`을 자급적인 ConfigMap으로 렌더링하고,
   `validate.sh`가 원본과 생성 파일 및 최종 ConfigMap의 drift를 차단한다.
-- k3s Prometheus는 private Alertmanager로 모든 rule을 전달한다. Alertmanager는 critical/warning 반복 간격을 분리하고 저장소 밖 Kubernetes Secret의 `url_file`로 외부 HTTPS generic webhook에 전달한다. Prometheus·Alertmanager·Grafana는 각각 Retain PVC를 사용하고, Grafana는 외부 Ingress 없이 cluster 내부 Viewer와 port-forward 접근만 허용한다. 같은 노트북 전체가 중단되는 상황은 별도 외부 uptime 감시가 담당한다.
+- k3s Prometheus는 private Alertmanager로 모든 rule을 전달한다. Alertmanager는 critical/warning 반복 간격을 분리하고 저장소 밖 Kubernetes Secret의 설정으로 외부 SMTP 또는 HTTPS generic webhook에 전달한다. SMTP는 검증한 메일 자격 증명을 재사용하고 `auth_password_file`로 주입한다. Prometheus·Alertmanager·Grafana는 각각 Retain PVC를 사용하고, Grafana는 외부 Ingress 없이 cluster 내부 Viewer와 port-forward 접근만 허용한다. 같은 노트북 전체가 중단되는 상황은 별도 외부 uptime 감시가 담당한다.
 - `@BatchJob`은 고정된 영문 `id`와 한국어 로그 이름을 함께 가진다. `BatchLoggingAspect`는 실행 결과(`succeeded`, `partial`, `failed`), 항목 결과, 소요 시간과 마지막 정상 완료 Unix 시각을 Micrometer에 기록한다.
 - 결제·환불 복구와 스마트스토어 주문·재고·정산 배치의 마지막 성공 gauge는 애플리케이션 시작 시 0으로 미리 등록한다. 한 작업이 한 번도 실행되지 않은 경우에도 시계열이 빠지지 않아 정체 알림이 이를 감지한다.
 - Prometheus는 최근 10분의 부분·전체 실패를 warning으로, 매분 실행되는 결제 준비 만료·결제 확정 복구·환불 복구 또는 스마트스토어 주문·재고 동기화 중 하나라도 마지막 정상 완료 뒤 5분을 넘기면 critical로 알린다. 스마트스토어 정산 대사는 2시간을 넘기면 별도 critical 경보를 보낸다.

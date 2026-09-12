@@ -1,52 +1,4 @@
 apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: alertmanager-config
-  labels:
-    app.kubernetes.io/name: alertmanager
-    app.kubernetes.io/part-of: happygallery
-data:
-  alertmanager.yml: |-
-    global:
-      resolve_timeout: 5m
-    route:
-      receiver: webhook-warning
-      group_by: [alertname, severity]
-      group_wait: 30s
-      group_interval: 5m
-      repeat_interval: 4h
-      routes:
-        - receiver: webhook-critical
-          matchers:
-            - severity="critical"
-          repeat_interval: 1h
-        - receiver: webhook-business
-          matchers:
-            - category="business"
-            - severity="warning"
-          repeat_interval: 30m
-        - receiver: webhook-warning
-          matchers:
-            - severity="warning"
-          repeat_interval: 4h
-    receivers:
-      - name: webhook-critical
-        webhook_configs:
-          - url_file: /etc/alertmanager/secrets/webhook-url
-            send_resolved: true
-            timeout: 10s
-      - name: webhook-warning
-        webhook_configs:
-          - url_file: /etc/alertmanager/secrets/webhook-url
-            send_resolved: true
-            timeout: 10s
-      - name: webhook-business
-        webhook_configs:
-          - url_file: /etc/alertmanager/secrets/webhook-url
-            send_resolved: true
-            timeout: 10s
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: alertmanager-data
@@ -112,7 +64,7 @@ spec:
           image: prom/alertmanager:v0.32.1
           imagePullPolicy: IfNotPresent
           args:
-            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --config.file=/etc/alertmanager/secrets/alertmanager.yml
             - --storage.path=/alertmanager
             - --cluster.listen-address=
           ports:
@@ -153,20 +105,13 @@ spec:
               drop:
                 - ALL
           volumeMounts:
-            - name: config
-              mountPath: /etc/alertmanager/alertmanager.yml
-              subPath: alertmanager.yml
-              readOnly: true
-            - name: webhook-url
+            - name: notification-config
               mountPath: /etc/alertmanager/secrets
               readOnly: true
             - name: data
               mountPath: /alertmanager
       volumes:
-        - name: config
-          configMap:
-            name: alertmanager-config
-        - name: webhook-url
+        - name: notification-config
           secret:
             secretName: happygallery-alertmanager
             defaultMode: 0440

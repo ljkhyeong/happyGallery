@@ -321,11 +321,12 @@ grep -q 'alert: OperationalBacklogRefreshStalled' "$rendered" \
     || die "운영 backlog 스냅샷 정체 알림이 없습니다."
 grep -q 'alertmanager:9093' "$rendered" \
     || die "Prometheus와 Alertmanager 연결이 없습니다."
-grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \
-    || die "Alertmanager webhook Secret 파일 연결이 없습니다."
-grep -q 'receiver: webhook-business' "$rendered" \
-    && grep -q 'category="business"' "$rendered" \
-    && grep -q 'repeat_interval: 30m' "$rendered" \
+grep -q -- '--config.file=/etc/alertmanager/secrets/alertmanager.yml' "$rendered" \
+    && grep -q 'secretName: happygallery-alertmanager' "$rendered" \
+    || die "Alertmanager 설정 Secret 파일 연결이 없습니다."
+grep -q 'receiver: webhook-business' "$DEPLOY_DIR/alertmanager.yml" \
+    && grep -q 'category="business"' "$DEPLOY_DIR/alertmanager.yml" \
+    && grep -q 'repeat_interval: 30m' "$DEPLOY_DIR/alertmanager.yml" \
     || die "업무 backlog 경보의 30분 재알림 경로가 없습니다."
 grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
@@ -552,6 +553,7 @@ RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
+ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"
 
 ddns_rendered="$tmp_dir/ddns.yaml"
 kube kustomize "$DEPLOY_DIR/addons/cloudflare-ddns" > "$ddns_rendered"
