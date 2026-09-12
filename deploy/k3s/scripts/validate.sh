@@ -530,7 +530,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 release가 app scale-up 전에 호환 digest를 확정하지 않습니다." unless restored_release.match?(activation_flow)
 
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
-  required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?containerd_has_image "\$app_ref".*?containerd_has_image "\$frontend_ref".*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match/m
+  required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?for reference in "\$app_ref" "\$frontend_ref".*?containerd_image_digest.*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match.*?ensure_containerd_image_alias "\$app_ref" "\$app_cri_ref".*?ensure_containerd_image_alias "\$frontend_ref" "\$frontend_cri_ref"/m
   abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
 
   common = File.read(File.join(script_dir, "common.sh"))
@@ -563,6 +563,7 @@ RUBY
 
 ruby "$SCRIPT_DIR/tests/verify-test.rb"
 ruby "$SCRIPT_DIR/tests/containerd-image-test.rb"
+ruby "$SCRIPT_DIR/tests/restore-images-test.rb"
 ruby "$SCRIPT_DIR/tests/mysql-check-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"

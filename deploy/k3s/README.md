@@ -336,6 +336,8 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 ## 8. 복원 훈련
 
+이미지 준비 단계는 보존된 app/frontend의 실제 digest를 확인하고, CRI가 조회하는 `저장소@digest` 별칭을 등록한다. 기존 `저장소:태그@digest` 이름만 들어 있는 백업도 사용할 수 있다. 기존 app/frontend 별칭이 다른 digest를 가리키면 import 전에 중단하므로 원인을 확인한 뒤 복구한다.
+
 복원은 분기마다 별도 테스트 namespace/클러스터에서 훈련한다. 운영 DB 복원이 필요하면 먼저 현재 DB의 추가 백업을 만들고 유지보수 창을 연다.
 
 ```bash

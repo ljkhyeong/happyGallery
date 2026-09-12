@@ -97,13 +97,7 @@ for reference in \
     # CRI는 tag@digest 조회 시 tag를 제외한다. 백업용 기존 이름도 함께 보존한다.
     digest_reference="${source_image%:*}@${reference#*@}"
     for alias_reference in "$reference" "$digest_reference"; do
-        if containerd_has_image "$alias_reference"; then
-            alias_digest=$(containerd_image_digest "$alias_reference")
-            [ "$alias_digest" = "${reference#*@}" ] \
-                || die "기존 이미지 별칭의 digest가 다릅니다: $alias_reference"
-        else
-            k3s_ctr images tag "$source_image" "$alias_reference" >/dev/null
-        fi
+        ensure_containerd_image_alias "$source_image" "$alias_reference" "${reference#*@}"
     done
 done
 

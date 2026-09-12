@@ -147,6 +147,26 @@ containerd_image_digest() {
     '
 }
 
+ensure_containerd_image_alias() (
+    alias_source=$(normalize_image_reference "$1")
+    alias_target=$(normalize_image_reference "$2")
+    alias_expected=$3
+    alias_source_digest=$(containerd_image_digest "$alias_source") \
+        || die "이미지 별칭의 원본을 찾을 수 없습니다: $alias_source"
+    [ "$alias_source_digest" = "$alias_expected" ] \
+        || die "이미지 별칭 원본의 digest가 다릅니다: $alias_source"
+    if containerd_has_image "$alias_target"; then
+        alias_digest=$(containerd_image_digest "$alias_target")
+        [ "$alias_digest" = "$alias_expected" ] \
+            || die "기존 이미지 별칭의 digest가 다릅니다: $alias_target"
+    else
+        k3s_ctr images tag "$alias_source" "$alias_target" >/dev/null
+        alias_digest=$(containerd_image_digest "$alias_target")
+        [ "$alias_digest" = "$alias_expected" ] \
+            || die "등록한 이미지 별칭의 digest가 다릅니다: $alias_target"
+    fi
+)
+
 mysql_database_query() {
     kube -n "$NAMESPACE" exec -i mysql-0 -- sh -ec '
         exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" \
