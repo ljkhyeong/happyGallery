@@ -214,6 +214,24 @@ CONFIRM_REDIS_CREDENTIAL_ROTATION=rotate-happygallery-redis \
 
 ## 3. 이미지 빌드와 k3s import
 
+정기 배포는 아래 한 명령을 사용한다. `VITE_TOSS_CLIENT_KEY` 등 프런트 빌드 환경 변수는 기존과 같이 준비한다.
+
+```bash
+./deploy/k3s/scripts/deploy.sh /etc/happygallery/release.env
+```
+
+`deploy.sh`는 현재 Git SHA로 기존 빌드·테스트·취약점 검사·반입을 수행하고, containerd의 실제 app/frontend digest와 두 종류의 digest 별칭을 확인한다. `release.env`의 이미지 관련 다섯 값만 원자적으로 갱신하고 이전 내용은 `release.env.previous`에 보존한다. 도메인·OAuth·`VERIFIED_RECOVERY_BUNDLE`과 주석은 유지한다. 이어 기존 `rollout.sh`의 백업 검증·배포·공개 경로 검사를 실행한다. 기존 DB의 검증된 복구 묶음은 여전히 48시간 이내여야 하며, 자동으로 확인하지 않은 백업 경로를 선택하지 않는다.
+
+배포 직전에 활성 백업 타이머를 잠시 멈추고 실행 중인 백업이 끝날 때까지 최대 30분 기다린다. 성공하면 원래 켜져 있던 타이머만 재개한다. 이미 꺼져 있던 타이머는 그대로 유지한다. rollout 실패 시에는 예약을 중지 상태로 남기고 오류를 반환한다. 실패 때 `release.env`는 배포를 시도한 이미지, `release.env.previous`는 직전 설정이며, `releases/current`는 기존 rollout의 성공 기록이다. 자동 image rollback은 하지 않는다. 배포 중 수동 백업·DDL·키 변경을 함께 실행하지 않는다.
+
+이미 빌드와 반입을 마쳤다면 다음 명령으로 재빌드 없이 설정 갱신·배포한다. 마지막 인자를 생략하면 현재 HEAD를 사용하며, 빌드 후 코드가 바뀌었다면 빌드했던 Git SHA를 지정한다.
+
+```bash
+./deploy/k3s/scripts/deploy.sh --imported /etc/happygallery/release.env <빌드한-Git-SHA>
+```
+
+위 명령은 Ubuntu의 `flock`·`systemctl`과 기존 k3s/sudo 권한을 사용한다. 설정 파일과 그 디렉터리는 실행 사용자가 쓸 수 있어야 하며 파일 권한은 600으로 둔다. 아래는 개별 빌드 단계가 필요한 경우의 상세 절차다.
+
 백엔드 JAR는 이미지 안에서 `10001:10001` 소유·`0440` 권한으로 복사하고 `/app/app.jar` 절대 경로로 실행한다. 빌드 직후 `verify-app-image.sh`가 이미지의 기본 실행 사용자와 JAR 전체 읽기를 확인한다. CI는 입력 JAR를 `0600`으로 제한한 상태에서 같은 검사를 실행하므로, 서버의 `umask` 때문에 root만 읽을 수 있는 이미지가 만들어지는 문제를 배포 전에 잡는다. 이 검사는 DB 연결이나 애플리케이션 기동을 검증하지 않는다.
 
 애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 프런트 런타임 이미지는 운영 의존성을 설치한 뒤 서버 실행에 쓰지 않는 npm/npx를 제거한다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 백업용 `이미지:tag@sha256:digest`와 CRI 조회용 `이미지@sha256:digest` 별칭을 함께 보존한다. 기존 별칭이 다른 digest를 가리키면 덮어쓰지 않고 중단한다.

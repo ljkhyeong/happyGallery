@@ -109,5 +109,5 @@ FRONTEND_IMAGE=$frontend_image
 APP_IMAGE_DIGEST=$app_image_digest
 FRONTEND_IMAGE_DIGEST=$frontend_image_digest
 임시 archive=$archive
-release.env에 위 다섯 값을 기록한 뒤 archive는 제거해도 됩니다.
+자동 설정·배포: ./deploy/k3s/scripts/deploy.sh --imported /etc/happygallery/release.env $image_tag
 EOF
