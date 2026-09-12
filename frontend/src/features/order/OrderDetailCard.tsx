@@ -171,6 +171,11 @@ export function OrderDetailCard({ order }: Props) {
               {order.fulfillment.trackingEvents.length > 0 && (
                 <Col xs={12}>
                   <small className="text-muted-soft d-block mb-1">배송 진행 내역</small>
+                  {order.fulfillment.carrierCode === "KOREA_POST" && (
+                    <small className="text-muted-soft d-block mb-1">
+                      출처: <a href="https://www.data.go.kr/data/15000390/openapi.do" target="_blank" rel="noreferrer">우정사업본부 국내우편물 종적 조회</a>
+                    </small>
+                  )}
                   <ol className="mb-0 ps-3">
                     {[...order.fulfillment.trackingEvents].reverse().map((event) => (
                       <li key={`${event.occurredAt}-${event.status}-${event.location ?? ""}`} className="mb-1">

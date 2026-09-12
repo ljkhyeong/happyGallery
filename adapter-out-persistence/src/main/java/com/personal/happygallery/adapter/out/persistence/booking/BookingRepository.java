@@ -175,7 +175,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             @Param("id") Long id,
             Pageable pageable);
 
-    /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 8회권 ID를 PK 순으로 조회한다. */
+    /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 이용권 ID를 PK 순으로 조회한다. */
     @Override
     @Query("""
             SELECT DISTINCT b.passPurchase.id FROM Booking b
@@ -245,7 +245,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     boolean existsBookedByUserIdAndSlotIds(@Param("userId") Long userId,
                                            @Param("slotIds") Collection<Long> slotIds);
 
-    /** 8회권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
+    /** 이용권 환불 시 자동취소 대상 — 해당 pass의 미래 BOOKED 예약 */
     @Override
     @Query("""
             SELECT b FROM Booking b

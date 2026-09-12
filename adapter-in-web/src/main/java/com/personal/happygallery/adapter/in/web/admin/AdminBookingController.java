@@ -102,7 +102,7 @@ public class AdminBookingController {
                 adminBookingSearchUseCase.search(status, dateFrom, dateTo, keyword, page, size));
     }
 
-    /** 결석 처리 — 8회권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */
+    /** 결석 처리 — 이용권 크레딧 소멸 유지, 상태 NO_SHOW 전이 */
     @PostMapping("/{bookingId}/no-show")
     @Operation(operationId = "markNoShow")
     public BookingNoShowResponse markNoShow(
@@ -144,7 +144,7 @@ public class AdminBookingController {
                 bookingSettlementUseCase.complete(bookingId, admin.auditActorId()));
     }
 
-    /** 공방 사정으로 예약을 취소하고 예약금 환불 또는 8회권 복구를 시작한다. */
+    /** 공방 사정으로 예약을 취소하고 예약금 환불 또는 이용권 복구를 시작한다. */
     @PostMapping("/{bookingId}/cancel")
     @Operation(operationId = "cancelAdminBooking")
     public AdminBookingCancelResponse cancel(

@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 /**
  * prepare 응답.
  *
- * <p>{@code amount}가 0이면 프론트는 Toss 결제창을 거치지 않고 바로 confirm을 호출한다 (8회권 사용 예약 등).
+ * <p>{@code amount}가 0이면 프론트는 Toss 결제창을 거치지 않고 바로 confirm을 호출한다 (이용권 사용 예약 등).
  */
 public record PreparePaymentResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String orderId,

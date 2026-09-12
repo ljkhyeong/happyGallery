@@ -23,15 +23,15 @@ const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: str
   RESERVED: { label: "결제 처리 중", bg: "warning" },
   REDEEMED: { label: "사용 완료", bg: "secondary" },
   EXPIRED: { label: "기간 만료", bg: "secondary" },
-  CANCELED: { label: "취소됨", bg: "secondary" },
+  CANCELED: { label: "사용 중지", bg: "secondary" },
 };
 
 const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
   EARN: "적립",
-  RESERVE: "결제 사용 예약",
-  RELEASE: "결제 예약 해제",
-  USE: "주문 사용",
-  RESTORE: "주문 취소 복원",
+  RESERVE: "결제 사용 대기",
+  RELEASE: "결제 대기 해제",
+  USE: "결제 사용",
+  RESTORE: "사용 적립금 복원",
   EXPIRE: "유효기간 만료",
   REVOKE: "적립 취소",
   ADJUST: "관리자 조정",
@@ -83,7 +83,7 @@ function MyBenefitsContent() {
       <Container className="page-container" style={{ maxWidth: 760 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="보유 쿠폰과 적립금은 로그인 후 내 정보에서 확인할 수 있습니다."
+          description="로그인하면 내 쿠폰과 적립금을 확인할 수 있습니다."
         />
       </Container>
     );
@@ -99,22 +99,22 @@ function MyBenefitsContent() {
         <Link to="/my" className="text-decoration-none small d-inline-block mb-3">
           &larr; 내 정보
         </Link>
-        <div className="my-section-kicker mb-2">My Benefits</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">쿠폰·적립금</h4>
         <p className="text-muted-soft small mb-0">
-          상품 주문에 사용할 수 있는 혜택과 적립·사용 이력을 확인합니다.
+          보유 쿠폰과 적립금 내역을 확인하세요.
         </p>
       </div>
 
       <section className="mb-5" aria-labelledby="reward-wallet-heading">
         <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
           <div>
-            <div className="my-section-kicker mb-1">Reward Wallet</div>
-            <h5 id="reward-wallet-heading" className="mb-0">적립금 지갑</h5>
+            <div className="my-section-kicker mb-1">적립금</div>
+            <h5 id="reward-wallet-heading" className="mb-0">적립금 잔액</h5>
           </div>
           <small className="text-muted-soft">1원 단위로 상품 금액 내에서 사용</small>
         </div>
-        {rewardsQuery.isLoading && <LoadingSpinner text="적립금 지갑을 불러오는 중입니다" />}
+        {rewardsQuery.isLoading && <LoadingSpinner text="적립금 조회 중..." />}
         <ErrorAlert
           error={rewardsQuery.error}
           onRetry={() => { void rewardsQuery.refetch(); }}
@@ -175,10 +175,10 @@ function MyBenefitsContent() {
       </section>
 
       <section className="mb-5" aria-labelledby="claimable-coupons-heading">
-        <div className="my-section-kicker mb-1">Claim Coupons</div>
+        <div className="my-section-kicker mb-1">쿠폰 발급</div>
         <h5 id="claimable-coupons-heading" className="mb-3">받을 수 있는 쿠폰</h5>
         <ErrorAlert error={claimMutation.error} />
-        {claimableQuery.isLoading && <LoadingSpinner text="발급 가능한 쿠폰을 찾는 중입니다" />}
+        {claimableQuery.isLoading && <LoadingSpinner text="발급 가능 쿠폰 조회 중..." />}
         <ErrorAlert
           error={claimableQuery.error}
           onRetry={() => { void claimableQuery.refetch(); }}
@@ -214,12 +214,12 @@ function MyBenefitsContent() {
       <section aria-labelledby="owned-coupons-heading">
         <div className="d-flex flex-wrap justify-content-between gap-2 align-items-end mb-3">
           <div>
-            <div className="my-section-kicker mb-1">My Coupons</div>
             <h5 id="owned-coupons-heading" className="mb-0">보유 쿠폰</h5>
           </div>
-          <span className="text-muted-soft small">사용 가능 {availableCoupons.length}장 · 전체 {coupons.length}장</span>
+          <span className="text-muted-soft small">사용 가능 {availableCoupons.length}장 · 조회 {coupons.length}장</span>
         </div>
-        {couponsQuery.isLoading && <LoadingSpinner text="보유 쿠폰을 불러오는 중입니다" />}
+        <p className="small text-muted-soft">사용 가능·결제 처리 중 쿠폰과 최근 발급 이력 100장을 표시합니다.</p>
+        {couponsQuery.isLoading && <LoadingSpinner text="보유 쿠폰 조회 중..." />}
         <ErrorAlert
           error={couponsQuery.error}
           onRetry={() => { void couponsQuery.refetch(); }}

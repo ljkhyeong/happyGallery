@@ -321,10 +321,10 @@ export async function completePhoneVerification(
   purpose: SendVerificationRequestPurpose = "GUEST_ORDER",
 ) {
   await page.getByLabel("휴대폰 번호").fill(phone);
-  await page.getByRole("button", { name: "인증코드 발송" }).click();
-  await expect(page.getByLabel("인증코드")).toBeVisible();
+  await page.getByRole("button", { name: "인증번호 발송" }).click();
+  await expect(page.getByLabel("인증번호")).toBeVisible();
   const code = await fetchVerificationCode(page, phone, purpose);
-  await page.getByLabel("인증코드").fill(code);
+  await page.getByLabel("인증번호").fill(code);
   await page.getByRole("button", { name: "확인" }).click();
 }
 
@@ -335,10 +335,10 @@ export async function completeLockedPhoneVerification(
   purpose: SendVerificationRequestPurpose,
   confirmLabel = "확인",
 ) {
-  await root.getByRole("button", { name: "인증코드 발송" }).click();
-  await expect(root.getByLabel("인증코드")).toBeVisible();
+  await root.getByRole("button", { name: "인증번호 발송" }).click();
+  await expect(root.getByLabel("인증번호")).toBeVisible();
   const code = await fetchVerificationCode(page, phone, purpose);
-  await root.getByLabel("인증코드").fill(code);
+  await root.getByLabel("인증번호").fill(code);
   await root.getByRole("button", { name: confirmLabel }).click();
 }
 

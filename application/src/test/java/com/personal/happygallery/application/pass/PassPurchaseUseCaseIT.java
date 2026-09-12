@@ -47,28 +47,28 @@ class PassPurchaseUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof: 구매 성공 → remaining=8, EARN ledger 1건 생성
+    // Proof: 구매 성공 → remaining=4, EARN ledger 1건 생성
     // -----------------------------------------------------------------------
 
-    @DisplayName("회원 8회권 구매 성공 시 잔여 크레딧 8과 EARN 원장이 생성된다")
+    @DisplayName("회원 이용권 구매 성공 시 잔여 크레딧 4과 EARN 원장이 생성된다")
     @Test
-    void purchase_success_remainingCredits8_earnLedgerCreated() {
+    void purchase_success_remainingCredits4_earnLedgerCreated() {
         User user = userStorePort.save(new User("pass@example.com", "hashed-password", "회원", "01012345678"));
-        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), PREPARED_TOTAL_PRICE);
+        PassPurchase purchased = passPurchaseUseCase.purchaseForMember(user.getId(), PREPARED_TOTAL_PRICE, PassPlan.REGULAR_CRAFT_4);
         Long passId = purchased.getId();
 
-        // Proof: EARN ledger 1건, amount=8
+        // Proof: EARN ledger 1건, amount=4
         var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
             softly.assertThat(purchased.getExpiresAt())
                     .isEqualTo(LocalDateTime.now(clock).toLocalDate().plusDays(90).atStartOfDay());
-            softly.assertThat(purchased.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(purchased.getRemainingCredits()).isEqualTo(4);
             softly.assertThat(purchased.getTotalPrice()).isEqualTo(PREPARED_TOTAL_PRICE);
-            softly.assertThat(purchased.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_8);
+            softly.assertThat(purchased.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_4);
             softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
                 softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EARN);
-                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+                softly.assertThat(ledger.getAmount()).isEqualTo(4);
             });
             softly.assertThat(notificationOutboxRepository.findAll())
                     .singleElement()
@@ -84,7 +84,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 만료 배치 — remaining_credits=0, EXPIRE ledger 기록
     // -----------------------------------------------------------------------
 
-    @DisplayName("만료된 8회권은 잔여 크레딧이 0이 되고 EXPIRE 원장이 생성된다")
+    @DisplayName("만료된 이용권은 잔여 크레딧이 0이 되고 EXPIRE 원장이 생성된다")
     @Test
     void expiry_batch_expiredPass_remainingZero_expireLedgerCreated() {
         User user = userStorePort.save(new User("expired-pass@example.com", "hashed-password", "회원", "01011112222"));
@@ -114,7 +114,7 @@ class PassPurchaseUseCaseIT {
     // Proof: 만료 배치 — 아직 유효한 pass는 스킵
     // -----------------------------------------------------------------------
 
-    @DisplayName("유효한 8회권은 만료 배치에서 변경되지 않는다")
+    @DisplayName("유효한 이용권은 만료 배치에서 변경되지 않는다")
     @Test
     void expiry_batch_activePass_notTouched() {
         User user = userStorePort.save(new User("active-pass@example.com", "hashed-password", "회원", "01022223333"));

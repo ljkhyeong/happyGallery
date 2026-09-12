@@ -148,7 +148,7 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
                    AND n.nextAttemptAt <= :now)
                OR (n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.DELIVERY_CHECKING
                    AND n.lockedAt < :staleBefore)
-            ORDER BY n.createdAt ASC, n.id ASC
+            ORDER BY COALESCE(n.lockedAt, n.nextAttemptAt) ASC, n.id ASC
             """)
     List<NotificationOutbox> findDeliveryResultCheckableForUpdate(
             @Param("now") LocalDateTime now,

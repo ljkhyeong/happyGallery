@@ -17,7 +17,7 @@ async function mockAccount(page: Page, signedIn = false) {
     if (pathname === "/api/v1/me") {
       if (route.request().method() === "DELETE") {
         status = 422;
-        body = { code: "ACCOUNT_WITHDRAWAL_BLOCKED", message: "사용 가능한 8회권이 있습니다.\n처리 중인 환불이 있습니다." };
+        body = { code: "ACCOUNT_WITHDRAWAL_BLOCKED", message: "사용 가능한 이용권이 있습니다.\n처리 중인 환불이 있습니다." };
       } else if (signedIn) {
         body = { id: 101, email: "guidance@example.com", name: "안내 확인 회원", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true };
       } else {
@@ -69,7 +69,7 @@ test("@identity 탈퇴 제한 사유만 목록으로 표시하고 로그인 상�
   await modal.getByRole("textbox").fill("탈퇴");
   await modal.getByRole("button", { name: "회원 탈퇴", exact: true }).click();
   const reasons = modal.getByRole("alert").getByRole("listitem");
-  await expect(reasons).toHaveText(["사용 가능한 8회권이 있습니다.", "처리 중인 환불이 있습니다."]);
+  await expect(reasons).toHaveText(["사용 가능한 이용권이 있습니다.", "처리 중인 환불이 있습니다."]);
   await expect(modal.getByRole("button", { name: "회원 탈퇴", exact: true })).toBeEnabled();
   await modal.getByRole("button", { name: "취소", exact: true }).click();
   await expect(page.getByText("guidance@example.com").first()).toBeVisible();

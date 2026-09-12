@@ -12,6 +12,19 @@ permissions:
   contents: read
 
 jobs:
+  agent-feedback:
+    name: Agent Feedback Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Validate feedback loop and agent instructions
+        run: |
+          ruby tools/agent-feedback-test.rb
+          ruby tools/check-agent-skills.rb
+
   dependency-review:
     name: Dependency Review
     runs-on: ubuntu-latest

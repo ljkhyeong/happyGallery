@@ -36,7 +36,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
   if (result.context === "PASS") {
     return (
       <LinkButton to="/my/passes" variant="primary">
-        내 8회권 확인하기
+        내 이용권 확인하기
       </LinkButton>
     );
   }

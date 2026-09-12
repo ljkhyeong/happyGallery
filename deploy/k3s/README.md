@@ -9,12 +9,12 @@ Internet -> 공유기/호스트 방화벽 :80/:443 -> k3s Traefik
 app -> mysql:3306 (Retain PVC)
 app -> redis:6379 (비영속 세션/처리율 상태)
 prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
-           -> alertmanager:9093 -> 외부 HTTPS webhook
+           -> alertmanager:9093 -> 외부 SMTP 또는 HTTPS webhook
 grafana -> prometheus:9090 (cluster 내부 전용)
 ```
 
 단일 운영 호스트, 디스크, 전원, 네트워크 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
-Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 HTTPS webhook으로 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 webhook 수신자는 운영 호스트 밖에 별도로 둔다.
+Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 설정으로 외부 SMTP 또는 HTTPS webhook에 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 메일·webhook 수신 서비스는 운영 호스트 밖에 별도로 둔다.
 경보 규칙의 단일 원본은 저장소 루트의 `monitoring/alerts.yml`이다. 변경 후 `./deploy/k3s/scripts/sync-prometheus-alerts.sh`를 실행하면 kustomize가 읽는 `base/prometheus-alerts.generated.yml`이 갱신된다. 생성 파일을 직접 편집하지 않으며 `validate.sh`는 원본, 생성 파일과 최종 ConfigMap 중 하나라도 달라지면 실패한다.
 
 ## 디렉터리
@@ -22,6 +22,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | 경로 | 역할 |
 | --- | --- |
 | `base/` | Namespace, Deployment/StatefulSet, ClusterIP Service, Ingress/TLS, PVC, NetworkPolicy |
+| `addons/cloudflare-ddns/` | 홈서버 공인 IPv4를 Cloudflare DNS에 갱신하는 독립 Deployment |
 | `cluster/` | k3s 기본 Traefik의 전달 헤더 신뢰 경계 설정 |
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
@@ -34,7 +35,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
-- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 갱신 방법을 마련한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
 - 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
 - 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
@@ -94,9 +95,11 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - Toss, Google, Naver, Kakao, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - 주소 검색: 무료 Kakao 우편번호 검색창을 사용하며 별도 키가 필요 없다. 기존 `ROAD_ADDRESS_*` 설정은 제거한다.
 - 공휴일: 무료 API 활용 신청 후 서비스키를 설정하고 `PUBLIC_HOLIDAY_ENABLED=true`로 전환
+- 스마트스토어: 기존 주문·재고 연동을 사용할 때만 `SMARTSTORE_ENABLED=true`와 커머스API 인증 정보를 설정한다. `SELF`는 기본값이며 `SELLER`는 `SMARTSTORE_ACCOUNT_ID`가 필요하다. 네이버 로그인 키와 구분한다.
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
+- 이메일 인증: `EMAIL_VERIFICATION_PROVIDER=smtp`(기본값) 또는 `ncp`를 선택한다. `ncp` 설정과 이미지 재빌드는 [네이버 클라우드 메일 안내](ncp-mail.md)를 따른다. 선택한 제공자의 자격 증명만 필수다.
 - 이메일 인증 SMTP: STARTTLS와 직접 SSL 중 정확히 하나를 사용하고 서버 인증서 호스트명을 검증한다. `EMAIL_VERIFICATION_TIMEOUT_MILLIS`는 연결·읽기·쓰기 timeout 합보다 크게 유지한다.
 - active/previous AES·HMAC·guest token 키: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
 
@@ -109,6 +112,10 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 ```
 
 `alert-webhook-url`에는 Alertmanager JSON을 받을 외부 HTTPS endpoint 한 줄만 둔다. URL은 `happygallery-alertmanager` Secret의 파일로 mount되며 manifest, release metadata와 로그에는 기록하지 않는다. critical은 1시간, warning은 4시간 반복 간격으로 같은 receiver에 전달하고 해결 알림도 보낸다. 최초 rollout 전에 수신 서비스에서 테스트 alert가 실제 도착하는지 확인한다.
+
+Resend SMTP를 사용하면 네 번째 인자를 `/etc/happygallery/alertmanager.env`로 바꾼다. 수신 주소만 별도로 지정하고 기존 `app.env`의 SMTP 자격 증명을 재사용한다. [Resend 장애 알림 설정](resend-alerts.md)에 개별 Secret 생성, 발송 검사, 백업 실패 알림 연결 절차가 있다. 회원 인증 메일과 장애 메일은 같은 Resend 발송 한도를 사용한다.
+
+Alertmanager는 설정 전체를 Secret의 `alertmanager.yml`에서 읽는다. 구형 `webhook-url` 키만 있는 Secret은 rollout 전에 `create-alertmanager-secret.sh`로 갱신한다. 설정 생성 원본은 `deploy/k3s/alertmanager.yml`이며, 재알림 정책을 수정하면 Secret 재생성과 Alertmanager 재시작도 필요하다. SMTP 암호와 웹훅 URL은 설정 본문과 분리된 Secret 파일에 저장한다.
 
 Kubernetes Secret은 base64 인코딩이며 자체 암호화가 아니다. k3s 데이터 저장소 암호화, kubeconfig·호스트 접근 제한과 다른 장치의 복구 키 보관을 함께 적용한다.
 
@@ -312,9 +319,9 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 HTTPS webhook unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 기존 `OnFailure` webhook이 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 알림 unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 `OnFailure` unit이 설정한 SMTP 또는 webhook으로 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
 
-독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 SMTP 또는 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없다. [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 공개 웹·API와 백업 성공 알림을 서버 밖에서 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
 

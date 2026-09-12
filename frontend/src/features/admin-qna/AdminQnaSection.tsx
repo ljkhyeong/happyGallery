@@ -111,7 +111,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
         && selectedProductId === null
         && productsQuery.data
         && productsQuery.data.length > 0 && (
-        <EmptyState message="상품을 선택하면 문의를 확인할 수 있습니다." />
+        <EmptyState message="문의를 확인할 상품을 선택하세요." />
       )}
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
@@ -196,9 +196,9 @@ function AdminQnaItem({
             <div className="d-flex align-items-center gap-2 mb-1">
               {qna.secret && <Badge bg="secondary" className="badge-sm">비밀글</Badge>}
               {qna.replyContent ? (
-                <Badge bg="info" className="badge-sm">답변완료</Badge>
+                <Badge bg="info" className="badge-sm">답변 완료</Badge>
               ) : (
-                <Badge bg="warning" className="badge-sm">답변대기</Badge>
+                <Badge bg="warning" className="badge-sm">답변 대기</Badge>
               )}
               <span className="fw-semibold small">{qna.title}</span>
             </div>
@@ -224,7 +224,7 @@ function AdminQnaItem({
             }}
           >
             <Form.Group controlId={replyControlId}>
-              <Form.Label className="visually-hidden">Q&amp;A 답변</Form.Label>
+              <Form.Label className="visually-hidden">상품 문의 답변</Form.Label>
               <InputGroup size="sm">
                 <Form.Control
                   as="textarea"

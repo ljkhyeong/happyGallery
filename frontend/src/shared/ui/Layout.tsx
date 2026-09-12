@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { path: "/group-classes", label: "단체수업" },
   { path: "/products", label: "작품" },
   { path: "/events", label: "이벤트" },
-  { path: "/passes/purchase", label: "8회권" },
+  { path: "/passes/purchase", label: "4회권" },
 ] as const;
 
 function isActive(pathname: string, itemPath: string): boolean {
@@ -69,7 +69,7 @@ export function Layout() {
     } catch (error) {
       if (error instanceof CustomerSessionChangedError) return;
       toast.show(
-        "로그아웃 완료를 확인하지 못해 현재 로그인 상태를 유지합니다. 잠시 후 다시 시도해 주세요.",
+        "로그아웃 여부를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
         "danger",
       );
     } finally {
@@ -118,18 +118,19 @@ export function Layout() {
         </Container>
       )}
 
-      <Navbar expand="md" className="app-navbar" data-bs-theme="light">
+      <Navbar expand="lg" collapseOnSelect className="app-navbar" data-bs-theme="light">
         <Container style={{ maxWidth: 1100 }}>
           <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
             <span className="app-brand-mark">해피갤러리</span>
             <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
           </Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" />
+          <Navbar.Toggle aria-controls="main-nav" label="메뉴 열기/닫기" />
           <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto align-items-md-center gap-md-1">
+            <Nav className="ms-auto align-items-lg-center gap-lg-1">
               {NAV_ITEMS.map(({ path, label }) => (
                 <Nav.Link
                   key={path}
+                  eventKey={path}
                   as={Link}
                   to={path}
                   active={isMainNavActive(pathname, path)}
@@ -139,7 +140,7 @@ export function Layout() {
                 </Nav.Link>
               ))}
             </Nav>
-            <Nav className="ms-md-4 border-md-start ps-md-4 align-items-md-center gap-md-2">
+            <Nav className="ms-lg-4 border-lg-start ps-lg-4 align-items-lg-center gap-lg-2">
               <CartBadge />
               <NotificationBell />
               {!isLoading && (
@@ -148,6 +149,7 @@ export function Layout() {
                     <Nav.Link
                       as={Link}
                       to="/my"
+                      eventKey="/my"
                       active={isActive(pathname, "/my")}
                       className="app-nav-link app-member-link"
                     >
@@ -167,6 +169,7 @@ export function Layout() {
                     <Nav.Link
                       as={Link}
                       to="/login"
+                      eventKey="/login"
                       active={isActive(pathname, "/login")}
                       className="app-nav-link"
                     >
@@ -175,6 +178,7 @@ export function Layout() {
                     <Nav.Link
                       as={Link}
                       to="/signup"
+                      eventKey="/signup"
                       active={isActive(pathname, "/signup")}
                       className="app-signup-link"
                     >

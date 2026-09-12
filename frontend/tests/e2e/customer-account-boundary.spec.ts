@@ -487,8 +487,8 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
 
   await page.goto("/orders/new?productId=42&qty=1");
   await page.getByLabel("휴대폰 번호").fill("01033333333");
-  await page.getByRole("button", { name: "인증코드 발송" }).click();
-  await page.getByLabel("인증코드").fill("123456");
+  await page.getByRole("button", { name: "인증번호 발송" }).click();
+  await page.getByLabel("인증번호").fill("123456");
   await page.getByRole("button", { name: "확인", exact: true }).click();
   await page.getByLabel("주문자 이름").fill("비회원 주문자");
   await expect(page.getByLabel("상품")).toContainText("비회원 지연 결제 작품");
@@ -940,8 +940,8 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       .getByRole("heading", { name: "주문·예약 조회 코드 재발급" })
       .locator("..");
     await recoverySection.getByLabel("휴대폰 번호").fill("01011111111");
-    await recoverySection.getByRole("button", { name: "인증코드 발송" }).click();
-    await recoverySection.getByLabel("인증코드").fill("123456");
+    await recoverySection.getByRole("button", { name: "인증번호 발송" }).click();
+    await recoverySection.getByLabel("인증번호").fill("123456");
     await recoverySection.getByRole("button", { name: "조회 코드 재발급" }).click();
 
     await expect(page.getByText("주문 #701")).toBeVisible();
@@ -1352,19 +1352,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       return;
     }
     if (pathname === "/api/v1/products") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "계정 경계 테스트 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      }]);
+      await fulfillJson(route, [product]);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -1387,7 +1375,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
   });
 
   await page.goto("/products/42");
-  await page.getByRole("button", { name: "작성자 전용 내용 보기" }).click();
+  await page.getByRole("button", { name: "내 문의 보기" }).click();
   await expect(page.getByText("A 계정만 볼 수 있는 내용")).toBeVisible();
 
   await page.getByRole("button", { name: "택배 배송" }).click();
@@ -1396,14 +1384,14 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("A 계정만 볼 수 있는 내용")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "작성자 전용 내용 보기" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "내 문의 보기" })).toHaveCount(0);
 
   await page.goto(`/login?redirect=${encodeURIComponent("/products/42")}`);
   await page.getByLabel("이메일").fill(customerB.email);
   await page.getByLabel("비밀번호").fill("password123!");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
 
-  await expect(page.getByText("작성자만 볼 수 있는 비밀글입니다.")).toBeVisible();
+  await expect(page.getByText("작성자와 공방만 볼 수 있는 비밀글입니다.")).toBeVisible();
   await page.getByRole("button", { name: "택배 배송" }).click();
   await expect(page.getByLabel("받는 분")).toHaveValue(customerB.name);
   await expect(page.getByLabel("연락처")).toHaveValue(customerB.phone);
@@ -1419,7 +1407,8 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("B 주문자 정보")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "여러 상품 직접 선택" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요.");
+  await expect(page.getByRole("link", { name: "상품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
 
   await page.goto(`/login?redirect=${encodeURIComponent("/orders/new")}`);
   await page.getByLabel("이메일").fill(customerA.email);

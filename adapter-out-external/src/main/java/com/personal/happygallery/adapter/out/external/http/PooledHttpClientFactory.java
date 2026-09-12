@@ -33,6 +33,10 @@ public class PooledHttpClientFactory {
                 .build();
 
         return HttpClients.custom()
+                // 재시도 여부는 멱등키·발송 결과를 아는 업무 코드에서 결정한다.
+                .disableAutomaticRetries()
+                // 인증 헤더와 요청 본문을 리다이렉트 주소로 보내지 않는다.
+                .disableRedirectHandling()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
                 .evictExpiredConnections()

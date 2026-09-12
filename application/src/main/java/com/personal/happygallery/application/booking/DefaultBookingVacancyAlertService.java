@@ -79,7 +79,7 @@ public class DefaultBookingVacancyAlertService implements BookingVacancyAlertUse
     @Override
     @Transactional(readOnly = true)
     public List<BookingVacancyAlert> listMember(Long userId) {
-        return alertPort.findWaitingByUserId(userId);
+        return alertPort.findMemberHistory(userId);
     }
 
     @Override

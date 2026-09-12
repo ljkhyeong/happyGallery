@@ -41,7 +41,7 @@ class DefaultPassCreditService implements PassCreditService {
         PassPurchase pass = requireForUpdate(passId);
 
         if (ownerUserId == null || !Objects.equals(pass.getUserId(), ownerUserId)) {
-            throw new NotFoundException("8회권");
+            throw new NotFoundException("이용권");
         }
         return pass;
     }
@@ -59,7 +59,7 @@ class DefaultPassCreditService implements PassCreditService {
     @Transactional(propagation = Propagation.MANDATORY)
     public PassPurchase requireForUpdate(Long passId) {
         return passPurchaseReader.findByIdForUpdate(passId)
-                .orElseThrow(NotFoundException.supplier("8회권"));
+                .orElseThrow(NotFoundException.supplier("이용권"));
     }
 
     @Override

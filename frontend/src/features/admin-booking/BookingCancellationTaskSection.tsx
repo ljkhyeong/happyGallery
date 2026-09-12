@@ -97,7 +97,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
                   </small>
                 )}
                 {task.type === "MANUAL_COMPENSATION" && task.compensationAmount === 0 && (
-                  <small className="d-block mt-1">만료된 8회권 보상 방법을 고객과 협의</small>
+                  <small className="d-block mt-1">만료된 이용권 보상 방법을 고객과 협의</small>
                 )}
               </td>
               <td className="small">{task.reason}</td>

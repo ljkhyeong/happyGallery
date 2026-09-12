@@ -65,7 +65,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
     }
 
     /**
-     * 비회원 예약을 취소한다. 8회권/예약금 결제 경로를 분기 처리한다.
+     * 비회원 예약을 취소한다. 이용권/예약금 결제 경로를 분기 처리한다.
      *
      * <ol>
      *   <li>access_token으로 예약 조회 및 검증</li>
@@ -248,7 +248,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
         bookingSupport.recordHistory(
                 booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null, null);
 
-        // 3. 예약금 환불 또는 8회권 횟수 복원
+        // 3. 예약금 환불 또는 이용권 횟수 복원
         CancellationCompensation compensation =
                 applyCustomerCancellationCompensation(booking, slot, lockedPass);
 

@@ -58,9 +58,9 @@ class TimeBoundaryPolicyTest {
         assertThat(TimeBoundary.isChangeable(slotStart, clock)).isEqualTo(expected);
     }
 
-    // ── 8회권 90일 만료 ───────────────────────────────────────────────────────
+    // ── 이용권 90일 만료 ───────────────────────────────────────────────────────
 
-    @DisplayName("8회권 만료 시각은 결제일 포함 90일의 다음날 00시다")
+    @DisplayName("이용권 만료 시각은 결제일 포함 90일의 다음날 00시다")
     @Test
     void pass_expiresAt_90DaysAfterPurchase() {
         ZonedDateTime purchasedAt = ZonedDateTime.of(2026, 1, 1, 12, 0, 0, 0, Clocks.SEOUL);

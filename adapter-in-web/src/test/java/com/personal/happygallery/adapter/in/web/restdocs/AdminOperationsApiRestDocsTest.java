@@ -120,7 +120,8 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                         1L,
                         PaymentAttemptStatus.CONFIRMED,
                         300L,
-                        "PG 승인 확인 후 서비스 처리를 완료했습니다."));
+                        "PG 승인 확인 후 서비스 처리를 완료했습니다.",
+                        false));
         PaymentSettlement settlement = PaymentSettlement.create("settlement-transaction-key");
         settlement.synchronize(
                 "payment-key",
@@ -284,7 +285,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 8회권 검색 API를 문서화한다")
+    @DisplayName("관리자 이용권 검색 API를 문서화한다")
     void admin_search_passes() throws Exception {
         mockMvc.perform(get("/api/v1/admin/passes/search")
                         .with(adminUser())
@@ -296,7 +297,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 8회권 상세 API를 문서화한다")
+    @DisplayName("관리자 이용권 상세 API를 문서화한다")
     void admin_get_pass() throws Exception {
         mockMvc.perform(get("/api/v1/admin/passes/{passId}", 300L).with(adminUser()))
                 .andExpect(status().isOk())
@@ -304,14 +305,14 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("관리자 8회권 만료 배치 API를 문서화한다")
+    @DisplayName("관리자 이용권 만료 배치 API를 문서화한다")
     void admin_expire_passes() throws Exception {
         mockMvc.perform(post("/api/v1/admin/passes/expire").with(adminUser()))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("관리자 8회권 환불 API를 문서화한다")
+    @DisplayName("관리자 이용권 환불 API를 문서화한다")
     void admin_refund_pass() throws Exception {
         mockMvc.perform(post("/api/v1/admin/passes/{passId}/refund", 300L).with(adminUser()))
                 .andExpect(status().isOk());

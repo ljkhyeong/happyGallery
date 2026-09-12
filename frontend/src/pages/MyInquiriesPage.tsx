@@ -78,7 +78,7 @@ export function MyInquiriesPage() {
               <div>
                 <div className="d-flex align-items-center gap-2 mb-1">
                   <Badge bg={inquiry.hasReply ? "info" : "secondary"} className="badge-sm">
-                    {inquiry.hasReply ? "답변완료" : "답변대기"}
+                    {inquiry.hasReply ? "답변 완료" : "답변 대기"}
                   </Badge>
                   <span className="fw-semibold small">{inquiry.title}</span>
                 </div>
@@ -88,11 +88,11 @@ export function MyInquiriesPage() {
               </div>
             </div>
             <div className="mt-2 small">
-              <div className="bg-light p-2 rounded">{inquiry.content}</div>
+              <div className="bg-light p-2 rounded text-break" style={{ whiteSpace: "pre-wrap" }}>{inquiry.content}</div>
               {inquiry.replyContent && (
                 <div className="mt-2 p-2 rounded" style={{ background: "#f0f4ff" }}>
                   <strong className="small">답변</strong>
-                  <div>{inquiry.replyContent}</div>
+                  <div className="text-break" style={{ whiteSpace: "pre-wrap" }}>{inquiry.replyContent}</div>
                 </div>
               )}
             </div>

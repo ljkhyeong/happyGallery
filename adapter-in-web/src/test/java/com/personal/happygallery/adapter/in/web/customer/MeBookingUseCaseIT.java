@@ -2,12 +2,14 @@ package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.MemberRescheduleRequest;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
+import com.personal.happygallery.application.booking.port.out.BookingVacancyAlertPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.NotificationService;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -51,6 +53,7 @@ class MeBookingUseCaseIT {
     @Autowired WebApplicationContext context;
     @Autowired @Qualifier("springSessionRepositoryFilter") Filter springSessionRepositoryFilter;
     @Autowired ClassStorePort classStorePort;
+    @Autowired BookingVacancyAlertPort vacancyAlertPort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired UserReaderPort userReaderPort;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -246,6 +249,7 @@ class MeBookingUseCaseIT {
                         .with(csrf())
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.classId").value(classId))
                 .andExpect(jsonPath("$.className").value("향수 클래스"))
                 .andExpect(jsonPath("$.startAt").value("2030-01-04T10:00:00"))
                 .andExpect(jsonPath("$.endAt").value("2030-01-04T12:00:00"));
@@ -257,6 +261,7 @@ class MeBookingUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].slotId").value(fullSlot.getId()))
+                .andExpect(jsonPath("$[0].classId").value(classId))
                 .andExpect(jsonPath("$[0].className").value("향수 클래스"))
                 .andExpect(jsonPath("$[0].status").value("WAITING"));
 
@@ -269,6 +274,48 @@ class MeBookingUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @DisplayName("빈자리 발생 내역을 보존하고 재신청 취소 시 본인의 대기 신청만 제거한다")
+    @Test
+    void vacancyHistory_keepsNotifiedAndExcludesCanceledAndOtherMembers() throws Exception {
+        LocalDateTime startAt = BookingTestHelper.FUTURE.plusDays(3);
+        Slot fullSlot = slot(bookingClass, startAt, startAt.plusHours(2));
+        fullSlot.incrementBookedCount(fullSlot.getCapacity());
+        fullSlot = slotStorePort.save(fullSlot);
+
+        BookingVacancyAlert notified = BookingVacancyAlert.forUser(fullSlot, userId);
+        notified.markNotified(startAt.minusDays(1));
+        notified = vacancyAlertPort.save(notified);
+        BookingVacancyAlert canceled = BookingVacancyAlert.forUser(fullSlot, userId);
+        canceled.cancel(startAt.minusDays(1));
+        vacancyAlertPort.save(canceled);
+        customerHelper.signupAndGetSessionCookie("other-vacancy@test.com", "010-2222-3333");
+        Long otherUserId = userReaderPort.findByEmail("other-vacancy@test.com").orElseThrow().getId();
+        vacancyAlertPort.save(BookingVacancyAlert.forUser(fullSlot, otherUserId));
+
+        mockMvc.perform(post("/api/v1/me/slots/{slotId}/vacancy-alerts", fullSlot.getId())
+                        .with(csrf()).cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("WAITING"));
+
+        mockMvc.perform(get("/api/v1/me/vacancy-alerts").cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].status").value("WAITING"))
+                .andExpect(jsonPath("$[1].alertId").value(notified.getId()))
+                .andExpect(jsonPath("$[1].status").value("NOTIFIED"))
+                .andExpect(jsonPath("$[1].classId").value(classId))
+                .andExpect(jsonPath("$[1].slotId").value(fullSlot.getId()))
+                .andExpect(jsonPath("$[1].accessToken").isEmpty());
+
+        mockMvc.perform(delete("/api/v1/me/slots/{slotId}/vacancy-alerts", fullSlot.getId())
+                        .with(csrf()).cookie(sessionCookie))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/me/vacancy-alerts").cookie(sessionCookie))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].alertId").value(notified.getId()));
     }
 
     @DisplayName("인증 없이 회원 예약 목록을 조회하면 401을 반환한다")

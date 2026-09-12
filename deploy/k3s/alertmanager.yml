@@ -1,0 +1,38 @@
+global:
+  resolve_timeout: 5m
+route:
+  receiver: webhook-warning
+  group_by: [alertname, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: webhook-critical
+      matchers:
+        - severity="critical"
+      repeat_interval: 1h
+    - receiver: webhook-business
+      matchers:
+        - category="business"
+        - severity="warning"
+      repeat_interval: 30m
+    - receiver: webhook-warning
+      matchers:
+        - severity="warning"
+      repeat_interval: 4h
+receivers:
+  - name: webhook-critical
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/webhook-url
+        send_resolved: true
+        timeout: 10s
+  - name: webhook-warning
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/webhook-url
+        send_resolved: true
+        timeout: 10s
+  - name: webhook-business
+    webhook_configs:
+      - url_file: /etc/alertmanager/secrets/webhook-url
+        send_resolved: true
+        timeout: 10s

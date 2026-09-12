@@ -9,6 +9,8 @@ export function notificationTarget(notification: NotificationResponse): string |
       return aggregateId ? `/my/bookings/${aggregateId}` : "/my/bookings";
     case "RESTOCK_ALERT":
       return "/my/restock-alerts";
+    case "VACANCY_ALERT":
+      return "/my/vacancy-alerts";
     case "PASS_PURCHASE":
       return "/my/passes";
     case "INQUIRY":
@@ -22,6 +24,7 @@ export function notificationTarget(notification: NotificationResponse): string |
 }
 
 function fallbackTarget(eventType: string): string | null {
+  if (eventType === "BOOKING_VACANCY_AVAILABLE") return "/my/vacancy-alerts";
   if (eventType.startsWith("ORDER_") || eventType === "ORDER_REFUNDED") return "/my/orders";
   if (eventType.startsWith("BOOKING_") || eventType === "DEPOSIT_REFUNDED"
     || eventType.startsWith("REMINDER_")) return "/my/bookings";

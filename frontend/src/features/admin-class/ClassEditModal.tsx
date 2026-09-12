@@ -118,13 +118,13 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
                 <Form.Check
                   id="admin-edit-class-pass-eligible"
                   type="checkbox"
-                  label="정규 8회권 사용 가능"
+                  label="정규 이용권 사용 가능"
                   checked={passEligible}
                   disabled={isPerfumeClassCategory(categoryValue.category)}
                   onChange={(e) => setPassEligible(e.target.checked)}
                 />
                 {isPerfumeClassCategory(categoryValue.category) && (
-                  <Form.Text muted>향수 수업에는 8회권을 적용할 수 없습니다.</Form.Text>
+                  <Form.Text muted>향수 수업에는 이용권을 적용할 수 없습니다.</Form.Text>
                 )}
               </div>
             </Col>

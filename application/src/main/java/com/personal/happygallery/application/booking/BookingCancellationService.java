@@ -6,9 +6,9 @@ package com.personal.happygallery.application.booking;
 public interface BookingCancellationService {
 
     /**
-     * 특정 8회권에 연결된 미래 BOOKED 예약을 모두 취소한다.
+     * 특정 이용권에 연결된 미래 BOOKED 예약을 모두 취소한다.
      *
-     * @param passId 8회권 ID
+     * @param passId 이용권 ID
      * @return 취소된 예약 건수
      */
     int cancelLinkedBookings(Long passId);

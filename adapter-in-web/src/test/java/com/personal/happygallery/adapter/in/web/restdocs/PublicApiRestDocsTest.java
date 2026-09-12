@@ -285,7 +285,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new BookingVacancyAlertController(vacancyAlertUseCase),
                 new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, paymentAbandonUseCase, rateLimitGuard),
-                new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(240_000L)),
+                new PaymentQueryController(paymentStatusQueryUseCase, new PassPriceProperties(120_000L)),
                 new NoticeController(noticeQueryUseCase),
                 new WorkshopProfileController(workshopProfileUseCase),
                 new TossPaymentWebhookController(paymentWebhookUseCase),
@@ -476,6 +476,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.alertId").value(700))
                 .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.classId").value(1))
                 .andExpect(jsonPath("$.className").value("향수 원데이"))
                 .andExpect(jsonPath("$.startAt").value("2026-05-07T19:00:00"))
                 .andExpect(jsonPath("$.endAt").value("2026-05-07T21:00:00"))
@@ -775,12 +776,12 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("8회권 결제 정책 조회 API를 문서화한다")
+    @DisplayName("이용권 결제 정책 조회 API를 문서화한다")
     void get_pass_payment_policy() throws Exception {
         mockMvc.perform(get("/api/v1/payments/pass-policy"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalPrice").value(240000))
-                .andExpect(jsonPath("$.totalCredits").value(8))
+                .andExpect(jsonPath("$.totalPrice").value(120000))
+                .andExpect(jsonPath("$.totalCredits").value(4))
                 .andExpect(jsonPath("$.validityDays").value(90));
     }
 

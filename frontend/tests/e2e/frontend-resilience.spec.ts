@@ -118,8 +118,8 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01012345678");
-  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
-  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "인증번호 발송" }).click();
+  await recoveryCard.getByLabel("인증번호").fill("123456");
   await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
   await expect(recoveryCard.getByText("결제 내역을 찾았습니다.")).toBeVisible();
@@ -218,8 +218,8 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();
   await recoveryCard.getByLabel("휴대폰 번호").fill("01011111111");
-  await recoveryCard.getByRole("button", { name: "인증코드 발송" }).click();
-  await recoveryCard.getByLabel("인증코드").fill("123456");
+  await recoveryCard.getByRole("button", { name: "인증번호 발송" }).click();
+  await recoveryCard.getByLabel("인증번호").fill("123456");
   await recoveryCard.getByRole("button", { name: "결제 결과 다시 확인" }).click();
 
   await expect.poll(() => page.evaluate(() => ({
@@ -377,11 +377,11 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
   });
 
   await page.goto("/products/42");
-  const qnaSection = page.locator(".card").filter({ hasText: "Q&A" }).last();
+  const qnaSection = page.locator(".card").filter({ hasText: "상품 문의" }).last();
   await expect(qnaSection.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(qnaSection.getByText("등록된 Q&A가 없습니다.")).toHaveCount(0);
+  await expect(qnaSection.getByText("등록된 상품 문의가 없습니다.")).toHaveCount(0);
   await qnaSection.getByRole("button", { name: "다시 시도" }).click();
-  await expect(qnaSection.getByText("등록된 Q&A가 없습니다.")).toBeVisible();
+  await expect(qnaSection.getByText("등록된 상품 문의가 없습니다.")).toBeVisible();
 
   const homeFixtures = homeSsrFixtures({ workshop: { name: "해피갤러리" } })
     .map((fixture) => fixture.path === "/api/v1/notices"
@@ -575,11 +575,11 @@ test("@order 클레임 내역 조회 실패 중에는 접수 가능 수량과 �
   await page.goto("/my/orders/73");
   const claimSection = page.locator("section").filter({ hasText: "반품·교환" }).last();
   await expect(claimSection.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(claimSection.getByLabel("접수 유형")).toHaveCount(0);
+  await expect(claimSection.getByLabel("신청 사유")).toHaveCount(0);
   await expect(claimSection.getByText("접수 가능 1개")).toHaveCount(0);
 
   await claimSection.getByRole("button", { name: "다시 시도" }).click();
-  await expect(claimSection.getByLabel("접수 유형")).toBeVisible();
+  await expect(claimSection.getByLabel("신청 사유")).toBeVisible();
   await expect(claimSection.getByText("접수 가능 1개")).toBeVisible();
 });
 

@@ -49,7 +49,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
         <Form.Control type="date" required value={to} onChange={(event) => setTo(event.target.value)} />
       </Form.Group>
       <Button type="submit" variant="outline-primary" disabled={synchronize.isPending || from > to}>
-        {synchronize.isPending ? "조회 중..." : "기간 다시 조회"}
+        {synchronize.isPending ? "조회 중..." : "선택 기간 조회"}
       </Button>
     </Form>
     <ErrorAlert error={synchronize.error} />
@@ -57,7 +57,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
       정상 {synchronize.data.successCount}건, 확인 필요 {synchronize.data.issueCount}건을 반영했습니다.
     </Alert>}
     {!query.data?.length ? (
-      <EmptyState message="스마트스토어 주문과 다른 정산 내역이 없습니다." />
+      <EmptyState message="스마트스토어 주문과 불일치하는 정산 내역이 없습니다." />
     ) : <Table responsive hover size="sm" className="align-middle">
     <thead>
       <tr>

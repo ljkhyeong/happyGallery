@@ -21,7 +21,7 @@ import {
 const CONTEXT_LABELS = {
   ORDER: "주문",
   BOOKING: "예약",
-  PASS: "8회권",
+  PASS: "이용권",
 } as const;
 
 interface RecoveryView {
@@ -78,7 +78,7 @@ export function GuestPaymentStatusRecoverySection() {
         <PhoneVerificationStep
           purpose="GUEST_PAYMENT_STATUS_RECOVERY"
           title="결제 결과 다시 확인"
-          description="결제에 사용한 휴대폰 번호를 인증하면 결제 목록과 처리 결과를 다시 확인할 수 있습니다."
+          description="결제에 사용한 휴대폰 번호를 인증하고 결제 내역을 확인하세요."
           confirmLabel="결제 결과 다시 확인"
           confirming={recovery.isPending}
           onReset={() => {

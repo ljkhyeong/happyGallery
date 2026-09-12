@@ -102,7 +102,7 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
   ).toContainText(guestName);
 });
 
-test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 수 있다", async ({ page, request }) => {
+test("P8-3 @smoke @payment 회원은 4회권 구매 후 이용권으로 예약할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);
 
   const classes = await fetchClasses(request);
@@ -120,26 +120,26 @@ test("P8-3 @smoke @payment 회원은 8회권 구매 후 8회권으로 예약할 
   await page.goto("/passes/purchase");
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
-  await page.getByRole("link", { name: "내 8회권 확인하기" }).click();
+  await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
   await expect(page).toHaveURL(/\/my\/passes$/);
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {
     throw new Error("Member pass list text was empty");
   }
-  const passId = extractFirstNumber(passCardText, "8회권 #");
+  const passId = extractFirstNumber(passCardText, "4회권 #");
 
-  const passCard = page.locator(".my-list-card").filter({ hasText: `8회권 #${passId}` }).first();
-  await passCard.getByRole("link", { name: "이 8회권으로 예약" }).click();
+  const passCard = page.locator(".my-list-card").filter({ hasText: `4회권 #${passId}` }).first();
+  await passCard.getByRole("link", { name: "이 이용권으로 예약" }).click();
   await expect(page).toHaveURL(new RegExp(`/bookings/new\\?passId=${passId}$`));
   await page.getByLabel("클래스").selectOption(String(bookingClass!.id));
   await page.getByLabel("날짜").selectOption(slotDate);
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
-  await expect(page.getByLabel("8회권 사용")).toBeChecked();
-  await expect(page.getByLabel("사용할 8회권")).toHaveValue(String(passId));
-  await page.getByRole("button", { name: "8회권으로 예약하기" }).click();
+  await expect(page.getByLabel("이용권 사용")).toBeChecked();
+  await expect(page.getByLabel("사용할 이용권")).toHaveValue(String(passId));
+  await page.getByRole("button", { name: "이용권으로 예약하기" }).click();
 
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await page.getByRole("link", { name: "내 예약 상세 보기" }).click();
   await expect(page).toHaveURL(/\/my\/bookings\/\d+$/);
-  await expect(page.getByText("8회권 사용")).toBeVisible();
+  await expect(page.getByText("이용권 사용")).toBeVisible();
 });

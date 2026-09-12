@@ -35,7 +35,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 
 /**
- * [UseCaseIT] §12.1 8회권 만료 7일 전 알림 발송 검증.
+ * [UseCaseIT] §12.1 이용권 만료 7일 전 알림 발송 검증.
  *
  * <p>Proof (§12.1 DoD): sendExpiryNotifications() 호출 시
  * 만료 7일 내 pass에 PASS_EXPIRY_SOON 알림이 발송되고 notification_log에 기록된다.
@@ -68,7 +68,7 @@ class PassExpiryNotificationUseCaseIT {
     // Proof: 7일 내 만료 2건 → PASS_EXPIRY_SOON 알림 2건 + notification_log 기록
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 만료 알림 배치는 대상 기간 내 8회권에 알림을 발송하고 로그를 남긴다")
+    @DisplayName("이용권 만료 알림 배치는 대상 기간 내 이용권에 알림을 발송하고 로그를 남긴다")
     @Test
     void sendExpiryNotifications_withinWindow_sendsAndLogsNotifications() {
         User user1 = userStorePort.save(new User("pass-expiry-1@example.com", "hashed-password", "회원", "01011112222"));
@@ -94,7 +94,7 @@ class PassExpiryNotificationUseCaseIT {
     // Proof: 30일 후 만료 → 알림 없음
     // -----------------------------------------------------------------------
 
-    @DisplayName("8회권 만료 알림 배치는 대상 기간 밖의 8회권을 건너뛴다")
+    @DisplayName("이용권 만료 알림 배치는 대상 기간 밖의 이용권을 건너뛴다")
     @Test
     void sendExpiryNotifications_outsideWindow_skips() {
         User user = userStorePort.save(new User("pass-expiry-skip@example.com", "hashed-password", "회원", "01055556666"));
@@ -112,7 +112,7 @@ class PassExpiryNotificationUseCaseIT {
         });
     }
 
-    @DisplayName("서버가 예정 시각 뒤 재기동돼도 아직 만료 전인 8회권 알림을 보충한다")
+    @DisplayName("서버가 예정 시각 뒤 재기동돼도 아직 만료 전인 이용권 알림을 보충한다")
     @Test
     void sendExpiryNotifications_afterScheduledTime_catchesUpBeforeExpiry() {
         User user = userStorePort.save(new User(
@@ -137,7 +137,7 @@ class PassExpiryNotificationUseCaseIT {
         });
     }
 
-    @DisplayName("같은 회원의 8회권은 구매 건별로 만료 알림을 한 번씩 발송한다")
+    @DisplayName("같은 회원의 이용권은 구매 건별로 만료 알림을 한 번씩 발송한다")
     @Test
     void sendExpiryNotifications_deduplicatesByPassId() {
         User user = userStorePort.save(new User("pass-expiry-dedupe@example.com", "hashed-password", "회원", "01077778888"));
@@ -167,7 +167,7 @@ class PassExpiryNotificationUseCaseIT {
         });
     }
 
-    @DisplayName("한 8회권의 알림 저장이 실패해도 다른 8회권 알림은 커밋된다")
+    @DisplayName("한 이용권의 알림 저장이 실패해도 다른 이용권 알림은 커밋된다")
     @Test
     void sendExpiryNotifications_isolatesOutboxFailurePerPass() {
         User failingUser = userStorePort.save(new User(
@@ -196,7 +196,7 @@ class PassExpiryNotificationUseCaseIT {
         });
     }
 
-    @DisplayName("발송 전에 잔여 횟수가 사라진 8회권 만료 알림은 외부 발송 없이 종결한다")
+    @DisplayName("발송 전에 잔여 횟수가 사라진 이용권 만료 알림은 외부 발송 없이 종결한다")
     @Test
     void dispatchExpiryReminder_withoutRemainingCredits_marksObsolete() {
         User user = userStorePort.save(new User(

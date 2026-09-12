@@ -7,6 +7,7 @@ import com.personal.happygallery.application.monitoring.OperationalBacklogMetric
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.pass.PassPurchaseRepository;
+import com.personal.happygallery.adapter.out.persistence.payment.PaymentWebhookReceiptRepository;
 import com.personal.happygallery.application.payment.PaymentConfirmClaimTransactionService.PgConfirmationRequired;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
@@ -15,6 +16,8 @@ import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmRecoveryUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentReconciliationAdminUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentWebhookBatchUseCase;
+import com.personal.happygallery.application.payment.port.in.PaymentWebhookUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
@@ -85,6 +88,9 @@ class PaymentConfirmRecoveryUseCaseIT {
     @Autowired PaymentConfirmRecoveryUseCase recoveryUseCase;
     @Autowired PaymentConfirmUseCase confirmUseCase;
     @Autowired PaymentReconciliationAdminUseCase reconciliationAdminUseCase;
+    @Autowired PaymentWebhookUseCase webhookUseCase;
+    @Autowired PaymentWebhookBatchUseCase webhookBatchUseCase;
+    @Autowired PaymentWebhookReceiptRepository webhookReceiptRepository;
     @Autowired PaymentConfirmClaimTransactionService claimTransactionService;
     @Autowired PaymentAttemptReaderPort attemptReader;
     @Autowired RefundRepository refundRepository;
@@ -116,6 +122,7 @@ class PaymentConfirmRecoveryUseCaseIT {
 
     @AfterEach
     void tearDown() {
+        webhookReceiptRepository.deleteAllInBatch();
         cleanupSupport.clearOrderData();
         cleanupSupport.clearBookingWithPassAndRefundData();
         cleanupSupport.clearUsers();
@@ -300,6 +307,72 @@ class PaymentConfirmRecoveryUseCaseIT {
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_FAILED));
         verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+    }
+
+    @DisplayName("결제 웹훅의 PG 조회 실패는 1분 뒤 재처리하고 승인 확인 후 한 번만 완료한다")
+    @Test
+    void webhook_unavailableLookup_retriesAfterDelayAndCompletesOnce() {
+        PreparedPayment prepared = preparePass("webhook-retry@example.com", "01010000014");
+        Long attemptId = beginConfirm(prepared, "webhook-payment-key").attemptId();
+        LocalDateTime now = LocalDateTime.now(clock);
+        jdbcTemplate.update(
+                "UPDATE payment_attempt SET created_at = ?, processing_at = ? WHERE id = ?",
+                now.minusDays(15), now.minusMinutes(2), attemptId);
+        recoveryUseCase.recoverIncompleteConfirms();
+        when(paymentProvider.lookupByOrderId(prepared.orderId())).thenReturn(
+                PaymentLookupResult.unavailable(prepared.orderId(), "PG 조회 일시 실패"),
+                PaymentLookupResult.approved(
+                        "webhook-payment-key", prepared.orderId(), prepared.amount(), "CARD"));
+        webhookUseCase.receive("retry-transmission", "PAYMENT_STATUS_CHANGED", prepared.orderId());
+        webhookUseCase.receive("retry-transmission", "PAYMENT_STATUS_CHANGED", prepared.orderId());
+
+        BatchResult failed = webhookBatchUseCase.processPendingReceipts();
+
+        assertSoftly(softly -> {
+            softly.assertThat(failed.successCount()).isZero();
+            softly.assertThat(failed.failureCount()).isOne();
+            softly.assertThat(statusOf(attemptId)).isEqualTo(PaymentAttemptStatus.RECONCILIATION_REQUIRED);
+            softly.assertThat(webhookReceiptRepository.count()).isOne();
+            softly.assertThat(jdbcTemplate.queryForObject(
+                    "SELECT processed_at FROM payment_webhook_receipts WHERE transmission_id = ?",
+                    LocalDateTime.class, "retry-transmission")).isNull();
+        });
+        assertThat(webhookBatchUseCase.processPendingReceipts()).isEqualTo(BatchResult.successOnly(0));
+        verify(paymentProvider).lookupByOrderId(prepared.orderId());
+        jdbcTemplate.update(
+                "UPDATE payment_webhook_receipts SET processing_at = ? WHERE transmission_id = ?",
+                now.minusMinutes(2), "retry-transmission");
+
+        BatchResult recovered = webhookBatchUseCase.processPendingReceipts();
+
+        assertSoftly(softly -> {
+            softly.assertThat(recovered).isEqualTo(BatchResult.successOnly(1));
+            softly.assertThat(statusOf(attemptId)).isEqualTo(PaymentAttemptStatus.CONFIRMED);
+            softly.assertThat(jdbcTemplate.queryForObject(
+                    "SELECT processed_at FROM payment_webhook_receipts WHERE transmission_id = ?",
+                    LocalDateTime.class, "retry-transmission")).isNotNull();
+        });
+        assertThat(webhookBatchUseCase.processPendingReceipts()).isEqualTo(BatchResult.successOnly(0));
+        verify(paymentProvider, times(2)).lookupByOrderId(prepared.orderId());
+        verify(paymentProvider, never()).confirm(any(), any(), anyLong(), any());
+    }
+
+    @DisplayName("결제 웹훅은 최근 실패한 앞쪽 기록보다 오래 대기한 다음 기록을 먼저 조회한다")
+    @Test
+    void webhook_pendingReceipts_prioritizesWaitingReceiptsOverRecentFailures() {
+        PreparedPayment prepared = preparePass("webhook-order@example.com", "01010000015");
+        webhookUseCase.receive("recent-failure", "PAYMENT_STATUS_CHANGED", prepared.orderId());
+        webhookUseCase.receive("waiting-receipt", "PAYMENT_STATUS_CHANGED", prepared.orderId());
+        LocalDateTime now = LocalDateTime.now(clock);
+        jdbcTemplate.update("UPDATE payment_webhook_receipts SET received_at = ?", now.minusMinutes(10));
+        jdbcTemplate.update(
+                "UPDATE payment_webhook_receipts SET processing_at = ? WHERE transmission_id = ?",
+                now.minusMinutes(2), "recent-failure");
+        Long waitingId = jdbcTemplate.queryForObject(
+                "SELECT id FROM payment_webhook_receipts WHERE transmission_id = ?",
+                Long.class, "waiting-receipt");
+
+        assertThat(webhookReceiptRepository.findPendingIds(now.minusMinutes(1), 1)).containsExactly(waitingId);
     }
 
     @DisplayName("14일이 지난 0원 PROCESSING 결제는 PG 대사 없이 내부 처리를 재개한다")

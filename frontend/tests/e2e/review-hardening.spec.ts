@@ -423,7 +423,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
 
   const confirmation = page.getByRole("dialog", { name: "위반 신고로 인정할까요?" });
   await expect(confirmation).toBeVisible();
-  await expect(confirmation.getByText("저장하면 이 신고를 다시 판단할 수 없습니다.", { exact: false }))
+  await expect(confirmation.getByText("처리 결과는 저장 후 변경할 수 없습니다.", { exact: false }))
     .toBeVisible();
   expect(decisions).toEqual([]);
 
@@ -449,7 +449,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
   await rejectedReportCard.getByRole("button", { name: "신고 상세 검토" }).click();
   await rejectedReportCard.getByRole("button", { name: "신고 반려", exact: true }).click();
   const rejectConfirmation = page.getByRole("dialog", { name: "신고를 반려할까요?" });
-  await expect(rejectConfirmation.getByText("저장하면 이 신고를 다시 판단할 수 없습니다.", { exact: false }))
+  await expect(rejectConfirmation.getByText("처리 결과는 저장 후 변경할 수 없습니다.", { exact: false }))
     .toBeVisible();
   await rejectConfirmation.getByRole("button", { name: "신고 반려 확정" }).click();
 

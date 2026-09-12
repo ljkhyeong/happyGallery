@@ -52,7 +52,7 @@ export function GroupInquiryForm({ onSubmit, pending, error, initialContact, sub
           <Form.Control as="textarea" rows={3} maxLength={2000} value={form.message} onChange={(event) => update("message", event.target.value)}
             placeholder="참여 대상, 수업 시간, 예산 등 상담에 필요한 내용을 적어 주세요." />
         </Form.Group>
-        <p className="small text-muted">담당자 연락처는 문의 응대에 사용합니다. 접수 후 연락드리며, 수업 일정과 비용은 상담을 통해 정합니다.</p>
+        <p className="small text-muted">문의에 남긴 연락처로 답변드립니다. 수업 일정과 비용은 상담 후 정합니다.</p>
         <ErrorAlert error={error} />
         <Button type="submit" disabled={pending}>{pending ? "접수 중..." : submitLabel}</Button>
       </fieldset>

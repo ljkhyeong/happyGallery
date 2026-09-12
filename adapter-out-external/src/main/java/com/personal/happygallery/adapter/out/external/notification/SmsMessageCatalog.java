@@ -38,8 +38,8 @@ public final class SmsMessageCatalog {
                     + "님, 주문 클레임 처리 결과가 등록되었습니다. 주문 상세에서 확인해 주세요.";
             case ORDER_EXCHANGE_COMPLETED -> PREFIX + recipientName
                     + "님, 주문 교환 처리가 완료되었습니다. 주문 상세에서 확인해 주세요.";
-            case PASS_PURCHASED -> PREFIX + recipientName + "님, 8회권 결제가 완료되었습니다.";
-            case PASS_REFUNDED -> PREFIX + recipientName + "님, 8회권 환불이 완료되었습니다.";
+            case PASS_PURCHASED -> PREFIX + recipientName + "님, 이용권 결제가 완료되었습니다.";
+            case PASS_REFUNDED -> PREFIX + recipientName + "님, 이용권 환불이 완료되었습니다.";
             case INQUIRY_ANSWERED -> PREFIX + recipientName + "님, 1:1 문의에 답변이 등록되었습니다.";
             case PRODUCT_QNA_ANSWERED -> PREFIX + recipientName + "님, 상품 Q&A에 답변이 등록되었습니다.";
             case REVIEW_REQUEST -> PREFIX + recipientName
@@ -52,7 +52,7 @@ public final class SmsMessageCatalog {
                     + "님, 후기에 공방 답글이 등록됐습니다.";
             case REMINDER_D1 -> PREFIX + recipientName + "님, 내일 체험이 예정되어 있습니다.";
             case REMINDER_SAME_DAY -> PREFIX + recipientName + "님, 오늘 체험이 예정되어 있습니다.";
-            case PASS_EXPIRY_SOON -> PREFIX + recipientName + "님, 8회권 만료가 7일 남았습니다.";
+            case PASS_EXPIRY_SOON -> PREFIX + recipientName + "님, 이용권 만료가 7일 남았습니다.";
             case PICKUP_DEADLINE_REMINDER -> PREFIX + recipientName + "님, 픽업 마감이 2시간 남았습니다.";
         };
     }

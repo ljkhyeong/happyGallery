@@ -3,12 +3,16 @@
 set -Eeuo pipefail
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
-[ "$#" -eq 4 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env> <alert-webhook-url-file>"
+[ "$#" -eq 4 ] || die "사용법: $0 <mysql.env> <redis.env> <app.env> <alertmanager.env|alert-webhook-url>"
 mysql_file=$1
 redis_file=$2
 app_file=$3
-alert_webhook_file=$4
+alert_file=$4
 require_command base64
+require_command ruby
+umask 077
+alert_config_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-alertmanager.XXXXXX")
+trap 'rm -rf "$alert_config_dir"' EXIT
 
 for file in "$mysql_file" "$redis_file" "$app_file"; do
     validate_env_file "$file"
@@ -60,15 +64,24 @@ validate_allowed_env_keys "$app_file" 애플리케이션 \
     DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS DELIVERY_API_MAX_CONNECTIONS \
     DELIVERY_API_KEEP_ALIVE_MILLIS \
     PUBLIC_HOLIDAY_ENABLED PUBLIC_HOLIDAY_SERVICE_KEY \
+    KOREA_POST_TRACKING_ENABLED KOREA_POST_SERVICE_KEY \
+    KOREA_POST_TIMEOUT_MILLIS KOREA_POST_CONNECT_TIMEOUT_MILLIS \
+    KOREA_POST_ACQUIRE_TIMEOUT_MILLIS KOREA_POST_MAX_CONNECTIONS KOREA_POST_KEEP_ALIVE_MILLIS \
     PUBLIC_HOLIDAY_BASE_URL \
     PUBLIC_HOLIDAY_TIMEOUT_MILLIS PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS \
     PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS PUBLIC_HOLIDAY_MAX_CONNECTIONS \
     PUBLIC_HOLIDAY_KEEP_ALIVE_MILLIS \
+    SMARTSTORE_ENABLED SMARTSTORE_CLIENT_ID SMARTSTORE_CLIENT_SECRET \
+    SMARTSTORE_ACCOUNT_TYPE SMARTSTORE_ACCOUNT_ID SMARTSTORE_BASE_URL \
+    SMARTSTORE_TIMEOUT_MILLIS SMARTSTORE_CONNECT_TIMEOUT_MILLIS SMARTSTORE_ACQUIRE_TIMEOUT_MILLIS \
+    SMARTSTORE_MAX_CONNECTIONS SMARTSTORE_KEEP_ALIVE_MILLIS \
     GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET \
     NAVER_OAUTH_CLIENT_ID NAVER_OAUTH_CLIENT_SECRET \
     KAKAO_OAUTH_CLIENT_ID KAKAO_OAUTH_CLIENT_SECRET \
     ALIMTALK_APP_KEY ALIMTALK_SECRET_KEY ALIMTALK_SENDER_KEY \
     SMS_API_KEY SMS_API_SECRET SMS_SENDER_NUMBER \
+    EMAIL_VERIFICATION_PROVIDER NCP_MAIL_ACCESS_KEY NCP_MAIL_SECRET_KEY \
+    NCP_MAIL_TIMEOUT_MILLIS NCP_MAIL_CONNECT_TIMEOUT_MILLIS NCP_MAIL_ACQUIRE_TIMEOUT_MILLIS \
     EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_PORT \
     EMAIL_VERIFICATION_SMTP_USERNAME EMAIL_VERIFICATION_SMTP_PASSWORD \
     EMAIL_VERIFICATION_FROM \
@@ -86,13 +99,7 @@ validate_allowed_env_keys "$app_file" 애플리케이션 \
     EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY \
     SENTRY_DSN
 
-require_private_file "$alert_webhook_file"
-alert_webhook_lines=$(awk 'NF { count++ } END { print count + 0 }' "$alert_webhook_file")
-[ "$alert_webhook_lines" -eq 1 ] || die "Alertmanager webhook URL 파일에는 URL 한 줄만 있어야 합니다."
-grep -Eq '^https://[^[:space:]]+$' "$alert_webhook_file" \
-    || die "Alertmanager webhook URL은 공백 없는 https URL이어야 합니다."
-grep -q 'example\.com' "$alert_webhook_file" \
-    && die "Alertmanager 예시 URL을 실제 외부 수신 URL로 바꾸세요."
+ruby "$SCRIPT_DIR/alert-delivery.rb" render "$app_file" "$alert_file" "$alert_config_dir"
 
 for key in MYSQL_ROOT_PASSWORD MYSQL_DATABASE MYSQL_USER MYSQL_PASSWORD; do
     require_env_value "$key" "$mysql_file" >/dev/null
@@ -108,10 +115,25 @@ for key in \
     KAKAO_OAUTH_CLIENT_ID KAKAO_OAUTH_CLIENT_SECRET \
     ALIMTALK_APP_KEY ALIMTALK_SECRET_KEY ALIMTALK_SENDER_KEY \
     SMS_API_KEY SMS_API_SECRET SMS_SENDER_NUMBER \
-    EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_USERNAME \
-    EMAIL_VERIFICATION_SMTP_PASSWORD EMAIL_VERIFICATION_FROM; do
+    EMAIL_VERIFICATION_FROM; do
     require_env_value "$key" "$app_file" >/dev/null
 done
+
+# 기존 환경 파일은 provider가 없으면 SMTP 설정을 유지한다. 명시한 빈 값은 거부한다.
+email_provider=$(env_value EMAIL_VERIFICATION_PROVIDER "$app_file" 2>/dev/null || printf 'smtp')
+case "$email_provider" in
+    smtp)
+        for key in EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_USERNAME EMAIL_VERIFICATION_SMTP_PASSWORD; do
+            require_env_value "$key" "$app_file" >/dev/null
+        done
+        ;;
+    ncp)
+        for key in NCP_MAIL_ACCESS_KEY NCP_MAIL_SECRET_KEY; do
+            require_env_value "$key" "$app_file" >/dev/null
+        done
+        ;;
+    *) die "EMAIL_VERIFICATION_PROVIDER는 smtp 또는 ncp여야 합니다." ;;
+esac
 
 mysql_database=$(require_env_value MYSQL_DATABASE "$mysql_file")
 mysql_root_password=$(require_env_value MYSQL_ROOT_PASSWORD "$mysql_file")
@@ -252,7 +274,7 @@ kube create secret generic happygallery-app \
 
 kube create secret generic happygallery-alertmanager \
     --namespace "$NAMESPACE" \
-    --from-file=webhook-url="$alert_webhook_file" \
+    --from-file="$alert_config_dir" \
     --dry-run=client -o yaml | kube apply -f - >/dev/null
 
 info "runtime Secret 4개를 생성 또는 교체했습니다. 값은 출력하지 않았습니다."

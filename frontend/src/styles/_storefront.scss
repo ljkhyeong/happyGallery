@@ -1130,6 +1130,7 @@
 .notification-popover {
   top: calc(100% + 0.5rem);
   z-index: 1050;
+  background: var(--hg-surface);
   width: min(20rem, calc(100vw - 1rem));
   max-width: calc(100vw - 1rem);
 }
@@ -1679,8 +1680,8 @@
   }
 }
 
-@media (min-width: 768px) {
-  .border-md-start {
+@media (min-width: 992px) {
+  .border-lg-start {
     border-left: 1px solid var(--hg-border) !important;
   }
 }

@@ -111,7 +111,7 @@ class CustomerAccountLifecycleUseCaseIT {
     }
 
     @Test
-    @DisplayName("사용 가능한 8회권이 있으면 회원 탈퇴를 거절한다")
+    @DisplayName("사용 가능한 이용권이 있으면 회원 탈퇴를 거절한다")
     void rejectWithdrawalWhilePassIsUsable() throws Exception {
         User user = activeUser("withdraw-blocked@example.com", "01087654321");
         passPurchaseStore.save(TestFixtures.passPurchase(
@@ -122,7 +122,7 @@ class CustomerAccountLifecycleUseCaseIT {
                         .session(customerSession(user)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_WITHDRAWAL_BLOCKED"))
-                .andExpect(jsonPath("$.message").value("사용 가능한 8회권이 있습니다."));
+                .andExpect(jsonPath("$.message").value("사용 가능한 이용권이 있습니다."));
 
         assertThat(userReader.findById(user.getId())).isPresent();
     }

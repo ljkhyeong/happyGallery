@@ -54,13 +54,13 @@ const ADMIN_VIEWS = [
   {
     value: "overview",
     label: "현황·검색",
-    description: "매출과 운영 지표를 보고 고객의 주문·예약·8회권 이용 내역을 함께 검색합니다.",
+    description: "매출·예약 현황을 확인하고 고객의 주문·예약·이용권을 검색합니다.",
   },
   { value: "orders", label: "주문", description: "주문 승인부터 배송·매장 수령과 교환·환불 요청까지 처리합니다." },
   {
     value: "bookings",
-    label: "예약·8회권",
-    description: "날짜별 예약과 8회권 사용 현황·환불·만료를 관리합니다.",
+    label: "예약·이용권",
+    description: "날짜별 예약과 이용권 사용 현황·환불·만료를 관리합니다.",
   },
   { value: "products", label: "상품", description: "상품 정보와 판매 상태, 재고를 관리합니다." },
   {
@@ -71,12 +71,12 @@ const ADMIN_VIEWS = [
   {
     value: "events",
     label: "이벤트",
-    description: "진행·예정 이벤트의 공개 일정과 홈 추천, 연관 상품을 관리합니다.",
+    description: "이벤트 공개 일정, 홈 추천 여부와 관련 상품을 설정합니다.",
   },
   {
     value: "coupons",
     label: "쿠폰",
-    description: "회원 상품 주문 쿠폰의 할인 조건, 공개 발급 여부와 사용 기간을 관리합니다.",
+    description: "회원용 상품 쿠폰의 할인 조건·발급 여부·사용 기간을 설정합니다.",
   },
   {
     value: "support",
@@ -91,7 +91,7 @@ const ADMIN_VIEWS = [
   {
     value: "settings",
     label: "설정",
-    description: "공개 공방 정보와 관리자 계정 보안을 관리합니다.",
+    description: "공방 소개·연락처와 관리자 비밀번호·2단계 인증을 설정합니다.",
   },
 ] as const;
 
@@ -301,7 +301,7 @@ export function AdminPage() {
             variant="outline-dark"
             onClick={() => selectView("settings")}
           >
-            복구 진행
+            2단계 인증 설정
           </Button>
         </Alert>
       )}
@@ -451,7 +451,7 @@ export function AdminPage() {
               focusBookingId={focusedBookingId}
             />
           </AdminPanel>
-          <AdminPanel title="8회권 관리">
+          <AdminPanel title="이용권 관리">
             <PassActionPanel adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
         </>

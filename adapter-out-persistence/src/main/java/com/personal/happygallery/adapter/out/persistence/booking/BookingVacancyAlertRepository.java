@@ -44,10 +44,12 @@ public interface BookingVacancyAlertRepository
             JOIN FETCH a.slot s
             JOIN FETCH s.bookingClass
             WHERE a.userId = :userId
-              AND a.status = com.personal.happygallery.domain.booking.VacancyAlertStatus.WAITING
-            ORDER BY a.id
+              AND a.status IN (
+                  com.personal.happygallery.domain.booking.VacancyAlertStatus.WAITING,
+                  com.personal.happygallery.domain.booking.VacancyAlertStatus.NOTIFIED)
+            ORDER BY a.id DESC
             """)
-    List<BookingVacancyAlert> findWaitingByUserId(@Param("userId") Long userId);
+    List<BookingVacancyAlert> findMemberHistory(@Param("userId") Long userId);
 
     @Override
     @Lock(PESSIMISTIC_WRITE)

@@ -20,10 +20,10 @@ function paymentContextCopy(context: PaymentStatusResponse["context"]) {
       };
     case "PASS":
       return {
-        completedHeading: "8회권 결제가 완료되었습니다",
-        creationFailed: "8회권을 발급하지 못해",
-        notCreated: "8회권이 발급되지 않았으며",
-        restartLocation: "8회권 구매 화면",
+        completedHeading: "이용권 결제가 완료되었습니다",
+        creationFailed: "이용권을 발급하지 못해",
+        notCreated: "이용권이 발급되지 않았으며",
+        restartLocation: "4회권 구매 화면",
       };
   }
 }
@@ -37,14 +37,14 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="warning" className="mb-0">
           <Alert.Heading className="fs-5">결제 결과를 다시 확인해 주세요</Alert.Heading>
-          <p className="mb-0">{amount} 결제 결과를 아직 확정하지 못했습니다. 같은 결제로 다시 확인할 수 있습니다.</p>
+          <p className="mb-0">{amount} 결제 결과를 확인하지 못했습니다. 새로 결제하지 말고 결과를 다시 확인해 주세요.</p>
         </Alert>
       );
     case "CONFIRMING":
       return (
         <Alert variant="info" className="mb-0">
           <Alert.Heading className="fs-5">결제를 확인하고 있습니다</Alert.Heading>
-          <p className="mb-0">새로 결제하지 마세요. 처리 결과를 자동으로 확인하고 있습니다.</p>
+          <p className="mb-0">결제 결과를 자동으로 확인 중입니다. 새로 결제하지 마세요.</p>
         </Alert>
       );
     case "REFUNDING":
@@ -79,7 +79,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="danger" className="mb-0">
           <Alert.Heading className="fs-5">결제가 승인되지 않았습니다</Alert.Heading>
-          <p className="mb-0">결제가 완료되지 않았습니다. 결제 수단을 확인한 뒤 다시 시작해 주세요.</p>
+          <p className="mb-0">결제 수단을 확인한 뒤 다시 결제해 주세요.</p>
         </Alert>
       );
     case "EXPIRED":
@@ -93,7 +93,7 @@ export function PaymentStatusNotice({ status }: { status: PaymentStatusResponse 
       return (
         <Alert variant="success" className="mb-0">
           <Alert.Heading className="fs-5">{contextCopy.completedHeading}</Alert.Heading>
-          <p className="mb-0">{amount} 결제가 정상 처리되었습니다.</p>
+          <p className="mb-0">{amount} 결제가 완료되었습니다.</p>
         </Alert>
       );
   }

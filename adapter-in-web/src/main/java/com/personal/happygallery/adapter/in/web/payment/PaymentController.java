@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 /**
  * 결제 prepare / confirm 단일 진입점.
  *
- * <p>주문/예약/8회권 모두 이 컨트롤러를 통해 결제를 시작한다.
+ * <p>주문/예약/이용권 모두 이 컨트롤러를 통해 결제를 시작한다.
  * 회원/비회원 구분은 Spring Security가 주입하는 nullable {@link CustomerPrincipal}로 결정된다.
  */
 @RestController

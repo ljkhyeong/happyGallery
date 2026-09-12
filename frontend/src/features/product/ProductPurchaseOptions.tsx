@@ -21,6 +21,7 @@ export interface PurchaseLine {
 
 interface Props {
   product: ProductDetailResponse;
+  initialVariant?: ProductVariantResponse;
   lines: PurchaseLine[];
   onChange: (lines: PurchaseLine[]) => void;
 }
@@ -36,7 +37,7 @@ function matchesVariant(
     ));
 }
 
-export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
+export function ProductPurchaseOptions({ product, initialVariant, lines, onChange }: Props) {
   const selectGroups = useMemo(
     () => product.optionGroups.filter((group) => group.type === "SELECT"),
     [product.optionGroups],
@@ -45,7 +46,9 @@ export function ProductPurchaseOptions({ product, lines, onChange }: Props) {
     () => product.optionGroups.filter((group) => group.type === "TEXT"),
     [product.optionGroups],
   );
-  const [selectedValues, setSelectedValues] = useState<Record<string, string>>({});
+  const [selectedValues, setSelectedValues] = useState<Record<string, string>>(() => Object.fromEntries(
+    (initialVariant?.selections ?? []).map(({ groupKey, valueKey }) => [groupKey, valueKey]),
+  ));
   const [textValues, setTextValues] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   const selectedQuantities = useMemo(() => sumQuantitiesByVariant(lines), [lines]);

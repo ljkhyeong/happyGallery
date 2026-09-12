@@ -56,6 +56,8 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
+import com.personal.happygallery.domain.pass.PassPlan;
+import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
@@ -703,7 +705,7 @@ class PaymentConfirmUseCaseIT {
         });
     }
 
-    @DisplayName("confirm은 prepare에서 확정한 8회권 가격을 구매 내역에 저장한다")
+    @DisplayName("confirm은 prepare에서 확정한 이용권 가격을 구매 내역에 저장한다")
     @Test
     void confirm_passPurchase_usesPreparedPriceSnapshot() {
         User user = userStorePort.save(
@@ -721,6 +723,36 @@ class PaymentConfirmUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(passPurchase.getTotalPrice()).isEqualTo(prepared.amount());
             softly.assertThat(passPurchase.getPaymentKey()).isEqualTo("confirmed-payment-key");
+            softly.assertThat(passPurchase.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_4);
+            softly.assertThat(passPurchase.getTotalCredits()).isEqualTo(4);
+            softly.assertThat(passPurchase.getRemainingCredits()).isEqualTo(4);
+        });
+    }
+
+    @DisplayName("4회권 전환 전에 준비된 결제는 기존 8회권과 당시 금액으로 완료한다")
+    @Test
+    void confirm_legacyPassPayload_preservesEightCredits() {
+        User user = userStorePort.save(
+                new User("legacy-pass@example.com", "hashed", "기존 이용권 회원", "01045675678"));
+        AuthContext auth = AuthContext.member(user.getId());
+        PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
+                PaymentContext.PASS, new PassPayload(user.getId()), auth));
+        String legacyPayload = """
+                {"type":"PREPARED_PASS","userId":%d,"totalPrice":%d}
+                """.formatted(user.getId(), prepared.amount());
+        Long attemptId = attemptReader.findByOrderIdExternal(prepared.orderId()).orElseThrow().getId();
+        jdbcTemplate.update("UPDATE payment_attempt SET payload_enc = ? WHERE id = ?",
+                fieldEncryptor.encrypt(legacyPayload), attemptId);
+
+        PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
+                customerCommand("legacy-pass-payment-key", prepared, auth));
+
+        PassPurchase purchase = passPurchaseReaderPort.findById(result.domainId()).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(purchase.getPlan()).isEqualTo(PassPlan.REGULAR_CRAFT_8);
+            softly.assertThat(purchase.getTotalCredits()).isEqualTo(8);
+            softly.assertThat(purchase.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(purchase.getTotalPrice()).isEqualTo(prepared.amount());
         });
     }
 

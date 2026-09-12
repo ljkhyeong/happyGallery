@@ -419,6 +419,42 @@ class ProductInventoryUseCaseIT {
     }
 
     @Test
+    @DisplayName("만료 재고 전송의 재선점 버전을 저장하고 이전 응답 뒤에도 보정 요청을 유지한다")
+    void reclaimExpiredStockSync_persistsNewVersionAndKeepsCorrection() {
+        var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));
+        Long productId = registered.product().getId();
+        Long variantId = registered.options().variants().getFirst().id();
+        smartStoreInventoryUseCase.saveMapping(productId,
+                new SaveMappingCommand(123L, true, List.of(new VariantMapping(variantId, 100L))));
+        LocalDateTime now = LocalDateTime.now(clock);
+        var expired = stockSyncTransactionService.claim(productId, now).orElseThrow();
+        assertThat(stockSyncTransactionService.claim(productId, now.plusMinutes(4))).isEmpty();
+        LocalDateTime reclaimedAt = now.plusMinutes(5);
+
+        var current = stockSyncTransactionService.claim(productId, reclaimedAt).orElseThrow();
+
+        assertThat(current.version()).isGreaterThan(expired.version());
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getRequestVersion())
+                .isEqualTo(current.version());
+        stockSyncTransactionService.finish(productId, expired.generation(), expired.version(),
+                false, "이전 전송 실패", reclaimedAt.plusSeconds(1));
+        stockSyncTransactionService.finish(productId, current.generation(), current.version(),
+                true, null, reclaimedAt.plusSeconds(2));
+        var pending = stockSyncPort.findByProductId(productId).orElseThrow();
+        assertSoftly(softly -> {
+            softly.assertThat(pending.getStatus()).isEqualTo(SmartStoreStockSyncStatus.PENDING);
+            softly.assertThat(pending.getAttemptCount()).isZero();
+            softly.assertThat(pending.getLastError()).isNull();
+        });
+
+        var correction = stockSyncTransactionService.claim(productId, reclaimedAt.plusSeconds(3)).orElseThrow();
+        stockSyncTransactionService.finish(productId, correction.generation(), correction.version(),
+                true, null, reclaimedAt.plusSeconds(4));
+        assertThat(stockSyncPort.findByProductId(productId).orElseThrow().getStatus())
+                .isEqualTo(SmartStoreStockSyncStatus.SYNCED);
+    }
+
+    @Test
     @DisplayName("같은 조합의 연결을 바꾸면 이전 옵션은 0개로 재시도하고 현재 연결만 편집 응답에 표시한다")
     void remapSmartStoreOption_preservesZeroStockUntilOptionIsReused() {
         var registered = productAdminUseCase.register(madeToOrderCommand(List.of(), List.of()));

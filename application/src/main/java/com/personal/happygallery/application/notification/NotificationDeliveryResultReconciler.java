@@ -100,18 +100,36 @@ public class NotificationDeliveryResultReconciler {
                     : ReconcileOutcome.STALE;
         }
 
-        NotificationDeliveryAttempt fallback = switch (reservation.recipientType()) {
-            case GUEST -> notificationService.sendByGuestIdWithOutcome(
-                    reservation.guestId(),
-                    reservation.eventType(),
-                    reservation.idempotencyKey(),
-                    NotificationChannel.KAKAO);
-            case USER -> notificationService.sendByUserIdWithOutcome(
-                    reservation.userId(),
-                    reservation.eventType(),
-                    reservation.idempotencyKey(),
-                    NotificationChannel.KAKAO);
-        };
+        NotificationDeliveryAttempt fallback;
+        try {
+            fallback = switch (reservation.recipientType()) {
+                case GUEST -> notificationService.sendByGuestIdWithOutcome(
+                        reservation.guestId(),
+                        reservation.eventType(),
+                        reservation.idempotencyKey(),
+                        NotificationChannel.KAKAO);
+                case USER -> notificationService.sendByUserIdWithOutcome(
+                        reservation.userId(),
+                        reservation.eventType(),
+                        reservation.idempotencyKey(),
+                        NotificationChannel.KAKAO);
+            };
+        } catch (NotificationAuditPersistenceException exception) {
+            if (exception.deliveryResult() == NotificationSendResult.SUCCESS) {
+                return transactionService.markSentWithAuditFailure(
+                        reservation.outboxId(), reservation.processingToken(), "AUDIT_LOG_PERSISTENCE_FAILED")
+                        ? ReconcileOutcome.DELIVERED
+                        : ReconcileOutcome.STALE;
+            }
+            if (exception.deliveryResult() == NotificationSendResult.DELIVERY_UNKNOWN) {
+                return transactionService.markPermanentFailure(
+                        reservation.outboxId(), reservation.processingToken(),
+                        "DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED")
+                        ? ReconcileOutcome.FAILED
+                        : ReconcileOutcome.STALE;
+            }
+            throw exception;
+        }
         if (fallback.result() == NotificationSendResult.ACCEPTED) {
             return transactionService.markDeliveryPending(
                     reservation.outboxId(),

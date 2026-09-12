@@ -7,11 +7,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.repository.Repository;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 /**
- * [PolicyTest] 6-module 헥사고날 경계 — production class import 만 검사한다.
+ * 운영 클래스의 실제 의존 관계를 검사한다. 테스트 fixture의 역방향 의존은 제외한다.
  *
  * <p>의존 방향: bootstrap → adapter-in-web/out-* → application → domain
  *
@@ -24,7 +25,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *   <li>adapter.out.* 은 adapter.in.web 을 import 하지 않는다</li>
  * </ul>
  */
-@Tag("policy")
+@Tag("architecture")
 class LayerDependencyPolicyTest {
 
     private static final String ROOT = "com.personal.happygallery";
@@ -35,6 +36,24 @@ class LayerDependencyPolicyTest {
         classes = new ClassFileImporter()
                 .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
                 .importPackages(ROOT);
+    }
+
+    @DisplayName("웹·서비스·도메인은 Spring Data 저장소를 직접 사용하지 않는다")
+    @Test
+    void inner_layers_should_not_depend_on_spring_data_repositories() {
+        noClasses()
+                .that().resideInAnyPackage("..adapter.in.web..", "..application..", "..domain..")
+                .should().dependOnClassesThat().areAssignableTo(Repository.class)
+                .check(classes);
+    }
+
+    @DisplayName("adapter 는 실행 모듈 bootstrap 에 의존하지 않는다")
+    @Test
+    void adapters_should_not_depend_on_bootstrap() {
+        noClasses()
+                .that().resideInAPackage("..adapter..")
+                .should().dependOnClassesThat().resideInAPackage("..bootstrap..")
+                .check(classes);
     }
 
     // ── domain 보호 ──

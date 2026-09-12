@@ -235,7 +235,7 @@ function AdminOrderClaimItem({
       </ul>
       <p className="small mb-2">{claim.customerReason}</p>
       <p className="small text-muted-soft mb-3">
-        환불 가능 상한 {formatKRW(claim.maximumRefundAmount)}
+        최대 환불 금액 {formatKRW(claim.maximumRefundAmount)}
       </p>
 
       {claim.status === "REQUESTED" && (
@@ -270,7 +270,7 @@ function AdminOrderClaimItem({
             type="switch"
             className="mb-2"
             id={`admin-claim-${claim.id}-inventory`}
-            label="반품 수량 재고 복구"
+            label="반품 수량만큼 재고 복원"
             checked={restoreInventory}
             disabled={disabled}
             onChange={(event) => setRestoreInventory(event.target.checked)}
@@ -388,7 +388,7 @@ function refundStatusLabel(status: NonNullable<OrderClaimResponse["refundStatus"
   switch (status) {
     case "REQUESTED": return "요청 접수";
     case "PROCESSING": return "처리 중";
-    case "RETRYABLE": return "자동으로 다시 처리 예정";
+    case "RETRYABLE": return "환불 재시도 예정";
     case "RECONCILIATION_REQUIRED": return "결제사 확인 필요";
     case "SUCCEEDED": return "환불 완료";
     case "FAILED": return "환불 실패";

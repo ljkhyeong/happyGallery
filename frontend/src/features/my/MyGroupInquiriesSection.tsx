@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router";
 import { MyGroupInquiryDetail } from "./MyGroupInquiryDetail";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card } from "react-bootstrap";
@@ -11,7 +11,9 @@ import { formatDateTime } from "@/shared/lib";
 
 export function MyGroupInquiriesSection() {
   const paging = useCursorHistory();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedId = Number(searchParams.get("inquiryId"));
+  const selectedId = Number.isSafeInteger(requestedId) && requestedId > 0 ? requestedId : null;
   const query = useQuery({ queryKey: ["me", "group-inquiries", "list", paging.cursor],
     queryFn: ({ signal }) => runForCurrentCustomer(() => listMyGroupInquiries({ cursor: paging.cursor, size: 20 }, { signal })) });
   return (
@@ -24,7 +26,12 @@ export function MyGroupInquiriesSection() {
         <strong>{inquiry.organization}</strong> <Badge bg="secondary">{GROUP_INQUIRY_STATUS[inquiry.status]}</Badge>
         <div>{inquiry.classInterest} · {inquiry.headcount}명 · {inquiry.preferredSchedule}</div>
         <div className="small text-muted">{inquiry.location} · 접수 번호 {inquiry.id} · {formatDateTime(inquiry.createdAt)}</div>
-        <Button size="sm" variant="outline-primary" className="mt-2" onClick={() => setSelectedId(inquiry.id)}>상세·변경 이력</Button>
+        <Button size="sm" variant="outline-primary" className="mt-2" onClick={() => {
+          if (selectedId === inquiry.id) return;
+          const next = new URLSearchParams(searchParams);
+          next.set("inquiryId", String(inquiry.id));
+          setSearchParams(next);
+        }}>상세·변경 이력</Button>
     </Card.Body></Card>)}
       {(paging.hasPreviousPage || query.data?.hasMore) && <div className="d-flex gap-2">
         <Button size="sm" variant="outline-secondary" disabled={!paging.hasPreviousPage || query.isFetching} onClick={paging.showPreviousPage}>이전</Button>

@@ -162,7 +162,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
             <td><StatusBadge status={booking.status} audience="admin" /></td>
             <td>
               {booking.passBooking ? (
-                <Badge bg="info">8회권</Badge>
+                <Badge bg="info">이용권</Badge>
               ) : (
                 <small>예약금 {formatKRW(booking.depositAmount)}</small>
               )}
@@ -193,13 +193,13 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
 
 function PassSearchResults({ passes }: { passes: AdminPassResponse[] }) {
   if (passes.length === 0) {
-    return <EmptyState message="보유한 8회권이 없습니다." />;
+    return <EmptyState message="보유한 이용권이 없습니다." />;
   }
 
   return (
     <Table responsive hover size="sm" className="mb-0">
       <thead>
-        <tr><th>8회권 번호</th><th>고객</th><th>상태</th><th>잔여 횟수</th><th>만료일</th></tr>
+        <tr><th>이용권 번호</th><th>고객</th><th>상태</th><th>잔여 횟수</th><th>만료일</th></tr>
       </thead>
       <tbody>
         {passes.map((pass) => (
@@ -236,7 +236,7 @@ function CustomerSearchResults({ result }: { result: Extract<AdminSearchResult, 
         <BookingSearchResults page={result.bookings} />
       </section>
       <section aria-labelledby="customer-passes-title">
-        <h6 id="customer-passes-title">8회권 {result.passes.totalCount.toLocaleString("ko-KR")}건</h6>
+        <h6 id="customer-passes-title">이용권 {result.passes.totalCount.toLocaleString("ko-KR")}건</h6>
         <PassSearchResults passes={result.passes.content} />
       </section>
       {(result.orders.totalPages > 1 || result.bookings.totalPages > 1 || result.passes.totalPages > 1) && (

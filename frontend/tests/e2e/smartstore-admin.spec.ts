@@ -249,7 +249,7 @@ test("@admin 스마트스토어 확인 주문을 사유와 커서로 조회하�
 
   await page.goto("/admin?view=orders");
   await page.getByRole("checkbox", { name: "확인이 필요한 주문만 보기" }).check();
-  await page.getByLabel("확인 사유 필터").selectOption("MAPPING_REQUIRED");
+  await page.getByLabel("확인 필요 사유 필터").selectOption("MAPPING_REQUIRED");
   await expect.poll(() => reads.at(-1)).toMatchObject({
     attentionOnly: "true",
     attentionReason: "MAPPING_REQUIRED",

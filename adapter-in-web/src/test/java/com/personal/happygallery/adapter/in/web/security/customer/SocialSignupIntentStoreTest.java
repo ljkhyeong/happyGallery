@@ -88,9 +88,9 @@ class SocialSignupIntentStoreTest {
     @Test
     void ignoresLegacyPolicyQueryParameters() {
         MockHttpServletRequest request = authorizationRequest(SocialProvider.GOOGLE);
-        request.addParameter("termsVersion", "2026-08-08-v1");
+        request.addParameter("termsVersion", "2026-09-11-v1");
         request.addParameter("termsAccepted", "true");
-        request.addParameter("privacyVersion", "2026-08-11-v2");
+        request.addParameter("privacyVersion", "2026-09-11-v1");
         request.addParameter("privacyAccepted", "true");
 
         var oauthRequest = resolver().resolve(request);

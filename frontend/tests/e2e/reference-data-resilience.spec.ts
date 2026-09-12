@@ -63,7 +63,7 @@ test("공방 정보 SSR 조회 실패는 오류 경계로 응답하고 새 문�
     .toBeVisible();
 });
 
-test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨기지 않는다", async ({ page }) => {
+test("카테고리와 이용권 정책 조회 실패는 정상 기본값으로 숨기지 않는다", async ({ page }) => {
   let policyAttempts = 0;
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/products", []),
@@ -98,7 +98,7 @@ test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨
         route,
         policyAttempts <= 2
           ? temporaryError
-          : { totalPrice: 240000, totalCredits: 8, validityDays: 45 },
+          : { totalPrice: 240000, totalCredits: 4, validityDays: 45 },
         policyAttempts <= 2 ? 503 : 200,
       );
       return;
@@ -118,11 +118,11 @@ test("카테고리와 8회권 정책 조회 실패는 정상 기본값으로 숨
     .toHaveCount(1);
 
   await page.goto("/passes/purchase");
-  await expect(page.getByText("이용 기간은 판매 정책을 확인한 뒤 표시합니다."))
+  await expect(page.getByText("이용 기간을 확인하고 있습니다."))
     .toBeVisible();
   await expect(page.getByText(/결제일 포함 90일/)).toHaveCount(0);
   await page.getByRole("button", { name: "다시 시도" }).click();
-  await expect(page.getByText(/결제일 포함 45일/)).toBeVisible();
+  await expect(page.getByText("결제일 포함 45일", { exact: true })).toBeVisible();
 });
 
 test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 복구한다", async ({ page }) => {
@@ -181,7 +181,7 @@ test("읽지 않은 알림 수 조회 실패는 0건으로 표시하지 않고 �
   await expect(page.getByRole("button", { name: "알림" }).getByText("3")).toBeVisible();
 });
 
-test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예약금 결제로 전환하지 않는다", async ({
+test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예약금 결제로 전환하지 않는다", async ({
   page,
 }) => {
   let passAttempts = 0;
@@ -193,7 +193,7 @@ test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예�
       await fulfillJson(route, {
         id: 104,
         email: "pass-intent@example.com",
-        name: "8회권 의도 회원",
+        name: "이용권 의도 회원",
         phone: "01012345678",
         phoneVerified: true,
         localPasswordEnabled: true,
@@ -227,7 +227,7 @@ test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예�
         durationMin: 120,
         id: 42,
         imageUrl: null,
-        name: "8회권 가능 클래스",
+        name: "이용권 가능 클래스",
         passEligible: true,
         preparationInfo: null,
         price: 50000,
@@ -285,11 +285,11 @@ test("@smoke 8회권 링크 예약은 이용권 조회가 복구되기 전 예�
   await expect(submitButton).toBeDisabled();
   await page.getByRole("button", { name: "다시 시도" }).click();
 
-  await expect(page.getByRole("button", { name: "8회권으로 예약하기" })).toBeEnabled();
-  await expect(page.getByLabel("사용할 8회권")).toHaveValue("9");
+  await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
+  await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
 });
 
-test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의 이용권을 다시 선택한다", async ({
+test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크의 이용권을 다시 선택한다", async ({
   page,
 }) => {
   await page.route("**/api/v1/**", async (route) => {
@@ -300,7 +300,7 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
       await fulfillJson(route, {
         id: 106,
         email: "pass-class-switch@example.com",
-        name: "8회권 클래스 전환 회원",
+        name: "이용권 클래스 전환 회원",
         phone: "01012345678",
         phoneVerified: true,
         localPasswordEnabled: true,
@@ -335,7 +335,7 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
           durationMin: 120,
           id: 42,
           imageUrl: null,
-          name: "8회권 클래스 A",
+          name: "이용권 클래스 A",
           passEligible: true,
           preparationInfo: null,
           price: 50000,
@@ -349,7 +349,7 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
           durationMin: 90,
           id: 43,
           imageUrl: null,
-          name: "8회권 클래스 B",
+          name: "이용권 클래스 B",
           passEligible: true,
           preparationInfo: null,
           price: 45000,
@@ -396,13 +396,13 @@ test("@smoke 8회권 링크 예약은 호환 클래스가 바뀌어도 링크의
 
   await page.goto("/bookings/new?passId=9&classId=42");
   await page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ }).click();
-  await expect(page.getByRole("button", { name: "8회권으로 예약하기" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
 
   await page.getByLabel("예약금 결제").check();
   await expect(page.getByRole("button", { name: "결제 진행하기" })).toBeEnabled();
   await page.getByLabel("클래스").selectOption("43");
   await page.getByRole("button", { name: /2099\. 01\. 03\. 오전 10:00/ }).click();
 
-  await expect(page.getByLabel("사용할 8회권")).toHaveValue("9");
-  await expect(page.getByRole("button", { name: "8회권으로 예약하기" })).toBeEnabled();
+  await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
+  await expect(page.getByRole("button", { name: "이용권으로 예약하기" })).toBeEnabled();
 });

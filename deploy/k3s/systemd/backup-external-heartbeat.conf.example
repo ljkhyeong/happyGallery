@@ -1,0 +1,5 @@
+# happygallery-backup.service.d/ 아래에 설치한다. 기존 ExecStartPost 목록 뒤에 추가된다.
+[Service]
+EnvironmentFile=/etc/happygallery/backup-heartbeat.env
+# 백업·보존 정리·성공 기록 이후에만 전송한다. 알림 통신 실패는 백업 성공을 취소하지 않는다.
+ExecStartPost=-/usr/bin/curl --head --fail --silent --show-error --proto =https --connect-timeout 3 --max-time 10 --retry 2 --output /dev/null ${BACKUP_HEARTBEAT_URL}

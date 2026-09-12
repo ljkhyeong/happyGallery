@@ -26,6 +26,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -251,6 +253,41 @@ class NotificationOutboxUseCaseIT {
                         softly.assertThat(summary.oldestActionAt()).isAfter(LocalDateTime.now(clock));
                     });
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("재조회나 중단 복구 알림보다 오래 조회를 기다린 알림을 먼저 선점한다")
+    void reserveDeliveryResult_prioritizesWaitingOverRecentlyChecked(boolean interrupted) {
+        User user = userStorePort.save(new User(
+                "delivery-queue@example.com", "hash", "회원", "01033335555"));
+        LocalDateTime now = LocalDateTime.now(clock);
+        List<Long> ids = new TransactionTemplate(transactionManager).execute(status -> {
+            NotificationOutbox older = outboxRepository.save(NotificationOutbox.from(
+                    NotificationRequestedEvent.forUser(
+                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 5L),
+                    now.minusMinutes(10)));
+            older.markDeliveryPending(older.markProcessing(now.minusMinutes(10)),
+                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9), null);
+            String token = older.markDeliveryChecking(now.minusMinutes(2));
+            if (!interrupted) {
+                older.rescheduleDeliveryCheck(token, now.minusMinutes(1), "UNAVAILABLE");
+            }
+
+            NotificationOutbox waiting = outboxRepository.save(NotificationOutbox.from(
+                    NotificationRequestedEvent.forUser(
+                            user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 6L),
+                    now.minusMinutes(8)));
+            waiting.markDeliveryPending(waiting.markProcessing(now.minusMinutes(8)),
+                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7), null);
+            return List.of(older.getId(), waiting.getId());
+        });
+
+        var first = outboxTransactionService.reserveNextDeliveryResult(1).orElseThrow();
+        var second = outboxTransactionService.reserveNextDeliveryResult(1).orElseThrow();
+
+        assertThat(List.of(first.outboxId(), second.outboxId())).containsExactly(ids.get(1), ids.get(0));
+        assertThat(outboxTransactionService.reserveNextDeliveryResult(1)).isEmpty();
     }
 
     @DisplayName("재선점 전 처리 토큰의 늦은 성공과 실패는 최신 outbox 상태를 덮지 않는다")

@@ -1,7 +1,7 @@
 # ADR-0032: 알림 Outbox 전달 보장
 
 **날짜**: 2026-07-04
-**최종 갱신**: 2026-08-08
+**최종 갱신**: 2026-09-12
 **상태**: Accepted
 
 ---
@@ -40,6 +40,7 @@
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
 - NHN이 발송 요청을 접수한 응답은 전달 성공과 구분한다. `requestId`·`recipientSeq`를 outbox와 요청 감사 로그에 저장하고 `DELIVERY_PENDING`으로 전이한 뒤, 별도 scheduler가 단건 결과 API를 조회한다. 결과 조회 lease는 `DELIVERY_CHECKING`과 새 processing token으로 보호하고 1분 넘게 멈춘 실행만 재선점한다.
+- 결과 조회는 대기 상태의 `next_attempt_at`, 중단된 조회의 `locked_at`이 오래된 순서로 선점하고 동률이면 ID를 따른다. 최근 조회한 알림이 생성일이 빠르다는 이유로 대기 알림보다 계속 먼저 선택되지 않게 한다. 재조회 간격과 실행당 50건 제한은 유지한다.
 - Alimtalk `COMPLETED` 또는 SMS `msgStatus=3`·`resultCode=1000`을 확인한 뒤에만 감사 로그를 `SUCCESS`, outbox를 `SENT`로 확정한다. Alimtalk `FAILED/CANCEL`을 확인하면 기존 KAKAO 감사 로그를 실패로 끝내고 그때 SMS를 요청한다. SMS도 같은 최종 결과 확인을 거치며 최종 실패는 outbox를 `FAILED`로 종결한다.
 - 예약 D-1·당일, 8회권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
   짧은 `REQUIRES_NEW` 트랜잭션에서 outbox 행을 `FOR UPDATE`로 잠근다. 현재 token을 확인한 뒤 aggregate별 SQL 한 번으로
@@ -62,12 +63,13 @@
 - 예약 재변경이나 픽업 마감 연장처럼 같은 aggregate가 미래 유효 구간에 다시 들어오면 정기 리마인드 후보 조회는
   `OBSOLETE` 행을 미발송 이력으로 보고 같은 멱등키 행을 잠근 뒤 `PENDING`으로 재활성화한다. 새 outbox를 만들지 않고
   현재 회원·비회원 수신자를 갱신하며, 이 자동 전이는 시간 의존 리마인드에만 허용한다.
-- Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 408·425·429·5xx, NHN SMS
+- Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 425·429, NHN SMS
   `-9999` 시스템 오류와 `-2021` 발송 큐 저장 실패, DNS·라우팅·TCP 연결·TLS handshake/peer 검증·연결 풀 대기 실패처럼 제공자에 요청을 전달하기 전 확정된 실패는 다음 채널
-  fallback 및 최대 5회 백오프 재시도 대상으로 둔다. 요청을 쓴 뒤 응답 대기 timeout처럼 제공자 수락 여부를 알 수
-  없는 결과는 즉시 fallback과 자동 재시도를 중단하고,
+  fallback 및 최대 5회 백오프 재시도 대상으로 둔다. HTTP 408·5xx와 요청을 쓴 뒤 응답 대기 timeout은 제공자 수락 여부를 알 수
+  없으므로 즉시 fallback과 자동 재시도를 중단하고,
   기존 outbox `FAILED` 상태에 `DELIVERY_RESULT_UNKNOWN`을 남겨 운영자가 확인한 뒤 재처리하게 한다.
   영구 거절은 서킷 장애율에 넣지 않고 기존처럼 다음 채널 fallback으로 넘긴다.
+- 인증 SMS도 [NHN 발송 응답](https://docs.nhncloud.com/ko/Notification/SMS/ko/api-guide/)의 헤더와 수신자별 결과를 함께 확인한다. 헤더만 성공인 응답을 접수 성공으로 처리하지 않는다. 수신자별 실패는 기존 오류 분류를 따르고, 발송 결과가 없으면 `DELIVERY_UNKNOWN`을 반환한다. 인증 SMS는 일반 알림의 최종 수신 결과 조회를 사용하지 않으므로 `SUCCESS`는 접수 성공을 뜻한다.
 - Alimtalk, 일반 SMS, 휴대폰 인증 SMS는 각각 별도 제한 큐 executor와 CircuitBreaker를 사용한다. 한 채널의 대기열 포화나
   서킷 개방이 다른 채널의 실행 자원을 소진하지 않으며, 모든 timeout 보조 executor는 즉시 거절 정책을 사용한다.
 - NHN transport의 acquire·connect·response timeout 합을 바깥 TimeLimiter보다 작게 두어, TimeLimiter가 끝난 뒤에도 blocking HTTP 호출이 남아 다음 채널과 겹치는 기본 설정을 허용하지 않는다.
@@ -104,6 +106,7 @@
 - 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 - 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
 - 외부 채널 성공 뒤 `notification_log` 저장만 실패하면 성공한 메시지를 다시 보내지 않는다. outbox를 `SENT`로 끝내되 `last_error=AUDIT_LOG_PERSISTENCE_FAILED`와 `happygallery.notification.log.persistence_failed` 메트릭을 남긴다. 전송 결과 불명과 감사 로그 실패가 겹치면 `FAILED + DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED`로 종결해 재발송하지 않고 두 원인을 함께 보존한다. 외부 성공 전 감사 로그 실패는 기존 전송 실패와 함께 outbox 재시도 대상으로 둔다.
+- 이력 저장 실패 처리 원칙은 알림톡 최종 실패 후 SMS로 전환하는 경로에도 적용한다. SMS 발송 성공·결과 불명 뒤 이력 오류를 알림톡 재조회로 돌려 같은 문자를 다시 보내지 않는다. 결과 저장은 현재 processing token이 유효할 때만 반영한다.
 
 ### 전달 보장 한계
 

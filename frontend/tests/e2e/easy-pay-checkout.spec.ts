@@ -262,7 +262,7 @@ test("@payment 결제창 취소는 콜백 주문번호 없이도 기존 결제�
 for (const checkout of [
   { label: "비회원 주문서", path: "/orders/new?productId=42&qty=2&draft=options", customerId: null },
   { label: "비회원 예약", path: "/bookings/new?classId=7", customerId: null },
-  { label: "회원 8회권", path: "/passes/purchase", customerId: 701 },
+  { label: "회원 이용권", path: "/passes/purchase", customerId: 701 },
 ]) {
   test(`@payment ${checkout.label} 결제 실패는 같은 고객의 구매 경로를 유지한다`, async ({ page }) => {
     await page.addInitScript(({ path, customerId }) => {
@@ -362,7 +362,7 @@ test("@payment SDK가 현재 화면에서 취소 오류를 반환하면 승인 �
   expect(confirms).toHaveLength(0);
 });
 
-test("@payment 회원 주문·예약·8회권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
+test("@payment 회원 주문·예약·이용권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   const receiptUrl = "https://dashboard.tosspayments.com/receipt/member-history";
   await page.route("**/api/v1/me/orders/701", (route) => json(route, {

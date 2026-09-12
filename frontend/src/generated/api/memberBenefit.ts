@@ -102,6 +102,9 @@ export const getListMyCouponsUrl = () => {
   return `/api/v1/me/coupons`
 }
 
+/**
+ * 최근 발급 100개와 사용 가능·결제 처리 중인 모든 쿠폰을 중복 없이 최신 발급순으로 조회한다.
+ */
 export const listMyCoupons = async ( options?: RequestInit): Promise<MyCouponResponse[]> => {
 
   return generatedApiClient<MyCouponResponse[]>(getListMyCouponsUrl(),

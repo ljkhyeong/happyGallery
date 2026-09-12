@@ -24,6 +24,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -308,40 +309,72 @@ class CouponUseCaseIT {
         });
     }
 
-    @DisplayName("내 쿠폰 목록은 발급 시각과 식별자 역순의 최근 100개만 조회한다")
+    @DisplayName("사용 가능한 쿠폰은 100개를 넘어도 모두 조회하고 종료된 이력은 최근 100개로 제한한다")
     @Test
     void listMyCoupons_limitsStableRecentHistory() {
         LocalDateTime now = now();
         User user = createUser("coupon-history@example.com", "01010002500");
-        List<CouponDefinition> definitions = definitionRepository.saveAllAndFlush(
-                IntStream.rangeClosed(1, 101)
-                        .mapToObj(index -> new CouponDefinition(
-                                "이력 쿠폰 " + index,
-                                CouponDiscountType.FIXED,
-                                1_000L,
-                                0L,
-                                null,
-                                now.minusDays(1),
-                                now.plusDays(30),
-                                true,
-                                false))
-                        .toList());
-        List<IssuedCoupon> issued = issuedCouponRepository.saveAllAndFlush(
-                definitions.stream()
-                        .map(definition -> new IssuedCoupon(
-                                definition.getId(), user.getId(), now))
-                        .toList());
+        List<IssuedCoupon> issued = createIssuedCoupons(user, 101, now);
         List<Long> expectedIds = issued.stream()
                 .map(IssuedCoupon::getId)
                 .sorted(Comparator.reverseOrder())
-                .limit(100)
                 .toList();
 
-        List<Long> actualIds = couponMemberUseCase.listMyCoupons(user.getId()).stream()
-                .map(view -> view.issuedCoupon().getId())
-                .toList();
+        assertThat(couponMemberUseCase.listMyCoupons(user.getId()))
+                .extracting(view -> view.issuedCoupon().getId())
+                .containsExactlyElementsOf(expectedIds);
 
-        assertThat(actualIds).containsExactlyElementsOf(expectedIds);
+        issued.forEach(IssuedCoupon::cancel);
+        issuedCouponRepository.saveAllAndFlush(issued);
+
+        assertThat(couponMemberUseCase.listMyCoupons(user.getId()))
+                .extracting(view -> view.issuedCoupon().getId())
+                .containsExactlyElementsOf(expectedIds.subList(0, 100));
+    }
+
+    @DisplayName("최근 100개 밖의 본인 유효·결제 중 쿠폰을 포함하고 만료·중지·다른 회원 쿠폰은 제외한다")
+    @Test
+    void listMyCoupons_keepsOlderUsableCouponsWithoutDuplicates() {
+        LocalDateTime now = now();
+        User user = createUser("coupon-older@example.com", "01010002600");
+        List<IssuedCoupon> older = createIssuedCoupons(user, 4, now.minusDays(10));
+        IssuedCoupon available = older.get(0);
+        IssuedCoupon reserved = older.get(1);
+        IssuedCoupon inactive = older.get(2);
+        older.get(3).cancel();
+        issuedCouponRepository.saveAndFlush(older.get(3));
+        PaymentAttempt attempt = paymentAttemptRepository.saveAndFlush(PaymentAttempt.startForMember(
+                "older-coupon-attempt", PaymentContext.ORDER, 10_000L, "{}", user.getId()));
+        couponRedemptionUseCase.reserve(reserved.getId(), attempt.getId());
+        CouponDefinition inactiveDefinition = definitionRepository.findById(inactive.getDefinitionId()).orElseThrow();
+        couponAdminUseCase.delete(inactiveDefinition.getId(), inactiveDefinition.getVersion());
+        CouponDefinition expiredDefinition = definitionRepository.saveAndFlush(new CouponDefinition(
+                "기간이 지난 쿠폰", CouponDiscountType.FIXED, 1_000L, 0L, null,
+                now.minusDays(20), now, true, false));
+        IssuedCoupon expired = issuedCouponRepository.saveAndFlush(new IssuedCoupon(
+                expiredDefinition.getId(), user.getId(), now.minusDays(10)));
+
+        List<IssuedCoupon> recent = createIssuedCoupons(user, 101, now);
+        recent.subList(0, 100).forEach(IssuedCoupon::cancel);
+        issuedCouponRepository.saveAllAndFlush(recent);
+        User otherUser = createUser("coupon-other@example.com", "01010002601");
+        createIssuedCoupons(otherUser, 1, now);
+        List<Long> expectedIds = new ArrayList<>(recent.reversed().subList(0, 100).stream()
+                .map(IssuedCoupon::getId).toList());
+        expectedIds.add(reserved.getId());
+        expectedIds.add(available.getId());
+
+        assertSoftly(softly -> {
+            softly.assertThat(couponMemberUseCase.listMyCoupons(user.getId()))
+                    .extracting(view -> view.issuedCoupon().getId())
+                    .containsExactlyElementsOf(expectedIds);
+            softly.assertThat(issuedCouponRepository.findById(expired.getId()).orElseThrow().getStatus())
+                    .isEqualTo(IssuedCouponStatus.EXPIRED);
+            softly.assertThat(issuedCouponRepository.findById(inactive.getId()).orElseThrow().getStatus())
+                    .isEqualTo(IssuedCouponStatus.CANCELED);
+            softly.assertThat(issuedCouponRepository.findById(reserved.getId()).orElseThrow().getStatus())
+                    .isEqualTo(IssuedCouponStatus.RESERVED);
+        });
     }
 
     @DisplayName("결제 준비의 과거 스냅샷 뒤 쿠폰 정의가 비활성화되면 견적은 최신 상태로 거절한다")
@@ -507,6 +540,18 @@ class CouponUseCaseIT {
                 now.plusDays(30),
                 true,
                 true);
+    }
+
+    private List<IssuedCoupon> createIssuedCoupons(User user, int count, LocalDateTime claimedAt) {
+        List<CouponDefinition> definitions = definitionRepository.saveAllAndFlush(
+                IntStream.rangeClosed(1, count)
+                        .mapToObj(index -> new CouponDefinition(
+                                "이력 쿠폰 " + index, CouponDiscountType.FIXED, 1_000L, 0L, null,
+                                claimedAt.minusDays(1), now().plusDays(30), true, false))
+                        .toList());
+        return issuedCouponRepository.saveAllAndFlush(definitions.stream()
+                .map(definition -> new IssuedCoupon(definition.getId(), user.getId(), claimedAt))
+                .toList());
     }
 
     private User createUser(String email, String phone) {

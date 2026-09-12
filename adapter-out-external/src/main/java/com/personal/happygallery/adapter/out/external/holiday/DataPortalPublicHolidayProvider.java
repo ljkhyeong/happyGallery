@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
+import org.xml.sax.helpers.DefaultHandler;
 
 @Component
 class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
@@ -50,14 +51,14 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
             byte[] xml = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/B090041/openapi/service/SpcdeInfoService/getRestDeInfo")
-                            .queryParam("ServiceKey", properties.serviceKey())
+                            .queryParam("ServiceKey", "{serviceKey}")
                             .queryParam("pageNo", 1)
                             .queryParam("numOfRows", 100)
                             .queryParam("solYear", year)
-                            .build())
+                            .build(properties.serviceKey()))
                     .retrieve()
                     .body(byte[].class);
-            return Optional.of(parse(xml));
+            return Optional.of(parse(xml, year));
         } catch (RestClientException | IllegalArgumentException exception) {
             log.warn("공식 공휴일 조회에 실패했습니다. year={}, type={}",
                     year, exception.getClass().getSimpleName());
@@ -69,7 +70,7 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
         }
     }
 
-    private static List<PublicHoliday> parse(byte[] xml) throws Exception {
+    private static List<PublicHoliday> parse(byte[] xml, int year) throws Exception {
         if (xml == null || xml.length == 0) {
             throw new IllegalArgumentException("공휴일 응답이 비어 있습니다.");
         }
@@ -80,18 +81,31 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
         factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
         factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-        Element root = factory.newDocumentBuilder()
-                .parse(new ByteArrayInputStream(xml))
-                .getDocumentElement();
+        var builder = factory.newDocumentBuilder();
+        builder.setErrorHandler(new DefaultHandler());
+        Element root = builder.parse(new ByteArrayInputStream(xml)).getDocumentElement();
         if (!"00".equals(text(root, "resultCode"))) {
             throw new IllegalArgumentException("공휴일 API가 실패 응답을 반환했습니다.");
         }
 
         NodeList items = root.getElementsByTagName("item");
+        NodeList totalCounts = root.getElementsByTagName("totalCount");
+        if (totalCounts.getLength() > 0
+                && Integer.parseInt(totalCounts.item(0).getTextContent().strip()) != items.getLength()) {
+            throw new IllegalArgumentException("공휴일 응답의 전체 건수와 수신 건수가 다릅니다.");
+        }
         Map<LocalDate, String> namesByDate = new LinkedHashMap<>();
         for (int index = 0; index < items.getLength(); index++) {
             Element item = (Element) items.item(index);
             LocalDate date = LocalDate.parse(text(item, "locdate"), DATE_FORMAT);
+            if (date.getYear() != year) {
+                throw new IllegalArgumentException("요청 연도와 공휴일 날짜가 다릅니다.");
+            }
+            NodeList holidayFlags = item.getElementsByTagName("isHoliday");
+            if (holidayFlags.getLength() > 0
+                    && "N".equals(holidayFlags.item(0).getTextContent().strip())) {
+                continue;
+            }
             String name = text(item, "dateName");
             namesByDate.merge(date, name, (left, right) -> left.equals(right)
                     ? left
@@ -107,6 +121,6 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
         if (nodes.getLength() == 0) {
             throw new IllegalArgumentException("공휴일 응답 필드가 없습니다: " + tagName);
         }
-        return nodes.item(0).getTextContent();
+        return nodes.item(0).getTextContent().strip();
     }
 }

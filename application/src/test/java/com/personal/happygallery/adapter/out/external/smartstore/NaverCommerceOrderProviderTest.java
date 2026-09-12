@@ -155,6 +155,61 @@ class NaverCommerceOrderProviderTest {
         server.verify();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            """
+            {"timestamp":"2026-08-29T12:00:00+09:00","traceId":"no-orders"}
+            """,
+            """
+            {"data":{"lastChangeStatuses":[],"count":0},
+             "timestamp":"2026-08-29T12:00:00+09:00","traceId":"no-orders"}
+            """
+    })
+    @DisplayName("변경 주문이 없으면 data 생략 응답과 빈 목록을 마지막 페이지로 처리한다")
+    void fetchChanges_withoutOrdersReturnsEmptyPage(String response) {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+
+        expectToken(server);
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
+                .andRespond(withSuccess(response, MediaType.APPLICATION_JSON));
+
+        var page = provider.fetchChanges(
+                new ChangeCursor(LocalDateTime.of(2026, 8, 29, 11, 50), null),
+                LocalDateTime.of(2026, 8, 29, 12, 0));
+
+        assertThat(page.changes()).isEmpty();
+        assertThat(page.nextCursor()).isNull();
+        assertThat(provider.fetchDetails(List.of())).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("변경 주문 응답 본문이 없으면 주문이 없는 정상 응답으로 처리하지 않는다")
+    void fetchChanges_missingBodyFails() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+
+        expectToken(server);
+        server.expect(requestTo(containsString(
+                        "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
+                .andRespond(withSuccess());
+
+        assertThatThrownBy(() -> provider.fetchChanges(
+                new ChangeCursor(LocalDateTime.of(2026, 8, 29, 11, 50), null),
+                LocalDateTime.of(2026, 8, 29, 12, 0)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("스마트스토어 변경 주문 응답이 비어 있습니다.");
+        server.verify();
+    }
+
     @Test
     @DisplayName("변경 주문 식별자를 조회한 뒤 상품 주문 상세와 옵션 아이템 번호를 읽는다")
     void fetchChangedOrders_readsDetailAndItemNumber() {

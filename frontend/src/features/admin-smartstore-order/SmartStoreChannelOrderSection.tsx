@@ -134,7 +134,7 @@ export function SmartStoreChannelOrderSection({
     onMutate: setPendingId,
     onSuccess: (order) => {
       toast.show(order.attentionReason
-        ? "재고를 반영하지 못했습니다. 확인 사유를 검토해 주세요."
+        ? "재고를 반영하지 못했습니다. 목록의 확인 필요 사유를 확인해 주세요."
         : "스마트스토어 주문 재고를 반영했습니다.");
       invalidate();
     },
@@ -202,14 +202,14 @@ export function SmartStoreChannelOrderSection({
         <Form.Select
           className="mb-3"
           style={{ maxWidth: 300 }}
-          aria-label="확인 사유 필터"
+          aria-label="확인 필요 사유 필터"
           value={attentionReason}
           onChange={(event) => {
             setAttentionReason(event.target.value as ListSmartStoreChannelOrdersAttentionReason | "");
             resetPages();
           }}
         >
-          <option value="">모든 확인 사유</option>
+          <option value="">전체 사유</option>
           <option value="MAPPING_REQUIRED">상품·옵션 연결 필요</option>
           <option value="STOCK_SHORTAGE">해피갤러리 재고 부족</option>
           <option value="RETURN_REVIEW">반품 검수 필요</option>
@@ -255,7 +255,7 @@ export function SmartStoreChannelOrderSection({
               <th>주문 상태</th>
               <th>수량</th>
               <th>해피갤러리 재고 반영</th>
-              <th>확인 사유</th>
+              <th>확인 필요 사유</th>
               <th>변경일</th>
               <th></th>
             </tr>
@@ -843,7 +843,7 @@ function SmartStoreOrderDetailModal({
       }
     },
     onSuccess: async () => {
-      toast.show("스마트스토어에 주문 처리를 요청했습니다. 변경 상태는 주문 동기화 후 반영됩니다.");
+      toast.show("스마트스토어에 주문 처리를 요청했습니다. 주문 상태는 다음 자동 조회 후 갱신됩니다.");
       onChanged();
       await queryClient.invalidateQueries({
         queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
