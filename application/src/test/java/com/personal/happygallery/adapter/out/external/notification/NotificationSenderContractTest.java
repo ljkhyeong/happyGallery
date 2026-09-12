@@ -11,6 +11,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpMethod;
@@ -244,6 +245,44 @@ class NotificationSenderContractTest {
         assertThat(sent).isTrue();
     }
 
+    @ParameterizedTest
+    @CsvSource({"-1000,PERMANENT_FAILURE", "-2021,TRANSIENT_FAILURE"})
+    @DisplayName("인증 SMS도 수신자별 발송 실패를 확인한다")
+    void phoneVerification_send_rejectsRecipientFailure(int resultCode, NotificationSendResult expected) {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealPhoneVerificationSender sender = new RealPhoneVerificationSender(smsProperties(), builder.build());
+        server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/auth/sms"))
+                .andRespond(withSuccess("""
+                        {
+                          "header": {"isSuccessful": true, "resultCode": 0},
+                          "body": {"data": {"requestId": "request-id", "sendResultList": [
+                            {"recipientSeq": 1, "resultCode": %d}
+                          ]}}
+                        }
+                        """.formatted(resultCode), MediaType.APPLICATION_JSON));
+
+        assertThat(sender.sendResult("01012345678", "123456")).isEqualTo(expected);
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"null", "{}", "{\"data\":{\"requestId\":\"request-id\",\"sendResultList\":[]}}"})
+    @DisplayName("인증 SMS의 발송 결과가 없으면 성공으로 판정하지 않는다")
+    void phoneVerification_send_requiresSendResult(String body) {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RealPhoneVerificationSender sender = new RealPhoneVerificationSender(smsProperties(), builder.build());
+        server.expect(requestTo("https://sms.api.nhncloudservice.com/sms/v3.0/appKeys/api-key/sender/auth/sms"))
+                .andRespond(withSuccess("""
+                        {"header":{"isSuccessful":true,"resultCode":0},"body":%s}
+                        """.formatted(body), MediaType.APPLICATION_JSON));
+
+        assertThat(sender.sendResult("01012345678", "123456"))
+                .isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
+        server.verify();
+    }
+
     @DisplayName("NHN Cloud가 HTTP 200 본문으로 실패를 반환하면 SMS 발송 실패로 판정한다")
     @Test
     void sms_send_rejectsLogicalFailureResponse() {
@@ -295,9 +334,9 @@ class NotificationSenderContractTest {
         assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
     }
 
-    @DisplayName("NHN Cloud의 503 응답은 재시도 가능한 SMS 실패로 분류한다")
+    @DisplayName("NHN Cloud의 503 응답은 재발송하지 않도록 결과 불명으로 분류한다")
     @Test
-    void sms_send_classifiesServerErrorAsTransientFailure() {
+    void sms_send_classifiesServerErrorAsUnknownDelivery() {
         RestClient.Builder builder = RestClient.builder().baseUrl("https://sms.api.nhncloudservice.com");
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         RealSmsSender sender = new RealSmsSender(smsProperties(), builder.build());
@@ -309,7 +348,7 @@ class NotificationSenderContractTest {
                 IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
 
         server.verify();
-        assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
+        assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
     }
 
     private static String successResponse() {

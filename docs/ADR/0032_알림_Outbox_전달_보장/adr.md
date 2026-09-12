@@ -1,7 +1,7 @@
 # ADR-0032: 알림 Outbox 전달 보장
 
 **날짜**: 2026-07-04
-**최종 갱신**: 2026-08-08
+**최종 갱신**: 2026-09-12
 **상태**: Accepted
 
 ---
@@ -62,12 +62,13 @@
 - 예약 재변경이나 픽업 마감 연장처럼 같은 aggregate가 미래 유효 구간에 다시 들어오면 정기 리마인드 후보 조회는
   `OBSOLETE` 행을 미발송 이력으로 보고 같은 멱등키 행을 잠근 뒤 `PENDING`으로 재활성화한다. 새 outbox를 만들지 않고
   현재 회원·비회원 수신자를 갱신하며, 이 자동 전이는 시간 의존 리마인드에만 허용한다.
-- Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 408·425·429·5xx, NHN SMS
+- Alimtalk·SMS sender는 성공·영구 거절·일시 실패·전달 결과 불명을 구분한다. 425·429, NHN SMS
   `-9999` 시스템 오류와 `-2021` 발송 큐 저장 실패, DNS·라우팅·TCP 연결·TLS handshake/peer 검증·연결 풀 대기 실패처럼 제공자에 요청을 전달하기 전 확정된 실패는 다음 채널
-  fallback 및 최대 5회 백오프 재시도 대상으로 둔다. 요청을 쓴 뒤 응답 대기 timeout처럼 제공자 수락 여부를 알 수
-  없는 결과는 즉시 fallback과 자동 재시도를 중단하고,
+  fallback 및 최대 5회 백오프 재시도 대상으로 둔다. HTTP 408·5xx와 요청을 쓴 뒤 응답 대기 timeout은 제공자 수락 여부를 알 수
+  없으므로 즉시 fallback과 자동 재시도를 중단하고,
   기존 outbox `FAILED` 상태에 `DELIVERY_RESULT_UNKNOWN`을 남겨 운영자가 확인한 뒤 재처리하게 한다.
   영구 거절은 서킷 장애율에 넣지 않고 기존처럼 다음 채널 fallback으로 넘긴다.
+- 인증 SMS도 [NHN 발송 응답](https://docs.nhncloud.com/ko/Notification/SMS/ko/api-guide/)의 헤더와 수신자별 결과를 함께 확인한다. 헤더만 성공인 응답을 접수 성공으로 처리하지 않는다. 수신자별 실패는 기존 오류 분류를 따르고, 발송 결과가 없으면 `DELIVERY_UNKNOWN`을 반환한다. 인증 SMS는 일반 알림의 최종 수신 결과 조회를 사용하지 않으므로 `SUCCESS`는 접수 성공을 뜻한다.
 - Alimtalk, 일반 SMS, 휴대폰 인증 SMS는 각각 별도 제한 큐 executor와 CircuitBreaker를 사용한다. 한 채널의 대기열 포화나
   서킷 개방이 다른 채널의 실행 자원을 소진하지 않으며, 모든 timeout 보조 executor는 즉시 거절 정책을 사용한다.
 - NHN transport의 acquire·connect·response timeout 합을 바깥 TimeLimiter보다 작게 두어, TimeLimiter가 끝난 뒤에도 blocking HTTP 호출이 남아 다음 채널과 겹치는 기본 설정을 허용하지 않는다.

@@ -19,9 +19,10 @@ final class NhnNotificationFailureClassifier {
 
     static NotificationSendResult classify(RestClientResponseException exception) {
         HttpStatusCode status = exception.getStatusCode();
-        if (status.is5xxServerError()
-                || status.isSameCodeAs(HttpStatus.REQUEST_TIMEOUT)
-                || status.isSameCodeAs(HttpStatus.TOO_EARLY)
+        if (status.is5xxServerError() || status.isSameCodeAs(HttpStatus.REQUEST_TIMEOUT)) {
+            return NotificationSendResult.DELIVERY_UNKNOWN;
+        }
+        if (status.isSameCodeAs(HttpStatus.TOO_EARLY)
                 || status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
             return NotificationSendResult.TRANSIENT_FAILURE;
         }
