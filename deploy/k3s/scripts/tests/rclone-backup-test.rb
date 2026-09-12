@@ -124,6 +124,43 @@ class RcloneBackupTest < Minitest::Test
     assert status.success?, output
   end
 
+  def prepare_cd
+    config = File.join(@dir, 'cd-backup.env')
+    private_write(config, @env.slice('RCLONE_BIN', 'RCLONE_CONFIG', 'RCLONE_BACKUP_REMOTE').map { |k, v| "#{k}=#{v}\n" }.join)
+    Open3.capture3(@env.merge('TZ' => 'Asia/Seoul'), 'bash', File.expand_path('../prepare-cd-backup.sh', __dir__), config, File.join(@dir, 'cd-cache'))
+  end
+
+  def test_cd_downloads_recent_bundle_and_rechecks_cached_contents
+    upload
+    path, error, status = prepare_cd
+    assert status.success?, error
+    assert File.file?(path.strip), path
+    _path, error, status = prepare_cd
+    assert status.success?, error
+    File.write(File.join(File.dirname(path.strip), @name.sub('.recovery.env', '.media.tar.gz.age')), 'corrupt cache')
+    _path, _error, status = prepare_cd
+    refute status.success?
+  end
+
+  def test_cd_rejects_old_or_future_remote_backup_even_with_fresh_local_mtime
+    [-49 * 3600, 3600].each do |offset|
+      FileUtils.rm_rf(Dir.glob(File.join(@remote, '*')))
+      name = create_bundle((Time.now.utc + offset).strftime('%Y%m%dT%H%M%SZ'))
+      upload(name)
+      _path, error, status = prepare_cd
+      refute status.success?
+      assert_includes error, '48시간보다 오래됐거나 미래'
+    end
+  end
+
+  def test_cd_rejects_corrupt_remote_bundle
+    upload
+    File.write(File.join(@remote, @name.sub('.recovery.env', '.media.tar.gz.age')), 'corrupt remote')
+    _path, _error, status = prepare_cd
+    refute status.success?
+    assert_empty Dir.glob(File.join(@dir, 'cd-cache', '*', '*.recovery.env'))
+  end
+
   def test_upload_then_download_verifies_all_bundle_files
     upload
     assert_equal %w[copy check copyto check], File.readlines(@log, chomp: true)

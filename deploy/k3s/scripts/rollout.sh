@@ -73,7 +73,7 @@ done
 existing_mysql=$(kube -n "$NAMESPACE" get statefulset mysql --ignore-not-found -o name) \
     || die "기존 DB 조회에 실패했습니다. 백업 확인을 건너뛸 수 없습니다."
 if [ -n "$existing_mysql" ]; then
-    recovery_bundle=$(require_env_value VERIFIED_RECOVERY_BUNDLE "$release_env")
+    recovery_bundle=${VERIFIED_RECOVERY_BUNDLE_OVERRIDE:-$(require_env_value VERIFIED_RECOVERY_BUNDLE "$release_env")}
     verify_recovery_bundle_files "$recovery_bundle"
     recent=$(find "$recovery_bundle" -prune -mtime -2 -print)
     [ -n "$recent" ] || die "배포 전 백업이 48시간보다 오래됐습니다. 새 백업을 만드세요."

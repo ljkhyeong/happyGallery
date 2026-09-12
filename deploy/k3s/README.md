@@ -31,13 +31,15 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 
 선택 연동인 [무료 IndexNow](indexnow.md)는 상품·수업·이벤트·공지 변경을 검색엔진에 알린다. 기본 비활성 상태이며 운영자가 키와 timer를 설정한다.
 
+`main` 병합 후 테스트·이미지 게시·롤링 배포를 자동 실행하려면 [GitHub Actions CI/CD 설정](cicd.md)을 따른다. 이미지는 GitHub에서 빌드하고 서버는 검증·반입·실행을 맡는다.
+
 ## 1. 배포 전 준비
 
-- Linux 호스트 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
+- 수동 빌드 호스트에는 Docker, Git, Java 25, Ruby, Trivy를 설치한다. k3s 운영 호스트에는 Docker, Git, Ruby, `age`, `curl`, rclone을 설치한다. CI/CD 구성 후 운영 서버는 Java·Gradle·Trivy로 이미지를 다시 빌드하지 않는다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
-- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443을 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. 외부 SSH 관리·CI/CD를 사용할 때는 별도 SSH 포트의 키 인증과 [배포 전용 키 제한](cicd.md)을 적용한다. Kubernetes API·DB 포트는 공개하지 않는다.
 - 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
 - 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
