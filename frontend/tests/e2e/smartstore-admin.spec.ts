@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
 import type { BookingCalendarResponse, RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
-import type { SmartStoreChannelOrderResponse } from "../../src/generated/api/adminOrder";
+import type { SmartStoreChannelOrderDetailResponse, SmartStoreChannelOrderResponse } from "../../src/generated/api/adminOrder";
 import type {
   GroupInquiryFollowUpPageResponse,
   GroupInquiryPageResponse,
@@ -57,6 +57,148 @@ async function prepareAdmin(page: Page) {
     return json(route, []);
   });
 }
+
+async function prepareSmartStoreOrderEditors(page: Page) {
+  await prepareAdmin(page);
+  const state = { listUnavailable: false, listReads: 0 };
+  const orders = ["po-editor-1", "po-editor-2"].map((id) => ({
+    productOrderId: id, orderId: `order-${id}`, originProductNo: 1, itemNo: null,
+    productId: 1, productVariantId: null, productName: id, productOption: null,
+    productOrderStatus: "PAYED", claimType: null, claimStatus: null,
+    initialQuantity: 1, remainQuantity: 1, inventoryAppliedQuantity: 1,
+    attentionReason: null, paymentDate: null, lastChangedAt: "2026-09-12T09:00:00",
+    pendingReturnQuantity: 0, returnReviewVersion: "R0:0", inventoryResolutionVersion: "v1",
+  } satisfies SmartStoreChannelOrderResponse));
+  await page.route("**/api/v1/admin/smartstore-orders**", (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/actions")) return json(route, []);
+    const order = orders.find((item) => path.endsWith(`/${item.productOrderId}`));
+    if (order) return json(route, {
+      order, placeOrderStatus: "OK", deliveryInfo: null, claimDetail: null,
+      channelCommission: null, deliveryCompany: null, expectedDeliveryMethod: "DELIVERY",
+      expectedSettlementAmount: null, paymentAmount: null, paymentCommission: null,
+      saleCommission: null, shippingDueDate: null, trackingNumber: null, unitPrice: null,
+    } satisfies SmartStoreChannelOrderDetailResponse);
+    state.listReads++;
+    return state.listUnavailable
+      ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      : json(route, { content: orders, hasMore: false, nextCursor: null });
+  });
+  await page.route("**/api/v1/admin/order-claims?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.goto("/admin?view=orders");
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).toBeVisible();
+  return state;
+}
+
+for (const mode of ["단건", "일괄"] as const) {
+  test(`@admin 스마트스토어 ${mode} 처리창은 새 주문의 입력을 초기화하고 발송 중 변경을 막는다`, async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-09-12T09:00:00+09:00"));
+    await prepareSmartStoreOrderEditors(page);
+    const dispatches: Array<{ path: string; body: Record<string, unknown> }> = [];
+    let pending: Route | undefined;
+    await page.route("**/api/v1/admin/smartstore-orders/**/dispatch", handleDispatch);
+    await page.route("**/api/v1/admin/smartstore-orders/dispatch", handleDispatch);
+    async function handleDispatch(route: Route) {
+      dispatches.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
+      if (dispatches.length === 1) return json(route, { code: "SMARTSTORE_OPERATION_NOT_SENT" }, 503);
+      pending = route;
+    }
+    async function open(id: string) {
+      if (mode === "단건") {
+        await page.getByRole("row").filter({ hasText: id })
+          .getByRole("button", { name: "주문 처리", exact: true }).click();
+      } else {
+        await page.getByLabel(`${id} 선택`, { exact: true }).check();
+        await page.getByRole("button", { name: "선택 주문 발송", exact: true }).click();
+      }
+    }
+    await open("po-editor-1");
+    const dialog = page.getByRole("dialog");
+    const tracking = dialog.getByPlaceholder("운송장 번호", { exact: true });
+    const company = dialog.getByPlaceholder(mode === "단건" ? "택배사 코드 (예: CJGLS)" : "택배사 코드", { exact: true });
+    const date = mode === "단건" ? dialog.getByLabel("발송일시") : dialog.locator('input[type="datetime-local"]');
+    const submit = dialog.getByRole("button", { name: mode === "단건" ? "발송 처리" : "일괄 발송", exact: true });
+    const close = dialog.getByRole("button", { name: mode === "단건" ? "닫기" : "취소", exact: true });
+    await tracking.fill("1111111111111");
+    await company.fill("EPOST");
+    await date.fill("2026-09-12T09:30");
+    await submit.click();
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await expect(tracking).toHaveValue("1111111111111");
+    await close.click();
+    if (mode === "일괄") await page.getByLabel("po-editor-1 선택", { exact: true }).uncheck();
+    await page.clock.setFixedTime(new Date("2026-09-12T11:00:00+09:00"));
+    await open("po-editor-2");
+    await expect(tracking).toHaveValue("");
+    await expect(company).toHaveValue("");
+    await expect(dialog.getByRole("alert")).not.toBeVisible();
+    await expect(date).toHaveValue(mode === "단건" ? "" : "2026-09-12T11:00");
+    await tracking.fill("2222222222222");
+    await company.fill("EPOST");
+    await date.fill("2026-09-12T11:15");
+    await submit.click();
+    await expect.poll(() => dispatches.length).toBe(2);
+    await expect(tracking).toBeDisabled();
+    await expect(date).toBeDisabled();
+    await expect(close).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    const request = { deliveryCompanyCode: "EPOST", trackingNumber: "2222222222222", dispatchDate: "2026-09-12T11:15" };
+    expect(dispatches[1]).toMatchObject(mode === "단건"
+      ? { path: "/api/v1/admin/smartstore-orders/po-editor-2/dispatch", body: request }
+      : { path: "/api/v1/admin/smartstore-orders/dispatch", body: { orders: [{ productOrderId: "po-editor-2", ...request }] } });
+    await json(pending!, { successProductOrderIds: ["po-editor-2"], failures: [] });
+    if (mode === "단건") {
+      await expect(close).toBeEnabled();
+      await close.click();
+    }
+    await expect(dialog).not.toBeVisible();
+    expect(dispatches).toHaveLength(2);
+  });
+}
+
+test("@admin 스마트스토어 목록 재조회 실패가 열린 처리창의 초안을 지우지 않는다", async ({ page }) => {
+  await page.clock.install();
+  const state = await prepareSmartStoreOrderEditors(page);
+  await page.getByRole("row").filter({ hasText: "po-editor-1" })
+    .getByRole("button", { name: "주문 처리", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const tracking = dialog.getByPlaceholder("운송장 번호", { exact: true });
+  await tracking.fill("1234567890123");
+  state.listUnavailable = true;
+  await page.clock.fastForward(31_000);
+  await expect.poll(() => state.listReads).toBeGreaterThan(1);
+  await page.clock.runFor(2_000);
+  const panel = page.locator(".admin-workspace-panel").filter({
+    has: page.getByRole("heading", { name: "스마트스토어 채널 주문", exact: true }),
+  });
+  await expect(panel.getByRole("alert")).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(tracking).toHaveValue("1234567890123");
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  state.listUnavailable = false;
+  await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(panel.getByRole("alert")).not.toBeVisible();
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).toBeVisible();
+});
+
+test("@admin 스마트스토어 일괄 발주 확인 중에는 대상 주문을 바꾸지 않는다", async ({ page }) => {
+  await prepareSmartStoreOrderEditors(page);
+  let pending: Route | undefined;
+  await page.route("**/api/v1/admin/smartstore-orders/confirm", (route) => { pending = route; });
+  await page.getByLabel("po-editor-1 선택", { exact: true }).check();
+  await page.getByRole("button", { name: "선택 주문 발주 확인", exact: true }).click();
+  await expect.poll(() => pending !== undefined).toBe(true);
+  await expect(page.getByLabel("po-editor-2 선택", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: "확인이 필요한 주문만 보기" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "선택 주문 발송", exact: true })).toBeDisabled();
+  expect(pending!.request().postDataJSON()).toEqual({ productOrderIds: ["po-editor-1"] });
+  await json(pending!, { successProductOrderIds: ["po-editor-1"], failures: [] });
+  await expect(page.getByLabel("po-editor-2 선택", { exact: true })).toBeEnabled();
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).not.toBeChecked();
+});
 
 test("@admin 스마트스토어 회계 CSV는 수식 형태의 상품명을 보호하고 금액과 본문을 보존한다", async ({ page }) => {
   await prepareAdmin(page);
