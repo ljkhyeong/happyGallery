@@ -216,7 +216,7 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 
 `*_MILLIS`, `*_SECONDS`, `*_HOURS` 환경 변수는 기존 숫자 계약을 유지한다. `application.yml`이 각각 `ms`, `s`, `h` 단위를 붙여 애플리케이션의 `Duration` 설정으로 바인딩하므로, 기존 배포 값은 바꾸지 않아도 된다. 이메일 인증 SMTP의 host·port·자격 증명·TLS·transport timeout은 `spring.mail.*`로 연결되어 Spring Boot가 `JavaMailSender`를 자동 구성하고, 애플리케이션은 발신 주소·제목, 메일 발송 전체를 제한하는 TimeLimiter와 타임아웃 순서만 관리한다.
 
-배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 기본으로 제공한다. [Delivery API FAQ](https://www.deliveryapi.co.kr/faq)에 따르면 국내 신규 무료 운영 플랜이 없으므로, 추가요금 없는 운영에서는 `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 이때 사이트 안의 배송 상태는 자동 갱신되지 않는다. 나중에 유료 연동을 선택하면 직접 생성한 `DELIVERY_WEBHOOK_SECRET`으로 `https://happy-gallery.com/api/v1/webhooks/delivery-tracking`을 등록하고, 발급받은 API 키·endpoint ID를 주입한 뒤 활성화한다.
+배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 기본으로 제공한다. 자동 갱신은 추가 이용료 없는 택배사 공식 API로 제한하며, 유료 중계 API는 연결하지 않는다. `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 우체국의 무료 공공 API를 추가 대상으로 확인했지만 활용 승인·접속 방식 확인과 구현이 남아 있다. 현재 사이트 안의 배송 상태는 자동 갱신되지 않는다. [무료 배송 API 대상과 준비 조건](deploy/k3s/free-integrations.md#무료-배송-api-대상)을 따른다.
 
 Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호스트>/api/v1/webhooks/toss-payments`를 등록한다. 웹훅은 `PAYMENT_STATUS_CHANGED`만 수신 기록하고, 알려진 `orderId`를 기존 결제 대사 흐름으로 확인한다.
 
