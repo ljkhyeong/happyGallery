@@ -56,7 +56,7 @@ class EmailVerificationTransportConfig {
                     .plus(properties.timeout());
             Assert.isTrue(email.timeout().compareTo(budget) > 0,
                     "이메일 인증 외부 timeout은 네이버 HTTP timeout 합보다 커야 합니다.");
-            return factory.create(properties, builder -> builder.disableRedirectHandling());
+            return factory.create(properties);
         }
 
         @Bean

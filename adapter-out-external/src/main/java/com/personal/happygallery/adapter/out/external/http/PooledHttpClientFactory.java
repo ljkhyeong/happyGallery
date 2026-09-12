@@ -1,10 +1,8 @@
 package com.personal.happygallery.adapter.out.external.http;
 
-import java.util.function.Consumer;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -16,10 +14,6 @@ import org.springframework.stereotype.Component;
 public class PooledHttpClientFactory {
 
     public CloseableHttpClient create(HttpPoolProperties props) {
-        return create(props, builder -> {});
-    }
-
-    public CloseableHttpClient create(HttpPoolProperties props, Consumer<HttpClientBuilder> customizer) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
                 .setConnectTimeout(Timeout.of(props.connectTimeout()))
                 .setSocketTimeout(Timeout.of(props.timeout()))
@@ -38,14 +32,15 @@ public class PooledHttpClientFactory {
                 .setConnectionKeepAlive(TimeValue.of(props.keepAlive()))
                 .build();
 
-        HttpClientBuilder builder = HttpClients.custom()
+        return HttpClients.custom()
                 // 재시도 여부는 멱등키·발송 결과를 아는 업무 코드에서 결정한다.
                 .disableAutomaticRetries()
+                // 인증 헤더와 요청 본문을 리다이렉트 주소로 보내지 않는다.
+                .disableRedirectHandling()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
                 .evictExpiredConnections()
-                .evictIdleConnections(TimeValue.of(props.keepAlive()));
-        customizer.accept(builder);
-        return builder.build();
+                .evictIdleConnections(TimeValue.of(props.keepAlive()))
+                .build();
     }
 }
