@@ -19,5 +19,9 @@ docker run --rm --pull=never --network none --read-only \
             exit 1
         }
         cat /app/app.jar >/dev/null
+        [ -f /app/media-backup-guard-v1 ] || {
+            echo "온라인 백업의 이미지 삭제 보호 지원 표시가 없습니다." >&2
+            exit 1
+        }
         echo "앱 이미지 JAR 읽기 검사 통과"
     '

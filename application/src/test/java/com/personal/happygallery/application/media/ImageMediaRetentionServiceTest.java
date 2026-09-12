@@ -6,6 +6,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.inOrder;
 
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceLockPort;
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
@@ -18,6 +19,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class ImageMediaRetentionServiceTest {
+
+    @DisplayName("참조 잠금 뒤 백업 보호를 확인하고 삭제를 보류한 파일은 다음 실행에서 삭제한다")
+    @Test
+    void deleteIfUnreferenced_defersPhysicalDeletionDuringBackup() {
+        ImageMediaReferenceReaderPort references = mock(ImageMediaReferenceReaderPort.class);
+        ImageMediaStoragePort storage = mock(ImageMediaStoragePort.class);
+        ImageMediaReferenceLockPort lock = mock(ImageMediaReferenceLockPort.class);
+        when(storage.isBackupInProgress()).thenReturn(true, false);
+        when(references.findReferencedImageUrls()).thenReturn(List.of());
+        ImageMediaDeletionTransactionService deletion = new ImageMediaDeletionTransactionService(
+                references, storage, new ImageMediaReferenceGuard(lock, storage));
+
+        assertThat(deletion.deleteIfUnreferenced("orphan.png")).isFalse();
+        var order = inOrder(lock, storage);
+        order.verify(lock).lock();
+        order.verify(storage).isBackupInProgress();
+        verify(storage, never()).delete("orphan.png");
+        verify(references, never()).findReferencedImageUrls();
+
+        assertThat(deletion.deleteIfUnreferenced("orphan.png")).isTrue();
+        verify(storage).delete("orphan.png");
+    }
 
     @DisplayName("7일간 참조되지 않은 이미지도 삭제 직전 최신 참조를 다시 확인한다")
     @Test

@@ -74,9 +74,9 @@
 
 #### 4.2 DB와 미디어의 일관 복구 단위
 
-- 백업 스크립트는 원래 app replica 수를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 쓰기가 중단된 한 구간 안에서 `mysqldump --single-transaction`으로 DB 시점을 확정하고 `app-media` PVC를 tar archive로 읽은 뒤 원래 replica를 복구한다. 키 회전처럼 이미 0 replica인 호출은 그대로 유지한다. 이 방식은 짧은 계획 중단을 수용하는 대신 DB 참조와 미디어 파일, 03:30 보존 배치가 백업 중 바뀌는 경쟁을 막는다.
-- systemd 정기 백업은 `Asia/Seoul`을 명시해 00:30·06:30·12:30·18:30에 실행하고 고아 정리는 03:30에 실행한다. 시간 분리는 운영 부하를 나누기 위한 것이며 정합성의 근거로 사용하지 않는다. 수동 실행이나 `Persistent=true` 보충 실행이 겹쳐도 app 쓰기 중단 구간이 동일한 상호 배제를 제공한다.
-- systemd 백업은 계획 중단 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 app 원복 뒤 즉시 해제한다. silence 생성 실패 시 백업을 시작하지 않고, 실패하거나 제한 시간을 넘기면 별도 백업 실패 SMTP 또는 webhook으로 알린다. 비정상 종료로 해제하지 못한 silence도 자동 만료되어 실제 장애를 계속 숨기지 않는다.
+- 정기 백업은 app을 계속 실행한다. 미디어 PVC에 삭제 보호 디렉터리를 만든 뒤 `image_media_reference_lock` 행을 잠깐 잠가 선행 삭제의 완료를 확인한다. 앱은 이 행 잠금 뒤 보호 디렉터리를 확인해 물리적 삭제만 보류한다. InnoDB `mysqldump --single-transaction --quick --skip-lock-tables` 스냅샷 이후 완료된 불변 이미지 파일 목록을 고정해 보관하고 보호를 해제한다. 조회·주문·예약·업로드는 계속 처리하며, 이미 0 replica인 앱은 그대로 둔다. 구버전 앱은 온라인 백업을 거부한다.
+- systemd 정기 백업은 `Asia/Seoul` 기준 00:30·06:30·12:30·18:30에 실행하고 고아 정리는 03:30에 실행한다. 정합성은 시간 분리가 아닌 삭제 보호와 스냅샷에 의존한다. 백업과 배포·DDL·데이터 키 변경을 함께 실행하지 않는다. deployment generation, Secret revision, release와 Flyway 버전 변경을 발견한 묶음은 완료 상태로 게시하지 않는다.
+- 정기 백업은 AppDown 경보를 silence하지 않는다. 백업 실패·실행 제한 초과는 기존 실패 알림과 heartbeat watchdog으로 감시한다. SIGKILL·전원 장애로 미디어 삭제 보호가 남으면 다음 백업도 중단하며, 운영자가 실행 종료를 확인한 뒤 소유 marker를 정리한다. 일반 백업에서는 운영 DB의 CHECK TABLE을 생략하고 복원 훈련에서 검사한다.
 - 같은 UTC 시각으로 만든 DB 암호문, 미디어 암호문과 `happygallery-<시각>.recovery.env`를 하나의 복구 단위로 취급한다. 두 archive는 평문 파일을 남기지 않고 각각 `gzip -> age`로 외부 mount에 기록하며 SHA-256 sidecar를 검증한다. 백업은 모든 archive와 sidecar를 먼저 완성하고 `recovery.env`를 마지막에 원자적으로 게시한다. 이 commit marker가 없으면 중단된 불완전 묶음으로 보고 rollout과 복원에 사용하지 않는다. rollout은 marker, DB·미디어, 호환 release metadata·manifest·runtime image metadata·image archive의 sidecar 전체를 검증한다. 서로 다른 시각의 DB와 미디어를 임의로 조합해 복원하지 않는다.
 - 외부 백업 위치는 `BACKUP_DIR`로 지정한 USB, NAS 또는 원격 mount다. marker 파일이 없으면 백업을 중단해 외부 매체가 빠진 상태에서 노트북의 빈 mountpoint에 기록하는 일을 막는다.
 - 복원은 app replica와 잔여 Pod가 모두 0인 상태에서만 수행한다. 묶음의 DB·미디어 checksum, age·gzip·tar 무결성, 호환 이미지 digest, Flyway version과 키링 fingerprint를 확인하고 DB와 `app-media` PVC를 같은 묶음으로 교체한 뒤 Redis 세션·처리율 상태를 비운다. 데이터 복원 진입점은 app을 자동 기동하지 않는다.
@@ -145,7 +145,7 @@
 - `happy-gallery.com` 기준 canonical·robots·sitemap, 공개 상세의 실제 SSR 본문과 404 응답
 - 저장소 밖 env와 SMTP 수신 설정 또는 HTTPS webhook URL 파일에서 허용 키만 runtime Secret으로 생성·교체하고 운영 profile·보안 불변식 shadowing을 차단하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
-- 6시간 간격 app 쓰기 중단 후 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
+- 6시간 간격 app을 유지하는 온라인 스냅샷과 미디어 삭제 보호 기반 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
 - 백업 성공 heartbeat와 systemd 실패 SMTP·HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`

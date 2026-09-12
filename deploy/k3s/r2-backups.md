@@ -5,7 +5,7 @@ R2에 암호화 테스트 파일을 올리고 다시 내려받아 Mac의 age ide
 ## 저장 방식
 
 - `BACKUP_STORAGE=rclone`은 DB·미디어를 로컬 캐시에 age 암호화한다. 기존 외부 mount marker는 만들지 않는다.
-- DB와 미디어를 만드는 동안만 app 쓰기를 중단한다. 원래 replica와 AppDown 경보를 복구한 뒤 R2 업로드를 시작한다.
+- 앱을 계속 실행하면서 DB 트랜잭션 스냅샷과 미디어를 보관한다. 백업 중에는 이미지 파일의 실제 삭제만 보류하고, 복사가 끝나면 보호를 해제한 뒤 R2에 업로드한다. AppDown 경보는 숨기지 않는다.
 - 호환 실행 이미지·release manifest를 함께 올린다. 이미 있는 파일이 다르면 덮어쓰지 않고 실패한다.
 - R2 파일 내용을 다시 읽어 로컬과 비교한 뒤 `happygallery-<UTC 시각>.recovery.env`를 마지막에 올린다. `rclone check --download`를 사용하므로 multipart ETag를 SHA-256으로 해석하지 않는다.
 - 업로드·검증·보존 정리가 모두 성공해야 기존 systemd service가 `backup.last-success`를 갱신한다. 실패는 기존 장애 메일로 전달된다.
@@ -46,7 +46,7 @@ sudo bash -c '
 
 ## 2. 첫 실제 백업과 예약 실행
 
-앱·MySQL·미디어 PVC가 준비되고 rollout의 `releases/current`가 생성된 뒤 진행한다. 앱이 아직 배포되지 않았다면 설정 준비까지만 마친다. 첫 실행은 데이터 일관성을 위해 앱을 잠시 중단하므로 운영 개통 전에 백업·재기동 시간을 측정한다.
+앱·MySQL·미디어 PVC가 준비되고 rollout의 `releases/current`가 생성된 뒤 진행한다. 앱이 아직 배포되지 않았다면 설정 준비까지만 마친다. 온라인 백업을 지원하는 새 앱과 systemd unit을 먼저 배포한다. [온라인 백업 전환](online-backups.md)에 따라 백업 중 앱이 유지되는지와 새 복구 묶음의 복원을 검증한다.
 
 ```bash
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.service.example /etc/systemd/system/happygallery-backup.service
@@ -65,7 +65,7 @@ sudo systemctl show happygallery-backup.service -p ActiveState -p Result -p Exec
 sudo stat /var/lib/happygallery/backup.last-success
 ```
 
-`ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`과 이번 실행의 성공 파일 시각을 확인하고, 아래 다운로드·복원 검증까지 마친 뒤 timer를 켠다. 기본 실행 제한은 30분이며 종료 때 앱 원복에 10분 유예를 둔다. 초기 실행 이미지 archive가 크면 제한에 걸릴 수 있으므로 로그와 전송량을 먼저 확인한다.
+`ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`과 이번 실행의 성공 파일 시각을 확인하고, 아래 다운로드·복원 검증까지 마친 뒤 timer를 켠다. 기본 실행 제한은 30분이며 종료 때 삭제 보호 해제와 임시 자원 정리에 10분 유예를 둔다. 초기 실행 이미지 archive가 크면 제한에 걸릴 수 있으므로 로그와 전송량을 먼저 확인한다.
 
 ```bash
 sudo systemctl enable --now happygallery-backup.timer happygallery-backup-watchdog.timer

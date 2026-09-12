@@ -39,6 +39,10 @@ public class ImageMediaDeletionTransactionService {
             return 0;
         }
         referenceGuard.lockForRetention();
+        // 백업은 이 잠금으로 이전 삭제의 종료를 확인한 뒤 DB 스냅샷을 시작한다.
+        if (storagePort.isBackupInProgress()) {
+            return 0;
+        }
         Set<String> referenced = referenceReader.findReferencedImageUrls().stream()
                 .map(ImageMediaReferenceGuard::localFileName)
                 .filter(Objects::nonNull)

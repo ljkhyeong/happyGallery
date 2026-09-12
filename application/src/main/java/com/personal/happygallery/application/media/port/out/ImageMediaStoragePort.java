@@ -20,6 +20,9 @@ public interface ImageMediaStoragePort {
 
     void clearOrphanMarker(String fileName);
 
+    /** 온라인 백업이 끝날 때까지 실제 파일 삭제를 미뤄야 하는지 반환한다. */
+    boolean isBackupInProgress();
+
     void delete(String fileName);
 
     long usedBytes();
