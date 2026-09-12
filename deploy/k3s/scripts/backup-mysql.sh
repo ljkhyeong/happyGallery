@@ -11,9 +11,24 @@ require_command gzip
 require_command base64
 require_command tar
 require_command ruby
-marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
-[ -f "$marker" ] \
-    || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
+require_command flock
+umask 077
+backup_storage=${BACKUP_STORAGE:-mounted}
+case "$backup_storage" in
+    mounted)
+        marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
+        [ -f "$marker" ] \
+            || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
+        ;;
+    rclone)
+        bash "$SCRIPT_DIR/rclone-backup.sh" check
+        mkdir -p "$BACKUP_DIR"
+        chmod 700 "$BACKUP_DIR"
+        ;;
+    *) die "BACKUP_STORAGE는 mounted 또는 rclone이어야 합니다." ;;
+esac
+exec 9> "$BACKUP_DIR/.backup.lock"
+flock -n 9 || die "다른 백업 또는 보존 정리가 실행 중입니다."
 
 kube -n "$NAMESPACE" get pod mysql-0 >/dev/null
 kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/null
@@ -106,7 +121,7 @@ cleanup_partial_backup() {
 trap cleanup_partial_backup EXIT HUP INT TERM
 
 if [ ! -d "$release_backup" ]; then
-    info "현재 release 이미지와 메타데이터를 외부 매체에 보존합니다: $IMAGE_TAG"
+    info "현재 release 이미지와 메타데이터를 백업 디렉터리에 보존합니다: $IMAGE_TAG"
     mkdir -p "$release_backup_root" "$release_tmp"
     cp "$release_metadata" "$release_tmp/metadata.env"
     cp "$release_manifest" "$release_tmp/manifests.yaml"
@@ -213,7 +228,7 @@ info "MySQL 논리 무결성 검사를 실행합니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
     'exec mysqlcheck --check --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' >/dev/null
 
-info "MySQL 백업을 외부 매체에 age 암호화합니다."
+info "MySQL 백업을 age 암호화합니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
     exec mysqldump \
       --single-transaction \
@@ -232,7 +247,7 @@ checksum=$(sha256_file "$tmp")
 printf '%s  %s\n' "$checksum" "$(basename -- "$backup")" > "$tmp_checksum"
 chmod 600 "$tmp" "$tmp_checksum"
 
-info "상품 이미지 볼륨을 외부 매체에 age 암호화합니다."
+info "상품 이미지 볼륨을 age 암호화합니다."
 ensure_media_pvc
 media_helper_started=true
 start_media_helper "$APP_IMAGE@$APP_IMAGE_DIGEST"
@@ -276,6 +291,14 @@ mv "$media_tmp" "$media_backup"
 mv "$media_tmp_checksum" "$media_backup.sha256"
 mv "$recovery_metadata_tmp_checksum" "$recovery_metadata.sha256"
 mv "$recovery_metadata_tmp" "$recovery_metadata"
+
+if [ "$backup_storage" = rclone ]; then
+    # 앱은 이미 원래 replica로 돌아왔으며, 업로드 실패는 service 실패로 전파한다.
+    if [ -n "${BACKUP_ALERT_SILENCE_STATE:-}" ]; then
+        bash "$SCRIPT_DIR/manage-backup-alert-silence.sh" stop "$BACKUP_ALERT_SILENCE_STATE"
+    fi
+    bash "$SCRIPT_DIR/rclone-backup.sh" upload "$recovery_metadata"
+fi
 
 trap - EXIT HUP INT TERM
 

@@ -13,6 +13,7 @@ RuntimeDirectoryMode=0700
 TimeoutStartSec=30m
 TimeoutStopSec=10m
 EnvironmentFile=/etc/happygallery/backup.env
+Environment=BACKUP_ALERT_SILENCE_STATE=/run/happygallery/backup-alert-silence-id
 WorkingDirectory=/opt/happygallery
 ExecStartPre=/opt/happygallery/deploy/k3s/scripts/manage-backup-alert-silence.sh start /run/happygallery/backup-alert-silence-id
 ExecStart=/opt/happygallery/deploy/k3s/scripts/backup-mysql.sh

@@ -554,6 +554,7 @@ RUBY
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"
+ruby "$SCRIPT_DIR/tests/rclone-backup-test.rb"
 
 ddns_rendered="$tmp_dir/ddns.yaml"
 kube kustomize "$DEPLOY_DIR/addons/cloudflare-ddns" > "$ddns_rendered"

@@ -280,6 +280,8 @@ kubectl -n happygallery port-forward service/grafana 3000:3000
 
 ## 7. 외부 암호화 복구 백업
 
+Cloudflare R2에는 [R2 백업 설정](r2-backups.md)을 따른다. `BACKUP_STORAGE=rclone`은 로컬 암호화 캐시를 만든 뒤 앱을 원복하고 R2로 전송한다. 업로드 내용을 다시 읽어 비교하고 완료 metadata까지 게시해야 성공한다. 아래의 mount marker는 실제 외부 매체를 쓰는 기본 `mounted` 방식에만 해당한다.
+
 백업 스크립트는 원래 app replica를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 이어 MySQL Pod의 dump를 stdout으로만 내보내 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록하고, 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 미디어 archive가 끝나면 원래 replica를 복구하며, 키 회전처럼 이미 0이었던 경우에는 계속 0으로 유지한다. 이 계획 중단으로 DB·미디어 백업과 애플리케이션 보존 배치·관리자 쓰기를 상호 배제한다. 중단 시간은 데이터 크기와 원격 전송 속도에 따라 달라지므로 실제 백업·재기동 시간을 개통 전에 측정한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
 
 app 쓰기가 중단된 상태에서 DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
