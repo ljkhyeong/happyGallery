@@ -95,6 +95,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - Toss, Google, Naver, Kakao, NHN Cloud Alimtalk·SMS: 각 제공자 운영 자격증명
 - 주소 검색: 무료 Kakao 우편번호 검색창을 사용하며 별도 키가 필요 없다. 기존 `ROAD_ADDRESS_*` 설정은 제거한다.
 - 공휴일: 무료 API 활용 신청 후 서비스키를 설정하고 `PUBLIC_HOLIDAY_ENABLED=true`로 전환
+- 스마트스토어: 기존 주문·재고 연동을 사용할 때만 `SMARTSTORE_ENABLED=true`와 커머스API 인증 정보를 설정한다. `SELF`는 기본값이며 `SELLER`는 `SMARTSTORE_ACCOUNT_ID`가 필요하다. 네이버 로그인 키와 구분한다.
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
