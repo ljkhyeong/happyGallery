@@ -363,7 +363,7 @@ export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_
 - app desired replica가 0이고 종료 중인 app Pod까지 실제 0개
 - ciphertext SHA-256 일치
 - age 인증 복호화와 gzip 무결성 통과
-- 복원 후 `mysqlcheck` 통과
+- 복원 후 백업 대상 DB의 모든 기본 테이블에 `CHECK TABLE`을 실행하고 각각 정상 결과 확인
 - 미디어 archive checksum·tar 무결성 통과 후 `app-media` PVC를 같은 백업 시점으로 교체
 - DB 시점과 불일치할 Redis 세션·rate-limit 상태 삭제
 - runtime active/previous 암호화·HMAC·비회원 토큰 keyring의 ID/fingerprint와 백업 메타데이터 일치

@@ -147,6 +147,72 @@ containerd_image_digest() {
     '
 }
 
+mysql_database_query() {
+    kube -n "$NAMESPACE" exec -i mysql-0 -- sh -ec '
+        exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" \
+          --batch --raw --skip-column-names --binary-mode "$MYSQL_DATABASE" "$@"
+    ' sh "$@"
+}
+
+mysql_preflight() {
+    case "$1" in
+        backup|restore) ;;
+        *) die "MySQL 사전 검사 용도는 backup 또는 restore여야 합니다." ;;
+    esac
+    kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
+        command -v mysql >/dev/null || { echo "mysql 실행 파일이 없습니다." >&2; exit 127; }
+        if [ "$1" = backup ]; then
+            command -v mysqldump >/dev/null || { echo "mysqldump 실행 파일이 없습니다." >&2; exit 127; }
+            mysqldump --version >/dev/null
+        fi
+    ' sh "$1" || die "MySQL 필수 도구 사전 검사에 실패했습니다."
+    mysql_database_query --execute='SELECT 1' >/dev/null \
+        || die "MySQL 데이터베이스 접속 사전 검사에 실패했습니다."
+}
+
+check_mysql_database() {
+    mysql_check_sql=$(mysql_database_query <<'SQL'
+SELECT CONCAT('CHECK TABLE `', REPLACE(TABLE_SCHEMA, '`', '``'), '`.`',
+              REPLACE(TABLE_NAME, '`', '``'), '`;')
+FROM information_schema.TABLES
+WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
+ORDER BY TABLE_NAME;
+SQL
+    ) || die "MySQL 검사 대상 테이블 목록을 조회하지 못했습니다."
+    [ -n "$mysql_check_sql" ] || die "MySQL 검사 대상 테이블이 없습니다."
+    mysql_check_count=$(printf '%s\n' "$mysql_check_sql" | awk 'END { print NR }')
+    mysql_check_result=$(printf '%s\n' "$mysql_check_sql" | mysql_database_query) \
+        || die "MySQL CHECK TABLE 실행에 실패했습니다."
+    # CHECK TABLE은 오류 행을 반환해도 mysql 자체는 성공할 수 있다.
+    printf '%s\n' "$mysql_check_result" | awk -F '\t' -v expected="$mysql_check_count" '
+        NF != 4 || $2 != "check" {
+            print "잘못된 CHECK TABLE 응답: " $0 > "/dev/stderr"
+            failed = 1
+            next
+        }
+        $3 == "status" {
+            if (seen[$1]++ || ($4 != "OK" && $4 != "Table is already up to date")) {
+                print "테이블 검사 실패: " $0 > "/dev/stderr"
+                failed = 1
+            }
+            checked++
+            next
+        }
+        $3 != "info" && $3 != "note" {
+            print "테이블 검사 오류: " $0 > "/dev/stderr"
+            failed = 1
+        }
+        END {
+            if (checked != expected) {
+                printf "테이블 검사 결과 누락: expected=%d actual=%d\n", expected, checked > "/dev/stderr"
+                failed = 1
+            }
+            exit failed ? 1 : 0
+        }
+    ' || die "MySQL 테이블 무결성 검사를 통과하지 못했습니다."
+    info "MySQL 테이블 무결성 검사 통과: $mysql_check_count 개"
+}
+
 wait_for_no_pods() {
     namespace=$1
     selector=$2

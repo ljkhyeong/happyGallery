@@ -538,6 +538,11 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복구 묶음 marker와 DB·미디어·release sidecar 전체 검증이 없습니다." unless common.match?(bundle_validation)
 
   backup = File.read(File.join(script_dir, "backup-mysql.sh"))
+  abort "백업 도구 검사가 app 중지보다 먼저 실행되지 않습니다." unless
+    backup.match?(/mysql_preflight backup.*?scale deployment\/app --replicas=0.*?check_mysql_database.*?mysqldump/m)
+  mysql_restore = File.read(File.join(script_dir, "restore-mysql.sh"))
+  abort "DB 복원 전 도구 검사 또는 복원 후 테이블 검사가 없습니다." unless
+    mysql_restore.match?(/mysql_preflight restore.*?DROP DATABASE.*?check_mysql_database/m)
   runtime_archive = /--references "\$release_manifest".*?while IFS=.*?read -r runtime_key runtime_image unexpected.*?containerd_image_digest.*?for runtime_index in.*?--inventory "\$release_tmp\/manifests\.yaml" "\$runtime_metadata".*?archive_images=.*?while IFS=.*?read -r runtime_key runtime_image runtime_digest unexpected.*?k3s_ctr images export "\$images_archive" "\$\{archive_images\[@\]\}"/m
   abort "백업이 parser inventory를 runtime metadata와 archive export에 일관되게 사용하지 않습니다." unless backup.match?(runtime_archive)
   backup_exclusion = /original_app_replicas=.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?mysqldump.*?start_media_helper.*?restore_app/m
@@ -558,6 +563,7 @@ RUBY
 
 ruby "$SCRIPT_DIR/tests/verify-test.rb"
 ruby "$SCRIPT_DIR/tests/containerd-image-test.rb"
+ruby "$SCRIPT_DIR/tests/mysql-check-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"

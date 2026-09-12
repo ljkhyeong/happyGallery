@@ -38,6 +38,7 @@ case "$original_app_replicas" in
     0|1) ;;
     *) die "백업은 단일 app replica 구성에서만 실행할 수 있습니다: $original_app_replicas" ;;
 esac
+mysql_preflight backup
 
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 backup="$BACKUP_DIR/happygallery-$timestamp.sql.gz.age"
@@ -224,9 +225,8 @@ if [ "$original_app_replicas" -eq 1 ]; then
     wait_for_no_pods "$NAMESPACE" 'app.kubernetes.io/name=app' 120
 fi
 
-info "MySQL 논리 무결성 검사를 실행합니다."
-kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
-    'exec mysqlcheck --check --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' >/dev/null
+info "백업 대상 DB의 테이블 무결성을 검사합니다."
+check_mysql_database
 
 info "MySQL 백업을 age 암호화합니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
