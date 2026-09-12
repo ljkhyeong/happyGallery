@@ -84,6 +84,7 @@
 
 - `smartstore_order_sync_state`의 단일 행을 잠가 `lastChangedFrom`, `moreSequence`, 처리 시작 시각과 마지막으로 관측한 연동 활성 여부를 관리한다.
 - 최대 24시간 구간과 300건 페이지를 네이버 변경 피드 계약대로 조회하고, 상품 주문 상세를 모두 받은 경우에만 커서를 전진시킨다.
+- 조회 시작·종료 일시는 Spring URI 변수로 전달해 `+09:00`을 한 번 인코딩한다. URL의 `+`가 서버에서 공백으로 해석되는 [날짜 형식 오류](https://github.com/commerce-api-naver/commerce-api/discussions/1821)를 막는다.
 - 변경 주문이 없으면 네이버는 `data` 없이 `timestamp`·`traceId`만 반환할 수 있다([공식 안내](https://github.com/commerce-api-naver/api-agency/discussions/321)). 이 응답과 명시적인 빈 목록은 조회 구간의 수집 완료로 처리해 다음 구간으로 이동한다. 응답 본문 자체가 없으면 실패로 처리한다.
 - 중간 실패는 커서를 유지해 같은 구간을 다시 읽고, 이미 성공한 주문은 적용 수량 비교로 중복 변경을 막는다.
 - 5분 이상 끝나지 않은 선점은 다음 실행이 다시 가져갈 수 있다.

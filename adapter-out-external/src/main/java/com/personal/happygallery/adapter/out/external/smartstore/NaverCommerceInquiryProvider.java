@@ -51,14 +51,14 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
         InquiryResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> {
                     builder.path("/external/v1/contents/qnas")
-                            .queryParam("fromDate", format(from))
-                            .queryParam("toDate", format(to))
+                            .queryParam("fromDate", "{fromDate}")
+                            .queryParam("toDate", "{toDate}")
                             .queryParam("page", page)
                             .queryParam("size", size);
                     if (unansweredOnly) {
                         builder.queryParam("answered", false);
                     }
-                    return builder.build();
+                    return builder.build(format(from), format(to));
                 })
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()

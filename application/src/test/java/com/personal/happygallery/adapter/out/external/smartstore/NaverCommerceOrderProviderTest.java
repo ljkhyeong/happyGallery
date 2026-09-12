@@ -12,6 +12,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -227,8 +229,10 @@ class NaverCommerceOrderProviderTest {
                         "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
-                .andExpect(queryParam("lastChangedFrom", "2026-08-29T11:50:00+09:00"))
-                .andExpect(queryParam("lastChangedTo", "2026-08-29T12:00:00+09:00"))
+                .andExpect(request -> assertThat(URLDecoder.decode(
+                        request.getURI().getRawQuery(), StandardCharsets.UTF_8))
+                        .contains("lastChangedFrom=2026-08-29T11:50:00+09:00",
+                                "lastChangedTo=2026-08-29T12:00:00+09:00"))
                 .andExpect(queryParam("limitCount", "300"))
                 .andRespond(withSuccess("""
                         {

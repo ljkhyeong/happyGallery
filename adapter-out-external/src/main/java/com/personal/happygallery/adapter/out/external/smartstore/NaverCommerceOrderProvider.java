@@ -64,13 +64,13 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         ChangedResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> {
                     builder.path("/external/v1/pay-order/seller/product-orders/last-changed-statuses")
-                            .queryParam("lastChangedFrom", format(cursor.changedFrom()))
-                            .queryParam("lastChangedTo", format(changedTo))
+                            .queryParam("lastChangedFrom", "{lastChangedFrom}")
+                            .queryParam("lastChangedTo", "{lastChangedTo}")
                             .queryParam("limitCount", PAGE_SIZE);
                     if (StringUtils.hasText(cursor.moreSequence())) {
                         builder.queryParam("moreSequence", cursor.moreSequence());
                     }
-                    return builder.build();
+                    return builder.build(format(cursor.changedFrom()), format(changedTo));
                 })
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()

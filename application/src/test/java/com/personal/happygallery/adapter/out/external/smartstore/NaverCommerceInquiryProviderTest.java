@@ -1,5 +1,7 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -48,8 +50,10 @@ class NaverCommerceInquiryProviderTest {
                 .andExpect(queryParam("page", "3"))
                 .andExpect(queryParam("size", "50"))
                 .andExpect(queryParam("answered", "false"))
-                .andExpect(queryParam("fromDate", "2026-08-01T00:00:00+09:00"))
-                .andExpect(queryParam("toDate", "2026-08-29T12:00:00+09:00"))
+                .andExpect(request -> assertThat(URLDecoder.decode(
+                        request.getURI().getRawQuery(), StandardCharsets.UTF_8))
+                        .contains("fromDate=2026-08-01T00:00:00+09:00",
+                                "toDate=2026-08-29T12:00:00+09:00"))
                 .andRespond(withSuccess("""
                         {
                           "contents":[{
