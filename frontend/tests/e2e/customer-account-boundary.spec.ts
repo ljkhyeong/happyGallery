@@ -1352,19 +1352,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
       return;
     }
     if (pathname === "/api/v1/products") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "계정 경계 테스트 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-      }]);
+      await fulfillJson(route, [product]);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {
@@ -1419,7 +1407,8 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
 
   await expect(page.getByText("B 주문자 정보")).toHaveCount(0);
   await expect(page.getByLabel("기본 주소")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "여러 상품 직접 선택" })).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveText("주문 정보를 불러올 수 없습니다. 상품을 다시 선택해 주세요.");
+  await expect(page.getByRole("link", { name: "상품 다시 선택", exact: true })).toHaveAttribute("href", "/products");
 
   await page.goto(`/login?redirect=${encodeURIComponent("/orders/new")}`);
   await page.getByLabel("이메일").fill(customerA.email);
