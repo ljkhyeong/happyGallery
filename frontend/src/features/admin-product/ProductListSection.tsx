@@ -142,12 +142,15 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
         onClose={() => setEditingProductId(null)}
         onAuthError={onAuthError}
       />
-      <SmartStoreInventoryModal
-        adminKey={adminKey}
-        product={smartStoreProduct}
-        onClose={() => setSmartStoreProductId(null)}
-        onAuthError={onAuthError}
-      />
+      {smartStoreProduct && (
+        <SmartStoreInventoryModal
+          key={smartStoreProduct.id}
+          adminKey={adminKey}
+          product={smartStoreProduct}
+          onClose={() => setSmartStoreProductId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
     </>
   );
 }

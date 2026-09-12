@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import type { BookingCalendarResponse, RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
+import type { BookingCalendarResponse, RestockDemandPageResponse, SmartStoreInventoryMappingResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
 import type { SmartStoreChannelOrderDetailResponse, SmartStoreChannelOrderResponse } from "../../src/generated/api/adminOrder";
 import type {
   GroupInquiryFollowUpPageResponse,
@@ -874,18 +874,11 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
   await expect(panel.getByRole("button", { name: "다음 페이지", exact: true })).toBeDisabled();
 });
 
-test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확인과 최신 개정을 요구한다", async ({ page }) => {
+async function prepareSmartStoreInventoryEditor(page: Page) {
   await prepareAdmin(page);
-  let releaseMapping: (() => void) | undefined;
-  const mappingGate = new Promise<void>((resolve) => {
-    releaseMapping = resolve;
-  });
-  let savedBody: Record<string, unknown> | undefined;
-  let deleteParams: Record<string, string> | undefined;
-
-  await page.route("**/api/v1/admin/products", (route) => json(route, [{
-    id: 1,
-    name: "연동 작품",
+  await page.route("**/api/v1/admin/products", (route) => json(route, [1, 2].map((id) => ({
+    id,
+    name: id === 1 ? "연동 작품" : "다른 작품",
     type: "READY_STOCK",
     price: 35000,
     quantity: 5,
@@ -899,7 +892,7 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     productionLeadDays: null,
     variants: [],
     optionGroups: [],
-  }]));
+  }))));
   await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => json(route, {
     products: [
       {
@@ -938,9 +931,117 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     localStatus: "SALE",
     channelStatus: "SALE",
     options: [],
-    different: false,
+    different: true,
     previewVersion: "preview-1",
   }));
+  const mapping: SmartStoreInventoryMappingResponse = {
+    productId: 1, mappingVersion: 17, originProductNo: 123, enabled: true,
+    variants: [], syncStatus: "FAILED", attemptCount: 10,
+    lastError: "재고 반영 요청 실패", syncedAt: null,
+  };
+  await page.route("**/api/v1/admin/products/*/smartstore-inventory**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/history")) return json(route, []);
+    if (path.includes("/products/2/")) return json(route, {}, 404);
+    return json(route, mapping);
+  });
+  return mapping;
+}
+
+for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해제 실행"] as const) {
+  test(`@admin 스마트스토어 재고 연동창은 ${action} 요청 중 편집과 다른 요청을 막는다`, async ({ page }) => {
+    const mapping = await prepareSmartStoreInventoryEditor(page);
+    let pending: Route | undefined;
+    const requests: Array<{ path: string; method: string; body: unknown }> = [];
+    await page.route("**/api/v1/admin/products/1/**", (route) => {
+      if (route.request().method() === "GET") return route.fallback();
+      pending = route;
+      requests.push({
+        path: new URL(route.request().url()).pathname,
+        method: route.request().method(),
+        body: route.request().postDataJSON(),
+      });
+    });
+    await page.goto("/admin?view=products");
+    await page.getByRole("row").filter({ hasText: "연동 작품" })
+      .getByRole("button", { name: "스마트스토어", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "차이 반영", exact: true })).toBeVisible();
+    await dialog.getByText("새 원상품", { exact: true }).click();
+    await dialog.getByRole("checkbox", {
+      name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+    }).check();
+    if (action === "연동 해제 실행") {
+      await dialog.getByRole("button", { name: "연동 해제", exact: true }).click();
+      await dialog.getByRole("checkbox", {
+        name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+      }).last().check();
+    }
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await expect.poll(() => requests.length).toBe(1);
+    await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeDisabled();
+    await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+    for (const button of await dialog.getByRole("button").all()) await expect(button).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    await dialog.getByText("기존 원상품", { exact: true }).click({ force: true });
+    await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+    await expect.poll(() => requests.length).toBe(1);
+    const suffix = action === "재시도" ? "smartstore-inventory/retry"
+      : action === "차이 반영" ? "smartstore-product-sync" : "smartstore-inventory";
+    expect(requests[0].path).toBe(`/api/v1/admin/products/1/${suffix}`);
+    if (action === "연동 저장") expect(requests[0].body).toMatchObject({
+      originProductNo: 456, expectedMappingVersion: mapping.mappingVersion, previousOriginConfirmed: true,
+    });
+    await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+    await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeEnabled();
+    await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog).toBeHidden();
+  });
+}
+
+test("@admin 스마트스토어 재고 재시도는 작성 중인 설정을 유지하고 다시 열면 초기화한다", async ({ page }) => {
+  const mapping = await prepareSmartStoreInventoryEditor(page);
+  await page.route("**/api/v1/admin/products/1/smartstore-inventory/retry", (route) =>
+    json(route, { ...mapping, syncStatus: "PENDING", attemptCount: 0, lastError: null }));
+  await page.goto("/admin?view=products");
+  const open = (name: string) => page.getByRole("row").filter({ hasText: name })
+    .getByRole("button", { name: "스마트스토어", exact: true }).click();
+  await open("연동 작품");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("확인 필요", { exact: true })).toBeVisible();
+  await dialog.getByText("새 원상품", { exact: true }).click();
+  const confirmed = dialog.getByRole("checkbox", {
+    name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+  });
+  await confirmed.check();
+  await dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" }).uncheck();
+  await dialog.getByRole("button", { name: "재시도", exact: true }).click();
+  await expect(dialog.getByText("반영 대기", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).not.toBeChecked();
+  await expect(confirmed).toBeChecked();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await open("다른 작품");
+  await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).not.toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("button", { name: "연동 저장", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await open("연동 작품");
+  await expect(dialog.getByRole("button").filter({ hasText: "기존 원상품" })).toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeChecked();
+  await expect(confirmed).toBeHidden();
+});
+
+test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확인과 최신 개정을 요구한다", async ({ page }) => {
+  await prepareSmartStoreInventoryEditor(page);
+  let releaseMapping: (() => void) | undefined;
+  const mappingGate = new Promise<void>((resolve) => {
+    releaseMapping = resolve;
+  });
+  let savedBody: Record<string, unknown> | undefined;
+  let deleteParams: Record<string, string> | undefined;
   await page.route("**/api/v1/admin/products/1/smartstore-inventory**", async (route) => {
     if (new URL(route.request().url()).pathname.endsWith("/history")) {
       return json(route, [{
