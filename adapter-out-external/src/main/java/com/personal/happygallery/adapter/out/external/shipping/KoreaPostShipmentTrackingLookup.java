@@ -55,7 +55,7 @@ class KoreaPostShipmentTrackingLookup implements KoreaPostTrackingLookup {
                             .queryParam("serviceKey", "{key}").queryParam("rgist", "{number}")
                             .build(properties.serviceKey(), registeredNumber))
                     .retrieve().body(byte[].class);
-            return parse(orderId, trackingNumber, body);
+            return parse(orderId, trackingNumber, registeredNumber, body);
         } catch (Exception exception) {
             // URL에 인증키와 운송장이 있으므로 원인 예외·본문을 로그에 남기지 않는다.
             log.warn("우체국 배송조회 실패 [orderId={} type={}]", orderId, exception.getClass().getSimpleName());
@@ -63,7 +63,8 @@ class KoreaPostShipmentTrackingLookup implements KoreaPostTrackingLookup {
         }
     }
 
-    private Optional<TrackingUpdate> parse(Long orderId, String trackingNumber, byte[] body) throws Exception {
+    private Optional<TrackingUpdate> parse(Long orderId, String trackingNumber,
+            String registeredNumber, byte[] body) throws Exception {
         if (body == null) {
             throw new IllegalArgumentException("빈 배송조회 응답");
         }
@@ -79,6 +80,9 @@ class KoreaPostShipmentTrackingLookup implements KoreaPostTrackingLookup {
         if (!"LongitudinalDomesticListResponse".equals(root.getTagName())
                 || !"Y".equals(text(root, "successYN")) || !"00".equals(text(root, "returnCode"))) {
             throw new IllegalArgumentException("실패한 배송조회 응답");
+        }
+        if (!registeredNumber.equals(text(root, "rgist"))) {
+            throw new IllegalArgumentException("배송조회 응답의 운송장 번호 불일치");
         }
         NodeList items = root.getElementsByTagName("longitudinalDomesticList");
         List<TrackingEvent> events = new ArrayList<>();
