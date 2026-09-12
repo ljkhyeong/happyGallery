@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 import com.personal.happygallery.adapter.in.web.customer.MeGroupInquiryController;
 import com.personal.happygallery.adapter.in.web.inquiry.GroupInquiryController;
 import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase;
+import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,18 +37,21 @@ class GroupInquiryApiRestDocsTest extends RestDocsTestSupport {
         when(useCase.detailForMember(CUSTOMER_USER_ID, 51L)).thenReturn(memberDetail);
         when(useCase.reviseByMember(CUSTOMER_USER_ID, 51L, 0, 30, "10월 오전")).thenReturn(memberDetail);
         when(useCase.cancelByMember(CUSTOMER_USER_ID, 51L, 0)).thenReturn(memberDetail);
-        mvc = mockMvc(documentation, new GroupInquiryController(useCase), new MeGroupInquiryController(useCase));
+        var protection = mock(BotProtectionUseCase.class);
+        mvc = mockMvc(documentation, new GroupInquiryController(useCase, protection), new MeGroupInquiryController(useCase, protection));
     }
     @Test
     @DisplayName("비회원 단체 문의 접수 번호와 상태를 문서화한다")
     void guest_create() throws Exception {
-        mvc.perform(post("/api/v1/group-inquiries").contentType(APPLICATION_JSON).content(GroupInquiryRestDocsFixtures.REQUEST))
+        mvc.perform(post("/api/v1/group-inquiries").header("X-Bot-Token", "group-challenge-token")
+                        .contentType(APPLICATION_JSON).content(GroupInquiryRestDocsFixtures.REQUEST))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(51));
     }
     @Test
     @DisplayName("로그인 회원의 단체 문의 접수를 문서화한다")
     void member_create() throws Exception {
         mvc.perform(post("/api/v1/me/group-inquiries").with(customerUser())
+                        .header("X-Bot-Token", "group-challenge-token")
                         .contentType(APPLICATION_JSON).content(GroupInquiryRestDocsFixtures.REQUEST))
                 .andExpect(status().isCreated());
     }

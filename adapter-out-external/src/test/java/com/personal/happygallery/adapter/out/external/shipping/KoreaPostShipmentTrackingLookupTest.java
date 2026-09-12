@@ -67,6 +67,22 @@ class KoreaPostShipmentTrackingLookupTest {
         server.verify();
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"<rgist>2222222222222</rgist>", ""})
+    @DisplayName("응답 운송장이 요청과 다르거나 없으면 배송 이력을 전달하지 않는다")
+    void rejectsDifferentOrMissingTrackingNumber(String registeredNumberElement) {
+        String xml = response("배달완료")
+                .replace("<rgist>1111111111111</rgist>", registeredNumberElement);
+        server.expect(requestTo(containsString("rgist=1111111111111")))
+                .andRespond(withSuccess(xml, MediaType.APPLICATION_XML));
+
+        assertThatThrownBy(() -> lookup(true).lookup(10L, "11111-1111-1111"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("우체국 배송조회 응답을 처리하지 못했습니다.")
+                .hasNoCause();
+        server.verify();
+    }
+
     @Test
     @DisplayName("배송 이력이 없는 정상 응답은 기존 이력을 지우지 않도록 건너뛴다")
     void skipsEmptyHistory() {
@@ -74,7 +90,7 @@ class KoreaPostShipmentTrackingLookupTest {
                 .andRespond(withSuccess("""
                         <LongitudinalDomesticListResponse><cmmMsgHeader>
                         <successYN>Y</successYN><returnCode>00</returnCode>
-                        </cmmMsgHeader></LongitudinalDomesticListResponse>
+                        </cmmMsgHeader><rgist>1111111111111</rgist></LongitudinalDomesticListResponse>
                         """, MediaType.APPLICATION_XML));
         assertThat(lookup(true).lookup(10L, "1111111111111")).isEmpty();
         server.verify();
@@ -110,6 +126,7 @@ class KoreaPostShipmentTrackingLookupTest {
         return """
                 <LongitudinalDomesticListResponse>
                   <cmmMsgHeader><successYN>Y</successYN><returnCode>00</returnCode></cmmMsgHeader>
+                  <rgist>1111111111111</rgist>
                   <addrseNm>홍길동</addrseNm><dlvySttus>%s</dlvySttus>
                   <longitudinalDomesticList><dlvyDate>2026-09-12</dlvyDate><dlvyTime>16:26</dlvyTime>
                     <nowLc>시흥우체국</nowLc><processSttus>%s</processSttus><detailDc>수령인:홍길동</detailDc>

@@ -41,6 +41,8 @@ docker build --pull \
     -f deploy/k3s/images/Dockerfile.app \
     -t "$app_image" .
 
+"$SCRIPT_DIR/verify-app-image.sh" "$app_image"
+
 info "프런트 이미지를 빌드합니다: $frontend_image"
 docker build --pull \
     --label "org.opencontainers.image.revision=$image_tag" \
@@ -92,9 +94,11 @@ for reference in \
     "$app_image@$app_image_digest" \
     "$frontend_image@$frontend_image_digest"; do
     source_image=${reference%@*}
-    if ! containerd_has_image "$reference"; then
-        k3s_ctr images tag "$source_image" "$reference" >/dev/null
-    fi
+    # CRI는 tag@digest 조회 시 tag를 제외한다. 백업용 기존 이름도 함께 보존한다.
+    digest_reference="${source_image%:*}@${reference#*@}"
+    for alias_reference in "$reference" "$digest_reference"; do
+        ensure_containerd_image_alias "$source_image" "$alias_reference" "${reference#*@}"
+    done
 done
 
 cat <<EOF
@@ -105,5 +109,5 @@ FRONTEND_IMAGE=$frontend_image
 APP_IMAGE_DIGEST=$app_image_digest
 FRONTEND_IMAGE_DIGEST=$frontend_image_digest
 임시 archive=$archive
-release.env에 위 다섯 값을 기록한 뒤 archive는 제거해도 됩니다.
+자동 설정·배포: ./deploy/k3s/scripts/deploy.sh --imported /etc/happygallery/release.env $image_tag
 EOF

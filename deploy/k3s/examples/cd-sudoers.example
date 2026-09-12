@@ -1,0 +1,2 @@
+# ronaldo는 Docker와 k3s를 관리하는 운영 계정이다. 이 권한은 클러스터 관리자 권한이다.
+ronaldo ALL=(root) NOPASSWD: /usr/local/bin/k3s kubectl *, /usr/local/bin/k3s ctr *, /usr/bin/systemctl start happygallery-backup.timer, /usr/bin/systemctl stop happygallery-backup.timer

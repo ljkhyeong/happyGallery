@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
@@ -24,6 +25,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 
 class NaverCommerceInventoryProviderTest {
 
@@ -75,8 +77,8 @@ class NaverCommerceInventoryProviderTest {
     }
 
     @Test
-    @DisplayName("주문제작품 재고는 한 원상품의 모든 옵션 수량을 한 요청으로 전송한다")
-    void sync_optionProduct_sendsAllOptionStocksTogether() {
+    @DisplayName("자동 옵션 재고 전송은 네이버의 현재 옵션가와 사용 여부를 보존한다")
+    void sync_optionProduct_preservesRemotePriceAndUsability() {
         RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
@@ -85,6 +87,10 @@ class NaverCommerceInventoryProviderTest {
                 builder.build(), PROPERTIES, accessTokenProvider);
 
         expectToken(server);
+        expectOptionProduct(server, """
+                [{"id":11,"stockQuantity":100,"price":1500,"usable":true},
+                 {"id":12,"stockQuantity":50,"price":2500,"usable":false}]
+                """);
         server.expect(requestTo(
                         "https://api.commerce.naver.com/external/v1/products/origin-products/123456789/option-stock"))
                 .andExpect(method(HttpMethod.PUT))
@@ -93,13 +99,13 @@ class NaverCommerceInventoryProviderTest {
                         {
                           "optionInfo": {
                             "optionCombinations": [
-                              {"id": 11, "stockQuantity": 3},
-                              {"id": 12, "stockQuantity": 0}
+                              {"id": 11, "stockQuantity": 3, "price": 1500, "usable": true},
+                              {"id": 12, "stockQuantity": 0, "price": 2500, "usable": false}
                             ],
                             "useStockManagement": true
                           }
                         }
-                        """))
+                        """, JsonCompareMode.STRICT))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
         var result = provider.sync(new StockCommand(
@@ -109,6 +115,51 @@ class NaverCommerceInventoryProviderTest {
 
         server.verify();
         assertThat(result.success()).isTrue();
+    }
+
+    @Test
+    @DisplayName("현재 옵션 조회에 실패하면 가격을 추측하지 않고 재고 전송을 중단한다")
+    void sync_optionLookupFailure_doesNotSendStock() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
+
+        expectToken(server);
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withServerError());
+
+        var result = provider.sync(new StockCommand(
+                123456789L, null, List.of(new OptionStock(11L, 3))));
+
+        assertThat(result.success()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("연결한 옵션이 네이버에 없으면 일부 옵션만 전송하지 않고 실패로 남긴다")
+    void sync_missingRemoteOption_doesNotSendStock() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceAccessTokenProvider accessTokenProvider = new NaverCommerceAccessTokenProvider(
+                builder.build(), PROPERTIES, CLOCK);
+        NaverCommerceInventoryProvider provider = new NaverCommerceInventoryProvider(
+                builder.build(), PROPERTIES, accessTokenProvider);
+
+        expectToken(server);
+        expectOptionProduct(server,
+                "[{\"id\":11,\"stockQuantity\":100,\"price\":1500,\"usable\":true}]");
+
+        var result = provider.sync(new StockCommand(
+                123456789L, null, List.of(new OptionStock(11L, 3), new OptionStock(12L, 0))));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.reason()).contains("옵션 연결");
+        server.verify();
     }
 
     @Test
@@ -257,6 +308,17 @@ class NaverCommerceInventoryProviderTest {
                     assertThat(option.price()).isEqualTo(1000L);
                 });
         assertThat(result.success()).isTrue();
+    }
+
+    private static void expectOptionProduct(MockRestServiceServer server, String options) {
+        server.expect(requestTo(
+                        "https://api.commerce.naver.com/external/v2/products/origin-products/123456789"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andRespond(withSuccess("""
+                        {"originProduct":{"salePrice":33000,"statusType":"SALE",
+                        "detailAttribute":{"optionInfo":{"optionCombinations":%s}}}}
+                        """.formatted(options), MediaType.APPLICATION_JSON));
     }
 
     private static void expectToken(MockRestServiceServer server) {

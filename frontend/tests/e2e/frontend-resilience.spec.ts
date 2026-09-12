@@ -297,6 +297,46 @@ test("@identity sessionStorage가 차단된 소셜 callback은 기본 경로로 
   await expect(page.getByRole("link", { name: "소셜 콜백 회원" })).toBeVisible();
 });
 
+for (const scenario of [
+  { name: "인증 취소·실패", error: "SOCIAL_LOGIN_FAILED", path: "/login", label: "로그인 페이지로 돌아가기" },
+  { name: "회원 조회 실패", error: "", path: "/login", label: "로그인 페이지로 돌아가기" },
+  { name: "가입 동의 누락", error: "POLICY_CONSENT_REQUIRED", path: "/signup", label: "동의하고 회원가입하기" },
+]) {
+  test(`@identity 소셜 로그인 ${scenario.name} 후에도 원래 예약 화면을 유지한다`, async ({ page }) => {
+    const returnTo = "/bookings/new?classId=42";
+    const redirect = new URLSearchParams({ redirect: returnTo }).toString();
+    let callbackStarted = false;
+    await page.route("**/api/v1/**", async (route) => {
+      const { pathname } = new URL(route.request().url());
+      if (pathname === "/api/v1/auth/social/authorization/google") {
+        callbackStarted = true;
+        return route.fulfill({ status: 302, headers: {
+          location: `/auth/callback${scenario.error ? `?error=${scenario.error}` : ""}`,
+        } });
+      }
+      if (pathname === "/api/v1/me") {
+        return callbackStarted && !scenario.error
+          ? fulfillJson(route, temporaryError, 503)
+          : fulfillJson(route, guestCustomerError, 401);
+      }
+      if (pathname === "/api/v1/workshop") {
+        return fulfillJson(route, { name: "해피갤러리" });
+      }
+      return fulfillJson(route, []);
+    });
+
+    await page.goto(`/login?${redirect}`);
+    await page.getByRole("button", { name: "Google로 로그인", exact: true }).click();
+    const retry = page.getByRole("link", { name: scenario.label, exact: true });
+    await expect(retry).toHaveAttribute("href", `${scenario.path}?${redirect}`);
+    expect(await page.evaluate(() => sessionStorage.getItem("social_login_return_to"))).toBeNull();
+    if (scenario.path === "/login") {
+      await retry.click();
+      await expect(page).toHaveURL(new URL(`/login?${redirect}`, page.url()).toString());
+    }
+  });
+}
+
 test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로 응답한다", async ({
   page,
 }) => {

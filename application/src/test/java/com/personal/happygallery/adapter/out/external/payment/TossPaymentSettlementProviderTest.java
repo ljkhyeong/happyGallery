@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
+import java.io.IOException;
 import java.time.LocalDate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -20,8 +22,50 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 
 class TossPaymentSettlementProviderTest {
+
+    @ParameterizedTest
+    @ValueSource(ints = {401, 429, 503})
+    @DisplayName("정산 HTTP 오류는 상태만 전달하고 외부 응답 본문과 원인 예외를 제외한다")
+    void findSettlements_httpErrorOmitsResponseBody(int status) {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentSettlementProvider provider = new TossPaymentSettlementProvider(builder.build());
+        server.expect(requestTo(containsString("/v1/settlements")))
+                .andRespond(withStatus(HttpStatusCode.valueOf(status))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"message\":\"private-settlement-detail\"}"));
+
+        assertThatThrownBy(() -> provider.findSettlements(
+                LocalDate.of(2026, 8, 22), LocalDate.of(2026, 8, 28)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("토스 정산 조회에 실패했습니다. (HTTP " + status + ")")
+                .hasNoCause();
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("정산 통신·응답 변환 실패는 원문이 포함된 원인 예외를 전달하지 않는다")
+    void findSettlements_transportAndParsingErrorsOmitCause(boolean transportFailure) {
+        RestClient.Builder builder = RestClient.builder().baseUrl("https://api.tosspayments.com");
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentSettlementProvider provider = new TossPaymentSettlementProvider(builder.build());
+        server.expect(requestTo(containsString("/v1/settlements")))
+                .andRespond(transportFailure
+                        ? withException(new IOException("private-connection-detail"))
+                        : withSuccess("[{\"amount\":\"private-settlement-detail\"}]", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> provider.findSettlements(
+                LocalDate.of(2026, 8, 22), LocalDate.of(2026, 8, 28)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageStartingWith("토스 정산 조회 응답을 처리하지 못했습니다. [type=")
+                .hasNoCause();
+        server.verify();
+    }
 
     @ParameterizedTest
     @ValueSource(ints = {1, 2})

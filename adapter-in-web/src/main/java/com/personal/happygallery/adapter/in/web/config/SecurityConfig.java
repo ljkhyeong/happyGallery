@@ -82,6 +82,7 @@ public class SecurityConfig {
             "/api/v1/products/{productId}/reviews",
             "/api/v1/media/images/{fileName}",
             "/api/v1/workshop",
+            CustomerSecurityRoutes.BOT_PROTECTION_API,
             "/api/v1/classes",
             "/api/v1/classes/{id}",
             "/api/v1/classes/{classId}/reviews",

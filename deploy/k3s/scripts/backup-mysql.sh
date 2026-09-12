@@ -11,9 +11,24 @@ require_command gzip
 require_command base64
 require_command tar
 require_command ruby
-marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
-[ -f "$marker" ] \
-    || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
+require_command flock
+umask 077
+backup_storage=${BACKUP_STORAGE:-mounted}
+case "$backup_storage" in
+    mounted)
+        marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
+        [ -f "$marker" ] \
+            || die "외부 백업 매체 marker가 없습니다. 매체가 실제로 mount됐는지 확인하세요: $marker"
+        ;;
+    rclone)
+        bash "$SCRIPT_DIR/rclone-backup.sh" check
+        mkdir -p "$BACKUP_DIR"
+        chmod 700 "$BACKUP_DIR"
+        ;;
+    *) die "BACKUP_STORAGE는 mounted 또는 rclone이어야 합니다." ;;
+esac
+exec 9> "$BACKUP_DIR/.backup.lock"
+flock -n 9 || die "다른 백업 또는 보존 정리가 실행 중입니다."
 
 kube -n "$NAMESPACE" get pod mysql-0 >/dev/null
 kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/null
@@ -23,6 +38,9 @@ case "$original_app_replicas" in
     0|1) ;;
     *) die "백업은 단일 app replica 구성에서만 실행할 수 있습니다: $original_app_replicas" ;;
 esac
+mysql_preflight backup
+app_generation=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.metadata.generation}')
+secret_revision=$(kube -n "$NAMESPACE" get secret happygallery-app -o jsonpath='{.metadata.resourceVersion}')
 
 timestamp=$(date -u '+%Y%m%dT%H%M%SZ')
 backup="$BACKUP_DIR/happygallery-$timestamp.sql.gz.age"
@@ -35,7 +53,7 @@ tmp_checksum="$tmp.sha256"
 media_tmp_checksum="$media_tmp.sha256"
 recovery_metadata_tmp_checksum="$recovery_metadata_tmp.sha256"
 release_state_root=${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}
-current_release=$(CDPATH= cd -- "$release_state_root/current" 2>/dev/null && pwd) \
+current_release=$(CDPATH= cd -- "$release_state_root/current" 2>/dev/null && pwd -P) \
     || die "현재 release 메타데이터를 찾을 수 없습니다: $release_state_root/current"
 release_metadata="$current_release/metadata.env"
 release_manifest="$current_release/manifests.yaml"
@@ -47,6 +65,12 @@ FRONTEND_IMAGE=$(require_env_value FRONTEND_IMAGE "$release_metadata")
 APP_IMAGE_DIGEST=$(require_env_value APP_IMAGE_DIGEST "$release_metadata")
 FRONTEND_IMAGE_DIGEST=$(require_env_value FRONTEND_IMAGE_DIGEST "$release_metadata")
 IMAGE_TAG=$(require_env_value IMAGE_TAG "$release_metadata")
+live_app_image=$(kube -n "$NAMESPACE" get deployment app \
+    -o 'jsonpath={.spec.template.spec.containers[?(@.name=="app")].image}')
+case "$live_app_image" in
+    "$APP_IMAGE@$APP_IMAGE_DIGEST"|"${APP_IMAGE%:*}@$APP_IMAGE_DIGEST") ;;
+    *) die "실행 이미지와 현재 release 기록이 다릅니다. 배포를 마친 뒤 백업하세요." ;;
+esac
 release_backup_root="$BACKUP_DIR/releases"
 release_backup="$release_backup_root/$IMAGE_TAG"
 release_tmp="$release_backup.partial.$timestamp"
@@ -79,34 +103,17 @@ rm -f \
     "$media_tmp" "$media_tmp_checksum" \
     "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
 rm -rf "$release_tmp"
-media_helper_started=false
-app_restore_required=false
-
-restore_app() {
-    [ "$app_restore_required" = true ] || return 0
-    info "백업 전 app replica를 복구합니다: $original_app_replicas"
-    kube -n "$NAMESPACE" scale deployment/app --replicas="$original_app_replicas" >/dev/null
-    if [ "$original_app_replicas" -eq 1 ]; then
-        kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
-    fi
-    app_restore_required=false
-}
-
 cleanup_partial_backup() {
-    if [ "$media_helper_started" = true ]; then
-        stop_media_helper
-    fi
     rm -f \
         "$tmp" "$tmp_checksum" \
         "$media_tmp" "$media_tmp_checksum" \
         "$recovery_metadata_tmp" "$recovery_metadata_tmp_checksum"
     rm -rf "$release_tmp"
-    restore_app
 }
 trap cleanup_partial_backup EXIT HUP INT TERM
 
 if [ ! -d "$release_backup" ]; then
-    info "현재 release 이미지와 메타데이터를 외부 매체에 보존합니다: $IMAGE_TAG"
+    info "현재 release 이미지와 메타데이터를 백업 디렉터리에 보존합니다: $IMAGE_TAG"
     mkdir -p "$release_backup_root" "$release_tmp"
     cp "$release_metadata" "$release_tmp/metadata.env"
     cp "$release_manifest" "$release_tmp/manifests.yaml"
@@ -202,50 +209,26 @@ previous_hmac_keys_sha256=$(secret_fingerprint PREVIOUS_HMAC_KEYS)
 guest_token_key_sha256=$(secret_fingerprint GUEST_TOKEN_HMAC_SECRET)
 guest_token_previous_key_sha256=$(secret_fingerprint GUEST_TOKEN_PREVIOUS_HMAC_SECRET)
 
-if [ "$original_app_replicas" -eq 1 ]; then
-    info "DB와 미디어를 같은 쓰기 중단 구간에 보관하기 위해 app을 0 replica로 축소합니다."
-    app_restore_required=true
-    kube -n "$NAMESPACE" scale deployment/app --replicas=0 >/dev/null
-    wait_for_no_pods "$NAMESPACE" 'app.kubernetes.io/name=app' 120
-fi
+bash "$SCRIPT_DIR/backup-data-online.sh" \
+    "$tmp" "$media_tmp" "$APP_IMAGE@$APP_IMAGE_DIGEST" "$original_app_replicas"
 
-info "MySQL 논리 무결성 검사를 실행합니다."
-kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
-    'exec mysqlcheck --check --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' >/dev/null
+# 배포·키 변경과 겹친 묶음은 완료 상태로 게시하지 않는다.
+[ "$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.metadata.generation}')" = "$app_generation" ] \
+    || die "백업 중 app 배포 상태가 변경됐습니다. 새 배포가 끝난 뒤 다시 백업하세요."
+[ "$(kube -n "$NAMESPACE" get secret happygallery-app -o jsonpath='{.metadata.resourceVersion}')" = "$secret_revision" ] \
+    || die "백업 중 앱 Secret이 변경됐습니다. 키 변경이 끝난 뒤 다시 백업하세요."
+[ "$(CDPATH= cd -- "$release_state_root/current" && pwd -P)" = "$current_release" ] \
+    || die "백업 중 현재 release 기록이 변경됐습니다."
+current_schema=$(mysql_database_query --execute="SELECT version FROM flyway_schema_history WHERE success = 1 ORDER BY installed_rank DESC LIMIT 1")
+[ "$current_schema" = "$flyway_schema_version" ] || die "백업 중 DB 스키마 버전이 변경됐습니다."
 
-info "MySQL 백업을 외부 매체에 age 암호화합니다."
-kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
-    exec mysqldump \
-      --single-transaction \
-      --routines \
-      --events \
-      --triggers \
-      --hex-blob \
-      --no-tablespaces \
-      --set-gtid-purged=OFF \
-      --databases "$MYSQL_DATABASE" \
-      -uroot -p"$MYSQL_ROOT_PASSWORD"
-' | gzip -9 | age -r "$BACKUP_AGE_RECIPIENT" -o "$tmp"
-
-[ -s "$tmp" ] || die "생성된 백업 파일이 비어 있습니다."
 checksum=$(sha256_file "$tmp")
 printf '%s  %s\n' "$checksum" "$(basename -- "$backup")" > "$tmp_checksum"
 chmod 600 "$tmp" "$tmp_checksum"
 
-info "상품 이미지 볼륨을 외부 매체에 age 암호화합니다."
-ensure_media_pvc
-media_helper_started=true
-start_media_helper "$APP_IMAGE@$APP_IMAGE_DIGEST"
-kube -n "$NAMESPACE" exec "$(media_helper_pod_name)" -- tar -C /media -cf - . \
-    | gzip -9 \
-    | age -r "$BACKUP_AGE_RECIPIENT" -o "$media_tmp"
-[ -s "$media_tmp" ] || die "생성된 미디어 백업 파일이 비어 있습니다."
 printf '%s  %s\n' "$(sha256_file "$media_tmp")" "$(basename -- "$media_backup")" \
     > "$media_tmp_checksum"
 chmod 600 "$media_tmp" "$media_tmp_checksum"
-stop_media_helper
-media_helper_started=false
-restore_app
 
 cat > "$recovery_metadata_tmp" <<EOF
 BACKUP_CREATED_AT=$timestamp
@@ -276,6 +259,11 @@ mv "$media_tmp" "$media_backup"
 mv "$media_tmp_checksum" "$media_backup.sha256"
 mv "$recovery_metadata_tmp_checksum" "$recovery_metadata.sha256"
 mv "$recovery_metadata_tmp" "$recovery_metadata"
+
+if [ "$backup_storage" = rclone ]; then
+    # 앱과 이미지 삭제 보호를 유지할 필요 없이 암호문만 업로드한다.
+    bash "$SCRIPT_DIR/rclone-backup.sh" upload "$recovery_metadata"
+fi
 
 trap - EXIT HUP INT TERM
 

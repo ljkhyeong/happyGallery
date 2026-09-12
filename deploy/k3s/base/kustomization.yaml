@@ -10,6 +10,7 @@ resources:
   - redis.yaml
   - app.yaml
   - frontend.yaml
+  - frontend-assets.yaml
   - prometheus.yaml
   - alertmanager.yaml
   - grafana.yaml

@@ -4,6 +4,11 @@ set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
 : "${BACKUP_DIR:?BACKUP_DIR가 필요합니다.}"
+case "${BACKUP_STORAGE:-mounted}" in
+    rclone) exec bash "$SCRIPT_DIR/rclone-backup.sh" prune ;;
+    mounted) ;;
+    *) die "BACKUP_STORAGE는 mounted 또는 rclone이어야 합니다." ;;
+esac
 retention_days=${BACKUP_RETENTION_DAYS:-30}
 marker=${BACKUP_TARGET_MARKER:-$BACKUP_DIR/.happygallery-off-device-backup-target}
 [ -f "$marker" ] || die "외부 백업 매체 marker가 없어 보존 정리를 중단합니다: $marker"

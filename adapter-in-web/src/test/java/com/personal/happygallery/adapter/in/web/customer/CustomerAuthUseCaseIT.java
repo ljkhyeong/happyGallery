@@ -121,7 +121,7 @@ class CustomerAuthUseCaseIT {
                                     .isEqualTo(PolicyConsentType.PRIVACY_POLICY);
                             softly.assertThat(consent.getPurpose())
                                     .isEqualTo(PolicyConsentPurpose.MEMBER_SIGNUP);
-                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-09-11-v1");
+                            softly.assertThat(consent.getPolicyVersion()).isEqualTo("2026-09-12-v1");
                             softly.assertThat(consent.getAcceptedAt()).isNotNull();
                         }));
     }
@@ -533,7 +533,7 @@ class CustomerAuthUseCaseIT {
 
     private PolicyAcceptanceRequest acceptedPolicies() {
         return new PolicyAcceptanceRequest(
-                "2026-09-11-v1", true, "2026-09-11-v1", true);
+                "2026-09-11-v1", true, "2026-09-12-v1", true);
     }
 
     private String issueVerificationCode(String phone) throws Exception {

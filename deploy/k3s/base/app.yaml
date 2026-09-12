@@ -42,9 +42,12 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 3
+  minReadySeconds: 10
   strategy:
-    # Flyway 전후에 구/신 binary가 같은 DB를 동시에 사용하지 않게 한다.
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: app
@@ -76,6 +79,8 @@ spec:
             # env는 envFrom보다 우선한다. Secret 파일이 운영 불변식을 덮지 못하게 고정한다.
             - name: HAPPYGALLERY_RUNTIME_MODE
               value: production
+            - name: APP_DEPLOYMENT_GUARD_ENABLED
+              value: "true"
             - name: SPRING_PROFILES_ACTIVE
               value: prod
             - name: RATE_LIMIT_ENABLED
@@ -127,7 +132,7 @@ spec:
                 command:
                   - sh
                   - -ec
-                  - sleep 5
+                  - sleep 10
           resources:
             requests:
               cpu: 250m

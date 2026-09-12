@@ -42,12 +42,25 @@ esac
 
 app_ref="$APP_IMAGE@$APP_IMAGE_DIGEST"
 frontend_ref="$FRONTEND_IMAGE@$FRONTEND_IMAGE_DIGEST"
+app_cri_ref="${APP_IMAGE%:*}@$APP_IMAGE_DIGEST"
+frontend_cri_ref="${FRONTEND_IMAGE%:*}@$FRONTEND_IMAGE_DIGEST"
 runtime_inventory=$(ruby "$SCRIPT_DIR/runtime-images-from-manifest.rb" \
     --inventory "$manifest" "$runtime_metadata")
 
+# import가 기존 별칭을 덮어쓰기 전에 네 이름의 충돌을 먼저 확인한다.
+for reference in "$app_ref" "$frontend_ref" "$app_cri_ref" "$frontend_cri_ref"; do
+    if containerd_has_image "$reference"; then
+        actual_digest=$(containerd_image_digest "$reference")
+        [ "$actual_digest" = "${reference#*@}" ] \
+            || die "기존 복구 이미지 별칭의 digest가 다릅니다: $reference"
+    fi
+done
+
 all_required_images_match() {
-    containerd_has_image "$app_ref" || return 1
-    containerd_has_image "$frontend_ref" || return 1
+    for reference in "$app_ref" "$frontend_ref"; do
+        actual_digest=$(containerd_image_digest "$reference") || return 1
+        [ "$actual_digest" = "${reference#*@}" ] || return 1
+    done
 
     while IFS=$'\t' read -r runtime_key runtime_image expected_digest unexpected; do
         [ -n "$runtime_key" ] && [ -n "$runtime_image" ] \
@@ -65,4 +78,8 @@ fi
 
 all_required_images_match \
     || die "복구 archive import 후 필수 app/frontend/runtime 이미지 digest를 확인하지 못했습니다."
+
+# 기존 백업에 tag@digest만 있어도 CRI가 사용하는 tag 없는 이름을 복원한다.
+ensure_containerd_image_alias "$app_ref" "$app_cri_ref" "$APP_IMAGE_DIGEST"
+ensure_containerd_image_alias "$frontend_ref" "$frontend_cri_ref" "$FRONTEND_IMAGE_DIGEST"
 info "복구 release의 모든 이미지 digest를 확인했습니다: $IMAGE_TAG"

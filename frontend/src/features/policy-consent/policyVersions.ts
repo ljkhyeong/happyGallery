@@ -6,7 +6,8 @@ export const POLICY_VERSION_2026_08_11_V2 = "2026-08-11-v2";
 export const POLICY_VERSION_2026_09_11_V1 = "2026-09-11-v1";
 
 export const TERMS_POLICY_VERSION = POLICY_VERSION_2026_09_11_V1;
-export const PRIVACY_POLICY_VERSION = POLICY_VERSION_2026_09_11_V1;
+export const POLICY_VERSION_2026_09_12_V1 = "2026-09-12-v1";
+export const PRIVACY_POLICY_VERSION = POLICY_VERSION_2026_09_12_V1;
 
 export function policyPath(type: "terms" | "privacy", version: string): string {
   return `/${type}/${version}`;

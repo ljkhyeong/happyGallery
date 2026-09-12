@@ -45,7 +45,9 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
       case "/api/v1/me": return member
         ? json({ id: 501, name: "회원", email: "reschedule@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
         : json({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
+      case "/api/v1/workshop": return json({
+        name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
+      });
       case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
       case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
       case "/api/v1/me/bookings/7": return json(booking);
@@ -81,6 +83,18 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
 test("회원은 현재 인원이 모두 이동 가능한 날짜만 골라 예약을 변경한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const { panel, changes } = await openBooking(page, true);
+  const calendarLink = page.getByRole("link", { name: "Google 캘린더에 추가" });
+  await expect(calendarLink).toHaveAttribute("href", /dates=20990112T010000Z%2F20990112T015000Z/);
+  await expect(calendarLink).toHaveAttribute("target", "_blank");
+  await expect(calendarLink).toHaveAttribute("rel", "noopener noreferrer");
+  await page.context().route("https://calendar.google.com/**", (route) => route.fulfill({
+    contentType: "text/html", body: "<title>Google 일정 작성 대역</title>",
+  }));
+  const popupPromise = page.waitForEvent("popup");
+  await calendarLink.click();
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL(/^https:\/\/calendar\.google\.com\/calendar\/r\/eventedit\?/);
+  await popup.close();
   const quickDates = panel.getByLabel("빠른 날짜 선택 (14일 이내)");
   await expect(quickDates.locator("option")).toHaveText(["날짜를 선택하세요", "2099. 01. 14.", "2099. 01. 15."]);
   await quickDates.selectOption("2099-01-14");
@@ -91,6 +105,7 @@ test("회원은 현재 인원이 모두 이동 가능한 날짜만 골라 예약
   await panel.getByRole("button", { name: "선택한 시간으로 변경" }).click();
   await expect(page.getByText("회원 예약이 변경되었습니다.", { exact: true })).toBeVisible();
   expect(changes).toEqual([72]);
+  await expect(calendarLink).toHaveAttribute("href", /dates=20990114T010000Z%2F20990114T015000Z/);
   await expect(panel.locator('[data-slot-id="72"]')).toHaveCount(0);
   await expect(panel.getByRole("button", { name: "선택한 시간으로 변경" })).toBeDisabled();
 });
@@ -99,6 +114,18 @@ test("비회원은 날짜·시간 조회 실패를 재시도하고 직접 입력
   await page.setViewportSize({ width: 390, height: 844 });
   const options = { upcomingFailure: true, dateFailure: true, noUpcoming: false };
   const { panel, changes } = await openBooking(page, false, options);
+  const calendarLink = page.getByRole("link", { name: "Google 캘린더에 추가" });
+  await expect(calendarLink).toHaveAttribute("href", /dates=20990112T010000Z%2F20990112T015000Z/);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "캘린더 파일 받기" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("해피갤러리-가죽 공예.ics");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  expect(Buffer.concat(chunks).toString("utf8")).toContain("DTSTART:20990112T010000Z");
+  expect(await calendarLink.getAttribute("href")).not.toContain("reschedule-code");
+  await expect(page.getByText("예약을 변경·취소하면 저장한 일정도 직접 수정해 주세요.")).toBeVisible();
   await expect(panel.getByRole("alert")).toBeVisible();
   await panel.getByLabel("변경할 날짜").fill("2099-02-12");
   await expect(panel.locator('[data-slot-id="75"]')).toBeVisible();
@@ -116,6 +143,7 @@ test("비회원은 날짜·시간 조회 실패를 재시도하고 직접 입력
   await panel.getByRole("button", { name: "선택한 시간으로 변경" }).click();
   await expect(page.getByText("예약이 변경되었습니다.", { exact: true })).toBeVisible();
   expect(changes).toEqual([72]);
+  await expect(calendarLink).toHaveAttribute("href", /dates=20990114T010000Z%2F20990114T015000Z/);
 });
 
 test("14일 내 후보가 없어도 날짜를 직접 입력해 변경 가능한 시간을 찾는다", async ({ page }) => {

@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 @Profile("prod")
@@ -28,18 +30,7 @@ public class TossPaymentSettlementProvider implements PaymentSettlementProvider 
     public List<PaymentSettlementItem> findSettlements(LocalDate startDate, LocalDate endDate) {
         List<PaymentSettlementItem> results = new ArrayList<>();
         for (int page = 1; ; page++) {
-            int pageNumber = page;
-            List<SettlementResponse> response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1/settlements")
-                            .queryParam("startDate", startDate)
-                            .queryParam("endDate", endDate)
-                            .queryParam("dateType", "soldDate")
-                            .queryParam("page", pageNumber)
-                            .queryParam("size", PAGE_SIZE)
-                            .build())
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<>() {});
+            List<SettlementResponse> response = fetchPage(startDate, endDate, page);
             if (response == null) {
                 throw new IllegalStateException("토스 정산 응답이 비어 있습니다.");
             }
@@ -52,6 +43,29 @@ public class TossPaymentSettlementProvider implements PaymentSettlementProvider 
             }
         }
         return results;
+    }
+
+    private List<SettlementResponse> fetchPage(LocalDate startDate, LocalDate endDate, int page) {
+        try {
+            return restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/v1/settlements")
+                            .queryParam("startDate", startDate)
+                            .queryParam("endDate", endDate)
+                            .queryParam("dateType", "soldDate")
+                            .queryParam("page", page)
+                            .queryParam("size", PAGE_SIZE)
+                            .build())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+        } catch (RestClientResponseException exception) {
+            // 배치 로그에 외부 응답 원문이 남지 않도록 원인 예외를 연결하지 않는다.
+            throw new IllegalStateException(
+                    "토스 정산 조회에 실패했습니다. (HTTP " + exception.getStatusCode().value() + ")");
+        } catch (RestClientException exception) {
+            throw new IllegalStateException("토스 정산 조회 응답을 처리하지 못했습니다. [type="
+                    + exception.getClass().getSimpleName() + "]");
+        }
     }
 
     private record SettlementResponse(

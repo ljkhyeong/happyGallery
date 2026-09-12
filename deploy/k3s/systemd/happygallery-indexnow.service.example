@@ -1,0 +1,19 @@
+[Unit]
+Description=Notify search engines of happyGallery public page changes
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+StateDirectory=happygallery-indexnow
+StateDirectoryMode=0700
+EnvironmentFile=/etc/happygallery/indexnow.env
+WorkingDirectory=/opt/happygallery
+ExecStart=/usr/bin/ruby /opt/happygallery/deploy/k3s/scripts/notify-indexnow.rb /var/lib/happygallery-indexnow
+TimeoutStartSec=5min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+UMask=0077

@@ -6,6 +6,7 @@ set -eu
 [ "$#" -eq 1 ] || die "사용법: $0 <공개 DNS 이름>"
 public_host=$1
 require_command curl
+require_command ruby
 
 kube get node >/dev/null
 traefik_pods=$(kube -n kube-system get pods \
@@ -49,20 +50,24 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 attempt=0
-until curl -fsS "http://127.0.0.1:$port/actuator/health/readiness" | grep -q '"status":"UP"'; do
+until curl -fsS --connect-timeout 2 --max-time 5 \
+    "http://127.0.0.1:$port/actuator/health/readiness" \
+    2>"$public_check_dir/readiness-error.log" | grep -q '"status":"UP"'; do
     attempt=$((attempt + 1))
     [ "$attempt" -lt 20 ] || {
-        cat "$log_file" >&2
+        cat "$public_check_dir/readiness-error.log" "$log_file" >&2
         die "내부 Actuator readiness 확인에 실패했습니다."
     }
     sleep 1
 done
 
 attempt=0
-until prometheus_target=$(curl -fsS "http://127.0.0.1:$prometheus_port/api/v1/targets?state=active"); do
+until prometheus_target=$(curl -fsS --connect-timeout 2 --max-time 5 \
+    "http://127.0.0.1:$prometheus_port/api/v1/targets?state=active" \
+    2>"$public_check_dir/prometheus-error.log"); do
     attempt=$((attempt + 1))
     [ "$attempt" -lt 20 ] || {
-        cat "$prometheus_log_file" >&2
+        cat "$public_check_dir/prometheus-error.log" "$prometheus_log_file" >&2
         die "Prometheus target API 확인에 실패했습니다."
     }
     sleep 1
@@ -128,13 +133,27 @@ not_found_code=$(curl -sS -D "$public_check_dir/not-found.headers" -o "$public_c
 grep -qi '^content-type: text/html' "$public_check_dir/not-found.headers" \
     || die "알 수 없는 SSR route가 HTML 404를 반환하지 않았습니다."
 
-api_code=$(curl -sS -D "$public_check_dir/api.headers" -o "$public_check_dir/api.body" \
+public_api_code=$(curl -sS --connect-timeout 5 --max-time 15 \
+    -D "$public_check_dir/public-api.headers" -o "$public_check_dir/public-api.body" \
+    -w '%{http_code}' "https://$public_host/api/v1/products")
+[ "$public_api_code" -eq 200 ] || die "공개 상품 API가 200을 반환하지 않았습니다: $public_api_code"
+grep -qi '^content-type: application/json' "$public_check_dir/public-api.headers" \
+    || die "공개 상품 API가 JSON이 아닌 응답을 반환했습니다."
+ruby -rjson -e 'exit(JSON.parse(File.read(ARGV.fetch(0))).is_a?(Array) ? 0 : 1)' \
+    "$public_check_dir/public-api.body" \
+    || die "공개 상품 API 응답이 JSON 배열이 아닙니다."
+
+# SecurityConfig의 공개 허용 목록 밖 경로는 비로그인 요청에 JSON 401을 반환한다.
+denied_api_code=$(curl -sS --connect-timeout 5 --max-time 15 \
+    -D "$public_check_dir/denied-api.headers" -o "$public_check_dir/denied-api.body" \
     -w '%{http_code}' "https://$public_host/api/v1/definitely-not-a-route")
-[ "$api_code" -eq 404 ] || die "알 수 없는 API 경로가 404를 반환하지 않았습니다: $api_code"
-grep -qi '^content-type: application/json' "$public_check_dir/api.headers" \
-    || die "알 수 없는 API 경로가 JSON이 아닌 응답을 반환했습니다."
-if grep -qi '<!doctype html' "$public_check_dir/api.body"; then
-    die "API 오류가 frontend SSR HTML로 치환됐습니다."
-fi
+[ "$denied_api_code" -eq 401 ] || die "허용되지 않은 API 경로가 401을 반환하지 않았습니다: $denied_api_code"
+grep -qi '^content-type: application/json' "$public_check_dir/denied-api.headers" \
+    || die "허용되지 않은 API 경로가 JSON이 아닌 응답을 반환했습니다."
+ruby -rjson -e '
+    body = JSON.parse(File.read(ARGV.fetch(0)))
+    exit(body.is_a?(Hash) && body["code"] == "UNAUTHORIZED" ? 0 : 1)
+' "$public_check_dir/denied-api.body" \
+    || die "허용되지 않은 API 응답이 UNAUTHORIZED JSON 오류가 아닙니다."
 
 info "Pod/PVC/Actuator/HTTP redirect/TLS/SSR SEO/API 경계 검증 완료"

@@ -19,6 +19,6 @@ export function fetchUpcomingSlots(classId: number, days = 14): Promise<PublicSl
   return listUpcomingSlots({ classId, days, includeFull: true });
 }
 
-export function sendVerification(body: SendVerificationRequest): Promise<SendVerificationResponse> {
-  return requestVerification(body);
+export function sendVerification(body: SendVerificationRequest, botToken?: string): Promise<SendVerificationResponse> {
+  return requestVerification(body, { headers: botToken ? { "X-Bot-Token": botToken } : undefined });
 }

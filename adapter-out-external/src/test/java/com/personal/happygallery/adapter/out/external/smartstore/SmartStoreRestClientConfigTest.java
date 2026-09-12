@@ -12,10 +12,13 @@ import java.util.List;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -24,6 +27,7 @@ import org.springframework.web.client.RestClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -82,5 +86,62 @@ class SmartStoreRestClientConfigTest {
 
         server.verify();
         assertThat(result.success()).isFalse();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"code\":\"PERMISSION_DENIED\"}", "{}", "", "invalid json"})
+    @DisplayName("토큰 만료를 확인할 수 없는 401 응답에는 재고 요청을 반복하지 않는다")
+    void sync_unrecognizedUnauthorized_doesNotRetry(String body) {
+        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/products/origin-products/multi-update"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON).body(body));
+
+        var result = provider.sync(new StockCommand(123456789L, 7, List.of()));
+
+        assertThat(result.success()).isFalse();
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {200, 401})
+    @DisplayName("GW.AUTHN이면 새 토큰으로 한 번 재시도하고 다시 거절되면 중단한다")
+    void sync_expiredToken_retriesOnce(int retryStatus) {
+        String stockUrl = PROPERTIES.baseUrl() + "/external/v1/products/origin-products/multi-update";
+        String expiredToken = """
+                {"code":"GW.AUTHN","message":"요청을 보낼 권한이 없습니다.",
+                 "timestamp":"2026-09-12T10:00:00+09:00","traceId":"test-trace"}
+                """;
+        server.expect(requestTo(stockUrl))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON).body(expiredToken));
+        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/oauth2/token"))
+                .andRespond(withSuccess("""
+                        {"access_token":"new-token","expires_in":10800,"token_type":"Bearer"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(requestTo(stockUrl))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer new-token"))
+                .andRespond(withStatus(HttpStatusCode.valueOf(retryStatus))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(retryStatus == 200 ? "{}" : expiredToken));
+
+        var result = provider.sync(new StockCommand(123456789L, 7, List.of()));
+
+        assertThat(result.success()).isEqualTo(retryStatus == 200);
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("최초 토큰 발급이 거절되면 토큰 발급이나 재고 요청을 반복하지 않는다")
+    void sync_tokenIssuanceRejected_doesNotRetry() {
+        server.reset();
+        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/oauth2/token"))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON).body("{\"code\":\"GW.AUTHN\"}"));
+
+        var result = provider.sync(new StockCommand(123456789L, 7, List.of()));
+
+        assertThat(result.success()).isFalse();
+        server.verify();
     }
 }

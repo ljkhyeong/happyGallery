@@ -57,6 +57,7 @@ export function MyBookingDetailCard({ booking }: Props) {
             className={booking.className}
             startAt={booking.startAt}
             endAt={booking.endAt}
+            status={booking.status}
           />
         </div>
         <RefundProgressAlert refund={booking.refund} />

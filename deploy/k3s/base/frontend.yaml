@@ -24,6 +24,7 @@ metadata:
 spec:
   replicas: 1
   revisionHistoryLimit: 3
+  minReadySeconds: 10
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -39,7 +40,7 @@ spec:
         app.kubernetes.io/part-of: happygallery
     spec:
       automountServiceAccountToken: false
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 45
       securityContext:
         runAsNonRoot: true
         runAsUser: 101
@@ -54,6 +55,12 @@ spec:
           env:
             - name: INTERNAL_API_ORIGIN
               value: http://app:8080
+            - name: INDEXNOW_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: happygallery-app
+                  key: INDEXNOW_KEY
+                  optional: true
           ports:
             - name: http
               containerPort: 8080
@@ -78,6 +85,10 @@ spec:
             periodSeconds: 20
             timeoutSeconds: 2
             failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: [sh, -ec, sleep 10]
           resources:
             requests:
               cpu: 50m

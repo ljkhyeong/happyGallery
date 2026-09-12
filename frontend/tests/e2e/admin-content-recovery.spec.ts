@@ -145,7 +145,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
   });
 });
 
-test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전하게 복구한다", async ({ page }) => {
+test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그아웃 실패를 처리한다", async ({ page }) => {
   let workshopReads = 0;
   let workshopUpdates = 0;
   let retriedWorkshop: Record<string, unknown> | undefined;
@@ -235,9 +235,33 @@ test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전
     throw new Error(`정의하지 않은 관리자 요청: ${request.method()} ${pathname}`);
   });
 
+  await page.route("https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js", (route) => route.fulfill({
+    contentType: "application/javascript", body: `
+      window.kakao = { Postcode: class {
+        constructor(options) { this.options = options; }
+        embed(container) {
+          ["충북 충주시 계명대로 161", "충북 충주시 계명대로 162"].forEach((address) => {
+            const button = document.createElement("button");
+            button.textContent = address + " 선택";
+            button.onclick = () => this.options.oncomplete({ zonecode: "27360", roadAddress: address, address });
+            container.append(button);
+          });
+        }
+      }};
+    `,
+  }));
   await openAuthenticatedAdmin(page, "settings");
   const workshopName = page.getByLabel("공방명");
   await expect(workshopName).toHaveValue("해피갤러리");
+  const detail = page.getByLabel("상세 주소", { exact: true });
+  const searchDialog = page.getByRole("dialog", { name: "도로명주소 검색", exact: true });
+  await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+  await searchDialog.getByRole("button", { name: "충북 충주시 계명대로 161 선택" }).click();
+  await expect(detail).toHaveValue("1층");
+  await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+  await searchDialog.getByRole("button", { name: "충북 충주시 계명대로 162 선택" }).click();
+  await expect(detail).toHaveValue("");
+  await detail.fill("2층");
   await workshopName.fill("내가 작성한 공방명");
   await page.getByRole("button", { name: "공방 정보 저장" }).click();
 
@@ -250,6 +274,9 @@ test("P8-CONTENT-2 @admin 설정 충돌과 인증·로그아웃 실패를 안전
   expect(retriedWorkshop).toMatchObject({
     expectedVersion: 2,
     name: "내가 작성한 공방명",
+    postalCode: "27360",
+    addressLine1: "충북 충주시 계명대로 162",
+    addressLine2: "2층",
   });
 
   await page.getByLabel("현재 비밀번호").first().fill("wrong-password");

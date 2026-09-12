@@ -22,7 +22,7 @@ import { fetchProducts } from "@/features/admin-product/api";
 import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 import {
   approveSmartStoreCancel,
@@ -101,13 +101,13 @@ export function SmartStoreChannelOrderSection({
     useState<SmartStoreChannelOrderResponse | null>(null);
   const [returnReviewOrder, setReturnReviewOrder] = useState<SmartStoreChannelOrderResponse | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDispatchOpen, setBulkDispatchOpen] = useState(false);
+  const [bulkDispatchIds, setBulkDispatchIds] = useState<string[] | null>(null);
   const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
   const cursor = pageCursors.at(-1);
   const queryKey = [
     "admin", "smartstore-orders", attentionOnly, attentionReason || null, cursor ?? null,
   ] as const;
-  const { data, isLoading, error } = useAdminQuery(onAuthError, {
+  const { data, isLoading, error, refetch, isFetching } = useAdminQuery(onAuthError, {
     queryKey,
     queryFn: () => fetchSmartStoreChannelOrders(
       adminKey,
@@ -166,7 +166,7 @@ export function SmartStoreChannelOrderSection({
     onSettled: () => setPendingId(null),
   });
   const bulkConfirm = useAdminMutation(onAuthError, {
-    mutationFn: () => confirmSmartStoreOrders(adminKey, [...selectedIds]),
+    mutationFn: (productOrderIds: string[]) => confirmSmartStoreOrders(adminKey, productOrderIds),
     onSuccess: (result) => {
       setBulkResult(result);
       setSelectedIds(new Set(result.failures.map((failure) => failure.productOrderId)));
@@ -174,15 +174,17 @@ export function SmartStoreChannelOrderSection({
       invalidate();
     },
   });
+  const selectionLocked = bulkConfirm.isPending || bulkDispatchIds !== null;
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) {
+  if (error && !data) {
     if (error instanceof ApiError && error.status === 401) return null;
-    return <ErrorAlert error={error} />;
+    return <ErrorAlert error={error} onRetry={() => { void refetch(); }} retrying={isFetching} />;
   }
 
   return (
     <>
+      <ErrorAlert error={error} onRetry={() => { void refetch(); }} retrying={isFetching} />
       {!initialAttentionOnly && <ReturnDeliveryCompanies adminKey={adminKey} onAuthError={onAuthError} />}
       {!initialAttentionOnly && (
         <Form.Check
@@ -191,6 +193,7 @@ export function SmartStoreChannelOrderSection({
           id="smartstore-order-attention-only"
           label="확인이 필요한 주문만 보기"
           checked={attentionOnly}
+          disabled={selectionLocked}
           onChange={(event) => {
             setAttentionOnly(event.target.checked);
             if (!event.target.checked) setAttentionReason("");
@@ -204,6 +207,7 @@ export function SmartStoreChannelOrderSection({
           style={{ maxWidth: 300 }}
           aria-label="확인 필요 사유 필터"
           value={attentionReason}
+          disabled={selectionLocked}
           onChange={(event) => {
             setAttentionReason(event.target.value as ListSmartStoreChannelOrdersAttentionReason | "");
             resetPages();
@@ -218,13 +222,13 @@ export function SmartStoreChannelOrderSection({
       )}
       {!!selectedIds.size && <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
         <Badge bg="primary">{selectedIds.size}건 선택</Badge>
-        <Button size="sm" variant="outline-primary" disabled={bulkConfirm.isPending}
-          onClick={() => bulkConfirm.mutate()}>
+        <Button size="sm" variant="outline-primary" disabled={selectionLocked}
+          onClick={() => bulkConfirm.mutate([...selectedIds])}>
           {bulkConfirm.isPending ? "처리 중..." : "선택 주문 발주 확인"}
         </Button>
-        <Button size="sm" variant="outline-success"
-          onClick={() => setBulkDispatchOpen(true)}>선택 주문 발송</Button>
-        <Button size="sm" variant="outline-secondary"
+        <Button size="sm" variant="outline-success" disabled={selectionLocked}
+          onClick={() => setBulkDispatchIds([...selectedIds])}>선택 주문 발송</Button>
+        <Button size="sm" variant="outline-secondary" disabled={selectionLocked}
           onClick={() => setSelectedIds(new Set())}>선택 해제</Button>
       </div>}
       <ErrorAlert error={bulkConfirm.error} />
@@ -244,6 +248,7 @@ export function SmartStoreChannelOrderSection({
             <tr>
               <th style={{ width: 40 }}><Form.Check
                 aria-label="전체 주문 선택"
+                disabled={selectionLocked}
                 checked={orders.length > 0 && orders.slice(0, MAX_BULK_ORDERS)
                   .every((order) => selectedIds.has(order.productOrderId))}
                 onChange={(event) => setSelectedIds(event.target.checked
@@ -266,8 +271,8 @@ export function SmartStoreChannelOrderSection({
                 <td><Form.Check
                   aria-label={`${order.productOrderId} 선택`}
                   checked={selectedIds.has(order.productOrderId)}
-                  disabled={!selectedIds.has(order.productOrderId)
-                    && selectedIds.size >= MAX_BULK_ORDERS}
+                  disabled={selectionLocked || (!selectedIds.has(order.productOrderId)
+                    && selectedIds.size >= MAX_BULK_ORDERS)}
                   onChange={(event) => setSelectedIds((current) => {
                     const next = new Set(current);
                     if (event.target.checked) next.add(order.productOrderId);
@@ -300,7 +305,7 @@ export function SmartStoreChannelOrderSection({
                   )}
                 </td>
                 <td className="small">{formatDateTime(order.lastChangedAt)}</td>
-                <td>{actions(
+                <td><fieldset disabled={selectionLocked}>{actions(
                   order,
                   pendingId,
                   retryInventory.mutate,
@@ -310,7 +315,7 @@ export function SmartStoreChannelOrderSection({
                   },
                   setInventoryResolutionOrder,
                   setSelectedId,
-                )}</td>
+                )}</fieldset></td>
               </tr>
             ))}
           </tbody>
@@ -321,7 +326,7 @@ export function SmartStoreChannelOrderSection({
           <Button
             size="sm"
             variant="outline-secondary"
-            disabled={pageCursors.length === 1}
+            disabled={selectionLocked || pageCursors.length === 1}
             onClick={() => {
               setPageCursors((current) => current.slice(0, -1));
               setSelectedIds(new Set());
@@ -332,7 +337,7 @@ export function SmartStoreChannelOrderSection({
           <Button
             size="sm"
             variant="outline-secondary"
-            disabled={!data?.hasMore || !data.nextCursor}
+            disabled={selectionLocked || !data?.hasMore || !data.nextCursor}
             onClick={() => {
               if (data?.nextCursor) {
                 setPageCursors((current) => [...current, data.nextCursor ?? undefined]);
@@ -386,26 +391,26 @@ export function SmartStoreChannelOrderSection({
           }}
         />
       )}
-      <SmartStoreOrderDetailModal
+      {selectedId !== null && <SmartStoreOrderDetailModal
+        key={selectedId}
         adminKey={adminKey}
         productOrderId={selectedId}
         onAuthError={onAuthError}
         onClose={() => setSelectedId(null)}
         onChanged={invalidate}
-      />
-      <BulkDispatchModal
-        show={bulkDispatchOpen}
+      />}
+      {bulkDispatchIds !== null && <BulkDispatchModal
         adminKey={adminKey}
-        productOrderIds={[...selectedIds]}
+        productOrderIds={bulkDispatchIds}
         onAuthError={onAuthError}
-        onClose={() => setBulkDispatchOpen(false)}
+        onClose={() => setBulkDispatchIds(null)}
         onCompleted={(result) => {
-          setBulkDispatchOpen(false);
+          setBulkDispatchIds(null);
           setBulkResult(result);
           setSelectedIds(new Set(result.failures.map((failure) => failure.productOrderId)));
           invalidate();
         }}
-      />
+      />}
       <DeliveryCompanyDatalist />
     </>
   );
@@ -588,14 +593,12 @@ function BulkResultAlert({ result }: { result: SmartStoreOrderBulkActionResponse
 }
 
 function BulkDispatchModal({
-  show,
   adminKey,
   productOrderIds,
   onAuthError,
   onClose,
   onCompleted,
 }: {
-  show: boolean;
   adminKey: string;
   productOrderIds: string[];
   onAuthError: () => void;
@@ -605,7 +608,7 @@ function BulkDispatchModal({
   const toast = useToast();
   const [deliveryMethod, setDeliveryMethod] = useState("DELIVERY");
   const [deliveryCompanyCode, setDeliveryCompanyCode] = useState("");
-  const [dispatchDate, setDispatchDate] = useState(currentLocalDateTime());
+  const [dispatchDate, setDispatchDate] = useState(() => formatDateTimeInput(Date.now()));
   const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const dispatch = useAdminMutation(onAuthError, {
     mutationFn: () => dispatchSmartStoreOrders(adminKey, {
@@ -622,44 +625,46 @@ function BulkDispatchModal({
       onCompleted(result);
     },
   });
-  const valid = productOrderIds.length > 0 && dispatchDate.length > 0;
+  const valid = productOrderIds.length > 0 && dispatchDate.length > 0 && !dispatch.isPending;
 
-  return <Modal show={show} onHide={onClose} size="lg" centered>
+  return <Modal show onHide={() => { if (!dispatch.isPending) onClose(); }} size="lg" centered>
     <Form onSubmit={(event) => { event.preventDefault(); if (valid) dispatch.mutate(); }}>
-      <Modal.Header closeButton><Modal.Title className="fs-6">
+      <Modal.Header closeButton={!dispatch.isPending}><Modal.Title className="fs-6">
         스마트스토어 주문 {productOrderIds.length}건 발송
       </Modal.Title></Modal.Header>
       <Modal.Body>
         <ErrorAlert error={dispatch.error} />
-        <Row className="g-2 mb-3">
-          <Col md={4}><Form.Select value={deliveryMethod}
-            onChange={(event) => setDeliveryMethod(event.target.value)}>
-            <option value="DELIVERY">택배</option>
-            <option value="DIRECT_DELIVERY">직접 배송</option>
-            <option value="VISIT_RECEIPT">방문 수령</option>
-            <option value="QUICK_SVC">퀵서비스</option>
-          </Form.Select></Col>
-          <Col md={4}><Form.Control list="smartstore-delivery-companies"
-            value={deliveryCompanyCode}
-            onChange={(event) => setDeliveryCompanyCode(event.target.value.toUpperCase())}
-            placeholder="택배사 코드" /></Col>
-          <Col md={4}><Form.Control type="datetime-local" required value={dispatchDate}
-            onChange={(event) => setDispatchDate(event.target.value)} /></Col>
-        </Row>
-        <Table responsive size="sm" className="align-middle">
-          <thead><tr><th>상품 주문 번호</th><th>운송장 번호</th></tr></thead>
-          <tbody>{productOrderIds.map((productOrderId) => <tr key={productOrderId}>
-            <td className="small">{productOrderId}</td>
-            <td><Form.Control value={trackingNumbers[productOrderId] ?? ""}
-              onChange={(event) => setTrackingNumbers((current) => ({
-                ...current, [productOrderId]: event.target.value,
-              }))} placeholder="운송장 번호" /></td>
-          </tr>)}</tbody>
-        </Table>
+        <fieldset disabled={dispatch.isPending}>
+          <Row className="g-2 mb-3">
+            <Col md={4}><Form.Select value={deliveryMethod}
+              onChange={(event) => setDeliveryMethod(event.target.value)}>
+              <option value="DELIVERY">택배</option>
+              <option value="DIRECT_DELIVERY">직접 배송</option>
+              <option value="VISIT_RECEIPT">방문 수령</option>
+              <option value="QUICK_SVC">퀵서비스</option>
+            </Form.Select></Col>
+            <Col md={4}><Form.Control list="smartstore-delivery-companies"
+              value={deliveryCompanyCode}
+              onChange={(event) => setDeliveryCompanyCode(event.target.value.toUpperCase())}
+              placeholder="택배사 코드" /></Col>
+            <Col md={4}><Form.Control type="datetime-local" required value={dispatchDate}
+              onChange={(event) => setDispatchDate(event.target.value)} /></Col>
+          </Row>
+          <Table responsive size="sm" className="align-middle">
+            <thead><tr><th>상품 주문 번호</th><th>운송장 번호</th></tr></thead>
+            <tbody>{productOrderIds.map((productOrderId) => <tr key={productOrderId}>
+              <td className="small">{productOrderId}</td>
+              <td><Form.Control value={trackingNumbers[productOrderId] ?? ""}
+                onChange={(event) => setTrackingNumbers((current) => ({
+                  ...current, [productOrderId]: event.target.value,
+                }))} placeholder="운송장 번호" /></td>
+            </tr>)}</tbody>
+          </Table>
+        </fieldset>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>취소</Button>
-        <Button type="submit" disabled={!valid || dispatch.isPending}>
+        <Button variant="secondary" disabled={dispatch.isPending} onClick={onClose}>취소</Button>
+        <Button type="submit" disabled={!valid}>
           {dispatch.isPending ? "발송 요청 중..." : "일괄 발송"}
         </Button>
       </Modal.Footer>
@@ -766,7 +771,7 @@ function SmartStoreOrderDetailModal({
   onChanged,
 }: {
   adminKey: string;
-  productOrderId: string | null;
+  productOrderId: string;
   onAuthError: () => void;
   onClose: () => void;
   onChanged: () => void;
@@ -798,18 +803,15 @@ function SmartStoreOrderDetailModal({
 
   const detailQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-orders", "detail", productOrderId],
-    queryFn: () => fetchSmartStoreChannelOrder(adminKey, productOrderId!),
-    enabled: productOrderId !== null,
+    queryFn: () => fetchSmartStoreChannelOrder(adminKey, productOrderId),
   });
   const historyQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-orders", "actions", productOrderId],
-    queryFn: () => fetchSmartStoreChannelOrderActions(adminKey, productOrderId!),
-    enabled: productOrderId !== null,
+    queryFn: () => fetchSmartStoreChannelOrderActions(adminKey, productOrderId),
   });
 
   const action = useAdminMutation(onAuthError, {
     mutationFn: async (request: ChannelAction) => {
-      if (!productOrderId) return;
       if (request.kind === "confirm") {
         await confirmSmartStoreOrder(adminKey, productOrderId);
       } else if (request.kind === "dispatch") {
@@ -871,15 +873,15 @@ function SmartStoreOrderDetailModal({
   const claimStatus = order?.claimStatus;
 
   return (
-    <Modal show={productOrderId !== null} onHide={onClose} size="lg" centered>
-      <Modal.Header closeButton>
+    <Modal show onHide={() => { if (!action.isPending) onClose(); }} size="lg" centered>
+      <Modal.Header closeButton={!action.isPending}>
         <Modal.Title>스마트스토어 주문 처리</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {detailQuery.isLoading && <LoadingSpinner />}
         <ErrorAlert error={detailQuery.error ?? historyQuery.error ?? action.error} />
         {detail && order && (
-          <>
+          <fieldset disabled={action.isPending}>
             <div className="mb-3">
               <div className="fw-semibold">{order.productName}</div>
               <div className="small text-muted-soft">
@@ -1261,11 +1263,11 @@ function SmartStoreOrderDetailModal({
                 <Button type="submit" size="sm" disabled={action.isPending}>교환품 발송</Button>
               </Form>
             )}
-          </>
+          </fieldset>
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={onClose}>닫기</Button>
+        <Button variant="secondary" disabled={action.isPending} onClick={onClose}>닫기</Button>
       </Modal.Footer>
     </Modal>
   );
@@ -1391,12 +1393,6 @@ function DeliveryCompanyDatalist() {
     <option value="KDEXP">경동택배</option>
     <option value="DAESIN">대신택배</option>
   </datalist>;
-}
-
-function currentLocalDateTime(): string {
-  const date = new Date();
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function amount(value: number | null): string {

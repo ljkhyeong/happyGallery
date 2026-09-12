@@ -67,6 +67,8 @@ export function ShippingAddressFields({ value, onChange }: Props) {
                 ...value,
                 postalCode: address.postalCode,
                 addressLine1: address.roadAddress,
+                addressLine2: value.postalCode === address.postalCode && value.addressLine1 === address.roadAddress
+                  ? value.addressLine2 : null,
               });
             }} />
           </InputGroup>

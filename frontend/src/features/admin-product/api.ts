@@ -182,9 +182,10 @@ export function applySmartStoreProduct(
 
 export function fetchSmartStoreInspections(
   adminKey: string,
+  page: number,
 ): Promise<SmartStoreInspectionPageResponse> {
   return listSmartStoreInspectionProducts(
-    { page: 1, size: 100 },
+    { page, size: 100 },
     { headers: adminHeaders(adminKey) },
   );
 }
@@ -200,9 +201,10 @@ export function requestSmartStoreInspectionRestore(
 
 export function fetchSmartStoreNotices(
   adminKey: string,
+  page: number,
 ): Promise<SmartStoreNoticePageResponse> {
   return listSmartStoreProductNotices(
-    { page: 1, size: 100 },
+    { page, size: 100 },
     { headers: adminHeaders(adminKey) },
   );
 }

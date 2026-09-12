@@ -316,6 +316,21 @@ X-XSRF-TOKEN: {XSRF-TOKEN 쿠키 값}
 
 ---
 
+### 1.5 자동 입력 방지
+
+- `GET /api/v1/bot-protection`은 로그인 없이 조회한다. 활성화 시 `{ "siteKey": "공개 키" }`, 비활성 시 `{ "siteKey": null }`을 반환하며 비밀 키는 포함하지 않는다.
+- 활성화 시 아래 POST 요청은 Cloudflare Turnstile 토큰을 `X-Bot-Token` 헤더로 제출한다. 비활성 환경은 헤더 없이 기존처럼 동작한다.
+
+| 경로 | action |
+| --- | --- |
+| `/api/v1/bookings/phone-verifications` | `phone_verification` |
+| `/api/v1/group-inquiries` | `group_inquiry` |
+| `/api/v1/me/group-inquiries` | `group_inquiry` |
+
+- 서버는 문자 발송·문의 저장 전에 토큰의 성공 여부·도메인·action을 검증한다. 기존 인증·CSRF·요청 제한도 적용한다.
+- 누락·2,048자 초과·검증 실패·만료·재사용은 `400 INVALID_INPUT`, 제공자 장애·설정 오류는 `503 SERVICE_UNAVAILABLE`이다. 토큰은 5분 동안 한 번만 사용 가능하며, 처리 실패 후 재시도에도 새 토큰이 필요하다.
+- 관리자 단체 문의 수동 등록에는 적용하지 않는다. 설정과 운영 확인은 [연동 안내](../../../deploy/k3s/turnstile.md)를 따른다.
+
 ## 2. API 카탈로그
 
 ### 2.1 Admin API — 클래스/슬롯 관리
@@ -2662,7 +2677,7 @@ GET /api/v1/policies/current
 ```json
 {
   "terms": { "version": "2026-09-11-v1", "documentPath": "/terms/2026-09-11-v1" },
-  "privacy": { "version": "2026-09-11-v1", "documentPath": "/privacy/2026-09-11-v1" }
+  "privacy": { "version": "2026-09-12-v1", "documentPath": "/privacy/2026-09-12-v1" }
 }
 ```
 
@@ -2701,7 +2716,7 @@ POST /api/v1/auth/signup
   "policyAcceptance": {
     "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-09-11-v1",
+    "privacyVersion": "2026-09-12-v1",
     "privacyAccepted": true
   }
 }
@@ -2764,7 +2779,7 @@ X-XSRF-TOKEN: {csrfToken}
 {
   "termsVersion": "2026-09-11-v1",
   "termsAccepted": true,
-  "privacyVersion": "2026-09-11-v1",
+  "privacyVersion": "2026-09-12-v1",
   "privacyAccepted": true
 }
 ```
@@ -3650,7 +3665,7 @@ Content-Type: application/json
   "policyAcceptance": {
     "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-09-11-v1",
+    "privacyVersion": "2026-09-12-v1",
     "privacyAccepted": true
   },
   "fulfillmentType": "SHIPPING",
@@ -3689,7 +3704,7 @@ Content-Type: application/json
   "policyAcceptance": {
     "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-09-11-v1",
+    "privacyVersion": "2026-09-12-v1",
     "privacyAccepted": true
   }
 }

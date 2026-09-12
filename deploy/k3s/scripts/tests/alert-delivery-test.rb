@@ -5,6 +5,7 @@ require 'tmpdir'
 require 'fileutils'
 require 'open3'
 require 'net/smtp'
+require 'net/http'
 require_relative '../alert-delivery'
 
 class AlertDeliveryTest < Minitest::Test
@@ -155,5 +156,128 @@ class AlertDeliveryTest < Minitest::Test
       AlertDelivery.send_email(@app, @alert, '백업 경보', '백업 실패')
     end
     session.verify
+  end
+
+  def telegram_config
+    "ALERT_PROVIDER=telegram\nTELEGRAM_BOT_TOKEN=123456:test-token_A-b\nTELEGRAM_CHAT_ID=-1001234567890\n"
+  end
+
+  def test_telegram_reuses_routes_and_keeps_token_in_a_separate_private_file
+    private_write(@alert, telegram_config)
+    File.unlink(@app)
+    config = render
+    assert_equal %w[alertmanager.yml telegram-bot-token], Dir.children(@output).sort
+    assert_equal '123456:test-token_A-b', File.read(File.join(@output, 'telegram-bot-token'))
+    assert_equal 0, File.stat(File.join(@output, 'telegram-bot-token')).mode & 0o077
+    refute_includes JSON.generate(config), 'test-token'
+    assert_equal 'telegram-warning', config.dig('route', 'receiver')
+    assert_equal %w[telegram-critical telegram-business telegram-warning],
+                 config['route']['routes'].map { |route| route['receiver'] }
+    assert_equal %w[1h 30m 4h], config['route']['routes'].map { |route| route['repeat_interval'] }
+    config['receivers'].each do |receiver|
+      assert_nil receiver['webhook_configs']
+      assert_nil receiver['email_configs']
+      delivery = receiver['telegram_configs'].first
+      assert_equal '/etc/alertmanager/secrets/telegram-bot-token', delivery['bot_token_file']
+      assert_equal(-1001234567890, delivery['chat_id'])
+      assert_equal true, delivery['send_resolved']
+      assert_equal '', delivery['parse_mode']
+      assert_equal false, delivery.dig('http_config', 'follow_redirects')
+    end
+  end
+
+  def test_invalid_telegram_configuration_is_rejected_before_creating_secrets
+    [
+      telegram_config.sub('telegram', 'typo'),
+      telegram_config.sub('123456:test-token_A-b', ''),
+      telegram_config.sub('123456:test-token_A-b', '123456:secret/path'),
+      telegram_config.sub('-1001234567890', '@public-channel'),
+      telegram_config.sub('-1001234567890', '0'),
+      telegram_config.sub('-1001234567890', '9223372036854775808'),
+      telegram_config + "ALERT_EMAIL_TO=operator@example.org\n"
+    ].each do |contents|
+      private_write(@alert, contents)
+      error = assert_raises(AlertDelivery::ConfigError) { render }
+      refute_includes error.message, 'secret/path'
+      assert_empty Dir.children(@output)
+    end
+  end
+
+  def test_backup_telegram_uses_verified_tls_and_disables_paid_broadcast
+    private_write(@alert, telegram_config)
+    client = Net::HTTP.new('api.telegram.org', 443)
+    calls = 0
+    response = ->(request) do
+      calls += 1
+      assert_instance_of Net::HTTP::Post, request
+      assert_equal '/bot123456:test-token_A-b/sendMessage', request.path
+      assert_equal 'application/json', request['Content-Type']
+      assert_equal({ 'chat_id' => -1001234567890, 'text' => "백업 경보\n실패: unit=backup.service",
+                     'allow_paid_broadcast' => false }, JSON.parse(request.body))
+      Struct.new(:code, :body).new('200', '{"ok":true}')
+    end
+    Net::HTTP.stub(:new, client) do
+      client.stub(:request, response) do
+        AlertDelivery.send_notification('/missing-app.env', @alert, '백업 경보', '실패: unit=backup.service')
+      end
+    end
+    assert_equal 1, calls
+    assert client.use_ssl?
+    assert_equal OpenSSL::SSL::VERIFY_PEER, client.verify_mode
+    assert_equal OpenSSL::SSL::TLS1_2_VERSION, client.min_version
+    assert_equal [3, 10, 10, 0], [client.open_timeout, client.read_timeout, client.write_timeout, client.max_retries]
+  end
+
+  def test_failed_telegram_response_is_not_reported_as_success_or_exposed_by_cli
+    private_write(@alert, telegram_config)
+    stub = File.join(@dir, 'telegram-stub.rb')
+    File.write(stub, <<~RUBY)
+      require 'net/http'
+      class Net::HTTP
+        def request(*)
+          raise Net::ReadTimeout, 'test-token_A-b raw-provider-data' if ENV['HG_TEST_STATUS'] == 'timeout'
+          Struct.new(:code, :body).new(ENV.fetch('HG_TEST_STATUS'), ENV.fetch('HG_TEST_BODY'))
+        end
+      end
+    RUBY
+    [%w[401 raw-provider-data], %w[429 raw-provider-data], %w[500 raw-provider-data],
+     ['200', '{"ok":false,"description":"raw-provider-data"}'],
+     %w[200 raw-provider-data], %w[timeout raw-provider-data]].each do |status, body|
+      output, result = Open3.capture2e(
+        { 'RUBYOPT' => "-r#{stub}", 'HG_TEST_STATUS' => status, 'HG_TEST_BODY' => body },
+        'ruby', File.expand_path('../alert-delivery.rb', __dir__), 'send', @app, @alert, '백업 경보', '실패'
+      )
+      refute result.success?
+      refute_includes output, 'test-token_A-b'
+      refute_includes output, 'raw-provider-data'
+      refute_includes output, '접수했습니다'
+    end
+  end
+
+  def test_backup_config_dispatch_preserves_email_compatibility_and_rejects_multiple_channels
+    bin = File.join(@dir, 'bin')
+    Dir.mkdir(bin)
+    marker = File.join(@dir, 'arguments')
+    fake_ruby = File.join(bin, 'ruby')
+    File.write(fake_ruby, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$HG_TEST_ARGUMENTS\"\n")
+    File.chmod(0o700, fake_ruby)
+    env = { 'PATH' => "#{bin}:#{ENV['PATH']}", 'HG_TEST_ARGUMENTS' => marker,
+            'BACKUP_ALERT_CONFIG' => nil, 'BACKUP_ALERT_EMAIL_CONFIG' => nil, 'BACKUP_ALERT_WEBHOOK_URL' => nil }
+    command = ['sh', File.expand_path('../notify-backup-failure.sh', __dir__), 'backup-test.service']
+    %w[BACKUP_ALERT_CONFIG BACKUP_ALERT_EMAIL_CONFIG].each do |key|
+      _, status = Open3.capture2e(env.merge(key => @alert), *command)
+      assert status.success?
+      args = File.readlines(marker, chomp: true)
+      assert_equal 'send', args[1]
+      assert_equal @alert, args[3]
+      assert_includes args.last, 'unit=backup-test.service'
+      File.unlink(marker)
+    end
+    [{ 'BACKUP_ALERT_CONFIG' => @alert, 'BACKUP_ALERT_EMAIL_CONFIG' => @alert },
+     { 'BACKUP_ALERT_CONFIG' => @alert, 'BACKUP_ALERT_WEBHOOK_URL' => 'https://alerts.invalid/hook' }].each do |conflict|
+      _, status = Open3.capture2e(env.merge(conflict), *command)
+      refute status.success?
+      refute File.exist?(marker)
+    end
   end
 end

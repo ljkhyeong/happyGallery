@@ -7,6 +7,7 @@ import {
 } from "./api";
 import { ErrorAlert } from "@/shared/ui";
 import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
+import { useBotProtection } from "@/features/bot-protection/useBotProtection";
 
 interface Props {
   purpose: PhoneVerificationPurpose;
@@ -38,13 +39,14 @@ export function PhoneVerificationStep({
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
   const [touched, setTouched] = useState(false);
+  const botProtection = useBotProtection("phone_verification");
 
   useEffect(() => {
     setPhone(normalizePhone(initialPhone));
   }, [initialPhone]);
 
   const sendMutation = useMutation({
-    mutationFn: () => sendVerification({ phone, purpose }),
+    mutationFn: () => sendVerification({ phone, purpose }, botProtection.token),
     onMutate: () => {
       setCode("");
       setSent(false);
@@ -53,6 +55,7 @@ export function PhoneVerificationStep({
     onSuccess: () => {
       setSent(true);
     },
+    onSettled: botProtection.reset,
   });
 
   const phoneValid = isValidPhone(phone);
@@ -98,13 +101,14 @@ export function PhoneVerificationStep({
             type="button"
             variant="outline-primary"
             className="w-100"
-            disabled={!phoneValid || sendMutation.isPending || confirming}
+            disabled={!phoneValid || !botProtection.ready || sendMutation.isPending || confirming}
             onClick={() => sendMutation.mutate()}
           >
             {sendMutation.isPending ? "발송 중..." : sent ? "재발송" : "인증번호 발송"}
           </Button>
         </Col>
       </Row>
+      {botProtection.challenge}
 
       {sent && (
         <>

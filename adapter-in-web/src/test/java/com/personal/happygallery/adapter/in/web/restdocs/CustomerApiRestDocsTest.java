@@ -377,7 +377,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "policyAcceptance": {
                                     "termsVersion": "2026-09-11-v1",
                                     "termsAccepted": true,
-                                    "privacyVersion": "2026-09-11-v1",
+                                    "privacyVersion": "2026-09-12-v1",
                                     "privacyAccepted": true
                                   }
                                 }

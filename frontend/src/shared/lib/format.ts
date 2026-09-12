@@ -48,3 +48,19 @@ export function formatDate(iso: string): string {
 export function formatDateTime(iso: string): string {
   return dateTimeFormatter.format(parseApiDateTime(iso));
 }
+
+const inputDateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  timeZone: "Asia/Seoul",
+});
+
+export function formatDateTimeInput(timestamp: number): string {
+  const parts = Object.fromEntries(inputDateTimeFormatter.formatToParts(timestamp)
+    .map(({ type, value }) => [type, value]));
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+export function formatDateInput(timestamp: number): string {
+  return formatDateTimeInput(timestamp).slice(0, 10);
+}

@@ -57,7 +57,7 @@ ruby -e '
   documents = YAML.load_stream(File.read(ARGV.fetch(0))).compact
   manifest_runtime_images = documents.each_with_object([]) do |document, images|
     next unless %w[Deployment StatefulSet].include?(document["kind"])
-    next if %w[app frontend].include?(document.dig("metadata", "name"))
+    next if %w[app frontend frontend-assets].include?(document.dig("metadata", "name"))
 
     containers = document.dig("spec", "template", "spec", "containers") || []
     images.concat(containers.map { |container| container["image"] })
@@ -127,6 +127,11 @@ ruby -e '
   }
   abort "frontend SSR의 내부 API가 명시적 env로 고정되지 않았습니다." unless
     frontend_explicit_env&.slice(*expected_frontend_env.keys) == expected_frontend_env
+  indexnow_env = frontend_container.fetch("env").find { |entry| entry["name"] == "INDEXNOW_KEY" }
+  abort "frontend IndexNow 키는 선택적 Secret 키 하나만 참조해야 합니다." unless
+    indexnow_env&.dig("valueFrom", "secretKeyRef") == {
+      "name" => "happygallery-app", "key" => "INDEXNOW_KEY", "optional" => true
+    } && frontend_container.fetch("envFrom", []).empty?
   media_pvc = documents.find { |d| d["kind"] == "PersistentVolumeClaim" && d.dig("metadata", "name") == "app-media" }
   abort "app-media PVC는 local-path-retain 5Gi ReadWriteOnce여야 합니다." unless media_pvc &&
     media_pvc.dig("spec", "storageClassName") == "local-path-retain" &&
@@ -380,7 +385,7 @@ grep -q 'FLYWAY_SCHEMA_VERSION=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 Flyway version이 없습니다."
 grep -q 'FIELD_ENCRYPTION_KEY_ID=' "$SCRIPT_DIR/backup-mysql.sh" \
     || die "복구 메타데이터에 암호화 키 ID가 없습니다."
-grep -q 'ensure_media_pvc' "$SCRIPT_DIR/backup-mysql.sh" \
+grep -q 'ensure_media_pvc' "$SCRIPT_DIR/backup-data-online.sh" \
     || die "기존 클러스터의 첫 미디어 백업을 위한 PVC 사전 생성이 없습니다."
 grep -q 'VERIFIED_RECOVERY_BUNDLE' "$SCRIPT_DIR/rollout.sh" \
     || die "rollout이 완성된 복구 묶음 marker를 요구하지 않습니다."
@@ -423,14 +428,10 @@ grep -q 'backup.last-success' "$DEPLOY_DIR/systemd/happygallery-backup.service.e
     || die "백업 성공 heartbeat 파일이 없습니다."
 grep -q 'TimeoutStartSec=30m' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
     && grep -q 'TimeoutStopSec=10m' "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
-    || die "백업 실행 제한과 app 원복 종료 유예가 없습니다."
-grep -q 'manage-backup-alert-silence.sh start' \
-    "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
-    && grep -q 'manage-backup-alert-silence.sh stop' \
-        "$DEPLOY_DIR/systemd/happygallery-backup.service.example" \
-    && grep -q 'value: "AppDown"' "$SCRIPT_DIR/manage-backup-alert-silence.sh" \
-    && grep -q 'now + 45 \* 60' "$SCRIPT_DIR/manage-backup-alert-silence.sh" \
-    || die "계획 백업 AppDown silence의 생성·해제·만료 안전장치가 없습니다."
+    || die "백업 실행 제한과 정리 종료 유예가 없습니다."
+if grep -q 'manage-backup-alert-silence' "$DEPLOY_DIR/systemd/happygallery-backup.service.example"; then
+    die "온라인 백업은 AppDown 경보를 숨기면 안 됩니다."
+fi
 grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
     "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
     || die "백업 heartbeat watchdog 실패 알림 연결이 없습니다."
@@ -525,7 +526,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복원 release가 app scale-up 전에 호환 digest를 확정하지 않습니다." unless restored_release.match?(activation_flow)
 
   image_preflight = File.read(File.join(script_dir, "prepare-restored-release-images.sh"))
-  required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?containerd_has_image "\$app_ref".*?containerd_has_image "\$frontend_ref".*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match/m
+  required_images = /runtime_inventory=.*?runtime-images-from-manifest\.rb.*?--inventory.*?all_required_images_match\(\).*?for reference in "\$app_ref" "\$frontend_ref".*?containerd_image_digest.*?while IFS=.*?read -r runtime_key runtime_image expected_digest unexpected.*?k3s_ctr images import.*?all_required_images_match.*?ensure_containerd_image_alias "\$app_ref" "\$app_cri_ref".*?ensure_containerd_image_alias "\$frontend_ref" "\$frontend_cri_ref"/m
   abort "DB 복원 전 app/frontend/runtime 이미지 import와 digest 재검증이 없습니다." unless image_preflight.match?(required_images)
 
   common = File.read(File.join(script_dir, "common.sh"))
@@ -533,11 +534,20 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "복구 묶음 marker와 DB·미디어·release sidecar 전체 검증이 없습니다." unless common.match?(bundle_validation)
 
   backup = File.read(File.join(script_dir, "backup-mysql.sh"))
+  online_backup = File.read(File.join(script_dir, "backup-data-online.sh"))
+  abort "백업 사전 검사와 온라인 데이터 백업 연결이 없습니다." unless
+    backup.match?(/mysql_preflight backup.*?bash "\$SCRIPT_DIR\/backup-data-online\.sh"/m)
+  mysql_restore = File.read(File.join(script_dir, "restore-mysql.sh"))
+  abort "DB 복원 전 도구 검사 또는 복원 후 테이블 검사가 없습니다." unless
+    mysql_restore.match?(/mysql_preflight restore.*?DROP DATABASE.*?check_mysql_database/m)
   runtime_archive = /--references "\$release_manifest".*?while IFS=.*?read -r runtime_key runtime_image unexpected.*?containerd_image_digest.*?for runtime_index in.*?--inventory "\$release_tmp\/manifests\.yaml" "\$runtime_metadata".*?archive_images=.*?while IFS=.*?read -r runtime_key runtime_image runtime_digest unexpected.*?k3s_ctr images export "\$images_archive" "\$\{archive_images\[@\]\}"/m
   abort "백업이 parser inventory를 runtime metadata와 archive export에 일관되게 사용하지 않습니다." unless backup.match?(runtime_archive)
-  backup_exclusion = /original_app_replicas=.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?mysqldump.*?start_media_helper.*?restore_app/m
-  abort "백업의 app 쓰기 중단과 원래 replica 복구 순서가 깨졌습니다." unless backup.match?(backup_exclusion)
-  abort "백업 실패 시 원래 app replica 복구가 없습니다." unless backup.match?(/cleanup_partial_backup\(\).*?restore_app/m)
+  abort "온라인 백업이 app replica나 운영 테이블을 잠그는 검사를 변경합니다." if
+    [backup, online_backup].any? { |script| script.match?(/scale deployment\/app|check_mysql_database/) }
+  online_order = /test -f \/app\/media-backup-guard-v1.*?ENGINE <> 'InnoDB'.*?mkdir \/media\/\.backup-in-progress.*?image_media_reference_lock.*?FOR UPDATE.*?mysqldump --single-transaction --quick.*?--skip-lock-tables.*?find .*?tar -cf - -T .*?release_media_guard/m
+  abort "온라인 백업의 삭제 보호·잠금 확인·스냅샷·미디어 목록 고정 순서가 없습니다." unless online_backup.match?(online_order)
+  abort "백업 중 배포 또는 키 변경의 완료 게시 차단이 없습니다." unless
+    backup.match?(/backup-data-online\.sh.*?metadata.generation.*?metadata.resourceVersion.*?current_schema.*?cat > "\$recovery_metadata_tmp"/m)
   bundle_publish = /mv "\$tmp" "\$backup".*?mv "\$tmp_checksum" "\$backup\.sha256".*?mv "\$media_tmp" "\$media_backup".*?mv "\$media_tmp_checksum" "\$media_backup\.sha256".*?mv "\$recovery_metadata_tmp_checksum" "\$recovery_metadata\.sha256".*?mv "\$recovery_metadata_tmp" "\$recovery_metadata"/m
   abort "recovery.env가 모든 archive와 sidecar 뒤에 commit marker로 게시되지 않습니다." unless backup.match?(bundle_publish)
 
@@ -551,9 +561,20 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
     watchdog_timer.include?("Persistent=true")
 RUBY
 
+ruby "$SCRIPT_DIR/tests/verify-test.rb"
+ruby "$SCRIPT_DIR/tests/containerd-image-test.rb"
+ruby "$SCRIPT_DIR/tests/restore-images-test.rb"
+ruby "$SCRIPT_DIR/tests/mysql-check-test.rb"
+ruby "$SCRIPT_DIR/tests/online-backup-test.rb"
+ruby "$SCRIPT_DIR/tests/deploy-test.rb"
+ruby "$SCRIPT_DIR/tests/cd-test.rb"
+ruby "$SCRIPT_DIR/tests/rolling-release-test.rb"
+ruby "$SCRIPT_DIR/tests/rolling-lifecycle-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"
+ruby "$SCRIPT_DIR/tests/rclone-backup-test.rb"
+ruby "$SCRIPT_DIR/tests/indexnow-test.rb"
 
 ddns_rendered="$tmp_dir/ddns.yaml"
 kube kustomize "$DEPLOY_DIR/addons/cloudflare-ddns" > "$ddns_rendered"

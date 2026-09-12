@@ -86,7 +86,7 @@ class SocialAuthUseCaseIT {
                                 consentSoftly.assertThat(consent.getPurpose())
                                         .isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
                                 consentSoftly.assertThat(consent.getPolicyVersion())
-                                        .isEqualTo("2026-09-11-v1");
+                                        .isEqualTo("2026-09-12-v1");
                             }));
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()

@@ -1,8 +1,10 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import type { RestockDemandPageResponse } from "../../src/generated/api/adminCatalog";
+import type { BookingCalendarResponse, RestockDemandPageResponse, SmartStoreInventoryMappingResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
+import type { SmartStoreChannelOrderDetailResponse, SmartStoreChannelOrderResponse } from "../../src/generated/api/adminOrder";
 import type {
   GroupInquiryFollowUpPageResponse,
   GroupInquiryPageResponse,
+  SmartStoreAccountingReportResponse,
 } from "../../src/generated/api/adminOperations";
 
 async function json(route: Route, body: unknown, status = 200) {
@@ -55,6 +57,608 @@ async function prepareAdmin(page: Page) {
     return json(route, []);
   });
 }
+
+async function prepareSmartStoreOrderEditors(page: Page) {
+  await prepareAdmin(page);
+  const state = { listUnavailable: false, listReads: 0 };
+  const orders = ["po-editor-1", "po-editor-2"].map((id) => ({
+    productOrderId: id, orderId: `order-${id}`, originProductNo: 1, itemNo: null,
+    productId: 1, productVariantId: null, productName: id, productOption: null,
+    productOrderStatus: "PAYED", claimType: null, claimStatus: null,
+    initialQuantity: 1, remainQuantity: 1, inventoryAppliedQuantity: 1,
+    attentionReason: null, paymentDate: null, lastChangedAt: "2026-09-12T09:00:00",
+    pendingReturnQuantity: 0, returnReviewVersion: "R0:0", inventoryResolutionVersion: "v1",
+  } satisfies SmartStoreChannelOrderResponse));
+  await page.route("**/api/v1/admin/smartstore-orders**", (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/actions")) return json(route, []);
+    const order = orders.find((item) => path.endsWith(`/${item.productOrderId}`));
+    if (order) return json(route, {
+      order, placeOrderStatus: "OK", deliveryInfo: null, claimDetail: null,
+      channelCommission: null, deliveryCompany: null, expectedDeliveryMethod: "DELIVERY",
+      expectedSettlementAmount: null, paymentAmount: null, paymentCommission: null,
+      saleCommission: null, shippingDueDate: null, trackingNumber: null, unitPrice: null,
+    } satisfies SmartStoreChannelOrderDetailResponse);
+    state.listReads++;
+    return state.listUnavailable
+      ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      : json(route, { content: orders, hasMore: false, nextCursor: null });
+  });
+  await page.route("**/api/v1/admin/order-claims?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.goto("/admin?view=orders");
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).toBeVisible();
+  return state;
+}
+
+for (const mode of ["단건", "일괄"] as const) {
+  test(`@admin 스마트스토어 ${mode} 처리창은 새 주문의 입력을 초기화하고 발송 중 변경을 막는다`, async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-09-12T09:00:00+09:00"));
+    await prepareSmartStoreOrderEditors(page);
+    const dispatches: Array<{ path: string; body: Record<string, unknown> }> = [];
+    let pending: Route | undefined;
+    await page.route("**/api/v1/admin/smartstore-orders/**/dispatch", handleDispatch);
+    await page.route("**/api/v1/admin/smartstore-orders/dispatch", handleDispatch);
+    async function handleDispatch(route: Route) {
+      dispatches.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
+      if (dispatches.length === 1) return json(route, { code: "SMARTSTORE_OPERATION_NOT_SENT" }, 503);
+      pending = route;
+    }
+    async function open(id: string) {
+      if (mode === "단건") {
+        await page.getByRole("row").filter({ hasText: id })
+          .getByRole("button", { name: "주문 처리", exact: true }).click();
+      } else {
+        await page.getByLabel(`${id} 선택`, { exact: true }).check();
+        await page.getByRole("button", { name: "선택 주문 발송", exact: true }).click();
+      }
+    }
+    await open("po-editor-1");
+    const dialog = page.getByRole("dialog");
+    const tracking = dialog.getByPlaceholder("운송장 번호", { exact: true });
+    const company = dialog.getByPlaceholder(mode === "단건" ? "택배사 코드 (예: CJGLS)" : "택배사 코드", { exact: true });
+    const date = mode === "단건" ? dialog.getByLabel("발송일시") : dialog.locator('input[type="datetime-local"]');
+    const submit = dialog.getByRole("button", { name: mode === "단건" ? "발송 처리" : "일괄 발송", exact: true });
+    const close = dialog.getByRole("button", { name: mode === "단건" ? "닫기" : "취소", exact: true });
+    await tracking.fill("1111111111111");
+    await company.fill("EPOST");
+    await date.fill("2026-09-12T09:30");
+    await submit.click();
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await expect(tracking).toHaveValue("1111111111111");
+    await close.click();
+    if (mode === "일괄") await page.getByLabel("po-editor-1 선택", { exact: true }).uncheck();
+    await page.clock.setFixedTime(new Date("2026-09-12T11:00:00+09:00"));
+    await open("po-editor-2");
+    await expect(tracking).toHaveValue("");
+    await expect(company).toHaveValue("");
+    await expect(dialog.getByRole("alert")).not.toBeVisible();
+    await expect(date).toHaveValue(mode === "단건" ? "" : "2026-09-12T11:00");
+    await tracking.fill("2222222222222");
+    await company.fill("EPOST");
+    await date.fill("2026-09-12T11:15");
+    await submit.click();
+    await expect.poll(() => dispatches.length).toBe(2);
+    await expect(tracking).toBeDisabled();
+    await expect(date).toBeDisabled();
+    await expect(close).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    const request = { deliveryCompanyCode: "EPOST", trackingNumber: "2222222222222", dispatchDate: "2026-09-12T11:15" };
+    expect(dispatches[1]).toMatchObject(mode === "단건"
+      ? { path: "/api/v1/admin/smartstore-orders/po-editor-2/dispatch", body: request }
+      : { path: "/api/v1/admin/smartstore-orders/dispatch", body: { orders: [{ productOrderId: "po-editor-2", ...request }] } });
+    await json(pending!, { successProductOrderIds: ["po-editor-2"], failures: [] });
+    if (mode === "단건") {
+      await expect(close).toBeEnabled();
+      await close.click();
+    }
+    await expect(dialog).not.toBeVisible();
+    expect(dispatches).toHaveLength(2);
+  });
+}
+
+test("@admin 스마트스토어 목록 재조회 실패가 열린 처리창의 초안을 지우지 않는다", async ({ page }) => {
+  await page.clock.install();
+  const state = await prepareSmartStoreOrderEditors(page);
+  await page.getByRole("row").filter({ hasText: "po-editor-1" })
+    .getByRole("button", { name: "주문 처리", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const tracking = dialog.getByPlaceholder("운송장 번호", { exact: true });
+  await tracking.fill("1234567890123");
+  state.listUnavailable = true;
+  await page.clock.fastForward(31_000);
+  await expect.poll(() => state.listReads).toBeGreaterThan(1);
+  await page.clock.runFor(2_000);
+  const panel = page.locator(".admin-workspace-panel").filter({
+    has: page.getByRole("heading", { name: "스마트스토어 채널 주문", exact: true }),
+  });
+  await expect(panel.getByRole("alert")).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await expect(tracking).toHaveValue("1234567890123");
+  await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+  state.listUnavailable = false;
+  await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(panel.getByRole("alert")).not.toBeVisible();
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).toBeVisible();
+});
+
+test("@admin 스마트스토어 일괄 발주 확인 중에는 대상 주문을 바꾸지 않는다", async ({ page }) => {
+  await prepareSmartStoreOrderEditors(page);
+  let pending: Route | undefined;
+  await page.route("**/api/v1/admin/smartstore-orders/confirm", (route) => { pending = route; });
+  await page.getByLabel("po-editor-1 선택", { exact: true }).check();
+  await page.getByRole("button", { name: "선택 주문 발주 확인", exact: true }).click();
+  await expect.poll(() => pending !== undefined).toBe(true);
+  await expect(page.getByLabel("po-editor-2 선택", { exact: true })).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: "확인이 필요한 주문만 보기" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "선택 주문 발송", exact: true })).toBeDisabled();
+  expect(pending!.request().postDataJSON()).toEqual({ productOrderIds: ["po-editor-1"] });
+  await json(pending!, { successProductOrderIds: ["po-editor-1"], failures: [] });
+  await expect(page.getByLabel("po-editor-2 선택", { exact: true })).toBeEnabled();
+  await expect(page.getByLabel("po-editor-1 선택", { exact: true })).not.toBeChecked();
+});
+
+test("@admin 스마트스토어 회계 CSV는 수식 형태의 상품명을 보호하고 금액과 본문을 보존한다", async ({ page }) => {
+  await prepareAdmin(page);
+  const names = [
+    ["=1+1", '"\t=1+1"'],
+    ["+1+1", '"\t+1+1"'],
+    ["-1+1", '"\t-1+1"'],
+    ["@SUM(1,1)", '"\t@SUM(1,1)"'],
+    ["  =1+1", '"\t  =1+1"'],
+    ["\t=1+1", '"\t\t=1+1"'],
+    ["\r=1+1", '"\t\r=1+1"'],
+    ["\n=1+1", '"\t\n=1+1"'],
+    ["＝1+1", '"\t＝1+1"'],
+    ["＋1+1", '"\t＋1+1"'],
+    ["－1+1", '"\t－1+1"'],
+    ["＠SUM(1,1)", '"\t＠SUM(1,1)"'],
+    ['가죽, "공예"\n수업', '"가죽, ""공예""\n수업"'],
+  ];
+  await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => json(route, {
+    from: "2026-08-01", to: "2026-08-31", vatAvailableThrough: "2026-08-31",
+    dailySettlements: [], dailyVat: [],
+    commissionDetails: names.map(([productName], index) => ({
+      orderNo: `ORDER-${index}`, productOrderId: `PRODUCT-ORDER-${index}`, productName,
+      merchantId: "happy-gallery", merchantName: "해피갤러리", productId: null,
+      productOrderType: "NORMAL", payMeansType: null, settleType: "CANCEL",
+      settleBasisDate: "2026-08-10", settleCompleteDate: null, settleExpectDate: null,
+      taxReturnDate: null, commissionType: "SALE", commissionBasisAmount: -30000,
+      commissionAmount: -900, maximumSellingInterlockCommissionAmount: null,
+    })),
+  } satisfies SmartStoreAccountingReportResponse));
+  await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.route("**/api/v1/admin/order-claims?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.goto("/admin?view=orders");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "CSV 다운로드", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("smartstore-accounting-2026-08-01-2026-08-31.csv");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const csv = Buffer.concat(chunks).toString("utf8");
+  expect(csv).toMatch(/^\uFEFF/);
+  for (const [, escaped] of names) expect(csv).toContain(escaped);
+  expect(csv).toContain('"CANCEL","2026-08-10","SALE","-30000","-900"\r\n');
+  expect(csv).toContain('"[일별 부가세]"\r\n');
+});
+
+function smartStoreNotice(id: number): SmartStoreNoticeResponse {
+  return {
+    sellerNoticeId: id, postCategoryType: "ORDINARY", title: `공지 ${id}`,
+    detailContents: `공지 ${id} 본문`, importantNotice: false,
+    importantNoticeStartDate: null, importantNoticeEndDate: null, wholeNotice: false,
+    displayStartDate: null, displayEndDate: null, popup: false,
+    popupStartDate: null, popupEndDate: null,
+  };
+}
+
+async function prepareSmartStoreNoticeApplication(page: Page) {
+  await prepareAdmin(page);
+  const state = { secondPageUnavailable: false };
+  await page.route("**/api/v1/admin/smartstore-notices?**", (route) => json(route, {
+    notices: [smartStoreNotice(1), smartStoreNotice(2)],
+    page: 1, size: 100, totalElements: 2, totalPages: 1,
+  }));
+  await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => {
+    const currentPage = Number(new URL(route.request().url()).searchParams.get("page"));
+    if (currentPage === 2 && state.secondPageUnavailable) {
+      return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+    }
+    const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : [101];
+    return json(route, {
+      products: ids.map((id) => ({
+        originProductNo: id + 1000, channelProductNo: id, name: `적용 상품 ${id}`,
+        imageUrl: null, salePrice: 35000, stockQuantity: 5, status: "SALE",
+      })),
+      page: currentPage, size: 100, totalElements: 101, totalPages: 2,
+    });
+  });
+  await page.goto("/admin?view=support");
+  return {
+    state,
+    open: (id: number) => page.getByRole("row")
+      .filter({ has: page.getByText(`공지 ${id}`, { exact: true }) })
+      .getByRole("button", { name: "상품 적용", exact: true }).click(),
+  };
+}
+
+test("@admin 스마트스토어 공지 적용은 요청 중 선택을 고정하고 새 창에 오류를 남기지 않는다", async ({ page }) => {
+  const { open } = await prepareSmartStoreNoticeApplication(page);
+  const requests: Array<{ path: string; body: unknown }> = [];
+  let pending: Route | undefined;
+  await page.route("**/api/v1/admin/smartstore-notices/*/products", (route) => {
+    requests.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
+    if (requests.length === 1) { pending = route; return; }
+    return route.fulfill({ status: 204 });
+  });
+  await open(1);
+  const dialog = page.getByRole("dialog");
+  const selection = (id: number) => dialog.getByRole("row")
+    .filter({ has: page.getByText(`적용 상품 ${id}`, { exact: true }) }).getByRole("checkbox");
+  await selection(1).check();
+  await dialog.getByRole("button", { name: "1개 상품에 적용", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await expect(selection(1)).toBeDisabled();
+  await expect(selection(2)).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "다음", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  expect(requests[0]).toEqual({
+    path: "/api/v1/admin/smartstore-notices/1/products", body: { channelProductNos: [1] },
+  });
+  await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(selection(1)).toBeChecked();
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  await open(2);
+  await expect(dialog.getByRole("alert")).toBeHidden();
+  await expect(selection(1)).not.toBeChecked();
+  await expect(dialog.getByRole("button", { name: "0개 상품에 적용", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await selection(101).check();
+  await dialog.getByRole("button", { name: "1개 상품에 적용", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual({
+    path: "/api/v1/admin/smartstore-notices/2/products", body: { channelProductNos: [101] },
+  });
+});
+
+test("@admin 스마트스토어 공지 적용은 상품 조회 실패 후에도 여러 페이지의 선택을 유지한다", async ({ page }) => {
+  const { state, open } = await prepareSmartStoreNoticeApplication(page);
+  state.secondPageUnavailable = true;
+  let applied: unknown;
+  await page.route("**/api/v1/admin/smartstore-notices/1/products", (route) => {
+    applied = route.request().postDataJSON();
+    return route.fulfill({ status: 204 });
+  });
+  await open(1);
+  const dialog = page.getByRole("dialog");
+  const selection = (id: number) => dialog.getByRole("row")
+    .filter({ has: page.getByText(`적용 상품 ${id}`, { exact: true }) }).getByRole("checkbox");
+  await selection(1).check();
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "이전", exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "다음", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "1개 상품에 적용", exact: true })).toBeEnabled();
+  state.secondPageUnavailable = false;
+  await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await selection(101).check();
+  await dialog.getByRole("button", { name: "이전", exact: true }).click();
+  await expect(selection(1)).toBeChecked();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await expect(selection(101)).toBeChecked();
+  await dialog.getByRole("button", { name: "2개 상품에 적용", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(applied).toEqual({ channelProductNos: [1, 101] });
+});
+
+for (const kind of ["공지", "검수"] as const) {
+  test(`@admin 스마트스토어 ${kind} 목록은 100건 이후 조회와 실패 복구를 지원한다`, async ({ page }) => {
+    await prepareAdmin(page);
+    const basePath = kind === "공지" ? "/api/v1/admin/smartstore-notices"
+      : "/api/v1/admin/products/smartstore-inspections";
+    let unavailable = true;
+    let removed = false;
+    let pending: Route | undefined;
+    const reads: number[] = [];
+    const writes: string[] = [];
+    await page.route(`**${basePath}**`, (route) => {
+      const url = new URL(route.request().url());
+      if (route.request().method() !== "GET") {
+        writes.push(url.pathname);
+        pending = route;
+        return;
+      }
+      if (url.pathname !== basePath) return json(route, smartStoreNotice(2));
+      const currentPage = Number(url.searchParams.get("page"));
+      reads.push(currentPage);
+      expect(url.searchParams.get("size")).toBe("100");
+      if (currentPage === 2 && unavailable) return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+      const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : removed ? [] : [101];
+      return json(route, {
+        ...(kind === "공지" ? { notices: ids.map(smartStoreNotice) } : {
+          products: ids.map((id) => ({
+            channelProductNo: id, reason: `검수 사유 ${id}`, action: "상품 정보 수정",
+            restorationRequestAvailable: true,
+          })),
+        }),
+        page: currentPage, size: 100, totalElements: removed ? 100 : 101, totalPages: removed ? 1 : 2,
+      });
+    });
+    await page.goto(kind === "공지" ? "/admin?view=support" : "/admin?view=today");
+    const panel = page.locator(".admin-workspace-panel").filter({
+      has: page.getByRole("heading", {
+        name: kind === "공지" ? "스마트스토어 상품 공지" : "스마트스토어 상품 검수 확인", exact: true,
+      }),
+    });
+    const rowText = (id: number) => kind === "공지" ? `공지 ${id}` : `검수 사유 ${id}`;
+    await expect(panel.getByText(rowText(100), { exact: true })).toBeVisible();
+    const navigation = panel.getByRole("navigation", { name: `스마트스토어 ${kind} 페이지` });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeDisabled();
+    expect(reads).toEqual([1]);
+    if (kind === "공지") {
+      await panel.getByRole("row").filter({ has: page.getByText("공지 2", { exact: true }) })
+        .getByRole("button", { name: "수정", exact: true }).click();
+      await expect(page.getByRole("dialog").getByPlaceholder("공지 내용")).toHaveValue("공지 2 본문");
+      await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    }
+    await navigation.getByRole("button", { name: "다음 페이지" }).click();
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeEnabled();
+    await expect(navigation.getByRole("button", { name: "다음 페이지" })).toBeDisabled();
+    unavailable = false;
+    await panel.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(panel.getByText(rowText(101), { exact: true })).toBeVisible();
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeHidden();
+    await expect(navigation.getByRole("button", { name: "다음 페이지" })).toBeDisabled();
+    expect(reads).toContain(2);
+    await navigation.getByRole("button", { name: "이전 페이지" }).click();
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeVisible();
+    await navigation.getByRole("button", { name: "다음 페이지" }).click();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(navigation).toBeVisible();
+    expect(await navigation.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const lastRow = panel.getByRole("row").filter({ hasText: rowText(101) });
+    page.on("dialog", (dialog) => dialog.accept());
+    await lastRow.getByRole("button", {
+      name: kind === "공지" ? "삭제" : "수정 반영 후 복원 요청", exact: true,
+    }).click();
+    await expect.poll(() => writes).toEqual([`${basePath}/101${kind === "공지" ? "" : "/restore"}`]);
+    await expect(navigation.getByRole("button", { name: "이전 페이지" })).toBeDisabled();
+    removed = true;
+    await pending!.fulfill({ status: 204 });
+    await expect(panel.getByText(rowText(1), { exact: true })).toBeVisible();
+    await expect(panel.getByText(rowText(101), { exact: true })).toBeHidden();
+    await expect(navigation).toBeHidden();
+  });
+}
+
+for (const scenario of [
+  {
+    timezoneId: "America/Los_Angeles", now: "2028-02-29T15:30:00Z", today: "2028-03-01",
+    weekFrom: "2028-02-24", monthFrom: "2028-03-01", monthTo: "2028-03-31",
+    previousFrom: "2028-02-01", previousTo: "2028-02-29", dispatchDate: "2028-03-01T00:30",
+  },
+  {
+    timezoneId: "Pacific/Kiritimati", now: "2027-12-31T14:30:00Z", today: "2027-12-31",
+    weekFrom: "2027-12-25", monthFrom: "2027-12-01", monthTo: "2027-12-31",
+    previousFrom: "2027-11-01", previousTo: "2027-11-30", dispatchDate: "2027-12-31T23:30",
+  },
+]) {
+  test.describe(`한국 시간 ${scenario.timezoneId}`, () => {
+    test.use({ timezoneId: scenario.timezoneId });
+
+    test("@admin 공지의 전시·중요·팝업 시각을 한국 시간으로 조회하고 저장한다", async ({ page }) => {
+      await prepareAdmin(page);
+      let saved: Record<string, unknown> | undefined;
+      const notice = {
+        ...smartStoreNotice(1), importantNotice: true, popup: true,
+        displayStartDate: "2030-01-01T00:00:00Z", displayEndDate: "2030-01-01T01:00:00Z",
+        importantNoticeStartDate: "2030-01-01T09:00:00+09:00", importantNoticeEndDate: "2030-01-01T10:00:00+09:00",
+        popupStartDate: "2030-01-01T00:00:00Z", popupEndDate: "2030-01-01T01:00:00Z",
+      } satisfies SmartStoreNoticeResponse;
+      await page.route("**/api/v1/admin/smartstore-notices**", (route) => {
+        if (route.request().method() === "PUT") {
+          saved = route.request().postDataJSON();
+          return json(route, { sellerNoticeId: 1 });
+        }
+        return json(route, new URL(route.request().url()).pathname.endsWith("/1") ? notice : {
+          notices: [notice], page: 1, size: 100, totalElements: 1, totalPages: 1,
+        });
+      });
+      await page.goto("/admin?view=support");
+      await page.getByRole("row").filter({ hasText: "공지 1" })
+        .getByRole("button", { name: "수정", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      const dates = dialog.locator('input[type="datetime-local"]');
+      await expect(dates).toHaveCount(6);
+      for (let index = 0; index < 6; index++) {
+        await expect(dates.nth(index)).toHaveValue(index % 2 ? "2030-01-01T10:00" : "2030-01-01T09:00");
+        await dates.nth(index).fill(index % 2 ? "2030-01-01T10:30" : "2030-01-01T09:30");
+      }
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(saved).toMatchObject({
+        displayStartDate: "2030-01-01T00:30:00.000Z", displayEndDate: "2030-01-01T01:30:00.000Z",
+        importantNoticeStartDate: "2030-01-01T00:30:00.000Z", importantNoticeEndDate: "2030-01-01T01:30:00.000Z",
+        popupStartDate: "2030-01-01T00:30:00.000Z", popupEndDate: "2030-01-01T01:30:00.000Z",
+      });
+    });
+
+    test("@admin 정산 기간·발송 시각·예약 캘린더는 한국의 월말과 오늘을 사용한다", async ({ page }) => {
+      await prepareAdmin(page);
+      await page.clock.setFixedTime(new Date(scenario.now));
+      let accountingRange: Record<string, string> | undefined;
+      let synchronized: Record<string, unknown> | undefined;
+      let dispatched: Record<string, unknown> | undefined;
+      let calendarRange: Record<string, string> | undefined;
+      await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => {
+        accountingRange = Object.fromEntries(new URL(route.request().url()).searchParams);
+        return json(route, { ...accountingRange, vatAvailableThrough: scenario.previousTo,
+          dailySettlements: [], commissionDetails: [], dailyVat: [] });
+      });
+      await page.route("**/api/v1/admin/smartstore-settlements/synchronize", (route) => {
+        synchronized = route.request().postDataJSON();
+        return json(route, { successCount: 0, issueCount: 0 });
+      });
+      const order = {
+        productOrderId: "po-time", orderId: "order-time", originProductNo: 1,
+        itemNo: null, productId: 1, productVariantId: null, productName: "발송 시각 확인 상품",
+        productOption: null, productOrderStatus: "PAYED", claimType: null, claimStatus: null,
+        initialQuantity: 1, remainQuantity: 1, inventoryAppliedQuantity: 1,
+        attentionReason: null, paymentDate: null, lastChangedAt: "2027-12-01T10:00:00",
+        pendingReturnQuantity: 0, returnReviewVersion: "R0:0", inventoryResolutionVersion: "v1",
+      } satisfies SmartStoreChannelOrderResponse;
+      await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
+        json(route, { content: [order], hasMore: false, nextCursor: null }));
+      await page.route("**/api/v1/admin/smartstore-orders/dispatch", (route) => {
+        dispatched = route.request().postDataJSON();
+        return json(route, { successProductOrderIds: ["po-time"], failures: [] });
+      });
+      await page.route("**/api/v1/admin/order-claims?**", (route) =>
+        json(route, { content: [], hasMore: false, nextCursor: null }));
+      await page.route("**/api/v1/admin/slots/calendar?**", (route) => {
+        calendarRange = Object.fromEntries(new URL(route.request().url()).searchParams);
+        return json(route, {
+          settings: { openTime: "10:00", closeTime: "19:00", slotIntervalMin: 30,
+            blockPublicHolidays: true, version: 1 },
+          days: [{ date: scenario.today, effectiveAvailability: "OPEN", overrideMode: "DEFAULT",
+            publicHoliday: false, timeBlocks: [] }],
+        } satisfies BookingCalendarResponse);
+      });
+      await page.goto("/admin?view=orders");
+      await expect.poll(() => accountingRange).toEqual({ from: scenario.previousFrom, to: scenario.previousTo });
+      const settlement = page.locator(".admin-workspace-panel").filter({
+        has: page.getByRole("heading", { name: "스마트스토어 정산 불일치", exact: true }),
+      });
+      await expect(settlement.locator('input[type="date"]').nth(0)).toHaveValue(scenario.weekFrom);
+      await expect(settlement.locator('input[type="date"]').nth(1)).toHaveValue(scenario.today);
+      await settlement.getByRole("button", { name: "선택 기간 조회", exact: true }).click();
+      await expect.poll(() => synchronized).toEqual({ from: scenario.weekFrom, to: scenario.today });
+
+      await page.getByLabel("po-time 선택", { exact: true }).check();
+      await page.getByRole("button", { name: "선택 주문 발송", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.locator('input[type="datetime-local"]')).toHaveValue(scenario.dispatchDate);
+      await dialog.getByPlaceholder("택배사 코드").fill("EPOST");
+      await dialog.getByPlaceholder("운송장 번호").fill("1234567890123");
+      await dialog.getByRole("button", { name: "일괄 발송", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(dispatched).toMatchObject({ orders: [{ productOrderId: "po-time", dispatchDate: scenario.dispatchDate }] });
+
+      await page.goto("/admin?view=classes");
+      await expect.poll(() => calendarRange).toEqual({ dateFrom: scenario.monthFrom, dateTo: scenario.monthTo });
+      const calendar = page.locator(".admin-workspace-panel").filter({
+        has: page.getByRole("heading", { name: "예약 캘린더", exact: true }),
+      });
+      await expect(calendar.getByRole("heading", { name: scenario.today, exact: true })).toBeVisible();
+      await calendar.getByRole("button", { name: "이전 달", exact: true }).click();
+      await expect.poll(() => calendarRange).toEqual({ dateFrom: scenario.previousFrom, dateTo: scenario.previousTo });
+      await calendar.getByRole("button", { name: "다음 달", exact: true }).click();
+      await expect(calendar.getByRole("heading", {
+        name: scenario.timezoneId === "America/Los_Angeles" ? "2028년 3월" : "2027년 12월", exact: true,
+      })).toBeVisible();
+    });
+  });
+}
+
+test("@admin 스마트스토어 공지 조회 실패 시 이전 초안을 저장하지 않고 다시 조회한다", async ({ page }) => {
+  await prepareAdmin(page);
+  let unavailable = true;
+  const updates: Array<{ path: string; body: Record<string, unknown> }> = [];
+  await page.route("**/api/v1/admin/smartstore-notices**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "PUT") {
+      updates.push({ path, body: route.request().postDataJSON() });
+      return json(route, { sellerNoticeId: 2 });
+    }
+    if (path.endsWith("/1")) return json(route, smartStoreNotice(1));
+    if (path.endsWith("/2")) {
+      return unavailable
+        ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+        : json(route, smartStoreNotice(2));
+    }
+    return json(route, {
+      notices: [smartStoreNotice(1), smartStoreNotice(2)],
+      page: 1, size: 100, totalElements: 2, totalPages: 1,
+    });
+  });
+  await page.goto("/admin?view=support");
+  await page.getByRole("row").filter({ hasText: "공지 1" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const body = dialog.getByPlaceholder("공지 내용");
+  await expect(body).toHaveValue("공지 1 본문");
+  await body.fill("공지 1의 저장하지 않은 초안");
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  await page.getByRole("row").filter({ hasText: "공지 2" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+  await expect(body).toBeDisabled();
+  await expect(body).not.toHaveValue("공지 1의 저장하지 않은 초안");
+  expect(updates).toHaveLength(0);
+
+  unavailable = false;
+  await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(body).toHaveValue("공지 2 본문");
+  await body.fill("공지 2 수정 본문");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(updates).toHaveLength(1);
+  expect(updates[0]).toMatchObject({
+    path: "/api/v1/admin/smartstore-notices/2",
+    body: { title: "공지 2", detailContents: "공지 2 수정 본문" },
+  });
+});
+
+test("@admin 스마트스토어 공지 저장 실패는 초안을 보존하고 새 공지에는 오류를 옮기지 않는다", async ({ page }) => {
+  await prepareAdmin(page);
+  let created: Record<string, unknown> | undefined;
+  await page.route("**/api/v1/admin/smartstore-notices**", async (route) => {
+    const request = route.request();
+    if (request.method() === "PUT") return json(route, { code: "CONFLICT" }, 409);
+    if (request.method() === "POST") {
+      created = request.postDataJSON();
+      return json(route, { sellerNoticeId: 3 });
+    }
+    if (new URL(request.url()).pathname.endsWith("/1")) return json(route, smartStoreNotice(1));
+    return json(route, { notices: [smartStoreNotice(1)], page: 1, size: 100, totalElements: 1, totalPages: 1 });
+  });
+  await page.goto("/admin?view=support");
+  await page.getByRole("row").filter({ hasText: "공지 1" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const body = dialog.getByPlaceholder("공지 내용");
+  await expect(body).toHaveValue("공지 1 본문");
+  await body.fill("실패해도 보존할 초안");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(body).toHaveValue("실패해도 보존할 초안");
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+
+  await page.getByRole("button", { name: "공지 등록", exact: true }).click();
+  await expect(dialog.getByRole("alert")).not.toBeVisible();
+  await expect(body).toHaveValue("");
+  await dialog.getByPlaceholder("공지 제목").fill("새 공지");
+  await body.fill("새 공지 본문");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(created).toMatchObject({ title: "새 공지", detailContents: "새 공지 본문" });
+});
 
 for (const inquiry of [
   {
@@ -457,18 +1061,11 @@ test("@admin 스마트스토어 문의는 기간과 페이지를 선택하고 �
   await expect(panel.getByRole("button", { name: "다음 페이지", exact: true })).toBeDisabled();
 });
 
-test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확인과 최신 개정을 요구한다", async ({ page }) => {
+async function prepareSmartStoreInventoryEditor(page: Page) {
   await prepareAdmin(page);
-  let releaseMapping: (() => void) | undefined;
-  const mappingGate = new Promise<void>((resolve) => {
-    releaseMapping = resolve;
-  });
-  let savedBody: Record<string, unknown> | undefined;
-  let deleteParams: Record<string, string> | undefined;
-
-  await page.route("**/api/v1/admin/products", (route) => json(route, [{
-    id: 1,
-    name: "연동 작품",
+  await page.route("**/api/v1/admin/products", (route) => json(route, [1, 2].map((id) => ({
+    id,
+    name: id === 1 ? "연동 작품" : "다른 작품",
     type: "READY_STOCK",
     price: 35000,
     quantity: 5,
@@ -482,7 +1079,7 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     productionLeadDays: null,
     variants: [],
     optionGroups: [],
-  }]));
+  }))));
   await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => json(route, {
     products: [
       {
@@ -521,9 +1118,117 @@ test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확�
     localStatus: "SALE",
     channelStatus: "SALE",
     options: [],
-    different: false,
+    different: true,
     previewVersion: "preview-1",
   }));
+  const mapping: SmartStoreInventoryMappingResponse = {
+    productId: 1, mappingVersion: 17, originProductNo: 123, enabled: true,
+    variants: [], syncStatus: "FAILED", attemptCount: 10,
+    lastError: "재고 반영 요청 실패", syncedAt: null,
+  };
+  await page.route("**/api/v1/admin/products/*/smartstore-inventory**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/history")) return json(route, []);
+    if (path.includes("/products/2/")) return json(route, {}, 404);
+    return json(route, mapping);
+  });
+  return mapping;
+}
+
+for (const action of ["연동 저장", "재시도", "차이 반영", "연동 해제 실행"] as const) {
+  test(`@admin 스마트스토어 재고 연동창은 ${action} 요청 중 편집과 다른 요청을 막는다`, async ({ page }) => {
+    const mapping = await prepareSmartStoreInventoryEditor(page);
+    let pending: Route | undefined;
+    const requests: Array<{ path: string; method: string; body: unknown }> = [];
+    await page.route("**/api/v1/admin/products/1/**", (route) => {
+      if (route.request().method() === "GET") return route.fallback();
+      pending = route;
+      requests.push({
+        path: new URL(route.request().url()).pathname,
+        method: route.request().method(),
+        body: route.request().postDataJSON(),
+      });
+    });
+    await page.goto("/admin?view=products");
+    await page.getByRole("row").filter({ hasText: "연동 작품" })
+      .getByRole("button", { name: "스마트스토어", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "차이 반영", exact: true })).toBeVisible();
+    await dialog.getByText("새 원상품", { exact: true }).click();
+    await dialog.getByRole("checkbox", {
+      name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+    }).check();
+    if (action === "연동 해제 실행") {
+      await dialog.getByRole("button", { name: "연동 해제", exact: true }).click();
+      await dialog.getByRole("checkbox", {
+        name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+      }).last().check();
+    }
+    await dialog.getByRole("button", { name: action, exact: true }).click();
+    await expect.poll(() => requests.length).toBe(1);
+    await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeDisabled();
+    await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeDisabled();
+    await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+    for (const button of await dialog.getByRole("button").all()) await expect(button).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    await dialog.getByText("기존 원상품", { exact: true }).click({ force: true });
+    await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+    await expect.poll(() => requests.length).toBe(1);
+    const suffix = action === "재시도" ? "smartstore-inventory/retry"
+      : action === "차이 반영" ? "smartstore-product-sync" : "smartstore-inventory";
+    expect(requests[0].path).toBe(`/api/v1/admin/products/1/${suffix}`);
+    if (action === "연동 저장") expect(requests[0].body).toMatchObject({
+      originProductNo: 456, expectedMappingVersion: mapping.mappingVersion, previousOriginConfirmed: true,
+    });
+    await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+    await expect(dialog.getByPlaceholder("상품명·원상품 번호·채널상품 번호 검색")).toBeEnabled();
+    await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+    await dialog.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(dialog).toBeHidden();
+  });
+}
+
+test("@admin 스마트스토어 재고 재시도는 작성 중인 설정을 유지하고 다시 열면 초기화한다", async ({ page }) => {
+  const mapping = await prepareSmartStoreInventoryEditor(page);
+  await page.route("**/api/v1/admin/products/1/smartstore-inventory/retry", (route) =>
+    json(route, { ...mapping, syncStatus: "PENDING", attemptCount: 0, lastError: null }));
+  await page.goto("/admin?view=products");
+  const open = (name: string) => page.getByRole("row").filter({ hasText: name })
+    .getByRole("button", { name: "스마트스토어", exact: true }).click();
+  await open("연동 작품");
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("확인 필요", { exact: true })).toBeVisible();
+  await dialog.getByText("새 원상품", { exact: true }).click();
+  const confirmed = dialog.getByRole("checkbox", {
+    name: "기존 원상품 123의 판매 중지·재고 확인을 완료했습니다.",
+  });
+  await confirmed.check();
+  await dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" }).uncheck();
+  await dialog.getByRole("button", { name: "재시도", exact: true }).click();
+  await expect(dialog.getByText("반영 대기", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).not.toBeChecked();
+  await expect(confirmed).toBeChecked();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await open("다른 작품");
+  await expect(dialog.getByRole("button").filter({ hasText: "새 원상품" })).not.toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("button", { name: "연동 저장", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await open("연동 작품");
+  await expect(dialog.getByRole("button").filter({ hasText: "기존 원상품" })).toHaveClass(/table-primary/);
+  await expect(dialog.getByRole("checkbox", { name: "재고 변경 시 스마트스토어에 자동 반영" })).toBeChecked();
+  await expect(confirmed).toBeHidden();
+});
+
+test("@admin 스마트스토어 원상품 변경과 해제는 기존 매핑 확인과 최신 개정을 요구한다", async ({ page }) => {
+  await prepareSmartStoreInventoryEditor(page);
+  let releaseMapping: (() => void) | undefined;
+  const mappingGate = new Promise<void>((resolve) => {
+    releaseMapping = resolve;
+  });
+  let savedBody: Record<string, unknown> | undefined;
+  let deleteParams: Record<string, string> | undefined;
   await page.route("**/api/v1/admin/products/1/smartstore-inventory**", async (route) => {
     if (new URL(route.request().url()).pathname.endsWith("/history")) {
       return json(route, [{

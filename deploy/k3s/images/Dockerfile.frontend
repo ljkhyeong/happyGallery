@@ -30,6 +30,7 @@ RUN npm ci --omit=dev \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /app/build ./build
 COPY --from=build /app/server.mjs ./server.mjs
+COPY --from=build /app/assets-server.mjs /app/publish-assets.mjs ./
 
 EXPOSE 8080
 USER 101:101

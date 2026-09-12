@@ -27,6 +27,7 @@
     "e2e:install": "playwright install chromium"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "^1.6.1",
     "@react-router/express": "^8.3.0",
     "@react-router/node": "^8.3.0",
     "@sentry/react": "^10.43.0",

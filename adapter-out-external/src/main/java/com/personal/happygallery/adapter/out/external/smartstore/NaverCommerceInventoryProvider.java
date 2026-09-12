@@ -2,8 +2,10 @@ package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -43,11 +45,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
             return SyncResult.failure("스마트스토어 재고 연동이 비활성 상태입니다.");
         }
         try {
-            accessTokenProvider.authorized(token -> {
-                send(command, token);
-                return null;
-            });
-            return SyncResult.completed();
+            return accessTokenProvider.authorized(token -> send(command, token));
         } catch (RestClientResponseException exception) {
             return rejected(command, exception);
         } catch (Exception exception) {
@@ -120,11 +118,15 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
 
     @Override
     public ChannelProduct getProduct(Long originProductNo) {
-        ProductResponse response = accessTokenProvider.authorized(token -> restClient.get()
+        return accessTokenProvider.authorized(token -> getProduct(originProductNo, token));
+    }
+
+    private ChannelProduct getProduct(Long originProductNo, String token) {
+        ProductResponse response = restClient.get()
                 .uri("/external/v2/products/origin-products/{originProductNo}", originProductNo)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
-                .body(ProductResponse.class));
+                .body(ProductResponse.class);
         if (response == null || response.originProduct() == null) {
             throw new IllegalStateException("스마트스토어 원상품 응답이 비어 있습니다.");
         }
@@ -212,22 +214,32 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                 .toBodilessEntity();
     }
 
-    private void send(StockCommand command, String accessToken) {
+    private SyncResult send(StockCommand command, String accessToken) {
         if (command.optionProduct()) {
+            Map<Long, ChannelOption> currentOptions = getProduct(command.originProductNo(), accessToken)
+                    .options().stream()
+                    .collect(Collectors.toMap(ChannelOption::optionId, Function.identity()));
+            if (command.options().stream().anyMatch(option -> !currentOptions.containsKey(option.optionId()))) {
+                return SyncResult.failure("스마트스토어에서 연결한 옵션을 찾을 수 없습니다. 옵션 연결을 확인해 주세요.");
+            }
             restClient.put()
                     .uri("/external/v1/products/origin-products/{originProductNo}/option-stock",
                             command.originProductNo())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new OptionStockRequest(new OptionInfo(
+                    .body(new OptionStockRequest(new ProductOptionInfo(
                             command.options().stream()
-                                    .map(option -> new OptionCombination(
-                                            option.optionId(), option.stockQuantity()))
+                                    .map(option -> {
+                                        ChannelOption current = currentOptions.get(option.optionId());
+                                        return new ProductOptionCombination(
+                                                option.optionId(), option.stockQuantity(),
+                                                current.price(), current.usable());
+                                    })
                                     .toList(),
                             true)))
                     .retrieve()
                     .toBodilessEntity();
-            return;
+            return SyncResult.completed();
         }
         restClient.patch()
                 .uri("/external/v1/products/origin-products/multi-update")
@@ -237,6 +249,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
                         command.originProductNo(), List.of("STOCK"), command.stockQuantity(), null))))
                 .retrieve()
                 .toBodilessEntity();
+        return SyncResult.completed();
     }
 
     private SyncResult rejected(StockCommand command, RestClientResponseException exception) {
@@ -282,11 +295,7 @@ public class NaverCommerceInventoryProvider implements SmartStoreInventoryProvid
         return name.isEmpty() ? "옵션 " + option.id() : name;
     }
 
-    private record OptionStockRequest(OptionInfo optionInfo) {}
-
-    private record OptionInfo(List<OptionCombination> optionCombinations, boolean useStockManagement) {}
-
-    private record OptionCombination(Long id, int stockQuantity) {}
+    private record OptionStockRequest(ProductOptionInfo optionInfo) {}
 
     private record MultiUpdateRequest(List<MultiUpdateItem> multiProductUpdateRequestVos) {}
 

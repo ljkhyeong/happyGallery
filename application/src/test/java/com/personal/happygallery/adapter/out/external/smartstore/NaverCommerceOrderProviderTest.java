@@ -12,6 +12,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +26,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.client.ResponseCreator;
@@ -38,6 +41,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -225,8 +229,10 @@ class NaverCommerceOrderProviderTest {
                         "/external/v1/pay-order/seller/product-orders/last-changed-statuses")))
                 .andExpect(method(HttpMethod.GET))
                 .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer access-token"))
-                .andExpect(queryParam("lastChangedFrom", "2026-08-29T11:50:00+09:00"))
-                .andExpect(queryParam("lastChangedTo", "2026-08-29T12:00:00+09:00"))
+                .andExpect(request -> assertThat(URLDecoder.decode(
+                        request.getURI().getRawQuery(), StandardCharsets.UTF_8))
+                        .contains("lastChangedFrom=2026-08-29T11:50:00+09:00",
+                                "lastChangedTo=2026-08-29T12:00:00+09:00"))
                 .andExpect(queryParam("limitCount", "300"))
                 .andRespond(withSuccess("""
                         {
@@ -558,6 +564,56 @@ class NaverCommerceOrderProviderTest {
                 .isInstanceOfSatisfying(OperationNotSentException.class,
                         exception -> assertThat(exception.code())
                                 .isEqualTo("ACCESS_TOKEN_UNAVAILABLE"));
+    }
+
+    @Test
+    @DisplayName("토큰 만료가 아닌 401은 발주 요청을 반복하지 않고 거절로 분류한다")
+    void writeOperation_otherUnauthorized_isRejectedWithoutRetry() {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        expectToken(server);
+        server.expect(requestTo(containsString("/product-orders/confirm")))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON).body("{\"code\":\"PERMISSION_DENIED\"}"));
+
+        assertThatThrownBy(() -> provider.confirm("po-1"))
+                .isInstanceOfSatisfying(OperationRejectedException.class,
+                        exception -> assertThat(exception.code()).isEqualTo("HTTP_401"));
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("발주 인증 토큰 갱신에 성공하면 재전송하고 갱신 실패는 미전송으로 구분한다")
+    void writeOperation_expiredToken_preservesRetryResult(boolean refreshSuccess) {
+        RestClient.Builder builder = RestClient.builder().baseUrl(PROPERTIES.baseUrl());
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverCommerceOrderProvider provider = new NaverCommerceOrderProvider(
+                builder.build(), PROPERTIES,
+                new NaverCommerceAccessTokenProvider(builder.build(), PROPERTIES, CLOCK));
+        expectToken(server);
+        server.expect(requestTo(containsString("/product-orders/confirm")))
+                .andRespond(withStatus(HttpStatus.UNAUTHORIZED)
+                        .contentType(MediaType.APPLICATION_JSON).body("{\"code\":\"GW.AUTHN\"}"));
+        server.expect(requestTo(PROPERTIES.baseUrl() + "/external/v1/oauth2/token"))
+                .andRespond(refreshSuccess ? withSuccess("""
+                        {"access_token":"new-token","expires_in":10800,"token_type":"Bearer"}
+                        """, MediaType.APPLICATION_JSON) : withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+        if (refreshSuccess) {
+            server.expect(requestTo(containsString("/product-orders/confirm")))
+                    .andExpect(header(HttpHeaders.AUTHORIZATION, "Bearer new-token"))
+                    .andRespond(operationSuccess());
+
+            provider.confirm("po-1");
+        } else {
+            assertThatThrownBy(() -> provider.confirm("po-1"))
+                    .isInstanceOfSatisfying(OperationNotSentException.class,
+                            exception -> assertThat(exception.code()).isEqualTo("ACCESS_TOKEN_REFRESH_FAILED"));
+        }
+        server.verify();
     }
 
     private static ResponseCreator operationSuccess() {

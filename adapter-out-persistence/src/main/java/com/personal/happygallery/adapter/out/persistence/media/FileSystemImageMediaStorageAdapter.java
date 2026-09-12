@@ -7,9 +7,11 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -24,6 +26,7 @@ public class FileSystemImageMediaStorageAdapter implements ImageMediaStoragePort
     private static final Pattern STORED_IMAGE_NAME = Pattern.compile(
             "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp)$");
     private static final String ORPHAN_MARKER_DIRECTORY = ".orphaned";
+    private static final String BACKUP_GUARD_DIRECTORY = ".backup-in-progress";
 
     private final Path storageDirectory;
     private final Path orphanMarkerDirectory;
@@ -122,6 +125,19 @@ public class FileSystemImageMediaStorageAdapter implements ImageMediaStoragePort
             Files.deleteIfExists(orphanMarker(fileName));
         } catch (IOException e) {
             throw new UncheckedIOException("고아 이미지 표시를 제거할 수 없습니다.", e);
+        }
+    }
+
+    @Override
+    public boolean isBackupInProgress() {
+        try {
+            Files.readAttributes(storageDirectory.resolve(BACKUP_GUARD_DIRECTORY),
+                    BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            return true;
+        } catch (NoSuchFileException e) {
+            return false;
+        } catch (IOException e) {
+            throw new UncheckedIOException("백업 중 이미지 삭제 보호 상태를 확인할 수 없습니다.", e);
         }
     }
 

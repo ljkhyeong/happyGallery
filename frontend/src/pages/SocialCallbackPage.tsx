@@ -32,7 +32,7 @@ export function SocialCallbackPage() {
   const [error, setError] = useState("");
   const [linkCallback, setLinkCallback] = useState(false);
   const [policyConsentRequired, setPolicyConsentRequired] = useState(false);
-  const [signupHref, setSignupHref] = useState("/signup");
+  const [returnTo, setReturnTo] = useState("/");
   const handled = useRef(false);
 
   useEffect(() => {
@@ -41,6 +41,10 @@ export function SocialCallbackPage() {
     }
     handled.current = true;
 
+    const savedReturnTo = resolveSafeReturnTo(
+      readSessionValue(SESSION_KEYS.socialLoginReturnTo),
+    );
+    setReturnTo(savedReturnTo);
     const pendingSocialAccountLink = readSessionValue(SESSION_KEYS.socialAccountLink);
     removeSessionValues(SESSION_KEYS.socialAccountLink);
     const pendingSocialReauthentication =
@@ -66,11 +70,7 @@ export function SocialCallbackPage() {
         pendingSocialAccountLink !== null || pendingSocialReauthentication !== null,
       );
       if (errorCode === "POLICY_CONSENT_REQUIRED") {
-        const returnTo = resolveSafeReturnTo(
-          readSessionValue(SESSION_KEYS.socialLoginReturnTo),
-        );
         setPolicyConsentRequired(true);
-        setSignupHref(buildAuthPageHref("/signup", { redirectTo: returnTo }));
       }
       removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
       clearPendingStepUpActions();
@@ -155,15 +155,12 @@ export function SocialCallbackPage() {
           return;
         }
 
-        const returnTo = resolveSafeReturnTo(
-          readSessionValue(SESSION_KEYS.socialLoginReturnTo),
-        );
         removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
 
         if (searchParams.get("newUser") === "true" || user?.phone === null) {
           navigate("/my", { replace: true, state: { phoneOnboarding: true } });
         } else {
-          navigate(returnTo, { replace: true });
+          navigate(savedReturnTo, { replace: true });
         }
       } catch (error) {
         if (error instanceof CustomerSessionChangedError) {
@@ -189,7 +186,9 @@ export function SocialCallbackPage() {
   }, [navigate, refresh, searchParams]);
 
   if (error) {
-    const errorHref = linkCallback ? "/my" : policyConsentRequired ? signupHref : "/login";
+    const errorHref = linkCallback
+      ? "/my"
+      : buildAuthPageHref(policyConsentRequired ? "/signup" : "/login", { redirectTo: returnTo });
     const errorLinkLabel = linkCallback
       ? "마이페이지로 돌아가기"
       : policyConsentRequired

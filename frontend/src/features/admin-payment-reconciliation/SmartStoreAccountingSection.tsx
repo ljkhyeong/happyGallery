@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Alert, Button, Form, Table } from "react-bootstrap";
 import type { SmartStoreAccountingReportResponse } from "@/generated/api/adminOperations";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatKRW } from "@/shared/lib";
+import { formatDateInput, formatKRW } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchSmartStoreAccountingReport } from "./api";
 
@@ -12,10 +12,9 @@ interface Props {
 }
 
 export function SmartStoreAccountingSection({ adminKey, onAuthError }: Props) {
-  const initial = previousMonthRange();
-  const [from, setFrom] = useState(initial.from);
-  const [to, setTo] = useState(initial.to);
-  const [range, setRange] = useState(initial);
+  const [range, setRange] = useState(previousMonthRange);
+  const [from, setFrom] = useState(range.from);
+  const [to, setTo] = useState(range.to);
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-settlements", "accounting", range.from, range.to],
     queryFn: () => fetchSmartStoreAccountingReport(adminKey, range.from, range.to),
@@ -87,17 +86,10 @@ export function SmartStoreAccountingSection({ adminKey, onAuthError }: Props) {
 }
 
 function previousMonthRange() {
-  const today = new Date();
-  const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const last = new Date(today.getFullYear(), today.getMonth(), 0);
-  return { from: localDate(first), to: localDate(last) };
-}
-
-function localDate(value: Date): string {
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  const today = new Date(`${formatDateInput(Date.now())}T00:00:00Z`);
+  const first = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));
+  const last = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 0));
+  return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
 }
 
 function downloadCsv(report: SmartStoreAccountingReportResponse) {
@@ -137,5 +129,9 @@ function downloadCsv(report: SmartStoreAccountingReportResponse) {
 
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
+  // 엑셀 조회용 CSV: 문자열의 수식 해석을 막고 음수 금액은 숫자로 유지한다.
+  // https://owasp.org/www-community/attacks/CSV_Injection
+  const safeText = typeof value === "string" && /^\s*[=+\-@＝＋－＠\t\r\n]/u.test(text)
+    ? `\t${text}` : text;
+  return `"${safeText.replaceAll('"', '""')}"`;
 }

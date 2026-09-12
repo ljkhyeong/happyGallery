@@ -1776,6 +1776,16 @@
         "required" : [ "date", "endTime", "id", "startTime" ],
         "type" : "object"
       },
+      "BotProtectionResponse" : {
+        "properties" : {
+          "siteKey" : {
+            "description" : "Turnstile 공개 키. 자동 입력 방지가 꺼져 있으면 null",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "siteKey" ],
+        "type" : "object"
+      },
       "BulkConfirmSmartStoreOrdersRequest" : {
         "properties" : {
           "productOrderIds" : {
@@ -15491,6 +15501,14 @@
     "/api/v1/bookings/phone-verifications" : {
       "post" : {
         "operationId" : "sendGuestBookingVerification",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Bot-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -15670,6 +15688,24 @@
         "tags" : [ "booking-controller" ]
       }
     },
+    "/api/v1/bot-protection" : {
+      "get" : {
+        "operationId" : "getBotProtection",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BotProtectionResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "bot-protection-controller" ]
+      }
+    },
     "/api/v1/classes" : {
       "get" : {
         "operationId" : "listPublicClasses",
@@ -15834,6 +15870,14 @@
     "/api/v1/group-inquiries" : {
       "post" : {
         "operationId" : "createGuestGroupInquiry",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Bot-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {
@@ -16682,6 +16726,14 @@
       },
       "post" : {
         "operationId" : "createMyGroupInquiry",
+        "parameters" : [ {
+          "in" : "header",
+          "name" : "X-Bot-Token",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
         "requestBody" : {
           "content" : {
             "application/json" : {

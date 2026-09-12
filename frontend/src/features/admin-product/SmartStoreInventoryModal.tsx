@@ -21,9 +21,16 @@ import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
   adminKey: string;
-  product: ProductResponse | null;
+  product: ProductResponse;
   onClose: () => void;
   onAuthError: () => void;
+}
+
+interface MappingDraft {
+  mappingVersion: number | null;
+  originProductNo: string;
+  enabled: boolean;
+  optionIds: Record<number, string>;
 }
 
 const STATUS_LABEL = {
@@ -50,45 +57,49 @@ export function SmartStoreInventoryModal({
 }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [originProductNo, setOriginProductNo] = useState("");
-  const [enabled, setEnabled] = useState(true);
-  const [optionIds, setOptionIds] = useState<Record<number, string>>({});
+  const [draft, setDraft] = useState<MappingDraft | null>(null);
   const [catalogPage, setCatalogPage] = useState(1);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [originChangeConfirmed, setOriginChangeConfirmed] = useState(false);
   const [unlinkRequested, setUnlinkRequested] = useState(false);
   const [unlinkConfirmed, setUnlinkConfirmed] = useState(false);
-  const variants = useMemo(() => product?.variants ?? [], [product]);
+  const variants = product.variants;
+  const mappingQuery = useAdminQuery(onAuthError, {
+    queryKey: ["admin", "products", product.id, "smartstore-inventory"],
+    queryFn: () => fetchSmartStoreInventoryMapping(adminKey, product.id),
+  });
+  const mapping = mappingQuery.data;
+  const mappingVersion = mapping?.mappingVersion ?? null;
+  const form: MappingDraft = draft?.mappingVersion === mappingVersion ? draft : {
+    mappingVersion,
+    originProductNo: mapping?.originProductNo.toString() ?? "",
+    enabled: mapping?.enabled ?? true,
+    optionIds: Object.fromEntries(variants.map((variant) => [
+      variant.id,
+      mapping?.variants.find((item) => item.productVariantId === variant.id)?.optionId.toString() ?? "",
+    ])),
+  };
+  const { originProductNo, enabled, optionIds } = form;
+  const updateDraft = (changes: Partial<Omit<MappingDraft, "mappingVersion">>) => {
+    setDraft({ ...form, ...changes });
+  };
   const originNumber = Number(originProductNo);
   const validOrigin = Number.isSafeInteger(originNumber) && originNumber > 0;
-  const validOptions = product?.type !== "MADE_TO_ORDER" || variants.every((variant) => {
+  const validOptions = product.type !== "MADE_TO_ORDER" || variants.every((variant) => {
     const value = Number(optionIds[variant.id]);
     return Number.isSafeInteger(value) && value > 0;
   });
-  const mappingQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
-    queryFn: () => fetchSmartStoreInventoryMapping(adminKey, product!.id),
-    enabled: product !== null,
-  });
-  const mapping = mappingQuery.data;
   const historyQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
-    queryFn: () => fetchSmartStoreInventoryMappingHistory(adminKey, product!.id),
-    enabled: product !== null,
+    queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
+    queryFn: () => fetchSmartStoreInventoryMappingHistory(adminKey, product.id),
   });
   const previousOriginProductNo = mapping?.originProductNo;
   const originChanged = previousOriginProductNo !== undefined
     && validOrigin
     && previousOriginProductNo !== originNumber;
-  const canSave = mappingQuery.isSuccess
-    && !unlinkRequested
-    && validOrigin
-    && validOptions
-    && (!originChanged || originChangeConfirmed);
   const catalogQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", catalogPage],
     queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
-    enabled: product !== null,
   });
   const catalogProducts = useMemo(() => {
     const keyword = catalogSearch.trim().toLowerCase();
@@ -101,52 +112,36 @@ export function SmartStoreInventoryModal({
   const channelProductQuery = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-products", "detail", originNumber],
     queryFn: () => fetchSmartStoreProduct(adminKey, originNumber),
-    enabled: product !== null && validOrigin,
+    enabled: validOrigin,
   });
   const previewQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
-    queryFn: () => fetchSmartStoreProductPreview(adminKey, product!.id),
-    enabled: product !== null && mapping?.enabled === true,
+    queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
+    queryFn: () => fetchSmartStoreProductPreview(adminKey, product.id),
+    enabled: mapping?.enabled === true,
   });
-
-  useEffect(() => {
-    if (!product) return;
-    const mapping = mappingQuery.data;
-    setOriginProductNo(mapping?.originProductNo?.toString() ?? "");
-    setEnabled(mapping?.enabled ?? true);
-    setOptionIds(Object.fromEntries(product.variants.map((variant) => [
-      variant.id,
-      mapping?.variants.find((item) => item.productVariantId === variant.id)?.optionId.toString() ?? "",
-    ])));
-  }, [mappingQuery.data, product]);
-
-  useEffect(() => {
-    setCatalogPage(1);
-    setCatalogSearch("");
-  }, [product?.id]);
 
   useEffect(() => {
     setOriginChangeConfirmed(false);
-  }, [originProductNo, previousOriginProductNo, product?.id]);
+  }, [originProductNo, previousOriginProductNo, mappingVersion]);
 
   useEffect(() => {
     setUnlinkRequested(false);
     setUnlinkConfirmed(false);
-  }, [mapping?.mappingVersion, product?.id]);
+  }, [mappingVersion]);
 
   const refreshMappingOnConflict = async (error: unknown) => {
     if (error instanceof ApiError && error.status === 409) {
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "smartstore-inventory"],
+        queryKey: ["admin", "products", product.id, "smartstore-inventory"],
       });
     }
   };
 
   const saveMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => saveSmartStoreMapping(adminKey, product!.id, {
+    mutationFn: () => saveSmartStoreMapping(adminKey, product.id, {
       originProductNo: originNumber,
       enabled,
-      variants: product!.type === "MADE_TO_ORDER"
+      variants: product.type === "MADE_TO_ORDER"
         ? variants.map((variant) => ({
           productVariantId: variant.id,
           optionId: Number(optionIds[variant.id]),
@@ -157,27 +152,27 @@ export function SmartStoreInventoryModal({
     }),
     onSuccess: async (mapping) => {
       queryClient.setQueryData(
-        ["admin", "products", product?.id, "smartstore-inventory"],
+        ["admin", "products", product.id, "smartstore-inventory"],
         mapping,
       );
-      toast.show(enabled
+      toast.show(mapping.enabled
         ? "연동 설정을 저장하고 스마트스토어에 최신 재고 반영을 요청했습니다."
         : "스마트스토어 재고 자동 반영을 중지했습니다.");
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+        queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
       });
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+        queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
       });
     },
     onError: refreshMappingOnConflict,
   });
 
   const retryMutation = useAdminMutation(onAuthError, {
-    mutationFn: () => retrySmartStoreSync(adminKey, product!.id),
+    mutationFn: () => retrySmartStoreSync(adminKey, product.id),
     onSuccess: (mapping) => {
       queryClient.setQueryData(
-        ["admin", "products", product?.id, "smartstore-inventory"],
+        ["admin", "products", product.id, "smartstore-inventory"],
         mapping,
       );
       toast.show("스마트스토어 재고 반영을 다시 요청했습니다.");
@@ -187,17 +182,17 @@ export function SmartStoreInventoryModal({
   const deleteMutation = useAdminMutation(onAuthError, {
     mutationFn: () => removeSmartStoreMapping(
       adminKey,
-      product!.id,
+      product.id,
       mapping!.mappingVersion,
       unlinkConfirmed,
     ),
     onSuccess: async () => {
       queryClient.setQueryData(
-        ["admin", "products", product?.id, "smartstore-inventory"],
+        ["admin", "products", product.id, "smartstore-inventory"],
         null,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "smartstore-inventory-history"],
+        queryKey: ["admin", "products", product.id, "smartstore-inventory-history"],
       });
       toast.show("스마트스토어 재고 연동을 해제했습니다.");
       onClose();
@@ -208,36 +203,35 @@ export function SmartStoreInventoryModal({
   const applyMutation = useAdminMutation(onAuthError, {
     mutationFn: () => applySmartStoreProduct(
       adminKey,
-      product!.id,
+      product.id,
       previewQuery.data!.previewVersion,
     ),
     onSuccess: async () => {
       toast.show("해피갤러리의 가격·판매 상태·옵션 가격을 스마트스토어에 반영했습니다.");
       await queryClient.invalidateQueries({
-        queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+        queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
       });
     },
     onError: async (error) => {
       if (error instanceof ApiError && error.status === 409) {
         await queryClient.invalidateQueries({
-          queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
+          queryKey: ["admin", "products", product.id, "smartstore-product-preview"],
         });
       }
     },
   });
 
-  const close = () => {
-    saveMutation.reset();
-    retryMutation.reset();
-    deleteMutation.reset();
-    applyMutation.reset();
-    onClose();
-  };
+  const isPending = saveMutation.isPending || retryMutation.isPending
+    || deleteMutation.isPending || applyMutation.isPending;
+  const canSave = !isPending && mappingQuery.isSuccess
+    && !unlinkRequested && validOrigin && validOptions
+    && (!originChanged || originChangeConfirmed);
+  const close = () => { if (!isPending) onClose(); };
 
   return (
-    <Modal show={product !== null} onHide={close} centered size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title className="fs-6">{product?.name} 스마트스토어 재고 연동</Modal.Title>
+    <Modal show onHide={close} centered size="lg">
+      <Modal.Header closeButton={!isPending}>
+        <Modal.Title className="fs-6">{product.name} 스마트스토어 재고 연동</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {(mappingQuery.isLoading || catalogQuery.isLoading || channelProductQuery.isLoading)
@@ -246,6 +240,7 @@ export function SmartStoreInventoryModal({
           ?? previewQuery.error ?? historyQuery.error ?? saveMutation.error
           ?? retryMutation.error ?? deleteMutation.error ?? applyMutation.error} />
 
+        <fieldset disabled={isPending}>
         {mapping && (
           <Alert variant={mapping.syncStatus === "FAILED" ? "warning" : "light"}>
             <div className="d-flex justify-content-between align-items-center gap-2">
@@ -300,7 +295,7 @@ export function SmartStoreInventoryModal({
                 <tbody>{previewQuery.data.options.filter((option) => option.different).map((option) => (
                   <tr key={option.optionId}>
                     <td>
-                      {product ? variantLabel(product, option.productVariantId) : option.productVariantId}
+                      {variantLabel(product, option.productVariantId)}
                       <div className="small text-muted-soft">
                         스마트스토어 옵션 {option.optionId}
                         {!mapping.variants.some((variant) => variant.optionId === option.optionId)
@@ -341,9 +336,13 @@ export function SmartStoreInventoryModal({
                     key={item.channelProductNo}
                     className={item.originProductNo === originNumber ? "table-primary" : undefined}
                     role="button"
+                    aria-disabled={isPending}
                     onClick={() => {
-                      setOriginProductNo(String(item.originProductNo));
-                      setOptionIds(Object.fromEntries(variants.map((variant) => [variant.id, ""])));
+                      if (isPending) return;
+                      updateDraft({
+                        originProductNo: String(item.originProductNo),
+                        optionIds: Object.fromEntries(variants.map((variant) => [variant.id, ""])),
+                      });
                     }}
                   >
                     <td style={{ width: 48 }}>
@@ -384,7 +383,7 @@ export function SmartStoreInventoryModal({
             )}
           </Form.Group>
 
-          {product?.type === "MADE_TO_ORDER" && (
+          {product.type === "MADE_TO_ORDER" && (
             <Table responsive size="sm" className="align-middle">
               <thead>
                 <tr>
@@ -399,10 +398,9 @@ export function SmartStoreInventoryModal({
                     <td>
                       <Form.Select
                         value={optionIds[variant.id] ?? ""}
-                        onChange={(event) => setOptionIds((current) => ({
-                          ...current,
-                          [variant.id]: event.target.value,
-                        }))}
+                        onChange={(event) => updateDraft({
+                          optionIds: { ...optionIds, [variant.id]: event.target.value },
+                        })}
                         aria-label={`${variantLabel(product, variant.id)} 스마트스토어 옵션 조합`}
                       >
                         <option value="">옵션 선택</option>
@@ -443,7 +441,7 @@ export function SmartStoreInventoryModal({
             id="smartstore-inventory-enabled"
             label="재고 변경 시 스마트스토어에 자동 반영"
             checked={enabled}
-            onChange={(event) => setEnabled(event.target.checked)}
+            onChange={(event) => updateDraft({ enabled: event.target.checked })}
           />
 
           {unlinkRequested && mapping && (
@@ -511,6 +509,7 @@ export function SmartStoreInventoryModal({
             </Button>
           </div>
         </Form>
+        </fieldset>
 
         <section className="mt-4 border-top pt-3" aria-labelledby="smartstore-mapping-history-title">
           <div className="d-flex justify-content-between align-items-center gap-2 mb-2">

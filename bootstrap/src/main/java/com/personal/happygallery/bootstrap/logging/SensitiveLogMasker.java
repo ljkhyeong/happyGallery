@@ -14,6 +14,9 @@ final class SensitiveLogMasker {
     private static final Pattern SESSION_PATTERN =
             Pattern.compile("(HG_SESSION=)[^\\s;]+");
 
+    private static final Pattern BOT_TOKEN_PATTERN =
+            Pattern.compile("((?i:X-Bot-Token)[\"']?\\s*[=:]\\s*[\"']?)[^\\s,;\"'\\]}]+");
+
     private static final Pattern ACCESS_TOKEN_PATTERN =
             Pattern.compile(
                     "((?i:X-Access-Token)[\"']?\\s*[=:]\\s*[\"']?)"
@@ -30,6 +33,7 @@ final class SensitiveLogMasker {
         masked = BEARER_PATTERN.matcher(masked).replaceAll("$1***");
         masked = SESSION_PATTERN.matcher(masked).replaceAll("$1***");
         masked = ACCESS_TOKEN_PATTERN.matcher(masked).replaceAll("$1***");
+        masked = BOT_TOKEN_PATTERN.matcher(masked).replaceAll("$1***");
         return masked;
     }
 }

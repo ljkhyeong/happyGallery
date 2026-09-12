@@ -41,13 +41,16 @@ for (const member of [true, false]) {
         window.kakao = { Postcode: class {
           constructor(options) { this.options = options; }
           embed(container) {
-            const button = document.createElement("button");
-            button.textContent = "충주시 계명대로 161 선택";
-            button.onclick = () => this.options.oncomplete({
-              zonecode: "27360", roadAddress: "충청북도 충주시 계명대로 161",
-              address: "충청북도 충주시 연수동 1615"
+            container.replaceChildren();
+            ["12345", "27360"].forEach((zonecode) => {
+              const button = document.createElement("button");
+              button.textContent = zonecode + " 주소 선택";
+              button.onclick = () => this.options.oncomplete({
+                zonecode, roadAddress: "충청북도 충주시 계명대로 161",
+                address: "충청북도 충주시 연수동 1615"
+              });
+              container.append(button);
             });
-            container.replaceChildren(button);
           }
         }};
       ` });
@@ -64,11 +67,23 @@ for (const member of [true, false]) {
     await page.getByRole("button", { name: "주소 검색", exact: true }).click();
     const searchDialog = page.getByRole("dialog", { name: "도로명주소 검색", exact: true });
     if (member) {
-      await searchDialog.getByRole("button", { name: "충주시 계명대로 161 선택" }).click();
-      await expect(page.getByLabel("우편번호", { exact: true })).toHaveValue("27360");
+      const detail = page.getByLabel("상세 주소", { exact: true });
+      await searchDialog.getByRole("button", { name: "12345 주소 선택" }).click();
+      await expect(page.getByLabel("우편번호", { exact: true })).toHaveValue("12345");
       await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("충청북도 충주시 계명대로 161");
+      await expect(detail).toHaveValue("");
+      await detail.fill("202호");
       await page.getByRole("button", { name: "주소 검색", exact: true }).click();
-      await searchDialog.getByRole("button", { name: "충주시 계명대로 161 선택" }).click();
+      await searchDialog.getByRole("button", { name: "12345 주소 선택" }).click();
+      await expect(detail).toHaveValue("202호");
+      await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+      await searchDialog.getByRole("button", { name: "27360 주소 선택" }).click();
+      await expect(page.getByLabel("우편번호", { exact: true })).toHaveValue("27360");
+      await expect(detail).toHaveValue("");
+      await detail.fill("303호");
+      await page.getByRole("button", { name: "주소 검색", exact: true }).click();
+      await searchDialog.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(detail).toHaveValue("303호");
       expect(scriptRequests).toBe(1);
     } else {
       await expect(searchDialog.getByRole("alert")).toBeVisible();
@@ -81,7 +96,7 @@ for (const member of [true, false]) {
     }
     await page.getByRole("button", { name: "배송지 저장", exact: true }).click();
     await expect(page.getByText(member
-      ? "(27360) 충청북도 충주시 계명대로 161 101호"
+      ? "(27360) 충청북도 충주시 계명대로 161 303호"
       : "(12345) 변경한 기본 주소 101호", { exact: true })).toBeVisible();
     expect(requests).toHaveLength(1);
     status = "SHIPPING_PREPARING";

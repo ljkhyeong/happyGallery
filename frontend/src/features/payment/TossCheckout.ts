@@ -1,6 +1,7 @@
 import { tossCheckoutOptions, type CheckoutMethod } from "./checkoutSelection";
 
 const TOSS_SDK_URL = "https://js.tosspayments.com/v2/standard";
+const TOSS_SDK_LOAD_TIMEOUT_MS = 10_000;
 
 let sdkPromise: Promise<TossPaymentsCtor> | null = null;
 
@@ -34,26 +35,36 @@ declare global {
 }
 
 function loadTossSdk(): Promise<TossPaymentsCtor> {
-  if (sdkPromise) return sdkPromise;
-  sdkPromise = new Promise((resolve, reject) => {
-    if (window.TossPayments) {
-      resolve(window.TossPayments);
-      return;
-    }
+  if (window.TossPayments) return Promise.resolve(window.TossPayments);
+  return sdkPromise ??= new Promise<TossPaymentsCtor>((resolve, reject) => {
     const script = document.createElement("script");
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      script.onload = null;
+      script.onerror = null;
+    };
+    const fail = () => {
+      cleanup();
+      script.remove();
+      reject(new Error("결제창을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."));
+    };
+    const timeout = window.setTimeout(fail, TOSS_SDK_LOAD_TIMEOUT_MS);
     script.src = TOSS_SDK_URL;
     script.async = true;
     script.onload = () => {
-      if (window.TossPayments) resolve(window.TossPayments);
-      else reject(new Error("Toss SDK 글로벌 객체를 찾지 못했습니다."));
+      if (!window.TossPayments) {
+        fail();
+        return;
+      }
+      cleanup();
+      resolve(window.TossPayments);
     };
-    script.onerror = () => {
-      sdkPromise = null;
-      reject(new Error("Toss SDK 스크립트 로드 실패"));
-    };
+    script.onerror = fail;
     document.head.appendChild(script);
+  }).catch((error: unknown) => {
+    sdkPromise = null;
+    throw error;
   });
-  return sdkPromise;
 }
 
 export interface RequestTossPaymentArgs {

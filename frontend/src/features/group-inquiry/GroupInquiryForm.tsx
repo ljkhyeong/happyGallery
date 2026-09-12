@@ -9,15 +9,17 @@ interface Props {
   error: unknown;
   initialContact?: { name: string; phone: string | null; email: string | null };
   submitLabel?: string;
+  submitDisabled?: boolean;
 }
 
-export function GroupInquiryForm({ onSubmit, pending, error, initialContact, submitLabel = "단체 수업 문의 접수" }: Props) {
+export function GroupInquiryForm({ onSubmit, pending, error, initialContact, submitLabel = "단체 수업 문의 접수", submitDisabled = false }: Props) {
   const id = useId();
   const [form, setForm] = useState({ organization: "", contactName: initialContact?.name ?? "", phone: initialContact?.phone ?? "",
     email: initialContact?.email ?? "", headcount: "", preferredSchedule: "", location: "", classInterest: "", message: "" });
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (pending || submitDisabled) return;
     onSubmit({ ...form, headcount: Number(form.headcount), email: form.email.trim() || null, message: form.message.trim() || null });
   };
   const fields = [
@@ -54,7 +56,7 @@ export function GroupInquiryForm({ onSubmit, pending, error, initialContact, sub
         </Form.Group>
         <p className="small text-muted">문의에 남긴 연락처로 답변드립니다. 수업 일정과 비용은 상담 후 정합니다.</p>
         <ErrorAlert error={error} />
-        <Button type="submit" disabled={pending}>{pending ? "접수 중..." : submitLabel}</Button>
+        <Button type="submit" disabled={pending || submitDisabled}>{pending ? "접수 중..." : submitLabel}</Button>
       </fieldset>
     </Form>
   );

@@ -31,6 +31,7 @@ info "age 인증과 gzip 스트림 무결성을 먼저 검사합니다."
 age --decrypt -i "$identity" "$backup" | gzip -t
 
 kube -n "$NAMESPACE" wait --for=condition=Ready pod/mysql-0 --timeout=2m >/dev/null
+mysql_preflight restore
 info "MySQL에 논리 백업을 복원합니다. 이 작업은 현재 DB 내용을 덮어씁니다."
 kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
     exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e \
@@ -41,8 +42,7 @@ age --decrypt -i "$identity" "$backup" \
     | kube -n "$NAMESPACE" exec -i mysql-0 -- sh -ec \
         'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"'
 
-kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
-    'exec mysqlcheck --check --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' >/dev/null
+check_mysql_database
 
 info "DB 시점과 불일치하는 세션/처리율 상태를 Redis에서 제거합니다."
 kube -n "$NAMESPACE" exec deployment/redis -- sh -ec \

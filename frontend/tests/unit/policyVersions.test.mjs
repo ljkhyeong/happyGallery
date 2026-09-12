@@ -7,6 +7,7 @@ import {
   POLICY_VERSION_2026_08_11_V1,
   POLICY_VERSION_2026_08_11_V2,
   POLICY_VERSION_2026_09_11_V1,
+  POLICY_VERSION_2026_09_12_V1,
   PRIVACY_POLICY_VERSION,
   TERMS_POLICY_VERSION,
   policyPath,
@@ -17,9 +18,9 @@ test("약관과 개인정보처리방침의 현재 버전을 독립적으로 사
   assert.equal(POLICY_VERSION_2026_08_11_V1, "2026-08-11-v1");
   assert.equal(POLICY_VERSION_2026_08_11_V2, "2026-08-11-v2");
   assert.equal(TERMS_POLICY_VERSION, POLICY_VERSION_2026_09_11_V1);
-  assert.equal(PRIVACY_POLICY_VERSION, POLICY_VERSION_2026_09_11_V1);
+  assert.equal(PRIVACY_POLICY_VERSION, POLICY_VERSION_2026_09_12_V1);
   assert.equal(policyPath("terms", TERMS_POLICY_VERSION), "/terms/2026-09-11-v1");
-  assert.equal(policyPath("privacy", PRIVACY_POLICY_VERSION), "/privacy/2026-09-11-v1");
+  assert.equal(policyPath("privacy", PRIVACY_POLICY_VERSION), "/privacy/2026-09-12-v1");
 });
 
 test("이전 불변 정책 버전 경로도 계속 해석할 수 있게 유지한다", () => {

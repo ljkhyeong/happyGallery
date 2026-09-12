@@ -17,6 +17,7 @@ import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -137,6 +138,8 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+            havingValue = "nhn", matchIfMissing = true)
     @Order(1)
     NotificationSenderPort kakaoNotificationSender(
             AlimtalkNotificationProperties props,
@@ -153,6 +156,8 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+            havingValue = "nhn", matchIfMissing = true)
     NotificationDeliveryResultProvider alimtalkDeliveryResultProvider(
             AlimtalkNotificationProperties properties,
             @Qualifier("alimtalkRestClient") RestClient restClient) {
@@ -160,6 +165,8 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+            havingValue = "nhn", matchIfMissing = true)
     NotificationDeliveryResultProvider smsDeliveryResultProvider(
             SmsNotificationProperties properties,
             @Qualifier("smsRestClient") RestClient restClient) {
@@ -167,6 +174,8 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+            havingValue = "nhn", matchIfMissing = true)
     @Order(2)
     NotificationSenderPort smsNotificationSender(
             SmsNotificationProperties props,
@@ -183,6 +192,8 @@ class NotificationResilienceConfig {
     }
 
     @Bean
+    @ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+            havingValue = "nhn", matchIfMissing = true)
     PhoneVerificationSender phoneVerificationSender(SmsNotificationProperties props,
                                                      @Qualifier("smsRestClient") RestClient smsRestClient,
                                                      @Qualifier("phoneVerificationSmsCircuitBreaker")
