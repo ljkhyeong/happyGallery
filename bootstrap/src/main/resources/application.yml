@@ -215,9 +215,16 @@ app:
       max-connections: ${SMS_MAX_CONNECTIONS:20}
       keep-alive: ${SMS_KEEP_ALIVE_MILLIS:30000}ms
     email-verification:
+      provider: ${EMAIL_VERIFICATION_PROVIDER:smtp}
       from: ${EMAIL_VERIFICATION_FROM:}
       subject: ${EMAIL_VERIFICATION_SUBJECT:[해피갤러리] 이메일 인증번호}
       timeout: ${EMAIL_VERIFICATION_TIMEOUT_MILLIS:7000}ms
+    ncp-mail:
+      access-key: ${NCP_MAIL_ACCESS_KEY:}
+      secret-key: ${NCP_MAIL_SECRET_KEY:}
+      timeout: ${NCP_MAIL_TIMEOUT_MILLIS:2000}ms
+      connect-timeout: ${NCP_MAIL_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${NCP_MAIL_ACQUIRE_TIMEOUT_MILLIS:500}ms
     google-oauth:
       timeout: ${GOOGLE_OAUTH_TIMEOUT_MILLIS:5000}ms
       connect-timeout: ${GOOGLE_OAUTH_CONNECT_TIMEOUT_MILLIS:2000}ms

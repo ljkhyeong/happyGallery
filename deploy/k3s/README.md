@@ -98,6 +98,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
+- 이메일 인증: `EMAIL_VERIFICATION_PROVIDER=smtp`(기본값) 또는 `ncp`를 선택한다. `ncp` 설정과 이미지 재빌드는 [네이버 클라우드 메일 안내](ncp-mail.md)를 따른다. 선택한 제공자의 자격 증명만 필수다.
 - 이메일 인증 SMTP: STARTTLS와 직접 SSL 중 정확히 하나를 사용하고 서버 인증서 호스트명을 검증한다. `EMAIL_VERIFICATION_TIMEOUT_MILLIS`는 연결·읽기·쓰기 timeout 합보다 크게 유지한다.
 - active/previous AES·HMAC·guest token 키: DB 백업과 물리적으로 분리된 복구 저장소에도 보관
 

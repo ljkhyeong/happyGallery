@@ -1,8 +1,10 @@
 package com.personal.happygallery.adapter.out.external.http;
 
+import java.util.function.Consumer;
 import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -14,6 +16,10 @@ import org.springframework.stereotype.Component;
 public class PooledHttpClientFactory {
 
     public CloseableHttpClient create(HttpPoolProperties props) {
+        return create(props, builder -> {});
+    }
+
+    public CloseableHttpClient create(HttpPoolProperties props, Consumer<HttpClientBuilder> customizer) {
         ConnectionConfig connectionConfig = ConnectionConfig.custom()
                 .setConnectTimeout(Timeout.of(props.connectTimeout()))
                 .setSocketTimeout(Timeout.of(props.timeout()))
@@ -32,11 +38,12 @@ public class PooledHttpClientFactory {
                 .setConnectionKeepAlive(TimeValue.of(props.keepAlive()))
                 .build();
 
-        return HttpClients.custom()
+        HttpClientBuilder builder = HttpClients.custom()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
                 .evictExpiredConnections()
-                .evictIdleConnections(TimeValue.of(props.keepAlive()))
-                .build();
+                .evictIdleConnections(TimeValue.of(props.keepAlive()));
+        customizer.accept(builder);
+        return builder.build();
     }
 }

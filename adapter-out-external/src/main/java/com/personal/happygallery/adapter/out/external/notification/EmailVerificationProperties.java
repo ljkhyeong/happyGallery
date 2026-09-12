@@ -12,7 +12,10 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.email-verification")
 public record EmailVerificationProperties(
+        @NotNull @DefaultValue("SMTP") Provider provider,
         @Email String from,
         @NotBlank @DefaultValue("[해피갤러리] 이메일 인증번호") String subject,
         @NotNull @DurationMin(millis = 1) @DefaultValue("7s") Duration timeout
-) {}
+) {
+    public enum Provider { SMTP, NCP }
+}

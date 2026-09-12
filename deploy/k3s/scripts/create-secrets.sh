@@ -69,6 +69,8 @@ validate_allowed_env_keys "$app_file" 애플리케이션 \
     KAKAO_OAUTH_CLIENT_ID KAKAO_OAUTH_CLIENT_SECRET \
     ALIMTALK_APP_KEY ALIMTALK_SECRET_KEY ALIMTALK_SENDER_KEY \
     SMS_API_KEY SMS_API_SECRET SMS_SENDER_NUMBER \
+    EMAIL_VERIFICATION_PROVIDER NCP_MAIL_ACCESS_KEY NCP_MAIL_SECRET_KEY \
+    NCP_MAIL_TIMEOUT_MILLIS NCP_MAIL_CONNECT_TIMEOUT_MILLIS NCP_MAIL_ACQUIRE_TIMEOUT_MILLIS \
     EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_PORT \
     EMAIL_VERIFICATION_SMTP_USERNAME EMAIL_VERIFICATION_SMTP_PASSWORD \
     EMAIL_VERIFICATION_FROM \
@@ -108,10 +110,25 @@ for key in \
     KAKAO_OAUTH_CLIENT_ID KAKAO_OAUTH_CLIENT_SECRET \
     ALIMTALK_APP_KEY ALIMTALK_SECRET_KEY ALIMTALK_SENDER_KEY \
     SMS_API_KEY SMS_API_SECRET SMS_SENDER_NUMBER \
-    EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_USERNAME \
-    EMAIL_VERIFICATION_SMTP_PASSWORD EMAIL_VERIFICATION_FROM; do
+    EMAIL_VERIFICATION_FROM; do
     require_env_value "$key" "$app_file" >/dev/null
 done
+
+# 기존 환경 파일은 provider가 없으면 SMTP 설정을 유지한다. 명시한 빈 값은 거부한다.
+email_provider=$(env_value EMAIL_VERIFICATION_PROVIDER "$app_file" 2>/dev/null || printf 'smtp')
+case "$email_provider" in
+    smtp)
+        for key in EMAIL_VERIFICATION_SMTP_HOST EMAIL_VERIFICATION_SMTP_USERNAME EMAIL_VERIFICATION_SMTP_PASSWORD; do
+            require_env_value "$key" "$app_file" >/dev/null
+        done
+        ;;
+    ncp)
+        for key in NCP_MAIL_ACCESS_KEY NCP_MAIL_SECRET_KEY; do
+            require_env_value "$key" "$app_file" >/dev/null
+        done
+        ;;
+    *) die "EMAIL_VERIFICATION_PROVIDER는 smtp 또는 ncp여야 합니다." ;;
+esac
 
 mysql_database=$(require_env_value MYSQL_DATABASE "$mysql_file")
 mysql_root_password=$(require_env_value MYSQL_ROOT_PASSWORD "$mysql_file")

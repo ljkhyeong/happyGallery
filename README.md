@@ -71,7 +71,7 @@ npm run dev
 - 스마트스토어 부분반품은 배송 중 상태에서도 완료 클레임 수량으로 구분해 검수 후에만 재고를 복원한다. 재시도·재수집은 검수 결과를 유지하고, 뒤이은 취소나 추가 반품으로 판매 불가 반품까지 복원하지 않는다. V168은 누적 반품·검수·복원 수량을 추가하며 기존 기록은 다음 주문 수집 때 전환한다. 주문 수집·검수 서버를 구버전과 혼용하지 않는다. 과거 오류로 이미 자동 복원된 부분반품 재고는 일괄 차감하지 않으므로 실물 재고를 확인해 조정한다.
 - `local` 프로필에서는 DB가 비어 있으면 기본 클래스 3종과 관리자 계정 `admin / admin1234`를 자동 생성한다.
 - 로컬과 개발 환경에서는 `X-Admin-Key: dev-admin-key`를 사용할 수 있다.
-- `prod`가 아닌 환경에서는 실제 알림·인증 SMS·이메일 인증 SMTP·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
+- `prod`가 아닌 환경에서는 실제 알림·인증 SMS·이메일 인증 메일·결제 대신 테스트용 발송기와 `FakePaymentProvider`를 사용한다.
 - 스마트스토어 계정 유형은 `SELF`(기본값)와 `SELLER`만 허용한다. 빈 값과 지원하지 않는 값은 설정 검증에서 거절한다.
 - 스마트스토어 주문·재고·문의·정산 연동은 기본 비활성화다. 운영에서는 `SMARTSTORE_ENABLED=true`, `SMARTSTORE_CLIENT_ID`, bcrypt salt 형식의 `SMARTSTORE_CLIENT_SECRET`을 설정하고 위임 판매자 방식이면 `SMARTSTORE_ACCOUNT_TYPE=SELLER`, `SMARTSTORE_ACCOUNT_ID`도 함께 주입한다. 활성화한 시점부터 변경 주문을 매분 수집하며 과거 주문을 소급 차감하지 않는다. 배송정보 암호문은 기존 데이터 키 회전 명령에서 다른 배송지 암호문과 함께 재암호화한다.
 - 연결된 스마트스토어 원상품 번호를 바꾸거나 연동을 해제할 때는 기존 원상품의 판매 중지와 재고 확인을 완료했다고 확인해야 한다. 서버는 기존 원상품 주문 수집을 마치고 재고 미반영 주문이 없는지 확인한 뒤 최신 매핑 개정으로 저장·삭제한다. 변경·해제 후 기존 원상품 재고는 자동 보정하지 않지만 과거 연결은 늦게 들어온 기존 주문 식별에만 보존한다.
@@ -214,7 +214,7 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 
 ## 주요 환경 변수
 
-`*_MILLIS`, `*_SECONDS`, `*_HOURS` 환경 변수는 기존 숫자 계약을 유지한다. `application.yml`이 각각 `ms`, `s`, `h` 단위를 붙여 애플리케이션의 `Duration` 설정으로 바인딩하므로, 기존 배포 값은 바꾸지 않아도 된다. 이메일 인증 SMTP의 host·port·자격 증명·TLS·transport timeout은 `spring.mail.*`로 연결되어 Spring Boot가 `JavaMailSender`를 자동 구성하고, 애플리케이션은 발신 주소·제목, 메일 발송 전체를 제한하는 TimeLimiter와 타임아웃 순서만 관리한다.
+`*_MILLIS`, `*_SECONDS`, `*_HOURS` 환경 변수는 기존 숫자 계약을 유지한다. `application.yml`이 각각 `ms`, `s`, `h` 단위를 붙여 애플리케이션의 `Duration` 설정으로 바인딩하므로, 기존 배포 값은 바꾸지 않아도 된다. `EMAIL_VERIFICATION_PROVIDER=smtp`(기본값)는 기존 SMTP를, `ncp`는 한국 리전 네이버 클라우드 메일 API를 사용한다. [네이버 메일 설정](deploy/k3s/ncp-mail.md)을 참고한다. SMTP의 host·port·자격 증명·TLS·transport timeout은 `spring.mail.*`로 연결되어 Spring Boot가 `JavaMailSender`를 자동 구성하고, 애플리케이션은 발신 주소·제목, 메일 발송 전체를 제한하는 TimeLimiter와 타임아웃 순서만 관리한다.
 
 배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 기본으로 제공한다. 자동 갱신은 추가 이용료 없는 택배사 공식 API로 제한하며, 유료 중계 API는 연결하지 않는다. `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 우체국의 무료 공공 API를 추가 대상으로 확인했지만 활용 승인·접속 방식 확인과 구현이 남아 있다. 현재 사이트 안의 배송 상태는 자동 갱신되지 않는다. [무료 배송 API 대상과 준비 조건](deploy/k3s/free-integrations.md#무료-배송-api-대상)을 따른다.
 
@@ -249,12 +249,16 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호
 | `ALIMTALK_NOTIFICATION_EXECUTOR_POOL_SIZE` / `ALIMTALK_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | Alimtalk timeout 보호 실행기, 기본 `2` / `5` |
 | `SMS_NOTIFICATION_EXECUTOR_POOL_SIZE` / `SMS_NOTIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 일반 SMS timeout 보호 실행기, 기본 `2` / `5` |
 | `PHONE_VERIFICATION_EXECUTOR_POOL_SIZE` / `PHONE_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 휴대폰 인증 SMS timeout 보호 실행기, 기본 `2` / `10` |
-| `EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE` / `EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 이메일 인증 SMTP timeout 보호 실행기, 기본 `2` / `10` |
+| `EMAIL_VERIFICATION_EXECUTOR_POOL_SIZE` / `EMAIL_VERIFICATION_EXECUTOR_QUEUE_CAPACITY` | 백엔드 | 이메일 인증 메일 timeout 보호 실행기, 기본 `2` / `10` |
 | `NOTIFICATION_TIMEOUT_MILLIS` | 백엔드 | 알림 외부 호출 전체 TimeLimiter, 기본 `5000` |
 | `ALIMTALK_TIMEOUT_MILLIS` / `SMS_TIMEOUT_MILLIS` | 백엔드 `prod` | NHN 응답 대기 상한, 기본 `2000` (연결 풀 `500` + 연결 `1000`보다 바깥 TimeLimiter가 크게 유지돼야 함) |
+| `EMAIL_VERIFICATION_PROVIDER` | 백엔드 `prod` | `smtp`(기본값) 또는 `ncp`; 선택한 제공자의 키만 필수 |
+| `NCP_MAIL_ACCESS_KEY` / `NCP_MAIL_SECRET_KEY` | 백엔드 `prod`, `ncp` | 메일 발송 권한이 있는 Ncloud API 키. 네이버 로그인 OAuth 키와 별개 |
+| `NCP_MAIL_TIMEOUT_MILLIS` / `NCP_MAIL_CONNECT_TIMEOUT_MILLIS` / `NCP_MAIL_ACQUIRE_TIMEOUT_MILLIS` | 백엔드 `prod`, `ncp` | HTTP 응답·연결·풀 획득 상한, 기본 `2000` / `1000` / `500` |
+| `EMAIL_VERIFICATION_FROM` | 백엔드 `prod` | 선택한 제공자에서 인증한 발신 도메인의 주소 |
 | `EMAIL_VERIFICATION_SMTP_HOST` / `EMAIL_VERIFICATION_SMTP_PORT` | 백엔드 `prod` | 회원 이메일 소유 확인용 SMTP 서버와 포트, 기본 포트 `587` |
-| `EMAIL_VERIFICATION_SMTP_USERNAME` / `EMAIL_VERIFICATION_SMTP_PASSWORD` / `EMAIL_VERIFICATION_FROM` | 백엔드 `prod` | 이메일 인증 SMTP 자격 증명과 발신 주소 |
-| `EMAIL_VERIFICATION_TIMEOUT_MILLIS` | 백엔드 `prod` | SMTP 큐 대기를 포함한 전용 TimeLimiter, 기본 `7000`; 아래 transport timeout 합보다 커야 함 |
+| `EMAIL_VERIFICATION_SMTP_USERNAME` / `EMAIL_VERIFICATION_SMTP_PASSWORD` | 백엔드 `prod` | SMTP를 선택한 경우에만 필요한 이메일 인증 자격 증명 |
+| `EMAIL_VERIFICATION_TIMEOUT_MILLIS` | 백엔드 `prod` | 메일 큐 대기를 포함한 전용 TimeLimiter, 기본 `7000`; 선택한 transport timeout 합보다 커야 함 |
 | `EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS` | 백엔드 `prod` | SMTP 연결·읽기·쓰기 대기 상한, 기본 `1000` / `2000` / `2000` |
 | `EMAIL_VERIFICATION_STARTTLS_ENABLED` / `EMAIL_VERIFICATION_SSL_ENABLED` | 백엔드 `prod` | SMTP TLS 모드, 기본 `true` / `false`; 정확히 하나를 켜며 인증서 호스트명을 검증 |
 | `MAIL_HEALTH_ENABLED` | 백엔드 | Spring Mail health indicator 활성화 여부, 기본 `false`; 이메일 장애가 전역 readiness를 내리지 않게 알림 CircuitBreaker로 분리 관측 |
@@ -306,7 +310,7 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호
 Naver 로그인 운영 등록 조건:
 
 - Naver Developers 애플리케이션에 서비스 origin과 정확한 백엔드 콜백 URI `${서비스 origin}/api/v1/auth/social/callback/naver`를 등록한다.
-- 회원 프로필의 이름 제공 항목을 사용하도록 설정한다. 서비스는 provider ID와 이름을 요구하고, Naver 프로필 이메일은 검증된 기준 이메일로 저장하지 않는다. 기준 이메일이 없는 회원은 마이페이지에서 별도 SMTP 소유 확인을 마친 뒤 직접 등록한다.
+- 회원 프로필의 이름 제공 항목을 사용하도록 설정한다. 서비스는 provider ID와 이름을 요구하고, Naver 프로필 이메일은 검증된 기준 이메일로 저장하지 않는다. 기준 이메일이 없는 회원은 마이페이지에서 별도 이메일 소유 확인을 마친 뒤 직접 등록한다.
 - 로그인 버튼은 [Naver 로그인 버튼 사용 가이드](https://developers.naver.com/docs/login/bi/bi.md)의 공식 심벌과 지정 색상을 사용한다.
 
 Kakao 로그인 운영 등록 조건:
