@@ -40,6 +40,7 @@
 - `NotificationOutboxScheduler`는 주기적으로 pending/오래된 processing outbox를 다시 dispatch해 즉시 dispatch 실패와 재시작 상황을 복구한다.
 - 실제 채널 fallback 순서와 발송 결과 이력은 기존 `NotificationService`와 `notification_log`가 유지한다. 운영 1순위는 NHN Cloud Alimtalk v2.2, 2순위는 NHN Cloud SMS다.
 - NHN이 발송 요청을 접수한 응답은 전달 성공과 구분한다. `requestId`·`recipientSeq`를 outbox와 요청 감사 로그에 저장하고 `DELIVERY_PENDING`으로 전이한 뒤, 별도 scheduler가 단건 결과 API를 조회한다. 결과 조회 lease는 `DELIVERY_CHECKING`과 새 processing token으로 보호하고 1분 넘게 멈춘 실행만 재선점한다.
+- 결과 조회는 대기 상태의 `next_attempt_at`, 중단된 조회의 `locked_at`이 오래된 순서로 선점하고 동률이면 ID를 따른다. 최근 조회한 알림이 생성일이 빠르다는 이유로 대기 알림보다 계속 먼저 선택되지 않게 한다. 재조회 간격과 실행당 50건 제한은 유지한다.
 - Alimtalk `COMPLETED` 또는 SMS `msgStatus=3`·`resultCode=1000`을 확인한 뒤에만 감사 로그를 `SUCCESS`, outbox를 `SENT`로 확정한다. Alimtalk `FAILED/CANCEL`을 확인하면 기존 KAKAO 감사 로그를 실패로 끝내고 그때 SMS를 요청한다. SMS도 같은 최종 결과 확인을 거치며 최종 실패는 outbox를 `FAILED`로 종결한다.
 - 예약 D-1·당일, 8회권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
   짧은 `REQUIRES_NEW` 트랜잭션에서 outbox 행을 `FOR UPDATE`로 잠근다. 현재 token을 확인한 뒤 aggregate별 SQL 한 번으로
