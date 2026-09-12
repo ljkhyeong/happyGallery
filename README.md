@@ -230,7 +230,7 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-galle
 
 공휴일은 [한국천문연구원 특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 무료 활용 신청 후 `PUBLIC_HOLIDAY_SERVICE_KEY`에 Decoding 키를 주입하고 `PUBLIC_HOLIDAY_ENABLED=true`로 켠다. 매일 04:20(서울)에 현재 연도와 다음 연도를 갱신하며, 조회 실패 때는 마지막으로 정상 수집한 데이터를 유지한다. 해당 연도 데이터가 없으면 기존 공휴일 계산을 사용한다.
 
-개인 캘린더 추가는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 ICS 파일을 생성하며 외부 계정 연동이 필요 없다.
+회원·비회원의 확정 예약에서 `Google 캘린더에 추가`를 누르면 수업명·일시·공방 주소가 입력된 Google 일정 작성 화면이 열린다. 고객이 직접 저장하며 API 키·OAuth 설정·추가요금은 없다. 다른 캘린더는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 만든 ICS 파일을 받는다. 두 방식 모두 예약 변경·취소를 자동 반영하지 않으며 저장한 일정은 고객이 직접 수정한다. 예약번호·조회 코드·고객 연락처는 외부 링크에 넣지 않는다. [Google 공식 일정 링크 안내](https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events#provide_a_link_for_users_to_add_the_event)
 
 외부 HTTP 풀의 `keep-alive`는 서버가 연결 유지 시간을 보내지 않을 때 기본값으로 적용한다. 같은 값으로 연결 최대 수명과 유휴 연결 정리 기준도 설정한다.
 

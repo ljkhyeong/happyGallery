@@ -77,6 +77,8 @@ for (const member of [true, false]) {
     }
     const bookAgain = page.getByRole("link", { name: "같은 수업 예약", exact: true });
     await expect(bookAgain).toHaveAttribute("href", "/bookings/new?classId=27");
+    await expect(page.getByRole("link", { name: "Google 캘린더에 추가" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "캘린더 파일 받기" })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("booking-detail.png"), fullPage: true });
     await bookAgain.click();
     await expect(page).toHaveURL(/\/bookings\/new\?classId=27$/);

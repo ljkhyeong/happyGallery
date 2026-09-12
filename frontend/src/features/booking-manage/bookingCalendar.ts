@@ -21,16 +21,10 @@ function stableHash(value: string): string {
   return (hash >>> 0).toString(16);
 }
 
-export function createBookingCalendar({ className, startAt, endAt, location, phone }: BookingCalendar): string | null {
+function createEvent({ className, startAt, endAt, location, phone }: BookingCalendar): ICAL.Event | null {
   const start = parseApiDateTime(startAt);
   const end = parseApiDateTime(endAt);
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-
-  const calendar = new ICAL.Component("vcalendar");
-  calendar.updatePropertyWithValue("version", "2.0");
-  calendar.updatePropertyWithValue("prodid", "-//HappyGallery//Booking//KO");
-  calendar.updatePropertyWithValue("calscale", "GREGORIAN");
-  calendar.updatePropertyWithValue("method", "PUBLISH");
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
 
   const event = new ICAL.Event();
   event.uid = `booking-${stableHash(`${className}|${startAt}|${endAt}`)}@happygallery.local`;
@@ -39,7 +33,36 @@ export function createBookingCalendar({ className, startAt, endAt, location, pho
   event.endDate = ICAL.Time.fromJSDate(new Date(end), true);
   event.description = phone ? `예약한 클래스입니다. 문의: ${phone}` : "예약한 클래스입니다.";
   if (location) event.location = location;
+  return event;
+}
+
+export function createBookingCalendar(booking: BookingCalendar): string | null {
+  const event = createEvent(booking);
+  if (!event) return null;
+
+  const calendar = new ICAL.Component("vcalendar");
+  calendar.updatePropertyWithValue("version", "2.0");
+  calendar.updatePropertyWithValue("prodid", "-//HappyGallery//Booking//KO");
+  calendar.updatePropertyWithValue("calscale", "GREGORIAN");
+  calendar.updatePropertyWithValue("method", "PUBLISH");
   event.component.updatePropertyWithValue("dtstamp", ICAL.Time.fromJSDate(new Date(), true));
   calendar.addSubcomponent(event.component);
   return `${calendar.toString()}\r\n`;
+}
+
+export function createGoogleCalendarUrl(booking: BookingCalendar): string | null {
+  const event = createEvent(booking);
+  if (!event) return null;
+
+  const url = new URL("https://calendar.google.com/calendar/r/eventedit");
+  url.search = new URLSearchParams({
+    action: "TEMPLATE",
+    text: event.summary,
+    dates: `${event.startDate.toICALString()}/${event.endDate.toICALString()}`,
+    stz: "Asia/Seoul",
+    etz: "Asia/Seoul",
+    details: event.description,
+    location: event.location || "",
+  }).toString();
+  return url.toString();
 }
