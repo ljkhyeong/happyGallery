@@ -70,17 +70,32 @@ class NaverCommerceAccessTokenProvider {
     }
 
     <T> T authorized(Function<String, T> request) {
+        String token = accessToken(false);
         try {
-            return request.apply(accessToken(false));
+            return request.apply(token);
         } catch (RestClientResponseException exception) {
-            if (exception.getStatusCode().value() != 401) {
+            if (!requiresTokenRefresh(exception)) {
                 throw exception;
             }
             return request.apply(accessToken(true));
         }
     }
 
+    static boolean requiresTokenRefresh(RestClientResponseException exception) {
+        if (exception.getStatusCode().value() != 401) {
+            return false;
+        }
+        try {
+            GatewayError response = exception.getResponseBodyAs(GatewayError.class);
+            return response != null && "GW.AUTHN".equals(response.code());
+        } catch (RuntimeException parsingFailure) {
+            return false;
+        }
+    }
+
     private record CachedToken(String value, Instant expiresAt) {}
+
+    private record GatewayError(String code) {}
 
     private record TokenResponse(
             @JsonProperty("access_token") String accessToken,

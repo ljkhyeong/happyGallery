@@ -113,7 +113,8 @@
 
 - OAuth2 Client Credentials 토큰은 `client_id + timestamp`를 네이버가 발급한 bcrypt salt 형식의 client secret으로 해시하고 Base64 URL 인코딩해 발급한다.
 - 주문 조회와 재고 전송이 같은 메모리 토큰을 사용하고, 만료 60초 전에 갱신한다.
-- `401`이면 한 번 강제 재발급 후 동일 요청을 다시 보낸다.
+- [네이버 인증 안내](https://apicenter.commerce.naver.com/docs/auth)에 따라 `401`과 오류 코드 `GW.AUTHN`이 함께 온 경우에만 토큰을 재발급하고 동일 요청을 한 번 다시 보낸다. 다른 인증 오류나 본문을 해석할 수 없는 응답은 재시도하지 않는다.
+- 최초 토큰 발급 실패는 API 요청 재시도 대상에 포함하지 않는다. 주문 변경은 기존 미전송·거절·결과 미확인 분류를 유지한다.
 - client secret과 access token은 DB와 로그에 저장하지 않는다.
 
 ### 7. 가격과 판매 상태는 차이를 확인한 뒤 관리자가 반영한다

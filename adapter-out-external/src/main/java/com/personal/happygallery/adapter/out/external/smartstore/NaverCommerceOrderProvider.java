@@ -314,7 +314,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         try {
             return request.apply(token);
         } catch (RestClientResponseException exception) {
-            if (exception.getStatusCode().value() == 401) {
+            if (NaverCommerceAccessTokenProvider.requiresTokenRefresh(exception)) {
                 return retryAuthorizedWrite(request);
             }
             throw classifyWriteResponse(exception);
