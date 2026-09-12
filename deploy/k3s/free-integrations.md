@@ -35,7 +35,7 @@
 
 기본 설정은 비활성이다. [환경변수 예시](examples/app.env.example)에 우체국·공휴일 키 자리를 준비했고 [Secret 생성 스크립트](scripts/create-secrets.sh)의 허용 목록에도 반영했다. 로컬 임시 파일 `.env.free-integrations.local`에는 비활성 플래그와 교체용 문자열만 둔다. 공유기·DNS·TLS·실제 Secret·이미지 빌드·k3s 적용은 배포자가 진행한다. 우체국·공휴일은 수신 웹훅 등록이 필요 없다. Toss 결제 웹훅 주소는 `https://happy-gallery.com/api/v1/webhooks/toss-payments`이며, 비활성 상태의 Delivery API 웹훅은 비밀키가 남아 있어도 거절한다.
 
-공휴일·주소·ICS 설정은 [프로젝트 README](../../README.md#주요-환경-변수)에 있다. 공휴일 API 장애 시 마지막 수집값과 기존 계산을 사용하는 복구 경로는 유지한다.
+공휴일·주소·ICS 설정은 [프로젝트 README](../../README.md#주요-환경-변수)에 있다. 공휴일 API 장애 시 마지막 수집값과 기존 계산을 사용하는 복구 경로는 유지한다. [특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 `isHoliday=N`인 날짜는 제외하고, `totalCount`가 있으면 수신 건수와 비교한다. 건수 불일치·다른 연도 날짜·빈 목록은 저장하지 않는다. 선택 필드인 `isHoliday`·`totalCount`가 없는 정상 응답은 처리한다.
 
 ## 1. Cloudflare DNS 자동 갱신
 
