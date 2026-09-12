@@ -207,6 +207,7 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 - 운영 관리자 로그인은 MFA 미등록 세션을 등록 전용으로 제한한다. 인증 앱을 잃었지만 복구 코드가 남아 있으면 해당 코드로 로그인한 세션에서 현재 비밀번호를 확인해 MFA를 초기화하고 다시 등록할 수 있다. 초기화는 관리자 ID별 5회/10분 fail-closed 제한을 적용한 뒤 DB 잠금과 비밀번호 확인을 수행한다. DB·미디어 복원 뒤에도 app은 자동 기동하지 않는다. 복구 묶음마다 백업 생성시각과 복구 환경 해시로 일회성 대사 토큰을 만들고, 운영자가 PG·알림·개인정보 요청 대사를 완료한 뒤 같은 토큰으로 세 확인값을 제출해야 호환 이미지를 한 번만 활성화한다.
 - 운영 프런트 Node SSR 서버는 응답별 nonce와 Toss SDK, 외부 폰트, Sentry를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
 - 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 운영 호스트에서 DNS·방화벽·TLS·검색엔진 소유확인·백업 중단 시간·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
+- 추가 구독료 없이 Cloudflare DNS 자동 갱신과 외부 웹·백업 감시를 연결하는 설정은 [무료 외부 연동](deploy/k3s/free-integrations.md)에 있다. 홈서버에 토큰과 감시 계정을 설정한 뒤 활성화한다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
 현재 운영 목표와 배포·데이터 보호 조건은 [ADR-0037](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. [ADR-0049 저예산 클라우드 운영 기준](docs/ADR/0049_저예산_클라우드_운영_기준/adr.md)은 노트북 운영 조건을 충족하지 못할 때 다시 검토할 대안이다. 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 코드 처리 규칙은 [ADR-0045](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
@@ -215,7 +216,7 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 
 `*_MILLIS`, `*_SECONDS`, `*_HOURS` 환경 변수는 기존 숫자 계약을 유지한다. `application.yml`이 각각 `ms`, `s`, `h` 단위를 붙여 애플리케이션의 `Duration` 설정으로 바인딩하므로, 기존 배포 값은 바꾸지 않아도 된다. 이메일 인증 SMTP의 host·port·자격 증명·TLS·transport timeout은 `spring.mail.*`로 연결되어 Spring Boot가 `JavaMailSender`를 자동 구성하고, 애플리케이션은 발신 주소·제목, 메일 발송 전체를 제한하는 TimeLimiter와 타임아웃 순서만 관리한다.
 
-Delivery API를 처음 연결할 때는 `DELIVERY_TRACKING_ENABLED=false`와 직접 생성한 `DELIVERY_WEBHOOK_SECRET`을 먼저 배포한다. 그다음 `https://<운영 호스트>/api/v1/webhooks/delivery-tracking`을 같은 secret으로 Delivery API에 등록해 `endpointId`를 받은 뒤 API 키·endpoint ID와 함께 연동을 활성화한다. 웹훅 URL은 외부에서 접근 가능한 HTTPS여야 한다.
+배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 기본으로 제공한다. [Delivery API FAQ](https://www.deliveryapi.co.kr/faq)에 따르면 국내 신규 무료 운영 플랜이 없으므로, 추가요금 없는 운영에서는 `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 이때 사이트 안의 배송 상태는 자동 갱신되지 않는다. 나중에 유료 연동을 선택하면 직접 생성한 `DELIVERY_WEBHOOK_SECRET`으로 `https://happy-gallery.com/api/v1/webhooks/delivery-tracking`을 등록하고, 발급받은 API 키·endpoint ID를 주입한 뒤 활성화한다.
 
 Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호스트>/api/v1/webhooks/toss-payments`를 등록한다. 웹훅은 `PAYMENT_STATUS_CHANGED`만 수신 기록하고, 알려진 `orderId`를 기존 결제 대사 흐름으로 확인한다.
 

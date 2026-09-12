@@ -114,7 +114,8 @@
 - 직전 이미지와 manifest를 보존해 애플리케이션을 롤백한다. Flyway가 적용된 경우에는 데이터 호환성과 복원 필요 여부를 별도로 판단한다.
 - 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. runtime image parser가 보존된 release manifest의 workload·container 목록과 metadata key 정의를 소유하는 유일한 registry이며, 백업·복원·검증 스크립트는 parser가 출력한 inventory를 순회한다. 이미지 참조는 별도 버전 상수로 복제하지 않고 manifest에서 정확히 추출하며, containerd의 실제 digest를 함께 기록하고 검증한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - Prometheus, Alertmanager, Grafana는 각각 Retain PVC와 `Recreate` 단일 인스턴스를 사용한다. Grafana는 외부 Ingress 없이 cluster 내부 Viewer로만 두고 운영자가 port-forward로 접근한다.
-- 백업 성공 heartbeat는 6시간 주기 백업과 독립된 15분 systemd watchdog이 7시간 정체 기준으로 확인한다. 같은 노트북의 전원·호스트 장애는 이 watchdog만으로 감지할 수 없으므로 외부 uptime 감시를 별도로 둔다.
+- 유동 공인 IPv4 갱신은 Cloudflare DNS API와 `favonia/cloudflare-ddns`를 사용한다. `happygallery-ops`의 독립 addon으로 배포하고 도메인 한 개의 DNS 토큰만 주입한다. 기존 DNS only·Traefik TLS 경로를 유지한다.
+- 백업 성공 heartbeat는 6시간 주기 백업과 독립된 15분 systemd watchdog이 7시간 정체 기준으로 확인한다. 같은 노트북의 전원·호스트 장애는 HetrixTools 무료 외부 웹·API 감시와 백업 heartbeat로 확인한다. 백업 unit의 성공 후 단계에 HTTPS 호출을 추가하며 운영 애플리케이션에는 감시 SDK를 넣지 않는다. 활성화와 복구는 [무료 외부 연동](../../../deploy/k3s/free-integrations.md)을 따른다.
 - 기존 AWS 자동 배포 workflow는 제거한다. k3s에는 운영자가 실행하는 commit SHA 이미지
   build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback 스크립트가
   구현돼 있다. 원격 CI/CD가 운영 노트북에 자동 배포하는 workflow는 두지 않는다.

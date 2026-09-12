@@ -22,6 +22,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | 경로 | 역할 |
 | --- | --- |
 | `base/` | Namespace, Deployment/StatefulSet, ClusterIP Service, Ingress/TLS, PVC, NetworkPolicy |
+| `addons/cloudflare-ddns/` | 홈서버 공인 IPv4를 Cloudflare DNS에 갱신하는 독립 Deployment |
 | `cluster/` | k3s 기본 Traefik의 전달 헤더 신뢰 경계 설정 |
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
@@ -34,7 +35,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
-- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 갱신 방법을 마련한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
 - 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
 - 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
@@ -314,7 +315,7 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 HTTPS webhook unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 기존 `OnFailure` webhook이 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
 
-독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없고, 외부 uptime 모니터도 heartbeat 또는 공개 health를 별도로 확인해야 한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없다. [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 공개 웹·API와 백업 성공 알림을 서버 밖에서 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
 
