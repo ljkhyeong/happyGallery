@@ -3,6 +3,7 @@ import type { RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../
 import type {
   GroupInquiryFollowUpPageResponse,
   GroupInquiryPageResponse,
+  SmartStoreAccountingReportResponse,
 } from "../../src/generated/api/adminOperations";
 
 async function json(route: Route, body: unknown, status = 200) {
@@ -55,6 +56,54 @@ async function prepareAdmin(page: Page) {
     return json(route, []);
   });
 }
+
+test("@admin 스마트스토어 회계 CSV는 수식 형태의 상품명을 보호하고 금액과 본문을 보존한다", async ({ page }) => {
+  await prepareAdmin(page);
+  const names = [
+    ["=1+1", '"\t=1+1"'],
+    ["+1+1", '"\t+1+1"'],
+    ["-1+1", '"\t-1+1"'],
+    ["@SUM(1,1)", '"\t@SUM(1,1)"'],
+    ["  =1+1", '"\t  =1+1"'],
+    ["\t=1+1", '"\t\t=1+1"'],
+    ["\r=1+1", '"\t\r=1+1"'],
+    ["\n=1+1", '"\t\n=1+1"'],
+    ["＝1+1", '"\t＝1+1"'],
+    ["＋1+1", '"\t＋1+1"'],
+    ["－1+1", '"\t－1+1"'],
+    ["＠SUM(1,1)", '"\t＠SUM(1,1)"'],
+    ['가죽, "공예"\n수업', '"가죽, ""공예""\n수업"'],
+  ];
+  await page.route("**/api/v1/admin/smartstore-settlements/accounting?**", (route) => json(route, {
+    from: "2026-08-01", to: "2026-08-31", vatAvailableThrough: "2026-08-31",
+    dailySettlements: [], dailyVat: [],
+    commissionDetails: names.map(([productName], index) => ({
+      orderNo: `ORDER-${index}`, productOrderId: `PRODUCT-ORDER-${index}`, productName,
+      merchantId: "happy-gallery", merchantName: "해피갤러리", productId: null,
+      productOrderType: "NORMAL", payMeansType: null, settleType: "CANCEL",
+      settleBasisDate: "2026-08-10", settleCompleteDate: null, settleExpectDate: null,
+      taxReturnDate: null, commissionType: "SALE", commissionBasisAmount: -30000,
+      commissionAmount: -900, maximumSellingInterlockCommissionAmount: null,
+    })),
+  } satisfies SmartStoreAccountingReportResponse));
+  await page.route("**/api/v1/admin/smartstore-orders?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.route("**/api/v1/admin/order-claims?**", (route) =>
+    json(route, { content: [], hasMore: false, nextCursor: null }));
+  await page.goto("/admin?view=orders");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "CSV 다운로드", exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("smartstore-accounting-2026-08-01-2026-08-31.csv");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream!) chunks.push(Buffer.from(chunk));
+  const csv = Buffer.concat(chunks).toString("utf8");
+  expect(csv).toMatch(/^\uFEFF/);
+  for (const [, escaped] of names) expect(csv).toContain(escaped);
+  expect(csv).toContain('"CANCEL","2026-08-10","SALE","-30000","-900"\r\n');
+  expect(csv).toContain('"[일별 부가세]"\r\n');
+});
 
 function smartStoreNotice(id: number): SmartStoreNoticeResponse {
   return {

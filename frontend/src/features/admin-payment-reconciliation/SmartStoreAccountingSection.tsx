@@ -137,5 +137,9 @@ function downloadCsv(report: SmartStoreAccountingReportResponse) {
 
 function csvCell(value: unknown): string {
   const text = value === null || value === undefined ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
+  // 엑셀 조회용 CSV: 문자열의 수식 해석을 막고 음수 금액은 숫자로 유지한다.
+  // https://owasp.org/www-community/attacks/CSV_Injection
+  const safeText = typeof value === "string" && /^\s*[=+\-@＝＋－＠\t\r\n]/u.test(text)
+    ? `\t${text}` : text;
+  return `"${safeText.replaceAll('"', '""')}"`;
 }
