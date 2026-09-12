@@ -134,13 +134,16 @@ containerd_has_image() {
 containerd_image_digest() {
     image=$1
     normalized=$(normalize_image_reference "$image")
+    # 목록을 끝까지 읽어 pipefail 사용 시 상위 명령의 SIGPIPE 종료를 막는다.
     k3s_ctr images list | awk -v image="$image" -v normalized="$normalized" '
-        NR > 1 && ($1 == image || $1 == normalized) {
-            print $3
+        NR > 1 && !found && ($1 == image || $1 == normalized) {
+            digest = $3
             found = 1
-            exit
         }
-        END { if (!found) exit 1 }
+        END {
+            if (!found) exit 1
+            print digest
+        }
     '
 }
 
