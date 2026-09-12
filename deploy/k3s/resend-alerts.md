@@ -28,7 +28,7 @@ SMTP 호스트·사용자·비밀키·발신 주소는 `/etc/happygallery/app.en
 
 ## 2. SMTP 발송 확인과 Secret 저장
 
-아래 명령은 실제 메일 한 건을 보낸다. SMTP 접수 메시지와 실제 수신함 도착을 모두 확인한다. Ruby의 `net/smtp`가 설치되어 있어야 하며 Ubuntu에서 없다면 `sudo apt install ruby-net-smtp`로 준비한다.
+아래 명령은 실제 메일 한 건을 보낸다. SMTP 접수 메시지와 실제 수신함 도착을 모두 확인한다. Ubuntu에서 발송용 `net/smtp`와 검증용 `minitest`가 없다면 `sudo apt install ruby-net-smtp ruby-minitest`로 준비한다.
 
 ```bash
 ruby deploy/k3s/scripts/alert-delivery.rb send \
