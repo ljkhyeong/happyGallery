@@ -120,7 +120,8 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
                         1L,
                         PaymentAttemptStatus.CONFIRMED,
                         300L,
-                        "PG 승인 확인 후 서비스 처리를 완료했습니다."));
+                        "PG 승인 확인 후 서비스 처리를 완료했습니다.",
+                        false));
         PaymentSettlement settlement = PaymentSettlement.create("settlement-transaction-key");
         settlement.synchronize(
                 "payment-key",

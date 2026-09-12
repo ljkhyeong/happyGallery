@@ -188,7 +188,10 @@ fulfillment의 `VerifiedGuestResolver`는 현재
   다른 404, 조회 실패, 자동 판정할 수 없는 상태는 `RECONCILIATION_REQUIRED`를 유지한다. 자동 복구는 이 상태를 다시 처리하지 않는다.
 - Toss `PAYMENT_STATUS_CHANGED` 웹훅은 `transmission-id` 유일키로 수신 기록하고 알려진 결제 시도에만 연결한다.
   웹훅 본문을 상태 확정 근거로 쓰지 않으며, 매분 배치가 기존 Toss 조회 대사를 실행한다. 중복 웹훅은 같은 영수증 행에서
-  제거하고 처리 중 중단된 영수증은 1분 뒤 다시 선점한다.
+  제거하고 처리 중 중단된 영수증은 1분 뒤 다시 선점한다. PG 조회가 `UNAVAILABLE`이면 배치 실패로 집계하고
+  수신 기록을 완료하지 않아 1분 뒤 재처리한다. `REVIEW_REQUIRED`는 조회 결과를 받은 것이므로 수신 처리를 마치고
+  기존 관리자 대사 대상으로 남긴다. 재시도 여부는 내부 결과로만 전달하며 관리자 HTTP 응답은 유지한다.
+  후보는 마지막 처리 시각(처리 전에는 수신 시각) 순으로 조회해 반복 실패한 앞쪽 기록이 처리 한도 20개를 독점하지 않게 한다.
 - confirm을 시작하지 않은 `PENDING`은 30분 유효시간을 둔다. confirm 진입과 만료 배치 모두 행 잠금 아래
   같은 UTC `created_at` 경계를 확인하고, 만료 시 `CANCELED` 전이와 암호화 payload 제거를 먼저 커밋한다. confirm은 payload
   복호화와 PG 호출을 시도하지 않고 `PAYMENT_ATTEMPT_EXPIRED`를 반환하며, 배치는 confirm 요청이 없는 레코드를 일괄 정리한다.

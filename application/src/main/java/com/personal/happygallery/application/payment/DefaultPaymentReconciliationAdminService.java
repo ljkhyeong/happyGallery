@@ -56,7 +56,8 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
                     request.attemptId(),
                     PaymentAttemptStatus.RECONCILIATION_REQUIRED,
                     null,
-                    lookup.reason());
+                    lookup.reason(),
+                    lookup.status() == PaymentLookupResult.Status.UNAVAILABLE);
         };
     }
 
@@ -70,7 +71,8 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
                     request.attemptId(),
                     PaymentAttemptStatus.CONFIRMED,
                     result.domainId(),
-                    "PG 승인 확인 후 서비스 처리를 완료했습니다.");
+                    "PG 승인 확인 후 서비스 처리를 완료했습니다.",
+                    false);
         } catch (RuntimeException fulfillmentFailure) {
             try {
                 fulfillmentTransactionService.requestCompensationAfterFulfillmentFailure(
@@ -92,6 +94,7 @@ public class DefaultPaymentReconciliationAdminService implements PaymentReconcil
                 attempt.getId(),
                 attempt.getStatus(),
                 null,
-                lookup.reason());
+                lookup.reason(),
+                false);
     }
 }
