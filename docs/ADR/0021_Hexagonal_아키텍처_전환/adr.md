@@ -79,12 +79,14 @@ Gradle은 `java-library` 기준으로 구성한다. 공개 포트와 DTO 시그�
 
 ### 6. 모듈 경계는 테스트로 고정한다
 
-`LayerDependencyPolicyTest`가 아래 규칙을 검증한다.
+`./gradlew :application:architectureTest`의 `LayerDependencyPolicyTest`가 아래 규칙을 검증한다.
 
 - `domain`은 상위 계층을 참조하지 않는다.
 - `application`은 어댑터와 `bootstrap`을 참조하지 않는다.
-- `adapter-in-web`은 `adapter-out-*`를 직접 참조하지 않는다.
+- `adapter-in-web`은 `adapter-out-*`와 application 출력 포트를 직접 참조하지 않는다.
 - `adapter-out-persistence`와 `adapter-out-external`은 서로 직접 의존하지 않는다.
+- 어댑터는 `bootstrap`을 참조하지 않는다.
+- 웹·application·도메인은 Spring Data 저장소를 직접 사용하지 않는다. 도메인 엔티티의 JPA 매핑과 웹 보안·세션 저장소는 허용한다.
 
 ### 7. Spring Data 저장소와 저장 포트 구현을 분리한다
 

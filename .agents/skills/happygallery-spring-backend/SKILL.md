@@ -25,4 +25,4 @@ description: happyGallery의 공통 설정·Gradle·모듈 구조·여러 도메
 - 정책: `./gradlew :application:policyTest --tests "*대상클래스*"`.
 - DB·트랜잭션·Flyway: `./gradlew --no-daemon :application:useCaseTest --tests "*대상클래스*"`.
 - HTTP 계약은 `api-contract`, schema는 `entity-migration-sync`, 시간은 `time-boundary-policy`, 상태 전이는 `domain-state-machine`을 함께 적용한다.
-- 모듈 구조 변경은 영향받는 모듈 compile과 `LayerDependencyPolicyTest`를 실행한다. 전체 build는 여러 모듈의 연동 확인이 필요할 때 선택한다.
+- 모듈 구조 변경은 `./gradlew :application:architectureTest`를 실행한다. 필요한 모듈 컴파일이 포함되므로 따로 반복하지 않는다. 전체 build는 여러 모듈의 연동 확인이 필요할 때 선택한다.

@@ -104,12 +104,13 @@ docker compose up -d --build
 - 전체 빌드: `./gradlew build`
 - 전체 테스트: `./gradlew test`
 - 정책 테스트: `./gradlew :application:policyTest`
+- 구조 검사: `./gradlew :application:architectureTest` (ArchUnit, DB 불필요)
 - 통합 테스트: `./gradlew --no-daemon :application:useCaseTest`
 - API 계약 문서 테스트: `./gradlew --no-daemon :adapter-in-web:restDocsTest`
 - OpenAPI 명세 갱신: `./gradlew --no-daemon :adapter-in-web:openapi3`
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
-`./gradlew build`의 `check` 단계에는 REST Docs 계약 테스트와 Controller·DTO와 OpenAPI 명세의 일치 여부 검사가 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
+`./gradlew build`의 `check` 단계에는 정책·구조 검사, REST Docs 계약 테스트와 Controller·DTO와 OpenAPI 명세의 일치 여부 검사가 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
 배포용 `:bootstrap:bootJar` 산출물은 `bootstrap/build/libs/happygallery-app.jar`로 고정하며
 Docker, CI artifact와 k3s 이미지 반입이 모두 이 경로만 사용한다. Gradle 모듈 간 테스트 classpath에
 필요한 `*-plain.jar`는 별도로 생성되지만 배포 도구는 wildcard로 JAR을 선택하지 않는다. Gradle
