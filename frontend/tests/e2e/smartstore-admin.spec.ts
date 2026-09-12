@@ -258,6 +258,111 @@ function smartStoreNotice(id: number): SmartStoreNoticeResponse {
   };
 }
 
+async function prepareSmartStoreNoticeApplication(page: Page) {
+  await prepareAdmin(page);
+  const state = { secondPageUnavailable: false };
+  await page.route("**/api/v1/admin/smartstore-notices?**", (route) => json(route, {
+    notices: [smartStoreNotice(1), smartStoreNotice(2)],
+    page: 1, size: 100, totalElements: 2, totalPages: 1,
+  }));
+  await page.route("**/api/v1/admin/products/smartstore-catalog?**", (route) => {
+    const currentPage = Number(new URL(route.request().url()).searchParams.get("page"));
+    if (currentPage === 2 && state.secondPageUnavailable) {
+      return json(route, { code: "SERVICE_UNAVAILABLE" }, 503);
+    }
+    const ids = currentPage === 1 ? Array.from({ length: 100 }, (_, i) => i + 1) : [101];
+    return json(route, {
+      products: ids.map((id) => ({
+        originProductNo: id + 1000, channelProductNo: id, name: `적용 상품 ${id}`,
+        imageUrl: null, salePrice: 35000, stockQuantity: 5, status: "SALE",
+      })),
+      page: currentPage, size: 100, totalElements: 101, totalPages: 2,
+    });
+  });
+  await page.goto("/admin?view=support");
+  return {
+    state,
+    open: (id: number) => page.getByRole("row")
+      .filter({ has: page.getByText(`공지 ${id}`, { exact: true }) })
+      .getByRole("button", { name: "상품 적용", exact: true }).click(),
+  };
+}
+
+test("@admin 스마트스토어 공지 적용은 요청 중 선택을 고정하고 새 창에 오류를 남기지 않는다", async ({ page }) => {
+  const { open } = await prepareSmartStoreNoticeApplication(page);
+  const requests: Array<{ path: string; body: unknown }> = [];
+  let pending: Route | undefined;
+  await page.route("**/api/v1/admin/smartstore-notices/*/products", (route) => {
+    requests.push({ path: new URL(route.request().url()).pathname, body: route.request().postDataJSON() });
+    if (requests.length === 1) { pending = route; return; }
+    return route.fulfill({ status: 204 });
+  });
+  await open(1);
+  const dialog = page.getByRole("dialog");
+  const selection = (id: number) => dialog.getByRole("row")
+    .filter({ has: page.getByText(`적용 상품 ${id}`, { exact: true }) }).getByRole("checkbox");
+  await selection(1).check();
+  await dialog.getByRole("button", { name: "1개 상품에 적용", exact: true }).click();
+  await expect.poll(() => requests.length).toBe(1);
+  await expect(selection(1)).toBeDisabled();
+  await expect(selection(2)).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "다음", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeHidden();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  expect(requests[0]).toEqual({
+    path: "/api/v1/admin/smartstore-notices/1/products", body: { channelProductNos: [1] },
+  });
+  await json(pending!, { code: "SERVICE_UNAVAILABLE" }, 503);
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(selection(1)).toBeChecked();
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  await open(2);
+  await expect(dialog.getByRole("alert")).toBeHidden();
+  await expect(selection(1)).not.toBeChecked();
+  await expect(dialog.getByRole("button", { name: "0개 상품에 적용", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await selection(101).check();
+  await dialog.getByRole("button", { name: "1개 상품에 적용", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual({
+    path: "/api/v1/admin/smartstore-notices/2/products", body: { channelProductNos: [101] },
+  });
+});
+
+test("@admin 스마트스토어 공지 적용은 상품 조회 실패 후에도 여러 페이지의 선택을 유지한다", async ({ page }) => {
+  const { state, open } = await prepareSmartStoreNoticeApplication(page);
+  state.secondPageUnavailable = true;
+  let applied: unknown;
+  await page.route("**/api/v1/admin/smartstore-notices/1/products", (route) => {
+    applied = route.request().postDataJSON();
+    return route.fulfill({ status: 204 });
+  });
+  await open(1);
+  const dialog = page.getByRole("dialog");
+  const selection = (id: number) => dialog.getByRole("row")
+    .filter({ has: page.getByText(`적용 상품 ${id}`, { exact: true }) }).getByRole("checkbox");
+  await selection(1).check();
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "이전", exact: true })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "다음", exact: true })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "1개 상품에 적용", exact: true })).toBeEnabled();
+  state.secondPageUnavailable = false;
+  await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await selection(101).check();
+  await dialog.getByRole("button", { name: "이전", exact: true }).click();
+  await expect(selection(1)).toBeChecked();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await dialog.getByRole("button", { name: "다음", exact: true }).click();
+  await expect(selection(101)).toBeChecked();
+  await dialog.getByRole("button", { name: "2개 상품에 적용", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  expect(applied).toEqual({ channelProductNos: [1, 101] });
+});
+
 for (const kind of ["공지", "검수"] as const) {
   test(`@admin 스마트스토어 ${kind} 목록은 100건 이후 조회와 실패 복구를 지원한다`, async ({ page }) => {
     await prepareAdmin(page);

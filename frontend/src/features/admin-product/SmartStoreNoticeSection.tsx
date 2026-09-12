@@ -11,11 +11,10 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { SmartStoreNoticeApplyModal } from "./SmartStoreNoticeApplyModal";
 import {
-  applyNoticeToSmartStoreProducts,
   fetchSmartStoreNotice,
   fetchSmartStoreNotices,
-  fetchSmartStoreProducts,
   removeSmartStoreNotice,
   saveSmartStoreNotice,
 } from "./api";
@@ -37,9 +36,9 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
   const toast = useToast();
   const [noticePage, setNoticePage] = useState(1);
   const [editingId, setEditingId] = useState<number | null | undefined>(undefined);
-  const [applyingId, setApplyingId] = useState<number | null>(null);
-  const [catalogPage, setCatalogPage] = useState(1);
-  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [applyingNotice, setApplyingNotice] = useState<
+    Pick<SmartStoreNoticeResponse, "sellerNoticeId" | "title"> | null
+  >(null);
   const [draft, setDraft] = useState<NoticeForm | null>(null);
   const noticesKey = ["admin", "smartstore-notices"] as const;
   const notices = useAdminQuery(onAuthError, {
@@ -50,11 +49,6 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     queryKey: ["admin", "smartstore-notices", editingId],
     queryFn: () => fetchSmartStoreNotice(adminKey, editingId!),
     enabled: typeof editingId === "number",
-  });
-  const catalog = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", "notice", catalogPage],
-    queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
-    enabled: applyingId !== null,
   });
 
   const form = draft ?? (typeof editingId === "number" && detail.data
@@ -83,18 +77,6 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
       toast.show("스마트스토어 상품 공지를 삭제했습니다.");
       if (notices.data?.notices.length === 1 && noticePage > 1) setNoticePage(noticePage - 1);
       await queryClient.invalidateQueries({ queryKey: noticesKey });
-    },
-  });
-  const apply = useAdminMutation(onAuthError, {
-    mutationFn: () => applyNoticeToSmartStoreProducts(
-      adminKey,
-      applyingId!,
-      [...selectedProducts],
-    ),
-    onSuccess: () => {
-      toast.show("선택한 스마트스토어 상품에 공지를 적용했습니다.");
-      setApplyingId(null);
-      setSelectedProducts(new Set());
     },
   });
   const canSave = editingId !== undefined
@@ -133,11 +115,8 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
             {notice.wholeNotice && <Badge bg="primary">전체</Badge>}
           </div></td>
           <td><div className="d-flex justify-content-end gap-1">
-            <Button size="sm" variant="outline-primary" onClick={() => {
-              setSelectedProducts(new Set());
-              setCatalogPage(1);
-              setApplyingId(notice.sellerNoticeId);
-            }}>상품 적용</Button>
+            <Button size="sm" variant="outline-primary"
+              onClick={() => setApplyingNotice(notice)}>상품 적용</Button>
             <Button size="sm" variant="outline-secondary"
               onClick={() => openEditor(notice.sellerNoticeId)}>수정</Button>
             <Button size="sm" variant="outline-danger" disabled={remove.isPending}
@@ -215,42 +194,13 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
       </Form>
     </Modal>
 
-    <Modal show={applyingId !== null} onHide={() => setApplyingId(null)} size="lg" centered>
-      <Modal.Header closeButton><Modal.Title className="fs-6">공지를 적용할 상품 선택</Modal.Title></Modal.Header>
-      <Modal.Body>
-        {catalog.isLoading && <LoadingSpinner />}
-        <ErrorAlert error={catalog.error ?? apply.error} />
-        <Table responsive hover size="sm" className="align-middle">
-          <thead><tr><th style={{ width: 44 }}></th><th>상품</th><th>상태·재고</th></tr></thead>
-          <tbody>{catalog.data?.products.map((product) => <tr key={product.channelProductNo}>
-            <td><Form.Check checked={selectedProducts.has(product.channelProductNo)}
-              onChange={(event) => setSelectedProducts((current) => {
-                const next = new Set(current);
-                if (event.target.checked) next.add(product.channelProductNo);
-                else next.delete(product.channelProductNo);
-                return next;
-              })} /></td>
-            <td><div>{product.name}</div><div className="small text-muted-soft">
-              채널상품 {product.channelProductNo}
-            </div></td>
-            <td>{product.status} · 재고 {product.stockQuantity ?? "-"}</td>
-          </tr>)}</tbody>
-        </Table>
-        {catalog.data && catalog.data.totalPages > 1 && <div className="d-flex justify-content-between">
-          <Button size="sm" variant="outline-secondary" disabled={catalogPage <= 1}
-            onClick={() => setCatalogPage((page) => page - 1)}>이전</Button>
-          <span className="small text-muted-soft">{catalogPage} / {catalog.data.totalPages}페이지</span>
-          <Button size="sm" variant="outline-secondary" disabled={catalogPage >= catalog.data.totalPages}
-            onClick={() => setCatalogPage((page) => page + 1)}>다음</Button>
-        </div>}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setApplyingId(null)}>취소</Button>
-        <Button disabled={!selectedProducts.size || apply.isPending} onClick={() => apply.mutate()}>
-          {apply.isPending ? "적용 중..." : `${selectedProducts.size}개 상품에 적용`}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+    {applyingNotice && <SmartStoreNoticeApplyModal
+      key={applyingNotice.sellerNoticeId}
+      adminKey={adminKey}
+      notice={applyingNotice}
+      onAuthError={onAuthError}
+      onClose={() => setApplyingNotice(null)}
+    />}
   </>;
 }
 
