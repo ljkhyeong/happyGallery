@@ -28,6 +28,9 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
 app:
+  external:
+    notification:
+      mode: ${NOTIFICATION_MODE:nhn}
   admin:
     enable-api-key-auth: false
     require-mfa-enrollment: true

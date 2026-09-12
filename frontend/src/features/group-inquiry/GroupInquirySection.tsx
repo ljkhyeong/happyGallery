@@ -7,6 +7,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { GroupInquiryForm } from "./GroupInquiryForm";
+import { useBotProtection } from "@/features/bot-protection/useBotProtection";
 
 export function GroupInquirySection() {
   const { sessionVersion } = useCustomerAuth();
@@ -17,13 +18,16 @@ function GroupInquirySectionContent() {
   const { user, isAuthenticated, isLoading, status, error, refresh } = useCustomerAuth();
   const client = useQueryClient();
   const [receiptId, setReceiptId] = useState<number | null>(null);
+  const botProtection = useBotProtection("group_inquiry");
+  const options = { headers: botProtection.token ? { "X-Bot-Token": botProtection.token } : undefined };
   const mutation = useMutation({
     mutationFn: (request: GroupInquiryRequest) => isAuthenticated
-      ? runForCurrentCustomer(() => createMyGroupInquiry(request), (receipt) => {
+      ? runForCurrentCustomer(() => createMyGroupInquiry(request, options), (receipt) => {
         setReceiptId(receipt.id);
         void client.invalidateQueries({ queryKey: ["me", "group-inquiries"] });
       })
-      : createGuestGroupInquiry(request).then((receipt) => { setReceiptId(receipt.id); }),
+      : createGuestGroupInquiry(request, options).then((receipt) => { setReceiptId(receipt.id); }),
+    onSettled: botProtection.reset,
   });
   return (
     <section id="group-inquiry-form" className="my-5">
@@ -32,8 +36,11 @@ function GroupInquirySectionContent() {
         <Alert.Heading>문의가 접수되었습니다.</Alert.Heading>
         <p className="mb-1">접수 번호 {receiptId} · 입력한 연락처로 답변드립니다.</p>
         {isAuthenticated && <Link to="/my/group-inquiries">내 문의 상태 확인</Link>}
-      </Alert> : isLoading ? <LoadingSpinner /> : status === "error" ? <ErrorAlert error={error} onRetry={() => { void refresh(); }} /> : <GroupInquiryForm onSubmit={(request) => mutation.mutate(request)}
-        pending={mutation.isPending} error={mutation.error} initialContact={user ?? undefined} />}
+      </Alert> : isLoading ? <LoadingSpinner /> : status === "error" ? <ErrorAlert error={error} onRetry={() => { void refresh(); }} /> : <>
+        {botProtection.challenge}
+        <GroupInquiryForm onSubmit={(request) => mutation.mutate(request)} submitDisabled={!botProtection.ready}
+          pending={mutation.isPending} error={mutation.error} initialContact={user ?? undefined} />
+      </>}
     </section>
   );
 }

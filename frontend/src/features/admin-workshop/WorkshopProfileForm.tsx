@@ -272,6 +272,8 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
                   ...current,
                   postalCode: address.postalCode,
                   addressLine1: address.roadAddress,
+                  addressLine2: current.postalCode === address.postalCode && current.addressLine1 === address.roadAddress
+                    ? current.addressLine2 : "",
                 }));
               }} />
             </InputGroup>

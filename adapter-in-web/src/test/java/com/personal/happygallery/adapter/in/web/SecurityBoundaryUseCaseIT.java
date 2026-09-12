@@ -32,6 +32,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -177,8 +178,17 @@ class SecurityBoundaryUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.terms.version").value("2026-09-11-v1"))
                 .andExpect(jsonPath("$.terms.documentPath").value("/terms/2026-09-11-v1"))
-                .andExpect(jsonPath("$.privacy.version").value("2026-09-11-v1"))
-                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-09-11-v1"));
+                .andExpect(jsonPath("$.privacy.version").value("2026-09-12-v1"))
+                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-09-12-v1"));
+    }
+
+    @Test
+    @DisplayName("자동 입력 방지 설정은 비회원에게 공개하고 비밀 키를 반환하지 않는다")
+    void botProtection_allowsAnonymousRead() throws Exception {
+        mockMvc.perform(get("/api/v1/bot-protection"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.siteKey").value(nullValue()))
+                .andExpect(jsonPath("$.secretKey").doesNotExist());
     }
 
     @DisplayName("공개 조회 경로는 HEAD 요청도 허용한다")

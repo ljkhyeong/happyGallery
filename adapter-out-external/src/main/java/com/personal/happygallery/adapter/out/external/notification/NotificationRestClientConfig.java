@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 import com.personal.happygallery.adapter.out.external.http.PooledHttpClientFactory;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -17,6 +18,8 @@ import org.springframework.web.client.RestClient;
  */
 @Configuration
 @Profile("prod")
+@ConditionalOnProperty(prefix = "app.external.notification", name = "mode",
+        havingValue = "nhn", matchIfMissing = true)
 class NotificationRestClientConfig {
 
     private final PooledHttpClientFactory pooledHttpClientFactory;

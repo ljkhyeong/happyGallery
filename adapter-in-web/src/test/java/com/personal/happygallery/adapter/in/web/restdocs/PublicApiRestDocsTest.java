@@ -1,5 +1,7 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
+
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
 import com.personal.happygallery.adapter.in.web.booking.BookingVacancyAlertController;
 import com.personal.happygallery.adapter.in.web.booking.ClassController;
@@ -281,7 +283,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 new SlotController(slotQueryUseCase),
                 new BookingController(guestBookingUseCase, bookingQueryUseCase,
                         bookingRescheduleUseCase, bookingCancelUseCase, guestPersonalDataProtector,
-                        rateLimitGuard, RestDocsFixtures.clock()),
+                        rateLimitGuard, mock(BotProtectionUseCase.class), RestDocsFixtures.clock()),
                 new BookingVacancyAlertController(vacancyAlertUseCase),
                 new OrderController(orderQueryUseCase, new OrderPriceProperties(3_000L)),
                 new PaymentController(paymentPrepareUseCase, paymentConfirmUseCase, paymentAbandonUseCase, rateLimitGuard),
@@ -488,6 +490,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("비회원 휴대폰 인증 발송 API를 문서화한다")
     void send_booking_phone_verification() throws Exception {
         mockMvc.perform(post("/api/v1/bookings/phone-verifications")
+                        .header("X-Bot-Token", "phone-challenge-token")
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {

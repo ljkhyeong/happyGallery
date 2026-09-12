@@ -87,6 +87,11 @@ ENCRYPT_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 HMAC_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 GUEST_TOKEN_HMAC_SECRET=local-test-guest-token-12345678901234
 TOSS_SECRET_KEY=test
+TURNSTILE_ENABLED=true
+TURNSTILE_SITE_KEY=test-site-key
+TURNSTILE_SECRET_KEY=test-secret-key
+TURNSTILE_HOSTNAME=happy-gallery.com
+INDEXNOW_KEY=local-test-indexnow-key
 KOREA_POST_TRACKING_ENABLED=true
 KOREA_POST_SERVICE_KEY=test+key/=
 KOREA_POST_TIMEOUT_MILLIS=5000
@@ -149,11 +154,11 @@ expect_rejection() {
     local expected=$1
     : > "$HG_TEST_KUBE_LOG"
     if output=$(run_secret_test 2>&1); then
-        printf '잘못된 메일 설정이 허용되었습니다: %s\n' "$expected" >&2
+        printf '잘못된 발송 설정이 허용되었습니다: %s\n' "$expected" >&2
         exit 1
     fi
     printf '%s' "$output" | grep -q "$expected"
-    [ ! -s "$HG_TEST_KUBE_LOG" ] || { printf '메일 설정 거부 전에 클러스터를 변경했습니다.\n' >&2; exit 1; }
+    [ ! -s "$HG_TEST_KUBE_LOG" ] || { printf '발송 설정 거부 전에 클러스터를 변경했습니다.\n' >&2; exit 1; }
 }
 
 sed '/^NCP_MAIL_SECRET_KEY=/d' "$state_dir/ncp.env" > "$app_file"
@@ -173,3 +178,23 @@ EMAIL_VERIFICATION_SMTP_PASSWORD=test
 EOF
 run_secret_test >/dev/null
 printf 'runtime Secret 환경 키와 메일 제공자별 검증 완료\n'
+
+# 심사 대기 중지 모드만 NHN 자격 증명 생략을 허용한다.
+cp "$app_file" "$state_dir/smtp.env"
+sed '/^ALIMTALK_/d; /^SMS_/d' "$state_dir/smtp.env" > "$state_dir/no-nhn.env"
+cp "$state_dir/no-nhn.env" "$app_file"
+expect_rejection ALIMTALK_APP_KEY
+printf 'NOTIFICATION_MODE=nhn\n' >> "$app_file"
+expect_rejection ALIMTALK_APP_KEY
+cp "$state_dir/no-nhn.env" "$app_file"
+printf 'NOTIFICATION_MODE=disabled\n' >> "$app_file"
+run_secret_test >/dev/null
+[ -s "$HG_TEST_KUBE_LOG" ] || { printf '중지 모드 Secret 생성에 도달하지 못했습니다.\n' >&2; exit 1; }
+cp "$app_file" "$state_dir/disabled.env"
+for invalid_mode in '' fake typo DISABLED; do
+    sed "s/^NOTIFICATION_MODE=.*/NOTIFICATION_MODE=$invalid_mode/" "$state_dir/disabled.env" > "$app_file"
+    expect_rejection NOTIFICATION_MODE
+done
+sed '/^EMAIL_VERIFICATION_SMTP_PASSWORD=/d' "$state_dir/disabled.env" > "$app_file"
+expect_rejection EMAIL_VERIFICATION_SMTP_PASSWORD
+printf '문자 중지 모드의 자격 증명 생략과 잘못된 모드 거부 검증 완료\n'

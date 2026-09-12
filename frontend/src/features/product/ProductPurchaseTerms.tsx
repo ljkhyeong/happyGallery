@@ -1,6 +1,6 @@
-import { Alert, Button } from "react-bootstrap";
-import { MessageCircleMore } from "lucide-react";
+import { Alert } from "react-bootstrap";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
+import { NaverTalkInquiry } from "@/features/workshop/NaverTalkInquiry";
 import type { ProductType } from "@/shared/types/product";
 
 interface Props {
@@ -73,27 +73,13 @@ function CustomizationInquiry({ productName }: { productName: string }) {
   const { data: workshop } = useWorkshopProfile();
   if (!workshop?.naverTalkUrl) return null;
 
-  const openInquiry = () => {
-    const message = [
-      "해피갤러리 상품 맞춤 변경 문의드립니다.",
-      `상품: ${productName}`,
-      "원하는 변경: ",
-    ].join("\n");
-    void navigator.clipboard?.writeText(message);
-  };
+  const message = [
+    "해피갤러리 상품 맞춤 변경 문의드립니다.",
+    `상품: ${productName}`,
+    "원하는 변경: ",
+  ].join("\n");
 
   return (
-    <Button
-      as="a"
-      href={workshop.naverTalkUrl}
-      target="_blank"
-      rel="noreferrer"
-      variant="outline-success"
-      size="sm"
-      onClick={openInquiry}
-    >
-      <MessageCircleMore size={15} aria-hidden="true" className="me-1" />
-      맞춤 변경 네이버톡톡 상담
-    </Button>
+    <NaverTalkInquiry message={message} url={workshop.naverTalkUrl} label="맞춤 변경 네이버톡톡 상담" />
   );
 }

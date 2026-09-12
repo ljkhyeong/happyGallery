@@ -1,4 +1,6 @@
-export { formatKRW, formatDate, formatDateTime, parseApiDateTime } from "./format";
+export {
+  formatKRW, formatDate, formatDateTime, formatDateInput, formatDateTimeInput, parseApiDateTime,
+} from "./format";
 export { getUserMessage } from "./errorMessages";
 export { isPositiveSafeIntegerString } from "./number";
 export {

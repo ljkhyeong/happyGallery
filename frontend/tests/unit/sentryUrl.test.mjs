@@ -48,6 +48,7 @@ test("Referer는 경로만 남기고 인증 헤더는 제거한다", () => {
         "X-Access-Token": "guest-secret",
         "X-Payment-Status-Token": "payment-secret",
         "X-XSRF-TOKEN": "csrf-secret",
+        "X-Bot-Token": "turnstile-secret",
         Accept: "application/json",
       },
       "https://happygallery.example",

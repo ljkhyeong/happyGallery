@@ -208,6 +208,8 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 - 운영 프런트 Node SSR 서버는 응답별 nonce와 Toss SDK, 외부 폰트, Sentry를 반영한 CSP를 `Report-Only`로 제공한다. 아직 중앙 위반 수집기는 없으므로 배포 전 실제 브라우저 콘솔에서 핵심 화면을 확인한 뒤 강제 정책 전환을 별도로 결정한다.
 - 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 운영 호스트에서 DNS·방화벽·TLS·검색엔진 소유확인·백업 중단 시간·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 - 추가 구독료 없이 Cloudflare DNS 자동 갱신과 외부 웹·백업 감시를 연결하는 설정은 [무료 외부 연동](deploy/k3s/free-integrations.md)에 있다. 홈서버에 토큰과 감시 계정을 설정한 뒤 활성화한다.
+- [무료 Telegram 운영 알림](deploy/k3s/telegram-alerts.md)은 서버 경보·복구와 백업 실패를 휴대폰으로 보낸다. Alertmanager 기본 기능을 사용하며 봇 토큰과 채팅 ID를 준비하면 된다.
+- [무료 IndexNow](deploy/k3s/indexnow.md)는 상품·수업·이벤트·공지·공방 정보 변경을 네이버·Bing 등 검색엔진에 알린다. 기본 비활성이며 키 설정과 홈서버 timer 설치 후 사용한다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
 현재 운영 목표와 배포·데이터 보호 조건은 [ADR-0037](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. [ADR-0049 저예산 클라우드 운영 기준](docs/ADR/0049_저예산_클라우드_운영_기준/adr.md)은 노트북 운영 조건을 충족하지 못할 때 다시 검토할 대안이다. 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 코드 처리 규칙은 [ADR-0045](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.
@@ -228,7 +230,7 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-galle
 
 공휴일은 [한국천문연구원 특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 무료 활용 신청 후 `PUBLIC_HOLIDAY_SERVICE_KEY`에 Decoding 키를 주입하고 `PUBLIC_HOLIDAY_ENABLED=true`로 켠다. 매일 04:20(서울)에 현재 연도와 다음 연도를 갱신하며, 조회 실패 때는 마지막으로 정상 수집한 데이터를 유지한다. 해당 연도 데이터가 없으면 기존 공휴일 계산을 사용한다.
 
-개인 캘린더 추가는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 ICS 파일을 생성하며 외부 계정 연동이 필요 없다.
+회원·비회원의 확정 예약에서 `Google 캘린더에 추가`를 누르면 수업명·일시·공방 주소가 입력된 Google 일정 작성 화면이 열린다. 고객이 직접 저장하며 API 키·OAuth 설정·추가요금은 없다. 다른 캘린더는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 만든 ICS 파일을 받는다. 두 방식 모두 예약 변경·취소를 자동 반영하지 않으며 저장한 일정은 고객이 직접 수정한다. 예약번호·조회 코드·고객 연락처는 외부 링크에 넣지 않는다. [Google 공식 일정 링크 안내](https://developers.google.com/workspace/calendar/api/concepts/inviting-attendees-to-events#provide_a_link_for_users_to_add_the_event)
 
 외부 HTTP 풀의 `keep-alive`는 서버가 연결 유지 시간을 보내지 않을 때 기본값으로 적용한다. 같은 값으로 연결 최대 수명과 유휴 연결 정리 기준도 설정한다.
 
@@ -269,6 +271,9 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-galle
 | `DELIVERY_WEBHOOK_ENDPOINT_ID` / `DELIVERY_WEBHOOK_SECRET` | 백엔드 | 배송조회 등록 대상 웹훅 ID와 수신 서명 검증 키 |
 | `DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS` / `DELIVERY_API_CONNECT_TIMEOUT_MILLIS` / `DELIVERY_API_TIMEOUT_MILLIS` | 백엔드 | 배송조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `3000` |
 | `PUBLIC_HOLIDAY_ENABLED` / `PUBLIC_HOLIDAY_SERVICE_KEY` | 백엔드 | 한국천문연구원 특일 정보 연동 활성화 여부와 공공데이터포털 서비스키, 기본 비활성 |
+| `TURNSTILE_ENABLED` | 백엔드 | [무료 자동 입력 방지](deploy/k3s/turnstile.md). 인증문자·단체 문의 접수에 적용, 기본 `false` |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | 백엔드 | Cloudflare Managed 위젯의 공개 키·비밀 키. 비밀 키는 서버에서만 사용 |
+| `TURNSTILE_HOSTNAME` | 백엔드 | 검증 응답의 허용 도메인, 기본 `happy-gallery.com` |
 | `KOREA_POST_TRACKING_ENABLED` / `KOREA_POST_SERVICE_KEY` | 백엔드 | 우체국 무료 배송조회 활성화 여부와 Decoding 서비스키, 기본 비활성 |
 | `KOREA_POST_ACQUIRE_TIMEOUT_MILLIS` / `KOREA_POST_CONNECT_TIMEOUT_MILLIS` / `KOREA_POST_TIMEOUT_MILLIS` | 백엔드 | 우체국 조회 연결 풀 획득·연결·응답 제한, 기본 `500` / `1000` / `5000` |
 | `PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_TIMEOUT_MILLIS` | 백엔드 | 공휴일 조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `5000` |

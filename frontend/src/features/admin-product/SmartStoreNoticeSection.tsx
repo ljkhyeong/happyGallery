@@ -1,19 +1,20 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatDateTimeInput, parseApiDateTime } from "@/shared/lib";
 import { Badge, Button, Form, Modal, Table } from "react-bootstrap";
 import type {
   SaveSmartStoreNoticeRequest,
   SaveSmartStoreNoticeRequestPostCategoryType,
+  SmartStoreNoticeResponse,
 } from "@/generated/api/adminCatalog";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { SmartStoreNoticeApplyModal } from "./SmartStoreNoticeApplyModal";
 import {
-  applyNoticeToSmartStoreProducts,
   fetchSmartStoreNotice,
   fetchSmartStoreNotices,
-  fetchSmartStoreProducts,
   removeSmartStoreNotice,
   saveSmartStoreNotice,
 } from "./api";
@@ -33,44 +34,28 @@ const CATEGORY_LABELS: Record<SaveSmartStoreNoticeRequestPostCategoryType, strin
 export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const [noticePage, setNoticePage] = useState(1);
   const [editingId, setEditingId] = useState<number | null | undefined>(undefined);
-  const [applyingId, setApplyingId] = useState<number | null>(null);
-  const [catalogPage, setCatalogPage] = useState(1);
-  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
-  const [form, setForm] = useState(emptyForm());
+  const [applyingNotice, setApplyingNotice] = useState<
+    Pick<SmartStoreNoticeResponse, "sellerNoticeId" | "title"> | null
+  >(null);
+  const [draft, setDraft] = useState<NoticeForm | null>(null);
   const noticesKey = ["admin", "smartstore-notices"] as const;
   const notices = useAdminQuery(onAuthError, {
-    queryKey: noticesKey,
-    queryFn: () => fetchSmartStoreNotices(adminKey),
+    queryKey: [...noticesKey, "page", noticePage],
+    queryFn: () => fetchSmartStoreNotices(adminKey, noticePage),
   });
   const detail = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-notices", editingId],
     queryFn: () => fetchSmartStoreNotice(adminKey, editingId!),
     enabled: typeof editingId === "number",
   });
-  const catalog = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "smartstore-products", "notice", catalogPage],
-    queryFn: () => fetchSmartStoreProducts(adminKey, catalogPage),
-    enabled: applyingId !== null,
-  });
 
-  useEffect(() => {
-    if (!detail.data) return;
-    setForm({
-      postCategoryType: detail.data.postCategoryType as SaveSmartStoreNoticeRequestPostCategoryType,
-      title: detail.data.title,
-      detailContents: detail.data.detailContents,
-      importantNotice: detail.data.importantNotice,
-      importantNoticeStartDate: toLocalDateTime(detail.data.importantNoticeStartDate),
-      importantNoticeEndDate: toLocalDateTime(detail.data.importantNoticeEndDate),
-      wholeNotice: detail.data.wholeNotice,
-      displayStartDate: toLocalDateTime(detail.data.displayStartDate),
-      displayEndDate: toLocalDateTime(detail.data.displayEndDate),
-      popup: detail.data.popup,
-      popupStartDate: toLocalDateTime(detail.data.popupStartDate),
-      popupEndDate: toLocalDateTime(detail.data.popupEndDate),
-    });
-  }, [detail.data]);
+  const form = draft ?? (typeof editingId === "number" && detail.data
+    ? toForm(detail.data) : emptyForm());
+  const setForm = (update: (current: NoticeForm) => NoticeForm) => {
+    setDraft((current) => update(current ?? form));
+  };
 
   const save = useAdminMutation(onAuthError, {
     mutationFn: () => saveSmartStoreNotice(
@@ -90,34 +75,30 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
     mutationFn: (sellerNoticeId: number) => removeSmartStoreNotice(adminKey, sellerNoticeId),
     onSuccess: async () => {
       toast.show("스마트스토어 상품 공지를 삭제했습니다.");
+      if (notices.data?.notices.length === 1 && noticePage > 1) setNoticePage(noticePage - 1);
       await queryClient.invalidateQueries({ queryKey: noticesKey });
     },
   });
-  const apply = useAdminMutation(onAuthError, {
-    mutationFn: () => applyNoticeToSmartStoreProducts(
-      adminKey,
-      applyingId!,
-      [...selectedProducts],
-    ),
-    onSuccess: () => {
-      toast.show("선택한 스마트스토어 상품에 공지를 적용했습니다.");
-      setApplyingId(null);
-      setSelectedProducts(new Set());
-    },
-  });
-
-  if (notices.isLoading) return <LoadingSpinner />;
-  if (notices.error) return <ErrorAlert error={notices.error} />;
+  const canSave = editingId !== undefined
+    && (editingId === null || detail.isSuccess) && !save.isPending;
+  const openEditor = (id: number | null) => {
+    setDraft(null);
+    save.reset();
+    setEditingId(id);
+  };
+  const closeEditor = () => {
+    if (!save.isPending) setEditingId(undefined);
+  };
 
   return <>
     <div className="d-flex justify-content-end mb-3">
-      <Button size="sm" onClick={() => {
-        setForm(emptyForm());
-        setEditingId(null);
-      }}>공지 등록</Button>
+      <Button size="sm" onClick={() => openEditor(null)}>공지 등록</Button>
     </div>
+    {notices.isLoading && <LoadingSpinner />}
+    <ErrorAlert error={notices.error}
+      onRetry={() => { void notices.refetch(); }} retrying={notices.isFetching} />
     <ErrorAlert error={remove.error} />
-    {!notices.data?.notices.length
+    {notices.data && (!notices.data.notices.length
       ? <EmptyState message="등록된 스마트스토어 상품 공지가 없습니다." />
       : <Table responsive hover size="sm" className="align-middle">
         <thead><tr><th>유형</th><th>제목</th><th>전시 기간</th><th>설정</th><th></th></tr></thead>
@@ -134,13 +115,10 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
             {notice.wholeNotice && <Badge bg="primary">전체</Badge>}
           </div></td>
           <td><div className="d-flex justify-content-end gap-1">
-            <Button size="sm" variant="outline-primary" onClick={() => {
-              setSelectedProducts(new Set());
-              setCatalogPage(1);
-              setApplyingId(notice.sellerNoticeId);
-            }}>상품 적용</Button>
+            <Button size="sm" variant="outline-primary"
+              onClick={() => setApplyingNotice(notice)}>상품 적용</Button>
             <Button size="sm" variant="outline-secondary"
-              onClick={() => setEditingId(notice.sellerNoticeId)}>수정</Button>
+              onClick={() => openEditor(notice.sellerNoticeId)}>수정</Button>
             <Button size="sm" variant="outline-danger" disabled={remove.isPending}
               onClick={() => {
                 if (window.confirm("상품에 적용되지 않은 공지만 삭제할 수 있습니다. 삭제할까요?")) {
@@ -149,88 +127,80 @@ export function SmartStoreNoticeSection({ adminKey, onAuthError }: Props) {
               }}>삭제</Button>
           </div></td>
         </tr>)}</tbody>
-      </Table>}
+      </Table>)}
+    {(noticePage > 1 || (notices.data?.totalPages ?? 0) > 1) && (
+      <nav aria-label="스마트스토어 공지 페이지" className="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <Button size="sm" variant="outline-secondary"
+          disabled={noticePage === 1 || notices.isFetching || remove.isPending}
+          onClick={() => setNoticePage(noticePage - 1)}>이전 페이지</Button>
+        <span className="small text-muted-soft">
+          {noticePage}페이지{notices.data && ` · 총 ${notices.data.totalElements}건`}
+        </span>
+        <Button size="sm" variant="outline-secondary"
+          disabled={!notices.data || notices.isError || notices.isFetching || remove.isPending
+            || noticePage >= notices.data.totalPages}
+          onClick={() => setNoticePage(noticePage + 1)}>다음 페이지</Button>
+      </nav>
+    )}
 
-    <Modal show={editingId !== undefined} onHide={() => setEditingId(undefined)} size="lg" centered>
-      <Modal.Header closeButton><Modal.Title className="fs-6">
+    <Modal show={editingId !== undefined} onHide={closeEditor} size="lg" centered>
+      <Modal.Header closeButton={!save.isPending}><Modal.Title className="fs-6">
         {editingId === null ? "스마트스토어 상품 공지 등록" : "스마트스토어 상품 공지 수정"}
       </Modal.Title></Modal.Header>
-      <Form onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
+      <Form onSubmit={(event) => {
+        event.preventDefault();
+        if (canSave) save.mutate();
+      }}>
         <Modal.Body>
           {detail.isLoading && <LoadingSpinner />}
-          <ErrorAlert error={detail.error ?? save.error} />
-          <div className="d-flex gap-2 mb-3">
-            <Form.Select value={form.postCategoryType}
-              onChange={(event) => setForm((current) => ({ ...current,
-                postCategoryType: event.target.value as SaveSmartStoreNoticeRequestPostCategoryType }))}>
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) =>
-                <option key={value} value={value}>{label}</option>)}
-            </Form.Select>
-            <Form.Control required value={form.title}
-              onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-              placeholder="공지 제목" />
-          </div>
-          <Form.Control as="textarea" rows={8} required value={form.detailContents}
-            onChange={(event) => setForm((current) => ({ ...current, detailContents: event.target.value }))}
-            placeholder="공지 내용" />
-          <div className="d-flex flex-wrap gap-3 my-3">
-            <Form.Check type="switch" id="smartstore-notice-important" label="중요 공지"
-              checked={form.importantNotice}
-              onChange={(event) => setForm((current) => ({ ...current, importantNotice: event.target.checked }))} />
-            <Form.Check type="switch" id="smartstore-notice-whole" label="전체 상품 공지"
-              checked={form.wholeNotice}
-              onChange={(event) => setForm((current) => ({ ...current, wholeNotice: event.target.checked }))} />
-            <Form.Check type="switch" id="smartstore-notice-popup" label="팝업 공지"
-              checked={form.popup}
-              onChange={(event) => setForm((current) => ({ ...current, popup: event.target.checked }))} />
-          </div>
-          <NoticeDateFields form={form} onChange={setForm} />
+          <ErrorAlert error={detail.error ?? save.error}
+            onRetry={detail.error ? () => { void detail.refetch(); } : undefined}
+            retrying={detail.isFetching} />
+          <fieldset disabled={!canSave}>
+            <div className="d-flex gap-2 mb-3">
+              <Form.Select value={form.postCategoryType}
+                onChange={(event) => setForm((current) => ({ ...current,
+                  postCategoryType: event.target.value as SaveSmartStoreNoticeRequestPostCategoryType }))}>
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) =>
+                  <option key={value} value={value}>{label}</option>)}
+              </Form.Select>
+              <Form.Control required value={form.title}
+                onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="공지 제목" />
+            </div>
+            <Form.Control as="textarea" rows={8} required value={form.detailContents}
+              onChange={(event) => setForm((current) => ({ ...current, detailContents: event.target.value }))}
+              placeholder="공지 내용" />
+            <div className="d-flex flex-wrap gap-3 my-3">
+              <Form.Check type="switch" id="smartstore-notice-important" label="중요 공지"
+                checked={form.importantNotice}
+                onChange={(event) => setForm((current) => ({ ...current, importantNotice: event.target.checked }))} />
+              <Form.Check type="switch" id="smartstore-notice-whole" label="전체 상품 공지"
+                checked={form.wholeNotice}
+                onChange={(event) => setForm((current) => ({ ...current, wholeNotice: event.target.checked }))} />
+              <Form.Check type="switch" id="smartstore-notice-popup" label="팝업 공지"
+                checked={form.popup}
+                onChange={(event) => setForm((current) => ({ ...current, popup: event.target.checked }))} />
+            </div>
+            <NoticeDateFields form={form} onChange={setForm} />
+          </fieldset>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setEditingId(undefined)}>취소</Button>
-          <Button type="submit" disabled={save.isPending || detail.isLoading}>
+          <Button variant="secondary" disabled={save.isPending} onClick={closeEditor}>취소</Button>
+          <Button type="submit" disabled={!canSave}>
             {save.isPending ? "저장 중..." : "저장"}
           </Button>
         </Modal.Footer>
       </Form>
     </Modal>
 
-    <Modal show={applyingId !== null} onHide={() => setApplyingId(null)} size="lg" centered>
-      <Modal.Header closeButton><Modal.Title className="fs-6">공지를 적용할 상품 선택</Modal.Title></Modal.Header>
-      <Modal.Body>
-        {catalog.isLoading && <LoadingSpinner />}
-        <ErrorAlert error={catalog.error ?? apply.error} />
-        <Table responsive hover size="sm" className="align-middle">
-          <thead><tr><th style={{ width: 44 }}></th><th>상품</th><th>상태·재고</th></tr></thead>
-          <tbody>{catalog.data?.products.map((product) => <tr key={product.channelProductNo}>
-            <td><Form.Check checked={selectedProducts.has(product.channelProductNo)}
-              onChange={(event) => setSelectedProducts((current) => {
-                const next = new Set(current);
-                if (event.target.checked) next.add(product.channelProductNo);
-                else next.delete(product.channelProductNo);
-                return next;
-              })} /></td>
-            <td><div>{product.name}</div><div className="small text-muted-soft">
-              채널상품 {product.channelProductNo}
-            </div></td>
-            <td>{product.status} · 재고 {product.stockQuantity ?? "-"}</td>
-          </tr>)}</tbody>
-        </Table>
-        {catalog.data && catalog.data.totalPages > 1 && <div className="d-flex justify-content-between">
-          <Button size="sm" variant="outline-secondary" disabled={catalogPage <= 1}
-            onClick={() => setCatalogPage((page) => page - 1)}>이전</Button>
-          <span className="small text-muted-soft">{catalogPage} / {catalog.data.totalPages}페이지</span>
-          <Button size="sm" variant="outline-secondary" disabled={catalogPage >= catalog.data.totalPages}
-            onClick={() => setCatalogPage((page) => page + 1)}>다음</Button>
-        </div>}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={() => setApplyingId(null)}>취소</Button>
-        <Button disabled={!selectedProducts.size || apply.isPending} onClick={() => apply.mutate()}>
-          {apply.isPending ? "적용 중..." : `${selectedProducts.size}개 상품에 적용`}
-        </Button>
-      </Modal.Footer>
-    </Modal>
+    {applyingNotice && <SmartStoreNoticeApplyModal
+      key={applyingNotice.sellerNoticeId}
+      adminKey={adminKey}
+      notice={applyingNotice}
+      onAuthError={onAuthError}
+      onClose={() => setApplyingNotice(null)}
+    />}
   </>;
 }
 
@@ -255,6 +225,23 @@ function emptyForm(): NoticeForm {
     importantNotice: false, importantNoticeStartDate: "", importantNoticeEndDate: "",
     wholeNotice: false, displayStartDate: "", displayEndDate: "",
     popup: false, popupStartDate: "", popupEndDate: "",
+  };
+}
+
+function toForm(notice: SmartStoreNoticeResponse): NoticeForm {
+  return {
+    postCategoryType: notice.postCategoryType as SaveSmartStoreNoticeRequestPostCategoryType,
+    title: notice.title,
+    detailContents: notice.detailContents,
+    importantNotice: notice.importantNotice,
+    importantNoticeStartDate: toLocalDateTime(notice.importantNoticeStartDate),
+    importantNoticeEndDate: toLocalDateTime(notice.importantNoticeEndDate),
+    wholeNotice: notice.wholeNotice,
+    displayStartDate: toLocalDateTime(notice.displayStartDate),
+    displayEndDate: toLocalDateTime(notice.displayEndDate),
+    popup: notice.popup,
+    popupStartDate: toLocalDateTime(notice.popupStartDate),
+    popupEndDate: toLocalDateTime(notice.popupEndDate),
   };
 }
 
@@ -299,12 +286,9 @@ function NoticeDateFields({ form, onChange }: {
 }
 
 function toIso(value: string): string | undefined {
-  return value ? new Date(value).toISOString() : undefined;
+  return value ? new Date(parseApiDateTime(value)).toISOString() : undefined;
 }
 
 function toLocalDateTime(value: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  return value ? formatDateTimeInput(parseApiDateTime(value)) : "";
 }

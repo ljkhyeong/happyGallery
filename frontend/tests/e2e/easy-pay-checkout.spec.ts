@@ -362,6 +362,57 @@ test("@payment SDK가 현재 화면에서 취소 오류를 반환하면 승인 �
   expect(confirms).toHaveLength(0);
 });
 
+for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락"]) {
+  test(`@payment SDK 불러오기 ${failure} 후 선택을 유지하고 결제를 다시 시도한다`, async ({ page }) => {
+    const { prepares, confirms, abandoned } = await openCheckout(page);
+    await page.evaluate(() => {
+      delete (window as unknown as { TossPayments?: unknown }).TossPayments;
+    });
+    await page.clock.install();
+    let sdkRequests = 0;
+    let delayedRequest: Route | undefined;
+    await page.route("https://js.tosspayments.com/v2/standard", (route) => {
+      sdkRequests += 1;
+      if (sdkRequests === 1) {
+        if (failure === "응답 지연") {
+          delayedRequest = route;
+          return;
+        }
+        if (failure === "다운로드 실패") return route.abort("failed");
+        return route.fulfill({ contentType: "application/javascript", body: "/* 초기화 누락 */" });
+      }
+      return route.fulfill({ contentType: "application/javascript", body: `
+        window.TossPayments = () => ({ payment: () => ({
+          requestPayment: async (request) => { window.tossRequests.push(request); },
+        }) });
+      ` });
+    });
+    const method = page.getByRole("radio", { name: "네이버페이", exact: true });
+    const terms = page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true });
+    const pay = page.getByRole("button", { name: "결제하기", exact: true });
+    await method.check();
+    await terms.check();
+    await pay.click();
+    await expect.poll(() => sdkRequests).toBe(1);
+    if (failure === "응답 지연") await page.clock.fastForward(11_000);
+
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect.poll(() => abandoned).toHaveLength(1);
+    expect(await requests(page)).toHaveLength(0);
+    await expect(method).toBeChecked();
+    await expect(terms).toBeChecked();
+    // 지연된 첫 연결을 종료한 뒤 다음 다운로드가 성공하도록 복구한다.
+    await delayedRequest?.abort("failed");
+    await pay.click();
+    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+      orderId: "easy-pay-test", card: { flowMode: "DIRECT", easyPay: "NAVERPAY" },
+    })]);
+    expect(sdkRequests).toBe(2);
+    expect(prepares).toHaveLength(2);
+    expect(confirms).toHaveLength(0);
+  });
+}
+
 test("@payment 회원 주문·예약·이용권에서 영수증을 다시 열고 영수증이 없는 결제는 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   const receiptUrl = "https://dashboard.tosspayments.com/receipt/member-history";

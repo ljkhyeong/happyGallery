@@ -74,6 +74,14 @@ export interface SignupRequest {
   verificationCode: string;
 }
 
+export interface BotProtectionResponse {
+  /**
+     * Turnstile 공개 키. 자동 입력 방지가 꺼져 있으면 null
+     * @nullable
+     */
+  siteKey: string | null;
+}
+
 export interface RegisterEmailRequest {
   /**
      * @minLength 0
@@ -237,6 +245,27 @@ export const signupCustomer = async (signupRequest: SignupRequest, options?: Req
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(signupRequest)
+  }
+);}
+
+
+
+export const getGetBotProtectionUrl = () => {
+
+
+
+
+  return `/api/v1/bot-protection`
+}
+
+export const getBotProtection = async ( options?: RequestInit): Promise<BotProtectionResponse> => {
+
+  return generatedApiClient<BotProtectionResponse>(getGetBotProtectionUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
   }
 );}
 

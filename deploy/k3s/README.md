@@ -9,12 +9,12 @@ Internet -> 공유기/호스트 방화벽 :80/:443 -> k3s Traefik
 app -> mysql:3306 (Retain PVC)
 app -> redis:6379 (비영속 세션/처리율 상태)
 prometheus -> app-management:8081/actuator/prometheus (cluster 내부 전용)
-           -> alertmanager:9093 -> 외부 SMTP 또는 HTTPS webhook
+           -> alertmanager:9093 -> Telegram, 외부 SMTP 또는 HTTPS webhook
 grafana -> prometheus:9090 (cluster 내부 전용)
 ```
 
 단일 운영 호스트, 디스크, 전원, 네트워크 또는 k3s 장애는 전체 서비스 중단으로 이어진다. 이 구성은 고가용성을 제공하지 않는다.
-Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 설정으로 외부 SMTP 또는 HTTPS webhook에 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 메일·webhook 수신 서비스는 운영 호스트 밖에 별도로 둔다.
+Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내부 Alertmanager가 저장소 밖 Secret의 설정으로 Telegram, 외부 SMTP 또는 HTTPS webhook에 전달한다. 다만 둘 다 같은 운영 호스트에 있으므로 운영 호스트 자체 장애는 알릴 수 없다. 외부 uptime 감시와 알림 수신 서비스는 운영 호스트 밖에 별도로 둔다.
 경보 규칙의 단일 원본은 저장소 루트의 `monitoring/alerts.yml`이다. 변경 후 `./deploy/k3s/scripts/sync-prometheus-alerts.sh`를 실행하면 kustomize가 읽는 `base/prometheus-alerts.generated.yml`이 갱신된다. 생성 파일을 직접 편집하지 않으며 `validate.sh`는 원본, 생성 파일과 최종 ConfigMap 중 하나라도 달라지면 실패한다.
 
 ## 디렉터리
@@ -27,15 +27,19 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
-| `systemd/` | 운영 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
+| `systemd/` | 운영 호스트의 백업·heartbeat 감시·검색엔진 변경 알림 unit 예시 |
+
+선택 연동인 [무료 IndexNow](indexnow.md)는 상품·수업·이벤트·공지 변경을 검색엔진에 알린다. 기본 비활성 상태이며 운영자가 키와 timer를 설정한다.
+
+`main` 병합 후 테스트·이미지 게시·롤링 배포를 자동 실행하려면 [GitHub Actions CI/CD 설정](cicd.md)을 따른다. 이미지는 GitHub에서 빌드하고 서버는 검증·반입·실행을 맡는다.
 
 ## 1. 배포 전 준비
 
-- Linux 호스트 한 대에 단일 노드 k3s, Docker, Git, Java 25, Ruby, Trivy, `age`, `curl`을 설치한다. 현재 이미지 스크립트는 빌드와 반입을 같은 호스트에서 수행하므로 첫 배포는 서비스 기동 전에 진행한다. 운영 중 갱신을 시작하기 전에는 빌드 호스트 분리 절차를 마련한다.
+- 수동 빌드 호스트에는 Docker, Git, Java 25, Ruby, Trivy를 설치한다. k3s 운영 호스트에는 Docker, Git, Ruby, `age`, `curl`, rclone을 설치한다. CI/CD 구성 후 운영 서버는 Java·Gradle·Trivy로 이미지를 다시 빌드하지 않는다.
 - k3s는 `secrets-encryption: true`로 설치하고 `/etc/rancher/k3s/k3s.yaml`을 root 또는 지정 운영자만 읽게 한다.
 - k3s 기본 Traefik과 local-path provisioner를 사용한다. 다른 Ingress/StorageClass를 쓰려면 manifest와 검증 스크립트를 함께 변경한다.
 - cert-manager `v1.20.2` 정적 manifest를 공식 release에서 받아 출처와 checksum/signature를 검증해 운영 호스트에 보관한다.
-- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443만 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. SSH는 내부 관리망으로 제한한다. 클라우드 전환 시에는 해당 방화벽에서 운영자 IP만 허용한다.
+- 직접 공개 시 DNS A 레코드는 실제 공인 IPv4를 가리킨다. 노트북은 공유기에서 TCP 80/443을 예약된 내부 IP로 전달하고, 유동 공인 IP는 [Cloudflare DDNS addon](free-integrations.md#1-cloudflare-dns-자동-갱신)으로 갱신한다. AAAA는 IPv6 연결을 검증한 뒤에만 추가한다. 외부 SSH 관리·CI/CD를 사용할 때는 별도 SSH 포트의 키 인증과 [배포 전용 키 제한](cicd.md)을 적용한다. Kubernetes API·DB 포트는 공개하지 않는다.
 - 노트북 회선의 인바운드 접근 가능 여부를 먼저 확인한다. 별도 터널이나 프록시를 추가하면 전달 헤더 신뢰 경계와 실제 IP 기반 처리율 제한을 다시 검증한다.
 - 운영 백업 대상은 호스트 장애·전원·회선과 분리된 원격 mount다. 클라우드 VM을 선택하면 다른 업체를 사용한다. 로컬 복원 훈련에서는 분리된 USB 디스크·NAS도 사용할 수 있지만 운영 호스트 내부 디스크나 같은 집의 사본만으로 운영 백업을 대체하지 않는다.
 - 공개 결제 운영 전 기준 프로필의 대표자명, 전자우편주소, 통신판매업 신고번호와 `/terms`, `/privacy`, `/business-info`, footer 표시를 실제 사업자 정보와 다시 대조한다. `prod` 프로필은 필수 온라인 판매 고지가 완성될 때까지 결제 prepare를 `503`으로 차단한다.
@@ -96,6 +100,7 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 - 주소 검색: 무료 Kakao 우편번호 검색창을 사용하며 별도 키가 필요 없다. 기존 `ROAD_ADDRESS_*` 설정은 제거한다.
 - 공휴일: 무료 API 활용 신청 후 서비스키를 설정하고 `PUBLIC_HOLIDAY_ENABLED=true`로 전환
 - 스마트스토어: 기존 주문·재고 연동을 사용할 때만 `SMARTSTORE_ENABLED=true`와 커머스API 인증 정보를 설정한다. `SELF`는 기본값이며 `SELLER`는 `SMARTSTORE_ACCOUNT_ID`가 필요하다. 네이버 로그인 키와 구분한다.
+- 심사 대기: 문자·알림톡 없이 최초 사전 점검을 진행할 때만 `NOTIFICATION_MODE=disabled`를 사용한다. 휴대폰 인증은 503으로 거부하고 고객 알림은 FAILED로 기록한다. 실제 영업 시작 조건과 전환 절차는 [알림 심사 대기 모드](notification-prelaunch.md)를 따른다.
 - Alimtalk: NHN Cloud에 카카오 발신 프로필을 연결하고 `KakaoTemplateCatalog`의 모든 `HG_*` 템플릿을 승인받은 뒤 `ALIMTALK_SENDER_KEY`를 설정
 - 알림 timeout: 예제의 `NOTIFICATION_TIMEOUT_MILLIS=5000`은 NHN transport 단계 합(`acquire 500 + connect 1000 + response 2000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
 - 결제 timeout: 애플리케이션 기본 `PAYMENT_TIMEOUT_MILLIS=5000`은 Toss transport 단계 합(`acquire 500 + connect 1000 + response 3000`)보다 크게 유지한다. 역전된 값은 애플리케이션 기동 시 거부한다.
@@ -115,7 +120,9 @@ sudo install -m 600 -o "$USER" -g "$(id -gn)" deploy/k3s/examples/alert-webhook-
 
 Resend SMTP를 사용하면 네 번째 인자를 `/etc/happygallery/alertmanager.env`로 바꾼다. 수신 주소만 별도로 지정하고 기존 `app.env`의 SMTP 자격 증명을 재사용한다. [Resend 장애 알림 설정](resend-alerts.md)에 개별 Secret 생성, 발송 검사, 백업 실패 알림 연결 절차가 있다. 회원 인증 메일과 장애 메일은 같은 Resend 발송 한도를 사용한다.
 
-Alertmanager는 설정 전체를 Secret의 `alertmanager.yml`에서 읽는다. 구형 `webhook-url` 키만 있는 Secret은 rollout 전에 `create-alertmanager-secret.sh`로 갱신한다. 설정 생성 원본은 `deploy/k3s/alertmanager.yml`이며, 재알림 정책을 수정하면 Secret 재생성과 Alertmanager 재시작도 필요하다. SMTP 암호와 웹훅 URL은 설정 본문과 분리된 Secret 파일에 저장한다.
+무료 Telegram을 사용하면 네 번째 인자에 `alertmanager-telegram.env`를 지정한다. [Telegram 운영 알림](telegram-alerts.md)은 봇 토큰과 채팅 ID만 사용하며, 앱의 메일 제공자 설정과 독립적으로 동작한다.
+
+Alertmanager는 설정 전체를 Secret의 `alertmanager.yml`에서 읽는다. 구형 `webhook-url` 키만 있는 Secret은 rollout 전에 `create-alertmanager-secret.sh`로 갱신한다. 설정 생성 원본은 `deploy/k3s/alertmanager.yml`이며, 재알림 정책을 수정하면 Secret 재생성과 Alertmanager 재시작도 필요하다. SMTP 암호·웹훅 URL·Telegram 봇 토큰은 설정 본문과 분리된 Secret 파일에 저장한다.
 
 Kubernetes Secret은 base64 인코딩이며 자체 암호화가 아니다. k3s 데이터 저장소 암호화, kubeconfig·호스트 접근 제한과 다른 장치의 복구 키 보관을 함께 적용한다.
 
@@ -209,7 +216,27 @@ CONFIRM_REDIS_CREDENTIAL_ROTATION=rotate-happygallery-redis \
 
 ## 3. 이미지 빌드와 k3s import
 
-애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 프런트 런타임 이미지는 운영 의존성을 설치한 뒤 서버 실행에 쓰지 않는 npm/npx를 제거한다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 `tag@sha256:digest` 별칭을 함께 보존한다.
+정기 배포는 아래 한 명령을 사용한다. `VITE_TOSS_CLIENT_KEY` 등 프런트 빌드 환경 변수는 기존과 같이 준비한다.
+
+```bash
+./deploy/k3s/scripts/deploy.sh /etc/happygallery/release.env
+```
+
+`deploy.sh`는 현재 Git SHA로 기존 빌드·테스트·취약점 검사·반입을 수행하고, containerd의 실제 app/frontend digest와 두 종류의 digest 별칭을 확인한다. `release.env`의 이미지 관련 다섯 값만 원자적으로 갱신하고 이전 내용은 `release.env.previous`에 보존한다. 도메인·OAuth·`VERIFIED_RECOVERY_BUNDLE`과 주석은 유지한다. 이어 기존 `rollout.sh`의 백업 검증·배포·공개 경로 검사를 실행한다. 기존 DB의 검증된 복구 묶음은 여전히 48시간 이내여야 하며, 자동으로 확인하지 않은 백업 경로를 선택하지 않는다.
+
+배포 직전에 활성 백업 타이머를 잠시 멈추고 실행 중인 백업이 끝날 때까지 최대 30분 기다린다. 성공하면 원래 켜져 있던 타이머만 재개한다. 이미 꺼져 있던 타이머는 그대로 유지한다. rollout 실패 시에는 예약을 중지 상태로 남기고 오류를 반환한다. 실패 때 `release.env`는 배포를 시도한 이미지, `release.env.previous`는 직전 설정이며, `releases/current`는 기존 rollout의 성공 기록이다. 자동 image rollback은 하지 않는다. 배포 중 수동 백업·DDL·키 변경을 함께 실행하지 않는다.
+
+이미 빌드와 반입을 마쳤다면 다음 명령으로 재빌드 없이 설정 갱신·배포한다. 마지막 인자를 생략하면 현재 HEAD를 사용하며, 빌드 후 코드가 바뀌었다면 빌드했던 Git SHA를 지정한다.
+
+```bash
+./deploy/k3s/scripts/deploy.sh --imported /etc/happygallery/release.env <빌드한-Git-SHA>
+```
+
+위 명령은 Ubuntu의 `flock`·`systemctl`과 기존 k3s/sudo 권한을 사용한다. 설정 파일과 그 디렉터리는 실행 사용자가 쓸 수 있어야 하며 파일 권한은 600으로 둔다. 아래는 개별 빌드 단계가 필요한 경우의 상세 절차다.
+
+백엔드 JAR는 이미지 안에서 `10001:10001` 소유·`0440` 권한으로 복사하고 `/app/app.jar` 절대 경로로 실행한다. 빌드 직후 `verify-app-image.sh`가 이미지의 기본 실행 사용자와 JAR 전체 읽기를 확인한다. CI는 입력 JAR를 `0600`으로 제한한 상태에서 같은 검사를 실행하므로, 서버의 `umask` 때문에 root만 읽을 수 있는 이미지가 만들어지는 문제를 배포 전에 잡는다. 이 검사는 DB 연결이나 애플리케이션 기동을 검증하지 않는다.
+
+애플리케이션과 프런트 이미지는 현재 Git commit의 40자리 SHA로 태깅한다. 스크립트는 dirty worktree를 거부하고 Gradle clean build가 만든 실행 JAR `bootstrap/build/libs/happygallery-app.jar`만 사용한다. 모듈 간 테스트 classpath용 `*-plain.jar`는 배포 입력이 아니다. 프런트 런타임 이미지는 운영 의존성을 설치한 뒤 서버 실행에 쓰지 않는 npm/npx를 제거한다. 운영 설정으로 빌드한 실제 app/frontend 이미지에서 Trivy HIGH/CRITICAL과 EOL OS를 차단하고, 이미지 아키텍처와 k3s 노드 아키텍처 일치를 확인한 뒤 `docker save` 결과를 k3s containerd로 import한다. import 후 containerd content digest를 읽고 백업용 `이미지:tag@sha256:digest`와 CRI 조회용 `이미지@sha256:digest` 별칭을 함께 보존한다. 기존 별칭이 다른 digest를 가리키면 덮어쓰지 않고 중단한다.
 
 ```bash
 export VITE_TOSS_CLIENT_KEY='운영 client key'
@@ -251,7 +278,7 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 6. 적용한 manifest와 이미지 식별자를 `$HOME/.local/state/happygallery/releases`에 보존
 
 실패 시 자동 rollback하지 않는다. 새 이미지의 Flyway가 이미 실행됐을 수 있으므로 DB 호환성과 백업을 먼저 확인한다.
-app Deployment는 `Recreate` 전략을 사용한다. 단일 노드에서 구 binary와 Flyway 적용 후의 새 schema가 겹쳐 실행되는 위험을 피하는 대신 app rollout 동안 짧은 API 중단을 수용한다. 비영속 단일 Redis와 클러스터링을 끈 단일 Alertmanager도 `Recreate`로 교체해 rollout 중 서로 다른 상태를 가진 두 Pod가 동시에 서비스되지 않게 한다.
+app/frontend는 `maxUnavailable: 0`, `maxSurge: 1`의 롤링 배포를 사용한다. 새 Pod가 readiness를 10초 유지한 뒤 기존 Pod를 종료한다. 배포 스크립트는 DB·API·세션·기반 설정의 변경과 현재 release 불일치를 적용 전에 거부하고, 정적 파일 보존·공개 경로 확인·배치 인계를 순서대로 수행한다. 조건과 실패 복구는 [롤링 배포](rolling-deployments.md)를 따른다. Redis와 모니터링은 `Recreate`를 유지하고 앱 배포 때 불필요하게 재시작하지 않는다. 이들 workload 변경은 별도 작업으로 처리한다.
 
 V102는 휴대폰 인증 HMAC 입력에 인증 목적을 추가하고 기존 미완료 인증을 모두 폐기한다. 따라서
 V102 적용 전에는 app 쓰기를 중단한 상태에서 복구 묶음을 확인해야 한다. 적용 뒤 이전 binary를
@@ -268,6 +295,8 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 kubectl -n happygallery port-forward service/grafana 3000:3000
 ```
 
+API 검사는 공개 상품 목록의 `200 + JSON 배열`과 공개 허용 목록 밖 경로의 비로그인 `401 + UNAUTHORIZED JSON`을 각각 확인한다. 후자는 `SecurityConfig`의 기본 거절 정책이며, 존재하지 않는 프런트 화면의 `404 + HTML`과 구분한다. 포트 전달을 준비하는 동안의 일시 연결 오류는 재시도하고, 제한 횟수 안에 연결되지 않을 때 마지막 curl 오류와 포트 전달 로그를 출력한다.
+
 검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 공개 경로에서는 루트 SSR HTML의 canonical·실제 본문·CSP nonce, `robots.txt`, `sitemap.xml`, 알 수 없는 route의 HTTP 404를 함께 검증한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 운영 호스트와 공유기·방화벽에서는 다음도 별도로 확인한다.
@@ -280,9 +309,11 @@ kubectl -n happygallery port-forward service/grafana 3000:3000
 
 ## 7. 외부 암호화 복구 백업
 
-백업 스크립트는 원래 app replica를 확인하고 1이면 0으로 축소해 Pod 종료를 기다린다. 이어 MySQL Pod의 dump를 stdout으로만 내보내 호스트가 `gzip -> age`로 암호화해 외부 mount에 직접 기록하고, 전용 유지보수 Pod가 `app-media` PVC를 읽어 상품 이미지 archive도 같은 방식으로 암호화한다. 미디어 archive가 끝나면 원래 replica를 복구하며, 키 회전처럼 이미 0이었던 경우에는 계속 0으로 유지한다. 이 계획 중단으로 DB·미디어 백업과 애플리케이션 보존 배치·관리자 쓰기를 상호 배제한다. 중단 시간은 데이터 크기와 원격 전송 속도에 따라 달라지므로 실제 백업·재기동 시간을 개통 전에 측정한다. 평문 SQL이나 이미지 archive는 생성하지 않는다. 각 암호문에 SHA-256 sidecar를 만들며 기본 보존 기간은 30일이다. 미디어 기능 도입 전부터 운영한 클러스터에 PVC가 아직 없으면 백업 스크립트가 독립된 `app-media-pvc.yaml`을 먼저 적용하므로, 새 app manifest를 배포하기 전에도 기존 DB와 빈 미디어 볼륨을 하나의 복구 묶음으로 만들 수 있다.
+Cloudflare R2에는 [R2 백업 설정](r2-backups.md)을 따른다. `BACKUP_STORAGE=rclone`은 앱을 유지한 채 로컬 암호화 캐시를 만들고 R2로 전송한다. 업로드 내용을 다시 읽어 비교하고 완료 metadata까지 게시해야 성공한다. 아래의 mount marker는 실제 외부 매체를 쓰는 기본 `mounted` 방식에만 해당한다.
 
-app 쓰기가 중단된 상태에서 DB 스냅샷을 먼저 만들고 미디어를 뒤이어 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 분리해서 복원할 수 없는 하나의 복구 단위다.
+정기 백업은 app replica를 변경하지 않는다. `backup-data-online.sh`는 실행 앱의 `/app/media-backup-guard-v1` 지원을 확인하고, 미디어 PVC에 `.backup-in-progress` 보호 디렉터리를 만든다. 앱의 파일 삭제는 기존 `image_media_reference_lock` 행 잠금 뒤 이 보호를 확인해 보류하며 조회·주문·예약·업로드는 계속 처리한다. 백업은 같은 행 잠금을 짧게 얻었다가 즉시 해제해 이미 진행 중인 삭제가 끝났음을 확인한다. 이후 모든 업무 테이블이 InnoDB인지 확인한 상태에서 `mysqldump --single-transaction --quick --skip-lock-tables`로 DB 스냅샷을 만들고, 완료된 이미지 파일 이름 목록을 고정해 tar로 읽는다. 이미지 파일은 불변 UUID 이름으로 저장하므로 DB 스냅샷이 참조하는 파일을 보존하며, 스냅샷 이후 업로드된 여분 파일은 복원 뒤 고아 정리가 회수한다. 미디어 복사가 끝나면 삭제 보호를 해제하고 암호문을 R2에 전송한다. 키 회전 등으로 이미 0 replica인 앱은 그대로 둔다. 평문 SQL·이미지 archive는 만들지 않고 `gzip -> age` 스트림과 SHA-256 sidecar를 사용한다. 일반 백업에서 운영 테이블의 `CHECK TABLE`은 실행하지 않으며, 실제 복원 훈련에서 무결성을 검사한다.
+
+DB 스냅샷과 삭제 보호 구간의 미디어를 하나의 복구 단위로 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 함께 복원한다. 백업 중 배포·키 변경을 감지하면 완료 marker를 게시하지 않는다. 배포·스키마 변경·키 회전 전에는 타이머를 잠시 끄고 진행 중인 백업이 끝날 때까지 기다린다. MySQL 스냅샷은 동시 DDL에 안전하지 않으므로 수동 `ALTER/CREATE/DROP/RENAME/TRUNCATE TABLE`도 함께 실행하지 않는다. 전환과 장애 정리는 [온라인 백업 운영](online-backups.md)을 따른다.
 
 DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. runtime workload 목록은 `runtime-images-from-manifest.rb` 한 곳만 소유하며, 백업과 복원은 해당 release의 `manifests.yaml`과 `runtime-images.env`를 parser가 대조해 만든 key·image·digest inventory를 순서대로 처리한다. 추출한 참조는 고정 tag 또는 SHA-256 digest 형식이어야 하며, containerd의 실제 digest와 archive checksum을 기존과 같이 검증한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
@@ -319,11 +350,13 @@ systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.tim
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 알림 unit을 호출한다. 실행 제한으로 종료할 때는 app 원복 trap이 완료되도록 10분 종료 유예를 둔다. systemd service는 app을 내리기 전에 내부 Alertmanager에 `AppDown`만 최대 45분 silence로 등록하고 종료 시 즉시 해제한다. silence 생성에 실패하면 계획 중단을 시작하지 않으며, 백업이나 silence 해제가 실패하면 `OnFailure` unit이 설정한 SMTP 또는 webhook으로 알린다. 호스트가 비정상 종료돼 해제하지 못해도 45분 뒤 자동 만료된다.
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 알림 unit을 호출한다. 실행 제한으로 종료할 때는 삭제 보호 해제와 임시 자원 정리에 10분 종료 유예를 둔다. 정기 백업은 앱을 중지하지 않으므로 `AppDown` 경보도 숨기지 않는다. 백업이나 삭제 보호 해제가 실패하면 `OnFailure` unit이 설정한 Telegram·SMTP·webhook으로 알린다. 강제 종료로 삭제 보호가 남은 경우에는 실행 종료를 확인한 뒤 [온라인 백업 운영](online-backups.md)에 따라 정리한다.
 
-독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 SMTP 또는 webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없다. [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 공개 웹·API와 백업 성공 알림을 서버 밖에서 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 Telegram·SMTP·webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없다. [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 공개 웹·API와 백업 성공 알림을 서버 밖에서 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
 
 ## 8. 복원 훈련
+
+이미지 준비 단계는 보존된 app/frontend의 실제 digest를 확인하고, CRI가 조회하는 `저장소@digest` 별칭을 등록한다. 기존 `저장소:태그@digest` 이름만 들어 있는 백업도 사용할 수 있다. 기존 app/frontend 별칭이 다른 digest를 가리키면 import 전에 중단하므로 원인을 확인한 뒤 복구한다.
 
 복원은 분기마다 별도 테스트 namespace/클러스터에서 훈련한다. 운영 DB 복원이 필요하면 먼저 현재 DB의 추가 백업을 만들고 유지보수 창을 연다.
 
@@ -352,7 +385,7 @@ export CONFIRM_RESTORED_PRIVACY_REQUEST_RECONCILIATION="$RESTORE_RECONCILIATION_
 - app desired replica가 0이고 종료 중인 app Pod까지 실제 0개
 - ciphertext SHA-256 일치
 - age 인증 복호화와 gzip 무결성 통과
-- 복원 후 `mysqlcheck` 통과
+- 복원 후 백업 대상 DB의 모든 기본 테이블에 `CHECK TABLE`을 실행하고 각각 정상 결과 확인
 - 미디어 archive checksum·tar 무결성 통과 후 `app-media` PVC를 같은 백업 시점으로 교체
 - DB 시점과 불일치할 Redis 세션·rate-limit 상태 삭제
 - runtime active/previous 암호화·HMAC·비회원 토큰 keyring의 ID/fingerprint와 백업 메타데이터 일치
@@ -404,7 +437,7 @@ V102 이후 DB는 V102 이전 애플리케이션과 호환되지 않는다. 이�
 - 기본 형식: Kustomize 렌더링, YAML 파싱, shell 구문, Prometheus 경보·Grafana 대시보드 원본과 배포본의 일치, 릴리스 매니페스트에서 실행 이미지 추출.
 - 배포·통신: probe·종료 유예, Retain PVC, 내부 Prometheus 접근, OAuth 콜백, app/frontend digest 고정, SSR 내부 API와 app 8080 수신 허용, Ingress의 CSP 비중복. Redis·Prometheus·Alertmanager·Grafana는 단일 인스턴스 `Recreate`인지 확인한다.
 - 운영 설정: 필수 환경 변수 고정, Secret의 우회 키 거부, 직접 공개 Service와 `latest` 금지, 데이터와 연결된 암호화 키·DB·Redis Secret의 단독 교체 방지.
-- 백업: timer의 `Asia/Seoul` 시각, DB·미디어 백업 중 app 쓰기 중단과 원복, 독립 heartbeat watchdog의 정체 감지, 기존 클러스터의 미디어 PVC 사전 생성. DB·미디어·릴리스 부속 파일을 모두 검증한 뒤 `recovery.env`를 최종 게시하는지 확인한다.
+- 백업: timer의 한국 시간, app replica 유지, 이미지 삭제 보호·잠금 확인·완료 파일 목록 고정, 구버전 앱 거부, 실패 후 보호 해제, heartbeat watchdog을 검사한다. DB·미디어·릴리스 부속 파일을 모두 완성한 뒤 `recovery.env`를 게시한다.
 - 복원·재기동: 복원 전 Pod 종료, 복원 후 자동 기동 금지, PG·알림·개인정보 요청 내역 대조, 호환 digest 선반영. 재기동 중 명령 실패·명시적 오류·HUP/INT/TERM 종료 시 app을 중단하고 marker를 복구하는지, 상태 저장 리소스의 롤백을 막는지 확인한다.
 - 키 교체: app 중단 → 새 백업 → 동일 digest의 Job → 실행용 Secret → Redis → app 순서를 확인한다. finalize는 소셜 데이터 변환 완료, 비회원 토큰 보존기한, 실패 시 app 중단을 검사한다.
 
