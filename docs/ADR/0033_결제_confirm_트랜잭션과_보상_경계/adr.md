@@ -39,7 +39,7 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 - `APPROVED`: PG 승인 또는 amount=0 내부 승인 완료, 도메인 생성 전
 - `CONFIRMED`: 도메인 생성 완료
 - `FAILED`: 최종 PG 거절 또는 amount=0 도메인 생성 실패
-- `RECONCILIATION_REQUIRED`: Toss 응답 식별자가 요청과 다르거나 멱등 응답 안전 기간을 지나
+- `RECONCILIATION_REQUIRED`: Toss 응답 식별자·금액이 요청과 다르거나 결제 완료 상태가 아닌 경우, 또는 멱등 응답 안전 기간을 지나
   자동 재확인할 수 없어 수동 대사가 필요한 상태
 - `COMPENSATION_REQUESTED`: PG 승인 후 도메인 생성 실패로 보상 환불 요청
 - `COMPENSATION_FAILED`: 보상 환불 실패, 운영자 재시도 필요
@@ -47,6 +47,10 @@ Toss Payments는 모든 POST API에서 `Idempotency-Key` 헤더를 지원하며,
 
 confirm 상태 변경은 트랜잭션 책임에 따라 세 개의 package-private 서비스로 분리하고 각 변경을
 `REQUIRES_NEW`로 실행한다.
+
+Toss confirm은 [Payment 응답](https://docs.tosspayments.com/reference#payment-객체)의 `paymentKey`·`orderId`·`totalAmount`가
+요청과 일치하고 `status=DONE`일 때만 승인으로 처리한다. 입금 대기·취소 상태나 상태·금액 누락은
+`RECONCILIATION_REQUIRED`로 남겨 주문·예약·이용권 생성을 보류한다. 이후 기존 결제 조회로 상태를 재확인한다.
 
 - `PaymentConfirmClaimTransactionService`: 실행권 선점, processing token fencing, PG 승인·실패 결과 저장과 늦게 도착한 승인 반영
 - `PaymentConfirmFulfillmentTransactionService`: 도메인 생성과 `CONFIRMED` 저장, fulfillment 실패의 보상 요청
