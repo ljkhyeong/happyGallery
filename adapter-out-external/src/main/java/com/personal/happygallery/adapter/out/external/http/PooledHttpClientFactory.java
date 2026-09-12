@@ -39,6 +39,8 @@ public class PooledHttpClientFactory {
                 .build();
 
         HttpClientBuilder builder = HttpClients.custom()
+                // 재시도 여부는 멱등키·발송 결과를 아는 업무 코드에서 결정한다.
+                .disableAutomaticRetries()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
                 .evictExpiredConnections()

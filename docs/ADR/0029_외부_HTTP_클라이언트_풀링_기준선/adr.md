@@ -1,7 +1,7 @@
 # ADR-0029: 외부 HTTP 클라이언트 풀 설정
 
 **날짜**: 2026-03-29  
-**최종 갱신**: 2026-09-07
+**최종 갱신**: 2026-09-12
 **상태**: Accepted
 
 ---
@@ -59,6 +59,13 @@ Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도
 - 이 값은 프론트와 ingress 타임아웃보다 안쪽에 둔다.
 - 전체 타임아웃 원칙은 `ADR-0030`을 따른다.
 
+### 4. HTTP 클라이언트의 자동 재시도는 사용하지 않는다
+
+- `PooledHttpClientFactory`에서 Apache HttpClient의 자동 재시도를 끈다. 기본 설정은 429·503 응답에서 GET과 본문을 재전송할 수 있는 POST를 다시 호출한다. 이 동작은 앱의 호출 횟수·재시도 간격·시간 제한에 추가된다.
+- 알림 Outbox·결제 대사·스마트스토어 작업 복구 등 기존 업무 코드가 멱등키와 처리 결과에 따라 재시도를 결정한다. HTTP 클라이언트는 첫 응답이나 통신 오류를 호출부에 그대로 전달한다.
+- 조회 API도 같은 기준을 사용한다. 일시 장애는 해당 조회의 다음 배치나 호출부의 복구 흐름에서 처리한다. 우체국·네이버 메일에 있던 중복 설정은 공통 설정으로 통합한다.
+- `PooledHttpClientFactoryTest`는 로컬 HTTP 서버로 GET·POST의 429·503 응답에서 실제 전송이 한 번인지 확인한다. 외부 서비스에는 요청하지 않는다.
+
 ---
 
 ## 결과
@@ -75,11 +82,13 @@ Toss Payments confirm/cancel, Delivery API 운송장 등록, 공휴일 조회도
 
 - 설정 항목이 늘어난다.
 - 서비스 특성에 따라 연결 수와 keep-alive를 추가 조정해야 할 수 있다.
+- 조회의 일시 장애를 HTTP 클라이언트가 즉시 복구하지 않으므로 다음 요청까지 오류가 노출될 수 있다.
 
 ---
 
 ## 참고 문서
 
+- [Apache HttpClient 기본 재시도 구현](https://github.com/apache/httpcomponents-client/blob/master/httpclient5/src/main/java/org/apache/hc/client5/http/impl/DefaultHttpRequestRetryStrategy.java)
 - `docs/ADR/0020_결제_제공자_CircuitBreaker/adr.md`
 - `docs/ADR/0030_타임아웃_계층과_ingress_keep_alive_기준선/adr.md`
 - `README.md`

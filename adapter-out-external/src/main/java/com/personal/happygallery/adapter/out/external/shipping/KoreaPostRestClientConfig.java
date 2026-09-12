@@ -12,7 +12,7 @@ import org.springframework.web.client.RestClient;
 class KoreaPostRestClientConfig {
     @Bean
     CloseableHttpClient koreaPostHttpClient(KoreaPostProperties properties, PooledHttpClientFactory factory) {
-        return factory.create(properties, builder -> builder.disableRedirectHandling().disableAutomaticRetries());
+        return factory.create(properties, builder -> builder.disableRedirectHandling());
     }
 
     @Bean
