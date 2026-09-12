@@ -13,7 +13,7 @@ interface Props {
 
 export function ProductQnaSection({ productId }: Props) {
   const { sessionVersion } = useCustomerAuth();
-  return <ProductQnaContent key={sessionVersion} productId={productId} />;
+  return <ProductQnaContent key={`${sessionVersion}:${productId}`} productId={productId} />;
 }
 
 function ProductQnaContent({ productId }: Props) {
@@ -92,7 +92,7 @@ function ProductQnaContent({ productId }: Props) {
   return (
     <Card className="mt-4">
       <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
           <h5 className="mb-0">상품 문의</h5>
           {isAuthenticated && <QnaCreateForm productId={productId} />}
         </div>

@@ -90,11 +90,11 @@ export function QnaItem({ item, productId, owned }: Props) {
 
         {!isLocked && displayContent && (
           <div className="mt-2 small">
-            <div className="bg-light p-2 rounded">{displayContent}</div>
+            <div className="bg-light p-2 rounded text-break" style={{ whiteSpace: "pre-wrap" }}>{displayContent}</div>
             {displayReply && (
               <div className="mt-2 p-2 rounded" style={{ background: "#f0f4ff" }}>
                 <strong className="small">공방 답변</strong>
-                <div>{displayReply}</div>
+                <div className="text-break" style={{ whiteSpace: "pre-wrap" }}>{displayReply}</div>
               </div>
             )}
           </div>
