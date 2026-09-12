@@ -1,6 +1,6 @@
 # 앱을 유지하는 온라인 백업
 
-정기 백업은 app replica를 변경하거나 재기동하지 않는다. 백업 때문에 AppDown 경보를 숨기지도 않는다. 이 전환으로 자동 백업에 따른 계획 중단을 제거하며, 단일 노드 장애나 `Recreate` 배포 자체의 중단까지 없애는 것은 아니다.
+정기 백업은 app replica를 변경하거나 재기동하지 않는다. 백업 때문에 AppDown 경보를 숨기지도 않는다. 앱 교체는 [롤링 배포](rolling-deployments.md)로 처리한다. 단일 노드·전원·네트워크 장애에 대한 고가용성은 별도 과제다.
 
 ## 일관성 조건
 
@@ -22,7 +22,7 @@ sudo systemctl disable --now happygallery-backup.timer
 sudo systemctl show happygallery-backup.service -p ActiveState -p SubState
 ```
 
-패치를 적용하고 기존 [이미지 빌드·배포 절차](README.md)로 새 app을 배포한다. 이 한 번의 `Recreate` 배포에는 기존 배포 중단이 발생한다. 배포한 image tag/digest와 `releases/current` 기록을 먼저 맞춘다. 실행 중인 앱의 지원 표시를 확인한다.
+패치를 적용하고 [롤링 배포 절차](rolling-deployments.md)로 새 app을 빌드·배포한다. 배포한 image tag/digest와 `releases/current` 기록을 먼저 맞춘다. 실행 중인 앱의 지원 표시를 확인한다.
 
 ```bash
 sudo k3s kubectl -n happygallery exec deployment/app -- test -f /app/media-backup-guard-v1

@@ -57,7 +57,7 @@ ruby -e '
   documents = YAML.load_stream(File.read(ARGV.fetch(0))).compact
   manifest_runtime_images = documents.each_with_object([]) do |document, images|
     next unless %w[Deployment StatefulSet].include?(document["kind"])
-    next if %w[app frontend].include?(document.dig("metadata", "name"))
+    next if %w[app frontend frontend-assets].include?(document.dig("metadata", "name"))
 
     containers = document.dig("spec", "template", "spec", "containers") || []
     images.concat(containers.map { |container| container["image"] })
@@ -567,6 +567,8 @@ ruby "$SCRIPT_DIR/tests/restore-images-test.rb"
 ruby "$SCRIPT_DIR/tests/mysql-check-test.rb"
 ruby "$SCRIPT_DIR/tests/online-backup-test.rb"
 ruby "$SCRIPT_DIR/tests/deploy-test.rb"
+ruby "$SCRIPT_DIR/tests/rolling-release-test.rb"
+ruby "$SCRIPT_DIR/tests/rolling-lifecycle-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"

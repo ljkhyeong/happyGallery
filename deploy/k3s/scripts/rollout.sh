@@ -2,6 +2,7 @@
 
 set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
+. "$SCRIPT_DIR/rolling-support.sh"
 
 [ "$#" -eq 1 ] || die "사용법: $0 <release.env>"
 release_env=$1
@@ -69,7 +70,9 @@ for image_and_digest in \
         || die "digest 고정 이미지 참조가 containerd에 없습니다: $image@$expected_digest"
 done
 
-if kube -n "$NAMESPACE" get statefulset mysql >/dev/null 2>&1; then
+existing_mysql=$(kube -n "$NAMESPACE" get statefulset mysql --ignore-not-found -o name) \
+    || die "기존 DB 조회에 실패했습니다. 백업 확인을 건너뛸 수 없습니다."
+if [ -n "$existing_mysql" ]; then
     recovery_bundle=$(require_env_value VERIFIED_RECOVERY_BUNDLE "$release_env")
     verify_recovery_bundle_files "$recovery_bundle"
     recent=$(find "$recovery_bundle" -prune -mtime -2 -print)
@@ -102,15 +105,23 @@ chmod 600 "$release_dir/metadata.env" "$manifest"
 
 info "Kubernetes API에서 server-side dry-run을 실행합니다."
 kube apply --dry-run=server -f "$manifest" >/dev/null
+rolling_preflight
+trap rolling_cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM HUP
+
+info "이전·새 정적 파일을 보존하고 공개 경로를 먼저 확인합니다."
+rolling_prepare_assets
+info "HTTP 요청은 유지하고 교체 구간의 정기 배치 시작을 일시정지합니다."
+rolling_pause_schedulers
 
 info "release manifest를 적용합니다: $release_dir"
+rolling_apply_started=true
 kube apply -f "$manifest"
-kube -n "$NAMESPACE" rollout restart deployment/prometheus >/dev/null
-kube -n "$NAMESPACE" rollout restart deployment/alertmanager >/dev/null
-kube -n "$NAMESPACE" rollout restart deployment/grafana >/dev/null
 kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m
 kube -n "$NAMESPACE" rollout status deployment/redis --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
+rolling_wait_old_pods
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/prometheus --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/alertmanager --timeout=3m
@@ -118,5 +129,6 @@ kube -n "$NAMESPACE" rollout status deployment/grafana --timeout=3m
 kube -n "$NAMESPACE" wait --for=condition=Ready certificate/happygallery-tls --timeout=5m
 
 "$SCRIPT_DIR/verify.sh" "$PUBLIC_HOST"
+rolling_resume_schedulers
 ln -sfn "$release_dir" "$state_root/current"
 info "rollout 완료: $release_dir"
