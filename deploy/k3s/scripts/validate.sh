@@ -556,6 +556,7 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
     watchdog_timer.include?("Persistent=true")
 RUBY
 
+ruby "$SCRIPT_DIR/tests/verify-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"

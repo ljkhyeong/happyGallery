@@ -275,6 +275,8 @@ kubectl -n happygallery port-forward service/prometheus 9090:9090
 kubectl -n happygallery port-forward service/grafana 3000:3000
 ```
 
+API 검사는 공개 상품 목록의 `200 + JSON 배열`과 공개 허용 목록 밖 경로의 비로그인 `401 + UNAUTHORIZED JSON`을 각각 확인한다. 후자는 `SecurityConfig`의 기본 거절 정책이며, 존재하지 않는 프런트 화면의 `404 + HTML`과 구분한다. 포트 전달을 준비하는 동안의 일시 연결 오류는 재시도하고, 제한 횟수 안에 연결되지 않을 때 마지막 curl 오류와 포트 전달 로그를 출력한다.
+
 검증 스크립트는 모든 workload ready replica, MySQL·미디어·Prometheus·Alertmanager·Grafana PVC, private Service 유형, 내부 `app-management:8081` health, Prometheus scrape target과 활성 Alertmanager target, 공개 TLS와 API JSON 오류를 확인한다. 공개 경로에서는 루트 SSR HTML의 canonical·실제 본문·CSP nonce, `robots.txt`, `sitemap.xml`, 알 수 없는 route의 HTTP 404를 함께 검증한다. 운영 readiness는 DB와 Redis를 포함하므로 둘 중 하나가 내려가면 app은 ready endpoint에서 제외되고 Prometheus `AppDown` 경보가 발생한다. 결제 대사·환불·알림 outbox·주문 승인 대기·예약 취소 후속 작업은 DB backlog의 건수와 처리 예정·선점·생성 시각을 기준으로 15초마다 스냅샷하고, 갱신 지연도 별도 경보로 확인한다. `OrderApprovalPending`과 `BookingCancellationTaskPending`은 처리할 일이 남은 동안 warning을 유지하고 business receiver가 30분마다 다시 알린다. `OrderApprovalDeadlineApproaching`은 가장 오래된 승인 대기 주문이 18시간을 넘어 승인 마감까지 6시간 이하로 남은 상태가 5분 지속되면 critical로 알린다. 예약 확정과 후속 작업 없는 취소는 사건별 경보를 만들지 않고 관리자 예약 일정에서 확인한다. Alertmanager의 business receiver가 앞의 두 warning을, critical receiver가 승인 마감 경보를 실제 운영 채널로 전달하는지 점검한다. 결제 `paymentProvider` 서킷의 `OPEN` 또는 최근 2분 차단 호출은 즉시 critical, `alimtalkNotification`·`smsNotification`·`phoneVerificationSms`·`emailVerification`의 같은 조건은 즉시 warning으로 전달하고 Grafana에서 상태·실패율·호출 결과·차단 호출을 함께 확인한다. Grafana는 외부 Ingress가 없는 cluster 내부 익명 Viewer이며 운영자 `kubectl port-forward`로만 연다. `SKIP_PUBLIC_CHECK=true`는 DNS 연결 전 내부 점검에만 사용한다. 정적 연결 확인만으로 외부 receiver 수신 성공을 증명할 수 없으므로 실제 테스트 alert 수신 확인은 별도 운영 점검이다.
 
 운영 호스트와 공유기·방화벽에서는 다음도 별도로 확인한다.
