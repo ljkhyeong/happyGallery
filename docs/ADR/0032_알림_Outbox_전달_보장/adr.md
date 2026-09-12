@@ -105,6 +105,7 @@
 - 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
 - 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
 - 외부 채널 성공 뒤 `notification_log` 저장만 실패하면 성공한 메시지를 다시 보내지 않는다. outbox를 `SENT`로 끝내되 `last_error=AUDIT_LOG_PERSISTENCE_FAILED`와 `happygallery.notification.log.persistence_failed` 메트릭을 남긴다. 전송 결과 불명과 감사 로그 실패가 겹치면 `FAILED + DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED`로 종결해 재발송하지 않고 두 원인을 함께 보존한다. 외부 성공 전 감사 로그 실패는 기존 전송 실패와 함께 outbox 재시도 대상으로 둔다.
+- 이력 저장 실패 처리 원칙은 알림톡 최종 실패 후 SMS로 전환하는 경로에도 적용한다. SMS 발송 성공·결과 불명 뒤 이력 오류를 알림톡 재조회로 돌려 같은 문자를 다시 보내지 않는다. 결과 저장은 현재 processing token이 유효할 때만 반영한다.
 
 ### 전달 보장 한계
 
