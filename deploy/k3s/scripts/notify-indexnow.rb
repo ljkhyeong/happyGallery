@@ -16,7 +16,7 @@ module IndexNow
   ENDPOINT = URI('https://api.indexnow.org/indexnow')
   SOURCES = %w[products classes events notices].freeze
   BATCH_SIZE = 10_000
-  PAGE_PATH = %r{\A/(?:|(?:products|classes|events)(?:/[1-9][0-9]*)?|notices/[1-9][0-9]*)\z}
+  PAGE_PATH = %r{\A/(?:|business-info|group-classes|(?:products|classes|events)(?:/[1-9][0-9]*)?|notices/[1-9][0-9]*)\z}
 
   def self.request(uri, body = nil)
     http = Net::HTTP.new(uri.host, uri.port, nil)
@@ -81,10 +81,19 @@ module IndexNow
       pages["/#{source}"] = fingerprint(entries) unless source == 'notices'
       [source, entries]
     end
-    pages['/'] = fingerprint(catalogs)
+    status, body = request(URI("#{ORIGIN}/api/v1/workshop"))
+    raise Error, "공방 정보 조회 실패 (HTTP #{status})." unless status == 200
+    workshop = JSON.parse(body)
+    raise Error, '공방 정보 형식이 올바르지 않습니다.' unless
+      workshop.is_a?(Hash) && workshop['name'].is_a?(String) && !workshop['name'].strip.empty?
+    # 같은 내용을 다시 저장한 경우에는 검색엔진에 재제출하지 않는다.
+    workshop_hash = fingerprint(workshop.reject { |key, _value| %w[version updatedAt].include?(key) })
+    pages['/business-info'] = workshop_hash
+    pages['/group-classes'] = workshop_hash
+    pages['/'] = fingerprint(catalogs.merge('workshop' => workshop_hash))
     pages
   rescue JSON::ParserError
-    raise Error, '공개 API가 JSON 목록을 반환하지 않았습니다.'
+    raise Error, '공개 API가 올바른 JSON을 반환하지 않았습니다.'
   end
 
   def self.read_state(path)

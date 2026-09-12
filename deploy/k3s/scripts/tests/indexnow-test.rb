@@ -16,6 +16,10 @@ class IndexNowTest < Minitest::Test
       'events' => [{ 'id' => 3, 'title' => '가을 행사' }],
       'notices' => [{ 'id' => 4, 'title' => '추석 휴무', 'viewCount' => 0, 'version' => 0 }]
     }
+    @workshop = {
+      'name' => '해피갤러리', 'addressLine1' => '충주시 계명대로 161', 'phone' => '01012345678',
+      'businessHours' => '10:00~19:00', 'version' => 1, 'updatedAt' => '2026-09-12T10:00:00'
+    }
     @responses = {}
     @requests = []
     @post_statuses = []
@@ -30,6 +34,7 @@ class IndexNowTest < Minitest::Test
     return [@post_statuses.shift || 200, ''] if body
     return @responses[uri.path] if @responses.key?(uri.path)
     return [200, KEY] if uri.path == "/#{KEY}.txt"
+    return [200, JSON.generate(@workshop)] if uri.path == '/api/v1/workshop'
     [200, JSON.generate(@catalogs.fetch(uri.path.delete_prefix('/api/v1/')))]
   end
 
@@ -50,7 +55,7 @@ class IndexNowTest < Minitest::Test
     output, = sync
     assert_match(/비교 기준 저장/, output)
     assert_empty submitted_paths
-    assert_equal 8, IndexNow.read_state(@state).size
+    assert_equal 10, IndexNow.read_state(@state).size
     assert_equal 0, File.stat(@state).mode & 0o077
     assert @requests.all? { |uri, body| uri.host == 'happy-gallery.com' && body.nil? }
   end
@@ -81,11 +86,58 @@ class IndexNowTest < Minitest::Test
     @catalogs['notices'].first['viewCount'] = 999
     @catalogs['products'].reverse!
     @catalogs['products'].map! { |row| row.to_a.reverse.to_h }
+    @workshop['version'] += 1
+    @workshop['updatedAt'] = '2026-09-12T11:00:00'
+    @workshop = @workshop.to_a.reverse.to_h
     output, = sync
     assert_match(/변경 없음/, output)
     assert_empty submitted_paths
     assert_equal original, File.read(@state)
-    assert_equal 4, @requests.size
+    assert_equal 5, @requests.size
+  end
+
+  def test_workshop_changes_notify_home_business_info_and_group_classes
+    baseline
+    @workshop['addressLine1'] = '충주시 계명대로 162'
+    @workshop['phone'] = '01087654321'
+    @workshop['businessHours'] = '11:00~18:00'
+    sync
+    assert_equal %w[/ /business-info /group-classes], submitted_paths.sort
+    refute_includes File.read(@state), @workshop['addressLine1']
+    refute_includes File.read(@state), @workshop['phone']
+    @requests.clear
+    sync
+    assert_empty submitted_paths
+  end
+
+  def test_invalid_workshop_preserves_state_and_pending_catalog_changes
+    baseline
+    original = File.read(@state)
+    @catalogs['products'].first['price'] = 25_000
+    [[503, 'maintenance'], [200, '[]'], [200, '{}']].each do |response|
+      @responses['/api/v1/workshop'] = response
+      assert_raises(IndexNow::Error) { sync }
+      assert_equal original, File.read(@state)
+      assert_empty submitted_paths
+    end
+    @responses.delete('/api/v1/workshop')
+    sync
+    assert_equal %w[/ /products /products/1], submitted_paths.sort
+  end
+
+  def test_legacy_state_keeps_pending_changes_when_workshop_pages_are_added
+    baseline
+    previous = IndexNow.read_state(@state)
+    previous.delete('/business-info')
+    previous.delete('/group-classes')
+    previous['/'] = 'f' * 64
+    IndexNow.write_state(@state, previous)
+    @catalogs['events'].clear
+    sync
+    assert_equal %w[/ /business-info /events /events/3 /group-classes], submitted_paths.sort
+    @requests.clear
+    sync
+    assert_empty submitted_paths
   end
 
   def test_api_error_or_invalid_list_never_submits_deletions_or_changes_state
@@ -146,13 +198,13 @@ class IndexNowTest < Minitest::Test
     current = (1..10_001).to_h { |id| ["/products/#{id}", 'a' * 64] }
     @post_statuses = [200, 429]
     IndexNow.stub(:snapshot, current) { assert_raises(IndexNow::Error) { sync } }
-    assert_equal [10_000, 8], @requests.map { |_uri, body| body && body['urlList'].size }.compact
+    assert_equal [10_000, 10], @requests.map { |_uri, body| body && body['urlList'].size }.compact
     accepted = submitted_paths.take(10_000)
     @requests.clear
     IndexNow.stub(:snapshot, current) { sync }
     assert_empty accepted & submitted_paths
     assert_equal current, IndexNow.read_state(@state)
-    assert_equal 8, old.size
+    assert_equal 10, old.size
   end
 
   def test_corrupt_state_and_concurrent_run_do_not_send_requests
