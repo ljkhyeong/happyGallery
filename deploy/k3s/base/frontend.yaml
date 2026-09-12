@@ -54,6 +54,12 @@ spec:
           env:
             - name: INTERNAL_API_ORIGIN
               value: http://app:8080
+            - name: INDEXNOW_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: happygallery-app
+                  key: INDEXNOW_KEY
+                  optional: true
           ports:
             - name: http
               containerPort: 8080

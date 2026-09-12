@@ -4,10 +4,21 @@ import compression from "compression";
 import express from "express";
 import { createRequestHandler } from "@react-router/express";
 
-export function createFrontendApp({ requestHandler, clientDirectory, publicPath = "/" }) {
+export function createFrontendApp({
+  requestHandler, clientDirectory, publicPath = "/", indexNowKey = process.env.INDEXNOW_KEY ?? "",
+}) {
   const app = express();
   app.disable("x-powered-by");
   app.use(compression());
+
+  if (indexNowKey) {
+    if (indexNowKey.length < 8 || indexNowKey.length > 128 || /[^a-zA-Z0-9-]/.test(indexNowKey)) {
+      throw new Error("INDEXNOW_KEY는 영문·숫자·하이픈 8~128자여야 합니다.");
+    }
+    app.get(`/${indexNowKey}.txt`, (_request, response) => {
+      response.set("Cache-Control", "no-store").type("text/plain").send(indexNowKey);
+    });
+  }
 
   if (clientDirectory) {
     app.use(

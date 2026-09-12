@@ -127,6 +127,11 @@ ruby -e '
   }
   abort "frontend SSR의 내부 API가 명시적 env로 고정되지 않았습니다." unless
     frontend_explicit_env&.slice(*expected_frontend_env.keys) == expected_frontend_env
+  indexnow_env = frontend_container.fetch("env").find { |entry| entry["name"] == "INDEXNOW_KEY" }
+  abort "frontend IndexNow 키는 선택적 Secret 키 하나만 참조해야 합니다." unless
+    indexnow_env&.dig("valueFrom", "secretKeyRef") == {
+      "name" => "happygallery-app", "key" => "INDEXNOW_KEY", "optional" => true
+    } && frontend_container.fetch("envFrom", []).empty?
   media_pvc = documents.find { |d| d["kind"] == "PersistentVolumeClaim" && d.dig("metadata", "name") == "app-media" }
   abort "app-media PVC는 local-path-retain 5Gi ReadWriteOnce여야 합니다." unless media_pvc &&
     media_pvc.dig("spec", "storageClassName") == "local-path-retain" &&
@@ -555,6 +560,7 @@ bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
 ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"
 ruby "$SCRIPT_DIR/tests/rclone-backup-test.rb"
+ruby "$SCRIPT_DIR/tests/indexnow-test.rb"
 
 ddns_rendered="$tmp_dir/ddns.yaml"
 kube kustomize "$DEPLOY_DIR/addons/cloudflare-ddns" > "$ddns_rendered"

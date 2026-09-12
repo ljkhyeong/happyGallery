@@ -10,6 +10,7 @@
 | 공휴일 | 한국천문연구원 특일 정보 API | 기존 구현 사용. 무료 활용 신청과 키 주입 후 매일 현재·다음 연도 갱신 |
 | 주소 검색 | Kakao 우편번호 서비스 | 기존 무료 검색 사용. 키 불필요, 장애 시 직접 입력 |
 | 자동 입력 방지 | Cloudflare Turnstile Free | [인증문자·단체 문의 검증 구현](turnstile.md). 기본 비활성, 운영 키 설정 후 사용 |
+| 검색엔진 변경 알림 | IndexNow | [상품·수업·이벤트·공지 변경 알림 구현](indexnow.md). 기본 비활성, 키 설정과 15분 timer 설치 후 사용 |
 | 개인 캘린더 | ical.js로 ICS 다운로드 | 기존 구현 사용. 일정 변경을 자동 반영하는 구독·양방향 동기화는 아님 |
 | 유동 공인 IP | Cloudflare DNS API + cloudflare-ddns | 별도 k3s addon 제공. 홈서버에서 5분마다 IPv4 확인 |
 | HTTPS | cert-manager + Let's Encrypt | 기존 자동 발급·갱신 사용. HTTP-01 검증용 TCP 80 유지 |

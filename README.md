@@ -209,6 +209,7 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 - 대표 공개 주소는 `https://happy-gallery.com`으로 확정했다. 실제 운영 호스트에서 DNS·방화벽·TLS·검색엔진 소유확인·백업 중단 시간·복원 훈련과 핵심 사용자 흐름을 검증하기 전에는 운영 중으로 간주하지 않는다.
 - 추가 구독료 없이 Cloudflare DNS 자동 갱신과 외부 웹·백업 감시를 연결하는 설정은 [무료 외부 연동](deploy/k3s/free-integrations.md)에 있다. 홈서버에 토큰과 감시 계정을 설정한 뒤 활성화한다.
 - [무료 Telegram 운영 알림](deploy/k3s/telegram-alerts.md)은 서버 경보·복구와 백업 실패를 휴대폰으로 보낸다. Alertmanager 기본 기능을 사용하며 봇 토큰과 채팅 ID를 준비하면 된다.
+- [무료 IndexNow](deploy/k3s/indexnow.md)는 상품·수업·이벤트·공지 변경을 네이버·Bing 등 검색엔진에 알린다. 기본 비활성이며 키 설정과 홈서버 timer 설치 후 사용한다.
 - 기준 공방 프로필에는 공개 결제에 필요한 대표자명, 전자우편주소와 통신판매업 신고번호가 포함된다. 배포 전 footer·사업자 정보 화면의 표시값을 확인해야 하며, `prod` 프로필은 연락처·주소·사업자등록번호를 포함한 필수 온라인 판매 고지가 완성되기 전 모든 결제 prepare를 `503`으로 차단한다. 표시 근거는 전자상거래법 [제10조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022342373)와 [제13조](https://www.law.go.kr/LSW/lsLinkCommonInfo.do?chrClsCd=010202&lsJoLnkSeq=1022341933)다.
 
 현재 운영 목표와 배포·데이터 보호 조건은 [ADR-0037](docs/ADR/0037_자가_호스팅_배포_토폴로지_기준/adr.md)을 따른다. [ADR-0049 저예산 클라우드 운영 기준](docs/ADR/0049_저예산_클라우드_운영_기준/adr.md)은 노트북 운영 조건을 충족하지 못할 때 다시 검토할 대안이다. 공개 검색 문서와 SSR·canonical·sitemap·HTTP 상태 코드 처리 규칙은 [ADR-0045](docs/ADR/0045_공개_페이지_SSR과_SEO_전달_경계/adr.md)를 따른다. 이전 AWS 구조와 배포 설정은 [Idea-0028](docs/Idea/0028_CloudFront_S3_ALB_배포_구조/idea.md), [Idea-0029](docs/Idea/0029_GitHub_Actions_CI_CD_배포_Fargate/idea.md), [Idea-0039](docs/Idea/0039_AWS_배포_설정_베이스라인/idea.md)에 역사 기록으로 남긴다.

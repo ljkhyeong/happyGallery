@@ -27,7 +27,9 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
-| `systemd/` | 운영 호스트에서 6시간 백업과 heartbeat 감시를 실행하는 unit 예시 |
+| `systemd/` | 운영 호스트의 백업·heartbeat 감시·검색엔진 변경 알림 unit 예시 |
+
+선택 연동인 [무료 IndexNow](indexnow.md)는 상품·수업·이벤트·공지 변경을 검색엔진에 알린다. 기본 비활성 상태이며 운영자가 키와 timer를 설정한다.
 
 ## 1. 배포 전 준비
 

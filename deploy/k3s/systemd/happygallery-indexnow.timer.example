@@ -1,0 +1,11 @@
+[Unit]
+Description=Check happyGallery public page changes every fifteen minutes
+
+[Timer]
+OnBootSec=5m
+OnUnitInactiveSec=15m
+AccuracySec=1m
+Unit=happygallery-indexnow.service
+
+[Install]
+WantedBy=timers.target
