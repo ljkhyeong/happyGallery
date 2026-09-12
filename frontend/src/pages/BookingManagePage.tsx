@@ -153,8 +153,11 @@ function BookingManageContent() {
             >
               회원가입
             </LinkButton>
-            <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
-              새 예약 만들기
+            <LinkButton
+              to={booking ? `/bookings/new?classId=${booking.classId}` : "/bookings/new"}
+              variant="outline-secondary" size="sm"
+            >
+              {booking ? "같은 수업 예약" : "새 예약 만들기"}
             </LinkButton>
           </div>
           <div className="guest-route-note mt-3">
@@ -170,7 +173,7 @@ function BookingManageContent() {
         <Card.Body>
           <div className="legacy-order-step-label mb-2">예약 번호와 조회 코드 입력</div>
           <p className="text-muted-soft small mb-3">
-            조회가 끝나면 같은 화면에서 예약 날짜·시간 변경과 취소까지 이어서 진행할 수 있습니다.
+            예약 조회 후 날짜·시간을 변경하거나 예약을 취소할 수 있습니다.
           </p>
           <BookingLookupForm
             onLookup={handleLookup}
@@ -236,7 +239,7 @@ function BookingManageContent() {
               <Card.Header>예약 취소</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">
-                  예약 취소 후 상태를 이 화면에서 바로 다시 확인할 수 있습니다.
+                  취소 결과는 이 화면에 표시됩니다.
                 </p>
                 <CancelButton
                   onCancel={() => cancelBooking(booking.bookingId, currentToken)}

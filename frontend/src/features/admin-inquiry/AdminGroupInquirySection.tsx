@@ -139,7 +139,7 @@ function ConsultationForm({ detail, token, onAuthError }: Props & { detail: Admi
       <Form.Group controlId={`next-contact-${id}`} className="mb-2"><Form.Label>다음 연락일</Form.Label>
         <Form.Control type="date" value={nextContactOn} disabled={contactMutation.isPending || mutation.isPending}
           onChange={(event) => setNextContactOn(event.target.value)} />
-        <Form.Text>서울 날짜 기준입니다. 비우고 저장하면 연락 예정일을 해제합니다.</Form.Text>
+        <Form.Text>한국 시간 기준입니다. 비우고 저장하면 연락 예정일을 지웁니다.</Form.Text>
       </Form.Group>
       <ErrorAlert error={contactMutation.error} />
       <Button type="submit" variant="outline-primary" disabled={contactMutation.isPending || mutation.isPending}>연락일 저장</Button>

@@ -41,9 +41,9 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
         this.clock = clock;
     }
 
-    /** 회원 8회권 구매. prepare 단계에서 확정한 서버 가격을 저장한다. */
+    /** 회원 이용권 구매. prepare 단계에서 확정한 서버 가격을 저장한다. */
     @Override
-    public PassPurchase purchaseForMember(Long userId, long preparedTotalPrice) {
+    public PassPurchase purchaseForMember(Long userId, long preparedTotalPrice, PassPlan preparedPlan) {
         memberAccountGuard.requireActiveForUpdate(userId);
         ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(Clocks.SEOUL);
         LocalDateTime expiresAt = TimeBoundary.passExpiresAtLocal(now);
@@ -54,7 +54,7 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
                         now.toLocalDateTime(),
                         expiresAt,
                         preparedTotalPrice,
-                        PassPlan.REGULAR_CRAFT_8));
+                        preparedPlan));
         passLedgerStore.save(new PassLedger(purchase, PassLedgerType.EARN, purchase.getTotalCredits()));
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 userId,

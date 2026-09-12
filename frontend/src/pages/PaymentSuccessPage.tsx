@@ -378,7 +378,7 @@ export function PaymentSuccessPage() {
   return (
     <Container className="page-container" style={{ maxWidth: 540 }}>
       <h4 className="mb-4">결제 완료</h4>
-      <p className="text-muted-soft mb-4">결제가 정상 처리되었습니다.</p>
+      <p className="text-muted-soft mb-4">결제가 완료되었습니다.</p>
       <div className="d-flex flex-wrap gap-2">
         <PaymentCompletionNext result={result} />
         {result.receiptUrl && (

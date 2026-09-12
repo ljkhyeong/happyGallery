@@ -45,7 +45,7 @@ class AdminClassUseCaseIT {
         cleanupSupport.clearBookingData();
     }
 
-    @DisplayName("관리자는 클래스 콘텐츠와 8회권 정책을 수정하고 운영을 중지할 수 있다")
+    @DisplayName("관리자는 클래스 콘텐츠와 이용권 정책을 수정하고 운영을 중지할 수 있다")
     @Test
     void manageClassLifecycle_success() throws Exception {
         String created = mockMvc.perform(post("/api/v1/admin/classes")

@@ -19,14 +19,21 @@ tasks.register('policyTest', Test) {
 	useJUnitPlatform { includeTags 'policy' }
 }
 
-// ArchUnit이 전체 클래스 그래프를 읽기 전에 통합 테스트가 쌓아 둔 힙을 분리한다.
-// check/build 검증 범위는 그대로 유지하면서 policy 스위트만 별도 테스트 JVM에서 실행한다.
+tasks.register('architectureTest', Test) {
+	group = 'verification'
+	description = '운영 코드의 모듈 의존 방향 검사 (DB 불필요)'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform { includeTags 'architecture' }
+}
+
+// 정책·구조 검사를 통합 테스트와 분리해 좁은 범위로 실행하고 힙을 재사용하지 않는다.
 tasks.named('test') {
-	useJUnitPlatform { excludeTags 'policy' }
+	useJUnitPlatform { excludeTags 'policy', 'architecture' }
 }
 
 tasks.named('check') {
-	dependsOn tasks.named('policyTest')
+	dependsOn tasks.named('policyTest'), tasks.named('architectureTest')
 }
 
 // 테스트 로깅

@@ -11,10 +11,12 @@ import com.personal.happygallery.application.order.port.in.OrderProductionUseCas
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase.SetExpectedShipDateCommand;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingRefreshUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingEvent;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingUpdate;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
+import com.personal.happygallery.application.order.port.out.KoreaPostTrackingLookup;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
 import com.personal.happygallery.application.order.port.out.ShipmentTrackingProvider;
@@ -46,6 +48,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +60,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -64,6 +68,10 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,12 +100,14 @@ class OrderProductionUseCaseIT {
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderShippingUseCase orderShippingService;
     @Autowired ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
+    @Autowired ShipmentTrackingRefreshUseCase shipmentTrackingRefreshUseCase;
     @Autowired ShipmentTrackingWebhookUseCase shipmentTrackingWebhookUseCase;
     @Autowired ShipmentTrackingEventPort shipmentTrackingEventPort;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     @Autowired JdbcTemplate jdbcTemplate;
     @MockitoBean ShipmentTrackingProvider shipmentTrackingProvider;
+    @MockitoBean KoreaPostTrackingLookup koreaPostTrackingLookup;
     OrderTestHelper orderHelper;
 
     @BeforeEach
@@ -596,6 +606,139 @@ class OrderProductionUseCaseIT {
                             NotificationEventType.ORDER_SHIPPED,
                             NotificationEventType.REVIEW_REQUEST);
         });
+    }
+
+    @Test
+    @DisplayName("우체국만 조회하고 배달 완료 이력을 저장한 뒤 조회를 중단하며 주문 완료는 수동으로 남긴다")
+    void koreaPostRefresh_preservesManualCompletion() {
+        Order post = shipOrder("우체국택배", "1111111111111");
+        shipOrder("CJ대한통운", "2222222222222");
+        Order completed = shipOrder("우체국택배", "3333333333333");
+        orderShippingService.markDelivered(completed.getId(), ADMIN_ID);
+        when(koreaPostTrackingLookup.isEnabled()).thenReturn(true);
+        when(koreaPostTrackingLookup.lookup(post.getId(), "1111111111111")).thenAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive())
+                    .as("외부 조회는 DB 트랜잭션 밖에서 실행한다").isFalse();
+            return Optional.of(postTracking(post.getId(), ShipmentTrackingStatus.DELIVERED));
+        });
+
+        assertThat(shipmentTrackingRefreshUseCase.refreshShipments().successCount()).isEqualTo(1);
+        assertThat(shipmentTrackingRefreshUseCase.refreshShipments().successCount()).isZero();
+
+        assertThat(orderStateProbe.getOrder(post.getId()).getStatus()).isEqualTo(OrderStatus.SHIPPED);
+        assertThat(orderStateProbe.findFulfillmentByOrderId(post.getId()).orElseThrow().getTrackingStatus())
+                .isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(post.getId())).hasSize(1);
+        verify(koreaPostTrackingLookup, times(1)).lookup(any(), any());
+        verifyNoInteractions(shipmentTrackingProvider);
+    }
+
+    @Test
+    @DisplayName("우체국 조회 실패는 이전 이력을 보존하고 다른 배송을 갱신하며 다음 간격에 재시도한다")
+    void koreaPostRefresh_isolatesFailuresAndRetries() {
+        Order failing = shipOrder("우체국택배", "1111111111111");
+        Order succeeding = shipOrder("우체국택배", "2222222222222");
+        shipmentTrackingWebhookUseCase.apply(List.of(postTracking(failing.getId(), ShipmentTrackingStatus.IN_TRANSIT)));
+        LocalDateTime previousUpdate = orderStateProbe.findFulfillmentByOrderId(failing.getId())
+                .orElseThrow().getTrackingUpdatedAt();
+        when(koreaPostTrackingLookup.isEnabled()).thenReturn(true);
+        when(koreaPostTrackingLookup.lookup(failing.getId(), "1111111111111"))
+                .thenThrow(new IllegalStateException("모의 조회 실패"));
+        when(koreaPostTrackingLookup.lookup(succeeding.getId(), "2222222222222"))
+                .thenReturn(Optional.of(new TrackingUpdate(succeeding.getId(), ShippingCarrier.KOREA_POST,
+                        "2222222222222", ShipmentTrackingStatus.IN_TRANSIT, "발송", List.of())));
+
+        var result = shipmentTrackingRefreshUseCase.refreshShipments();
+        assertThat(result.failureCount()).isEqualTo(1);
+        assertThat(result.successCount()).isEqualTo(1);
+        Fulfillment failed = orderStateProbe.findFulfillmentByOrderId(failing.getId()).orElseThrow();
+        assertThat(failed.getTrackingCheckedAt()).isNotNull();
+        assertThat(failed.getTrackingUpdatedAt()).isEqualTo(previousUpdate);
+        assertThat(failed.getTrackingStatus()).isEqualTo(ShipmentTrackingStatus.IN_TRANSIT);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(failing.getId())).hasSize(1);
+        assertThat(shipmentTrackingRefreshUseCase.refreshShipments().successCount()).isZero();
+        verify(koreaPostTrackingLookup, times(2)).lookup(any(), any());
+
+        jdbcTemplate.update("UPDATE fulfillments SET tracking_checked_at = NULL WHERE order_id = ?", failing.getId());
+        doReturn(Optional.of(postTracking(failing.getId(), ShipmentTrackingStatus.DELIVERED)))
+                .when(koreaPostTrackingLookup).lookup(failing.getId(), "1111111111111");
+        assertThat(shipmentTrackingRefreshUseCase.refreshShipments().successCount()).isEqualTo(1);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(failing.getId())).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("조회 도중 운송장이 바뀌면 이전 운송장 응답을 저장하지 않는다")
+    void koreaPostRefresh_discardsReplacedTrackingNumber() {
+        Order order = shipOrder("우체국택배", "1111111111111");
+        when(koreaPostTrackingLookup.isEnabled()).thenReturn(true);
+        when(koreaPostTrackingLookup.lookup(order.getId(), "1111111111111")).thenAnswer(invocation -> {
+            jdbcTemplate.update("UPDATE fulfillments SET tracking_number = ? WHERE order_id = ?",
+                    "2222222222222", order.getId());
+            return Optional.of(postTracking(order.getId(), ShipmentTrackingStatus.DELIVERED));
+        });
+
+        shipmentTrackingRefreshUseCase.refreshShipments();
+
+        assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow().getTrackingStatus())
+                .isEqualTo(ShipmentTrackingStatus.PENDING);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("오래된 배송 이력이 늦게 도착해도 최신 배송 상태와 이력을 유지한다")
+    void trackingUpdate_ignoresOlderHistory() {
+        Order order = shipOrder("우체국택배", "1111111111111");
+        TrackingUpdate latest = postTracking(order.getId(), ShipmentTrackingStatus.DELIVERED);
+        TrackingUpdate delayed = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
+                "1111111111111", ShipmentTrackingStatus.IN_TRANSIT, "발송",
+                List.of(new TrackingEvent(LocalDateTime.of(2026, 9, 12, 9, 0),
+                        ShipmentTrackingStatus.IN_TRANSIT, "발송", "서울우체국", null)));
+        shipmentTrackingWebhookUseCase.apply(List.of(latest));
+        LocalDateTime updatedAt = orderStateProbe.findFulfillmentByOrderId(order.getId())
+                .orElseThrow().getTrackingUpdatedAt();
+
+        shipmentTrackingWebhookUseCase.apply(List.of(delayed));
+
+        Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
+        assertThat(fulfillment.getTrackingStatus()).isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(fulfillment.getTrackingUpdatedAt()).isEqualTo(updatedAt);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()))
+                .singleElement().satisfies(event -> {
+                    assertThat(event.getStatus()).isEqualTo(ShipmentTrackingStatus.DELIVERED);
+                    assertThat(event.getOccurredAt()).isEqualTo(LocalDateTime.of(2026, 9, 12, 10, 0));
+                });
+    }
+
+    @Test
+    @DisplayName("배송 응답에 이력이 없으면 상태만 갱신하고 저장된 이력은 지우지 않는다")
+    void trackingUpdate_preservesHistoryWhenMissing() {
+        Order order = shipOrder("우체국택배", "1111111111111");
+        shipmentTrackingWebhookUseCase.apply(List.of(postTracking(order.getId(), ShipmentTrackingStatus.IN_TRANSIT)));
+        TrackingUpdate withoutHistory = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
+                "1111111111111", ShipmentTrackingStatus.DELIVERED, "배달완료", List.of());
+
+        shipmentTrackingWebhookUseCase.apply(List.of(withoutHistory));
+        shipmentTrackingWebhookUseCase.apply(List.of(withoutHistory));
+
+        assertThat(orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow().getTrackingStatus())
+                .isEqualTo(ShipmentTrackingStatus.DELIVERED);
+        assertThat(shipmentTrackingEventPort.findByOrderIdOrderByOccurredAtAsc(order.getId()))
+                .singleElement().extracting("status").isEqualTo(ShipmentTrackingStatus.IN_TRANSIT);
+    }
+
+    private Order shipOrder(String carrier, String trackingNumber) {
+        Order order = orderHelper.createMadeToOrderPaidShippingOrder("배송조회 상품", 100000L).order();
+        orderApprovalService.approve(order.getId(), ADMIN_ID);
+        orderProductionService.completeProduction(order.getId(), ADMIN_ID);
+        orderShippingService.prepareShipping(order.getId(), ADMIN_ID);
+        orderShippingService.markShipped(order.getId(), carrier, trackingNumber, ADMIN_ID);
+        return order;
+    }
+
+    private TrackingUpdate postTracking(Long orderId, ShipmentTrackingStatus status) {
+        return new TrackingUpdate(orderId, ShippingCarrier.KOREA_POST, "1111111111111", status,
+                status == ShipmentTrackingStatus.DELIVERED ? "배달완료" : "발송",
+                List.of(new TrackingEvent(LocalDateTime.of(2026, 9, 12, 10, 0), status, "배송 상태", "서울우체국", null)));
     }
 
     @DisplayName("관리자는 고객이 선택한 수령 방법과 다른 이행 흐름을 시작할 수 없다")

@@ -54,7 +54,7 @@ export function AdminReviewReportSection({
           >
             후기 신고
           </h6>
-          <p className="text-muted-soft small mb-0">신고 판단과 후기 비공개 처리는 별도로 진행합니다.</p>
+          <p className="text-muted-soft small mb-0">신고를 인정해도 후기는 자동으로 비공개되지 않습니다.</p>
         </div>
         <Form.Select
           size="sm"

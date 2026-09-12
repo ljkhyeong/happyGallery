@@ -21,7 +21,7 @@ export function PassPurchasePage() {
         checkoutSelection,
         context: "PASS",
         payload: { type: "PASS", userId: user.id },
-        orderName: "8회권",
+        orderName: "4회권",
         customerKey: `member_${user.id}`,
         customerName: user.name,
         customerPhone: user.phone || undefined,
@@ -37,11 +37,11 @@ export function PassPurchasePage() {
 
   return (
     <Container className="page-container" style={{ maxWidth: 540 }}>
-      <h4 className="mb-4">8회권 구매</h4>
+      <h4 className="mb-4">4회권 구매</h4>
 
       <Card className="mb-3">
         <Card.Body>
-          <h6 className="mb-3">정규 공예 8회권</h6>
+          <h6 className="mb-3">정규 공예 4회권</h6>
           {policyQuery.isLoading && <LoadingSpinner text="가격·이용 기간 확인 중..." />}
           <ErrorAlert
             error={policyQuery.error}
@@ -59,11 +59,14 @@ export function PassPurchasePage() {
                 <dd className="col-6 text-end mb-0">결제일 포함 {policyQuery.data.validityDays}일</dd>
               </dl>
               <p className="text-muted-soft small mb-0">
-                향수를 제외한 정규 공예 클래스 중 ‘8회권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
+                향수를 제외한 정규 공예 클래스 중 ‘이용권 사용 가능’으로 표시된 수업에서 사용할 수 있습니다.
                 예약할 때 이용권을 선택하면 별도 예약금 없이 1회가 차감됩니다.
               </p>
             </>
           )}
+          <LinkButton to="/classes?passEligible=true" variant="outline-primary" className="mt-3">
+            이용권 사용 가능 수업 보기
+          </LinkButton>
         </Card.Body>
       </Card>
 
@@ -73,8 +76,8 @@ export function PassPurchasePage() {
           <ul className="small text-muted-soft ps-3 mb-3">
             {policyQuery.data ? (
               <li className="mb-2">
-                결제일을 포함해 {policyQuery.data.validityDays}일 동안 사용할 수 있으며,
-                마지막 사용 가능일 다음 날 00:00부터 남은 횟수는 환불 없이 소멸합니다.
+                결제일 포함 {policyQuery.data.validityDays}일간 사용할 수 있습니다.
+                마지막 사용 가능일 다음 날 00:00에 남은 횟수는 환불 없이 소멸합니다.
               </li>
             ) : (
               <li className="mb-2">
@@ -82,19 +85,18 @@ export function PassPurchasePage() {
               </li>
             )}
             <li className="mb-2">
-              예약 한 건마다 1회가 차감됩니다. 결석하거나 변경 가능 시각이 지난 뒤 이용하지
-              않아도 1회는 소모되며 별도 보강은 제공되지 않습니다.
+              예약마다 1회가 차감됩니다. 결석해도 차감한 횟수는 복구되지 않으며, 보강 수업은 없습니다.
             </li>
             <li className="mb-2">
-              취소 마감 전에는 차감한 1회가 복구되지만, 마감 후 취소하면 복구되지 않습니다.
+              취소 마감 전 취소하면 1회가 복구됩니다. 마감 후에는 복구되지 않습니다.
             </li>
             <li>
-              만료 전 환불액은 남은 횟수와 자동 취소되는 예약 횟수를 합산해 회당 구매
-              단가로 계산합니다. 만료된 이용권은 환불할 수 없습니다.
+              만료 전 환불 시, 남은 횟수와 자동 취소되는 예약 횟수를 합쳐 회당 구매 금액으로 환불합니다.
+              만료된 이용권은 환불할 수 없습니다.
             </li>
           </ul>
           <p className="text-muted-soft small mb-0">
-            가격과 이용 기간은 결제 전에 다시 확인합니다.
+            결제 전 금액과 이용 기간을 확인해 주세요.
           </p>
         </Card.Body>
       </Card>

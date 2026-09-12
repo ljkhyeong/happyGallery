@@ -6,7 +6,7 @@ import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrinci
 import com.personal.happygallery.application.pass.PassPriceProperties;
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
-import com.personal.happygallery.domain.pass.PassPurchase;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -48,7 +48,7 @@ public class PaymentQueryController {
     public PassPaymentPolicyResponse getPassPolicy() {
         return new PassPaymentPolicyResponse(
                 passPriceProperties.totalPrice(),
-                PassPurchase.TOTAL_CREDITS,
+                PassPlan.REGULAR_CRAFT_4.getTotalCredits(),
                 TimeBoundary.PASS_VALIDITY_DAYS);
     }
 }

@@ -132,12 +132,12 @@ export function AdminReviewReportDetail({
         </Modal.Header>
         <Modal.Body>
           <Alert variant="warning" className="small">
-            저장하면 이 신고를 다시 판단할 수 없습니다. 신고 #{report.id}의 내용과 처리 방향을 다시 확인해 주세요.
+            신고 #{report.id}의 처리 결과는 저장 후 변경할 수 없습니다. 인정·반려 여부를 확인해 주세요.
           </Alert>
           <p className="small mb-2">
             {pendingDecision === "ACCEPTED"
-              ? "위반 신고로 인정합니다. 후기 공개 상태는 자동으로 바뀌지 않으며 별도로 관리해야 합니다."
-              : "신고 내용을 반려하고 처리를 끝냅니다."}
+              ? "신고를 인정합니다. 후기 비공개는 후기 관리에서 별도로 처리하세요."
+              : "신고를 반려합니다."}
           </p>
           {note.trim() && <div className="small text-muted-soft">처리 메모: {note.trim()}</div>}
           <div className="mt-3"><ErrorAlert error={mutation.error} /></div>

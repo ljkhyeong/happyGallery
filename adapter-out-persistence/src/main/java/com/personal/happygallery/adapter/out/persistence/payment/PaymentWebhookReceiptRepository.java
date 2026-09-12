@@ -36,7 +36,7 @@ public interface PaymentWebhookReceiptRepository
             FROM payment_webhook_receipts
             WHERE processed_at IS NULL
               AND (processing_at IS NULL OR processing_at <= :processingStaleBefore)
-            ORDER BY id
+            ORDER BY COALESCE(processing_at, received_at), id
             LIMIT :limit
             """, nativeQuery = true)
     List<Long> findPendingIds(

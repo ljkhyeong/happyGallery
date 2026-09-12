@@ -76,7 +76,7 @@ export function BookingReviewSection({ bookingId, className }: Props) {
         </Alert>
       )}
       {!review && creationStateQuery.data?.status === "REVIEW_EXISTS" && (
-        <p className="text-muted-soft small mb-0">이 클래스 이용 건에는 이미 후기가 등록되어 있습니다.</p>
+        <p className="text-muted-soft small mb-0">이 예약에는 이미 후기를 작성했습니다.</p>
       )}
       {!review && creationStateQuery.data?.status === "NOT_REVIEWABLE" && (
         <p className="text-muted-soft small mb-0">공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다.</p>

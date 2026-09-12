@@ -49,6 +49,11 @@ for secret in happygallery-mysql happygallery-redis happygallery-app happygaller
         || die "runtime Secret이 없습니다: $secret"
 done
 
+alert_config=$(kube -n "$NAMESPACE" get secret happygallery-alertmanager \
+    -o 'jsonpath={.data.alertmanager\.yml}')
+[ -n "$alert_config" ] || die "Alertmanager 설정이 없는 구형 Secret입니다. create-alertmanager-secret.sh로 먼저 갱신하세요."
+unset alert_config
+
 for image_and_digest in \
     "$APP_IMAGE|$APP_IMAGE_DIGEST" \
     "$FRONTEND_IMAGE|$FRONTEND_IMAGE_DIGEST"; do

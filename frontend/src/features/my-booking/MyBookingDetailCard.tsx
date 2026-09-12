@@ -49,7 +49,7 @@ export function MyBookingDetailCard({ booking }: Props) {
           </Col>
           <Col xs={6}>
             <small className="text-muted-soft d-block">결제 방식</small>
-            <span>{booking.passBooking ? "8회권 사용" : "예약금 결제"}</span>
+            <span>{booking.passBooking ? "이용권 사용" : "예약금 결제"}</span>
           </Col>
         </Row>
         <div className="mt-3">

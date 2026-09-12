@@ -79,7 +79,7 @@ export function MyBookingsPage() {
       <Container className="page-container" style={{ maxWidth: 720 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="회원 예약 목록은 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+          description="로그인하면 내 예약을 확인할 수 있습니다."
         />
       </Container>
     );
@@ -96,7 +96,7 @@ export function MyBookingsPage() {
             새 예약 만들기
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Bookings</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">전체 예약</h4>
         <p className="text-muted-soft small mb-0">
           예약 내역과 변경·취소 가능 여부를 확인하세요.

@@ -30,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
           <Alert variant="danger" className="text-center">
             <Alert.Heading>예기치 않은 오류가 발생했습니다.</Alert.Heading>
-            <p className="mb-3">페이지를 새로고침하면 정상적으로 이용할 수 있습니다.</p>
+            <p className="mb-3">페이지를 새로고침해 주세요. 오류가 계속되면 공방에 문의해 주세요.</p>
             <Button variant="outline-danger" onClick={() => window.location.reload()}>
               새로고침
             </Button>

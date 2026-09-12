@@ -72,7 +72,7 @@ export function SignupPage() {
               <p className="text-muted-soft mb-4">
                 {claimIntent
                   ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
-                  : "가입 후 내 정보에서 주문·예약·8회권을 확인하고 관리하세요."}
+                  : "가입 후 내 정보에서 주문·예약·이용권을 확인하고 관리하세요."}
               </p>
               {claimIntent && (name || phone) && (
                 <div className="auth-prefill-card mb-4">
@@ -84,7 +84,7 @@ export function SignupPage() {
                 </div>
               )}
               <div className="auth-benefit-list mb-4">
-                <div className="auth-benefit-item">주문·예약·8회권을 상태별로 조회</div>
+                <div className="auth-benefit-item">주문·예약·이용권을 상태별로 조회</div>
                 <div className="auth-benefit-item">비회원 주문·예약을 가져와 내 정보에서 조회</div>
               </div>
               <div className="d-flex flex-wrap gap-3 mt-auto small">
@@ -139,7 +139,7 @@ export function SignupPage() {
                     purpose="SIGNUP"
                     title="휴대폰 번호 인증"
                     initialPhone={phone}
-                    confirmLabel="인증코드 적용"
+                    confirmLabel="입력 완료"
                     onVerified={(verifiedPhone, code) => {
                       setPhone(verifiedPhone);
                       setVerificationCode(code);

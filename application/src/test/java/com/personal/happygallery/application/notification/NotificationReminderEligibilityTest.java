@@ -81,7 +81,7 @@ class NotificationReminderEligibilityTest {
         verifyNoInteractions(port);
     }
 
-    @DisplayName("8회권과 픽업 리마인드는 현재 구간과 현재 수신자를 한 조회로 확인한다")
+    @DisplayName("이용권과 픽업 리마인드는 현재 구간과 현재 수신자를 한 조회로 확인한다")
     @Test
     void findEligibleRecipient_passAndPickupReminders_checkCurrentWindowsAndRecipients() {
         NotificationReminderEligibilityPort port = mock(NotificationReminderEligibilityPort.class);

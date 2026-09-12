@@ -6,9 +6,10 @@ interface Props {
   error: unknown;
   onRetry?: () => void;
   retrying?: boolean;
+  retryLabel?: string;
 }
 
-export function ErrorAlert({ error, onRetry, retrying = false }: Props) {
+export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도" }: Props) {
   if (!error || error instanceof CustomerSessionChangedError) return null;
 
   let message: string;
@@ -38,7 +39,7 @@ export function ErrorAlert({ error, onRetry, retrying = false }: Props) {
           disabled={retrying}
           onClick={onRetry}
         >
-          {retrying ? "다시 확인 중..." : "다시 시도"}
+          {retrying ? "다시 확인 중..." : retryLabel}
         </Button>
       )}
     </Alert>

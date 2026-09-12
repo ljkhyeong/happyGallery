@@ -80,7 +80,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
   const expire = useAdminMutation(onAuthError, {
     mutationFn: () => expirePasses(adminKey),
     onSuccess: (result) => {
-      toast.show(`기간 지난 8회권 처리: 완료 ${result.successCount}건 · 확인 필요 ${result.failureCount}건`);
+      toast.show(`기간 지난 이용권 처리: 완료 ${result.successCount}건 · 확인 필요 ${result.failureCount}건`);
       queryClient.invalidateQueries({ queryKey: ["admin", "passes"] });
     },
   });
@@ -96,7 +96,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         );
         trackRefund(
           result.refundId,
-          passDetail.data?.passNumber ?? `8회권 #${refundedPassId}`,
+          passDetail.data?.passNumber ?? `이용권 #${refundedPassId}`,
         );
       } else {
         toast.show(`환불할 금액이 없습니다. 함께 취소된 예약은 ${result.canceledBookings}건입니다.`);
@@ -129,12 +129,12 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         <Row className="g-2 align-items-end">
           <Col xs={12} md={7} lg={5}>
             <Form.Group controlId="admin-pass-search-keyword">
-              <Form.Label>8회권 또는 고객 검색</Form.Label>
+              <Form.Label>이용권 또는 고객 검색</Form.Label>
               <Form.Control
                 type="search"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                placeholder="8회권 번호, 고객명, 휴대폰 번호"
+                placeholder="이용권 번호, 고객명, 휴대폰 번호"
               />
             </Form.Group>
           </Col>
@@ -147,11 +147,11 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         </Row>
       </Form>
 
-      {passSearch.isLoading && <LoadingSpinner text="8회권 조회 중..." />}
+      {passSearch.isLoading && <LoadingSpinner text="이용권 조회 중..." />}
       <ErrorAlert error={visibleError(passSearch.error)} />
 
       {passSearch.data?.content.length === 0 && (
-        <EmptyState message="검색 조건에 맞는 8회권이 없습니다." />
+        <EmptyState message="검색 조건에 맞는 이용권이 없습니다." />
       )}
 
       {passSearch.data && passSearch.data.content.length > 0 && (
@@ -159,7 +159,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
           <Table responsive hover size="sm" className="mb-0 align-middle">
             <thead>
               <tr>
-                <th>8회권 번호</th>
+                <th>이용권 번호</th>
                 <th>고객</th>
                 <th>상태</th>
                 <th>잔여</th>
@@ -199,7 +199,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
               총 {passSearch.data.totalCount.toLocaleString("ko-KR")}건 · {passSearch.data.page + 1}/
               {passSearch.data.totalPages.toLocaleString("ko-KR")} 페이지
             </small>
-            <ButtonGroup size="sm" aria-label="8회권 검색 결과 페이지 이동">
+            <ButtonGroup size="sm" aria-label="이용권 검색 결과 페이지 이동">
               <Button
                 variant="outline-secondary"
                 disabled={passSearch.isFetching || page === 0}
@@ -221,7 +221,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
 
       {selectedPassId !== null && (
         <section className="border-top mt-4 pt-4" aria-labelledby="admin-pass-detail-title">
-          {passDetail.isLoading && <LoadingSpinner text="8회권 상세 조회 중..." />}
+          {passDetail.isLoading && <LoadingSpinner text="이용권 상세 조회 중..." />}
           <ErrorAlert error={visibleError(passDetail.error)} />
 
           {selectedPass && (
@@ -275,7 +275,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
           <div>
             <div className="fw-semibold small">만료 처리</div>
-            <div className="text-muted-soft small">현재 시각을 지난 8회권을 즉시 만료 처리합니다.</div>
+            <div className="text-muted-soft small">현재 시각을 지난 이용권을 즉시 만료 처리합니다.</div>
           </div>
           <Button
             variant="outline-secondary"
@@ -284,7 +284,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
             onClick={() => expire.mutate()}
           >
             <RefreshCcw size={14} aria-hidden="true" className="me-1" />
-            {expire.isPending ? "처리 중..." : "기간 지난 8회권 만료 처리"}
+            {expire.isPending ? "처리 중..." : "기간 지난 이용권 만료 처리"}
           </Button>
         </div>
         <ErrorAlert error={visibleError(expire.error)} />
@@ -300,7 +300,7 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
       >
         <Modal.Header closeButton={!refund.isPending}>
           <Modal.Title id="admin-pass-refund-title" className="fs-6">
-            8회권 전체 환불 확인
+            이용권 전체 환불 확인
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>

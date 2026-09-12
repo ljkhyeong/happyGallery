@@ -175,10 +175,10 @@ class SecurityBoundaryUseCaseIT {
     void currentPolicies_allowAnonymousRequest() throws Exception {
         mockMvc.perform(get("/api/v1/policies/current"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.terms.version").value("2026-08-08-v1"))
-                .andExpect(jsonPath("$.terms.documentPath").value("/terms/2026-08-08-v1"))
-                .andExpect(jsonPath("$.privacy.version").value("2026-08-11-v2"))
-                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-08-11-v2"));
+                .andExpect(jsonPath("$.terms.version").value("2026-09-11-v1"))
+                .andExpect(jsonPath("$.terms.documentPath").value("/terms/2026-09-11-v1"))
+                .andExpect(jsonPath("$.privacy.version").value("2026-09-11-v1"))
+                .andExpect(jsonPath("$.privacy.documentPath").value("/privacy/2026-09-11-v1"));
     }
 
     @DisplayName("공개 조회 경로는 HEAD 요청도 허용한다")

@@ -101,7 +101,7 @@ export function PhoneVerificationStep({
             disabled={!phoneValid || sendMutation.isPending || confirming}
             onClick={() => sendMutation.mutate()}
           >
-            {sendMutation.isPending ? "발송 중..." : sent ? "재발송" : "인증코드 발송"}
+            {sendMutation.isPending ? "발송 중..." : sent ? "재발송" : "인증번호 발송"}
           </Button>
         </Col>
       </Row>
@@ -111,12 +111,12 @@ export function PhoneVerificationStep({
           <Row className="g-2 align-items-end">
             <Col xs={12} sm={8}>
               <Form.Group controlId={`${fieldId}-code`}>
-                <Form.Label>인증코드</Form.Label>
+                <Form.Label>인증번호</Form.Label>
                 <Form.Control
                   value={code}
                   disabled={confirming}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="인증코드 입력"
+                  placeholder="인증번호 입력"
                   inputMode="numeric"
                   autoComplete="one-time-code"
                 />

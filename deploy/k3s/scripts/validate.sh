@@ -321,11 +321,12 @@ grep -q 'alert: OperationalBacklogRefreshStalled' "$rendered" \
     || die "운영 backlog 스냅샷 정체 알림이 없습니다."
 grep -q 'alertmanager:9093' "$rendered" \
     || die "Prometheus와 Alertmanager 연결이 없습니다."
-grep -q 'url_file: /etc/alertmanager/secrets/webhook-url' "$rendered" \
-    || die "Alertmanager webhook Secret 파일 연결이 없습니다."
-grep -q 'receiver: webhook-business' "$rendered" \
-    && grep -q 'category="business"' "$rendered" \
-    && grep -q 'repeat_interval: 30m' "$rendered" \
+grep -q -- '--config.file=/etc/alertmanager/secrets/alertmanager.yml' "$rendered" \
+    && grep -q 'secretName: happygallery-alertmanager' "$rendered" \
+    || die "Alertmanager 설정 Secret 파일 연결이 없습니다."
+grep -q 'receiver: webhook-business' "$DEPLOY_DIR/alertmanager.yml" \
+    && grep -q 'category="business"' "$DEPLOY_DIR/alertmanager.yml" \
+    && grep -q 'repeat_interval: 30m' "$DEPLOY_DIR/alertmanager.yml" \
     || die "업무 backlog 경보의 30분 재알림 경로가 없습니다."
 grep -q 'GOOGLE_OAUTH_REDIRECT_URI: https://happy-gallery.com/api/v1/auth/social/callback/google' "$rendered" \
     || die "Google OAuth callback이 공개 host와 일치하지 않습니다."
@@ -552,5 +553,31 @@ RUBY
 
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"
+ruby "$SCRIPT_DIR/tests/alert-delivery-test.rb"
+
+ddns_rendered="$tmp_dir/ddns.yaml"
+kube kustomize "$DEPLOY_DIR/addons/cloudflare-ddns" > "$ddns_rendered"
+ruby - "$ddns_rendered" <<'RUBY'
+require 'yaml'
+documents = YAML.load_stream(File.read(ARGV.fetch(0))).compact
+abort 'DDNS에 공개 서비스나 평문 Secret을 추가할 수 없습니다.' if documents.any? do |d|
+  %w[Secret Service Ingress].include?(d['kind'])
+end
+deployment = documents.find { |d| d['kind'] == 'Deployment' }
+pod = deployment.fetch('spec').fetch('template').fetch('spec')
+container = pod.fetch('containers').first
+env = container.fetch('env').to_h { |e| [e.fetch('name'), e['value']] }
+abort 'DDNS 관리 범위는 happy-gallery.com의 IPv4 DNS only여야 합니다.' unless
+  env['IP4_DOMAINS'] == 'happy-gallery.com' && !env.key?('DOMAINS') && !env.key?('IP6_DOMAINS') &&
+  env['IP6_PROVIDER'] == 'none' && env['PROXIED'] == 'false' && env['DELETE_ON_STOP'] == 'false'
+abort 'DDNS API 토큰은 Secret 파일로만 주입해야 합니다.' unless
+  env['CLOUDFLARE_API_TOKEN_FILE'] == '/run/secrets/cloudflare/token' && !env.key?('CLOUDFLARE_API_TOKEN') &&
+  pod.fetch('volumes').any? { |v| v.dig('secret', 'secretName') == 'cloudflare-ddns' }
+abort 'DDNS 이미지 digest가 고정되지 않았습니다.' unless container['image'].match?(/@sha256:[a-f0-9]{64}\z/)
+abort 'DDNS가 호스트 네트워크 또는 Kubernetes API 권한을 사용합니다.' if
+  pod['hostNetwork'] || pod['automountServiceAccountToken'] != false
+policy = documents.find { |d| d['kind'] == 'NetworkPolicy' }
+abort 'DDNS 외부 수신 차단 정책이 없습니다.' unless policy&.dig('spec', 'ingress') == []
+RUBY
 
 info "k3s manifest와 운영 스크립트 검증 완료"

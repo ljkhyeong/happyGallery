@@ -75,8 +75,11 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .retrieve()
                 .body(ChangedResponse.class));
-        if (response == null || response.data() == null) {
+        if (response == null) {
             throw new IllegalStateException("스마트스토어 변경 주문 응답이 비어 있습니다.");
+        }
+        if (response.data() == null) {
+            return new ChangePage(List.of(), null);
         }
         List<ProductOrderChange> changes = response.data().lastChangeStatuses() == null
                 ? List.of()

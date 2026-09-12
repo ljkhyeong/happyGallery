@@ -4712,7 +4712,7 @@
             "type" : "integer"
           },
           "planCode" : {
-            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8" ],
+            "enum" : [ "LEGACY_ALL_CLASSES", "REGULAR_CRAFT_8", "REGULAR_CRAFT_4" ],
             "type" : "string"
           },
           "planName" : {
@@ -9469,6 +9469,10 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "classId" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
           "className" : {
             "type" : "string"
           },
@@ -9489,7 +9493,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "accessToken", "alertId", "className", "endAt", "slotId", "startAt", "status" ],
+        "required" : [ "accessToken", "alertId", "classId", "className", "endAt", "slotId", "startAt", "status" ],
         "type" : "object"
       },
       "VerifyGuestClaimPhoneRequest" : {
@@ -16344,6 +16348,7 @@
     },
     "/api/v1/me/coupons" : {
       "get" : {
+        "description" : "최근 발급 100개와 사용 가능·결제 처리 중인 모든 쿠폰을 중복 없이 최신 발급순으로 조회한다.",
         "operationId" : "listMyCoupons",
         "responses" : {
           "200" : {

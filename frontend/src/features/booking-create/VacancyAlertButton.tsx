@@ -67,7 +67,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
   }, [isAuthenticated, sessionVersion, slotId]);
 
   const memberRegistration = memberAlertsQuery.data
-    ?.find((alert) => alert.slotId === slotId) ?? null;
+    ?.find((alert) => alert.slotId === slotId && alert.status === "WAITING") ?? null;
   const registration: Registration | null = authLoading
     ? null
     : isAuthenticated
@@ -103,8 +103,8 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
         queryClient.setQueryData<VacancyAlertResponse[]>(
           queryKeys.member.vacancyAlerts,
           (alerts = []) => [
-            ...alerts.filter((alert) => alert.slotId !== slotId),
             registered.response,
+            ...alerts.filter((alert) => alert.alertId !== registered.response.alertId),
           ],
         );
       } else if (saveGuestVacancyAlert(
@@ -137,7 +137,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
       if (canceled.owner === "member") {
         queryClient.setQueryData<VacancyAlertResponse[]>(
           queryKeys.member.vacancyAlerts,
-          (alerts = []) => alerts.filter((alert) => alert.slotId !== slotId),
+          (alerts = []) => alerts.filter((alert) => alert.alertId !== canceled.response.alertId),
         );
       } else if (clearGuestVacancyAlert(
         canceled.response,

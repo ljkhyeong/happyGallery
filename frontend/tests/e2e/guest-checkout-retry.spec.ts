@@ -67,8 +67,8 @@ for (const kind of ["ORDER", "BOOKING"] as const) {
     };
     const verify = async (code: string) => {
       await page.getByLabel("휴대폰 번호", { exact: true }).fill("01012345678");
-      await page.getByRole("button", { name: "인증코드 발송", exact: true }).click();
-      await page.getByLabel("인증코드", { exact: true }).fill(code);
+      await page.getByRole("button", { name: "인증번호 발송", exact: true }).click();
+      await page.getByLabel("인증번호", { exact: true }).fill(code);
       await page.getByRole("button", { name: "확인", exact: true }).click();
     };
     await verify("111111");
@@ -77,26 +77,26 @@ for (const kind of ["ORDER", "BOOKING"] as const) {
     await page.getByRole("checkbox", { name: /이용약관/ }).check();
     await submit().click();
     await expect.poll(() => prepares.length).toBe(1);
-    await expect(page.getByText("휴대폰 인증에 실패했습니다. 인증코드를 확인해 주세요.")).toBeVisible();
+    await expect(page.getByText("휴대폰 인증에 실패했습니다. 인증번호를 확인해 주세요.")).toBeVisible();
     await reopen();
-    await expect(page.getByText("인증코드가 올바르지 않거나 만료되었습니다. 새 인증코드를 받아 주세요.")).toBeVisible();
+    await expect(page.getByText("인증번호가 올바르지 않거나 만료되었습니다. 새 인증번호를 받아 주세요.")).toBeVisible();
     await verify("222222");
     await expect(page.getByLabel(kind === "ORDER" ? "주문자 이름" : "이름", { exact: true })).toHaveValue("재인증 고객");
     await submit().click();
     await expect.poll(() => prepares.length).toBe(2);
     await reopen();
-    if (kind === "BOOKING") await expect(page.getByLabel("인증코드", { exact: true })).toHaveCount(0);
+    if (kind === "BOOKING") await expect(page.getByLabel("인증번호", { exact: true })).toHaveCount(0);
     await submit().click();
     await expect.poll(() => prepares.length).toBe(3);
     await expect(page.getByText("요청 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await reopen();
-    await expect(page.getByText("인증코드가 결제 준비에 사용되었습니다. 다시 결제하려면 새 인증코드를 받아 주세요.")).toBeVisible();
+    await expect(page.getByText("이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.")).toBeVisible();
     if (kind === "ORDER") await expect(submit()).toBeDisabled();
     await verify("333333");
     if (kind === "ORDER") {
       await page.getByRole("button", { name: "재발송", exact: true }).click();
       await expect(submit()).toBeDisabled();
-      await page.getByLabel("인증코드", { exact: true }).fill("333333");
+      await page.getByLabel("인증번호", { exact: true }).fill("333333");
       await page.getByRole("button", { name: "확인", exact: true }).click();
     }
     await submit().click();

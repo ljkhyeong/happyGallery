@@ -204,7 +204,7 @@ public class Refund {
                 rewardRestoreAmount, rewardRevokeAmount, false, paymentKey);
     }
 
-    /** 8회권 환불 요청 생성. bookingId/orderId는 null. */
+    /** 이용권 환불 요청 생성. bookingId/orderId는 null. */
     public static Refund forPass(Long passPurchaseId, long amount, String paymentKey) {
         return monetaryRefund(null, null, null,
                 Objects.requireNonNull(passPurchaseId, "passPurchaseId must not be null"),

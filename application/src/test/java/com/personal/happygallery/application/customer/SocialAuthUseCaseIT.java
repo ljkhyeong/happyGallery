@@ -78,7 +78,7 @@ class SocialAuthUseCaseIT {
                                 consentSoftly.assertThat(consent.getPurpose())
                                         .isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
                                 consentSoftly.assertThat(consent.getPolicyVersion())
-                                        .isEqualTo("2026-08-08-v1");
+                                        .isEqualTo("2026-09-11-v1");
                             }),
                             consent -> assertSoftly(consentSoftly -> {
                                 consentSoftly.assertThat(consent.getType())
@@ -86,7 +86,7 @@ class SocialAuthUseCaseIT {
                                 consentSoftly.assertThat(consent.getPurpose())
                                         .isEqualTo(PolicyConsentPurpose.SOCIAL_SIGNUP);
                                 consentSoftly.assertThat(consent.getPolicyVersion())
-                                        .isEqualTo("2026-08-11-v2");
+                                        .isEqualTo("2026-09-11-v1");
                             }));
             softly.assertThat(storedSocialAccount.getProviderIdEnc())
                     .isNotBlank()

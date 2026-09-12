@@ -368,7 +368,7 @@ Authorization: Bearer {token}
   - `price`는 10원 이상 `9,007,199,254,740,991원` 이하의 정수다. 10% 일반 예약금이 최소 1원이 되는 하한이다.
   - `capacity`는 1명 이상이며 자동 생성되는 모든 회차가 이 정원을 사용한다. 기존 클래스는 8명으로 이관한다.
   - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 상품과 같은 공용 도메인 정책을 적용해 `/`로 시작하되 `//`가 아닌 서비스 경로 또는 호스트가 있는 `http(s)` URL만 허용한다.
-  - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
+  - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 이용권 사용 가능 여부를 결정한다.
 
 #### 2.1.2 기본 개방 예약 캘린더
 
@@ -687,6 +687,7 @@ Cookie: HG_SESSION=...
 {
   "alertId": 700,
   "slotId": 42,
+  "classId": 1,
   "className": "가죽 카드지갑 원데이",
   "startAt": "2026-09-05T14:00:00",
   "endAt": "2026-09-05T16:00:00",
@@ -697,7 +698,7 @@ Cookie: HG_SESSION=...
 
 - 비회원 취소: `DELETE /api/v1/slots/{slotId}/vacancy-alerts`, 발급받은 `X-Access-Token` 필수
 - 회원 취소: `DELETE /api/v1/me/slots/{slotId}/vacancy-alerts`, 회원 세션 필수
-- 성공: 신청·목록 조회·취소 `200 OK`; 목록은 현재 회원의 `WAITING` 신청만 신청 순서로 반환하고 `accessToken`은 `null`이다.
+- 성공: 신청·목록 조회·취소 `200 OK`; 목록은 현재 회원의 `WAITING`·`NOTIFIED` 내역을 신청 번호 내림차순으로 반환하고 `accessToken`은 `null`이다. 취소 내역은 제외하며 `NOTIFIED` 내역은 기존 30일 보관 정책을 따른다.
 - 에러:
   - `400 INVALID_INPUT` — 활성·미래 만석 회차가 아니거나 비회원 입력 형식 오류
   - `404 NOT_FOUND` — 회차, 회원 또는 비회원 알림 토큰 불일치
@@ -706,7 +707,7 @@ Cookie: HG_SESSION=...
   - 빈자리 알림은 좌석을 예약하거나 결제하지 않는다. 알림을 받은 고객이 예약 화면에서 선착순으로 직접 예약한다.
   - 회원은 등록된 인증 휴대폰, 비회원은 `GUEST_BOOKING` 목적의 6자리 SMS 인증으로 수신 번호 소유권을 확인한다.
   - 같은 회차·수신자에는 `WAITING` 알림 한 건만 유지한다. 비회원이 다시 인증해 신청하면 취소용 접근 토큰만 새로 발급한다.
-  - 회원 화면은 `GET /api/v1/me/vacancy-alerts`를 서버 원본으로 사용해 새로고침 뒤 신청 상태를 복원한다. 응답의 클래스명·시작·종료 시각으로 마이페이지에 현재 대기 목록을 표시하며, 운영·캘린더·버퍼 사유로 회차가 예약 화면에서 사라져도 회원은 마이페이지에서 신청을 취소할 수 있다. 비회원 화면은 취소 토큰을 현재 고객 세션 소유권과 함께 `sessionStorage`에 저장하며, 같은 탭의 새로고침까지만 복원하고 로그인·로그아웃·계정 전환 뒤에는 이전 상태를 적용하지 않는다.
+  - 회원 화면은 `GET /api/v1/me/vacancy-alerts`를 서버 원본으로 사용해 새로고침 뒤 신청 상태를 복원한다. 응답의 클래스명·시작·종료 시각으로 마이페이지에 대기 신청과 빈자리 발생 내역을 표시한다. `classId`·`slotId`로 해당 일정의 예약 화면에 연결하고 잔여 좌석을 다시 확인한다. `NOTIFIED`는 빈자리 발생 시 알림 발송을 요청한 상태이며 실제 전달 성공을 뜻하지 않는다. 대기 수와 재신청 여부는 `WAITING`만으로 판단한다. 운영·캘린더·버퍼 사유로 회차가 예약 화면에서 사라져도 회원은 마이페이지에서 대기 신청을 취소할 수 있다. 비회원 화면은 취소 토큰을 현재 고객 세션 소유권과 함께 `sessionStorage`에 저장하며, 같은 탭의 새로고침까지만 복원하고 로그인·로그아웃·계정 전환 뒤에는 이전 상태를 적용하지 않는다.
   - 만석이었던 활성 회차가 전체취소·부분취소·예약 변경으로 1석 이상 열리는 순간 모든 `WAITING` 신청을 `NOTIFIED`로 전환하고 알림 outbox를 같은 트랜잭션에 한 번씩 저장한다.
   - 회차가 운영·캘린더·버퍼 사유로 닫혀 있으면 자리가 반환돼도 알리지 않는다. 관리자가 다시 열어 실제 예약 가능해진 시점에 대기 알림을 발송한다.
   - 알림 발송은 한 번으로 끝나며 자동 재신청하지 않는다.
@@ -1213,9 +1214,9 @@ X-Access-Token: {accessToken}
 - 에러:
   - `404 NOT_FOUND` — bookingId 미존재 또는 token 불일치
 - `cancelPolicy.cancellable`은 고객이 현재 예약을 직접 취소할 수 있는지를 뜻한다. 잔금 결제가 완료된 유료 예약은 `false`며 관리자 정산이 필요하다.
-- `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 8회권 이용 횟수 복구가 가능한지를 뜻한다.
-- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 예약금 환불·8회권 횟수 복원 마감 시각이다.
-- 8회권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 취소 전에 사용한 1회가 복구되지 않는다는 한국어 경고를 표시한다. 내부 코드는 노출하지 않는다.
+- `cancelPolicy.refundable`은 지금 취소하면 예약금 환불 또는 이용권 이용 횟수 복구가 가능한지를 뜻한다.
+- `cancelPolicy.deadlineAt`은 체험일 00:00 KST 기준 예약금 환불·이용권 횟수 복원 마감 시각이다.
+- 이용권 예약에서 마감이 지났으면 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`을 내린다. 프론트는 취소 전에 사용한 1회가 복구되지 않는다는 한국어 경고를 표시한다. 내부 코드는 노출하지 않는다.
 - 환불 이력이 있으면 `refund`에 `amount`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
 
 #### 2.4.4 예약 변경
@@ -1290,7 +1291,7 @@ X-Access-Token: {accessToken}
   - `400 INVALID_INPUT` — 변경 인원이 1명 미만이거나 현재 인원 이상
   - `404 NOT_FOUND` — 예약 미존재 또는 token 불일치
   - `409 BOOKING_CONFLICT` — 인원 변경 중 예약 슬롯이 바뀌거나 동시 수정 충돌
-  - `422 CHANGE_NOT_ALLOWED` — 예약금 환불 마감 경과, 잔금 결제 완료, 8회권 예약 또는 오프라인 예약금 예약
+  - `422 CHANGE_NOT_ALLOWED` — 예약금 환불 마감 경과, 잔금 결제 완료, 이용권 예약 또는 오프라인 예약금 예약
 - 정책:
   - 예약은 `BOOKED`를 유지하며 1명 이상만 남길 수 있다. 전원 취소는 전체 예약 취소 API를 사용한다.
   - 예약금 환불 마감 전의 PG 예약금 결제 예약만 고객이 직접 인원을 줄일 수 있다.
@@ -1328,22 +1329,24 @@ X-Access-Token: {accessToken}
   - `422 CHANGE_NOT_ALLOWED` — 잔금 결제가 완료되어 관리자 정산이 필요한 예약의 고객 취소 시도
 - 환불 정책:
   - 예약금 결제: `refundable=true`이면 PG 환불 요청
-  - 8회권 결제: `refundable=true`이면 `REFUND` 이력 저장과 이용 횟수 복구
+  - 이용권 결제: `refundable=true`이면 `REFUND` 이력 저장과 이용 횟수 복구
   - `refundable=false`이면 사용한 횟수는 복구하지 않음
   - `200 OK`는 예약 취소와 환불 요청 이력 저장 완료를 뜻하며 PG 환불 완료를 뜻하지 않는다.
-  - 예약금 환불을 요청했을 때만 `refund`가 `{amount,status}`로 채워진다. 8회권 이용 횟수 복구 또는 환불 불가 취소에서는 `refund=null`, `refundAmount=0`이다.
+  - 예약금 환불을 요청했을 때만 `refund`가 `{amount,status}`로 채워진다. 이용권 이용 횟수 복구 또는 환불 불가 취소에서는 `refund=null`, `refundAmount=0`이다.
   - 운영자 수기 예약에서 받은 오프라인 예약금은 PG 거래가 없으므로 `manualCompensationRequired=true`와 관리자 후속 작업을 남기고 `refund=null`이다.
 
-### 2.5 8회권 API
+### 2.5 이용권 API
 
-#### ~~2.5.1 게스트 8회권 구매~~ (2026-03-19 제거)
+- 현재 판매 상품은 `REGULAR_CRAFT_4`(4회)다. 기존 `REGULAR_CRAFT_8`·`LEGACY_ALL_CLASSES` 구매 내역은 총 8회와 구매 당시 금액을 유지한다. 목록·상세는 각 구매의 `planName`, `totalCredits`, `remainingCredits`를 표시한다.
 
-> 8회권 구매는 회원 전용으로 전환됨. 현재 구매 생성은 `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`으로 처리한다. 2.15 결제 API 참조.
-> 비회원 소유 8회권 상태는 지원하지 않는다.
+#### ~~2.5.1 게스트 이용권 구매~~ (2026-03-19 제거)
 
-#### ~~2.5.2 휴대폰 인증 기반 8회권 구매~~ (2026-03-19 제거)
+> 이용권 구매는 회원 전용으로 전환됨. 현재 구매 생성은 `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`으로 처리한다. 2.15 결제 API 참조.
+> 비회원 소유 이용권 상태는 지원하지 않는다.
 
-> 상동. 회원 8회권 구매는 결제 API `context=PASS`로 단일화.
+#### ~~2.5.2 휴대폰 인증 기반 이용권 구매~~ (2026-03-19 제거)
+
+> 상동. 회원 이용권 구매는 결제 API `context=PASS`로 단일화.
 
 #### 2.5.3 결석 처리
 
@@ -1367,7 +1370,7 @@ Authorization: Bearer {token}
   - 서버 `Clock` 기준으로 슬롯 종료 시각에 도달한 뒤에만 처리할 수 있다.
   - 예약 시 `USE` 이력을 남기고 1회를 차감했으므로 추가 차감은 없다.
 
-#### 2.5.3.1 관리자 8회권 검색·상세 조회
+#### 2.5.3.1 관리자 이용권 검색·상세 조회
 
 ```http
 GET /api/v1/admin/passes/search?keyword=01096355608&page=0&size=20
@@ -1413,7 +1416,7 @@ Authorization: Bearer {token}
   - `expectedRefundAmount`는 현재 잔여 횟수와 자동 취소될 미래 `BOOKED` 예약 수를 합하되 총 횟수를 넘지 않도록 계산한다. 이미 환불 요청이 있으면 저장된 요청 금액을 반환한다.
   - 전화번호는 가운데 자리를 마스킹한다. 목록에서 상세를 선택한 뒤 2.5.4의 환불 액션을 실행한다.
 
-#### 2.5.4 8회권 전체 환불
+#### 2.5.4 이용권 전체 환불
 
 ```http
 POST /api/v1/admin/passes/{passId}/refund
@@ -1452,7 +1455,7 @@ Cookie: HG_SESSION={sessionToken}
 - 에러:
   - `404 NOT_FOUND` — passId 미존재
   - `401 UNAUTHORIZED` — 회원 경로에 세션 없음
-  - `422 PASS_EXPIRED` — 만료된 8회권 환불 요청. 남아 있던 이용 횟수는 `EXPIRE` 처리되고 환불·미래 예약 취소는 실행하지 않음
+  - `422 PASS_EXPIRED` — 만료된 이용권 환불 요청. 남아 있던 이용 횟수는 `EXPIRE` 처리되고 환불·미래 예약 취소는 실행하지 않음
   - `429 TOO_MANY_REQUESTS` — 회원 환불 요청 처리율 제한 초과
 - 정책:
   - 미래 `BOOKED` 예약 자동 취소
@@ -2360,7 +2363,7 @@ Content-Type: application/json
   - 고객 취소 마감과 무관하게 슬롯 정원과 버퍼를 반납하고 예약을 `CANCELED`로 전이한다.
   - PG로 결제한 일반 예약은 예약금 전액의 비동기 PG 환불 요청을 생성한다. `depositRefundStatus=REQUESTED`는 접수 완료이며 PG 환불 완료가 아니다.
   - 전화·메신저·방문 접수에서 받은 오프라인 예약금은 PG 환불을 호출하지 않고 실제 반환액이 있는 `MANUAL_COMPENSATION` 작업을 생성한다. 입금 전 수기 예약은 예약금이 0원이므로 환불 작업이 없다.
-  - 8회권 예약은 유효한 이용권이면 이용 횟수를 복구한다. 만료되어 복구할 수 없으면 `passCreditRestored=false`, `manualCompensationRequired=true`로 운영자 수동 보상을 알린다.
+  - 이용권 예약은 유효한 이용권이면 이용 횟수를 복구한다. 만료되어 복구할 수 없으면 `passCreditRestored=false`, `manualCompensationRequired=true`로 운영자 수동 보상을 알린다.
   - 현장 잔금이 이미 결제된 일반 예약은 `balanceSettlementRequired=true`이며 서버가 예약금 외 잔금을 자동 환불하지 않는다.
   - `booking_history`에 `actor=ADMIN`, 입력 사유와 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`인 행위자를 저장하고 취소 알림 outbox를 같은 트랜잭션에서 생성한다.
 
@@ -2389,12 +2392,12 @@ Content-Type: application/json
   - `400 INVALID_INPUT` — 사유가 비었거나 200자를 초과함, 또는 슬롯이 관리자 비활성 상태가 아님
   - `401 UNAUTHORIZED` — 관리자 인증 실패
   - `404 NOT_FOUND` — slotId 미존재
-  - `409 BOOKING_CONFLICT` — 잠금 전 대상 확인 뒤 예약·8회권 연결이 동시에 변경됨
+  - `409 BOOKING_CONFLICT` — 잠금 전 대상 확인 뒤 예약·이용권 연결이 동시에 변경됨
 - 정책:
   - 운영자는 먼저 슬롯을 비활성화해 신규 접수를 중단해야 한다. 버퍼 때문에 일시적으로 예약 불가능할 뿐 `adminActive=true`인 슬롯은 회차 취소 대상이 아니다.
   - 해당 슬롯의 현재 `BOOKED` 예약만 개별 관리자 취소와 같은 정책으로 한 트랜잭션에서 처리한다. 대상이 없으면 모든 집계가 0인 성공 응답을 반환한다.
-  - `depositRefundsRequested`는 PG 환불 요청 생성 건수이지 완료 건수가 아니다. `balanceSettlementsRequired`와 `manualCompensationsRequired`는 각각 현장 잔금과 복구 불가 8회권의 후속 수동 처리 건수다.
-  - 여러 8회권을 변경할 때 이용권 ID 오름차순으로 먼저 잠근 뒤 클래스와 슬롯을 잠그고, 취소 대상 예약은 마지막에 `FOR UPDATE`로 다시 조회한다.
+  - `depositRefundsRequested`는 PG 환불 요청 생성 건수이지 완료 건수가 아니다. `balanceSettlementsRequired`와 `manualCompensationsRequired`는 각각 현장 잔금과 복구 불가 이용권의 후속 수동 처리 건수다.
+  - 여러 이용권을 변경할 때 이용권 ID 오름차순으로 먼저 잠근 뒤 클래스와 슬롯을 잠그고, 취소 대상 예약은 마지막에 `FOR UPDATE`로 다시 조회한다.
 
 #### 2.9.8 예약 취소 후속 작업
 
@@ -2428,8 +2431,8 @@ GET 응답 항목:
 }
 ```
 
-- 운영자 취소 때 이미 수납한 현장 잔금은 `BALANCE_SETTLEMENT`, 만료로 복구할 수 없는 8회권은 `MANUAL_COMPENSATION` 작업으로 생성한다.
-- 오프라인에서 받은 예약금도 `MANUAL_COMPENSATION`으로 생성한다. 작업 응답의 `compensationAmount`는 반환할 예약금이며, 만료 8회권 보상은 금액으로 확정할 수 없어 0원이다. `balanceAmount`는 잔금 정산 작업의 금액이다.
+- 운영자 취소 때 이미 수납한 현장 잔금은 `BALANCE_SETTLEMENT`, 만료로 복구할 수 없는 이용권은 `MANUAL_COMPENSATION` 작업으로 생성한다.
+- 오프라인에서 받은 예약금도 `MANUAL_COMPENSATION`으로 생성한다. 작업 응답의 `compensationAmount`는 반환할 예약금이며, 만료 이용권 보상은 금액으로 확정할 수 없어 0원이다. `balanceAmount`는 잔금 정산 작업의 금액이다.
 - GET은 오래된 순으로 미완료 작업을 최대 100건 반환한다.
 - 완료는 작업 행을 잠근 뒤 처리 관리자와 완료 시각을 저장한다. 이미 완료된 작업을 다시 요청하면 `changed=false`와 기존 결과를 반환한다.
 
@@ -2464,8 +2467,8 @@ GET 응답 항목:
 - `from`, `to`는 KST 기준 집계 기간이다.
 - 호환 필드명인 `overview.monthRevenue`, `overview.monthOrderCount`는 달력 월 고정값이 아니라 요청한 `from`~`to` 선택 기간의 값이다.
 - `sales-summary.granularity` 기본값은 `DAILY`이며 `DAILY`, `WEEKLY`, `MONTHLY`를 지원한다.
-- `overview`, `revenue-breakdown`, `daily-revenue`는 주문·예약금·예약 잔금·8회권 결제를 결제 시점에 더하고, 도메인 환불이 `SUCCEEDED`가 된 시점에 차감한 순매출이다. 미완료·실패 환불과 `payment_attempt_id`만 가진 보상환불은 차감하지 않는다.
-- `sales-summary`와 `top-products`는 상품 주문 분석 전용이다. 주문 결제를 더하고 성공한 주문 환불을 성공 시점에 차감하며, 예약·8회권 매출은 포함하지 않는다.
+- `overview`, `revenue-breakdown`, `daily-revenue`는 주문·예약금·예약 잔금·이용권 결제를 결제 시점에 더하고, 도메인 환불이 `SUCCEEDED`가 된 시점에 차감한 순매출이다. 미완료·실패 환불과 `payment_attempt_id`만 가진 보상환불은 차감하지 않는다.
+- `sales-summary`와 `top-products`는 상품 주문 분석 전용이다. 주문 결제를 더하고 성공한 주문 환불을 성공 시점에 차감하며, 예약·이용권 매출은 포함하지 않는다.
 - `refunds.refundRate`는 조회 기간의 성공 환불액을 같은 기간의 네 결제 원천 총 유입액으로 나눈 운영 현금흐름 비율이다. 이전 기간 결제가 현재 기간에 환불되면 1을 넘을 수 있다.
 
 #### 2.10.2 상태/상품/예약 분포
@@ -2547,7 +2550,7 @@ Authorization: Bearer {token}
 
 - 성공: `200 OK`
 - 에러: `404 NOT_FOUND` — refundId 미존재
-- 주문 거절·지연 거절 취소·8회권 환불 시작 응답의 `refundId`로 실제 처리 상태를 조회한다. `amount`는 고객 반환 총액이고, `pgRefundAmount`와 `rewardRestoreAmount`의 합과 일치한다. `rewardRevokeAmount`는 환불 상품에서 이미 지급된 적립금 회수액이다.
+- 주문 거절·지연 거절 취소·이용권 환불 시작 응답의 `refundId`로 실제 처리 상태를 조회한다. `amount`는 고객 반환 총액이고, `pgRefundAmount`와 `rewardRestoreAmount`의 합과 일치한다. `rewardRevokeAmount`는 환불 상품에서 이미 지급된 적립금 회수액이다.
 
 #### 2.11.3 환불 재시도
 
@@ -2581,7 +2584,7 @@ Authorization: Bearer {token}
   - 해당 멱등키의 취소 내역이 없고 결제 상태가 미취소로 명확하면 `RETRYABLE`로 바꾼다. 다음 실행부터 최초 멱등키로 cancel을 호출한다. 식별자·금액·상태 모순이나 조회 실패는 `RECONCILIATION_REQUIRED`를 유지해 중복 취소를 피한다.
   - PG 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`가 저장 요청과 일치하는지 결과 저장 전에 다시 확인한다.
   - PG 호출 전 선점과 호출 후 결과 저장은 부모 주문/예약 트랜잭션 및 PG 네트워크 구간과 분리된 짧은 `REQUIRES_NEW` 트랜잭션으로 처리한다.
-  - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·8회권 생성에 실패한 결제의 보상 환불이다.
+  - `paymentAttemptId`가 있으면 PG 승인 후 주문·예약·이용권 생성에 실패한 결제의 보상 환불이다.
   - 최초 환불과 자동·수동 재처리는 같은 `refunds.idempotency_key`를 Toss `Idempotency-Key` 헤더로 사용한다.
 
 #### 2.11.4 실패 알림 목록과 재처리
@@ -2618,7 +2621,7 @@ Authorization: Bearer {token}
 - 에러: `404 NOT_FOUND`, `400 INVALID_INPUT`(대사 대상이 아님), `409 CONFLICT`(동시 상태 변경), PG 조회 결과와 저장 요청의 식별자·금액 불일치
 - 정책:
   - 저장된 `orderId`로 PG 상태를 조회하며 조회 네트워크 구간에는 DB 트랜잭션을 열지 않는다.
-  - `DONE`이면 저장된 paymentKey·orderId·amount를 모두 확인한 뒤 기존 주문·예약·8회권 처리를 재개한다.
+  - `DONE`이면 저장된 paymentKey·orderId·amount를 모두 확인한 뒤 기존 주문·예약·이용권 처리를 재개한다.
   - Toss가 `NOT_FOUND_PAYMENT`로 승인 없음(결제 미존재)을 명시한 경우에만 `FAILED`로 확정한다. 다른 404를 포함해 결과를 자동 판정할 수 없으면 `RECONCILIATION_REQUIRED`를 유지한다.
 
 #### 2.11.6 PG 정산 불일치 목록
@@ -2658,8 +2661,8 @@ GET /api/v1/policies/current
 
 ```json
 {
-  "terms": { "version": "2026-08-08-v1", "documentPath": "/terms/2026-08-08-v1" },
-  "privacy": { "version": "2026-08-11-v2", "documentPath": "/privacy/2026-08-11-v2" }
+  "terms": { "version": "2026-09-11-v1", "documentPath": "/terms/2026-09-11-v1" },
+  "privacy": { "version": "2026-09-11-v1", "documentPath": "/privacy/2026-09-11-v1" }
 }
 ```
 
@@ -2696,9 +2699,9 @@ POST /api/v1/auth/signup
   "phone": "01012345678",
   "verificationCode": "483921",
   "policyAcceptance": {
-    "termsVersion": "2026-08-08-v1",
+    "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-11-v2",
+    "privacyVersion": "2026-09-11-v1",
     "privacyAccepted": true
   }
 }
@@ -2759,9 +2762,9 @@ Cookie: HG_SESSION={anonymousSession}
 X-XSRF-TOKEN: {csrfToken}
 
 {
-  "termsVersion": "2026-08-08-v1",
+  "termsVersion": "2026-09-11-v1",
   "termsAccepted": true,
-  "privacyVersion": "2026-08-11-v2",
+  "privacyVersion": "2026-09-11-v1",
   "privacyAccepted": true
 }
 ```
@@ -3047,10 +3050,10 @@ Cookie: HG_SESSION={sessionToken}
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
   - `403 REAUTHENTICATION_REQUIRED` — 최근 본인 확인이 없거나 현재 자격 버전과 다름
-  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불, 사용 가능한 미만료 8회권, 결제에 사용 중이거나 회수할 적립금이 있음
+  - `422 ACCOUNT_WITHDRAWAL_BLOCKED` — 미종결 결제 시도·주문·클레임·예약, 미완료 예약 취소 후속 작업·환불, 사용 가능한 미만료 이용권, 결제에 사용 중이거나 회수할 적립금이 있음
 - 정책:
   - 비밀번호 또는 현재 연결된 소셜 계정으로 최근 본인 확인을 먼저 완료한다. 화면의 `탈퇴` 확인 문자열은 의사 확인이며 이 소유권 증명을 대신하지 않는다.
-  - `ACCOUNT_WITHDRAWAL_BLOCKED`의 `message`에는 해당 회원의 실제 제한 사유만 줄바꿈(`\n`)으로 구분해 반환한다. 화면은 각 사유를 목록으로 표시한다. 예: `사용 가능한 8회권이 있습니다.\n처리 중인 환불이 있습니다.`
+  - `ACCOUNT_WITHDRAWAL_BLOCKED`의 `message`에는 해당 회원의 실제 제한 사유만 줄바꿈(`\n`)으로 구분해 반환한다. 화면은 각 사유를 목록으로 표시한다. 예: `사용 가능한 이용권이 있습니다.\n처리 중인 환불이 있습니다.`
   - 회원 행을 잠그고 차단 활동을 다시 확인해 탈퇴와 새 거래 생성을 직렬화한다.
   - 잠근 회원 행의 현재 `credential_version`이 세션 재인증 증명의 예상 버전과 다르면 탈퇴하지 않는다.
   - 이메일·이름은 재사용 가능한 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한다. `withdrawnAt`과 새 자격 버전을 저장하며 주문·예약·정산 이력은 보존한다.
@@ -3058,7 +3061,7 @@ Cookie: HG_SESSION={sessionToken}
 
 #### ~~2.12.1 회원 예약 생성~~ (2026-04-22 제거)
 
-> 회원 예약 생성도 `POST /api/v1/payments/prepare` (`context=BOOKING`, `payload.userId` 지정) → `POST /api/v1/payments/confirm`으로 단일화됨. 8회권 사용 예약은 `payload.passId`를 채워 amount=0 → confirm 직접 호출 경로를 탄다. 2.15 결제 API 참조.
+> 회원 예약 생성도 `POST /api/v1/payments/prepare` (`context=BOOKING`, `payload.userId` 지정) → `POST /api/v1/payments/confirm`으로 단일화됨. 이용권 사용 예약은 `payload.passId`를 채워 amount=0 → confirm 직접 호출 경로를 탄다. 2.15 결제 API 참조.
 
 #### ~~2.12.2 회원 주문 생성~~ (2026-04-22 제거)
 
@@ -3070,24 +3073,24 @@ Cookie: HG_SESSION={sessionToken}
 - `GET /api/v1/me/bookings/page?cursor={cursor}&size=20` — 회원 예약 커서 페이지
 - `GET /api/v1/me/bookings/{id}` — 회원 예약 상세
 - `PATCH /api/v1/me/bookings/{id}/participants` — 예약 인원 부분취소
-- `GET /api/v1/me/vacancy-alerts` — 현재 대기 중인 회원 빈자리 알림 신청 목록
+- `GET /api/v1/me/vacancy-alerts` — 회원의 대기 신청과 빈자리 발생 내역
 - `GET /api/v1/me/orders` — 회원 주문 목록
 - `GET /api/v1/me/orders/page?cursor={cursor}&size=20` — 회원 주문 커서 페이지
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세
-- `GET /api/v1/me/passes` — 회원 8회권 목록
-- `GET /api/v1/me/passes/page?cursor={cursor}&size=20` — 회원 8회권 커서 페이지
-- `GET /api/v1/me/passes/{id}` — 회원 8회권 상세
-- `POST /api/v1/me/passes/{id}/refund` — 소유한 8회권 잔여 횟수 정산 환불
+- `GET /api/v1/me/passes` — 회원 이용권 목록
+- `GET /api/v1/me/passes/page?cursor={cursor}&size=20` — 회원 이용권 커서 페이지
+- `GET /api/v1/me/passes/{id}` — 회원 이용권 상세
+- `POST /api/v1/me/passes/{id}/refund` — 소유한 이용권 잔여 횟수 정산 환불
 - `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
 - `POST /api/v1/me/orders/{id}/delay-response` — 제작 지연 제안 수락/거절
 
-세 페이지 API는 선택적인 `keyword`, `status`, `sort`로 **전체 회원 이력**을 먼저 검색·정렬한 뒤 페이지를 나눈다. `keyword`는 앞뒤 공백을 제거하고 최대 100자로 정제하며 주문·8회권 번호의 부분 일치, 예약 번호 또는 클래스명의 부분 일치를 지원한다. `%`, `_`는 검색 문자로 처리한다. 전체 상태를 조회할 때는 `status`를 생략한다.
+세 페이지 API는 선택적인 `keyword`, `status`, `sort`로 **전체 회원 이력**을 먼저 검색·정렬한 뒤 페이지를 나눈다. `keyword`는 앞뒤 공백을 제거하고 최대 100자로 정제하며 주문·이용권 번호의 부분 일치, 예약 번호 또는 클래스명의 부분 일치를 지원한다. `%`, `_`는 검색 문자로 처리한다. 전체 상태를 조회할 때는 `status`를 생략한다.
 
 | 목록 | `status` | `sort`와 생략 시 기본값 |
 | --- | --- | --- |
 | 주문 | `OrderStatus` 값 | `LATEST`(기본, 생성일 내림차순), `OLDEST`, `AMOUNT_DESC`, `AMOUNT_ASC` |
 | 예약 | `BOOKED`, `CANCELED`, `NO_SHOW`, `COMPLETED` | `CREATED_DESC`(기본, 생성일 내림차순), `SOONEST`(예약일 오름차순), `LATEST`(예약일 내림차순), `DEPOSIT_DESC` |
-| 8회권 | `ACTIVE`, `USED_UP`, `EXPIRED` | `PURCHASE_DESC`(기본), `EXPIRY_ASC`, `CREDITS_DESC` |
+| 이용권 | `ACTIVE`, `USED_UP`, `EXPIRED` | `PURCHASE_DESC`(기본), `EXPIRY_ASC`, `CREDITS_DESC` |
 
 - `ACTIVE`는 잔여 횟수가 있고 만료 시각 전인 건, `EXPIRED`는 잔여 횟수가 있고 만료 시각에 도달한 건, `USED_UP`은 잔여 횟수가 없는 건이다. 이 목록 분류는 환불 요청 가능 여부를 대신하지 않는다.
 - `size`는 기본 20, 1~100이며 응답은 기존 `{content,nextCursor,hasMore}`를 유지한다. 검색·정렬 조건을 바꾸면 커서를 비운다. 정렬값이 같으면 거래 번호를 같은 방향으로 정렬한다.
@@ -3096,7 +3099,7 @@ Cookie: HG_SESSION={sessionToken}
 
 회원 주문 액션은 세션 소유권을 검증한다. 취소는 `PAID_APPROVAL_PENDING`, 지연 응답은 `DELAY_CONSENT_PENDING`에서만 허용하며 응답의 환불 상태는 실제 PG 완료와 분리한다.
 
-회원 주문 상세·예약 상세와 8회권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 8회권 목록은 영수증을 일괄 조회한다.
+회원 주문 상세·예약 상세와 이용권 목록·페이지·상세에는 필수 nullable 문자열 `receiptUrl`을 포함한다. 현재 거래 소유권을 확인한 뒤 기존 결제 이력의 유료 `CONFIRMED` 영수증 URL을 조회하며 0원·과거 미기록·URL이 없는 결제는 `null`이다. 주문 상세 DTO를 공유하는 비회원 주문 조회도 같은 필드를 반환한다. 회원에게 가져온 비회원 주문·예약은 현재 거래 소유자가 조회할 수 있다. 이용권 목록은 영수증을 일괄 조회한다.
 
 회원 예약 상세 응답은 `passBooking`과 `cancelPolicy`를 포함한다.
 
@@ -3124,7 +3127,7 @@ Cookie: HG_SESSION={sessionToken}
 }
 ```
 
-회원 8회권 목록의 각 항목과 상세 응답은 같은 형태를 사용하며, 환불 요청이 있으면 공개 가능한 진행 상태만 포함한다.
+회원 이용권 목록의 각 항목과 상세 응답은 같은 형태를 사용하며, 환불 요청이 있으면 공개 가능한 진행 상태만 포함한다.
 
 ```json
 {
@@ -3146,10 +3149,10 @@ Cookie: HG_SESSION={sessionToken}
 공통 정책:
 - 인증 실패 시 `401 UNAUTHORIZED`
 - 다른 회원의 리소스 접근 시 `404 NOT_FOUND`
-- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 기본 정렬은 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다. 회원 주문·예약·8회권의 검색·정렬 확장은 2.12.3의 조건별 커서 규칙을 따른다.
-- 8회권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 이용 횟수가 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
-- 신규 `REGULAR_CRAFT_8`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
-- 회원 예약·주문 상세와 8회권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
+- 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 기본 정렬은 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다. 회원 주문·예약·이용권의 검색·정렬 확장은 2.12.3의 조건별 커서 규칙을 따른다.
+- 이용권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 이용 횟수가 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
+- 신규 `REGULAR_CRAFT_4`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
+- 회원 예약·주문 상세와 이용권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
 - 환불 상태는 `REQUESTED`, `PROCESSING`, `RETRYABLE`, `RECONCILIATION_REQUIRED`, `SUCCEEDED`, `FAILED` 중 하나다. 고객 화면은 비종결 상태만 제한된 간격으로 다시 조회한다.
 
 #### 2.12.4 회원 상품 Q&A 작성
@@ -3543,14 +3546,14 @@ GET /api/v1/products/{productId}/qna/{id}
 
 ### 2.15 결제 API (`/api/v1/payments`)
 
-주문/예약/8회권의 표준 결제 생성 경로는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`이다.
+주문/예약/이용권의 표준 결제 생성 경로는 `POST /api/v1/payments/prepare` → `POST /api/v1/payments/confirm`이다.
 서버가 `prepare` 단계에서 `orderId(UUID)`와 `amount`를 확정해 `payment_attempt` 레코드(`PENDING`)로 저장하고,
-프론트가 Toss 결제창을 통과한 뒤 `confirm`이 동일 `amount` 일치를 강제한 뒤 도메인 저장(주문/예약/8회권)을 수행한다.
+프론트가 Toss 결제창을 통과한 뒤 `confirm`이 동일 `amount` 일치를 강제한 뒤 도메인 저장(주문/예약/이용권)을 수행한다.
 회원 장바구니도 같은 prepare/confirm 경로를 사용한다.
 
 회원/비회원 구분은 요청 본문이 아니라 인증 컨텍스트(`HG_SESSION` 쿠키 유무)로 결정한다.
 회원 경로는 현재 회원의 `phone`이 존재하고 `phoneVerified=true`여야 하며, 미등록 상태에서는 `422 PHONE_VERIFICATION_REQUIRED`를 반환한다.
-8회권 사용 예약과 쿠폰·적립금 전액 결제처럼 amount가 0이면 프론트가 현재 고객 세션에 확정 요청을 저장하고 공통 `/payments/success` 화면에서 PG 없이 `confirm`한다. 응답 유실 시 기존 `orderId`로 상태를 조회·재확인하고 미확인 0원 요청이 있으면 새 prepare를 만들지 않는다. 저장소에 기록하지 못하면 승인 전에 기존 결제 종료 API를 호출한다. 서버 요청·응답 계약은 유료 결제와 같다.
+이용권 사용 예약과 쿠폰·적립금 전액 결제처럼 amount가 0이면 프론트가 현재 고객 세션에 확정 요청을 저장하고 공통 `/payments/success` 화면에서 PG 없이 `confirm`한다. 응답 유실 시 기존 `orderId`로 상태를 조회·재확인하고 미확인 0원 요청이 있으면 새 prepare를 만들지 않는다. 저장소에 기록하지 못하면 승인 전에 기존 결제 종료 API를 호출한다. 서버 요청·응답 계약은 유료 결제와 같다.
 
 #### 2.15.1 결제 준비 (prepare)
 
@@ -3600,10 +3603,10 @@ Content-Type: application/json
 - 정책:
   - `payload.type`은 `ORDER` / `BOOKING` / `PASS` 중 하나로, 상위 `context`와 일치해야 한다.
   - 금액은 서버가 산출한다. 클라이언트가 `amount`를 보내도 무시되며, `payment_attempt.amount`는 서버 계산값이다.
-  - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 8회권 예약 또는 픽업 상품 금액을 적립금으로 모두 지불한 주문처럼 외부 PG 호출이 없는 내부 승인에 사용한다.
+  - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 이용권 예약 또는 픽업 상품 금액을 적립금으로 모두 지불한 주문처럼 외부 PG 호출이 없는 내부 승인에 사용한다.
     - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일한 `productId + productVariantId + 직접입력값`의 수량을 먼저 합쳐 SKU별 1~99개 제한을 적용한다. 서버가 상품과 옵션을 일괄 조회해 `기본가 + 조합 추가금 + 직접입력 추가금`에 수량을 곱하고, 같은 variant 재고 요구량을 다시 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
-    - `BOOKING`: `passId`가 있으면 0 (8회권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
-    - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=240000`)
+    - `BOOKING`: `passId`가 있으면 0 (이용권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
+    - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=120000`)
   - 서버는 prepare 시점의 `ORDER` 상품명·기본가·옵션 추가금·항목 단가·variant ID·선택 옵션·직접입력 문구·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비·쿠폰 할인·적립금 사용·품목별 배분, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
@@ -3615,14 +3618,14 @@ Content-Type: application/json
   - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 전체 구매 요청에서는 버전을 생략할 수 있지만, `selectedCartItemIds`를 지정한 선택 구매에는 버전이 필수다. 현재 웹 클라이언트는 선택한 행 ID와 버전을 항상 전송한다.
   - `issuedCouponId`와 `rewardAmount`는 회원 `ORDER`에서만 사용할 수 있다. 쿠폰은 공개 발급으로 회원이 보유한 미사용 쿠폰 1장만 허용하고, 상품 합계가 최소 주문 금액 이상일 때 배송비를 제외한 상품 금액에서 할인한다. 적립금은 쿠폰 적용 뒤 상품 금액까지만 1P=1원으로 사용할 수 있어 배송비에는 적용되지 않는다.
   - prepare는 결제 시도와 같은 트랜잭션에서 발급 쿠폰 행을 배타 잠그고 쿠폰 정의 행을 공유 잠금 조회한 뒤 쿠폰과 적립금을 30분 동안 예약한다. 관리자 비활성화가 먼저 커밋되면 과거 조회 스냅샷이 있더라도 결제 견적을 `422 CHANGE_NOT_ALLOWED`로 거절하고, 서로 다른 회원의 같은 정의 결제 견적은 병렬로 처리한다. confirm 성공 시 쿠폰을 사용 완료하고 적립금을 차감하며, prepare 만료·PG 최종 거절·보상 환불 완료처럼 결제가 최종적으로 성립하지 않은 경우 예약을 멱등 해제한다. 결과가 불명확한 재시도·대사 상태에서는 중복 사용을 막기 위해 예약을 유지한다.
-  - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 8회권은 회원 전용).
+  - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 이용권은 회원 전용).
   - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
     `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
     OpenAPI 요청 schema에는 노출하지 않는다.
   - OpenAPI의 `PreparePaymentRequest.payload`는 `OrderPayload`, `BookingPayload`, `PassPayload`를 구분하는 `oneOf`다. 공통 `PaymentPayload`는 `type` discriminator mapping만 가지며 subtype `allOf`와 순환하지 않는다.
   - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`가 필수이며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
-  - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 8회권 사용 예약에서 사용한다.
+  - `BookingPayload`의 필수 필드는 `type`, `slotId`, `participantCount`다. `paymentMethod`는 일반 결제에서 사용하고 `passId`는 이용권 사용 예약에서 사용한다.
   - `PassPayload`의 필수 필드는 `type`, `userId`다.
   - `userId`, 비회원 인증 정보, `shippingAddress`, 주문제작 동의 버전, 정책 동의, `expectedCartVersion`, `selectedCartItemIds`, `issuedCouponId`, `rewardAmount`는 인증 주체와 결제 종류에 따라 조건부로 사용하므로 schema에서는 nullable 또는 optional로 유지하고 위 정책으로 검증한다.
   - prepare 응답의 `orderId`는 Toss 결제창에 그대로 전달한다.
@@ -3645,9 +3648,9 @@ Content-Type: application/json
   "madeToOrderConsentVersion": "2026-07-21-v1",
   "madeToOrderConsent": true,
   "policyAcceptance": {
-    "termsVersion": "2026-08-08-v1",
+    "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-11-v2",
+    "privacyVersion": "2026-09-11-v1",
     "privacyAccepted": true
   },
   "fulfillmentType": "SHIPPING",
@@ -3684,14 +3687,14 @@ Content-Type: application/json
   "paymentMethod": "CARD",     // CARD | EASY_PAY (BANK_TRANSFER 거절)
   "participantCount": 3,
   "policyAcceptance": {
-    "termsVersion": "2026-08-08-v1",
+    "termsVersion": "2026-09-11-v1",
     "termsAccepted": true,
-    "privacyVersion": "2026-08-11-v2",
+    "privacyVersion": "2026-09-11-v1",
     "privacyAccepted": true
   }
 }
 
-// BOOKING (8회권 사용 예약 — 회원 전용, amount=0)
+// BOOKING (이용권 사용 예약 — 회원 전용, amount=0)
 {
   "type": "BOOKING",
   "userId": 7,
@@ -3700,17 +3703,17 @@ Content-Type: application/json
   "participantCount": 1
 }
 
-// PASS (8회권 구매 — 회원 전용)
+// PASS (이용권 구매 — 회원 전용)
 {
   "type": "PASS",
   "userId": 7
 }
 ```
 
-- 8회권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 이용 횟수 1회를 차감한다.
-- 일반 예약의 `participantCount`는 1명부터 선택한 슬롯의 남은 정원까지이며 슬롯 점유와 예약금·잔금에 함께 반영한다. 8회권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 양방향 수업·정리 구간의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
-- 신규 8회권 구매는 `REGULAR_CRAFT_8` 계획으로 확정한다. 8회권 예약 prepare는 현재 회원 소유권·만료·잔여 횟수를 확인하고, 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족할 때만 0원 결제 시도를 만든다. confirm에서는 이용권 행을 잠근 뒤 같은 조건을 다시 확인하고 이용 횟수를 차감한다.
-- 운영자가 8회 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
+- 이용권 사용 예약은 회원이 예약 가능 슬롯을 직접 선택해 한 회차씩 생성하며, 성공할 때마다 이용 횟수 1회를 차감한다.
+- 일반 예약의 `participantCount`는 1명부터 선택한 슬롯의 남은 정원까지이며 슬롯 점유와 예약금·잔금에 함께 반영한다. 이용권 예약은 1만 허용한다. prepare는 결제 시도를 만들기 전에 슬롯·클래스 활성 상태, 시작 시각, 현재 정원과 양방향 수업·정리 구간의 예약 충돌을 확인하고, confirm 시에는 같은 범위를 잠근 뒤 최신 상태를 다시 확인한다.
+- 신규 4회권 구매는 `REGULAR_CRAFT_4` 계획으로 확정한다. 이용권 예약 prepare는 현재 회원 소유권·만료·잔여 횟수를 확인하고, 클래스의 `passEligible=true`와 비향수 카테고리를 모두 충족할 때만 0원 결제 시도를 만든다. confirm에서는 이용권 행을 잠근 뒤 같은 조건을 다시 확인하고 이용 횟수를 차감한다.
+- 운영자가 전체 일정을 일괄 배정하는 별도 API는 제공하지 않는다.
 
 #### 2.15.2 결제 확정 (confirm)
 
@@ -3752,7 +3755,7 @@ Content-Type: application/json
   - `503 PAYMENT_CONFIRM_RETRYABLE` — 타임아웃·서킷 오픈·호출 대기열 포화처럼 같은 결제 정보로 재확인이 가능한 일시 실패
   - `410 PAYMENT_ATTEMPT_EXPIRED` — prepare 후 30분 동안 confirm을 시작하지 않아 만료됨
 - 정책:
-  - `paymentKey`는 amount > 0 결제만 필수다. 8회권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
+  - `paymentKey`는 amount > 0 결제만 필수다. 이용권 사용 예약처럼 `payment_attempt.amount=0`인 경우 `paymentKey`는 비워서 보내고 PG 호출은 생략된다.
   - `orderId`, `amount`는 모든 confirm 요청에서 필수다. 0원 결제도 `amount=0`을 명시한다.
   - 서버는 `payment_attempt.amount`와 요청 `amount`가 일치하지 않으면 `400 INVALID_INPUT`으로 거절한다.
   - 서버는 `PENDING/RETRYABLE -> PROCESSING`을 새 processing token과 함께 짧은 트랜잭션으로 선점한 뒤 DB 트랜잭션 밖에서 PG `confirm`을 호출한다. stale 재선점 뒤 이전 token의 실패 결과는 상태에 반영하지 않지만, 늦게 도착한 PG 성공은 같은 요청임을 재검증한 뒤 `APPROVED`로 변경한다.
@@ -3857,14 +3860,14 @@ Content-Type: application/json
 - `payments[].status`는 고객 결제 상태 조회와 같은 enum을 사용한다. 실패 원인, PG 식별자와 환불 내부 ID는 반환하지 않는다.
 - IP·휴대폰별 복구 처리율 제한을 적용하고 성공 응답은 `Cache-Control: no-store`로 반환한다.
 
-#### 2.15.5 8회권 결제 정책 조회
+#### 2.15.5 이용권 결제 정책 조회
 
 ```http
 GET /api/v1/payments/pass-policy
 ```
 
 ```json
-{ "totalPrice": 240000, "totalCredits": 8, "validityDays": 90 }
+{ "totalPrice": 120000, "totalCredits": 4, "validityDays": 90 }
 ```
 
 - 프론트는 결제 전에 서버 설정 가격, 이용 횟수와 기간을 표시한다.
@@ -4086,7 +4089,7 @@ file={JPEG|PNG|WebP binary}
 #### 2.20.3 회원 쿠폰
 
 - `GET /api/v1/me/coupons/claimable` — 현재 공개 발급 가능하고 이 회원이 아직 발급받지 않은 쿠폰 정의를 최신순 최대 100개 조회
-- `GET /api/v1/me/coupons` — 회원에게 발급된 쿠폰 최근 100개
+- `GET /api/v1/me/coupons` — 최근 발급 100개와 사용 가능(`AVAILABLE`)·결제 처리 중(`RESERVED`)인 모든 쿠폰을 중복 없이 조회한다. 발급 시각·ID 역순이며 응답은 100개를 넘을 수 있다. 조회 중 만료·사용 중지가 반영된 쿠폰은 최근 100개에 속할 때만 남긴다.
 - `POST /api/v1/me/coupons` + `{ "definitionId": 10 }` — 공개 쿠폰 1장 발급
 
 ```json
@@ -4210,8 +4213,8 @@ file={JPEG|PNG|WebP binary}
 | 422 | `REFUND_NOT_ALLOWED` | 예약금 환불 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
-| 422 | `PASS_EXPIRED` | 만료된 8회권으로 예약 또는 전체 환불 시도 |
-| 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 이용 횟수 0인 8회권으로 예약 시도 |
+| 422 | `PASS_EXPIRED` | 만료된 이용권으로 예약 또는 전체 환불 시도 |
+| 422 | `PASS_CREDIT_INSUFFICIENT` | 잔여 이용 횟수 0인 이용권으로 예약 시도 |
 | 422 | `PASS_NOT_APPLICABLE` | 이용권 계획이 선택 클래스 카테고리 또는 `passEligible` 조건을 충족하지 않음 |
 | 422 | `REWARD_BALANCE_INSUFFICIENT` | 주문에 요청한 적립금이 현재 사용 가능 잔액보다 큼 |
 | 422 | `CLASS_INACTIVE` | 비활성 클래스로 회차 조회 또는 예약·결제 시도 |
@@ -4219,7 +4222,7 @@ file={JPEG|PNG|WebP binary}
 | 422 | `PHONE_VERIFICATION_REQUIRED` | 회원 휴대폰이 없거나 소유 확인이 완료되지 않아 결제를 시작할 수 없음 |
 | 422 | `PASSWORD_UNCHANGED` | 현재와 같은 비밀번호로 변경·재설정 시도 |
 | 422 | `POLICY_CONSENT_REQUIRED` | 현재 이용약관·개인정보처리방침 버전 동의가 없거나 일치하지 않음 |
-| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불, 사용 가능한 8회권, 예약 적립금 또는 적립금 부채가 있어 탈퇴할 수 없음 |
+| 422 | `ACCOUNT_WITHDRAWAL_BLOCKED` | 미종결 결제 시도·주문·클레임·예약·예약 취소 후속 작업·환불, 사용 가능한 이용권, 예약 적립금 또는 적립금 부채가 있어 탈퇴할 수 없음 |
 | 422 | `REVIEW_NOT_ALLOWED` | 배송·픽업 또는 수강이 완료되지 않은 거래로 후기 작성 시도 |
 | 422 | `REVIEW_DELETED` | 삭제된 후기 변경 시도 |
 | 422 | `REVIEW_INTERACTION_NOT_ALLOWED` | 숨김·삭제 후기에 도움돼요 또는 신고 시도 |

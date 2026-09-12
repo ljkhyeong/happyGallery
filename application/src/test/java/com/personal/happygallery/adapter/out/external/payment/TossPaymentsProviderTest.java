@@ -10,6 +10,8 @@ import com.personal.happygallery.application.payment.port.out.RefundResult;
 import java.time.Duration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -62,6 +64,8 @@ class TossPaymentsProviderTest {
                         {
                           "paymentKey": "payment-key",
                           "orderId": "order-id",
+                          "status": "DONE",
+                          "totalAmount": 10000,
                           "method": "카드",
                           "approvedAt": "2026-04-23T10:00:00+09:00",
                           "receipt": {
@@ -125,6 +129,8 @@ class TossPaymentsProviderTest {
                         {
                           "paymentKey": "different-payment-key",
                           "orderId": "different-order-id",
+                          "status": "DONE",
+                          "totalAmount": 10000,
                           "method": "카드",
                           "approvedAt": "2026-04-23T10:00:00+09:00"
                         }
@@ -139,6 +145,43 @@ class TossPaymentsProviderTest {
             softly.assertThat(result.retryable()).isFalse();
             softly.assertThat(result.reconciliationRequired()).isTrue();
             softly.assertThat(result.failReason()).contains("식별자");
+        });
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            WAITING_FOR_DEPOSIT, 10000
+            CANCELED, 10000
+            PARTIAL_CANCELED, 10000
+            , 10000
+            DONE, 9000
+            DONE, 11000
+            DONE,
+            """)
+    @DisplayName("Toss 승인 응답이 결제 완료가 아니거나 금액이 다르면 재확인 대상으로 처리한다")
+    void confirm_unsettledOrMismatchedPayment_returnsReconciliationRequired(String status, Long totalAmount) {
+        RestClient.Builder builder = tossRestClientBuilder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        TossPaymentsProvider provider = new TossPaymentsProvider(builder.build());
+        server.expect(requestTo("https://api.tosspayments.com/v1/payments/confirm"))
+                .andRespond(withSuccess("""
+                        {
+                          "paymentKey": "payment-key",
+                          "orderId": "order-id",
+                          "status": %s,
+                          "totalAmount": %s
+                        }
+                        """.formatted(status == null ? "null" : "\"" + status + "\"", totalAmount),
+                        MediaType.APPLICATION_JSON));
+
+        PaymentConfirmResult result = provider.confirm(
+                "payment-key", "order-id", 10_000L, "confirm-idempotency-key");
+
+        server.verify();
+        assertSoftly(softly -> {
+            softly.assertThat(result.success()).isFalse();
+            softly.assertThat(result.retryable()).isFalse();
+            softly.assertThat(result.reconciliationRequired()).isTrue();
         });
     }
 

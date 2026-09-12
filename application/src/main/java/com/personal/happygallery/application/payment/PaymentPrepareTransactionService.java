@@ -132,7 +132,7 @@ class PaymentPrepareTransactionService {
             case ORDER -> PolicyConsentPurpose.GUEST_ORDER_PAYMENT;
             case BOOKING -> PolicyConsentPurpose.GUEST_BOOKING_PAYMENT;
             case PASS -> throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "비회원은 8회권을 구매할 수 없습니다.");
+                    ErrorCode.INVALID_INPUT, "비회원은 이용권을 구매할 수 없습니다.");
         };
     }
 }

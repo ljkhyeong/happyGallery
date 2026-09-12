@@ -32,13 +32,13 @@ function resolvePolicyNotice(
     return {
       variant: "warning",
       message:
-        "취소 마감이 지나 사용한 8회권 1회는 돌려드리지 않습니다.",
+        "취소 마감이 지나 사용한 이용권 1회는 돌려드리지 않습니다.",
     } as const;
   }
   if (cancelPolicy.passCreditRestorable) {
     return {
       variant: "info",
-      message: "사용한 8회권 1회를 돌려드립니다.",
+      message: "사용한 이용권 1회를 돌려드립니다.",
     } as const;
   }
   if (cancelPolicy.manualCompensationRequired) {
@@ -127,10 +127,10 @@ export function CancelButton({
     let variant: "success" | "warning" | "info";
 
     if (passBooking && !res.refundable) {
-      message = "예약이 취소되었습니다. 사용한 8회권 1회는 돌려드리지 않습니다.";
+      message = "예약이 취소되었습니다. 사용한 이용권 1회는 돌려드리지 않습니다.";
       variant = "warning";
     } else if (passBooking) {
-      message = "예약이 취소되었습니다. 사용한 8회권 1회를 돌려드렸습니다.";
+      message = "예약이 취소되었습니다. 사용한 이용권 1회를 돌려드렸습니다.";
       variant = "success";
     } else if (res.manualCompensationRequired) {
       message = "예약이 취소되었습니다. 공방에서 예약금 환불을 확인한 뒤 안내해 드립니다.";

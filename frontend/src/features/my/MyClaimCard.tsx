@@ -22,7 +22,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
             </div>
             <div className="d-flex flex-wrap gap-2">
               <Button size="sm" variant="dark" onClick={() => onOpenClaim("claim_entry_hint")}>
-                지금 확인
+                가져올 내역 확인
               </Button>
               <Button size="sm" variant="outline-secondary" onClick={onDismissHint}>
                 닫기
@@ -38,7 +38,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
                 ? "휴대폰 번호를 등록하면 같은 번호로 남긴 비회원 주문과 예약을 가져올 수 있습니다."
                 : user.phoneVerified
                 ? "같은 휴대폰 번호로 남긴 비회원 주문과 예약을 이 계정으로 가져올 수 있습니다."
-                : "먼저 같은 번호인지 한 번 더 확인한 뒤 비회원 주문과 예약을 가져올 수 있습니다."}
+                : "휴대폰 번호를 다시 인증하면 비회원 주문·예약을 가져올 수 있습니다."}
             </p>
           </div>
           <Button
@@ -50,7 +50,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
               ? "휴대폰 등록"
               : user.phoneVerified
                 ? "주문·예약 가져오기"
-                : "휴대폰 확인 후 가져오기"}
+                : "휴대폰 인증 후 가져오기"}
           </Button>
         </div>
       </Card.Body>

@@ -28,7 +28,7 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
     @Query("SELECT p FROM PassPurchase p WHERE p.id = :id")
     Optional<PassPurchase> findByIdForUpdate(@Param("id") Long id);
 
-    /** 회원 — 자기 8회권 조회 (구매일 내림차순) */
+    /** 회원 — 자기 이용권 조회 (구매일 내림차순) */
     List<PassPurchase> findByUserIdOrderByPurchasedAtDescIdDesc(
             Long userId, Pageable pageable);
 

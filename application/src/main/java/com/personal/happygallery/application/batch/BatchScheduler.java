@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchU
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingRefreshUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
@@ -27,8 +28,8 @@ import org.springframework.stereotype.Component;
  *
  * <ul>
  *   <li>매시간 정각: 주문 승인 SLA 초과 자동환불, 픽업 만료 처리, 픽업 마감 2시간 전 알림</li>
- *   <li>매일 00:00: 8회권 크레딧 소멸</li>
- *   <li>매시간: 예약 D-1·당일 및 8회권 만료 7일 전 알림 catch-up</li>
+ *   <li>매일 00:00: 이용권 크레딧 소멸</li>
+ *   <li>매시간: 예약 D-1·당일 및 이용권 만료 7일 전 알림 catch-up</li>
  *   <li>매분 5초: 시작하지 않은 결제 준비 만료</li>
  *   <li>매분 15초: 실행되지 않았거나 결과 확인이 필요한 환불 복구</li>
  *   <li>매분 25초: 외부 배송조회 서비스 운송장 등록</li>
@@ -54,6 +55,7 @@ public class BatchScheduler {
     private final PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase;
     private final PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase;
     private final ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
+    private final ShipmentTrackingRefreshUseCase shipmentTrackingRefreshUseCase;
     private final PaymentWebhookBatchUseCase paymentWebhookBatchUseCase;
     private final PublicHolidaySyncUseCase publicHolidaySyncUseCase;
     private final SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase;
@@ -71,6 +73,7 @@ public class BatchScheduler {
                           PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase,
                           PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase,
                           ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase,
+                          ShipmentTrackingRefreshUseCase shipmentTrackingRefreshUseCase,
                           PaymentWebhookBatchUseCase paymentWebhookBatchUseCase,
                           PublicHolidaySyncUseCase publicHolidaySyncUseCase,
                           SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase,
@@ -87,6 +90,7 @@ public class BatchScheduler {
         this.paymentAttemptExpiryBatchUseCase = paymentAttemptExpiryBatchUseCase;
         this.personalDataRetentionBatchUseCase = personalDataRetentionBatchUseCase;
         this.shipmentTrackingRegistrationUseCase = shipmentTrackingRegistrationUseCase;
+        this.shipmentTrackingRefreshUseCase = shipmentTrackingRefreshUseCase;
         this.paymentWebhookBatchUseCase = paymentWebhookBatchUseCase;
         this.publicHolidaySyncUseCase = publicHolidaySyncUseCase;
         this.smartStoreStockSyncBatchUseCase = smartStoreStockSyncBatchUseCase;
@@ -109,15 +113,15 @@ public class BatchScheduler {
         return pickupExpireBatchUseCase.expirePickups();
     }
 
-    /** 만료된 8회권 크레딧 소멸. 매일 00:00 실행. */
-    @BatchJob(id = "pass_expiry", value = "8회권 크레딧 소멸")
+    /** 만료된 이용권 크레딧 소멸. 매일 00:00 실행. */
+    @BatchJob(id = "pass_expiry", value = "이용권 크레딧 소멸")
     @Scheduled(cron = "0 0 0 * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiry() {
         return passExpiryBatchUseCase.expireAll();
     }
 
-    /** 8회권 만료 7일 전 알림. 중단 뒤 보충할 수 있도록 매시간 15분 실행. */
-    @BatchJob(id = "pass_expiry_notification", value = "8회권 만료 7일 전 알림")
+    /** 이용권 만료 7일 전 알림. 중단 뒤 보충할 수 있도록 매시간 15분 실행. */
+    @BatchJob(id = "pass_expiry_notification", value = "이용권 만료 7일 전 알림")
     @Scheduled(cron = "0 15 * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runPassExpiryNotification() {
         return passExpiryBatchUseCase.sendExpiryNotifications();
@@ -170,6 +174,13 @@ public class BatchScheduler {
     @Scheduled(cron = "25 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runShipmentTrackingRegistration() {
         return shipmentTrackingRegistrationUseCase.registerPendingShipments();
+    }
+
+    /** 우체국 배송 상태를 30분마다 최대 100건 갱신한다. */
+    @BatchJob(id = "shipment_tracking_refresh", value = "우체국 배송조회")
+    @Scheduled(cron = "0 0,30 * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runShipmentTrackingRefresh() {
+        return shipmentTrackingRefreshUseCase.refreshShipments();
     }
 
     /** 스마트스토어 변경 주문을 가져와 내부 재고에 반영한다. 매분 50초에 실행. */

@@ -64,7 +64,7 @@ export async function redirectToSocialStepUp(
           break;
       }
       if (!writeSessionValues(entries)) {
-        throw new Error("브라우저 세션 저장소를 사용할 수 없습니다.");
+        throw new Error("인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.");
       }
       window.location.assign(authorizationUrl);
     },

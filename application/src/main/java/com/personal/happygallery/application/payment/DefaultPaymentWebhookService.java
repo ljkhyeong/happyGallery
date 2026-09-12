@@ -7,6 +7,8 @@ import com.personal.happygallery.application.payment.port.in.PaymentWebhookBatch
 import com.personal.happygallery.application.payment.port.in.PaymentWebhookUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.payment.port.out.PaymentWebhookReceiptPort;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import org.springframework.stereotype.Service;
@@ -68,7 +70,10 @@ public class DefaultPaymentWebhookService
     private boolean processOne(Long receiptId, LocalDateTime staleBefore) {
         return receiptTransactionService.claim(receiptId, staleBefore)
                 .map(attemptId -> {
-                    reconciliationUseCase.reconcile(attemptId);
+                    if (reconciliationUseCase.reconcile(attemptId).retryable()) {
+                        throw new HappyGalleryException(
+                                ErrorCode.SERVICE_UNAVAILABLE, "PG 조회에 실패해 결제 웹훅 재처리가 필요합니다.");
+                    }
                     receiptTransactionService.complete(receiptId);
                     return true;
                 })

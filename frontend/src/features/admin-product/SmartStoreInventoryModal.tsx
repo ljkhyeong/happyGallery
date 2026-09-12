@@ -29,7 +29,7 @@ interface Props {
 const STATUS_LABEL = {
   PENDING: "반영 대기",
   PROCESSING: "반영 중",
-  SYNCED: "동기화 완료",
+  SYNCED: "반영 완료",
   FAILED: "확인 필요",
 } as const;
 
@@ -37,8 +37,8 @@ const HISTORY_ACTION_LABEL = {
   CREATED: "연동 등록",
   UPDATED: "옵션 연결 수정",
   ORIGIN_CHANGED: "원상품 변경",
-  ENABLED: "자동 반영 활성화",
-  DISABLED: "자동 반영 비활성화",
+  ENABLED: "자동 반영 시작",
+  DISABLED: "자동 반영 중지",
   DELETED: "연동 해제",
 } as const;
 
@@ -161,8 +161,8 @@ export function SmartStoreInventoryModal({
         mapping,
       );
       toast.show(enabled
-        ? "스마트스토어 재고 연동을 저장하고 최신 재고 반영을 예약했습니다."
-        : "스마트스토어 재고 연동을 비활성화했습니다.");
+        ? "연동 설정을 저장하고 스마트스토어에 최신 재고 반영을 요청했습니다."
+        : "스마트스토어 재고 자동 반영을 중지했습니다.");
       await queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "smartstore-product-preview"],
       });
@@ -180,7 +180,7 @@ export function SmartStoreInventoryModal({
         ["admin", "products", product?.id, "smartstore-inventory"],
         mapping,
       );
-      toast.show("스마트스토어 재고를 다시 반영하도록 예약했습니다.");
+      toast.show("스마트스토어 재고 반영을 다시 요청했습니다.");
     },
   });
 
@@ -252,7 +252,7 @@ export function SmartStoreInventoryModal({
               <span>
                 현재 상태:{" "}
                 <Badge bg={mapping.syncStatus === "SYNCED" ? "success" : mapping.syncStatus === "FAILED" ? "danger" : "secondary"}>
-                  {mapping.syncStatus ? STATUS_LABEL[mapping.syncStatus] : "동기화 전"}
+                  {mapping.syncStatus ? STATUS_LABEL[mapping.syncStatus] : "반영 전"}
                 </Badge>
               </span>
               {mapping.syncStatus === "FAILED" && (

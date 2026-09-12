@@ -47,7 +47,7 @@ class DefaultCustomerAccountLifecycleServiceTest {
 
         assertThat(error.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED);
         assertThat(error.getMessage().lines().toList()).containsExactly(
-                "사용 가능한 8회권이 있습니다.", "처리 중인 환불이 있습니다.");
+                "사용 가능한 이용권이 있습니다.", "처리 중인 환불이 있습니다.");
         verifyNoInteractions(store, events);
     }
 }

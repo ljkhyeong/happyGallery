@@ -24,12 +24,12 @@ export function MyStatsRow({
       <Col md={4}>
         <Card className="my-stat-card h-100 border-0">
           <Card.Body>
-            <div className="my-section-kicker mb-2">Orders</div>
+            <div className="my-section-kicker mb-2">주문</div>
             <div className="my-stat-value">{orderCount}</div>
             <div className="text-muted-soft small">
               {latestOrder
-                ? `최근 조회한 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
-                : `최근 조회한 주문 ${orderCount}건`}
+                ? `조회된 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
+                : `조회된 주문 ${orderCount}건`}
             </div>
           </Card.Body>
         </Card>
@@ -37,12 +37,12 @@ export function MyStatsRow({
       <Col md={4}>
         <Card className="my-stat-card h-100 border-0">
           <Card.Body>
-            <div className="my-section-kicker mb-2">Bookings</div>
+            <div className="my-section-kicker mb-2">예약</div>
             <div className="my-stat-value">{bookingCount}</div>
             <div className="text-muted-soft small">
               {nextBooking
-                ? `최근 조회한 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
-                : `최근 조회한 예약 ${bookingCount}건 · 예정된 예약 없음`}
+                ? `조회된 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
+                : `조회된 예약 ${bookingCount}건 · 예정된 예약 없음`}
             </div>
           </Card.Body>
         </Card>
@@ -50,12 +50,12 @@ export function MyStatsRow({
       <Col md={4}>
         <Card className="my-stat-card h-100 border-0">
           <Card.Body>
-            <div className="my-section-kicker mb-2">Passes</div>
+            <div className="my-section-kicker mb-2">이용권 잔여 횟수</div>
             <div className="my-stat-value">{remainingCredits}</div>
             <div className="text-muted-soft small">
               {activePassCount > 0
-                ? `사용 가능한 8회권 ${activePassCount}건의 남은 횟수`
-                : "사용 가능한 8회권이 없습니다."}
+                ? `사용 가능한 이용권 ${activePassCount}건의 남은 횟수`
+                : "사용 가능한 이용권이 없습니다."}
             </div>
           </Card.Body>
         </Card>

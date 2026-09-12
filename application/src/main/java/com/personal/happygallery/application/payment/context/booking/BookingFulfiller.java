@@ -52,7 +52,7 @@ public class BookingFulfiller implements PaymentFulfiller {
             if (bp.userId() == null || attempt.getAmount() != 0L
                     || bp.depositAmount() != 0L || bp.balanceAmount() != 0L
                     || participantCount != 1) {
-                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "8회권 예약 금액 정보가 올바르지 않습니다.");
+                throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이용권 예약 금액 정보가 올바르지 않습니다.");
             }
             return;
         }

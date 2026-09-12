@@ -13,18 +13,24 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 @Service
 public class DefaultCouponMemberService implements CouponMemberUseCase {
 
     private static final int MAX_CLAIMABLE_COUPONS = 100;
+    private static final int RECENT_COUPON_LIMIT = 100;
+    private static final Set<IssuedCouponStatus> ACTIVE_COUPON_STATUSES = Set.of(
+            IssuedCouponStatus.AVAILABLE, IssuedCouponStatus.RESERVED);
 
     private final CouponDefinitionReaderPort definitionReader;
     private final IssuedCouponReaderPort issuedCouponReader;
@@ -70,10 +76,17 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
     @Transactional
     public List<IssuedCouponView> listMyCoupons(Long userId) {
         requireUserId(userId);
-        List<IssuedCoupon> issuedCoupons =
+        List<IssuedCoupon> recentCoupons =
                 issuedCouponReader.findTop100ByUserIdOrderByClaimedAtDescIdDesc(userId);
-        if (issuedCoupons.isEmpty()) {
+        if (recentCoupons.isEmpty()) {
             return List.of();
+        }
+        Set<Long> recentIds = recentCoupons.stream().map(IssuedCoupon::getId).collect(toSet());
+        List<IssuedCoupon> issuedCoupons = new ArrayList<>(recentCoupons);
+        if (recentCoupons.size() == RECENT_COUPON_LIMIT) {
+            issuedCouponReader.findByUserIdAndStatusIn(userId, ACTIVE_COUPON_STATUSES).stream()
+                    .filter(coupon -> !recentIds.contains(coupon.getId()))
+                    .forEach(issuedCoupons::add);
         }
         List<Long> definitionIds = issuedCoupons.stream()
                 .map(IssuedCoupon::getDefinitionId)
@@ -99,6 +112,10 @@ public class DefaultCouponMemberService implements CouponMemberUseCase {
             issuedCouponStore.saveAll(changed);
         }
         return issuedCoupons.stream()
+                .filter(issued -> recentIds.contains(issued.getId())
+                        || ACTIVE_COUPON_STATUSES.contains(issued.getStatus()))
+                .sorted(Comparator.comparing(IssuedCoupon::getClaimedAt)
+                        .thenComparing(IssuedCoupon::getId).reversed())
                 .map(issued -> new IssuedCouponView(
                         issued,
                         requireDefinition(definitions, issued)))

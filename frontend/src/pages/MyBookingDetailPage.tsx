@@ -72,14 +72,17 @@ export function MyBookingDetailPage() {
           <Link to={{ pathname: "/my/bookings", search }} className="text-decoration-none small">
             &larr; 내 예약
           </Link>
-          <LinkButton to="/bookings/new" variant="outline-secondary" size="sm">
-            새 예약 만들기
+          <LinkButton
+            to={booking ? `/bookings/new?classId=${booking.classId}` : "/bookings/new"}
+            variant="outline-secondary" size="sm"
+          >
+            {booking ? "같은 수업 예약" : "새 예약 만들기"}
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Booking</div>
+        <div className="my-section-kicker mb-2">내 정보</div>
         <h4 className="mb-2">예약 상세</h4>
         <p className="text-muted-soft small mb-0">
-          예약 상태를 확인하고, 변경 가능한 경우 아래에서 바로 재예약 또는 취소할 수 있습니다.
+          예약 상태를 확인하고, 가능한 경우 날짜·시간을 변경하거나 취소할 수 있습니다.
         </p>
       </div>
 

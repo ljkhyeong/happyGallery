@@ -4,6 +4,15 @@ set -eu
 . "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/common.sh"
 
 [ "$#" -eq 1 ] || die "사용법: $0 <실패한 systemd unit>"
+unit=$1
+host=$(hostname)
+if [ -n "${BACKUP_ALERT_EMAIL_CONFIG:-}" ]; then
+    [ -z "${BACKUP_ALERT_WEBHOOK_URL:-}" ] || die "백업 이메일과 webhook 중 하나만 설정하세요."
+    require_command ruby
+    exec ruby "$SCRIPT_DIR/alert-delivery.rb" send \
+        "${BACKUP_ALERT_APP_ENV:-/etc/happygallery/app.env}" "$BACKUP_ALERT_EMAIL_CONFIG" \
+        'happyGallery 백업 운영 경보' "unit=$unit host=$host"
+fi
 : "${BACKUP_ALERT_WEBHOOK_URL:?BACKUP_ALERT_WEBHOOK_URL이 필요합니다.}"
 case "$BACKUP_ALERT_WEBHOOK_URL" in
     https://*) ;;
@@ -11,8 +20,6 @@ case "$BACKUP_ALERT_WEBHOOK_URL" in
 esac
 require_command curl
 
-unit=$1
-host=$(hostname)
 payload=$(printf '{"text":"happyGallery 백업 운영 경보: unit=%s host=%s"}' "$unit" "$host")
 curl --fail --silent --show-error \
     --connect-timeout 3 --max-time 10 \

@@ -62,8 +62,8 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
       } catch (error) {
         requireCurrentCustomerSession(snapshot);
         setUploadProgressMessage(uploadedCount > 0
-          ? `${uploadedCount}장은 등록됐고 ${selectedFiles.length - uploadedCount}장은 등록하지 못했습니다. 등록된 사진과 남은 선택을 확인한 뒤 다시 시도해 주세요.`
-          : "사진을 등록하지 못했습니다. 등록된 사진과 선택 목록을 확인한 뒤 다시 시도해 주세요.");
+          ? `사진 ${uploadedCount}장을 등록했고 ${selectedFiles.length - uploadedCount}장은 등록하지 못했습니다. 등록된 사진과 남은 사진을 확인하고 다시 등록해 주세요.`
+          : "사진을 등록하지 못했습니다. 등록된 사진과 선택한 사진을 확인하고 다시 등록해 주세요.");
         throw error;
       } finally {
         requireCurrentCustomerSession(snapshot);

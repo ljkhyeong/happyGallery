@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -30,7 +31,7 @@ public class DeliveryApiWebhookVerifier implements ShipmentTrackingWebhookVerifi
 
     @Override
     public boolean verify(String timestamp, String signature, byte[] body) {
-        if (!StringUtils.hasText(properties.webhookSecret())
+        if (!properties.enabled() || !StringUtils.hasText(properties.webhookSecret())
                 || timestamp == null
                 || signature == null
                 || body == null) {
@@ -66,6 +67,8 @@ public class DeliveryApiWebhookVerifier implements ShipmentTrackingWebhookVerifi
             } catch (DateTimeParseException invalidTimestamp) {
                 return null;
             }
+        } catch (DateTimeException invalidTimestamp) {
+            return null;
         }
     }
 }

@@ -375,9 +375,9 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                   "phone": "01012345678",
                                   "verificationCode": "123456",
                                   "policyAcceptance": {
-                                    "termsVersion": "2026-08-08-v1",
+                                    "termsVersion": "2026-09-11-v1",
                                     "termsAccepted": true,
-                                    "privacyVersion": "2026-08-11-v2",
+                                    "privacyVersion": "2026-09-11-v1",
                                     "privacyAccepted": true
                                   }
                                 }
@@ -471,7 +471,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("탈퇴 제한 응답에 실제 사유 목록을 반환한다")
     void withdraw_account_blocked() throws Exception {
-        String reasons = "사용 가능한 8회권이 있습니다.\n처리 중인 환불이 있습니다.";
+        String reasons = "사용 가능한 이용권이 있습니다.\n처리 중인 환불이 있습니다.";
         doThrow(new HappyGalleryException(ErrorCode.ACCOUNT_WITHDRAWAL_BLOCKED, reasons))
                 .when(accountLifecycleUseCase).withdraw(any());
         mockMvc.perform(delete("/api/v1/me")
@@ -723,6 +723,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.alertId").value(700))
                 .andExpect(jsonPath("$.slotId").value(42))
+                .andExpect(jsonPath("$.classId").value(1))
                 .andExpect(jsonPath("$.className").value("향수 원데이"))
                 .andExpect(jsonPath("$.startAt").value("2026-05-07T19:00:00"))
                 .andExpect(jsonPath("$.endAt").value("2026-05-07T21:00:00"))
@@ -733,16 +734,26 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("회원 빈자리 알림 목록 API를 문서화한다")
     void list_my_vacancy_alerts() throws Exception {
+        BookingVacancyAlert notified = mock(BookingVacancyAlert.class);
+        Slot notifiedSlot = RestDocsFixtures.slot();
+        when(notified.getId()).thenReturn(699L);
+        when(notified.getSlot()).thenReturn(notifiedSlot);
+        when(notified.getStatus()).thenReturn(VacancyAlertStatus.NOTIFIED);
+        BookingVacancyAlert waiting = vacancyAlertUseCase.listMember(CUSTOMER_USER_ID).getFirst();
+        when(vacancyAlertUseCase.listMember(CUSTOMER_USER_ID)).thenReturn(List.of(waiting, notified));
         mockMvc.perform(get("/api/v1/me/vacancy-alerts")
                         .with(customerUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].alertId").value(700))
                 .andExpect(jsonPath("$[0].slotId").value(42))
+                .andExpect(jsonPath("$[0].classId").value(1))
                 .andExpect(jsonPath("$[0].className").value("향수 원데이"))
                 .andExpect(jsonPath("$[0].startAt").value("2026-05-07T19:00:00"))
                 .andExpect(jsonPath("$[0].endAt").value("2026-05-07T21:00:00"))
                 .andExpect(jsonPath("$[0].status").value("WAITING"))
-                .andExpect(jsonPath("$[0].accessToken").isEmpty());
+                .andExpect(jsonPath("$[0].accessToken").isEmpty())
+                .andExpect(jsonPath("$[1].status").value("NOTIFIED"))
+                .andExpect(jsonPath("$[1].classId").value(1));
     }
 
     @Test
@@ -787,14 +798,14 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 8회권 목록 API를 문서화한다")
+    @DisplayName("내 이용권 목록 API를 문서화한다")
     void list_my_passes() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes").with(customerUser()))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("내 8회권 커서 페이지 API를 문서화한다")
+    @DisplayName("내 이용권 커서 페이지 API를 문서화한다")
     void list_my_passes_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes/page")
                         .with(customerUser())
@@ -809,14 +820,14 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 8회권 상세 API를 문서화한다")
+    @DisplayName("내 이용권 상세 API를 문서화한다")
     void get_my_pass() throws Exception {
         mockMvc.perform(get("/api/v1/me/passes/{id}", 300L).with(customerUser()))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("내 8회권 정산 환불 API를 문서화한다")
+    @DisplayName("내 이용권 정산 환불 API를 문서화한다")
     void refund_my_pass() throws Exception {
         mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 300L).with(customerUser()))
                 .andExpect(status().isOk())

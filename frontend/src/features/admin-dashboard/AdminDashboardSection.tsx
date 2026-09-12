@@ -196,7 +196,7 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
                   <tr><th scope="row">상품 주문</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.orderRevenue)}</td></tr>
                   <tr><th scope="row">예약금</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.bookingDepositRevenue)}</td></tr>
                   <tr><th scope="row">예약 잔금</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.bookingBalanceRevenue)}</td></tr>
-                  <tr><th scope="row">8회권</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.passPurchaseRevenue)}</td></tr>
+                  <tr><th scope="row">이용권</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.passPurchaseRevenue)}</td></tr>
                 </tbody>
                 <tfoot>
                   <tr><th scope="row">합계</th><td>{formatKRW(snapshotQuery.data.revenueBreakdown.totalRevenue)}</td></tr>

@@ -56,7 +56,7 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
         LocalDateTime now = LocalDateTime.now(clock);
         return queryPort.findById(passId, now)
                 .map(result -> toView(result, now))
-                .orElseThrow(NotFoundException.supplier("8회권"));
+                .orElseThrow(NotFoundException.supplier("이용권"));
     }
 
     private AdminPassView toView(AdminPassQueryResult result, LocalDateTime now) {

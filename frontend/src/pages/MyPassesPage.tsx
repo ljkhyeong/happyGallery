@@ -120,11 +120,11 @@ function MyPassesContent() {
           setRefundTarget(null);
           if (result.refundStatus) {
             toast.show(
-              `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 미래 예약 ${result.canceledBookings}건 취소`,
+              `환불 요청 접수: ${result.refundCredits}회분 ${formatKRW(result.refundAmount)}, 예정된 예약 ${result.canceledBookings}건 취소`,
               "info",
             );
           } else {
-            toast.show("돌려드릴 금액 없이 8회권 환불 처리가 완료되었습니다.");
+            toast.show("돌려드릴 금액 없이 이용권 환불 처리가 완료되었습니다.");
           }
         },
       ),
@@ -139,7 +139,7 @@ function MyPassesContent() {
       <Container className="page-container" style={{ maxWidth: 720 }}>
         <MyAuthGateCard
           title="로그인이 필요합니다"
-          description="회원 8회권 목록은 로그인 후 내 정보에서 바로 확인할 수 있습니다."
+          description="로그인하면 내 이용권을 확인할 수 있습니다."
         />
       </Container>
     );
@@ -153,13 +153,13 @@ function MyPassesContent() {
             &larr; 내 정보
           </Link>
           <LinkButton to="/passes/purchase" variant="outline-secondary" size="sm">
-            8회권 구매
+            4회권 구매
           </LinkButton>
         </div>
-        <div className="my-section-kicker mb-2">My Passes</div>
-        <h4 className="mb-2">전체 8회권</h4>
+        <div className="my-section-kicker mb-2">내 정보</div>
+        <h4 className="mb-2">전체 이용권</h4>
         <p className="text-muted-soft small mb-0">
-          8회권의 남은 횟수와 만료일을 확인하세요.
+          이용권의 남은 횟수와 만료일을 확인하세요.
         </p>
       </div>
 
@@ -170,14 +170,14 @@ function MyPassesContent() {
       />
       {passes.length > 0 && (
         <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">불러온 8회권 중 사용 가능 {activePassCount}건</span>
-          <span className="my-summary-chip">불러온 8회권 잔여 {remainingCredits}회</span>
-          <span className="my-summary-chip">불러온 8회권 중 7일 내 만료 {expiringSoonCount}건</span>
+          <span className="my-summary-chip">불러온 이용권 중 사용 가능 {activePassCount}건</span>
+          <span className="my-summary-chip">불러온 이용권 잔여 {remainingCredits}회</span>
+          <span className="my-summary-chip">불러온 이용권 중 7일 내 만료 {expiringSoonCount}건</span>
         </div>
       )}
       <MyListFilterBar
         idPrefix="my-passes"
-        searchLabel="8회권 번호 검색"
+        searchLabel="이용권 번호 검색"
         searchPlaceholder="예: 12"
         searchValue={searchQuery}
         onSearchChange={(value) => updateFilters({ q: value })}
@@ -202,7 +202,7 @@ function MyPassesContent() {
         onReset={resetFilters}
       />
       {isLoading && <LoadingSpinner />}
-      {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 8회권 내역이 없습니다." />}
+      {hasLoadedPasses && passes.length === 0 && <EmptyState message="검색 조건에 맞는 이용권 내역이 없습니다." />}
       {passes.length > 0 && passes.map((pass) => (
         <Card key={pass.passId} className="mb-2 my-list-card border-0">
           <Card.Body className="py-3 px-3">
@@ -227,7 +227,7 @@ function MyPassesContent() {
                       variant="outline-primary"
                       size="sm"
                     >
-                      이 8회권으로 예약
+                      이 이용권으로 예약
                     </LinkButton>
                   )}
                   {isPassRefundable(pass) && (
@@ -258,7 +258,7 @@ function MyPassesContent() {
             disabled={isFetchingNextPage}
             onClick={() => { void fetchNextPage(); }}
           >
-            {isFetchingNextPage ? "8회권 불러오는 중..." : "8회권 더 보기"}
+            {isFetchingNextPage ? "이용권 불러오는 중..." : "이용권 더 보기"}
           </Button>
         </div>
       )}
@@ -272,7 +272,7 @@ function MyPassesContent() {
         centered
       >
         <Modal.Header closeButton={!refundMutation.isPending}>
-          <Modal.Title id="my-pass-refund-title">8회권 환불 요청</Modal.Title>
+          <Modal.Title id="my-pass-refund-title">이용권 환불 요청</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <ErrorAlert error={refundMutation.error} />

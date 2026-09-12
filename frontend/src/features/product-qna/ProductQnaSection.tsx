@@ -13,7 +13,7 @@ interface Props {
 
 export function ProductQnaSection({ productId }: Props) {
   const { sessionVersion } = useCustomerAuth();
-  return <ProductQnaContent key={sessionVersion} productId={productId} />;
+  return <ProductQnaContent key={`${sessionVersion}:${productId}`} productId={productId} />;
 }
 
 function ProductQnaContent({ productId }: Props) {
@@ -92,8 +92,8 @@ function ProductQnaContent({ productId }: Props) {
   return (
     <Card className="mt-4">
       <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5 className="mb-0">Q&A</h5>
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+          <h5 className="mb-0">상품 문의</h5>
           {isAuthenticated && <QnaCreateForm productId={productId} />}
         </div>
 
@@ -106,7 +106,7 @@ function ProductQnaContent({ productId }: Props) {
         />
 
         {!isLoading && qnaData && qnaList.length === 0 && (
-          <EmptyState message="등록된 Q&A가 없습니다." />
+          <EmptyState message="등록된 상품 문의가 없습니다." />
         )}
 
         {isAuthenticated && (
@@ -118,7 +118,7 @@ function ProductQnaContent({ productId }: Props) {
         )}
 
         {qnaList.length > 0 && (
-          <p className="text-muted-soft small">불러온 Q&amp;A {qnaList.length}건</p>
+          <p className="text-muted-soft small">조회된 문의 {qnaList.length}건</p>
         )}
 
         {qnaList.map((item) => (
@@ -142,17 +142,17 @@ function ProductQnaContent({ productId }: Props) {
               onClick={() => { void loadNextPage(); }}
             >
               {loadingMore
-                ? "Q&A 불러오는 중..."
+                ? "문의 불러오는 중..."
                 : qnaHasNextPage
-                  ? "Q&A 더 보기"
-                  : "내가 쓴 Q&A 확인"}
+                  ? "문의 더 보기"
+                  : "내 문의 더 보기"}
             </Button>
           </div>
         )}
 
         {!isAuthenticated && (
           <p className="text-muted-soft small mt-2 mb-0">
-            Q&A 작성은 로그인 후 이용 가능합니다.
+            로그인 후 상품 문의를 작성할 수 있습니다.
           </p>
         )}
       </Card.Body>

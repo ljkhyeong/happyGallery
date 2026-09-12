@@ -31,10 +31,10 @@ public class PassFulfiller implements PaymentFulfiller {
     public void validateStoredPayload(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         if (!(payload instanceof PreparedPassPayload pp)) {
             throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "8회권 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
+                    ErrorCode.INVALID_INPUT, "이용권 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
         if (pp.userId() == null || pp.totalPrice() != attempt.getAmount() || pp.totalPrice() <= 0L) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 8회권 금액이 결제 금액과 일치하지 않습니다.");
+            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 이용권 금액이 결제 금액과 일치하지 않습니다.");
         }
     }
 
@@ -42,7 +42,7 @@ public class PassFulfiller implements PaymentFulfiller {
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedPassPayload pp = (PreparedPassPayload) payload;
-        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice());
+        PassPurchase purchase = passPurchaseUseCase.purchaseForMember(pp.userId(), pp.totalPrice(), pp.plan());
         purchase.recordPaymentKey(attempt.getConfirmedPaymentKey());
         return new FulfillResult(purchase.getId(), null);
     }

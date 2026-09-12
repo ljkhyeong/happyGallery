@@ -44,8 +44,10 @@ class ConfigurationDurationValidationTest {
     @Test
     void externalTimeout_preservesMillisecondMinimum() {
         var belowMinimum = new EmailVerificationProperties(
+                EmailVerificationProperties.Provider.SMTP,
                 null, "이메일 인증번호", Duration.ofNanos(999_999));
         var atMinimum = new EmailVerificationProperties(
+                EmailVerificationProperties.Provider.SMTP,
                 null, "이메일 인증번호", Duration.ofMillis(1));
 
         assertThat(validator.validate(belowMinimum))

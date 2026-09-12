@@ -25,6 +25,23 @@ class FulfillmentPolicyTest {
             "홍길동", "01012345678", "06236", "서울시 강남구 테헤란로 1", null);
 
     @Test
+    @DisplayName("우체국 재조회는 30분 경계부터 허용하고 완료 건과 다른 택배사는 건너뛴다")
+    void claimTrackingRefresh_limitsRepeatsAndResetsNewShipment() {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 12, 10, 0);
+        Fulfillment fulfillment = Fulfillment.shipping(1L, "encrypted-address");
+        fulfillment.recordShipment(ShippingCarrier.CJ_LOGISTICS, "1111111111111", now);
+        assertThat(fulfillment.claimTrackingRefresh(now, now.minusMinutes(30))).isFalse();
+        fulfillment.recordShipment(ShippingCarrier.KOREA_POST, "1111111111111", now);
+        assertThat(fulfillment.claimTrackingRefresh(now, now.minusMinutes(30))).isTrue();
+        assertThat(fulfillment.claimTrackingRefresh(now.plusMinutes(30).minusNanos(1), now.minusNanos(1))).isFalse();
+        assertThat(fulfillment.claimTrackingRefresh(now.plusMinutes(30), now)).isTrue();
+        fulfillment.applyTrackingUpdate(ShipmentTrackingStatus.DELIVERED, "배달완료", now.plusMinutes(30));
+        assertThat(fulfillment.claimTrackingRefresh(now.plusHours(1), now.plusMinutes(30))).isFalse();
+        fulfillment.recordShipment(ShippingCarrier.KOREA_POST, "2222222222222", now.plusHours(1));
+        assertThat(fulfillment.claimTrackingRefresh(now.plusHours(1), now.plusMinutes(30))).isTrue();
+    }
+
+    @Test
     @DisplayName("배송은 배송지를 요구하고 픽업은 배송지를 허용하지 않는다")
     void requireValid_rejectsMismatchedFulfillmentAndAddress() {
         assertInvalid(

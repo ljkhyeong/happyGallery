@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public record VacancyAlertResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long alertId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long slotId,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long classId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String className,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime startAt,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime endAt,
@@ -20,6 +21,7 @@ public record VacancyAlertResponse(
         return new VacancyAlertResponse(
                 alert.getId(),
                 slot.getId(),
+                slot.getBookingClass().getId(),
                 slot.getBookingClass().getName(),
                 slot.getStartAt(),
                 slot.getEndAt(),

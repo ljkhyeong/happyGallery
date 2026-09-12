@@ -1,6 +1,6 @@
 ---
 name: happygallery-pass-flows
-description: happyGallery 8회권 구매·사용 횟수·만료·환불·노쇼와 이용권 예약 취소를 변경할 때 사용한다. PG 승인·환불 실행이 주목적이면 결제 스킬을 사용한다.
+description: happyGallery 이용권 구매·사용 횟수·만료·환불·노쇼와 이용권 예약 취소를 변경할 때 사용한다. PG 승인·환불 실행이 주목적이면 결제 스킬을 사용한다.
 ---
 
 # happyGallery 이용권

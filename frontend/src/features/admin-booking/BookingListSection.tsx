@@ -69,9 +69,9 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
       ? REFUND_STATUS_LABEL[result.depositRefundStatus]
       : "확인 필요"}`
     : result.passCreditRestored
-      ? "8회권 1회 복구"
+      ? "이용권 1회 복구"
       : result.manualCompensationRequired
-        ? "직접 받은 예약금 반환 또는 8회권 보상 협의 필요"
+        ? "직접 받은 예약금 반환 또는 이용권 보상 협의 필요"
         : "자동 환불 없음";
   const balance = result.balanceSettlementRequired
     ? "고객에게 받은 잔금 직접 반환 필요"
@@ -308,7 +308,7 @@ export function BookingListSection({
                 <td><StatusBadge status={b.status} audience="admin" /></td>
                 <td>
                   {b.passBooking ? (
-                    <Badge bg="info">8회권</Badge>
+                    <Badge bg="info">이용권</Badge>
                   ) : (
                     <small>예약금 {formatKRW(b.depositAmount)}</small>
                   )}
@@ -342,7 +342,7 @@ export function BookingListSection({
                         <Form.Check
                           type="switch"
                           id={`booking-arrears-${b.bookingId}`}
-                          label="잔금을 아직 받지 못함"
+                          label="잔금 미수"
                           checked={b.arrears}
                           disabled={mutationPending}
                           onChange={(event) => arrearsMutation.mutate({
@@ -358,9 +358,9 @@ export function BookingListSection({
                           size="sm"
                           variant="outline-primary"
                           title={parseApiDateTime(b.endAt) > Date.now()
-                            ? "수업 종료 후 완료할 수 있습니다."
+                            ? "수업 종료 후 완료 처리할 수 있습니다."
                             : b.balanceStatus === "UNPAID" && !b.arrears
-                              ? "잔금을 받았거나 아직 받지 못한 것으로 표시해 주세요."
+                              ? "잔금 수령 또는 미수 여부를 먼저 표시해 주세요."
                               : undefined}
                           disabled={
                             mutationPending
@@ -369,18 +369,18 @@ export function BookingListSection({
                           }
                           onClick={() => completeMutation.mutate(b.bookingId)}
                         >
-                          수업 완료로 처리
+                          수업 완료
                         </Button>
                         <Button
                           size="sm"
                           variant="outline-danger"
                           title={parseApiDateTime(b.endAt) > Date.now()
-                            ? "수업 종료 후 고객 불참으로 표시할 수 있습니다."
+                            ? "수업 종료 후 미참석으로 처리할 수 있습니다."
                             : undefined}
                           disabled={mutationPending || parseApiDateTime(b.endAt) > Date.now()}
                           onClick={() => noShowMutation.mutate(b.bookingId)}
                         >
-                          고객 불참으로 처리
+                          미참석 처리
                         </Button>
                         <Button
                           size="sm"
@@ -431,7 +431,7 @@ export function BookingListSection({
             </p>
           )}
           <p className="mb-3">
-            예약을 취소하고 예약금 환불 또는 8회권 1회 복구를 시작합니다.
+            예약을 취소하고 예약금 환불 또는 이용권 1회 복구를 시작합니다.
             이미 받은 잔금은 결과에 따라 고객에게 직접 반환해야 할 수 있습니다.
           </p>
           <Form.Group controlId="admin-booking-cancel-reason">

@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<OrderClaimStatus, string> = {
   REQUESTED: "접수",
   REFUND_REQUESTED: "환불 처리 중",
   EXCHANGE_APPROVED: "교환 승인",
-  REJECTED: "처리 거절",
+  REJECTED: "요청 거절",
   COMPLETED: "완료",
 };
 
@@ -161,7 +161,7 @@ export function OrderClaimSection({ order, access }: Props) {
           <Row className="g-2 mb-3">
             <Col xs={12} sm={6}>
               <Form.Group controlId={`order-${order.orderId}-claim-type`}>
-                <Form.Label>접수 유형</Form.Label>
+                <Form.Label>신청 사유</Form.Label>
                 <Form.Select
                   value={type}
                   disabled={requestClaim.isPending}
@@ -176,7 +176,7 @@ export function OrderClaimSection({ order, access }: Props) {
             </Col>
             <Col xs={12} sm={6}>
               <Form.Group controlId={`order-${order.orderId}-claim-resolution`}>
-                <Form.Label>요청 방법</Form.Label>
+                <Form.Label>환불·교환 선택</Form.Label>
                 <Form.Select
                   value={resolution}
                   disabled={requestClaim.isPending}
@@ -236,7 +236,7 @@ export function OrderClaimSection({ order, access }: Props) {
           </fieldset>
 
           <Form.Group className="mb-3" controlId={`order-${order.orderId}-claim-reason`}>
-            <Form.Label>접수 사유</Form.Label>
+            <Form.Label>상세 사유</Form.Label>
             <Form.Control
               as="textarea"
               rows={4}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
+import { Alert, Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
 import { fetchClasses, fetchUpcomingSlots } from "./api";
 import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
@@ -13,6 +13,7 @@ import { VacancyAlertButton } from "./VacancyAlertButton";
 
 interface Props {
   initialClassId?: number | null;
+  initialSlotId?: number | null;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
@@ -23,6 +24,7 @@ const UPCOMING_DAYS = 14;
 
 export function SlotSelectionStep({
   initialClassId,
+  initialSlotId,
   selectedSlot,
   onSelect,
   onDeselect,
@@ -30,6 +32,7 @@ export function SlotSelectionStep({
 }: Props) {
   const appliedInitialClassId = useRef<number | null | undefined>(undefined);
   const appliedInitialClass = useRef<ClassResponse | null | undefined>(undefined);
+  const appliedInitialSlotId = useRef<number | null | undefined>(undefined);
   const [classId, setClassId] = useState(() => initialClassId ? String(initialClassId) : "");
   const [date, setDate] = useState(() => selectedSlot?.startAt.slice(0, 10) ?? "");
   const [inquiryDate, setInquiryDate] = useState("");
@@ -83,6 +86,7 @@ export function SlotSelectionStep({
     ),
     queryFn: () => fetchUpcomingSlots(selectedClass!.id, UPCOMING_DAYS),
     enabled: selectedClass !== null,
+    refetchOnMount: initialSlotId != null ? "always" : true,
   });
 
   const availableDates = useMemo(
@@ -104,6 +108,17 @@ export function SlotSelectionStep({
   }, [activeDate, date]);
 
   useEffect(() => {
+    if (initialSlotId == null || upcomingSlots === undefined || slotsError || slotsFetching
+      || selectedClass?.id !== initialClassId
+      || appliedInitialSlotId.current === initialSlotId) return;
+    appliedInitialSlotId.current = initialSlotId;
+    const initialSlot = upcomingSlots.find((slot) => slot.id === initialSlotId);
+    if (initialSlot && selectedSlot === null) {
+      setDate(initialSlot.startAt.slice(0, 10));
+    }
+  }, [initialClassId, initialSlotId, selectedClass, selectedSlot, slotsError, slotsFetching, upcomingSlots]);
+
+  useEffect(() => {
     if (selectedSlot === null || upcomingSlots === undefined) return;
     const refreshedSlot = upcomingSlots.find((slot) => slot.id === selectedSlot.id);
     if (!refreshedSlot) {
@@ -123,6 +138,12 @@ export function SlotSelectionStep({
         onRetry={() => { void refetchClasses(); }}
         retrying={classesFetching}
       />
+      {classes !== undefined && initialClassId != null
+        && !classes.some((bookingClass) => bookingClass.id === initialClassId) && (
+        <Alert variant="info">
+          이 수업은 현재 예약할 수 없습니다. 다른 수업을 선택해 주세요.
+        </Alert>
+      )}
 
       {classes !== undefined && (
         <Row className="g-2 mb-3">
@@ -215,6 +236,13 @@ export function SlotSelectionStep({
 
       {slotsLoading && <LoadingSpinner text="예약 가능한 시간을 불러오는 중입니다..." />}
 
+      {initialSlotId != null && selectedClass && upcomingSlots !== undefined && !slotsError && !slotsFetching
+        && !upcomingSlots.some((slot) => slot.id === initialSlotId) && (
+        <Alert variant="info">
+          이 일정은 현재 예약할 수 없습니다. 다른 날짜나 시간을 선택해 주세요.
+        </Alert>
+      )}
+
       {!slotsError && upcomingSlots && upcomingSlots.length === 0 && (
         <div>
           <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
@@ -245,6 +273,7 @@ export function SlotSelectionStep({
               className="d-flex flex-wrap justify-content-between align-items-center gap-2"
             >
               <span>
+                {slot.id === initialSlotId && <small className="d-block text-muted">알림 신청한 일정</small>}
                 {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
               </span>
               <span className="d-flex align-items-center gap-2">
@@ -262,6 +291,7 @@ export function SlotSelectionStep({
               className="d-flex justify-content-between align-items-center"
             >
               <span>
+                {slot.id === initialSlotId && <small className="d-block">알림 신청한 일정</small>}
                 {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
               </span>
               <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">

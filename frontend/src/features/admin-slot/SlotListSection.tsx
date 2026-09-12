@@ -71,7 +71,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
       const needsManualAction = result.balanceSettlementsRequired > 0
         || result.manualCompensationsRequired > 0;
       toast.show(
-        `회차 취소 완료 · 예약 취소 ${result.canceledBookings}건 · 8회권 복구 ${result.passCreditsRestored}회 · 예약금 환불 요청 ${result.depositRefundsRequested}건 · 받은 잔금 직접 반환 ${result.balanceSettlementsRequired}건 · 고객과 보상 협의 ${result.manualCompensationsRequired}건`,
+        `회차 취소 완료 · 예약 취소 ${result.canceledBookings}건 · 이용권 복구 ${result.passCreditsRestored}회 · 예약금 환불 요청 ${result.depositRefundsRequested}건 · 받은 잔금 직접 반환 ${result.balanceSettlementsRequired}건 · 고객과 보상 협의 ${result.manualCompensationsRequired}건`,
         needsManualAction
           ? "warning"
           : result.depositRefundsRequested > 0
@@ -284,7 +284,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
                 수업 일정 #{cancelTarget.id} · {formatDateTime(cancelTarget.startAt)} · 예약 {cancelTarget.bookedCount}건
               </p>
               <p className="mb-3">
-                이 회차의 예약을 모두 취소하고 예약금 환불 또는 8회권 복구를 시작합니다.
+                이 회차의 예약을 모두 취소하고 예약금 환불 또는 이용권 복구를 시작합니다.
                 처리 결과에 따라 이미 받은 잔금을 직접 반환하거나 고객과 보상 방법을 협의해야 할 수 있습니다.
               </p>
             </>

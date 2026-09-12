@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.OrderItemPricing;
 import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import java.util.List;
@@ -195,5 +196,11 @@ public sealed interface PreparedPaymentPayload {
         }
     }
 
-    record PreparedPassPayload(Long userId, long totalPrice) implements PreparedPaymentPayload {}
+    record PreparedPassPayload(Long userId, long totalPrice, PassPlan plan) implements PreparedPaymentPayload {
+
+        public PreparedPassPayload {
+            // 종류를 저장하기 전에 준비한 결제는 당시 판매하던 8회권으로 완료한다.
+            plan = Objects.requireNonNullElse(plan, PassPlan.REGULAR_CRAFT_8);
+        }
+    }
 }

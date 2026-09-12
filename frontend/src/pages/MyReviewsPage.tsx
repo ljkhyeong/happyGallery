@@ -47,7 +47,7 @@ function MyReviewsContent() {
     <Container className="page-container" style={{ maxWidth: 760 }}>
       <header className="my-detail-header">
         <Link to="/my" className="text-decoration-none small">&larr; 내 정보</Link>
-        <div className="my-section-kicker mt-3 mb-2">My Reviews</div>
+        <div className="my-section-kicker mt-3 mb-2">내 정보</div>
         <h2 className="mb-2">내 후기</h2>
         <p className="text-muted-soft mb-0">
           작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다.

@@ -30,9 +30,9 @@ public enum NotificationEventType {
     ORDER_CLAIM_RESOLVED,
     /** 주문 교환 처리 완료 */
     ORDER_EXCHANGE_COMPLETED,
-    /** 8회권 구매 완료 */
+    /** 이용권 구매 완료 */
     PASS_PURCHASED,
-    /** 8회권 환불 완료 */
+    /** 이용권 환불 완료 */
     PASS_REFUNDED,
     /** 1:1 문의 답변 등록 */
     INQUIRY_ANSWERED,
@@ -50,7 +50,7 @@ public enum NotificationEventType {
     REMINDER_D1,
     /** 당일 아침 리마인드 (배치) */
     REMINDER_SAME_DAY,
-    /** 8회권 만료 7일 전 알림 (배치) */
+    /** 이용권 만료 7일 전 알림 (배치) */
     PASS_EXPIRY_SOON,
     /** 픽업 마감 2시간 전 알림 (배치) */
     PICKUP_DEADLINE_REMINDER;

@@ -94,6 +94,9 @@ public class SmartStoreStockSync {
         if (status != SmartStoreStockSyncStatus.PENDING && !staleProcessing) {
             throw new IllegalStateException("대기 중인 스마트스토어 재고만 선점할 수 있습니다.");
         }
+        if (staleProcessing) {
+            requestVersion = Math.addExact(requestVersion, 1);
+        }
         status = SmartStoreStockSyncStatus.PROCESSING;
         processingStartedAt = now;
         return requestVersion;

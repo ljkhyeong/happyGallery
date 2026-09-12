@@ -8,14 +8,14 @@ import io.github.resilience4j.timelimiter.TimeLimiter;
 import java.time.Duration;
 import java.util.concurrent.Executor;
 
-/** 이메일 인증 SMTP 호출에 제한 큐·타임아웃·서킷 브레이커를 적용한다. */
+/** 이메일 인증 외부 호출에 제한 큐·타임아웃·서킷 브레이커를 적용한다. */
 public class ResilientEmailVerificationSender implements EmailVerificationSender {
 
-    private final RealEmailVerificationSender delegate;
+    private final EmailVerificationTransport delegate;
     private final ResilientNotificationCall resilientCall;
 
     public ResilientEmailVerificationSender(
-            RealEmailVerificationSender delegate,
+            EmailVerificationTransport delegate,
             CircuitBreaker circuitBreaker,
             TimeLimiter timeLimiter,
             Executor executor,

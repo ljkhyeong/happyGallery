@@ -38,7 +38,7 @@ test("목록에 없는 수업 종류는 이해하기 쉬운 이름으로 입력�
   });
 });
 
-test("향수 종류는 대소문자와 바깥 공백에 관계없이 8회권 제외 대상으로 판단한다", () => {
+test("향수 종류는 대소문자와 바깥 공백에 관계없이 이용권 제외 대상으로 판단한다", () => {
   assert.equal(normalizeClassCategoryInput("향수"), "PERFUME");
   assert.equal(normalizeClassCategoryInput(" perfume "), "PERFUME");
   assert.equal(getClassCategorySelection("향수"), "PERFUME");

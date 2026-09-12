@@ -153,6 +153,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
       await fulfillJson(route, cancelCount === 0 ? [{
         alertId: 701,
         slotId: 78,
+        classId: 42,
         className: "닫힌 회차 가죽 클래스",
         startAt: "2099-01-03T14:00:00",
         endAt: "2099-01-03T16:00:00",
@@ -205,7 +206,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
 
   await expect.poll(() => cancelCount).toBe(1);
   await expect(page.getByText("닫힌 회차 가죽 클래스", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("신청 중인 빈자리 알림이 없습니다.")).toBeVisible();
+  await expect(page.getByText("빈자리 알림 내역이 없습니다.")).toBeVisible();
 });
 
 test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과를 확인한다", async ({
@@ -326,10 +327,10 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
 
   await page.goto(`/my/bookings/${bookingId}`);
   await expect(page.getByText("3명", { exact: true })).toBeVisible();
-  await page.getByLabel("남길 예약 인원").selectOption("2");
-  await page.getByRole("button", { name: "인원 부분취소" }).click();
+  await page.getByLabel("변경 후 예약 인원").selectOption("2");
+  await page.getByRole("button", { name: "예약 인원 줄이기" }).click();
 
-  const dialog = page.getByRole("dialog", { name: "예약 인원 부분취소" });
+  const dialog = page.getByRole("dialog", { name: "예약 인원 줄이기" });
   await expect(dialog.getByText("현재 3명 예약을 2명으로 변경합니다."))
     .toBeVisible();
   await dialog.getByRole("button", { name: "1명 부분취소" }).click();

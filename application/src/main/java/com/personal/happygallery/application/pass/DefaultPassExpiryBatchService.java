@@ -38,7 +38,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
     }
 
     /**
-     * 만료된 8회권의 잔여 크레딧을 소멸시킨다.
+     * 만료된 이용권의 잔여 크레딧을 소멸시킨다.
      *
      * <ol>
      *   <li>expires_at &lt;= now AND remaining_credits &gt; 0 인 pass 조회</li>
@@ -56,7 +56,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                         now, 0, afterId, PAGE_SIZE),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
-                "8회권 만료");
+                "이용권 만료");
     }
 
     /**
@@ -73,7 +73,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
                         now, now.plusDays(7), 0, afterId, PAGE_SIZE),
                 PassExpiryReminderTarget::passId,
                 this::requestExpiryNotification,
-                "8회권 만료 알림");
+                "이용권 만료 알림");
     }
 
     private boolean requestExpiryNotification(PassExpiryReminderTarget target) {

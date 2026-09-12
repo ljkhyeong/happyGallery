@@ -74,6 +74,12 @@ public class TossPaymentsProvider implements PaymentPort {
                         orderId, response.orderId());
                 return PaymentConfirmResult.reconciliationRequired(CONFIRM_IDENTITY_MISMATCH);
             }
+            if (!"DONE".equals(response.status())) {
+                return PaymentConfirmResult.reconciliationRequired("PG 결제 완료 상태를 확인할 수 없습니다.");
+            }
+            if (response.totalAmount() == null || response.totalAmount() != amount) {
+                return PaymentConfirmResult.reconciliationRequired("PG 결제 금액이 요청과 일치하지 않습니다.");
+            }
             return PaymentConfirmResult.success(
                     response.paymentKey(),
                     Objects.requireNonNullElse(response.method(), "UNKNOWN"),
@@ -177,7 +183,8 @@ public class TossPaymentsProvider implements PaymentPort {
     private record ConfirmRequest(String paymentKey, String orderId, long amount) {}
 
     private record ConfirmResponse(
-            String paymentKey, String orderId, String method, String approvedAt, Receipt receipt) {}
+            String paymentKey, String orderId, String status, Long totalAmount,
+            String method, String approvedAt, Receipt receipt) {}
 
     private record Receipt(String url) {}
 

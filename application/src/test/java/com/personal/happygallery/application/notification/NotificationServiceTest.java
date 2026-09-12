@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -135,9 +137,10 @@ class NotificationServiceTest {
         });
     }
 
-    @DisplayName("알림 발송 예외는 결과 불명으로 기록하고 다음 채널을 호출하지 않는다")
-    @Test
-    void sendToUser_senderThrows_stopsFallbackAsDeliveryUnknown() {
+    @DisplayName("알림 발송 예외나 결과 불명 응답은 다음 채널을 호출하지 않는다")
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void sendToUser_unknownDelivery_stopsFallback(boolean throwsException) {
         NotificationSenderPort sender = mock(NotificationSenderPort.class);
         NotificationSenderPort fallbackSender = mock(NotificationSenderPort.class);
         NotificationLogStorePort logStore = mock(NotificationLogStorePort.class);
@@ -146,8 +149,13 @@ class NotificationServiceTest {
         NotificationService service = service(
                 List.of(sender, fallbackSender), logStore, guestReader, userReader);
         when(sender.channel()).thenReturn(NotificationChannel.SMS);
-        when(sender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
+        var response = when(sender.send(IDEMPOTENCY_KEY, "01012345678", "회원",
+                NotificationEventType.BOOKING_CONFIRMED));
+        if (throwsException) {
+            response.thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
+        } else {
+            response.thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+        }
 
         NotificationSendResult result = service.sendToUser(
                 10L,
@@ -164,7 +172,8 @@ class NotificationServiceTest {
             NotificationLog saved = captor.getValue();
             softly.assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
             softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
-            softly.assertThat(saved.getFailReason()).isEqualTo("DELIVERY_EXCEPTION");
+            softly.assertThat(saved.getFailReason())
+                    .isEqualTo(throwsException ? "DELIVERY_EXCEPTION" : "DELIVERY_UNKNOWN");
         });
     }
 

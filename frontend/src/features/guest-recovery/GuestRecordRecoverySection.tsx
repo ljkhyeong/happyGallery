@@ -88,7 +88,7 @@ export function GuestRecordRecoverySection() {
     ),
     queryFn: ({ pageParam, signal }) => {
       if (!recoveryView) {
-        return Promise.reject(new Error("복구 세션이 없습니다."));
+        return Promise.reject(new Error("휴대폰 번호를 인증하고 조회 코드를 다시 발급받아 주세요."));
       }
       return runForCustomerSession(
         recoveryView.customerSession,
@@ -113,7 +113,7 @@ export function GuestRecordRecoverySection() {
     ),
     queryFn: ({ pageParam, signal }) => {
       if (!recoveryView) {
-        return Promise.reject(new Error("복구 세션이 없습니다."));
+        return Promise.reject(new Error("휴대폰 번호를 인증하고 조회 코드를 다시 발급받아 주세요."));
       }
       return runForCustomerSession(
         recoveryView.customerSession,

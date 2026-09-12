@@ -14,6 +14,7 @@ public interface PaymentReconciliationAdminUseCase {
             Long attemptId,
             PaymentAttemptStatus status,
             Long domainId,
-            String message
+            String message,
+            boolean retryable
     ) {}
 }

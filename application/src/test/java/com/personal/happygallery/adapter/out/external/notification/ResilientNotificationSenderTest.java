@@ -219,23 +219,25 @@ class ResilientNotificationSenderTest {
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         EmailVerificationProperties properties = emailProperties(Duration.ofSeconds(7));
         MailProperties mailProperties = mailProperties(true, false);
+        var smtp = new EmailVerificationTransportConfig.Smtp();
+        smtp.smtpEmailVerificationTransport(mock(), mailProperties, properties);
 
         assertSoftly(softly -> {
             softly.assertThat(mailProperties.getProperties())
                     .containsEntry("mail.smtp.starttls.required", "true")
                     .containsEntry("mail.smtp.ssl.checkserveridentity", "true");
-            softly.assertThat(config.emailVerificationTimeLimiter(properties, mailProperties)
+            softly.assertThat(config.emailVerificationTimeLimiter(properties)
                             .getTimeLimiterConfig()
                             .getTimeoutDuration())
                     .isEqualTo(Duration.ofMillis(7_000));
         });
         assertThatThrownBy(() ->
-                config.emailVerificationTimeLimiter(
-                        emailProperties(Duration.ofSeconds(7)), mailProperties(false, false)))
+                smtp.smtpEmailVerificationTransport(
+                        mock(), mailProperties(false, false), emailProperties(Duration.ofSeconds(7))))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() ->
-                config.emailVerificationTimeLimiter(
-                        emailProperties(Duration.ofSeconds(5)), mailProperties(true, false)))
+                smtp.smtpEmailVerificationTransport(
+                        mock(), mailProperties(true, false), emailProperties(Duration.ofSeconds(5))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -286,6 +288,7 @@ class ResilientNotificationSenderTest {
 
     private static EmailVerificationProperties emailProperties(Duration timeout) {
         return new EmailVerificationProperties(
+                EmailVerificationProperties.Provider.SMTP,
                 "no-reply@example.com",
                 "이메일 인증번호",
                 timeout);

@@ -97,9 +97,6 @@ final class NhnSmsClient {
             }
             int resultCode = header.resultCode();
             if (header.isSuccessful() && resultCode == 0) {
-                if (!trackResult) {
-                    return ResponseOutcome.immediate(NotificationSendResult.SUCCESS, "0");
-                }
                 if (body == null || body.data() == null
                         || body.data().requestId() == null
                         || body.data().sendResultList() == null
@@ -112,6 +109,9 @@ final class NhnSmsClient {
                     return ResponseOutcome.immediate(
                             classifyResultCode(sendResult.resultCode()),
                             String.valueOf(sendResult.resultCode()));
+                }
+                if (!trackResult) {
+                    return ResponseOutcome.immediate(NotificationSendResult.SUCCESS, "0");
                 }
                 return new ResponseOutcome(
                         NotificationSendResult.ACCEPTED,

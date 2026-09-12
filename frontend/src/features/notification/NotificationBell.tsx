@@ -1,19 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Nav } from "react-bootstrap";
 import { Bell } from "lucide-react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { NotificationContext } from "./NotificationContext";
 import { notificationTarget } from "./notificationTarget";
-import { Link } from "react-router";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner } from "@/shared/ui/LoadingSpinner";
-import { useUnreadCount, useNotificationList, useMarkAsRead, useMarkAllAsRead } from "./useNotifications";
+import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { useUnreadCount, useNotificationList, useReadNotifications } from "./useNotifications";
 import { NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { formatRelativeTime } from "./formatRelativeTime";
 
 const POPOVER_ID = "customer-notification-popover";
 
 export function NotificationBell() {
+  const { sessionVersion } = useCustomerAuth();
+  return <NotificationBellContent key={sessionVersion} />;
+}
+
+function NotificationBellContent() {
   const { isAuthenticated } = useCustomerAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -25,8 +29,7 @@ export function NotificationBell() {
   const notificationQuery = useNotificationList(0, isAuthenticated && open);
   const unreadCount = unreadQuery.data;
   const notifications = notificationQuery.data ?? [];
-  const markRead = useMarkAsRead();
-  const markAllRead = useMarkAllAsRead();
+  const readMutation = useReadNotifications();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -107,13 +110,23 @@ export function NotificationBell() {
                 variant="link"
                 size="sm"
                 className="p-0 text-decoration-none"
-                onClick={() => markAllRead.mutate()}
+                disabled={readMutation.isPending}
+                onClick={() => readMutation.mutate({})}
               >
-                모두 읽음
+                {readMutation.isPending && readMutation.variables?.id === undefined ? "읽음 처리 중..." : "모두 읽음"}
               </Button>
             )}
           </Card.Header>
           <Card.Body className="notification-popover-body p-0">
+            {readMutation.isError && (
+              <div className="px-3 pt-3">
+                <ErrorAlert
+                  error={readMutation.error}
+                  onRetry={() => readMutation.mutate({ id: readMutation.variables?.id })}
+                  retrying={readMutation.isPending}
+                />
+              </div>
+            )}
             {unreadQuery.error && (
               <div className="d-flex align-items-center justify-content-between gap-2 border-bottom px-3 py-2">
                 <span className="small text-danger">읽지 않은 알림 수를 확인하지 못했습니다.</span>
@@ -179,10 +192,13 @@ export function NotificationBell() {
                   <button
                     key={notification.id}
                     type="button"
+                    disabled={readMutation.isPending && !notification.read}
                     className={className}
                     style={{ color: "inherit", font: "inherit" }}
                     onClick={() => {
-                      if (!notification.read) markRead.mutate(notification.id);
+                      if (!notification.read) {
+                        readMutation.mutate({ id: notification.id, notifyOnError: Boolean(target) });
+                      }
                       if (target) {
                         setOpen(false);
                         navigate(target);
