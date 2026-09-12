@@ -27,6 +27,7 @@ class DataPortalPublicHolidayProviderTest {
                 builder.baseUrl(properties.baseUrl()).build());
         server.expect(requestTo(allOf(
                         containsString("/SpcdeInfoService/getRestDeInfo"),
+                        containsString("ServiceKey=test%2Bkey%2F%3D"),
                         containsString("solYear=2026"))))
                 .andRespond(withSuccess("""
                         <response>
@@ -52,7 +53,7 @@ class DataPortalPublicHolidayProviderTest {
     private static PublicHolidayApiProperties properties() {
         return new PublicHolidayApiProperties(
                 true,
-                "service-key",
+                "test+key/=",
                 "https://apis.data.go.kr",
                 Duration.ofSeconds(5),
                 Duration.ofSeconds(1),

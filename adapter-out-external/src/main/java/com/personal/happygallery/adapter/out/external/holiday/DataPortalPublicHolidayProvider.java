@@ -50,11 +50,11 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
             byte[] xml = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/B090041/openapi/service/SpcdeInfoService/getRestDeInfo")
-                            .queryParam("ServiceKey", properties.serviceKey())
+                            .queryParam("ServiceKey", "{serviceKey}")
                             .queryParam("pageNo", 1)
                             .queryParam("numOfRows", 100)
                             .queryParam("solYear", year)
-                            .build())
+                            .build(properties.serviceKey()))
                     .retrieve()
                     .body(byte[].class);
             return Optional.of(parse(xml));

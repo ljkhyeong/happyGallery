@@ -38,9 +38,30 @@ class DeliveryApiWebhookVerifierTest {
     }
 
     private DeliveryApiWebhookVerifier verifier() {
+        return verifier(true);
+    }
+
+    @Test
+    @DisplayName("연동을 끄면 비밀키가 남아 있어도 웹훅을 거절한다")
+    void verify_rejectsDisabledIntegration() throws Exception {
+        byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+        String timestamp = Long.toString(NOW.getEpochSecond());
+        assertThat(verifier(false).verify(timestamp, sign(timestamp, body), body)).isFalse();
+    }
+
+    @Test
+    @DisplayName("본문 변조와 표현 범위를 벗어난 시각을 거절한다")
+    void verify_rejectsTamperedBodyAndOutOfRangeTime() throws Exception {
+        byte[] body = "{}".getBytes(StandardCharsets.UTF_8);
+        String timestamp = Long.toString(NOW.getEpochSecond());
+        assertThat(verifier().verify(timestamp, sign(timestamp, body), "[]".getBytes(StandardCharsets.UTF_8))).isFalse();
+        assertThat(verifier().verify(Long.toString(Long.MAX_VALUE), "signature", body)).isFalse();
+    }
+
+    private DeliveryApiWebhookVerifier verifier(boolean enabled) {
         return new DeliveryApiWebhookVerifier(
                 new DeliveryApiProperties(
-                        true,
+                        enabled,
                         "api-key",
                         "secret-key",
                         "endpoint-id",
