@@ -375,6 +375,7 @@
 - 소셜 제공자 식별자는 원문 대신 제공자별 HMAC으로 저장하고 정확 일치 로그인에만 사용한다.
 - 같은 소셜 계정의 최초 로그인 callback이 동시에 들어오면 DB 유일 제약을 먼저 확보한 요청만 회원 연결을 완료한다. 경합한 요청은 409로 종료하며 사용자가 소셜 로그인을 새로 시작하면 이미 연결된 회원으로 로그인한다.
 - 소셜 로그인 callback URI는 provider별 운영 설정에 고정한다. Spring Security OAuth2 Client가 만든 authorization request와 `state`는 callback 전까지만 Redis HTTP 세션에 보관하고 검증·소비하며, 로그인 후에는 OAuth 토큰이나 `SecurityContext` 대신 `customerUserId`와 `customerCredentialVersion`만 세션 인증 상태로 유지한다.
+- 소셜 로그인 취소·실패나 callback 후 회원 조회 실패 시 원래 예약·구매 화면으로 이어지는 로그인 재시도 링크를 제공한다. 가입 동의가 필요하면 같은 목적지의 회원가입으로 연결한다. 계정 연결·재인증 실패는 마이페이지로 안내하며 외부 주소는 복귀 경로로 쓰지 않는다.
 - 소셜 신규 가입 동의는 공개 OAuth GET query로 직접 받지 않는다. 회원가입 화면이 CSRF 보호 POST로
   5분짜리 일회성 가입 의도를 만들고, 반환된 불투명 시도 ID로 시작한 OAuth `state`와 provider를 결합한다.
   callback은 시도 ID·provider·state·만료가 모두 유효한 동의를 한 번 소비하며 기존 회원의 일반 로그인은
