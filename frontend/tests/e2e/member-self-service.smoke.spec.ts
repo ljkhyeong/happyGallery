@@ -58,7 +58,7 @@ test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 �
 
   await logoutCustomer(page);
   await page.goto("/my");
-  await expect(page.getByText("로그인하고 내 주문·예약·이용권을 확인하세요")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요" })).toBeVisible();
 
   await loginCustomer(page, customer);
   await page.goto("/my/orders");
