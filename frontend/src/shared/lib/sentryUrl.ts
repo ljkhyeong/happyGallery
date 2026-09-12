@@ -23,6 +23,7 @@ const SENSITIVE_HEADERS = new Set([
   "x-access-token",
   "x-payment-status-token",
   "x-xsrf-token",
+  "x-bot-token",
 ]);
 const REFERRER_HEADERS = new Set(["referer", "referrer"]);
 

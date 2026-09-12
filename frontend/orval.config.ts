@@ -57,6 +57,7 @@ export default defineConfig({
     "slot-controller",
   ]),
   customerAuthApi: generatedApi("./src/generated/api/customerAuth.ts", [
+    "bot-protection-controller",
     "csrf-controller",
     "customer-auth-controller",
     "customer-credential-controller",

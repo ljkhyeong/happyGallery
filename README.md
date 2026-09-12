@@ -269,6 +269,9 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-galle
 | `DELIVERY_WEBHOOK_ENDPOINT_ID` / `DELIVERY_WEBHOOK_SECRET` | 백엔드 | 배송조회 등록 대상 웹훅 ID와 수신 서명 검증 키 |
 | `DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS` / `DELIVERY_API_CONNECT_TIMEOUT_MILLIS` / `DELIVERY_API_TIMEOUT_MILLIS` | 백엔드 | 배송조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `3000` |
 | `PUBLIC_HOLIDAY_ENABLED` / `PUBLIC_HOLIDAY_SERVICE_KEY` | 백엔드 | 한국천문연구원 특일 정보 연동 활성화 여부와 공공데이터포털 서비스키, 기본 비활성 |
+| `TURNSTILE_ENABLED` | 백엔드 | [무료 자동 입력 방지](deploy/k3s/turnstile.md). 인증문자·단체 문의 접수에 적용, 기본 `false` |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | 백엔드 | Cloudflare Managed 위젯의 공개 키·비밀 키. 비밀 키는 서버에서만 사용 |
+| `TURNSTILE_HOSTNAME` | 백엔드 | 검증 응답의 허용 도메인, 기본 `happy-gallery.com` |
 | `KOREA_POST_TRACKING_ENABLED` / `KOREA_POST_SERVICE_KEY` | 백엔드 | 우체국 무료 배송조회 활성화 여부와 Decoding 서비스키, 기본 비활성 |
 | `KOREA_POST_ACQUIRE_TIMEOUT_MILLIS` / `KOREA_POST_CONNECT_TIMEOUT_MILLIS` / `KOREA_POST_TIMEOUT_MILLIS` | 백엔드 | 우체국 조회 연결 풀 획득·연결·응답 제한, 기본 `500` / `1000` / `5000` |
 | `PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_TIMEOUT_MILLIS` | 백엔드 | 공휴일 조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `5000` |

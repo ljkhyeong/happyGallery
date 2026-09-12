@@ -5,6 +5,7 @@ import com.personal.happygallery.application.booking.port.in.BookingQueryUseCase
 import com.personal.happygallery.application.booking.port.in.BookingRescheduleUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
 import com.personal.happygallery.adapter.in.web.booking.dto.BookingDetailResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.CancelResponse;
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
@@ -44,6 +45,7 @@ public class BookingController {
     private final BookingCancelUseCase bookingCancelUseCase;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final SubjectRateLimitGuard rateLimitGuard;
+    private final BotProtectionUseCase botProtection;
     private final Clock clock;
 
     public BookingController(GuestBookingUseCase guestBookingUseCase,
@@ -52,6 +54,7 @@ public class BookingController {
                              BookingCancelUseCase bookingCancelUseCase,
                              GuestPersonalDataProtector guestPersonalDataProtector,
                              SubjectRateLimitGuard rateLimitGuard,
+                             BotProtectionUseCase botProtection,
                              Clock clock) {
         this.guestBookingUseCase = guestBookingUseCase;
         this.bookingQueryUseCase = bookingQueryUseCase;
@@ -59,6 +62,7 @@ public class BookingController {
         this.bookingCancelUseCase = bookingCancelUseCase;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.rateLimitGuard = rateLimitGuard;
+        this.botProtection = botProtection;
         this.clock = clock;
     }
 
@@ -66,8 +70,10 @@ public class BookingController {
     @PostMapping("/phone-verifications")
     @Operation(operationId = "sendGuestBookingVerification")
     public SendVerificationResponse sendVerification(
+            @RequestHeader(value = "X-Bot-Token", required = false) String botToken,
             @RequestBody @Valid SendVerificationRequest request) {
         rateLimitGuard.checkPhoneVerification(request.phone());
+        botProtection.verify(botToken, "phone_verification");
         PhoneVerification pv = guestBookingUseCase.sendVerificationCode(
                 request.phone(), request.purpose());
         return SendVerificationResponse.from(pv);

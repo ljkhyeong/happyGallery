@@ -87,6 +87,10 @@ ENCRYPT_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 HMAC_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 GUEST_TOKEN_HMAC_SECRET=local-test-guest-token-12345678901234
 TOSS_SECRET_KEY=test
+TURNSTILE_ENABLED=true
+TURNSTILE_SITE_KEY=test-site-key
+TURNSTILE_SECRET_KEY=test-secret-key
+TURNSTILE_HOSTNAME=happy-gallery.com
 KOREA_POST_TRACKING_ENABLED=true
 KOREA_POST_SERVICE_KEY=test+key/=
 KOREA_POST_TIMEOUT_MILLIS=5000
