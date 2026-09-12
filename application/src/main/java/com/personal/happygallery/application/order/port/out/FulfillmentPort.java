@@ -11,6 +11,7 @@ public interface FulfillmentPort {
     Optional<Fulfillment> findByOrderId(Long orderId);
     Optional<Fulfillment> findByIdForUpdate(Long id);
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
+    List<Long> findTrackingRefreshCandidateIds(LocalDateTime checkedBefore, int limit);
     List<Long> findTrackingRegistrationCandidateIds(
             LocalDateTime now, LocalDateTime processingStaleBefore, int limit);
     List<Fulfillment> findExpiredPickupsAfterId(LocalDateTime now, Long afterId, int limit);

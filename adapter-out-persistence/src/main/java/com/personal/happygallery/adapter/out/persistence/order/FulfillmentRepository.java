@@ -32,6 +32,21 @@ public interface FulfillmentRepository extends JpaRepository<Fulfillment, Long>,
     List<Fulfillment> findByOrderIdIn(Collection<Long> orderIds);
 
     @Query("""
+            SELECT f.id FROM Fulfillment f JOIN Order o ON f.orderId = o.id
+            WHERE o.status = 'SHIPPED' AND f.carrierCode = 'KOREA_POST'
+              AND (f.trackingStatus IS NULL OR f.trackingStatus NOT IN ('DELIVERED', 'RETURNED', 'CANCELLED'))
+              AND (f.trackingCheckedAt IS NULL OR f.trackingCheckedAt <= :checkedBefore)
+            ORDER BY f.trackingCheckedAt ASC, f.id ASC
+            """)
+    List<Long> findTrackingRefreshCandidateIdPage(@Param("checkedBefore") LocalDateTime checkedBefore,
+                                                  Pageable pageable);
+
+    @Override
+    default List<Long> findTrackingRefreshCandidateIds(LocalDateTime checkedBefore, int limit) {
+        return findTrackingRefreshCandidateIdPage(checkedBefore, PageRequest.ofSize(limit));
+    }
+
+    @Query("""
             SELECT f.id
             FROM Fulfillment f
             WHERE f.carrierCode IS NOT NULL

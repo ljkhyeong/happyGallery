@@ -255,6 +255,14 @@ app:
       acquire-timeout: ${DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS:500}ms
       max-connections: ${DELIVERY_API_MAX_CONNECTIONS:10}
       keep-alive: ${DELIVERY_API_KEEP_ALIVE_MILLIS:30000}ms
+    korea-post:
+      enabled: ${KOREA_POST_TRACKING_ENABLED:false}
+      service-key: ${KOREA_POST_SERVICE_KEY:}
+      timeout: ${KOREA_POST_TIMEOUT_MILLIS:5000}ms
+      connect-timeout: ${KOREA_POST_CONNECT_TIMEOUT_MILLIS:1000}ms
+      acquire-timeout: ${KOREA_POST_ACQUIRE_TIMEOUT_MILLIS:500}ms
+      max-connections: ${KOREA_POST_MAX_CONNECTIONS:5}
+      keep-alive: ${KOREA_POST_KEEP_ALIVE_MILLIS:30000}ms
     public-holiday:
       enabled: ${PUBLIC_HOLIDAY_ENABLED:false}
       service-key: ${PUBLIC_HOLIDAY_SERVICE_KEY:}

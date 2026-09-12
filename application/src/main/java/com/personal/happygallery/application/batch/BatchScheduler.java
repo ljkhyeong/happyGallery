@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.in.OrderAutoRefundBatchU
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingRegistrationUseCase;
+import com.personal.happygallery.application.order.port.in.ShipmentTrackingRefreshUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreOrderSyncBatchUseCase;
 import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
@@ -54,6 +55,7 @@ public class BatchScheduler {
     private final PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase;
     private final PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase;
     private final ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase;
+    private final ShipmentTrackingRefreshUseCase shipmentTrackingRefreshUseCase;
     private final PaymentWebhookBatchUseCase paymentWebhookBatchUseCase;
     private final PublicHolidaySyncUseCase publicHolidaySyncUseCase;
     private final SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase;
@@ -71,6 +73,7 @@ public class BatchScheduler {
                           PaymentAttemptExpiryBatchUseCase paymentAttemptExpiryBatchUseCase,
                           PersonalDataRetentionBatchUseCase personalDataRetentionBatchUseCase,
                           ShipmentTrackingRegistrationUseCase shipmentTrackingRegistrationUseCase,
+                          ShipmentTrackingRefreshUseCase shipmentTrackingRefreshUseCase,
                           PaymentWebhookBatchUseCase paymentWebhookBatchUseCase,
                           PublicHolidaySyncUseCase publicHolidaySyncUseCase,
                           SmartStoreStockSyncBatchUseCase smartStoreStockSyncBatchUseCase,
@@ -87,6 +90,7 @@ public class BatchScheduler {
         this.paymentAttemptExpiryBatchUseCase = paymentAttemptExpiryBatchUseCase;
         this.personalDataRetentionBatchUseCase = personalDataRetentionBatchUseCase;
         this.shipmentTrackingRegistrationUseCase = shipmentTrackingRegistrationUseCase;
+        this.shipmentTrackingRefreshUseCase = shipmentTrackingRefreshUseCase;
         this.paymentWebhookBatchUseCase = paymentWebhookBatchUseCase;
         this.publicHolidaySyncUseCase = publicHolidaySyncUseCase;
         this.smartStoreStockSyncBatchUseCase = smartStoreStockSyncBatchUseCase;
@@ -170,6 +174,13 @@ public class BatchScheduler {
     @Scheduled(cron = "25 * * * * *", zone = Clocks.SEOUL_ID)
     public BatchResult runShipmentTrackingRegistration() {
         return shipmentTrackingRegistrationUseCase.registerPendingShipments();
+    }
+
+    /** 우체국 배송 상태를 30분마다 최대 100건 갱신한다. */
+    @BatchJob(id = "shipment_tracking_refresh", value = "우체국 배송조회")
+    @Scheduled(cron = "0 0,30 * * * *", zone = Clocks.SEOUL_ID)
+    public BatchResult runShipmentTrackingRefresh() {
+        return shipmentTrackingRefreshUseCase.refreshShipments();
     }
 
     /** 스마트스토어 변경 주문을 가져와 내부 재고에 반영한다. 매분 50초에 실행. */

@@ -216,9 +216,9 @@ BATON·IntentTrace 등 개인 프로젝트의 공동 운영은 [프로젝트별 
 
 `*_MILLIS`, `*_SECONDS`, `*_HOURS` 환경 변수는 기존 숫자 계약을 유지한다. `application.yml`이 각각 `ms`, `s`, `h` 단위를 붙여 애플리케이션의 `Duration` 설정으로 바인딩하므로, 기존 배포 값은 바꾸지 않아도 된다. `EMAIL_VERIFICATION_PROVIDER=smtp`(기본값)는 기존 SMTP를, `ncp`는 한국 리전 네이버 클라우드 메일 API를 사용한다. [네이버 메일 설정](deploy/k3s/ncp-mail.md)을 참고한다. SMTP의 host·port·자격 증명·TLS·transport timeout은 `spring.mail.*`로 연결되어 Spring Boot가 `JavaMailSender`를 자동 구성하고, 애플리케이션은 발신 주소·제목, 메일 발송 전체를 제한하는 TimeLimiter와 타임아웃 순서만 관리한다.
 
-배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 기본으로 제공한다. 자동 갱신은 추가 이용료 없는 택배사 공식 API로 제한하며, 유료 중계 API는 연결하지 않는다. `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 우체국의 무료 공공 API를 추가 대상으로 확인했지만 활용 승인·접속 방식 확인과 구현이 남아 있다. 현재 사이트 안의 배송 상태는 자동 갱신되지 않는다. [무료 배송 API 대상과 준비 조건](deploy/k3s/free-integrations.md#무료-배송-api-대상)을 따른다.
+배송조회는 한진·CJ대한통운·롯데·우체국 공식 사이트 링크와 운송장 복사를 제공한다. 우체국 무료 API는 `KOREA_POST_SERVICE_KEY`에 공공데이터포털 Decoding 키를 넣고 `KOREA_POST_TRACKING_ENABLED=true`로 켠다. 30분마다 배송 중인 우체국 주문을 최대 100건 조회하고, 실패하면 기존 배송 이력을 유지한다. 주문 배송 완료는 관리자가 확정한다. 유료 Delivery API는 `DELIVERY_TRACKING_ENABLED=false`를 유지한다. 공식 API의 HTTP 주소와 실제 키 검증 조건은 [무료 배송 API 설정](deploy/k3s/free-integrations.md#무료-배송-api-대상)을 따른다.
 
-Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호스트>/api/v1/webhooks/toss-payments`를 등록한다. 웹훅은 `PAYMENT_STATUS_CHANGED`만 수신 기록하고, 알려진 `orderId`를 기존 결제 대사 흐름으로 확인한다.
+Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-gallery.com/api/v1/webhooks/toss-payments`를 등록한다. 웹훅은 `PAYMENT_STATUS_CHANGED`만 수신 기록하고, 알려진 `orderId`를 기존 결제 대사 흐름으로 확인한다.
 
 상품 상세·주문서·장바구니·예약금·이용권 구매 화면에서 `카드·간편결제`, `네이버페이`, `카카오페이`를 선택한다. 네이버페이와 카카오페이는 토스 경유 자체창으로 열며 별도 PG 서버를 두지 않는다. 전용창 선택 시 토스 결제 약관 동의를 받은 뒤 prepare를 요청하고, 승인·부분취소·정산은 기존 토스 경로를 사용한다. 결제수단을 바꾸면 약관 동의를 다시 받는다. 운영 사용 전 토스 가맹점에서 두 간편결제를 사용할 수 있는지 확인하고 실제 결제·전체취소·부분취소를 검증해야 한다. [공식 자체창 연동 안내](https://docs.tosspayments.com/guides/v2/payment-window/integration-direct)
 
@@ -226,7 +226,7 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호
 
 주소 검색은 [Kakao 우편번호 서비스](https://postcode.map.kakao.com/guide)를 사용한다. 이용료와 API 키가 필요 없으며, 검색 장애 때는 직접 입력할 수 있다. 기존 `ROAD_ADDRESS_*` 환경 변수는 제거한다.
 
-공휴일은 [한국천문연구원 특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 무료 활용 신청 후 `PUBLIC_HOLIDAY_SERVICE_KEY`를 주입하고 `PUBLIC_HOLIDAY_ENABLED=true`로 켠다. 매일 04:20(서울)에 현재 연도와 다음 연도를 갱신하며, 조회 실패 때는 마지막으로 정상 수집한 데이터를 유지한다. 해당 연도 데이터가 없으면 기존 공휴일 계산을 사용한다.
+공휴일은 [한국천문연구원 특일 정보 API](https://www.data.go.kr/data/15012690/openapi.do)의 무료 활용 신청 후 `PUBLIC_HOLIDAY_SERVICE_KEY`에 Decoding 키를 주입하고 `PUBLIC_HOLIDAY_ENABLED=true`로 켠다. 매일 04:20(서울)에 현재 연도와 다음 연도를 갱신하며, 조회 실패 때는 마지막으로 정상 수집한 데이터를 유지한다. 해당 연도 데이터가 없으면 기존 공휴일 계산을 사용한다.
 
 개인 캘린더 추가는 무료 오픈소스 [ical.js](https://github.com/kewisch/ical.js)로 ICS 파일을 생성하며 외부 계정 연동이 필요 없다.
 
@@ -269,6 +269,8 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://<운영 호
 | `DELIVERY_WEBHOOK_ENDPOINT_ID` / `DELIVERY_WEBHOOK_SECRET` | 백엔드 | 배송조회 등록 대상 웹훅 ID와 수신 서명 검증 키 |
 | `DELIVERY_API_ACQUIRE_TIMEOUT_MILLIS` / `DELIVERY_API_CONNECT_TIMEOUT_MILLIS` / `DELIVERY_API_TIMEOUT_MILLIS` | 백엔드 | 배송조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `3000` |
 | `PUBLIC_HOLIDAY_ENABLED` / `PUBLIC_HOLIDAY_SERVICE_KEY` | 백엔드 | 한국천문연구원 특일 정보 연동 활성화 여부와 공공데이터포털 서비스키, 기본 비활성 |
+| `KOREA_POST_TRACKING_ENABLED` / `KOREA_POST_SERVICE_KEY` | 백엔드 | 우체국 무료 배송조회 활성화 여부와 Decoding 서비스키, 기본 비활성 |
+| `KOREA_POST_ACQUIRE_TIMEOUT_MILLIS` / `KOREA_POST_CONNECT_TIMEOUT_MILLIS` / `KOREA_POST_TIMEOUT_MILLIS` | 백엔드 | 우체국 조회 연결 풀 획득·연결·응답 제한, 기본 `500` / `1000` / `5000` |
 | `PUBLIC_HOLIDAY_ACQUIRE_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_CONNECT_TIMEOUT_MILLIS` / `PUBLIC_HOLIDAY_TIMEOUT_MILLIS` | 백엔드 | 공휴일 조회 연결 풀 획득·연결·응답 상한, 기본 `500` / `1000` / `5000` |
 | `MEDIA_STORAGE_PATH` | 백엔드 | 관리자·후기 업로드 이미지 저장 경로, 로컬 기본 `./data/media` |
 | `REVIEW_IMAGE_MAX_CONCURRENT_DECODES` | 백엔드 | 회원 후기 사진 동시 디코딩 상한, 기본 `2`; 포화 시 대기 없이 `429` 반환 |

@@ -90,6 +90,9 @@ public class Fulfillment {
     @Column(name = "tracking_updated_at")
     private LocalDateTime trackingUpdatedAt;
 
+    @Column(name = "tracking_checked_at")
+    private LocalDateTime trackingCheckedAt;
+
     @Version
     @Column(nullable = false)
     private long version;
@@ -160,6 +163,7 @@ public class Fulfillment {
     }
 
     private void setTrackingRegistrationPending(ShippingCarrier carrier) {
+        this.trackingCheckedAt = null;
         this.carrierCode = carrier;
         this.trackingRegistrationStatus = TrackingRegistrationStatus.PENDING;
         this.trackingRegistrationAttempts = 0;
@@ -231,6 +235,19 @@ public class Fulfillment {
         return carrierCode == carrier && Objects.equals(this.trackingNumber, trackingNumber);
     }
 
+    /** 조회 실패도 간격에 포함해 특정 운송장에 요청이 몰리지 않게 한다. */
+    public boolean claimTrackingRefresh(LocalDateTime now, LocalDateTime checkedBefore) {
+        if (carrierCode != ShippingCarrier.KOREA_POST
+                || trackingStatus == ShipmentTrackingStatus.DELIVERED
+                || trackingStatus == ShipmentTrackingStatus.RETURNED
+                || trackingStatus == ShipmentTrackingStatus.CANCELLED
+                || (trackingCheckedAt != null && trackingCheckedAt.isAfter(checkedBefore))) {
+            return false;
+        }
+        trackingCheckedAt = Objects.requireNonNull(now);
+        return true;
+    }
+
     private static String abbreviate(String value, int maxLength) {
         if (value == null) {
             return null;
@@ -288,5 +305,6 @@ public class Fulfillment {
     public ShipmentTrackingStatus getTrackingStatus() { return trackingStatus; }
     public String getTrackingStatusText() { return trackingStatusText; }
     public LocalDateTime getTrackingUpdatedAt() { return trackingUpdatedAt; }
+    public LocalDateTime getTrackingCheckedAt() { return trackingCheckedAt; }
     public long getVersion() { return version; }
 }
