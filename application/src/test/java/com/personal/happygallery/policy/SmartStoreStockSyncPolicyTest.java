@@ -73,6 +73,32 @@ class SmartStoreStockSyncPolicyTest {
         assertThat(sync.getStatus()).isEqualTo(SmartStoreStockSyncStatus.SYNCED);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("만료 작업을 재선점한 뒤 이전 응답이 도착하면 새 결과를 덮지 않고 보정 전송을 남긴다")
+    void expiredClaim_lateResponse_keepsCorrectionPending(boolean success) {
+        SmartStoreStockSync sync = new SmartStoreStockSync(1L, NOW);
+        String generation = sync.getGeneration();
+        long expiredVersion = sync.claim(NOW, NOW.minusMinutes(5));
+        LocalDateTime reclaimedAt = NOW.plusMinutes(5);
+        long currentVersion = sync.claim(reclaimedAt, NOW);
+        sync.complete(generation, currentVersion, reclaimedAt.plusSeconds(1));
+
+        finish(sync, generation, expiredVersion, success, reclaimedAt.plusSeconds(2));
+
+        assertSoftly(softly -> {
+            softly.assertThat(currentVersion).isGreaterThan(expiredVersion);
+            softly.assertThat(sync.getStatus()).isEqualTo(SmartStoreStockSyncStatus.PENDING);
+            softly.assertThat(sync.getRequestVersion()).isGreaterThan(currentVersion);
+            softly.assertThat(sync.getNextAttemptAt()).isEqualTo(reclaimedAt.plusSeconds(2));
+            softly.assertThat(sync.getAttemptCount()).isZero();
+            softly.assertThat(sync.getLastError()).isNull();
+        });
+        long correctionVersion = sync.claim(reclaimedAt.plusSeconds(3), NOW);
+        sync.complete(generation, correctionVersion, reclaimedAt.plusSeconds(4));
+        assertThat(sync.getStatus()).isEqualTo(SmartStoreStockSyncStatus.SYNCED);
+    }
+
     private static void finish(
             SmartStoreStockSync sync,
             String generation,
