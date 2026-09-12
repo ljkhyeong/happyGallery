@@ -25,7 +25,7 @@
 
 - 주문 결제 -> 승인/거절/자동 환불
 - 예약 생성/변경/취소와 슬롯 정원 경합
-- 8회권 결제/차감/환불/만료
+- 4회권 결제/차감/환불/만료
 - 기성품 픽업 만료 재고 복구·미환불, 주문제작 미환불, 관리자 예외 환불 분기와 배치 처리, 주요 인증/필터 경로
 
 ### 3. 테스트를 검증 대상별로 분류한다
@@ -86,12 +86,13 @@
 | 화면 문구·상태 안내 | diff와 사용처 확인, JSX를 수정하면 `npm run typecheck` | 문구를 선택자로 쓰는 해당 테스트, 실제 동작·배치 변경 |
 | component·query 로직 | `npm run typecheck`와 해당 단위 테스트 | 라우트·SSR·스타일·번들 설정 변경 시 build, 사용자 흐름 변경 시 해당 E2E |
 | Java 정책·단위 로직 | 해당 모듈·tag의 테스트 클래스 | 트랜잭션·DB·외부 연동도 바뀐 경우 |
+| 모듈 의존 방향·저장소 접근 | `:application:architectureTest` | 업무 동작도 바뀐 경우 해당 정책·use case |
 | DB·트랜잭션 | 해당 use case | 공용 fixture·여러 도메인에 영향이 확인된 경우 |
 | HTTP 계약 | 해당 REST Docs, OpenAPI·클라이언트 생성, 타입 사용처 확인 | 인증·업무 흐름도 바뀐 경우 |
 
 - `npm run build`는 typegen과 `tsc -b`를 포함한다. build를 선택했으면 같은 입력으로 `typecheck`를 따로 실행하지 않는다.
 - `api:check`는 생성 후 Git 차이를 확인하는 CI용 검사다. 로컬 계약 수정은 `openapi3` → `api:generate` → 생성 diff·사용처 검토로 진행하고 바로 `api:check`를 반복하지 않는다. 명세가 그대로인 화면 수정에는 생성을 실행하지 않는다.
-- `:application:test`는 policy tag를 제외한다. policy는 `:application:policyTest`, usecase는 `:application:useCaseTest`를 선택한다.
+- `:application:test`는 policy·architecture tag를 제외한다. 각각 `:application:policyTest`, `:application:architectureTest`를 사용하며 usecase는 `:application:useCaseTest`를 선택한다. `check`·`build`에는 세 범위가 모두 포함된다.
 - `:adapter-in-web:test`는 restdocs·openapi tag를 제외한다. REST Docs는 `restDocsTest`, OpenAPI 갱신은 `openapi3`를 사용한다. 좁은 테스트가 없다는 이유만으로 전체 build를 실행하지 않는다.
 
 ### 7. 결과 재사용과 실패 처리
@@ -102,6 +103,29 @@
 - 환경을 고칠 권한과 범위가 있으면 해결한다. 필요한 값이나 접근 권한이 없으면 미검증 범위와 재실행 조건을 알리고 독립 작업을 마친다. 준비 단계 실패를 제품 회귀나 검사 통과로 기록하지 않는다.
 - 동일 실패를 조건 변경 없이 반복하지 않는다. 같은 명령 재시도는 일시 장애 근거가 있을 때만 한다.
 - 선택한 검사와 필수 검사가 통과하면 종료한다. 기존 CI의 필수 검사나 PR별 검사 결과를 로컬 결과로 대체하지 않는다. CI 대기 중 동일한 로컬 검사를 추가로 돌리지 않는다.
+
+### 8. 파일 작성 직후와 작업 종료 전의 검증 루프
+
+공통 실행기는 `tools/agent-feedback.rb`다. 별도 패키지 없이 Ruby와 기존 Gradle·ESLint를 사용한다.
+
+| 시점 | 검사 범위 | 명령 |
+|---|---|---|
+| 파일 작성 직후 | 변경 줄 공백, Ruby·Shell·JSON 문법, 해당 프론트 파일 ESLint, Java 해당 모듈·소스 세트 컴파일 | `ruby tools/agent-feedback.rb local <파일...>` |
+| 작업 종료 전 | 작업 시작 이후 전체 diff, 위 지역 검사, 변경에 따른 ArchUnit·프론트 타입·스킬·검사 도구 테스트 | `ruby tools/agent-feedback.rb final <작업 시작 SHA>` |
+
+- 시작 SHA는 편집 전에 `git rev-parse HEAD`로 얻는다. 생략하면 `HEAD`부터 검사하므로, 이미 커밋한 작업 변경을 포함하려면 반드시 시작 SHA를 전달한다.
+- 종료 검사는 삭제·새 파일·스테이징·중간 커밋을 포함한다. 전체 diff는 `.gradle/agent-feedback/review.diff`, 실행 로그는 같은 폴더에 저장한다. 에이전트는 diff의 의존 방향·누락·중복을 별도로 검토한다. 부분 스테이징 상태에서는 컴파일이 작업 트리를 검사한다는 점도 확인한다.
+- Java 운영 코드·Gradle·구조 규칙 변경은 `:application:architectureTest`를 실행한다. 전체 운영 클래스를 읽으므로 변경 파일 밖의 의존 위반도 확인한다. 구조 검사를 선택했으면 지역 Java 컴파일을 따로 실행하지 않는다.
+- ArchUnit의 의존 규칙과 허용 범위는 [ADR-0021](../0021_Hexagonal_아키텍처_전환/adr.md)의 모듈 경계를 따른다.
+- 문서만 수정하면 빌드·타입 검사를 실행하지 않는다. DB·API 계약·업무 정책 테스트는 표 6과 도메인 스킬에 따라 선택한다. Gradle 증분 실행을 그대로 사용하며 `clean`이나 `--rerun-tasks`를 기본으로 붙이지 않는다.
+
+**Codex 자동 실행**
+
+- `.codex/hooks.json`의 `UserPromptSubmit`은 시작 SHA와 기존 변경을 기록한다. `PostToolUse`는 패치·셸 명령 뒤 실제로 내용이 바뀐 파일만 검사한다. 읽기·상태 조회·같은 내용의 커밋은 지역 검사를 반복하지 않는다.
+- `Stop`은 종료 검사를 실행한다. 실패하면 수정 요청을 한 번 전달하고, 재개 후에도 변경이 없으면 같은 실패로 계속 실행하지 않는다. 이 경우 미통과 상태를 알리며 검사 통과로 처리하지 않는다. 계획 모드에서는 실행하지 않는다.
+- 상태와 로그는 `.gradle/agent-feedback/`에 저장하며 커밋하지 않는다. 새 요청은 앞선 작업이 끝났을 때 기준을 갱신한다. 중간에 훅을 활성화해 시작 정보가 없으면 당시 `HEAD`를 기준으로 하므로, 이전 커밋은 시작 SHA를 지정한 수동 종료 검사로 확인한다.
+- Codex에서 프로젝트를 신뢰한 뒤 `/hooks`로 세 훅의 정의를 확인하고 신뢰 처리한다. 새 훅과 변경한 훅은 신뢰 전까지 실행되지 않는다. 신뢰 설정을 우회하지 않으며, 자동 실행 전에는 수동 명령을 사용한다. [공식 훅 설정과 실행 계약](https://learn.chatgpt.com/docs/hooks)
+- CI는 검사 도구의 회귀 테스트와 스킬 검사를 실행한다. 실제 ArchUnit 검사는 기존 백엔드 `build`의 `check`에 포함해 중복 실행하지 않는다.
 
 ---
 

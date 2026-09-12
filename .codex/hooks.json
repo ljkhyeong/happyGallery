@@ -1,0 +1,41 @@
+{
+  "description": "파일 수정 후 지역 검사와 작업 종료 전 전체 변경 검사",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby \"$(git rev-parse --show-toplevel)/tools/agent-feedback.rb\" hook",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^(apply_patch|Bash|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby \"$(git rev-parse --show-toplevel)/tools/agent-feedback.rb\" hook",
+            "timeout": 180,
+            "statusMessage": "수정 파일 검사"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ruby \"$(git rev-parse --show-toplevel)/tools/agent-feedback.rb\" hook",
+            "timeout": 180,
+            "statusMessage": "전체 변경과 의존 방향 검사"
+          }
+        ]
+      }
+    ]
+  }
+}

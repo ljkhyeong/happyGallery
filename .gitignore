@@ -36,7 +36,8 @@ memory/
 
 ## CODEX
 .gradle-codex/
-.codex/
+.codex/*
+!.codex/hooks.json
 /.seo-cache/
 /output/
 
