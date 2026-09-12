@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import type { RestockDemandPageResponse } from "../../src/generated/api/adminCatalog";
+import type { RestockDemandPageResponse, SmartStoreNoticeResponse } from "../../src/generated/api/adminCatalog";
 import type {
   GroupInquiryFollowUpPageResponse,
   GroupInquiryPageResponse,
@@ -55,6 +55,102 @@ async function prepareAdmin(page: Page) {
     return json(route, []);
   });
 }
+
+function smartStoreNotice(id: number): SmartStoreNoticeResponse {
+  return {
+    sellerNoticeId: id, postCategoryType: "ORDINARY", title: `공지 ${id}`,
+    detailContents: `공지 ${id} 본문`, importantNotice: false,
+    importantNoticeStartDate: null, importantNoticeEndDate: null, wholeNotice: false,
+    displayStartDate: null, displayEndDate: null, popup: false,
+    popupStartDate: null, popupEndDate: null,
+  };
+}
+
+test("@admin 스마트스토어 공지 조회 실패 시 이전 초안을 저장하지 않고 다시 조회한다", async ({ page }) => {
+  await prepareAdmin(page);
+  let unavailable = true;
+  const updates: Array<{ path: string; body: Record<string, unknown> }> = [];
+  await page.route("**/api/v1/admin/smartstore-notices**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "PUT") {
+      updates.push({ path, body: route.request().postDataJSON() });
+      return json(route, { sellerNoticeId: 2 });
+    }
+    if (path.endsWith("/1")) return json(route, smartStoreNotice(1));
+    if (path.endsWith("/2")) {
+      return unavailable
+        ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+        : json(route, smartStoreNotice(2));
+    }
+    return json(route, {
+      notices: [smartStoreNotice(1), smartStoreNotice(2)],
+      page: 1, size: 100, totalElements: 2, totalPages: 1,
+    });
+  });
+  await page.goto("/admin?view=support");
+  await page.getByRole("row").filter({ hasText: "공지 1" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const body = dialog.getByPlaceholder("공지 내용");
+  await expect(body).toHaveValue("공지 1 본문");
+  await body.fill("공지 1의 저장하지 않은 초안");
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+  await page.getByRole("row").filter({ hasText: "공지 2" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+  await expect(body).toBeDisabled();
+  await expect(body).not.toHaveValue("공지 1의 저장하지 않은 초안");
+  expect(updates).toHaveLength(0);
+
+  unavailable = false;
+  await dialog.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(body).toHaveValue("공지 2 본문");
+  await body.fill("공지 2 수정 본문");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(updates).toHaveLength(1);
+  expect(updates[0]).toMatchObject({
+    path: "/api/v1/admin/smartstore-notices/2",
+    body: { title: "공지 2", detailContents: "공지 2 수정 본문" },
+  });
+});
+
+test("@admin 스마트스토어 공지 저장 실패는 초안을 보존하고 새 공지에는 오류를 옮기지 않는다", async ({ page }) => {
+  await prepareAdmin(page);
+  let created: Record<string, unknown> | undefined;
+  await page.route("**/api/v1/admin/smartstore-notices**", async (route) => {
+    const request = route.request();
+    if (request.method() === "PUT") return json(route, { code: "CONFLICT" }, 409);
+    if (request.method() === "POST") {
+      created = request.postDataJSON();
+      return json(route, { sellerNoticeId: 3 });
+    }
+    if (new URL(request.url()).pathname.endsWith("/1")) return json(route, smartStoreNotice(1));
+    return json(route, { notices: [smartStoreNotice(1)], page: 1, size: 100, totalElements: 1, totalPages: 1 });
+  });
+  await page.goto("/admin?view=support");
+  await page.getByRole("row").filter({ hasText: "공지 1" })
+    .getByRole("button", { name: "수정", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const body = dialog.getByPlaceholder("공지 내용");
+  await expect(body).toHaveValue("공지 1 본문");
+  await body.fill("실패해도 보존할 초안");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  await expect(body).toHaveValue("실패해도 보존할 초안");
+  await dialog.getByRole("button", { name: "취소", exact: true }).click();
+
+  await page.getByRole("button", { name: "공지 등록", exact: true }).click();
+  await expect(dialog.getByRole("alert")).not.toBeVisible();
+  await expect(body).toHaveValue("");
+  await dialog.getByPlaceholder("공지 제목").fill("새 공지");
+  await body.fill("새 공지 본문");
+  await dialog.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(created).toMatchObject({ title: "새 공지", detailContents: "새 공지 본문" });
+});
 
 for (const inquiry of [
   {
