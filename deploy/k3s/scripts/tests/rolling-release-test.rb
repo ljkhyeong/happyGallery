@@ -182,6 +182,106 @@ class RollingReleaseTest < Minitest::Test
     assert true
   end
 
+  def test_allows_optional_request_and_response_fields_on_existing_path
+    openapi = 'docs/PRD/0004_API_계약/openapi3.json'
+    change(openapi, JSON.generate(
+      'openapi' => '3.1.0',
+      'info' => { 'title' => 'test', 'version' => '1' },
+      'paths' => {
+        '/health' => {
+          'get' => {
+            'parameters' => [{
+              'in' => 'query', 'name' => 'trace', 'required' => false,
+              'schema' => { 'type' => 'string' }
+            }],
+            'responses' => {
+              '200' => {
+                'description' => '정상 응답',
+                'content' => {
+                  'application/json' => {
+                    'schema' => {
+                      'type' => 'object',
+                      'properties' => { 'healthy' => { 'type' => 'boolean' } }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      'components' => { 'schemas' => {
+        'Health' => {
+          'type' => 'object',
+          'properties' => { 'message' => { 'type' => 'string' } }
+        }
+      } }
+    ))
+    write_compatibility('api' => [openapi])
+    write_manifest(@new, commit)
+
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_allows_optional_fields_inside_existing_request_and_response_schemas
+    old_operation = {
+      'requestBody' => {
+        'required' => false,
+        'content' => {
+          'application/json' => {
+            'schema' => {
+              'type' => 'object',
+              'properties' => { 'name' => { 'type' => 'string' } }
+            }
+          }
+        }
+      },
+      'responses' => {
+        '200' => {
+          'content' => {
+            'application/json' => {
+              'schema' => {
+                'type' => 'object',
+                'properties' => { 'id' => { 'type' => 'integer' } }
+              }
+            }
+          }
+        }
+      }
+    }
+    new_operation = Marshal.load(Marshal.dump(old_operation))
+    new_operation['requestBody']['content']['application/json']['schema']['properties']['phone'] = { 'type' => 'string' }
+    new_operation['responses']['200']['content']['application/json']['schema']['properties']['status'] = { 'type' => 'string' }
+
+    assert RollingRelease.openapi_operation_additive?(old_operation, new_operation)
+  end
+
+  def test_rejects_new_required_openapi_parameter
+    openapi = 'docs/PRD/0004_API_계약/openapi3.json'
+    change(openapi, JSON.generate(
+      'openapi' => '3.1.0',
+      'info' => { 'title' => 'test', 'version' => '1' },
+      'paths' => {
+        '/health' => {
+          'get' => {
+            'parameters' => [{
+              'in' => 'query', 'name' => 'trace', 'required' => true,
+              'schema' => { 'type' => 'string' }
+            }],
+            'responses' => { '200' => {} }
+          }
+        }
+      },
+      'components' => { 'schemas' => {} }
+    ))
+    write_compatibility('api' => [openapi])
+    write_manifest(@new, commit)
+
+    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    assert_match(/기존 경로를 변경·삭제/, error.message)
+  end
+
   def test_rejects_unreviewed_compatibility_path
     build = 'build.gradle'
     change(build, 'plugins { id "java" }')
