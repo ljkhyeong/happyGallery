@@ -30,22 +30,36 @@ export function useMyListFilters({
   const sortValue = !sortValues || sortValues.includes(requestedSort) ? requestedSort : defaultSort;
 
   function updateFilters(next: MyListFilterUpdate) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-    const nextQuery = next.q ?? searchQuery;
-    const nextStatus = next.status ?? statusFilter;
-    const nextSort = next.sort ?? sortValue;
+    setSearchParams((currentSearchParams) => {
+      const currentQuery = currentSearchParams.get("q") ?? "";
+      const requestedCurrentStatus =
+        currentSearchParams.get("status") ??
+        (legacyStatusParam ? currentSearchParams.get(legacyStatusParam) : null) ??
+        "ALL";
+      const currentStatus = !statusValues || statusValues.includes(requestedCurrentStatus)
+        ? requestedCurrentStatus
+        : "ALL";
+      const currentSortValue = currentSearchParams.get("sort") ?? defaultSort;
+      const nextSortValue = !sortValues || sortValues.includes(currentSortValue)
+        ? currentSortValue
+        : defaultSort;
+      const nextSearchParams = new URLSearchParams(currentSearchParams);
+      const nextQuery = next.q ?? currentQuery;
+      const nextStatus = next.status ?? currentStatus;
+      const nextSort = next.sort ?? nextSortValue;
 
-    if (nextQuery) nextSearchParams.set("q", nextQuery);
-    else nextSearchParams.delete("q");
+      if (nextQuery) nextSearchParams.set("q", nextQuery);
+      else nextSearchParams.delete("q");
 
-    if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
-    else nextSearchParams.delete("status");
-    if (legacyStatusParam) nextSearchParams.delete(legacyStatusParam);
+      if (nextStatus !== "ALL") nextSearchParams.set("status", nextStatus);
+      else nextSearchParams.delete("status");
+      if (legacyStatusParam) nextSearchParams.delete(legacyStatusParam);
 
-    if (nextSort !== defaultSort) nextSearchParams.set("sort", nextSort);
-    else nextSearchParams.delete("sort");
+      if (nextSort !== defaultSort) nextSearchParams.set("sort", nextSort);
+      else nextSearchParams.delete("sort");
 
-    setSearchParams(nextSearchParams, { replace: true });
+      return nextSearchParams;
+    }, { replace: true });
   }
 
   function resetFilters() {
