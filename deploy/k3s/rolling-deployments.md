@@ -13,7 +13,7 @@ cd /opt/happygallery
 
 이 명령은 **배포 백업 → 빌드 → 취약점 검사 → k3s import → 이미지 설정 자동 갱신 → 롤링 배포 → 공개 경로 검증**을 수행한다. 백업 service와 R2 복구 묶음 검증이 성공하지 않으면 이미지 설정을 갱신하지 않는다. 이미지를 아직 빌드하지 않았다면 `--imported`를 사용하지 않는다. 정기 백업 timer와 watchdog은 사용하지 않는다.
 
-1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이의 Flyway, OpenAPI, 세션 보안 코드, 공통/운영 설정, Gradle 기반 설정 변경을 거부한다. MySQL·Redis·모니터링 spec과 app-config 변경도 거부한다. 이는 자동 호환성 판정이 아닌 보수적인 차단이며, DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다.
+1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이에 호환성 대상 변경이 있으면 후보 commit의 [`rolling-compatibility.yml`](rolling-compatibility.yml)에 검토 사유와 변경 경로를 기록해야 한다. 선언한 경로 집합은 실제 diff와 정확히 일치해야 하며, 선언이 없거나 빠진 경로가 있으면 배포를 거부한다. migration은 새 nullable 컬럼 추가만, OpenAPI는 기존 경로·schema를 보존하는 추가만 자동 확인한다. MySQL·Redis·모니터링 spec과 app-config 변경은 계속 거부한다. DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다.
 2. 이전 frontend에서 파일을 받아 새 파일과 함께 `frontend-assets` PVC에 게시한다. 같은 이름의 다른 내용은 거부하며 파일을 덮어쓰거나 이전 파일을 삭제하지 않는다. 전용 정적 서버가 준비되고 `/assets/happygallery-asset-store-v1.txt`가 `shared-assets-v1`을 반환한 뒤 앱 교체로 진행한다.
 3. 미디어 PVC의 `.deployment-in-progress/owner`로 새 정기 배치 시작을 잠시 보류한다. 새 app 이미지의 `/app/rolling-deployment-v1` 지원 표시를 확인한다. 이 파일 잠금 방식은 같은 노드의 파일시스템 공유가 전제다.
 4. 새 app/frontend가 준비되면 기존 Pod를 종료한다. app readiness에는 DB·Redis 상태가 포함된다. `preStop` 10초 후 [Spring graceful shutdown](https://docs.spring.io/spring-boot/reference/web/graceful-shutdown.html)이 처리 중인 요청을 최대 30초 기다린다. 최초 전환의 구 Pod는 원래 배포된 종료 설정을 사용한다.
@@ -55,3 +55,9 @@ sudo k3s kubectl -n happygallery exec deployment/app -- \
 정적 저장소는 현재·이전 이미지에서 다시 만들 수 있는 캐시로 DB/사용자 미디어 백업 대상에 포함하지 않는다. 새 디스크 복구에서는 initContainer가 해당 release의 파일을 게시한다. PVC는 2Gi 요청이지만 local-path의 실제 디스크 사용량 제한은 아니므로 호스트 디스크와 누적 용량을 확인한다. 과거 asset 자동 삭제는 구현하지 않았다. 이미지 보존 기간과 오래 열린 탭 지원 기간을 결정한 뒤 별도 정리 정책을 적용한다.
 
 DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 → 구 코드 제거 후 제약/컬럼 정리처럼 expand/contract를 설계한다. 차단 검사를 끄거나 `Recreate`로 자동 전환해서 진행하지 않는다.
+
+## 확장형 변경 승인 파일
+
+`deploy/k3s/rolling-compatibility.yml`은 롤링 배포에 포함할 확장형 변경의 검토 기록이다. `version: 1`, `mode: expand`, 사유와 `reviewed` 카테고리(`migration`, `api`, `runtime_config`, `build`)를 작성한다. 파일은 후보 commit에 포함해야 하며, 운영 서버에서 별도로 만들거나 검사 스크립트를 우회하지 않는다.
+
+검사기는 구버전과 신버전의 실제 변경 경로와 선언을 대조한 뒤 migration·OpenAPI의 확장 조건을 확인한다. 기존 경로·schema를 바꾸거나 삭제하는 변경, nullable이 아닌 migration, 선언과 실제 diff가 다른 변경은 별도 배포·여러 단계의 expand/contract 검토가 필요하다.
