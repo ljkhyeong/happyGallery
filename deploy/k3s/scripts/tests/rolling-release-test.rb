@@ -60,6 +60,15 @@ class RollingReleaseTest < Minitest::Test
       { 'kind' => name == 'mysql' ? 'StatefulSet' : 'Deployment', 'metadata' => { 'name' => name },
         'spec' => { 'template' => { 'spec' => { 'containers' => [{ 'name' => name, 'image' => image }] } } } }
     end
+    documents << {
+      'apiVersion' => 'v1',
+      'kind' => 'ConfigMap',
+      'metadata' => { 'name' => 'app-config' },
+      'data' => {
+        'SENTRY_RELEASE' => "happygallery@#{revision}",
+        'STATIC_SETTING' => 'same'
+      }
+    }
     File.write(path, documents.map { |document| YAML.dump(document) }.join)
   end
 
@@ -298,6 +307,16 @@ class RollingReleaseTest < Minitest::Test
     assert_match(/mysql 변경/, assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message)
     write_manifest(@new, '0' * 40)
     assert_match(/Git commit/, assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message)
+  end
+
+  def test_blocks_static_app_config_change
+    documents = RollingRelease.documents(@new)
+    config = documents.find { |document| document.dig('metadata', 'name') == 'app-config' }
+    config['data']['STATIC_SETTING'] = 'changed'
+    File.write(@new, documents.map { |document| YAML.dump(document) }.join)
+
+    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    assert_match(/app-config 변경/, error.message)
   end
 
   def test_rendered_workloads_keep_ready_pods_and_shared_assets
