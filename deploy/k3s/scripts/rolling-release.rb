@@ -19,6 +19,7 @@ module RollingRelease
   ].freeze
   COMPATIBILITY_DECLARATION = 'deploy/k3s/rolling-compatibility.yml'
   COMPATIBILITY_CATEGORIES = %w[migration api runtime_config build].freeze
+  OPENAPI_DOCUMENTATION_KEYS = %w[summary description externalDocs].freeze
 
   def self.documents(path)
     YAML.load_stream(File.read(path)).compact
@@ -101,10 +102,13 @@ module RollingRelease
     return false unless old_operation.is_a?(Hash) && new_operation.is_a?(Hash)
 
     old_operation.all? do |key, value|
+      next true if OPENAPI_DOCUMENTATION_KEYS.include?(key)
+
       new_operation.key?(key) && canonical_json(value) == canonical_json(new_operation[key])
     end && (new_operation.keys - old_operation.keys).all? do |key|
-      key == 'parameters' && new_operation[key].is_a?(Array) &&
-        new_operation[key].all? { |parameter| parameter.is_a?(Hash) && parameter['required'] != true }
+      OPENAPI_DOCUMENTATION_KEYS.include?(key) ||
+        (key == 'parameters' && new_operation[key].is_a?(Array) &&
+          new_operation[key].all? { |parameter| parameter.is_a?(Hash) && parameter['required'] != true })
     end
   end
 
@@ -113,11 +117,19 @@ module RollingRelease
 
     operation_keys = %w[get put post delete options head patch trace]
     old_path_item.all? do |key, value|
+      next true if OPENAPI_DOCUMENTATION_KEYS.include?(key)
       next false unless new_path_item.key?(key)
 
-      operation_keys.include?(key) ? openapi_operation_additive?(value, new_path_item[key]) :
+      if operation_keys.include?(key)
+        openapi_operation_additive?(value, new_path_item[key])
+      elsif OPENAPI_DOCUMENTATION_KEYS.include?(key)
+        true
+      else
         canonical_json(value) == canonical_json(new_path_item[key])
-    end && (new_path_item.keys - old_path_item.keys).all? { |key| operation_keys.include?(key) }
+      end
+    end && (new_path_item.keys - old_path_item.keys).all? do |key|
+      operation_keys.include?(key) || OPENAPI_DOCUMENTATION_KEYS.include?(key)
+    end
   end
 
   def self.validate_expand_migrations(repository, revision, paths, statuses)

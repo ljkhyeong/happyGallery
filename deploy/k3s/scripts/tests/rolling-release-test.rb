@@ -160,6 +160,28 @@ class RollingReleaseTest < Minitest::Test
     assert_match(/기존 경로를 변경·삭제/, error.message)
   end
 
+  def test_allows_openapi_documentation_change_on_existing_path
+    openapi = 'docs/PRD/0004_API_계약/openapi3.json'
+    change(openapi, JSON.generate(
+      'openapi' => '3.1.0',
+      'info' => { 'title' => 'test', 'version' => '1' },
+      'paths' => {
+        '/health' => {
+          'get' => {
+            'description' => '상태 확인 API',
+            'responses' => { '200' => {} }
+          }
+        }
+      },
+      'components' => { 'schemas' => {} }
+    ))
+    write_compatibility('api' => [openapi])
+    write_manifest(@new, commit)
+
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
   def test_rejects_unreviewed_compatibility_path
     build = 'build.gradle'
     change(build, 'plugins { id "java" }')

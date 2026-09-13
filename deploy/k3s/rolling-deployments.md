@@ -60,4 +60,4 @@ DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 →
 
 `deploy/k3s/rolling-compatibility.yml`은 롤링 배포에 포함할 확장형 변경의 검토 기록이다. `version: 1`, `mode: expand`, 사유와 `reviewed` 카테고리(`migration`, `api`, `runtime_config`, `build`)를 작성한다. 파일은 후보 commit에 포함해야 하며, 운영 서버에서 별도로 만들거나 검사 스크립트를 우회하지 않는다.
 
-검사기는 구버전과 신버전의 실제 변경 경로와 선언을 대조한 뒤 migration·OpenAPI의 확장 조건을 확인한다. 기존 경로·schema를 바꾸거나 삭제하는 변경, nullable이 아닌 migration, 선언과 실제 diff가 다른 변경은 별도 배포·여러 단계의 expand/contract 검토가 필요하다.
+검사기는 구버전과 신버전의 실제 변경 경로와 선언을 대조한 뒤 migration·OpenAPI의 확장 조건을 확인한다. 기존 경로·schema를 바꾸거나 삭제하는 변경, nullable이 아닌 migration, 선언과 실제 diff가 다른 변경은 별도 배포·여러 단계의 expand/contract 검토가 필요하다. OpenAPI의 `summary`·`description`·`externalDocs`처럼 문서 설명만 바꾸는 변경은 계약 동작을 바꾸지 않으므로 허용한다.
