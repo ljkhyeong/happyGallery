@@ -102,9 +102,22 @@ module RollingRelease
     if old_value.is_a?(Hash) && new_value.is_a?(Hash)
       openapi_hash_additive?(old_value, new_value)
     elsif old_value.is_a?(Array) && new_value.is_a?(Array)
-      canonical_json(old_value) == canonical_json(new_value)
+      openapi_array_additive?(old_value, new_value)
     else
       canonical_json(old_value) == canonical_json(new_value)
+    end
+  end
+
+  def self.openapi_array_additive?(old_array, new_array)
+    new_index = 0
+    old_array.all? do |old_item|
+      match_index = new_array[new_index..]&.index do |new_item|
+        openapi_value_additive?(old_item, new_item)
+      end
+      next false unless match_index
+
+      new_index += match_index + 1
+      true
     end
   end
 
