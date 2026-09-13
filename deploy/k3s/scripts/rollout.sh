@@ -122,6 +122,8 @@ kube -n "$NAMESPACE" rollout status statefulset/mysql --timeout=5m
 kube -n "$NAMESPACE" rollout status deployment/redis --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/app --timeout=8m
 rolling_wait_old_pods
+kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 \
+    || die "새 app 이미지가 온라인 백업 지원 표식을 제공하지 않습니다. 롤아웃을 성공 처리하지 않습니다."
 kube -n "$NAMESPACE" rollout status deployment/frontend --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/prometheus --timeout=3m
 kube -n "$NAMESPACE" rollout status deployment/alertmanager --timeout=3m

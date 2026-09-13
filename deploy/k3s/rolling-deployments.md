@@ -13,7 +13,7 @@ cd /opt/happygallery
 
 이 명령은 **배포 백업 → 빌드 → 취약점 검사 → k3s import → 이미지 설정 자동 갱신 → 롤링 배포 → 공개 경로 검증**을 수행한다. 백업 service와 R2 복구 묶음 검증이 성공하지 않으면 이미지 설정을 갱신하지 않는다. 이미지를 아직 빌드하지 않았다면 `--imported`를 사용하지 않는다. 정기 백업 timer와 watchdog은 사용하지 않는다.
 
-1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이에 호환성 대상 변경이 있으면 후보 commit의 [`rolling-compatibility.yml`](rolling-compatibility.yml)에 검토 사유와 변경 경로를 기록해야 한다. 선언한 경로 집합은 실제 diff와 정확히 일치해야 하며, 선언이 없거나 빠진 경로가 있으면 배포를 거부한다. migration은 새 nullable 컬럼 추가만, OpenAPI는 기존 경로·schema를 보존하는 추가만 자동 확인한다. MySQL·Redis·모니터링 spec과 app-config 변경은 계속 거부한다. DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다.
+1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이에 호환성 대상 변경이 있으면 후보 commit의 [`rolling-compatibility.yml`](rolling-compatibility.yml)에 검토 사유와 변경 경로를 기록해야 한다. 선언한 경로 집합은 실제 diff와 정확히 일치해야 하며, 선언이 없거나 빠진 경로가 있으면 배포를 거부한다. migration은 새 nullable 컬럼 추가만, OpenAPI는 기존 경로·schema를 보존하는 추가만 자동 확인한다. MySQL·Redis·모니터링 spec과 app-config 변경은 계속 거부한다. DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다. 구버전 앱이 온라인 백업 표식을 제공하지 않는 최초 전환은 사전에 검증한 R2 복구 묶음을 1회 사용하고, 새 app의 온라인 백업 표식을 확인한 뒤 완료한다.
 2. 이전 frontend에서 파일을 받아 새 파일과 함께 `frontend-assets` PVC에 게시한다. 같은 이름의 다른 내용은 거부하며 파일을 덮어쓰거나 이전 파일을 삭제하지 않는다. 전용 정적 서버가 준비되고 `/assets/happygallery-asset-store-v1.txt`가 `shared-assets-v1`을 반환한 뒤 앱 교체로 진행한다.
 3. 미디어 PVC의 `.deployment-in-progress/owner`로 새 정기 배치 시작을 잠시 보류한다. 새 app 이미지의 `/app/rolling-deployment-v1` 지원 표시를 확인한다. 이 파일 잠금 방식은 같은 노드의 파일시스템 공유가 전제다.
 4. 새 app/frontend가 준비되면 기존 Pod를 종료한다. app readiness에는 DB·Redis 상태가 포함된다. `preStop` 10초 후 [Spring graceful shutdown](https://docs.spring.io/spring-boot/reference/web/graceful-shutdown.html)이 처리 중인 요청을 최대 30초 기다린다. 최초 전환의 구 Pod는 원래 배포된 종료 설정을 사용한다.

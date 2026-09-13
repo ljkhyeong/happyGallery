@@ -50,6 +50,12 @@ systemctl_write() {
     fi
 }
 
+online_backup_bootstrap=${HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP:-false}
+case "$online_backup_bootstrap" in
+    true|false) ;;
+    *) die "HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP는 true 또는 false여야 합니다." ;;
+esac
+
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -69,13 +75,22 @@ for ((attempt = 0; ; attempt++)); do
     esac
 done
 
-systemctl_write start --wait happygallery-backup.service
-cd_backup_env=${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}
-cd_backup_root=${HAPPYGALLERY_CD_BACKUP_DIR:-${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups}
-[ -f "$cd_backup_env" ] || die "배포용 백업 검증 설정이 없습니다: $cd_backup_env"
-recovery_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$cd_backup_env" "$cd_backup_root")
-export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$recovery_bundle"
-info "배포 전 백업과 R2 복구 묶음 검증 완료: $recovery_bundle"
+if [ "$online_backup_bootstrap" = true ]; then
+    recovery_bundle=${VERIFIED_RECOVERY_BUNDLE_OVERRIDE:-}
+    [ -n "$recovery_bundle" ] || die "온라인 백업 최초 전환에는 검증된 R2 복구 묶음이 필요합니다."
+    verify_recovery_bundle_files "$recovery_bundle"
+    [ -n "$(find "$recovery_bundle" -prune -mtime -2 -print)" ] \
+        || die "온라인 백업 최초 전환에 사용할 R2 복구 묶음이 48시간보다 오래됐습니다."
+    info "기존 앱이 온라인 백업을 지원하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다: $recovery_bundle"
+else
+    systemctl_write start --wait happygallery-backup.service
+    cd_backup_env=${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}
+    cd_backup_root=${HAPPYGALLERY_CD_BACKUP_DIR:-${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups}
+    [ -f "$cd_backup_env" ] || die "배포용 백업 검증 설정이 없습니다: $cd_backup_env"
+    recovery_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$cd_backup_env" "$cd_backup_root")
+    export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$recovery_bundle"
+    info "배포 전 백업과 R2 복구 묶음 검증 완료: $recovery_bundle"
+fi
 
 ruby "$SCRIPT_DIR/update-release-images.rb" "$release_env" "$image_tag" "$app_digest" "$frontend_digest"
 "$SCRIPT_DIR/rollout.sh" "$release_env"

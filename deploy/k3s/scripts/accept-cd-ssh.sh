@@ -10,6 +10,7 @@ cd_frontend_digest=${BASH_REMATCH[3]}
 
 cd_repository=/opt/happygallery
 cd_state="$HOME/.local/state/happygallery/cd"
+unset HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP VERIFIED_RECOVERY_BUNDLE_OVERRIDE
 export HAPPYGALLERY_RELEASE_DIR="$HOME/.local/state/happygallery/releases"
 export KUBECTL_BIN=/usr/local/libexec/happygallery-kubectl
 export GIT_TERMINAL_PROMPT=0

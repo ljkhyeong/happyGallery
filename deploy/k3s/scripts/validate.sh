@@ -548,6 +548,11 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
     deploy_script.include?("systemctl_write start --wait happygallery-backup.service")
   abort "배포 스크립트가 새 R2 복구 묶음을 검증하지 않습니다." unless
     deploy_script.match?(/prepare-cd-backup\.sh.*?VERIFIED_RECOVERY_BUNDLE_OVERRIDE/m)
+  abort "온라인 백업 최초 전환이 검증된 R2 복구 묶음 없이 진행될 수 있습니다." unless
+    deploy_script.match?(/HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP.*?verify_recovery_bundle_files.*?48시간/m)
+  rollout_script = File.read(File.join(script_dir, "rollout.sh"))
+  abort "롤아웃 후 app의 온라인 백업 지원 표식을 확인하지 않습니다." unless
+    rollout_script.include?('exec deployment/app -- test -f /app/media-backup-guard-v1')
   abort "배포 스크립트가 백업 timer를 제어합니다." if
     deploy_script.match?(/happygallery-backup\.(timer|watchdog)|backup-watchdog/)
   %w[
