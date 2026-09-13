@@ -1,0 +1,17 @@
+version: 1
+mode: expand
+reason: >-
+  우체국 배송조회 nullable 조회 시각과 Turnstile 조회 API를 추가하고
+  기존 운영 계약을 보존하는 확장형 변경이다.
+reviewed:
+  migration:
+    - bootstrap/src/main/resources/db/migration/V184__track_shipment_lookup_attempts.sql
+  api:
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/BotProtectionController.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/dto/BotProtectionResponse.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/CustomerSecurityRoutes.java
+    - docs/PRD/0004_API_계약/openapi3.json
+  runtime_config:
+    - bootstrap/src/main/resources/application.yml
+  build:
+    - build.gradle

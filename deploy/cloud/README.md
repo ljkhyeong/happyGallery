@@ -82,7 +82,7 @@ AWS Lightsail은 [서울 리전 `ap-northeast-2`](https://docs.aws.amazon.com/li
 1. 백업 전용 하위 계정·디렉터리와 SSH 공개키를 설정하고 원격 호스트 키를 제공자 정보와 대조한다.
 2. VM의 `/mnt/off-device/happygallery`에 mount한다. `.happygallery-off-device-backup-target` marker는 원격 디렉터리에만 만든다. mount 해제 시 로컬 빈 디렉터리에서 marker가 보이지 않는지 확인한다.
 3. 원격 디렉터리에서 파일 생성·이름 변경·권한 제한·재읽기·체크섬 검증을 수행한다. 연결 중단 시 백업이 실패로 끝나고 완료 marker를 남기지 않는지 확인한다.
-4. 기존 `backup.env.example`과 systemd timer를 사용한다. 6시간 간격·30일 보존으로 시작하고 DB·이미지·배포 archive의 실제 합계 크기가 1TB 안에 드는지 측정한다. 자동 용량 증설은 설정하지 않는다.
+4. 기존 `backup.env.example`과 배포 진입점의 systemd service를 사용한다. 배포마다 백업하고 30일 보존으로 시작하며 DB·이미지·배포 archive의 실제 합계 크기가 1TB 안에 드는지 측정한다. 자동 용량 증설은 설정하지 않는다.
 5. `ENCRYPT_KEY`, `HMAC_KEY`, 서명 키와 `age` 복호화 키는 운영자가 별도 보관한다. DB 백업 계정에 복호화 키를 함께 넣지 않는다.
 6. 테스트 주문·이미지가 있는 상태로 백업한 뒤 별도 환경에서 복원한다. 일치하는 DB·미디어·이미지 digest·키를 확인하고 복구 소요 시간을 기록한다.
 

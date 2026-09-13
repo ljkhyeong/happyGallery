@@ -50,31 +50,12 @@ systemctl_write() {
     fi
 }
 
-timer_paused=false
-rollout_started=false
-rollout_completed=false
-cleanup_deploy() {
-    result=$?
-    trap - EXIT HUP INT TERM
-    if [ "$timer_paused" = true ]; then
-        if [ "$rollout_started" = false ] || [ "$rollout_completed" = true ]; then
-            systemctl_write start happygallery-backup.timer || result=1
-        else
-            info "배포가 완료되지 않아 백업 예약을 중지 상태로 유지합니다. 복구 후 다시 켜세요."
-        fi
-    fi
-    exit "$result"
-}
-trap cleanup_deploy EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-if "$systemctl_bin" is-active --quiet happygallery-backup.timer; then
-    timer_paused=true
-    systemctl_write stop happygallery-backup.timer
-fi
-# 타이머만 멈추고 실행 중인 백업은 종료시키지 않는다.
+# 배포마다 현재 실행 중인 release를 먼저 백업한다. 실행 중인 백업이 있으면
+# 끝날 때까지 기다린 뒤 새 백업을 시작해 백업과 rollout이 겹치지 않게 한다.
 for ((attempt = 0; ; attempt++)); do
     backup_state=$("$systemctl_bin" show happygallery-backup.service --property=ActiveState --value)
     case "$backup_state" in
@@ -88,8 +69,14 @@ for ((attempt = 0; ; attempt++)); do
     esac
 done
 
+systemctl_write start --wait happygallery-backup.service
+cd_backup_env=${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}
+cd_backup_root=${HAPPYGALLERY_CD_BACKUP_DIR:-${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups}
+[ -f "$cd_backup_env" ] || die "배포용 백업 검증 설정이 없습니다: $cd_backup_env"
+recovery_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" "$cd_backup_env" "$cd_backup_root")
+export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$recovery_bundle"
+info "배포 전 백업과 R2 복구 묶음 검증 완료: $recovery_bundle"
+
 ruby "$SCRIPT_DIR/update-release-images.rb" "$release_env" "$image_tag" "$app_digest" "$frontend_digest"
-rollout_started=true
 "$SCRIPT_DIR/rollout.sh" "$release_env"
-rollout_completed=true
 info "자동 배포 완료: $image_tag"

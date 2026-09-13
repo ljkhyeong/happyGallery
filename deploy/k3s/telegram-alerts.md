@@ -6,10 +6,10 @@
 
 - 서버 경보는 [Alertmanager의 Telegram 설정](https://prometheus.io/docs/alerting/latest/configuration/#telegram_config)을 사용한다. 별도 중계 서버나 SMTP 계정이 필요 없다.
 - 기존 경보 조건과 재알림 간격을 유지한다. critical은 1시간, 일반 warning은 4시간, 주문 승인·예약 취소 후속 작업 warning은 30분이며 복구 알림도 보낸다.
-- 백업 실패·백업 성공 기록 정체는 같은 봇 설정으로 Telegram Bot API를 직접 호출한다. 앱·Kubernetes가 중단돼도 호스트와 인터넷이 동작하면 발송할 수 있다.
+- 백업 실패는 같은 봇 설정으로 Telegram Bot API를 직접 호출한다. 앱·Kubernetes가 중단돼도 호스트와 인터넷이 동작하면 발송할 수 있다. 배포별 성공 여부는 배포 로그와 외부 heartbeat로 확인한다.
 - 기존 이메일과 HTTPS 웹훅은 계속 사용할 수 있다. 한 설정 파일은 하나의 채널만 선택한다.
 
-전원·홈서버 전체·인터넷 회선 장애는 서버 안에서 알릴 수 없다. [서버 밖 장애 감시](free-integrations.md#2-서버-밖에서-장애-감시)를 함께 사용한다. 서버 복구 알림과 달리 백업 경로는 실패·정체만 알리며 성공은 기존 heartbeat로 확인한다.
+전원·홈서버 전체·인터넷 회선 장애는 서버 안에서 알릴 수 없다. [서버 밖 장애 감시](free-integrations.md#2-서버-밖에서-장애-감시)를 함께 사용한다. 백업 경로는 배포별 실패를 알리며 성공은 외부 heartbeat로 확인한다.
 
 ## 운영자가 준비할 값
 
@@ -41,9 +41,9 @@ Telegram은 `app.env`의 SMTP·NCP 메일 자격 증명을 사용하지 않는�
 BACKUP_ALERT_CONFIG=/etc/happygallery/alertmanager-telegram.env
 ```
 
-기존 systemd 실패 알림 unit과 watchdog이 이 파일을 읽는다. 호스트에는 기존 운영 스크립트와 Ruby의 `net/http`·OpenSSL·CA 인증서가 필요하다. 새 Ruby gem은 사용하지 않는다. 기존 이메일용 `BACKUP_ALERT_EMAIL_CONFIG`도 호환되므로 이메일 설정을 옮길 필요는 없다.
+기존 systemd 실패 알림 unit이 이 파일을 읽는다. 호스트에는 기존 운영 스크립트와 Ruby의 `net/http`·OpenSSL·CA 인증서가 필요하다. 새 Ruby gem은 사용하지 않는다. 기존 이메일용 `BACKUP_ALERT_EMAIL_CONFIG`도 호환되므로 이메일 설정을 옮길 필요는 없다.
 
-백업 API 호출은 HTTPS 인증서를 검증하고 연결 3초·읽기/쓰기 10초·전체 20초로 제한한다. HTTP 200과 JSON의 `ok=true`를 모두 확인하며, 실패·시간 초과 시 성공으로 표시하거나 즉시 재전송하지 않는다. [무료 요청 제한](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this)을 넘으면 유료 발송으로 전환하지 않고 실패한다. 백업 watchdog의 다음 점검이나 운영자의 재확인으로 이어간다.
+백업 API 호출은 HTTPS 인증서를 검증하고 연결 3초·읽기/쓰기 10초·전체 20초로 제한한다. HTTP 200과 JSON의 `ok=true`를 모두 확인하며, 실패·시간 초과 시 성공으로 표시하거나 즉시 재전송하지 않는다. [무료 요청 제한](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this)을 넘으면 유료 발송으로 전환하지 않고 실패한다. 다음 배포 또는 운영자의 재확인으로 이어간다.
 
 ## 검증과 실제 수신 확인
 
@@ -53,6 +53,6 @@ BACKUP_ALERT_CONFIG=/etc/happygallery/alertmanager-telegram.env
 
 1. Alertmanager에 임시 경보를 등록해 발생·복구 메시지가 같은 운영 채팅에 도착하는지 확인한다. 방법은 [기존 테스트 경보 절차](resend-alerts.md#3-alertmanager-실제-경보-확인)를 사용하며, 수신 채널을 Telegram으로 확인한다.
 2. 백업 실패 알림 unit을 시험해 해당 unit과 호스트 이름이 표시되는지 확인한다. 실제 백업 성공으로 heartbeat도 확인한다.
-3. 메시지 수신이 끝난 뒤 자동 백업과 watchdog을 활성화한다. API 접수 성공만으로 휴대폰 알림 수신까지 보장하지는 않는다.
+3. 메시지 수신이 끝난 뒤 배포를 실행해 백업 성공 heartbeat와 실패 알림을 확인한다. API 접수 성공만으로 휴대폰 알림 수신까지 보장하지는 않는다.
 
 Telegram으로 보내는 서버 경보는 경보명·심각도·요약, 백업 경보는 unit·호스트 이름이다. 고객 연락처·주문 본문·원본 로그는 추가하지 않는다. 토큰과 제공자 오류 본문은 스크립트 출력에 남기지 않는다.

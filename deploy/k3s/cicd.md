@@ -1,6 +1,6 @@
 # main 자동 배포
 
-`main` 병합 → 기존 CI → 운영 이미지 빌드·취약점 검사 → GHCR 게시 → SSH → 최근 R2 백업 검증 → 이미지 반입 → 롤링 배포·공개 경로 확인 순서다. 서버에서 `IMAGE_TAG`나 digest를 입력하지 않는다.
+`main` 병합 → 기존 CI → 운영 이미지 빌드·취약점 검사 → GHCR 게시 → SSH → 배포별 백업 실행·R2 검증 → 이미지 반입 → 롤링 배포·공개 경로 확인 순서다. 서버에서 `IMAGE_TAG`나 digest를 입력하지 않는다.
 
 PR은 기존 CI를 실행한다. `.github/workflows/production.yml`은 main push 또는 main의 수동 실행에서만 동작하며 `CD_ENABLED=true`일 때 게시·배포한다. `ci.yml`을 재사용하므로 main에서도 백엔드·프런트·브라우저 검사를 통과해야 한다. 운영 이미지를 검사할 때는 CI용 이미지를 중복 빌드하지 않는다.
 
@@ -9,10 +9,10 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 ## 1. 최초 전환 확인
 
 1. 현재 준비 중인 롤링 배포 지원 이미지를 배포하고 `verify.sh`를 통과한다.
-2. 온라인 백업을 한 번 실행해 서비스가 유지되는지, R2 업로드가 완료되는지 확인한 뒤 기존 백업 timer를 다시 켠다.
+2. 배포 진입점이 배포마다 백업 service를 실행하고 R2 복구 묶음을 검증하는지 확인한다. 기존 백업 timer와 watchdog은 설치하지 않는다.
 3. 서버에서 적용했던 운영 패치와 이번 CI/CD 코드를 PR로 main에 반영한다. 이 문서 작성만으로 push나 GitHub 설정 변경은 수행되지 않는다.
 
-서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. 기존 release의 커밋을 찾을 수 없거나 새 main에 DB migration·API 계약·세션·런타임 설정 변경이 있으면 [롤링 호환성 검사](rolling-deployments.md)가 배포를 차단한다. 이때는 해당 변경의 호환성을 먼저 처리하며 검사를 우회하지 않는다.
+서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. 기존 release의 커밋을 찾을 수 없거나 새 main에 DB migration·API 계약·세션·런타임 설정 변경이 있으면 [롤링 호환성 검사](rolling-deployments.md)가 배포를 차단한다. 확장형 변경은 후보 commit의 `deploy/k3s/rolling-compatibility.yml`에 사유와 실제 변경 경로를 선언하고, migration·OpenAPI의 확장 조건을 만족해야 통과한다. 선언이 없거나 실제 diff와 불일치하면 계속 차단하며 검사를 우회하지 않는다.
 
 ## 2. 서버에 배포 진입점 설치
 
@@ -29,12 +29,12 @@ sudo visudo -c
 sudo -n /usr/local/bin/k3s kubectl get nodes
 ```
 
-이 설정은 비대화형 배포에 필요한 k3s 관리와 백업 timer 시작·중지를 허용한다. `ronaldo`는 기존 Docker 권한을 포함해 운영 서버를 관리하는 신뢰 계정이며, k3s 권한도 클러스터 관리자 수준이다. 배포 키에는 다음 단계에서 실행 명령·포트 전달 제한을 추가한다.
+이 설정은 비대화형 배포에 필요한 k3s 관리와 배포별 백업 service 실행을 허용한다. `ronaldo`는 기존 Docker 권한을 포함해 운영 서버를 관리하는 신뢰 계정이며, k3s 권한도 클러스터 관리자 수준이다. 배포 키에는 다음 단계에서 실행 명령·포트 전달 제한을 추가한다.
 
 R2 검증 설정을 별도로 만든다. `rclone.conf`는 기존 파일을 사용하며 `ronaldo`가 읽을 수 있어야 한다. 비밀값을 화면에 출력할 필요는 없다.
 
 ```bash
-install -m 600 deploy/k3s/examples/cd-backup.env.example /etc/happygallery/cd-backup.env
+sudo install -o ronaldo -g ronaldo -m 600 deploy/k3s/examples/cd-backup.env.example /etc/happygallery/cd-backup.env
 vi /etc/happygallery/cd-backup.env
 test -r /etc/happygallery/rclone.conf && printf 'R2 설정 읽기 OK\n'
 ```
@@ -120,8 +120,8 @@ Mac에서 `pbcopy < ~/.ssh/id_ed25519_happygallery_cd`로 복사해 Secret 입�
 
 1. `validate`: 기존 테스트·E2E가 통과한다.
 2. `publish`: 실제 운영 설정으로 빌드한 두 이미지를 HIGH/CRITICAL 취약점 검사 후 GHCR에 올린다.
-3. `deploy`: SSH 호스트 키, 최신 main, 백업, 이미지 OS·CPU·commit·source·digest를 확인한다. containerd 반입 후 실제 digest로 release.env를 갱신한다.
-4. 기존 `deploy.sh`가 백업과 배포의 충돌을 막고 롤링 배포·공개 경로 확인을 수행한다. 준비되지 않은 새 앱으로 트래픽을 넘기지 않는다.
+3. `deploy`: SSH 호스트 키, 최신 main, 배포 시 새로 만든 R2 백업, 이미지 OS·CPU·commit·source·digest를 확인한다. containerd 반입 후 실제 digest로 release.env를 갱신한다.
+4. 기존 `deploy.sh`가 백업 성공과 복구 묶음 검증을 통과한 뒤 롤링 배포·공개 경로 확인을 수행한다. 준비되지 않은 새 앱으로 트래픽을 넘기지 않는다.
 
 등록 정보가 틀리거나 서버·R2·GHCR에 연결할 수 없으면 Actions가 실패하며 원인을 로그에 남긴다. 배포 시작 전 실패는 기존 앱을 교체하지 않는다. 배포 도중 실패는 상태를 확인한 뒤 복구한다. DB를 되돌리는 자동 rollback은 실행하지 않는다. GitHub Actions 실패 알림을 켜 두며, 복구가 끝나면 **Production을 main 기준으로 새로 실행**한다. 예전 실행의 commit이 main 최신과 다르면 서버가 거부한다.
 

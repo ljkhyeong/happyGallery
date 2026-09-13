@@ -432,19 +432,9 @@ grep -q 'TimeoutStartSec=30m' "$DEPLOY_DIR/systemd/happygallery-backup.service.e
 if grep -q 'manage-backup-alert-silence' "$DEPLOY_DIR/systemd/happygallery-backup.service.example"; then
     die "온라인 백업은 AppDown 경보를 숨기면 안 됩니다."
 fi
-grep -q 'OnFailure=happygallery-backup-failure@%n.service' \
-    "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
-    || die "백업 heartbeat watchdog 실패 알림 연결이 없습니다."
-grep -q 'backup.last-success 25200' \
-    "$DEPLOY_DIR/systemd/happygallery-backup-watchdog.service.example" \
-    || die "백업 heartbeat watchdog의 7시간 기준이 없습니다."
-
-heartbeat_file="$tmp_dir/backup.last-success"
-touch "$heartbeat_file"
-"$SCRIPT_DIR/check-backup-heartbeat.sh" "$heartbeat_file" 60 >/dev/null
-touch -t 200001010000 "$heartbeat_file"
-if "$SCRIPT_DIR/check-backup-heartbeat.sh" "$heartbeat_file" 60 >/dev/null 2>&1; then
-    die "백업 heartbeat watchdog이 오래된 파일을 정상으로 처리했습니다."
+if grep -Eq 'happygallery-backup\.(timer|watchdog)|backup-watchdog' \
+    "$SCRIPT_DIR/deploy.sh" "$DEPLOY_DIR/examples/cd-sudoers.example"; then
+    die "배포 경로에 정기 백업 timer 또는 watchdog 의존이 남아 있습니다."
 fi
 grep -q 'APP_IMAGE_DIGEST=' "$SCRIPT_DIR/build-import-images.sh" \
     || die "이미지 build/import 결과에 digest가 없습니다."
@@ -551,14 +541,23 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   bundle_publish = /mv "\$tmp" "\$backup".*?mv "\$tmp_checksum" "\$backup\.sha256".*?mv "\$media_tmp" "\$media_backup".*?mv "\$media_tmp_checksum" "\$media_backup\.sha256".*?mv "\$recovery_metadata_tmp_checksum" "\$recovery_metadata\.sha256".*?mv "\$recovery_metadata_tmp" "\$recovery_metadata"/m
   abort "recovery.env가 모든 archive와 sidecar 뒤에 commit marker로 게시되지 않습니다." unless backup.match?(bundle_publish)
 
-  backup_timer = File.read(File.join(script_dir, "..", "systemd", "happygallery-backup.timer.example"))
-  abort "백업 timer의 네 실행 시각에 Asia/Seoul이 명시되지 않았습니다." unless
-    backup_timer.scan(/^OnCalendar=.*Asia\/Seoul$/).size == 4
-  watchdog_timer = File.read(File.join(script_dir, "..", "systemd", "happygallery-backup-watchdog.timer.example"))
-  abort "백업 watchdog은 독립된 15분 timer여야 합니다." unless
-    watchdog_timer.include?("OnUnitActiveSec=15m") &&
-    watchdog_timer.include?("Unit=happygallery-backup-watchdog.service") &&
-    watchdog_timer.include?("Persistent=true")
+  deploy_script = File.read(File.join(script_dir, "deploy.sh"))
+  abort "배포 스크립트가 실행 중 백업 service가 끝나기를 기다리지 않습니다." unless
+    deploy_script.match?(/show happygallery-backup\.service --property=ActiveState --value/)
+  abort "배포 스크립트가 배포마다 백업 service를 실행하지 않습니다." unless
+    deploy_script.include?("systemctl_write start --wait happygallery-backup.service")
+  abort "배포 스크립트가 새 R2 복구 묶음을 검증하지 않습니다." unless
+    deploy_script.match?(/prepare-cd-backup\.sh.*?VERIFIED_RECOVERY_BUNDLE_OVERRIDE/m)
+  abort "배포 스크립트가 백업 timer를 제어합니다." if
+    deploy_script.match?(/happygallery-backup\.(timer|watchdog)|backup-watchdog/)
+  %w[
+    happygallery-backup.timer.example
+    happygallery-backup-watchdog.service.example
+    happygallery-backup-watchdog.timer.example
+  ].each do |name|
+    abort "배포 전용 정책에 사용하지 않는 systemd 예시가 남아 있습니다: #{name}" if
+      File.exist?(File.join(script_dir, "..", "systemd", name))
+  end
 RUBY
 
 ruby "$SCRIPT_DIR/tests/verify-test.rb"

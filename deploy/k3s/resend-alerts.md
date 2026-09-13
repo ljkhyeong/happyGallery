@@ -92,7 +92,7 @@ BACKUP_ALERT_EMAIL_CONFIG=/etc/happygallery/alertmanager.env
 BACKUP_ALERT_APP_ENV=/etc/happygallery/app.env
 ```
 
-기존 systemd 실패 알림 unit과 watchdog은 이 설정을 읽어 SMTP로 직접 보낸다. Kubernetes나 앱에 접근하지 않으므로 두 서비스의 장애 중에도 호스트와 인터넷이 동작하면 발송할 수 있다. 백업 설치 후 실제 실패 알림 테스트까지 수행한다.
+기존 systemd 실패 알림 unit은 이 설정을 읽어 SMTP로 직접 보낸다. Kubernetes나 앱에 접근하지 않으므로 해당 서비스의 장애 중에도 호스트와 인터넷이 동작하면 발송할 수 있다. 백업 설치 후 실제 실패 알림 테스트까지 수행한다.
 
 ## 검증과 근거
 
