@@ -271,6 +271,18 @@ module RollingRelease
     raise
   end
 
+  def self.comparable_app_config(config)
+    return config unless config.is_a?(Hash)
+
+    config.each_with_object({}) do |(key, value), result|
+      result[key] = if key == 'data' && value.is_a?(Hash)
+                      value.reject { |data_key, _| data_key == 'SENTRY_RELEASE' }
+                    else
+                      value
+                    end
+    end
+  end
+
   def self.check(repository, previous, candidate)
     old = documents(previous)
     fresh = documents(candidate)
@@ -294,7 +306,9 @@ module RollingRelease
     end
     old_config = old.find { |d| d['kind'] == 'ConfigMap' && d.dig('metadata', 'name') == 'app-config' }
     new_config = fresh.find { |d| d['kind'] == 'ConfigMap' && d.dig('metadata', 'name') == 'app-config' }
-    raise 'app-config 변경은 혼합 버전 호환성 검토가 필요합니다.' unless old_config == new_config
+    unless comparable_app_config(old_config) == comparable_app_config(new_config)
+      raise 'app-config 변경은 혼합 버전 호환성 검토가 필요합니다.'
+    end
   end
 
   def self.extract_assets(manifest, phase)
