@@ -201,6 +201,7 @@ class RollingReleaseTest < Minitest::Test
                   'application/json' => {
                     'schema' => {
                       'type' => 'object',
+                      'required' => ['healthy'],
                       'properties' => { 'healthy' => { 'type' => 'boolean' } }
                     }
                   }
