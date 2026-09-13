@@ -27,7 +27,7 @@ Prometheus는 애플리케이션 내부 지표와 alert rule을 평가하고 내
 | `images/` | app·React Router Node SSR 컨테이너 빌드 |
 | `examples/` | 저장소 밖에 만들 운영 env 파일의 키 목록 |
 | `scripts/` | secret 생성, 이미지 import, rollout/rollback, 검증, 백업/복원 |
-| `systemd/` | 운영 호스트의 백업·heartbeat 감시·검색엔진 변경 알림 unit 예시 |
+| `systemd/` | 운영 호스트의 배포 백업·실패 알림·검색엔진 변경 알림 unit 예시 |
 
 선택 연동인 [무료 IndexNow](indexnow.md)는 상품·수업·이벤트·공지 변경을 검색엔진에 알린다. 기본 비활성 상태이며 운영자가 키와 timer를 설정한다.
 
@@ -224,7 +224,7 @@ CONFIRM_REDIS_CREDENTIAL_ROTATION=rotate-happygallery-redis \
 
 `deploy.sh`는 현재 Git SHA로 기존 빌드·테스트·취약점 검사·반입을 수행하고, containerd의 실제 app/frontend digest와 두 종류의 digest 별칭을 확인한다. `release.env`의 이미지 관련 다섯 값만 원자적으로 갱신하고 이전 내용은 `release.env.previous`에 보존한다. 도메인·OAuth·`VERIFIED_RECOVERY_BUNDLE`과 주석은 유지한다. 이어 기존 `rollout.sh`의 백업 검증·배포·공개 경로 검사를 실행한다. 기존 DB의 검증된 복구 묶음은 여전히 48시간 이내여야 하며, 자동으로 확인하지 않은 백업 경로를 선택하지 않는다.
 
-배포 직전에 활성 백업 타이머를 잠시 멈추고 실행 중인 백업이 끝날 때까지 최대 30분 기다린다. 성공하면 원래 켜져 있던 타이머만 재개한다. 이미 꺼져 있던 타이머는 그대로 유지한다. rollout 실패 시에는 예약을 중지 상태로 남기고 오류를 반환한다. 실패 때 `release.env`는 배포를 시도한 이미지, `release.env.previous`는 직전 설정이며, `releases/current`는 기존 rollout의 성공 기록이다. 자동 image rollback은 하지 않는다. 배포 중 수동 백업·DDL·키 변경을 함께 실행하지 않는다.
+백업은 정기 timer로 실행하지 않는다. `deploy.sh`가 배포마다 현재 실행 중인 release의 `happygallery-backup.service`를 실행하고, 성공한 뒤 R2에서 최신 복구 묶음을 내려받아 검증한 경우에만 rollout을 진행한다. `CD_BACKUP_ENV`는 CD용 R2 조회 설정이며, 기본 경로는 `/etc/happygallery/cd-backup.env`다. `deploy.sh`는 백업 service가 끝날 때까지 최대 30분 기다리지만 timer나 watchdog을 시작·중지하지 않는다. rollout 실패 시 `release.env`는 배포를 시도한 이미지, `release.env.previous`는 직전 설정이며, `releases/current`는 기존 rollout의 성공 기록이다. 자동 image rollback은 하지 않는다. 배포 중 수동 DDL·키 변경을 함께 실행하지 않는다.
 
 이미 빌드와 반입을 마쳤다면 다음 명령으로 재빌드 없이 설정 갱신·배포한다. 마지막 인자를 생략하면 현재 HEAD를 사용하며, 빌드 후 코드가 바뀌었다면 빌드했던 Git SHA를 지정한다.
 
@@ -311,9 +311,9 @@ API 검사는 공개 상품 목록의 `200 + JSON 배열`과 공개 허용 목�
 
 Cloudflare R2에는 [R2 백업 설정](r2-backups.md)을 따른다. `BACKUP_STORAGE=rclone`은 앱을 유지한 채 로컬 암호화 캐시를 만들고 R2로 전송한다. 업로드 내용을 다시 읽어 비교하고 완료 metadata까지 게시해야 성공한다. 아래의 mount marker는 실제 외부 매체를 쓰는 기본 `mounted` 방식에만 해당한다.
 
-정기 백업은 app replica를 변경하지 않는다. `backup-data-online.sh`는 실행 앱의 `/app/media-backup-guard-v1` 지원을 확인하고, 미디어 PVC에 `.backup-in-progress` 보호 디렉터리를 만든다. 앱의 파일 삭제는 기존 `image_media_reference_lock` 행 잠금 뒤 이 보호를 확인해 보류하며 조회·주문·예약·업로드는 계속 처리한다. 백업은 같은 행 잠금을 짧게 얻었다가 즉시 해제해 이미 진행 중인 삭제가 끝났음을 확인한다. 이후 모든 업무 테이블이 InnoDB인지 확인한 상태에서 `mysqldump --single-transaction --quick --skip-lock-tables`로 DB 스냅샷을 만들고, 완료된 이미지 파일 이름 목록을 고정해 tar로 읽는다. 이미지 파일은 불변 UUID 이름으로 저장하므로 DB 스냅샷이 참조하는 파일을 보존하며, 스냅샷 이후 업로드된 여분 파일은 복원 뒤 고아 정리가 회수한다. 미디어 복사가 끝나면 삭제 보호를 해제하고 암호문을 R2에 전송한다. 키 회전 등으로 이미 0 replica인 앱은 그대로 둔다. 평문 SQL·이미지 archive는 만들지 않고 `gzip -> age` 스트림과 SHA-256 sidecar를 사용한다. 일반 백업에서 운영 테이블의 `CHECK TABLE`은 실행하지 않으며, 실제 복원 훈련에서 무결성을 검사한다.
+배포 전 백업은 app replica를 변경하지 않는다. `backup-data-online.sh`는 실행 앱의 `/app/media-backup-guard-v1` 지원을 확인하고, 미디어 PVC에 `.backup-in-progress` 보호 디렉터리를 만든다. 앱의 파일 삭제는 기존 `image_media_reference_lock` 행 잠금 뒤 이 보호를 확인해 보류하며 조회·주문·예약·업로드는 계속 처리한다. 백업은 같은 행 잠금을 짧게 얻었다가 즉시 해제해 이미 진행 중인 삭제가 끝났음을 확인한다. 이후 모든 업무 테이블이 InnoDB인지 확인한 상태에서 `mysqldump --single-transaction --quick --skip-lock-tables`로 DB 스냅샷을 만들고, 완료된 이미지 파일 이름 목록을 고정해 tar로 읽는다. 이미지 파일은 불변 UUID 이름으로 저장하므로 DB 스냅샷이 참조하는 파일을 보존하며, 스냅샷 이후 업로드된 여분 파일은 복원 뒤 고아 정리가 회수한다. 미디어 복사가 끝나면 삭제 보호를 해제하고 암호문을 R2에 전송한다. 키 회전 등으로 이미 0 replica인 앱은 그대로 둔다. 평문 SQL·이미지 archive는 만들지 않고 `gzip -> age` 스트림과 SHA-256 sidecar를 사용한다. 일반 백업에서 운영 테이블의 `CHECK TABLE`은 실행하지 않으며, 실제 복원 훈련에서 무결성을 검사한다.
 
-DB 스냅샷과 삭제 보호 구간의 미디어를 하나의 복구 단위로 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 함께 복원한다. 백업 중 배포·키 변경을 감지하면 완료 marker를 게시하지 않는다. 배포·스키마 변경·키 회전 전에는 타이머를 잠시 끄고 진행 중인 백업이 끝날 때까지 기다린다. MySQL 스냅샷은 동시 DDL에 안전하지 않으므로 수동 `ALTER/CREATE/DROP/RENAME/TRUNCATE TABLE`도 함께 실행하지 않는다. 전환과 장애 정리는 [온라인 백업 운영](online-backups.md)을 따른다.
+DB 스냅샷과 삭제 보호 구간의 미디어를 하나의 복구 단위로 보관한다. `happygallery-<시각>.recovery.env`의 `DATABASE_BACKUP`과 `MEDIA_BACKUP`은 함께 복원한다. 백업 중 배포·키 변경을 감지하면 완료 marker를 게시하지 않는다. 배포·스키마 변경·키 회전 전에는 백업 service 실행이 끝난 뒤 진행한다. MySQL 스냅샷은 동시 DDL에 안전하지 않으므로 수동 `ALTER/CREATE/DROP/RENAME/TRUNCATE TABLE`도 함께 실행하지 않는다. 전환과 장애 정리는 [온라인 백업 운영](online-backups.md)을 따른다.
 
 DB만 복원되고 실행할 바이너리가 사라지는 상황을 막기 위해 같은 외부 매체의 `releases/<IMAGE_TAG>/`에는 호환 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana 이미지 archive, digest metadata와 렌더링 manifest를 commit SHA별 한 번 보존한다. runtime workload 목록은 `runtime-images-from-manifest.rb` 한 곳만 소유하며, 백업과 복원은 해당 release의 `manifests.yaml`과 `runtime-images.env`를 parser가 대조해 만든 key·image·digest inventory를 순서대로 처리한다. 추출한 참조는 고정 tag 또는 SHA-256 digest 형식이어야 하며, containerd의 실제 digest와 archive checksum을 기존과 같이 검증한다. 각 복구 백업의 `happygallery-<시각>.recovery.env`는 DB·미디어 파일, release 경로, Flyway schema version, active 암호화 키 ID·keyring SHA-256 fingerprint와 키 회전 단계를 묶는다. fingerprint는 키 원문을 저장하지 않으면서 같은 ID에 잘못된 키를 넣은 복구도 차단한다. 모든 산출물은 먼저 `.partial`로 완성하고 DB·미디어 archive와 sidecar, recovery sidecar 순서로 이름을 확정한 뒤 `recovery.env`를 마지막에 게시한다. 따라서 같은 시각의 `recovery.env`가 없는 중단 산출물은 완성된 복구 묶음으로 사용하지 않는다. release archive는 여러 복구 백업이 공유하므로 자동 보존 정리에서 삭제하지 않는다. 해당 release를 가리키는 복구 백업이 더 없고 별도 복원 검증을 마친 뒤에만 수동 삭제한다.
 
@@ -332,27 +332,29 @@ export BACKUP_AGE_RECIPIENT='age1...'
 ./deploy/k3s/scripts/prune-backups.sh
 ```
 
-systemd 6시간 간격 실행(예시 timer가 `Asia/Seoul`을 명시한다):
+배포 시 자동 실행을 위한 service 설치:
 
 ```bash
 sudo install -m 600 deploy/k3s/examples/backup.env.example /etc/happygallery/backup.env
 sudo install -m 600 deploy/k3s/examples/backup-alert.env.example /etc/happygallery/backup-alert.env
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.service.example /etc/systemd/system/happygallery-backup.service
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup.timer.example /etc/systemd/system/happygallery-backup.timer
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup-failure@.service.example /etc/systemd/system/happygallery-backup-failure@.service
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup-watchdog.service.example /etc/systemd/system/happygallery-backup-watchdog.service
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup-watchdog.timer.example /etc/systemd/system/happygallery-backup-watchdog.timer
 sudo systemctl daemon-reload
-sudo systemctl start happygallery-backup.service
-sudo systemctl enable --now happygallery-backup.timer happygallery-backup-watchdog.timer
-systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.timer
 ```
 
 예시 unit은 저장소가 `/opt/happygallery`에 있다고 가정한다. 실제 checkout 경로와 `kubectl` 경로가 다르면 unit과 `/etc/happygallery/backup.env`를 함께 수정한다.
 
-성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 알림 unit을 호출한다. 실행 제한으로 종료할 때는 삭제 보호 해제와 임시 자원 정리에 10분 종료 유예를 둔다. 정기 백업은 앱을 중지하지 않으므로 `AppDown` 경보도 숨기지 않는다. 백업이나 삭제 보호 해제가 실패하면 `OnFailure` unit이 설정한 Telegram·SMTP·webhook으로 알린다. 강제 종료로 삭제 보호가 남은 경우에는 실행 종료를 확인한 뒤 [온라인 백업 운영](online-backups.md)에 따라 정리한다.
+기존 설치에서 정기 실행을 제거하려면 한 번만 실행한다. 이미 없는 unit은 무시해도 된다.
 
-독립 watchdog은 15분마다 heartbeat를 검사해 7시간 넘게 정체되거나 파일이 사라지면 같은 Telegram·SMTP·webhook 경로로 알린다. 설치 직후 첫 성공 heartbeat를 만들기 위해 위 순서처럼 백업 service를 한 번 성공시킨 뒤 timer를 활성화한다. watchdog도 같은 운영 호스트에서 실행되므로 전원·호스트 장애는 알 수 없다. [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 공개 웹·API와 백업 성공 알림을 서버 밖에서 확인한다. 현재 DB 논리 dump와 미디어 archive 기준 RPO는 약 6시간이며 PITR나 미디어 증분 복제는 제공하지 않는다. 주문량과 이미지 변경량이 늘거나 6시간 손실을 허용할 수 없게 되면 MySQL binlog 외부 연속 보관과 미디어 증분 복제로 전환한다.
+```bash
+sudo systemctl disable --now happygallery-backup.timer happygallery-backup-watchdog.timer 2>/dev/null || true
+sudo rm -f /etc/systemd/system/happygallery-backup.timer \
+  /etc/systemd/system/happygallery-backup-watchdog.service \
+  /etc/systemd/system/happygallery-backup-watchdog.timer
+sudo systemctl daemon-reload
+```
+
+성공한 실행은 `/var/lib/happygallery/backup.last-success`를 갱신하고, 실패하거나 30분 실행 제한을 넘으면 별도 알림 unit을 호출한다. 실행 제한으로 종료할 때는 삭제 보호 해제와 임시 자원 정리에 10분 종료 유예를 둔다. 배포 백업은 앱을 중지하지 않으므로 `AppDown` 경보도 숨기지 않는다. 백업이나 삭제 보호 해제가 실패하면 `OnFailure` unit이 설정한 Telegram·SMTP·webhook으로 알린다. 강제 종료로 삭제 보호가 남은 경우에는 실행 종료를 확인한 뒤 [온라인 백업 운영](online-backups.md)에 따라 정리한다. 정기 timer와 로컬 heartbeat watchdog은 설치하지 않는다. 백업 성공 여부는 배포 로그·`Result=success`·R2에서 다시 내려받은 묶음 검증·외부 heartbeat로 확인하며, 서버 전체 중단은 [무료 외부 감시 설정](free-integrations.md#2-서버-밖에서-장애-감시)으로 확인한다. RPO는 배포 간격에 따라 달라지므로 배포마다 백업이 완료돼야 한다.
 
 ## 8. 복원 훈련
 
@@ -437,7 +439,7 @@ V102 이후 DB는 V102 이전 애플리케이션과 호환되지 않는다. 이�
 - 기본 형식: Kustomize 렌더링, YAML 파싱, shell 구문, Prometheus 경보·Grafana 대시보드 원본과 배포본의 일치, 릴리스 매니페스트에서 실행 이미지 추출.
 - 배포·통신: probe·종료 유예, Retain PVC, 내부 Prometheus 접근, OAuth 콜백, app/frontend digest 고정, SSR 내부 API와 app 8080 수신 허용, Ingress의 CSP 비중복. Redis·Prometheus·Alertmanager·Grafana는 단일 인스턴스 `Recreate`인지 확인한다.
 - 운영 설정: 필수 환경 변수 고정, Secret의 우회 키 거부, 직접 공개 Service와 `latest` 금지, 데이터와 연결된 암호화 키·DB·Redis Secret의 단독 교체 방지.
-- 백업: timer의 한국 시간, app replica 유지, 이미지 삭제 보호·잠금 확인·완료 파일 목록 고정, 구버전 앱 거부, 실패 후 보호 해제, heartbeat watchdog을 검사한다. DB·미디어·릴리스 부속 파일을 모두 완성한 뒤 `recovery.env`를 게시한다.
+- 백업: 배포마다 service 실행, app replica 유지, 이미지 삭제 보호·잠금 확인·완료 파일 목록 고정, 구버전 앱 거부, 실패 후 보호 해제를 검사한다. DB·미디어·릴리스 부속 파일을 모두 완성한 뒤 `recovery.env`를 게시한다.
 - 복원·재기동: 복원 전 Pod 종료, 복원 후 자동 기동 금지, PG·알림·개인정보 요청 내역 대조, 호환 digest 선반영. 재기동 중 명령 실패·명시적 오류·HUP/INT/TERM 종료 시 app을 중단하고 marker를 복구하는지, 상태 저장 리소스의 롤백을 막는지 확인한다.
 - 키 교체: app 중단 → 새 백업 → 동일 digest의 Job → 실행용 Secret → Redis → app 순서를 확인한다. finalize는 소셜 데이터 변환 완료, 비회원 토큰 보존기한, 실패 시 app 중단을 검사한다.
 

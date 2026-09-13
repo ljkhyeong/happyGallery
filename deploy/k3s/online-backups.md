@@ -1,6 +1,6 @@
 # 앱을 유지하는 온라인 백업
 
-정기 백업은 app replica를 변경하거나 재기동하지 않는다. 백업 때문에 AppDown 경보를 숨기지도 않는다. 앱 교체는 [롤링 배포](rolling-deployments.md)로 처리한다. 단일 노드·전원·네트워크 장애에 대한 고가용성은 별도 과제다.
+배포 백업은 app replica를 변경하거나 재기동하지 않는다. 백업 때문에 AppDown 경보를 숨기지도 않는다. 앱 교체는 [롤링 배포](rolling-deployments.md)로 처리한다. 단일 노드·전원·네트워크 장애에 대한 고가용성은 별도 과제다.
 
 ## 일관성 조건
 
@@ -11,14 +11,14 @@
 5. DB 스냅샷 뒤 완성된 jpg/png/webp 파일 목록을 고정해 읽는다. 파일 이름은 UUID이고 내용은 덮어쓰지 않는 기존 계약을 따른다. 업로드 중 임시 파일, `.orphaned`, 삭제 보호 디렉터리는 보관하지 않는다. 이미지가 없으면 표준 빈 tar를 만든다.
 6. 미디어 복사 후 소유한 삭제 보호만 해제한다. DB·미디어 암호화가 끝난 뒤 R2 업로드와 내용 검증을 수행한다. 스냅샷 뒤 업로드된 여분 파일이 포함될 수 있지만 스냅샷이 참조하는 파일은 보존된다. 복원 뒤 여분 파일은 고아 정리 대상이다.
 
-MySQL의 [single-transaction 조건](https://dev.mysql.com/doc/refman/8.4/en/mysqldump.html#option_mysqldump_single-transaction)에 따라 백업 중 ALTER/CREATE/DROP/RENAME/TRUNCATE TABLE을 실행하지 않는다. 배포·스키마 변경·데이터 키 회전 전에는 타이머를 중지하고 진행 중인 백업이 끝날 때까지 기다린다. 백업은 deployment generation, Secret resourceVersion, 현재 release, Flyway 버전 변경을 발견하면 완료 marker를 게시하지 않는다. 이 확인이 수동 DDL의 동시 실행을 허용한다는 뜻은 아니다.
+MySQL의 [single-transaction 조건](https://dev.mysql.com/doc/refman/8.4/en/mysqldump.html#option_mysqldump_single-transaction)에 따라 백업 중 ALTER/CREATE/DROP/RENAME/TRUNCATE TABLE을 실행하지 않는다. `deploy.sh`는 배포 전에 백업 service를 먼저 실행하고 완료를 기다린다. 스키마 변경·데이터 키 회전도 같은 백업과 겹치지 않게 별도 작업으로 실행한다. 백업은 deployment generation, Secret resourceVersion, 현재 release, Flyway 버전 변경을 발견하면 완료 marker를 게시하지 않는다. 이 확인이 수동 DDL의 동시 실행을 허용한다는 뜻은 아니다.
 
 ## 기존 중단 방식에서 전환
 
 Ubuntu 서버에서 예약을 중지한다. 이미 진행 중인 백업 서비스는 이 명령으로 중단되지 않는다. 기존 백업이 실행 중이면 앱 원복과 백업 종료를 확인한 뒤 파일을 교체한다.
 
 ```bash
-sudo systemctl disable --now happygallery-backup.timer
+sudo systemctl disable --now happygallery-backup.timer happygallery-backup-watchdog.timer 2>/dev/null || true
 sudo systemctl show happygallery-backup.service -p ActiveState -p SubState
 ```
 
@@ -42,8 +42,8 @@ sudo journalctl -u happygallery-backup.service -f
 
 - 백업 전후 app Pod UID·재시작 횟수가 같고 계속 Ready인지 확인한다. 백업 중 공개 API의 주기적 요청도 성공해야 한다.
 - 실제 이미지가 있는 백업으로 이미지 참조 제거·새 이미지 업로드와 백업을 함께 실행해 확인한다. DB를 별도 MySQL에 복원하고 참조 이미지 파일의 존재와 내용을 검사한다.
-- `Result=success`, 성공 heartbeat 갱신, R2 다운로드·checksum, DB 복원·테이블 검사와 미디어 복원이 통과한 뒤 기존 6시간 주기 타이머를 다시 켠다.
-- 새 예약 백업의 소요 시간·CPU·메모리·디스크 I/O를 측정한다. 앱을 유지해도 백업 부하로 응답이 느려질 수 있으므로 실제 요청 결과를 기준으로 조정한다.
+- `Result=success`, 성공 heartbeat 갱신, R2 다운로드·checksum, DB 복원·테이블 검사와 미디어 복원이 통과한 뒤 배포를 진행한다. 정기 timer와 로컬 heartbeat watchdog은 다시 켜지 않는다.
+- 배포 백업의 소요 시간·CPU·메모리·디스크 I/O를 측정한다. 앱을 유지해도 백업 부하로 응답이 느려질 수 있으므로 실제 요청 결과를 기준으로 조정한다.
 
 ## 실패와 삭제 보호 정리
 

@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-09-05
+**최종 갱신**: 2026-09-13
 **상태**: 채택 — 보유 노트북에 먼저 설치·검증, 운영 개시는 실환경 검증 후 결정
 
 2026-09-05에 [ADR-0049의 클라우드 VM](../0049_저예산_클라우드_운영_기준/adr.md)을 비교한 뒤, 운영자가 i5-8250U·RAM 16GB 노트북의 Windows 삭제와 Linux 설치를 허용했다. 24시간 가동은 가능하며 BE3600 공유기에 Wi-Fi로 연결할 예정이다. 무선랜 호환성·재접속·공유기 관리 가능 여부는 확인 중이다. 현재는 이 노트북에 먼저 설치해 운영 가능성을 검증하고 VM 구매는 보류한다. 호스트 설치와 확인 절차는 [노트북 설치 준비](../../../deploy/laptop/README.md)를 따른다. 운영 백업은 집 전원·회선과 분리된 원격 저장소에 보관하며, Secret·암호화·복원·이미지·스키마 조건은 유지한다.
@@ -58,7 +58,7 @@
 - 노트북 내부 볼륨은 백업이 아니다. MySQL 데이터, 관리자가 업로드한 상품 이미지와 복구에 필요한 설정·암호화 키는 노트북과 물리적으로 분리된 저장소에 암호화해 백업한다.
 - Redis에는 세션과 처리율 제한처럼 재생성 가능한 상태만 저장한다. Redis 데이터를 별도 백업하지 않으며, 유실 시 전체 세션 로그아웃과 처리율 버킷 초기화를 허용한다.
 - 백업 주기, 보존 기간, 무결성 확인과 복원 훈련 절차를 운영 manifest와 함께 확정한다.
-- 운영 초기 복구 백업은 6시간마다 실행한다. 같은 시각 식별자의 MySQL 논리 백업과 미디어 볼륨 archive를 하나의 복구 묶음으로 관리해 약 6시간 RPO를 수용한다. 거래량 증가나 더 짧은 RPO가 필요해지면 DB는 binlog 외부 연속 보관과 PITR로 전환하고 미디어는 증분 복제를 함께 검토한다.
+- 운영 복구 백업은 정기 timer로 실행하지 않고 배포마다 실행한다. 같은 배포 시각의 MySQL 논리 백업과 미디어 볼륨 archive를 하나의 복구 묶음으로 관리한다. RPO는 배포 간격에 따라 달라지며, 더 짧은 RPO가 필요해지면 DB는 binlog 외부 연속 보관과 PITR로 전환하고 미디어는 증분 복제를 함께 검토한다.
 - 배포와 Flyway migration 전에는 복구 가능한 백업을 확인한다. 컨테이너 이미지 롤백이 데이터베이스 스키마를 되돌리지는 않는다.
 - V102는 휴대폰 인증 HMAC에 `purpose`를 결합하고 기존 미완료 인증을 폐기한다. 적용 전 app 쓰기를 중단하고 복구 묶음을 확인하며, 적용 뒤에는 이전 binary를 현재 DB에 연결하지 않는다. 실패 시에는 forward fix를 우선하고, 이전 release로 돌아가야 하면 V102 적용 전 DB와 그 시점의 image를 함께 복원한다.
 
@@ -74,9 +74,9 @@
 
 #### 4.2 DB와 미디어의 일관 복구 단위
 
-- 정기 백업은 app을 계속 실행한다. 미디어 PVC에 삭제 보호 디렉터리를 만든 뒤 `image_media_reference_lock` 행을 잠깐 잠가 선행 삭제의 완료를 확인한다. 앱은 이 행 잠금 뒤 보호 디렉터리를 확인해 물리적 삭제만 보류한다. InnoDB `mysqldump --single-transaction --quick --skip-lock-tables` 스냅샷 이후 완료된 불변 이미지 파일 목록을 고정해 보관하고 보호를 해제한다. 조회·주문·예약·업로드는 계속 처리하며, 이미 0 replica인 앱은 그대로 둔다. 구버전 앱은 온라인 백업을 거부한다.
-- systemd 정기 백업은 `Asia/Seoul` 기준 00:30·06:30·12:30·18:30에 실행하고 고아 정리는 03:30에 실행한다. 정합성은 시간 분리가 아닌 삭제 보호와 스냅샷에 의존한다. 백업과 배포·DDL·데이터 키 변경을 함께 실행하지 않는다. deployment generation, Secret revision, release와 Flyway 버전 변경을 발견한 묶음은 완료 상태로 게시하지 않는다.
-- 정기 백업은 AppDown 경보를 silence하지 않는다. 백업 실패·실행 제한 초과는 기존 실패 알림과 heartbeat watchdog으로 감시한다. SIGKILL·전원 장애로 미디어 삭제 보호가 남으면 다음 백업도 중단하며, 운영자가 실행 종료를 확인한 뒤 소유 marker를 정리한다. 일반 백업에서는 운영 DB의 CHECK TABLE을 생략하고 복원 훈련에서 검사한다.
+- 배포 백업은 app을 계속 실행한다. 미디어 PVC에 삭제 보호 디렉터리를 만든 뒤 `image_media_reference_lock` 행을 잠깐 잠가 선행 삭제의 완료를 확인한다. 앱은 이 행 잠금 뒤 보호 디렉터리를 확인해 물리적 삭제만 보류한다. InnoDB `mysqldump --single-transaction --quick --skip-lock-tables` 스냅샷 이후 완료된 불변 이미지 파일 목록을 고정해 보관하고 보호를 해제한다. 조회·주문·예약·업로드는 계속 처리하며, 이미 0 replica인 앱은 그대로 둔다. 구버전 앱은 온라인 백업을 거부한다.
+- `deploy.sh`는 실행 중인 백업이 끝난 뒤 배포마다 systemd 백업 service를 실행하고, R2에서 새 복구 묶음을 다운로드·검증한 경우에만 rollout한다. 정합성은 시간 분리가 아닌 삭제 보호와 스냅샷에 의존한다. 백업과 배포·DDL·데이터 키 변경을 함께 실행하지 않으며, deployment generation, Secret revision, release와 Flyway 버전 변경을 발견한 묶음은 완료 상태로 게시하지 않는다.
+- 배포 백업은 AppDown 경보를 silence하지 않는다. 백업 실패·실행 제한 초과는 기존 실패 알림으로 감시하며, 정기 timer와 로컬 heartbeat watchdog은 사용하지 않는다. SIGKILL·전원 장애로 미디어 삭제 보호가 남으면 다음 배포 백업도 중단하며, 운영자가 실행 종료를 확인한 뒤 소유 marker를 정리한다. 일반 백업에서는 운영 DB의 CHECK TABLE을 생략하고 복원 훈련에서 검사한다.
 - 같은 UTC 시각으로 만든 DB 암호문, 미디어 암호문과 `happygallery-<시각>.recovery.env`를 하나의 복구 단위로 취급한다. 두 archive는 평문 파일을 남기지 않고 각각 `gzip -> age`로 외부 mount에 기록하며 SHA-256 sidecar를 검증한다. 백업은 모든 archive와 sidecar를 먼저 완성하고 `recovery.env`를 마지막에 원자적으로 게시한다. 이 commit marker가 없으면 중단된 불완전 묶음으로 보고 rollout과 복원에 사용하지 않는다. rollout은 marker, DB·미디어, 호환 release metadata·manifest·runtime image metadata·image archive의 sidecar 전체를 검증한다. 서로 다른 시각의 DB와 미디어를 임의로 조합해 복원하지 않는다.
 - 외부 백업 위치는 `BACKUP_DIR`로 지정한 USB, NAS 또는 원격 mount다. marker 파일이 없으면 백업을 중단해 외부 매체가 빠진 상태에서 노트북의 빈 mountpoint에 기록하는 일을 막는다.
 - 복원은 app replica와 잔여 Pod가 모두 0인 상태에서만 수행한다. 묶음의 DB·미디어 checksum, age·gzip·tar 무결성, 호환 이미지 digest, Flyway version과 키링 fingerprint를 확인하고 DB와 `app-media` PVC를 같은 묶음으로 교체한 뒤 Redis 세션·처리율 상태를 비운다. 데이터 복원 진입점은 app을 자동 기동하지 않는다.
@@ -118,7 +118,7 @@
 - 현재 release의 app/frontend와 MySQL·Redis·Prometheus·Alertmanager·Grafana image archive, digest metadata와 manifest를 commit SHA별 한 번 off-device 백업에 보존한다. runtime image parser가 보존된 release manifest의 workload·container 목록과 metadata key 정의를 소유하는 유일한 registry이며, 백업·복원·검증 스크립트는 parser가 출력한 inventory를 순회한다. 이미지 참조는 별도 버전 상수로 복제하지 않고 manifest에서 정확히 추출하며, containerd의 실제 digest를 함께 기록하고 검증한다. 각 암호화 DB 백업은 Flyway version·active 암호화 키 ID·active/previous keyring fingerprint·키 회전 단계와 호환 release 경로를 기록한다. 복원 진입점은 키링을 대조하고, archive를 containerd에 가져온 뒤 모든 필수 이미지 digest를 확인한 다음에만 기존 DB를 교체한다. fingerprint만 기록하고 키 원문은 기존 분리 복구 저장소에 둔다.
 - Prometheus, Alertmanager, Grafana는 각각 Retain PVC와 `Recreate` 단일 인스턴스를 사용한다. Grafana는 외부 Ingress 없이 cluster 내부 Viewer로만 두고 운영자가 port-forward로 접근한다.
 - 유동 공인 IPv4 갱신은 Cloudflare DNS API와 `favonia/cloudflare-ddns`를 사용한다. `happygallery-ops`의 독립 addon으로 배포하고 도메인 한 개의 DNS 토큰만 주입한다. 기존 DNS only·Traefik TLS 경로를 유지한다.
-- 백업 성공 heartbeat는 6시간 주기 백업과 독립된 15분 systemd watchdog이 7시간 정체 기준으로 확인한다. 같은 노트북의 전원·호스트 장애는 HetrixTools 무료 외부 웹·API 감시와 백업 heartbeat로 확인한다. 백업 unit의 성공 후 단계에 HTTPS 호출을 추가하며 운영 애플리케이션에는 감시 SDK를 넣지 않는다. 활성화와 복구는 [무료 외부 연동](../../../deploy/k3s/free-integrations.md)을 따른다.
+- 배포 백업 성공은 service의 성공 기록과 R2 복구 묶음 검증으로 확인하고, 성공 후 단계의 HTTPS heartbeat로 외부에 알린다. 정기 systemd watchdog은 사용하지 않는다. 같은 노트북의 전원·호스트 장애는 HetrixTools 무료 외부 웹·API 감시로 확인한다. 운영 애플리케이션에는 감시 SDK를 넣지 않는다. 활성화와 복구는 [무료 외부 연동](../../../deploy/k3s/free-integrations.md)을 따른다.
 - 기존 AWS 자동 배포 workflow는 제거한다. k3s에는 운영자가 실행하는 commit SHA 이미지
   build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback 스크립트가
   구현돼 있다. 원격 CI/CD가 운영 노트북에 자동 배포하는 workflow는 두지 않는다.
@@ -148,8 +148,8 @@
 - `happy-gallery.com` 기준 canonical·robots·sitemap, 공개 상세의 실제 SSR 본문과 404 응답
 - 저장소 밖 env와 SMTP 수신 설정 또는 HTTPS webhook URL 파일에서 허용 키만 runtime Secret으로 생성·교체하고 운영 profile·보안 불변식 shadowing을 차단하는 절차
 - commit SHA 이미지 build/import, server-side dry-run, rollout 검증, release manifest 보존과 수동 rollback
-- 6시간 간격 app을 유지하는 온라인 스냅샷과 미디어 삭제 보호 기반 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
-- 백업 성공 heartbeat와 systemd 실패 SMTP·HTTPS webhook
+- 배포마다 app을 유지하는 온라인 스냅샷과 미디어 삭제 보호 기반 `age` 암호화 off-device MySQL·상품 이미지 백업, commit SHA별 호환 이미지 archive, Flyway·키 ID·digest 복구 메타데이터, checksum·보존 정리, app 중지 후 DB·미디어 복원·Redis 초기화와 운영 대사 확인 뒤 별도 활성화하는 절차
+- 배포 백업 성공 heartbeat와 systemd 실패 SMTP·HTTPS webhook
 - active/previous AES·HMAC keyring, 키 ID가 포함된 암호문, 단일 트랜잭션 회전 실행기와 소셜 provider ID lazy backfill
 - app 중지·백업·Redis 초기화를 포함한 `rotate-data-keys.sh`, 유예 조건 확인 뒤 previous 키를 제거하는 `finalize-data-key-rotation.sh`
 - Dependabot과 PR Dependency Review, npm audit, ESLint·React Hooks, app/frontend 컨테이너 Trivy 검사

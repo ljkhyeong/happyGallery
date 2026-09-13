@@ -79,11 +79,11 @@ app 릴리스의 백업·복원 목록에는 이 독립 addon이 포함되지 �
 | --- | --- | --- |
 | 홈페이지 | `https://happy-gallery.com/` | Website Monitor, 1분 간격, HTTP 200, TLS 유효성 확인 |
 | 공개 API | `https://happy-gallery.com/api/v1/products/categories` | Website Monitor, 1분 간격, HTTP 200 |
-| 백업 | 전용 Heartbeat URL | Heartbeat → Cron Job, Timeout 420분(6시간 주기 + 1시간 여유) |
+| 백업 | 전용 Heartbeat URL | Heartbeat → 배포 백업 성공 후 호출 |
 
 공개 API 검사는 백엔드·DB 조회 경로도 확인한다. Actuator·Grafana를 외부에 열지 않는다. 이 검사만으로 로그인·결제·주문 정상 동작까지 보장하지는 않는다.
 
-기존 백업은 app 쓰기를 잠시 중단하므로 외부 감시가 중단을 탐지할 수 있다. 실제 백업 시간을 측정한 뒤 필요한 시간만 점검 시간으로 등록한다. 홈서버 전원·회선 장애를 감지할 외부 감시는 계속 유지한다.
+배포 백업은 app을 유지하지만 백업 실패로 배포가 중단될 수 있다. 홈서버 전원·회선 장애를 감지할 외부 감시는 계속 유지한다.
 
 ### 백업 성공 알림 연결
 
@@ -101,7 +101,7 @@ sudo systemctl cat happygallery-backup.service
 
 기존 백업 unit을 먼저 설치해야 한다. 추가 `ExecStartPost`가 백업·보존 정리·로컬 성공 기록 뒤에 붙었는지 확인한다. 다음 실제 백업 성공 때 첫 알림을 보내고 외부 화면에서 정상 상태를 확인한다. 첫 성공 전에는 감시 항목이 실패 상태일 수 있다. 백업 실행 없이 성공 알림만 수동 전송하지 않는다.
 
-백업 실패 시 성공 알림을 보내지 않는다. 외부 통신 실패는 이미 성공한 백업을 실패로 바꾸지 않으며, 마지막 알림 후 7시간이 지나면 외부 서비스에서 미수신을 알린다. 기존 systemd 실패 webhook과 로컬 watchdog은 빠른 실패 감지용으로 유지한다.
+백업 실패 시 성공 알림을 보내지 않는다. 외부 통신 실패는 이미 성공한 백업을 실패로 바꾸지 않는다. 배포마다 백업 성공 heartbeat와 systemd 실패 알림을 확인하며, 로컬 주기 watchdog은 사용하지 않는다.
 
 ## 3. 운영 적용 확인
 

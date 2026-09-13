@@ -17,7 +17,7 @@ class DeployTest < Minitest::Test
     @scripts = File.join(@dir, 'deploy', 'k3s', 'scripts')
     @bin = File.join(@dir, 'bin')
     FileUtils.mkdir_p([@scripts, @bin])
-    %w[common.sh deploy.sh update-release-images.rb].each do |name|
+    %w[common.sh deploy.sh prepare-cd-backup.sh update-release-images.rb].each do |name|
       FileUtils.cp(File.join(SCRIPTS, name), @scripts)
     end
     @release = File.join(@dir, 'release.env')
@@ -25,6 +25,11 @@ class DeployTest < Minitest::Test
     File.write(@release, @original)
     File.chmod(0o600, @release)
     @calls = File.join(@dir, 'calls.jsonl')
+    @bundle = File.join(@dir, 'backup', 'happygallery-test.recovery.env')
+    FileUtils.mkdir_p(File.dirname(@bundle))
+    File.write(@bundle, "placeholder\n")
+    @cd_backup_env = File.join(@dir, 'cd-backup.env')
+    File.write(@cd_backup_env, "placeholder\n")
     @images = File.join(@dir, 'images.json')
     images = {}
     { 'app' => APP_DIGEST, 'frontend' => FRONTEND_DIGEST }.each do |name, digest|
@@ -35,14 +40,17 @@ class DeployTest < Minitest::Test
     @env = { 'PATH' => "#{@bin}:#{ENV.fetch('PATH')}",
              'K3S_BIN' => File.join(@bin, 'k3s'), 'SYSTEMCTL_BIN' => File.join(@bin, 'systemctl'),
              'HAPPYGALLERY_RELEASE_DIR' => File.join(@dir, 'releases'),
+             'CD_BACKUP_ENV' => @cd_backup_env,
+             'HAPPYGALLERY_CD_BACKUP_DIR' => File.join(@dir, 'cd-cache'),
              'DEPLOY_TEST_CALLS' => @calls, 'DEPLOY_TEST_IMAGES' => @images,
-             'DEPLOY_TEST_TIMER' => 'active', 'DEPLOY_TEST_STATE' => 'inactive',
+             'DEPLOY_TEST_STATE' => 'inactive',
              'DEPLOY_TEST_BUILD_EXIT' => '0', 'DEPLOY_TEST_ROLLOUT_EXIT' => '0' }
     executable(File.join(@bin, 'git'), "puts '#{TAG}'")
     # flock은 Linux 실행 경계다. 파일 내용·원자 교체·Ruby 잠금은 실제로 검사한다.
     executable(File.join(@bin, 'flock'), 'exit 0')
     executable(File.join(@bin, 'sudo'), "ARGV.shift if ARGV.first == '--'; exec(*ARGV)")
     executable(File.join(@bin, 'sleep'), 'exit 0')
+    executable(File.join(@scripts, 'prepare-cd-backup.sh'), "printf '%s\\n' '#{@bundle}'")
     executable(File.join(@bin, 'k3s'), <<~'RUBY')
       require 'json'
       abort 'unexpected containerd operation' unless ARGV == %w[ctr images list]
@@ -55,7 +63,6 @@ class DeployTest < Minitest::Test
       require 'json'
       File.open(ENV.fetch('DEPLOY_TEST_CALLS'), 'a') { |f| f.puts JSON.generate(['systemctl', *ARGV]) }
       case ARGV.first
-      when 'is-active' then exit(ENV.fetch('DEPLOY_TEST_TIMER') == 'active' ? 0 : 3)
       when 'show'
         states = ENV.fetch('DEPLOY_TEST_STATE').split(',')
         count = File.readlines(ENV.fetch('DEPLOY_TEST_CALLS')).count { |line| JSON.parse(line)[1] == 'show' }
@@ -109,19 +116,19 @@ class DeployTest < Minitest::Test
     assert_equal 0o600, File.stat(@release).mode & 0o777
     assert_equal 0o600, File.stat("#{@release}.previous").mode & 0o777
     phases = calls.map { |call| call[0] == 'systemctl' ? call[1] : call[0] }
-    assert_equal %w[BUILD is-active stop show show ROLLOUT start], phases
+    assert_equal %w[BUILD show show start ROLLOUT], phases
     assert_includes output, '자동 배포 완료'
   end
 
-  def test_previously_imported_images_skip_build_and_keep_disabled_timer_disabled
-    @env['DEPLOY_TEST_TIMER'] = 'inactive'
+  def test_previously_imported_images_skip_build_and_keep_deploy_flow
     _output, error, status = deploy(imported: true)
     assert status.success?, error
-    refute calls.any? { |call| call[0] == 'BUILD' || %w[start stop].include?(call[1]) }
+    refute calls.any? { |call| call[0] == 'BUILD' }
+    assert calls.any? { |call| call[1] == 'start' }
     assert calls.any? { |call| call[0] == 'ROLLOUT' }
   end
 
-  def test_build_failure_preserves_config_and_does_not_touch_timer_or_rollout
+  def test_build_failure_preserves_config_and_does_not_start_rollout
     @env['DEPLOY_TEST_BUILD_EXIT'] = '23'
     _output, _error, status = deploy
     assert_equal 23, status.exitstatus
@@ -143,22 +150,22 @@ class DeployTest < Minitest::Test
     end
   end
 
-  def test_failed_rollout_keeps_previous_config_and_pauses_timer_for_recovery
+  def test_failed_rollout_keeps_previous_config_without_reactivating_timer
     @env['DEPLOY_TEST_ROLLOUT_EXIT'] = '24'
     output, _error, status = deploy(imported: true)
     assert_equal 24, status.exitstatus
     assert_equal @original, File.read("#{@release}.previous")
     assert_includes File.read(@release), "IMAGE_TAG=#{TAG}\n"
-    refute calls.any? { |call| call[1] == 'start' }
-    assert_includes output, '백업 예약을 중지 상태로 유지합니다'
+    assert calls.any? { |call| call[1] == 'start' }
+    refute_includes output, '백업 예약을 중지 상태로 유지합니다'
   end
 
-  def test_pre_deploy_failure_restores_previously_active_timer
+  def test_unknown_backup_state_fails_before_backup_or_rollout
     @env['DEPLOY_TEST_STATE'] = 'unknown'
     _output, _error, status = deploy(imported: true)
     refute status.success?
     assert_equal @original, File.read(@release)
-    assert calls.any? { |call| call[1] == 'start' }
+    refute calls.any? { |call| call[1] == 'start' }
     refute calls.any? { |call| call[0] == 'ROLLOUT' }
   end
 

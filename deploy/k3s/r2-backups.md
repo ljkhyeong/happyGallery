@@ -44,35 +44,35 @@ sudo bash -c '
 
 `R2 백업 경로 조회 OK`를 확인한다. 이 명령은 조회만 하며 실제 백업이나 배포를 시작하지 않는다.
 
-## 2. 첫 실제 백업과 예약 실행
+## 2. 배포 시 백업 실행
 
 앱·MySQL·미디어 PVC가 준비되고 rollout의 `releases/current`가 생성된 뒤 진행한다. 앱이 아직 배포되지 않았다면 설정 준비까지만 마친다. 온라인 백업을 지원하는 새 앱과 systemd unit을 먼저 배포한다. [온라인 백업 전환](online-backups.md)에 따라 백업 중 앱이 유지되는지와 새 복구 묶음의 복원을 검증한다.
 
 ```bash
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.service.example /etc/systemd/system/happygallery-backup.service
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup.timer.example /etc/systemd/system/happygallery-backup.timer
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup-watchdog.service.example /etc/systemd/system/happygallery-backup-watchdog.service
-sudo install -m 644 deploy/k3s/systemd/happygallery-backup-watchdog.timer.example /etc/systemd/system/happygallery-backup-watchdog.timer
 sudo systemctl daemon-reload
-sudo systemctl start --no-block happygallery-backup.service
-sudo journalctl -u happygallery-backup.service -f
 ```
 
-로그 보기를 끝낼 때 `Ctrl+C`를 누른다. 백업 service는 계속 실행된다. 이후 결과를 확인한다.
+`deploy.sh`가 배포마다 `sudo systemctl start --wait happygallery-backup.service`를 실행한다. service가 `Result=success`로 끝난 뒤 `CD_BACKUP_ENV`의 R2 설정으로 최신 `recovery.env`를 내려받아 checksum과 release archive를 검증하고, 그 묶음을 사용해 rollout한다. 백업 실패·R2 조회·검증 실패는 배포 실패로 처리한다. 기본 실행 제한은 30분이며 종료 때 삭제 보호 해제와 임시 자원 정리에 10분 유예를 둔다.
+
+배포 사용자가 R2에서 묶음을 다시 읽을 수 있게 CD 검증 설정도 준비한다.
 
 ```bash
-sudo systemctl show happygallery-backup.service -p ActiveState -p Result -p ExecMainStatus
-sudo stat /var/lib/happygallery/backup.last-success
+sudo install -o ronaldo -g ronaldo -m 600 deploy/k3s/examples/cd-backup.env.example /etc/happygallery/cd-backup.env
+sudo vi /etc/happygallery/cd-backup.env
 ```
 
-`ActiveState=inactive`, `Result=success`, `ExecMainStatus=0`과 이번 실행의 성공 파일 시각을 확인하고, 아래 다운로드·복원 검증까지 마친 뒤 timer를 켠다. 기본 실행 제한은 30분이며 종료 때 삭제 보호 해제와 임시 자원 정리에 10분 유예를 둔다. 초기 실행 이미지 archive가 크면 제한에 걸릴 수 있으므로 로그와 전송량을 먼저 확인한다.
+기존 서버에 설치된 정기 timer와 heartbeat watchdog은 제거한다.
 
 ```bash
-sudo systemctl enable --now happygallery-backup.timer happygallery-backup-watchdog.timer
-systemctl list-timers happygallery-backup.timer happygallery-backup-watchdog.timer
+sudo systemctl disable --now happygallery-backup.timer happygallery-backup-watchdog.timer 2>/dev/null || true
+sudo rm -f /etc/systemd/system/happygallery-backup.timer \
+  /etc/systemd/system/happygallery-backup-watchdog.service \
+  /etc/systemd/system/happygallery-backup-watchdog.timer
+sudo systemctl daemon-reload
 ```
 
-매일 한국 시간 00:30, 06:30, 12:30, 18:30에 실행된다. 기본 보존 기간은 30일이다. 마지막 성공이 7시간 넘게 갱신되지 않으면 기존 watchdog이 경고한다. 서버 전체가 꺼진 장애는 외부 감시로 확인해야 한다.
+기본 보존 기간은 30일이다. 서버 전체가 꺼진 장애는 외부 감시로 확인해야 한다.
 
 ## 3. R2에서 복구 묶음 받기
 

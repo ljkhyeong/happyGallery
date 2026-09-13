@@ -11,7 +11,7 @@ cd /opt/happygallery
 ./deploy/k3s/scripts/deploy.sh /etc/happygallery/release.env
 ```
 
-이 명령은 **빌드 → 취약점 검사 → k3s import → 이미지 설정 자동 갱신 → 롤링 배포 → 공개 경로 검증**을 수행한다. 이미지를 아직 빌드하지 않았다면 `--imported`를 사용하지 않는다. 백업 타이머는 기존 활성 상태만 복구하므로 온라인 백업 전환 중 꺼 둔 타이머는 계속 꺼져 있다.
+이 명령은 **배포 백업 → 빌드 → 취약점 검사 → k3s import → 이미지 설정 자동 갱신 → 롤링 배포 → 공개 경로 검증**을 수행한다. 백업 service와 R2 복구 묶음 검증이 성공하지 않으면 이미지 설정을 갱신하지 않는다. 이미지를 아직 빌드하지 않았다면 `--imported`를 사용하지 않는다. 정기 백업 timer와 watchdog은 사용하지 않는다.
 
 1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이의 Flyway, OpenAPI, 세션 보안 코드, 공통/운영 설정, Gradle 기반 설정 변경을 거부한다. MySQL·Redis·모니터링 spec과 app-config 변경도 거부한다. 이는 자동 호환성 판정이 아닌 보수적인 차단이며, DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다.
 2. 이전 frontend에서 파일을 받아 새 파일과 함께 `frontend-assets` PVC에 게시한다. 같은 이름의 다른 내용은 거부하며 파일을 덮어쓰거나 이전 파일을 삭제하지 않는다. 전용 정적 서버가 준비되고 `/assets/happygallery-asset-store-v1.txt`가 `shared-assets-v1`을 반환한 뒤 앱 교체로 진행한다.
@@ -50,7 +50,7 @@ sudo k3s kubectl -n happygallery exec deployment/app -- \
   cat /var/lib/happygallery/media/.deployment-in-progress/owner
 ```
 
-실제 미디어 마운트는 manifest의 `/var/lib/happygallery/media`를 사용한다. 소유자와 종료 상태를 확인한 뒤 해당 표식의 `owner` 파일과 빈 디렉터리만 제거한다. 성공한 목표 manifest로 공개 검증을 마치고 `releases/current`와 `release.env`를 맞춘다. 백업 타이머도 검증 후 재개한다. SIGKILL/전원 장애의 잔여 표식도 같은 절차를 따른다.
+실제 미디어 마운트는 manifest의 `/var/lib/happygallery/media`를 사용한다. 소유자와 종료 상태를 확인한 뒤 해당 표식의 `owner` 파일과 빈 디렉터리만 제거한다. 성공한 목표 manifest로 공개 검증을 마치고 `releases/current`와 `release.env`를 맞춘다. 다음 배포에서 다시 백업 service가 실행된다. SIGKILL/전원 장애의 잔여 표식도 같은 절차를 따른다.
 
 정적 저장소는 현재·이전 이미지에서 다시 만들 수 있는 캐시로 DB/사용자 미디어 백업 대상에 포함하지 않는다. 새 디스크 복구에서는 initContainer가 해당 release의 파일을 게시한다. PVC는 2Gi 요청이지만 local-path의 실제 디스크 사용량 제한은 아니므로 호스트 디스크와 누적 용량을 확인한다. 과거 asset 자동 삭제는 구현하지 않았다. 이미지 보존 기간과 오래 열린 탭 지원 기간을 결정한 뒤 별도 정리 정책을 적용한다.
 
