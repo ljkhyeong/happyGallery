@@ -19,6 +19,7 @@ module RollingRelease
   ].freeze
   COMPATIBILITY_DECLARATION = 'deploy/k3s/rolling-compatibility.yml'
   COMPATIBILITY_CATEGORIES = %w[migration api runtime_config build].freeze
+  OPENAPI_DOCUMENTATION_KEYS = %w[summary description externalDocs].freeze
 
   def self.documents(path)
     YAML.load_stream(File.read(path)).compact
@@ -97,15 +98,70 @@ module RollingRelease
     end
   end
 
+  def self.openapi_value_additive?(old_value, new_value)
+    if old_value.is_a?(Hash) && new_value.is_a?(Hash)
+      openapi_hash_additive?(old_value, new_value)
+    elsif old_value.is_a?(Array) && new_value.is_a?(Array)
+      canonical_json(old_value) == canonical_json(new_value)
+    else
+      canonical_json(old_value) == canonical_json(new_value)
+    end
+  end
+
+  def self.openapi_hash_additive?(old_hash, new_hash)
+    return false unless old_hash.is_a?(Hash) && new_hash.is_a?(Hash)
+
+    old_hash.all? do |key, value|
+      next true if OPENAPI_DOCUMENTATION_KEYS.include?(key)
+      next false unless new_hash.key?(key)
+
+      if key == 'parameters'
+        openapi_parameters_additive?(value, new_hash[key])
+      else
+        openapi_value_additive?(value, new_hash[key])
+      end
+    end && (new_hash.keys - old_hash.keys).all? do |key|
+      key != 'required' || new_hash[key] == false
+    end
+  end
+
+  def self.openapi_parameter_identity(parameter)
+    return nil unless parameter.is_a?(Hash)
+    return ['$ref', parameter['$ref']] if parameter.key?('$ref')
+
+    ['parameter', parameter['in'], parameter['name']]
+  end
+
+  def self.openapi_parameter_additive?(old_parameter, new_parameter)
+    return false unless old_parameter.is_a?(Hash) && new_parameter.is_a?(Hash)
+    return false unless openapi_parameter_identity(old_parameter) == openapi_parameter_identity(new_parameter)
+
+    openapi_hash_additive?(old_parameter, new_parameter)
+  end
+
+  def self.openapi_parameters_additive?(old_parameters, new_parameters)
+    return false unless old_parameters.is_a?(Array) && new_parameters.is_a?(Array)
+
+    old_parameters.all? do |old_parameter|
+      identity = openapi_parameter_identity(old_parameter)
+      new_parameter = new_parameters.find { |candidate| openapi_parameter_identity(candidate) == identity }
+      new_parameter && openapi_parameter_additive?(old_parameter, new_parameter)
+    end && new_parameters.all? do |new_parameter|
+      old_parameter = old_parameters.find do |candidate|
+        openapi_parameter_identity(candidate) == openapi_parameter_identity(new_parameter)
+      end
+      old_parameter || (new_parameter.is_a?(Hash) && new_parameter['required'] != true)
+    end
+  end
+
   def self.openapi_operation_additive?(old_operation, new_operation)
     return false unless old_operation.is_a?(Hash) && new_operation.is_a?(Hash)
 
-    old_operation.all? do |key, value|
-      new_operation.key?(key) && canonical_json(value) == canonical_json(new_operation[key])
-    end && (new_operation.keys - old_operation.keys).all? do |key|
-      key == 'parameters' && new_operation[key].is_a?(Array) &&
-        new_operation[key].all? { |parameter| parameter.is_a?(Hash) && parameter['required'] != true }
-    end
+    openapi_hash_additive?(old_operation, new_operation) &&
+      (new_operation.keys - old_operation.keys).all? do |key|
+      OPENAPI_DOCUMENTATION_KEYS.include?(key) ||
+        (key == 'parameters' && openapi_parameters_additive?([], new_operation[key]))
+      end
   end
 
   def self.openapi_path_item_additive?(old_path_item, new_path_item)
@@ -113,11 +169,22 @@ module RollingRelease
 
     operation_keys = %w[get put post delete options head patch trace]
     old_path_item.all? do |key, value|
+      next true if OPENAPI_DOCUMENTATION_KEYS.include?(key)
       next false unless new_path_item.key?(key)
 
-      operation_keys.include?(key) ? openapi_operation_additive?(value, new_path_item[key]) :
-        canonical_json(value) == canonical_json(new_path_item[key])
-    end && (new_path_item.keys - old_path_item.keys).all? { |key| operation_keys.include?(key) }
+      if operation_keys.include?(key)
+        openapi_operation_additive?(value, new_path_item[key])
+      elsif key == 'parameters'
+        openapi_parameters_additive?(value, new_path_item[key])
+      elsif OPENAPI_DOCUMENTATION_KEYS.include?(key)
+        true
+      else
+        openapi_value_additive?(value, new_path_item[key])
+      end
+    end && (new_path_item.keys - old_path_item.keys).all? do |key|
+      operation_keys.include?(key) || OPENAPI_DOCUMENTATION_KEYS.include?(key) ||
+        (key == 'parameters' && openapi_parameters_additive?([], new_path_item[key]))
+    end
   end
 
   def self.validate_expand_migrations(repository, revision, paths, statuses)
@@ -158,15 +225,13 @@ module RollingRelease
           old_group = old_components[component]
           new_group = new_components[component]
           if old_group.is_a?(Hash)
-            !new_group.is_a?(Hash) || old_group.keys.any? do |name|
-              !new_group.key?(name) || canonical_json(old_group[name]) != canonical_json(new_group[name])
-            end
+            !openapi_hash_additive?(old_group, new_group)
           else
             canonical_json(old_group) != canonical_json(new_group)
           end
         end
         raise "OpenAPI는 기존 components를 변경·삭제할 수 없습니다: #{changed_components.join(', ')}" unless changed_components.empty?
-      elsif !new_spec.key?(key) || canonical_json(value) != canonical_json(new_spec[key])
+      elsif !new_spec.key?(key) || !openapi_value_additive?(value, new_spec[key])
         raise "OpenAPI 기존 계약이 변경되었습니다: #{key}"
       end
     end
