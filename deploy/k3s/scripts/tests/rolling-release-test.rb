@@ -66,6 +66,7 @@ class RollingReleaseTest < Minitest::Test
       'metadata' => { 'name' => 'app-config' },
       'data' => {
         'SENTRY_RELEASE' => "happygallery@#{revision}",
+        'PASS_TOTAL_PRICE' => revision == @old_sha ? '240000' : '120000',
         'STATIC_SETTING' => 'same'
       }
     }
