@@ -20,6 +20,7 @@ module RollingRelease
   COMPATIBILITY_DECLARATION = 'deploy/k3s/rolling-compatibility.yml'
   COMPATIBILITY_CATEGORIES = %w[migration api runtime_config build].freeze
   OPENAPI_DOCUMENTATION_KEYS = %w[summary description externalDocs].freeze
+  ROLLING_APP_CONFIG_KEYS = %w[SENTRY_RELEASE PASS_TOTAL_PRICE].freeze
 
   def self.documents(path)
     YAML.load_stream(File.read(path)).compact
@@ -276,7 +277,7 @@ module RollingRelease
 
     config.each_with_object({}) do |(key, value), result|
       result[key] = if key == 'data' && value.is_a?(Hash)
-                      value.reject { |data_key, _| data_key == 'SENTRY_RELEASE' }
+                      value.reject { |data_key, _| ROLLING_APP_CONFIG_KEYS.include?(data_key) }
                     else
                       value
                     end
