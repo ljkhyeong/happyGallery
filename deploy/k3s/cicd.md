@@ -120,7 +120,7 @@ Mac에서 `pbcopy < ~/.ssh/id_ed25519_happygallery_cd`로 복사해 Secret 입�
 
 1. `validate`: 기존 테스트·E2E가 통과한다.
 2. `publish`: 실제 운영 설정으로 빌드한 두 이미지를 HIGH/CRITICAL 취약점 검사 후 GHCR에 올린다.
-3. `deploy`: SSH 호스트 키, 최신 main, 배포 시 새로 만든 R2 백업, 이미지 OS·CPU·commit·source·digest를 확인한다. containerd 반입 후 실제 digest로 release.env를 갱신한다.
+3. `deploy`: SSH 호스트 키, 최신 main, 배포 시 새로 만든 R2 백업, 이미지 OS·CPU·commit·source·digest를 확인한다. 최초 온라인 백업 전환에서만 현재 구버전 앱이 지원 표식을 제공하지 않으면 먼저 검증한 R2 복구 묶음을 1회 사용하고, 새 app 표식을 확인한다. containerd 반입 후 실제 digest로 release.env를 갱신한다.
 4. 기존 `deploy.sh`가 백업 성공과 복구 묶음 검증을 통과한 뒤 롤링 배포·공개 경로 확인을 수행한다. 준비되지 않은 새 앱으로 트래픽을 넘기지 않는다.
 
 등록 정보가 틀리거나 서버·R2·GHCR에 연결할 수 없으면 Actions가 실패하며 원인을 로그에 남긴다. 배포 시작 전 실패는 기존 앱을 교체하지 않는다. 배포 도중 실패는 상태를 확인한 뒤 복구한다. DB를 되돌리는 자동 rollback은 실행하지 않는다. GitHub Actions 실패 알림을 켜 두며, 복구가 끝나면 **Production을 main 기준으로 새로 실행**한다. 예전 실행의 commit이 main 최신과 다르면 서버가 거부한다.

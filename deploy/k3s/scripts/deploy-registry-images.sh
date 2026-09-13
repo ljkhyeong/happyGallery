@@ -48,6 +48,20 @@ RUBY
 done
 
 "$SCRIPT_DIR/verify-app-image.sh" "${registry_local_images[0]}"
+
+# 최초 전환에서는 현재 앱이 온라인 백업 표식을 아직 제공하지 않을 수 있다.
+# 이 경우에도 위에서 검증한 최근 R2 복구 묶음이 있어야만 부트스트랩을 허용한다.
+current_app=$(kube -n "$NAMESPACE" get deployment app --ignore-not-found -o name)
+if [ -n "$current_app" ]; then
+    kube -n "$NAMESPACE" rollout status deployment/app --timeout=30s >/dev/null
+    current_app_replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
+    if [ "$current_app_replicas" = 1 ] &&
+       ! kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 >/dev/null 2>&1; then
+        export HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP=true
+        info "현재 앱이 온라인 백업 표식을 제공하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다."
+    fi
+fi
+
 docker save -o "$registry_tmp/images.tar" "${registry_local_images[@]}"
 k3s_ctr images import "$registry_tmp/images.tar"
 for local_ref in "${registry_local_images[@]}"; do

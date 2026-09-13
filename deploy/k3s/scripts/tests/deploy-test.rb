@@ -20,6 +20,9 @@ class DeployTest < Minitest::Test
     %w[common.sh deploy.sh prepare-cd-backup.sh update-release-images.rb].each do |name|
       FileUtils.cp(File.join(SCRIPTS, name), @scripts)
     end
+    File.open(File.join(@scripts, 'common.sh'), 'a') do |file|
+      file.puts "\nverify_recovery_bundle_files() { test -f \"$1\"; }"
+    end
     @release = File.join(@dir, 'release.env')
     @original = "# 운영 설정\nPUBLIC_HOST=happy-gallery.com\nIMAGE_TAG=old\nACME_EMAIL=ops@example.com\nVERIFIED_RECOVERY_BUNDLE=/backup/file.recovery.env\nCUSTOM_VALUE=a=b\n"
     File.write(@release, @original)
@@ -126,6 +129,24 @@ class DeployTest < Minitest::Test
     refute calls.any? { |call| call[0] == 'BUILD' }
     assert calls.any? { |call| call[1] == 'start' }
     assert calls.any? { |call| call[0] == 'ROLLOUT' }
+  end
+
+  def test_online_backup_bootstrap_uses_verified_bundle_without_starting_legacy_backup
+    @env['HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP'] = 'true'
+    @env['VERIFIED_RECOVERY_BUNDLE_OVERRIDE'] = @bundle
+    output, error, status = deploy(imported: true)
+    assert status.success?, error
+    phases = calls.map { |call| call[0] == 'systemctl' ? call[1] : call[0] }
+    assert_equal %w[show ROLLOUT], phases
+    assert_includes output, '검증된 R2 복구 묶음으로 최초 전환'
+  end
+
+  def test_online_backup_bootstrap_requires_verified_bundle
+    @env['HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP'] = 'true'
+    _output, error, status = deploy(imported: true)
+    refute status.success?
+    assert_includes error, '검증된 R2 복구 묶음이 필요합니다'
+    refute calls.any? { |call| call[0] == 'ROLLOUT' }
   end
 
   def test_build_failure_preserves_config_and_does_not_start_rollout

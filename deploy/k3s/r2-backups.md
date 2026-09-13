@@ -48,6 +48,8 @@ sudo bash -c '
 
 앱·MySQL·미디어 PVC가 준비되고 rollout의 `releases/current`가 생성된 뒤 진행한다. 앱이 아직 배포되지 않았다면 설정 준비까지만 마친다. 온라인 백업을 지원하는 새 앱과 systemd unit을 먼저 배포한다. [온라인 백업 전환](online-backups.md)에 따라 백업 중 앱이 유지되는지와 새 복구 묶음의 복원을 검증한다.
 
+최초 전환에서 현재 실행 중인 구버전 앱이 `/app/media-backup-guard-v1`을 제공하지 않으면, `deploy-registry-images.sh`가 먼저 검증한 48시간 이내 R2 복구 묶음을 1회 배포 백업으로 재사용한다. 새 이미지 자체 검증과 복구 묶음 무결성 검증이 모두 성공한 경우에만 이 경로를 사용하며, 새 app이 표식을 제공하지 않으면 롤아웃을 성공 처리하지 않는다. 이후 배포는 항상 배포 전 백업 service를 먼저 실행한다.
+
 ```bash
 sudo install -m 644 deploy/k3s/systemd/happygallery-backup.service.example /etc/systemd/system/happygallery-backup.service
 sudo systemctl daemon-reload

@@ -147,7 +147,22 @@ class CdTest < Minitest::Test
     @release = File.join(@dir, 'release.env')
     File.write(@release, "PUBLIC_HOST=happy-gallery.com\n")
     File.chmod(0o600, @release)
-    executable(@bin, 'kube', "puts 'amd64'")
+    executable(@bin, 'kube', <<~'RUBY')
+      args = ARGV
+      if args.include?('get') && args.include?('deployment') && args.include?('app')
+        if args.include?('--ignore-not-found')
+          puts ENV.fetch('HG_CD_APP_DEPLOYMENT', '')
+        elsif args.any? { |arg| arg.include?('spec.replicas') }
+          puts ENV.fetch('HG_CD_APP_REPLICAS', '1')
+        end
+      elsif args.include?('rollout')
+        exit 0
+      elsif args.include?('exec')
+        exit ENV.fetch('HG_CD_APP_GUARD', '1') == '1' ? 0 : 1
+      else
+        puts 'amd64'
+      end
+    RUBY
     @env['KUBECTL_BIN'] = File.join(@bin, 'kube')
     @env['K3S_BIN'] = File.join(@bin, 'k3s')
     executable(@bin, 'k3s', <<~RUBY)
@@ -175,6 +190,17 @@ class CdTest < Minitest::Test
     assert calls.any? { |call| call.first(3) == %w[docker pull --platform] }
     refute calls.any? { |call| call.first(2) == %w[docker build] }
     assert_equal "PUBLIC_HOST=happy-gallery.com\n", File.read(@release)
+  end
+
+  def test_registry_import_bootstraps_when_running_app_lacks_online_backup_guard
+    prepare_registry
+    @env['HG_CD_APP_DEPLOYMENT'] = 'deployment.apps/app'
+    @env['HG_CD_APP_REPLICAS'] = '1'
+    @env['HG_CD_APP_GUARD'] = '0'
+    output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    assert status.success?, error
+    assert_includes output, '검증된 R2 복구 묶음으로 최초 전환'
+    assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
   end
 
   def test_wrong_commit_architecture_or_failed_pull_never_imports_or_deploys
