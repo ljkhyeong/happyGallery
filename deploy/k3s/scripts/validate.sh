@@ -170,10 +170,8 @@ ruby -e '
     "GUEST_TOKEN_EXPIRY_HOURS",
     "GUEST_TOKEN_RECOVERY_EXPIRY_HOURS"
   )
-  abort "비회원 토큰 TTL 기준이 app-config에 고정되지 않았습니다." unless token_ttls == {
-    "GUEST_TOKEN_EXPIRY_HOURS" => "720",
-    "GUEST_TOKEN_RECOVERY_EXPIRY_HOURS" => "24"
-  }
+  abort "비회원 토큰 TTL은 양의 정수 시간이어야 합니다." unless token_ttls&.size == 2 &&
+    token_ttls.values.all? { |value| value.to_s.match?(/\A[1-9][0-9]*\z/) }
   media_mount = app_container&.fetch("volumeMounts", [])&.find { |mount| mount["name"] == "media" }
   media_volume = app_deployment&.dig("spec", "template", "spec", "volumes")&.find { |volume| volume["name"] == "media" }
   abort "app-media PVC가 app의 미디어 저장 경로에 연결되지 않았습니다." unless
@@ -573,6 +571,7 @@ ruby "$SCRIPT_DIR/tests/online-backup-test.rb"
 ruby "$SCRIPT_DIR/tests/deploy-test.rb"
 ruby "$SCRIPT_DIR/tests/cd-test.rb"
 ruby "$SCRIPT_DIR/tests/rolling-release-test.rb"
+ruby "$SCRIPT_DIR/tests/openapi-compatibility-test.rb"
 ruby "$SCRIPT_DIR/tests/rolling-lifecycle-test.rb"
 bash "$SCRIPT_DIR/tests/rotate-mysql-credentials-test.sh"
 bash "$SCRIPT_DIR/tests/create-secrets-allowlist-test.sh"

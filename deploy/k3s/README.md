@@ -278,7 +278,7 @@ cert-manager는 HTTP-01을 사용하므로 인증서 최초 발급과 갱신 시
 6. 적용한 manifest와 이미지 식별자를 `$HOME/.local/state/happygallery/releases`에 보존
 
 실패 시 자동 rollback하지 않는다. 새 이미지의 Flyway가 이미 실행됐을 수 있으므로 DB 호환성과 백업을 먼저 확인한다.
-app/frontend는 `maxUnavailable: 0`, `maxSurge: 1`의 롤링 배포를 사용한다. 새 Pod가 readiness를 10초 유지한 뒤 기존 Pod를 종료한다. 배포 스크립트는 DB·API·세션·기반 설정의 변경과 현재 release 불일치를 적용 전에 거부하고, 정적 파일 보존·공개 경로 확인·배치 인계를 순서대로 수행한다. 조건과 실패 복구는 [롤링 배포](rolling-deployments.md)를 따른다. Redis와 모니터링은 `Recreate`를 유지하고 앱 배포 때 불필요하게 재시작하지 않는다. 이들 workload 변경은 별도 작업으로 처리한다.
+app/frontend는 `maxUnavailable: 0`, `maxSurge: 1`의 롤링 배포를 사용한다. 새 Pod가 readiness를 10초 유지한 뒤 기존 Pod를 종료한다. 배포 스크립트는 일반 설정값·문서 변경과 호환 API·SQL 확장을 허용하고, 계약 파괴·데이터 전환이 필요한 변경과 현재 release 불일치를 적용 전에 거부한다. 인증·세션 및 민감한 Spring 설정 변경은 검토 기록을 확인한다. 정적 파일 보존·공개 경로 확인·배치 인계를 순서대로 수행하며, 판정 기준과 실패 복구는 [롤링 배포](rolling-deployments.md)를 따른다. 기반 서비스의 리소스·probe·Pod 주석 조정은 허용하지만 단일 인스턴스 재시작 중 일시 중단이 생길 수 있다. 이미지·볼륨·연결 변경은 별도 작업으로 처리한다.
 
 V102는 휴대폰 인증 HMAC 입력에 인증 목적을 추가하고 기존 미완료 인증을 모두 폐기한다. 따라서
 V102 적용 전에는 app 쓰기를 중단한 상태에서 복구 묶음을 확인해야 한다. 적용 뒤 이전 binary를
