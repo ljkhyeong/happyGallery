@@ -25,8 +25,8 @@ class OpenapiCompatibilityTest < Minitest::Test
 
   def test_does_not_treat_property_or_component_names_as_documentation
     %w[description summary example required parameters].each do |name|
-      old = spec('type' => 'object', 'properties' => { name => { 'type' => 'string' } })
-      fresh = spec('type' => 'object', 'properties' => {})
+      old = spec({ 'type' => 'object', 'properties' => { name => { 'type' => 'string' } } })
+      fresh = spec({ 'type' => 'object', 'properties' => {} })
       assert differences(old, fresh).any? { |error| error.include?("properties/#{name}") }, name
     end
     assert differences({ 'components' => { 'schemas' => { 'description' => { 'type' => 'string' } } } },
@@ -100,8 +100,8 @@ class OpenapiCompatibilityTest < Minitest::Test
   end
 
   def test_allows_documentation_changes_inside_reordered_composition
-    old = spec('allOf' => [{ 'type' => 'object', 'description' => 'old' }, { 'properties' => { 'id' => { 'type' => 'integer' } } }])
-    fresh = spec('allOf' => [{ 'properties' => { 'id' => { 'type' => 'integer' } } }, { 'type' => 'object', 'description' => 'new' }])
+    old = spec({ 'allOf' => [{ 'type' => 'object', 'description' => 'old' }, { 'properties' => { 'id' => { 'type' => 'integer' } } }] })
+    fresh = spec({ 'allOf' => [{ 'properties' => { 'id' => { 'type' => 'integer' } } }, { 'type' => 'object', 'description' => 'new' }] })
     assert_empty differences(old, fresh)
     fresh['paths']['/sample']['post']['responses']['200']['content']['application/json']['schema']['allOf'].pop
     assert differences(old, fresh).any?
