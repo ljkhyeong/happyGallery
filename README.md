@@ -111,6 +111,8 @@ docker compose up -d --build
 - 앱 실행: `./gradlew :bootstrap:bootRun`
 
 `./gradlew build`의 `check` 단계에는 정책·구조 검사, REST Docs 계약 테스트와 Controller·DTO와 OpenAPI 명세의 일치 여부 검사가 포함된다. 빠른 로컬 확인이 필요할 때만 위 개별 태스크를 사용한다.
+CI는 같은 검사 범위를 패키징·기타 모듈(`build -x :application:check -x :adapter-in-web:check`), application(`:application:check`), 웹(`:adapter-in-web:check`)으로 나누어 독립 실행기에서 병렬 실행한다. JAR가 준비되면 E2E·컨테이너 검사도 시작하며, `Backend Build & Test`는 모든 백엔드 분할 작업의 성공을 요구한다. 운영 배포는 E2E를 포함한 전체 CI가 성공해야 진행한다.
+각 백엔드 작업은 성공 여부와 관계없이 `backend-*-diagnostics` artifact에 Gradle `--profile` 보고서와 테스트 XML·HTML을 7일간 보관한다. 태스크 시간은 profile, 개별 테스트 시간과 Spring 시작 로그는 XML에서 확인한다. 테스트 본문 시간에는 컨텍스트 준비 시간이 모두 포함되지 않으므로 함께 비교한다.
 배포용 `:bootstrap:bootJar` 산출물은 `bootstrap/build/libs/happygallery-app.jar`로 고정하며
 Docker, CI artifact와 k3s 이미지 반입이 모두 이 경로만 사용한다. Gradle 모듈 간 테스트 classpath에
 필요한 `*-plain.jar`는 별도로 생성되지만 배포 도구는 wildcard로 JAR을 선택하지 않는다. Gradle
