@@ -24,12 +24,6 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
   const bookingClass = classes[0]!;
 
   const firstSlot = await findAvailableBookingSlot(request, bookingClass.id, 4);
-  const secondSlot = await findAvailableBookingSlot(
-    request,
-    bookingClass.id,
-    5,
-    new Set([firstSlot.id]),
-  );
   const bookingDate = firstSlot.startAt.slice(0, 10);
   const phone = makePhoneNumber(makeUniqueLabel("p8-booking"));
   const guestName = makeUniqueLabel("P8 예약자");
@@ -54,11 +48,15 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
     guestBookingState.bookingId,
     guestBookingState.token,
   );
-  const targetSlot = booked.slotId === firstSlot.id ? secondSlot : firstSlot;
-  const targetDate = targetSlot.id === firstSlot.id
-    ? firstSlot.startAt.slice(0, 10)
-    : secondSlot.startAt.slice(0, 10);
-  expect([firstSlot.id, secondSlot.id]).toContain(booked.slotId);
+  expect(booked.slotId).toBe(firstSlot.id);
+  // 생성한 예약과 겹치는 회차는 제외되므로 예약 완료 후 변경 대상을 조회한다.
+  const targetSlot = await findAvailableBookingSlot(
+    request,
+    bookingClass.id,
+    5,
+    new Set([booked.slotId]),
+  );
+  const targetDate = targetSlot.startAt.slice(0, 10);
 
   await expect(page.getByText(bookingClass.name)).toBeVisible();
   await expect(page.getByText("1명", { exact: true })).toBeVisible();
