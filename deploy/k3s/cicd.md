@@ -12,7 +12,7 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 2. 배포 진입점이 배포마다 백업 service를 실행하고 R2 복구 묶음을 검증하는지 확인한다. 기존 백업 timer와 watchdog은 설치하지 않는다.
 3. 서버에서 적용했던 운영 패치와 이번 CI/CD 코드를 PR로 main에 반영한다. 이 문서 작성만으로 push나 GitHub 설정 변경은 수행되지 않는다.
 
-서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. 기존 release의 커밋을 찾을 수 없거나 새 main에 DB migration·API 계약·세션·런타임 설정 변경이 있으면 [롤링 호환성 검사](rolling-deployments.md)가 배포를 차단한다. 확장형 변경은 후보 commit의 `deploy/k3s/rolling-compatibility.yml`에 사유와 실제 변경 경로를 선언하고, migration·OpenAPI의 확장 조건을 만족해야 통과한다. 선언이 없거나 실제 diff와 불일치하면 계속 차단하며 검사를 우회하지 않는다.
+서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. [롤링 호환성 검사](rolling-deployments.md)는 일반 설정값·문서 변경과 호환 API·SQL 확장을 허용하고, 필드 삭제·타입 변경·데이터 전환이 필요한 변경을 구체적인 경로와 함께 표시한다. 인증·세션 코드 및 민감한 Spring 설정 변경에는 후보 commit의 `deploy/k3s/rolling-compatibility.yml` 검토 기록이 필요하다. 이미 배포된 과거 승인 경로는 남아 있어도 허용하며, 기록으로 실제 비호환 변경을 우회하지 않는다.
 
 ## 2. 서버에 배포 진입점 설치
 

@@ -13,7 +13,7 @@ cd /opt/happygallery
 
 이 명령은 **배포 백업 → 빌드 → 취약점 검사 → k3s import → 이미지 설정 자동 갱신 → 롤링 배포 → 공개 경로 검증**을 수행한다. 백업 service와 R2 복구 묶음 검증이 성공하지 않으면 이미지 설정을 갱신하지 않는다. 이미지를 아직 빌드하지 않았다면 `--imported`를 사용하지 않는다. 정기 백업 timer와 watchdog은 사용하지 않는다.
 
-1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 새·이전 commit 사이에 호환성 대상 변경이 있으면 후보 commit의 [`rolling-compatibility.yml`](rolling-compatibility.yml)에 검토 사유와 변경 경로를 기록해야 한다. 선언한 경로 집합은 실제 diff와 정확히 일치해야 하며, 선언이 없거나 빠진 경로가 있으면 배포를 거부한다. migration은 새 nullable 컬럼 추가만, OpenAPI는 기존 경로·필드를 보존하면서 선택적 요청·응답 필드만 추가하는 변경을 자동 확인한다. MySQL·Redis·모니터링 spec과 실제 기반 운영 설정 변경은 계속 거부한다. 단, 배포 이미지마다 바뀌는 `SENTRY_RELEASE`와 업무 가격 설정 `PASS_TOTAL_PRICE`는 롤링 비교 대상에서 제외한다. DTO 의미나 업무 데이터 의미의 호환성은 코드 리뷰가 필요하다. 구버전 앱이 온라인 백업 표식을 제공하지 않는 최초 전환은 사전에 검증한 R2 복구 묶음을 1회 사용하고, 새 app의 온라인 백업 표식을 확인한 뒤 완료한다.
+1. 현재 release와 실제 실행 이미지가 같고 노드가 하나인지 확인한다. 가격·배송비 등 일반 설정 변경, 문서 변경과 호환 API 확장은 자동 허용한다. DB 연결·저장 경로 등 기반 설정과 기반 서비스 이미지·볼륨 변경은 별도 전환 대상으로 표시한다. 인증·세션 코드 및 민감한 Spring 설정 변경은 후보 commit의 [`rolling-compatibility.yml`](rolling-compatibility.yml)에 검토 사유와 경로가 필요하다. 상세 판정은 아래 표를 따른다. 구버전 앱이 온라인 백업 표식을 제공하지 않는 최초 전환은 사전에 검증한 R2 복구 묶음을 1회 사용하고, 새 app의 온라인 백업 표식을 확인한 뒤 완료한다.
 2. 이전 frontend에서 파일을 받아 새 파일과 함께 `frontend-assets` PVC에 게시한다. 같은 이름의 다른 내용은 거부하며 파일을 덮어쓰거나 이전 파일을 삭제하지 않는다. 전용 정적 서버가 준비되고 `/assets/happygallery-asset-store-v1.txt`가 `shared-assets-v1`을 반환한 뒤 앱 교체로 진행한다.
 3. 미디어 PVC의 `.deployment-in-progress/owner`로 새 정기 배치 시작을 잠시 보류한다. 새 app 이미지의 `/app/rolling-deployment-v1` 지원 표시를 확인한다. 이 파일 잠금 방식은 같은 노드의 파일시스템 공유가 전제다.
 4. 새 app/frontend가 준비되면 기존 Pod를 종료한다. app readiness에는 DB·Redis 상태가 포함된다. `preStop` 10초 후 [Spring graceful shutdown](https://docs.spring.io/spring-boot/reference/web/graceful-shutdown.html)이 처리 중인 요청을 최대 30초 기다린다. 최초 전환의 구 Pod는 원래 배포된 종료 설정을 사용한다.
@@ -56,8 +56,22 @@ sudo k3s kubectl -n happygallery exec deployment/app -- \
 
 DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 → 구 코드 제거 후 제약/컬럼 정리처럼 expand/contract를 설계한다. 차단 검사를 끄거나 `Recreate`로 자동 전환해서 진행하지 않는다.
 
-## 확장형 변경 승인 파일
+## 변경 종류별 호환성 검사
 
-`deploy/k3s/rolling-compatibility.yml`은 롤링 배포에 포함할 확장형 변경의 검토 기록이다. `version: 1`, `mode: expand`, 사유와 `reviewed` 카테고리(`migration`, `api`, `runtime_config`, `build`)를 작성한다. 파일은 후보 commit에 포함해야 하며, 운영 서버에서 별도로 만들거나 검사 스크립트를 우회하지 않는다.
+| 대상 | 자동 허용 | 차단 또는 별도 검토 |
+|---|---|---|
+| app-config | 가격·배송비·토큰 유효시간 등 일반 값 변경, 새 일반 설정과 메타데이터 추가 | 기존 설정 키 삭제, DB/Redis 연결·미디어 경로·보안 경계 변경 |
+| OpenAPI | 경로·선택 필드 추가, 선택적 요청 본문 추가, 문서·예시 변경, 순서에 의미가 없는 목록 재정렬 | 기존 필드·경로 삭제, 타입·제약 변경, 요청 필수 조건 추가, 응답 필수 보장 제거 |
+| SQL migration | 새 파일의 nullable 컬럼 추가·새 테이블 생성, 일반 주석과 여러 확장 문장 | 기존 migration 수정·삭제, DROP/ALTER 등 기존 구조 변경, 실행형 주석, 자동 판정 범위 밖 SQL·Java migration |
+| 기반 서비스 spec | 컨테이너 리소스·기존 probe 조정, Pod 주석 변경 | 이미지·볼륨·연결·실행 명령·selector 변경, probe 삭제 |
+| Spring 설정·빌드 | 일반 업무 값·로그 설정·주석 변경, 빌드 파일 변경 | 인증·세션 코드 및 DB 연결·세션·암호화·보안 관련 Spring 설정은 명시적 검토 필요 |
 
-검사기는 구버전과 신버전의 실제 변경 경로와 선언을 대조한 뒤 migration·OpenAPI의 확장 조건을 확인한다. 기존 경로·schema를 바꾸거나 삭제하는 변경, nullable이 아닌 migration, 선언과 실제 diff가 다른 변경은 별도 배포·여러 단계의 expand/contract 검토가 필요하다. OpenAPI의 `summary`·`description`·`externalDocs`처럼 문서 설명만 바꾸는 변경은 계약 동작을 바꾸지 않으므로 허용한다.
+기반 서비스의 리소스·probe·Pod 주석 변경은 단일 인스턴스 재시작으로 일시 중단이 생길 수 있어 안내를 출력한다. 이 허용이 해당 서비스의 무중단을 보장하지는 않는다. app-config의 보호 항목은 `rolling-release.rb`의 `PROTECTED_CONFIG_KEYS`와 자격증명 키 검사에 정의한다. 일반 값 변경은 별도의 허용 목록을 늘리지 않아도 배포할 수 있다. 토큰 유효시간은 기존 숫자와 같은지가 아니라 양의 정수인지 검사한다.
+
+OpenAPI는 실제 속성 이름과 문서 키를 구분한다. `properties.description`은 실제 필드이므로 삭제·타입 변경을 허용하지 않는다. 요청·응답에서 참조하는 schema는 각각의 방향으로 검사하며, 요청에 사용하는 schema의 필수 항목 추가를 응답 확장으로 잘못 허용하지 않는다. 순환 참조도 검사한다. 오류에는 변경된 계약 경로를 표시하고, 계약·migration·ConfigMap·기반 서비스에서 발견한 차단 사유를 함께 출력한다. 값 원문은 출력하지 않는다.
+
+## 검토 기록
+
+`deploy/k3s/rolling-compatibility.yml`은 자동으로 의미를 판단하기 어려운 인증·세션 및 민감한 Spring 설정의 코드 리뷰 기록이다. `version: 1`, `mode: expand`, 사유와 `reviewed` 카테고리(`migration`, `api`, `runtime_config`, `build`) 형식은 유지한다. 실제 변경 중 검토가 필요한 경로가 기록에 포함되어야 하며, 이미 배포된 과거 경로가 남아 있어도 후속 배포를 차단하지 않는다.
+
+일반 설정·빌드 변경, 자동 판정 가능한 API·SQL 확장에는 이 파일을 추가로 요구하지 않는다. 검토 기록이 있어도 확인된 API 비호환 변경이나 위험한 migration을 자동 허용하지 않는다. 자동 판정 범위 밖의 변경은 별도 전환 절차를 검토한다. 스크립트 검사는 업무 데이터 의미의 호환성을 대신하지 않는다.

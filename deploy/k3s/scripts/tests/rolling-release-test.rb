@@ -67,6 +67,8 @@ class RollingReleaseTest < Minitest::Test
       'data' => {
         'SENTRY_RELEASE' => "happygallery@#{revision}",
         'PASS_TOTAL_PRICE' => revision == @old_sha ? '240000' : '120000',
+        'ORDER_SHIPPING_FEE' => '0',
+        'DB_URL' => 'jdbc:mysql://mysql/gallery',
         'STATIC_SETTING' => 'same'
       }
     }
@@ -145,7 +147,7 @@ class RollingReleaseTest < Minitest::Test
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/nullable 컬럼 추가/, error.message)
+    assert_match(/migration 별도 검토 필요/, error.message)
   end
 
   def test_rejects_changed_existing_openapi_path
@@ -167,7 +169,7 @@ class RollingReleaseTest < Minitest::Test
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/기존 경로를 변경·삭제/, error.message)
+    assert_match(/OpenAPI 비호환 변경/, error.message)
   end
 
   def test_allows_openapi_documentation_change_on_existing_path
@@ -265,7 +267,7 @@ class RollingReleaseTest < Minitest::Test
     new_operation['requestBody']['content']['application/json']['schema']['properties']['phone'] = { 'type' => 'string' }
     new_operation['responses']['200']['content']['application/json']['schema']['properties']['status'] = { 'type' => 'string' }
 
-    assert RollingRelease.openapi_operation_additive?(old_operation, new_operation)
+    assert_empty OpenapiCompatibility.new(old_operation, new_operation).differences
   end
 
   def test_rejects_new_required_openapi_parameter
@@ -290,17 +292,17 @@ class RollingReleaseTest < Minitest::Test
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/기존 경로를 변경·삭제/, error.message)
+    assert_match(/OpenAPI 비호환 변경/, error.message)
   end
 
   def test_rejects_unreviewed_compatibility_path
-    build = 'build.gradle'
-    change(build, 'plugins { id "java" }')
+    security = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
+    change(security, 'new session contract')
     write_compatibility('api' => [])
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/호환성 선언 경로가 실제 변경과 일치/, error.message)
+    assert_match(/호환성 검토 누락 경로/, error.message)
   end
 
   def test_blocks_infrastructure_change_and_missing_history
@@ -310,14 +312,128 @@ class RollingReleaseTest < Minitest::Test
     assert_match(/Git commit/, assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message)
   end
 
-  def test_blocks_static_app_config_change
+  def test_blocks_connection_config_change
     documents = RollingRelease.documents(@new)
     config = documents.find { |document| document.dig('metadata', 'name') == 'app-config' }
-    config['data']['STATIC_SETTING'] = 'changed'
+    config['data']['DB_URL'] = 'jdbc:mysql://different/gallery'
     File.write(@new, documents.map { |document| YAML.dump(document) }.join)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/app-config 변경/, error.message)
+    assert_match(/app-config 별도 전환 필요: DB_URL/, error.message)
+  end
+
+  def update_manifest(path)
+    documents = RollingRelease.documents(path)
+    yield documents
+    File.write(path, documents.map { |document| YAML.dump(document) }.join)
+  end
+
+  def test_allows_business_config_values_new_keys_and_metadata
+    update_manifest(@new) do |documents|
+      config = documents.find { |document| document.dig('metadata', 'name') == 'app-config' }
+      config['data'].merge!('ORDER_SHIPPING_FEE' => '3000', 'STATIC_SETTING' => 'changed', 'NEW_FEATURE' => 'true')
+      config['metadata']['labels'] = { 'owner' => 'ops' }
+    end
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_reports_deleted_config_keys
+    update_manifest(@new) do |documents|
+      documents.find { |d| d.dig('metadata', 'name') == 'app-config' }['data'].delete('ORDER_SHIPPING_FEE')
+    end
+    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    assert_includes error.message, 'app-config 키 삭제: ORDER_SHIPPING_FEE'
+  end
+
+  def test_allows_workload_tuning_but_reports_image_and_storage_changes
+    update_manifest(@new) do |documents|
+      mysql = RollingRelease.workload(documents, 'mysql')
+      mysql['spec']['template']['metadata'] = { 'annotations' => { 'note' => 'tuned' } }
+      mysql.dig('spec', 'template', 'spec', 'containers', 0)['resources'] = { 'limits' => { 'memory' => '2Gi' } }
+    end
+    RollingRelease.check(@dir, @old, @new)
+    update_manifest(@new) do |documents|
+      mysql = RollingRelease.workload(documents, 'mysql')
+      mysql['spec']['volumeClaimTemplates'] = [{ 'metadata' => { 'name' => 'different' } }]
+      mysql.dig('spec', 'template', 'spec', 'containers', 0)['image'] = 'other'
+    end
+    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    assert_includes error.message, 'containers[0].image'
+    assert_includes error.message, 'volumeClaimTemplates'
+  end
+
+  def test_allows_probe_tuning_but_not_removal
+    [@old, @new].each do |path|
+      update_manifest(path) do |documents|
+        RollingRelease.workload(documents, 'redis').dig('spec', 'template', 'spec', 'containers', 0)['readinessProbe'] =
+          { 'tcpSocket' => { 'port' => 6379 }, 'periodSeconds' => path == @old ? 10 : 20 }
+      end
+    end
+    RollingRelease.check(@dir, @old, @new)
+    update_manifest(@new) do |documents|
+      RollingRelease.workload(documents, 'redis').dig('spec', 'template', 'spec', 'containers', 0).delete('readinessProbe')
+    end
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, 'readinessProbe'
+  end
+
+  def test_allows_old_review_entries_on_later_deploy
+    security = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
+    change(security, 'reviewed')
+    write_compatibility('api' => [security, 'already-deployed.java'])
+    write_manifest(@new, commit)
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_allows_business_yaml_and_build_changes_without_declaration
+    change('bootstrap/src/main/resources/application.yml', "app:\n  pass:\n    total-price: 130000\n")
+    change('build.gradle', '// dependency update')
+    write_manifest(@new, commit)
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_requires_review_for_session_yaml_change
+    change('bootstrap/src/main/resources/application.yml', "spring:\n  session:\n    timeout: 1d\n")
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, 'application.yml'
+  end
+
+  def test_allows_commented_multi_statement_expand_migration
+    migration = 'bootstrap/src/main/resources/db/migration/V185__expand.sql'
+    change(migration, <<~SQL)
+      -- nullable 컬럼 추가
+      ALTER TABLE samples ADD COLUMN note VARCHAR(100) NULL;
+      /* 새 테이블의 문자열 안에 있는 ; 와 -- 는 주석·문장 경계가 아니다. */
+      CREATE TABLE extra_samples (id BIGINT PRIMARY KEY, note VARCHAR(100) DEFAULT 'a;--b');
+    SQL
+    write_manifest(@new, commit)
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_rejects_destructive_second_statement_and_executable_comments
+    migration = 'bootstrap/src/main/resources/db/migration/V185__unsafe.sql'
+    [
+      'ALTER TABLE samples ADD COLUMN note TEXT NULL; DROP TABLE samples;',
+      'CREATE TABLE extra_samples (id BIGINT); /*!50000 DROP TABLE samples */;',
+      'CREATE TABLE extra_samples (id BIGINT) AS SELECT id FROM samples;',
+      'CREATE TABLE extra_samples (id BIGINT) AS SELECT (1);'
+    ].each do |sql|
+      change(migration, sql)
+      write_manifest(@new, commit)
+      assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    end
+  end
+
+  def test_rejects_rewriting_applied_migration
+    migration = 'bootstrap/src/main/resources/db/migration/V185__expand.sql'
+    change(migration, 'CREATE TABLE samples (id BIGINT);')
+    write_manifest(@old, commit)
+    change(migration, 'CREATE TABLE samples (id INT);')
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '적용 이력이 있는 migration 수정·삭제'
   end
 
   def test_rendered_workloads_keep_ready_pods_and_shared_assets

@@ -1,7 +1,7 @@
 # ADR-0037: 자가 호스팅 배포 토폴로지 기준
 
 **날짜**: 2026-07-18
-**최종 갱신**: 2026-09-13
+**최종 갱신**: 2026-09-19
 **상태**: 채택 — 보유 노트북에 먼저 설치·검증, 운영 개시는 실환경 검증 후 결정
 
 2026-09-05에 [ADR-0049의 클라우드 VM](../0049_저예산_클라우드_운영_기준/adr.md)을 비교한 뒤, 운영자가 i5-8250U·RAM 16GB 노트북의 Windows 삭제와 Linux 설치를 허용했다. 24시간 가동은 가능하며 BE3600 공유기에 Wi-Fi로 연결할 예정이다. 무선랜 호환성·재접속·공유기 관리 가능 여부는 확인 중이다. 현재는 이 노트북에 먼저 설치해 운영 가능성을 검증하고 VM 구매는 보류한다. 호스트 설치와 확인 절차는 [노트북 설치 준비](../../../deploy/laptop/README.md)를 따른다. 운영 백업은 집 전원·회선과 분리된 원격 저장소에 보관하며, Secret·암호화·복원·이미지·스키마 조건은 유지한다.
@@ -110,7 +110,7 @@
 - 백엔드와 프론트엔드 이미지는 검증한 commit SHA 또는 digest로 식별한다. 운영 manifest에서 `latest`만 참조하지 않는다.
 - 이미지는 로컬 registry를 사용하거나 k3s containerd로 명시적으로 가져오며, 선택한 방식을 배포 절차에 고정한다.
 - 배포 전 build와 최소 검증을 통과시키고, 배포 후 rollout 상태와 health endpoint를 확인한다.
-- 앱 교체의 계획 중단을 없애기 위해 app/frontend는 RollingUpdate(사용 불가 0, 추가 1)를 사용한다. DB·API·세션·기반 설정 변경은 Git 이력 비교로 차단하며, 호환 변경의 expand/contract는 별도 검토한다. 새 readiness 10초, 종료 전 10초 배수와 Spring graceful shutdown 30초를 45초 유예 안에 둔다.
+- 앱 교체의 계획 중단을 없애기 위해 app/frontend는 RollingUpdate(사용 불가 0, 추가 1)를 사용한다. 배포 검사는 값의 동일성이 아니라 변경 종류를 기준으로 한다. 가격·배송비 등 일반 설정, 문서·예시 변경, 호환 API·SQL 확장은 허용한다. 인증·세션과 민감한 Spring 설정은 검토 기록이 필요하며, 계약 파괴나 DB 연결·저장소 전환은 별도 작업으로 분리한다. 기반 서비스의 리소스·probe·Pod 주석 변경은 허용하되 단일 인스턴스 재시작에 따른 일시 중단을 안내한다. 상세 판정은 `deploy/k3s/rolling-deployments.md`에 둔다. 새 readiness 10초, 종료 전 10초 배수와 Spring graceful shutdown 30초를 45초 유예 안에 둔다.
 - 단일 노드 공유 미디어 PVC의 작업별 파일 잠금으로 정기 배치의 동시 실행을 막는다. 배포 표식은 새 정기 실행을 일시정지하고 구 Pod 종료 후 해제한다. 표식을 모르는 구버전에서 최초 전환할 때도 새 배치가 먼저 시작되지 않는다. 놓친 cron은 자동 재생하지 않고 다음 예약 실행을 따른다. HTTP 업무 요청은 계속 처리한다.
 - frontend 정적 파일은 전용 Retain PVC에 불변 파일로 누적한다. 기존·신규 assets를 게시하고 별도 Ingress 경로를 검증한 뒤 SSR을 교체한다. 저장소가 사라지면 보존한 frontend 이미지에서 해당 release 파일을 복구하며 initContainer가 현재 버전을 다시 게시한다. 과거 열린 탭까지 복구할 필요가 있으면 해당 과거 이미지도 게시한다. 실행 절차는 `deploy/k3s/rolling-deployments.md`를 따른다.
 - `codexReview`와 `main` 대상 PR은 Dependency Review, npm audit, ESLint·React Hooks와 app/frontend 컨테이너 Trivy HIGH/CRITICAL 검사를 실행한다. 실제 운영 반입 스크립트도 운영 설정으로 다시 빌드한 app/frontend 이미지의 HIGH/CRITICAL과 EOL OS를 import 전에 차단한다. 프런트 런타임 이미지는 운영 의존성 설치 후 서버 실행에 쓰지 않는 npm/npx와 npm CLI 내부 패키지를 제거한다. Gradle Wrapper 배포 ZIP은 저장소에 고정한 SHA-256으로 검증하고 CI는 wrapper JAR도 검증한다. 실행 가능한 `bootJar` 경로는 `bootstrap/build/libs/happygallery-app.jar`로 고정해 CI artifact, Docker와 운영 반입 스크립트가 wildcard로 다른 JAR을 선택하지 않게 한다. Gradle 모듈 간 테스트 classpath에 필요한 `*-plain.jar`는 유지하지만 배포 입력으로 사용하지 않는다. Dependabot은 Gradle, npm, GitHub Actions와 Dockerfile의 첫 번째 `FROM` 이미지를 매주 확인하고 일반 버전 갱신 PR은 `codexReview`로 보낸다. 다단계 Dockerfile의 두 번째 이후 `FROM`은 Trivy와 명시적 버전 점검으로 관리한다. Dependabot 보안 갱신은 GitHub 정책상 기본 브랜치 `main`을 대상으로 하는 예외를 수용한다.
