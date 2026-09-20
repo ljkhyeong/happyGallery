@@ -62,6 +62,34 @@ async function installMemberApi(page: Page, scenario: typeof scenarios[number]) 
 }
 
 for (const scenario of scenarios) {
+  test(`${scenario.title} 목록에서 상태·검색·정렬을 연속 변경해도 필터를 모두 유지한다 @identity`, async ({ page }) => {
+    await installMemberApi(page, scenario);
+    await page.goto(`/my/${scenario.path}`);
+    await expect(page.getByRole("link", { name: scenario.link })).toBeVisible();
+
+    // 같은 렌더 사이에 입력을 연속 전달해 이전 URL로 덮어쓰는 경합을 재현한다.
+    await page.evaluate(({ path, status, sort }) => {
+      const filter = document.querySelector<HTMLSelectElement>(`#my-${path}-filter`)!;
+      filter.value = status;
+      filter.dispatchEvent(new Event("change", { bubbles: true }));
+      const search = document.querySelector<HTMLInputElement>(`#my-${path}-search`)!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(search, "9090");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      const sorting = document.querySelector<HTMLSelectElement>(`#my-${path}-sort`)!;
+      sorting.value = sort;
+      sorting.dispatchEvent(new Event("change", { bubbles: true }));
+    }, { path: scenario.path, status: scenario.detail.status, sort: scenario.sort });
+
+    await expect(page).toHaveURL((url) => url.searchParams.get("q") === "9090"
+      && url.searchParams.get("status") === scenario.detail.status
+      && url.searchParams.get("sort") === scenario.sort);
+    await page.getByRole("link", { name: scenario.link }).click();
+    await expect(page).toHaveURL((url) => url.pathname === `/my/${scenario.path}/9090`
+      && url.searchParams.get("q") === "9090"
+      && url.searchParams.get("status") === scenario.detail.status
+      && url.searchParams.get("sort") === scenario.sort);
+  });
+
   test(`${scenario.title} 상세를 새로고침한 뒤 목록으로 돌아와도 검색어·상태·정렬을 유지한다 @identity`, async ({ page }) => {
     const api = await installMemberApi(page, scenario);
     await page.goto(`/my/${scenario.path}`);
