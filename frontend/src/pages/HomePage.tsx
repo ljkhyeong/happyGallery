@@ -136,7 +136,7 @@ export function HomePage({
 
           <div className="home-class-layout">
             <figure className="home-class-media">
-              <img src={leatherClass} alt="해피갤러리 가죽공예 수업" loading="lazy" />
+              <img src={leatherClass} alt="가죽 카드지갑과 공예 도구를 담은 예시 이미지" loading="lazy" />
             </figure>
             <div className="home-class-list">
               {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
