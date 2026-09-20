@@ -127,6 +127,18 @@ Mac에서 `pbcopy < ~/.ssh/id_ed25519_happygallery_cd`로 복사해 Secret 입�
 
 운영 배포는 동시에 하나만 실행하며 진행 중인 배포를 다음 push가 취소하지 않는다. 수동 빌드·배포는 기존 `/opt/happygallery`에서 계속 가능하다. CD source는 `~/.local/state/happygallery/cd/source`, release 기록은 수동 배포와 같은 `~/.local/state/happygallery/releases`다.
 
+### `다른 CD가 실행 중입니다`로 중단된 경우
+
+잠금 파일이 존재하는 것과 잠금을 보유한 프로세스가 있는 것은 다르다. `.lock` 파일을 삭제하면 기존 잠금을 우회해 동시 배포가 실행될 수 있으므로 삭제하지 않는다. 서버에서 다음을 확인한다.
+
+```bash
+sudo lslocks --notruncate -o COMMAND,PID,TYPE,MODE,PATH
+ps -eo pid,ppid,lstart,args | grep -E 'accept-cd|happygallery-cd-ssh|deploy-registry|deploy.sh|port-forward'
+```
+
+실제 배포가 진행 중이면 종료를 기다린다. 이전 배포가 끝났고 검증용 `port-forward`만 남았다는 것이 확인되면 해당 PID만 종료하고 잠금 해제를 확인한 뒤 Production을 재실행한다. PID를 확인하지 않은 일괄 종료나 강제 잠금 해제는 하지 않는다.
+`verify.sh`는 포트 전달을 실제 명령 PID로 시작하고 종료 시 회수한다. 두 포트 전달 프로세스에는 CD·배포 잠금 FD 9·8을 전달하지 않는다. 이 수정은 앞으로 실행할 검증에 적용되며 이미 남은 프로세스를 자동 종료하지 않는다.
+
 이 파이프라인은 앱 배포를 자동화한다. root 소유 SSH 진입점·sudoers·systemd unit·k3s 업그레이드는 파일별 운영 절차로 갱신한다. 특히 `/opt/happygallery`의 백업 스크립트는 CI worktree가 갱신돼도 바뀌지 않으므로 해당 스크립트를 변경한 릴리스에서는 호스트 측 갱신도 수행한다.
 
 ## 로컬 검증

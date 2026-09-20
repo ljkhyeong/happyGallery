@@ -35,9 +35,10 @@ prometheus_port=${LOCAL_PROMETHEUS_PORT:-19090}
 log_file=$(mktemp "${TMPDIR:-/tmp}/happygallery-port-forward.XXXXXX")
 prometheus_log_file=$(mktemp "${TMPDIR:-/tmp}/happygallery-prometheus-port-forward.XXXXXX")
 public_check_dir=$(mktemp -d "${TMPDIR:-/tmp}/happygallery-public-check.XXXXXX")
-kube -n "$NAMESPACE" port-forward service/app-management "$port:8081" >"$log_file" 2>&1 &
+# 배포 부모만 잠금을 보유한다. 포트 전달 프로세스에는 FD 8/9를 상속하지 않는다.
+exec_kube -n "$NAMESPACE" port-forward service/app-management "$port:8081" 8>&- 9>&- >"$log_file" 2>&1 &
 port_forward_pid=$!
-kube -n "$NAMESPACE" port-forward service/prometheus "$prometheus_port:9090" >"$prometheus_log_file" 2>&1 &
+exec_kube -n "$NAMESPACE" port-forward service/prometheus "$prometheus_port:9090" 8>&- 9>&- >"$prometheus_log_file" 2>&1 &
 prometheus_port_forward_pid=$!
 cleanup() {
     kill "$port_forward_pid" >/dev/null 2>&1 || true

@@ -21,17 +21,22 @@ require_command() {
     command -v "$1" >/dev/null 2>&1 || die "필수 명령을 찾을 수 없습니다: $1"
 }
 
-kube() {
+# 백그라운드 호출의 $!가 중간 셸이 아닌 실제 명령을 가리키게 한다.
+exec_kube() {
     if [ -n "${KUBECTL_BIN:-}" ]; then
-        "$KUBECTL_BIN" "$@"
+        exec "$KUBECTL_BIN" "$@"
     elif command -v kubectl >/dev/null 2>&1; then
-        kubectl "$@"
+        exec kubectl "$@"
     elif command -v k3s >/dev/null 2>&1; then
-        k3s kubectl "$@"
+        exec k3s kubectl "$@"
     else
         die "kubectl 또는 k3s를 찾을 수 없습니다."
     fi
 }
+
+kube() (
+    exec_kube "$@"
+)
 
 k3s_ctr() {
     if [ -n "${K3S_BIN:-}" ]; then

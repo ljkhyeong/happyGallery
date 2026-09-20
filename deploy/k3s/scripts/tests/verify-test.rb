@@ -35,6 +35,11 @@ class DeploymentVerifyTest < Minitest::Test
     write_executable('kubectl', <<~'RUBY')
       command = ARGV.join(' ')
       if ARGV.include?('port-forward')
+        if ENV['VERIFY_TEST_PORT_FORWARD_PIDS']
+          trap('TERM') { exit 0 }
+          File.open(ENV.fetch('VERIFY_TEST_PORT_FORWARD_PIDS'), 'a') { |file| file.puts Process.pid }
+          sleep
+        end
         exit 0
       elsif command.include?('.status.phase')
         puts 'Bound'
@@ -51,6 +56,13 @@ class DeploymentVerifyTest < Minitest::Test
     write_executable('curl', <<~'RUBY')
       require 'json'
       responses = JSON.parse(File.read(ENV.fetch('VERIFY_TEST_RESPONSES')))
+      if (pids = ENV['VERIFY_TEST_PORT_FORWARD_PIDS'])
+        200.times do
+          break if File.exist?(pids) && File.readlines(pids).size == 2
+          sleep 0.01
+        end
+        abort 'port-forward 준비 실패' unless File.exist?(pids) && File.readlines(pids).size == 2
+      end
       url = ARGV.find { |arg| arg.start_with?('http://', 'https://') }
       failure_mode = ENV.fetch('VERIFY_TEST_CONNECTION_FAILURE')
       if failure_mode != 'none' && url.end_with?('/actuator/health/readiness')
@@ -76,7 +88,17 @@ class DeploymentVerifyTest < Minitest::Test
   end
 
   def teardown
+    forward_pids.each do |pid|
+      Process.kill('TERM', pid)
+    rescue Errno::ESRCH
+      nil
+    end
     FileUtils.remove_entry(@directory)
+  end
+
+  def forward_pids
+    path = File.join(@directory, 'port-forward.pids')
+    File.exist?(path) ? File.readlines(path).map(&:to_i) : []
   end
 
   def write_executable(name, body)
@@ -85,13 +107,14 @@ class DeploymentVerifyTest < Minitest::Test
     File.chmod(0o755, path)
   end
 
-  def verify(connection_failure: 'none')
+  def verify(connection_failure: 'none', persistent_forwards: false)
     responses = File.join(@directory, 'responses.json')
     File.write(responses, JSON.generate(@responses))
     Open3.capture3({ 'PATH' => "#{@directory}:#{ENV.fetch('PATH')}",
                     'KUBECTL_BIN' => File.join(@directory, 'kubectl'),
                     'LOCAL_MANAGEMENT_PORT' => '18081', 'LOCAL_PROMETHEUS_PORT' => '19090',
                     'SKIP_PUBLIC_CHECK' => 'false', 'VERIFY_TEST_RESPONSES' => responses,
+                    'VERIFY_TEST_PORT_FORWARD_PIDS' => persistent_forwards ? File.join(@directory, 'port-forward.pids') : nil,
                     'VERIFY_TEST_CONNECTION_FAILURE' => connection_failure }, 'sh', VERIFY, 'happy-gallery.com')
   end
 
@@ -106,6 +129,15 @@ class DeploymentVerifyTest < Minitest::Test
     output, error, status = verify
     assert status.success?, error
     assert_includes output, 'API 경계 검증 완료'
+  end
+
+  def test_port_forward_processes_are_stopped_after_verification
+    _output, error, status = verify(persistent_forwards: true)
+    assert status.success?, error
+    assert_equal 2, forward_pids.size
+    forward_pids.each do |pid|
+      assert_raises(Errno::ESRCH) { Process.kill(0, pid) }
+    end
   end
 
   def test_public_api_cannot_be_blocked_by_authentication
