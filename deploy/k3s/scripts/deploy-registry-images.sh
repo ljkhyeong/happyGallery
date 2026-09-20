@@ -16,13 +16,7 @@ cd "$REPO_ROOT"
 [[ -z $(git status --porcelain) ]] || die "배포 checkout에 수정 사항이 있습니다."
 ruby "$SCRIPT_DIR/update-release-images.rb" --check "$release_env"
 
-# 전송 뒤 발견할 설정 오류를 줄이기 위해 현재 복구 묶음을 먼저 확인한다.
-registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" \
-    "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}" \
-    "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups")
-export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$registry_bundle"
-verify_recovery_bundle_files "$registry_bundle"
-[[ -n $(find "$registry_bundle" -prune -mtime -2 -print) ]] || die "검증한 복구 묶음이 48시간보다 오래됐습니다."
+# 일반 배포의 복구 묶음은 deploy.sh가 새 백업을 만든 뒤 검증한다.
 [[ $(kube get nodes -o 'jsonpath={.items[0].status.nodeInfo.architecture}') == amd64 ]] || die "amd64 노드가 아닙니다."
 
 umask 077
@@ -50,13 +44,17 @@ done
 "$SCRIPT_DIR/verify-app-image.sh" "${registry_local_images[0]}"
 
 # 최초 전환에서는 현재 앱이 온라인 백업 표식을 아직 제공하지 않을 수 있다.
-# 이 경우에도 위에서 검증한 최근 R2 복구 묶음이 있어야만 부트스트랩을 허용한다.
+# 이 경우에만 기존의 최근 R2 복구 묶음이 있어야 부트스트랩을 허용한다.
 current_app=$(kube -n "$NAMESPACE" get deployment app --ignore-not-found -o name)
 if [ -n "$current_app" ]; then
     kube -n "$NAMESPACE" rollout status deployment/app --timeout=30s >/dev/null
     current_app_replicas=$(kube -n "$NAMESPACE" get deployment app -o jsonpath='{.spec.replicas}')
     if [ "$current_app_replicas" = 1 ] &&
        ! kube -n "$NAMESPACE" exec deployment/app -- test -f /app/media-backup-guard-v1 >/dev/null 2>&1; then
+        registry_bundle=$(bash "$SCRIPT_DIR/prepare-cd-backup.sh" \
+            "${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}" \
+            "${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups")
+        export VERIFIED_RECOVERY_BUNDLE_OVERRIDE="$registry_bundle"
         export HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP=true
         info "현재 앱이 온라인 백업 표식을 제공하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다."
     fi

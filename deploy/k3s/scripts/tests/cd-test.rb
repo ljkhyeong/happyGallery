@@ -143,7 +143,12 @@ class CdTest < Minitest::Test
     File.write(bundle, '')
     File.write(File.join(@scripts, 'prepare-cd-backup.sh'), "printf '%s\\n' '#{bundle}'\n")
     executable(@scripts, 'verify-app-image.sh', 'record(ARGV)')
-    executable(@scripts, 'deploy.sh', 'record(ARGV); abort "missing verified backup" unless File.file?(ENV.fetch("VERIFIED_RECOVERY_BUNDLE_OVERRIDE"))')
+    executable(@scripts, 'deploy.sh', <<~'RUBY')
+      record(ARGV)
+      if ENV['HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP'] == 'true'
+        abort 'missing verified backup' unless File.file?(ENV.fetch('VERIFIED_RECOVERY_BUNDLE_OVERRIDE'))
+      end
+    RUBY
     @release = File.join(@dir, 'release.env')
     File.write(@release, "PUBLIC_HOST=happy-gallery.com\n")
     File.chmod(0o600, @release)
@@ -201,6 +206,26 @@ class CdTest < Minitest::Test
     assert status.success?, error
     assert_includes output, '검증된 R2 복구 묶음으로 최초 전환'
     assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
+  end
+
+  def test_online_capable_app_does_not_require_an_old_backup_before_deploy
+    prepare_registry
+    @env['HG_CD_APP_DEPLOYMENT'] = 'deployment.apps/app'
+    File.write(File.join(@scripts, 'prepare-cd-backup.sh'), "echo 'expired backup' >&2; exit 1\n")
+    _output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    assert status.success?, error
+    assert_includes calls, ['deploy.sh', '--imported', @release, SHA]
+  end
+
+  def test_legacy_app_still_requires_a_recent_verified_backup
+    prepare_registry
+    @env['HG_CD_APP_DEPLOYMENT'] = 'deployment.apps/app'
+    @env['HG_CD_APP_GUARD'] = '0'
+    File.write(File.join(@scripts, 'prepare-cd-backup.sh'), "echo 'expired backup' >&2; exit 1\n")
+    _output, error, status = run_script('deploy-registry-images.sh', @release, SHA, DIGEST, DIGEST)
+    refute status.success?
+    assert_includes error, 'expired backup'
+    refute calls.any? { |call| call.first == 'deploy.sh' }
   end
 
   def test_wrong_commit_architecture_or_failed_pull_never_imports_or_deploys
