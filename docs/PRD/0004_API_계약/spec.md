@@ -2764,7 +2764,7 @@ GET /api/v1/auth/social/authorization/{provider}
   - 브라우저는 JSON URL 발급 API를 먼저 호출하지 않고 이 경로로 직접 이동한다.
   - Spring Security OAuth2 Client가 `state`를 포함한 authorization request를 만들고 callback 전까지만 현재 Redis HTTP 세션에 저장한다.
   - 일반 로그인 GET은 정책 동의를 받지 않는다. 이미 연결된 회원 로그인은 가입 의도 없이 처리하고,
-    처음 보는 계정이면 callback에서 `POLICY_CONSENT_REQUIRED`로 종료한다.
+    처음 보는 계정이면 검증된 프로필을 5분간 같은 세션의 가입 대기로 보관하고 `/auth/callback?signupAttempt={opaqueId}`로 이동한다. 동의 전에는 회원을 생성하지 않는다.
   - callback URI는 provider별 `GOOGLE_OAUTH_REDIRECT_URI`, `NAVER_OAUTH_REDIRECT_URI`, `KAKAO_OAUTH_REDIRECT_URI` 설정에 고정하며 브라우저 요청값으로 받지 않는다.
   - Google은 `openid`, `profile`, `email` 범위의 OIDC 로그인을 사용한다. 로그인만을 위해 refresh token을 요청하거나 저장하지 않는다.
   - Kakao는 `profile_nickname`, `account_email` 동의 항목의 REST OAuth2 로그인을 사용한다. access token은 UserInfo 조회 뒤 저장하지 않는다.
@@ -2803,6 +2803,34 @@ X-XSRF-TOKEN: {csrfToken}
   - callback은 provider·state·만료를 다시 확인한 뒤 동의를 한 번 소비한다. 다른 provider, 다른 세션,
     재사용·만료 시도와 공개 GET에 임의로 붙인 정책 값은 신규 가입 동의가 될 수 없다.
 
+소셜 인증 후 가입 완료:
+
+```http
+POST /api/v1/auth/social/signup-completion
+Cookie: HG_SESSION={anonymousSession}
+X-XSRF-TOKEN: {csrfToken}
+
+{
+  "attemptId": "{callback에서 받은 불투명 시도 ID}",
+  "policyAcceptance": {
+    "termsVersion": "2026-09-11-v1",
+    "termsAccepted": true,
+    "privacyVersion": "2026-09-12-v1",
+    "privacyAccepted": true
+  }
+}
+```
+
+- `operationId`: `completeSocialSignup`
+- 성공: `200 OK`, `CustomerUserResponse` + 회전된 회원 세션. 소셜 인증을 반복하지 않는다.
+- 서버가 검증한 제공자·계정 ID·이메일·이름만 같은 세션에 JSON으로 보관하고 OAuth 토큰은 저장하지 않는다.
+- 가입 대기는 생성 후 5분 정각에 만료한다. 다른 세션·잘못된 시도·소비된 시도는 `401 SOCIAL_LOGIN_FAILED`로 거절한다.
+- `403 FORBIDDEN`: CSRF 검증 실패. `422 POLICY_CONSENT_REQUIRED`: 현재 버전 동의 누락·불일치. 동의 오류에서는 가입 대기를 소비하지 않아 새 약관 확인 후 다시 제출할 수 있다.
+- `429 TOO_MANY_REQUESTS`: 기존 소셜 시작 IP 버킷을 공유한다.
+- 새 OAuth 시작·인증 실패·회원 로그인·가입 완료 시 이전 가입 대기를 폐기한다. 이전 탭의 시도 ID로 새 프로필을 가입시킬 수 없다.
+- 동의가 검증되면 가입 대기를 소비하고 기존 소셜 가입 유스케이스로 계정 생성·동의 이력을 함께 저장한다. 다른 요청에서 이미 가입된 동일 소셜 계정은 기존 로그인 규칙을 따른다.
+- 화면은 동의 완료 후 안전하게 검증한 원래 목적지로 복귀한다. 만료되면 같은 목적지의 로그인 재시도를 안내한다.
+
 #### 2.12.0.3 소셜 로그인 callback
 
 ```http
@@ -2812,7 +2840,7 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 이 경로는 Google/Naver/Kakao가 호출하는 backend callback이며 프런트가 직접 호출하지 않는다.
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
-- 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?error=POLICY_CONSENT_REQUIRED`
+- 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?signupAttempt={opaqueId}`. 짧은 동의 화면에서 가입을 완료한다.
 - Google/Kakao 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
 - 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER|KAKAO`
 - 소셜 재인증 성공: `302 Found` → `/auth/callback?reauthenticated=GOOGLE|NAVER|KAKAO`

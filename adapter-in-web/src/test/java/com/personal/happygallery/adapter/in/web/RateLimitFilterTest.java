@@ -252,11 +252,14 @@ class RateLimitFilterTest {
                 filter, "POST", "/api/v1/auth/social/signup-intents/google");
         MockHttpServletResponse authorizationResponse = perform(
                 filter, "GET", "/api/v1/auth/social/authorization/naver");
+        MockHttpServletResponse completionResponse = perform(
+                filter, "POST", "/api/v1/auth/social/signup-completion");
 
         assertSoftly(softly -> {
             softly.assertThat(loginResponse.getStatus()).isEqualTo(200);
             softly.assertThat(signupIntentResponse.getStatus()).isEqualTo(200);
             softly.assertThat(authorizationResponse.getStatus()).isEqualTo(429);
+            softly.assertThat(completionResponse.getStatus()).isEqualTo(429);
         });
     }
 

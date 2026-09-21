@@ -1,6 +1,11 @@
 package com.personal.happygallery.adapter.in.web.customer;
 
 import com.personal.happygallery.adapter.in.web.customer.dto.SocialSignupAuthorizationResponse;
+import com.personal.happygallery.adapter.in.web.customer.dto.SocialSignupCompletionRequest;
+import com.personal.happygallery.adapter.in.web.customer.dto.CustomerUserResponse;
+import com.personal.happygallery.adapter.in.web.security.customer.PendingSocialSignupStore;
+import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase;
+import jakarta.servlet.http.HttpServletResponse;
 import com.personal.happygallery.adapter.in.web.policy.dto.PolicyAcceptanceRequest;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialSignupIntentStore;
@@ -20,20 +25,29 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
-@RequestMapping("/api/v1/auth/social/signup-intents")
+@RequestMapping("/api/v1/auth/social")
 public class SocialSignupController {
 
     private final PolicyConsentService policyConsentService;
     private final SocialSignupIntentStore signupIntentStore;
+    private final PendingSocialSignupStore pendingSignupStore;
+    private final SocialAuthUseCase socialAuth;
+    private final CustomerSessionBinder sessionBinder;
 
     public SocialSignupController(PolicyConsentService policyConsentService,
-                                  SocialSignupIntentStore signupIntentStore) {
+                                  SocialSignupIntentStore signupIntentStore,
+                                  PendingSocialSignupStore pendingSignupStore,
+                                  SocialAuthUseCase socialAuth,
+                                  CustomerSessionBinder sessionBinder) {
         this.policyConsentService = policyConsentService;
         this.signupIntentStore = signupIntentStore;
+        this.pendingSignupStore = pendingSignupStore;
+        this.socialAuth = socialAuth;
+        this.sessionBinder = sessionBinder;
     }
 
     @Operation(operationId = "startSocialSignup")
-    @PostMapping("/{provider}")
+    @PostMapping("/signup-intents/{provider}")
     public SocialSignupAuthorizationResponse start(
             @PathVariable
             @Parameter(schema = @Schema(allowableValues = {"google", "naver", "kakao"}))
@@ -52,4 +66,19 @@ public class SocialSignupController {
                         .encode()
                         .toUriString());
     }
+
+    @Operation(operationId = "completeSocialSignup")
+    @PostMapping("/signup-completion")
+    public CustomerUserResponse complete(
+            @RequestBody @Valid SocialSignupCompletionRequest completion,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        var acceptance = completion.policyAcceptance().toCommand();
+        policyConsentService.requireCurrent(acceptance);
+        var profile = pendingSignupStore.consume(request, completion.attemptId());
+        var result = socialAuth.socialLogin(profile.withPolicyAcceptance(acceptance));
+        sessionBinder.bind(request, response, result.user());
+        return CustomerUserResponse.from(result.user());
+    }
+
 }

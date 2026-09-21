@@ -515,7 +515,7 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
   failingPaths.delete("/api/v1/me/social-accounts");
   await socialSection.getByRole("button", { name: "다시 시도" }).click();
   await expect(socialSection.getByRole("button", { name: "연결", exact: true }))
-    .toHaveCount(2);
+    .toHaveCount(3);
 
   await page.goto("/my/inquiries");
   await expect(page.getByRole("button", { name: "다시 시도" })).toBeVisible();

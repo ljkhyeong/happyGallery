@@ -8,6 +8,26 @@ export interface PolicyAcceptanceRequest {
   termsVersion: string;
 }
 
+export interface SocialSignupCompletionRequest {
+  /**
+     * @minLength 0
+     * @maxLength 36
+     */
+  attemptId: string;
+  policyAcceptance: PolicyAcceptanceRequest;
+}
+
+export interface CustomerUserResponse {
+  /** @nullable */
+  email: string | null;
+  id: number;
+  localPasswordEnabled: boolean;
+  name: string;
+  /** @nullable */
+  phone: string | null;
+  phoneVerified: boolean;
+}
+
 export interface SocialSignupAuthorizationResponse {
   authorizationUrl: string;
 }
@@ -28,6 +48,27 @@ export interface SocialAccountsResponse {
 export interface SocialAccountAuthorizationResponse {
   authorizationUrl: string;
 }
+
+export const getCompleteSocialSignupUrl = () => {
+
+
+
+
+  return `/api/v1/auth/social/signup-completion`
+}
+
+export const completeSocialSignup = async (socialSignupCompletionRequest: SocialSignupCompletionRequest, options?: RequestInit): Promise<CustomerUserResponse> => {
+
+  return generatedApiClient<CustomerUserResponse>(getCompleteSocialSignupUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(socialSignupCompletionRequest)
+  }
+);}
+
+
 
 export const getStartSocialSignupUrl = (provider: 'google' | 'naver' | 'kakao',) => {
 

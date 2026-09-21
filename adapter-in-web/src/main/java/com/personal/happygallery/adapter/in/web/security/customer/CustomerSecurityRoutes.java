@@ -15,6 +15,7 @@ public final class CustomerSecurityRoutes {
             SOCIAL_AUTHORIZATION_BASE_URI + "/{provider}";
     public static final String SOCIAL_SIGNUP_INTENT_PROVIDER_PATH =
             "/api/v1/auth/social/signup-intents/{provider}";
+    public static final String SOCIAL_SIGNUP_COMPLETION_PATH = "/api/v1/auth/social/signup-completion";
     private static final String SOCIAL_CALLBACK_ROOT = "/api/v1/auth/social/callback";
     public static final String SOCIAL_CALLBACK_BASE_URI = SOCIAL_CALLBACK_ROOT + "/*";
     public static final String SOCIAL_CALLBACK_PROVIDER_PATH =

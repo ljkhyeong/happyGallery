@@ -246,6 +246,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout",
                                 "/api/v1/auth/password/reset",
                                 CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH,
+                                CustomerSecurityRoutes.SOCIAL_SIGNUP_COMPLETION_PATH,
                                 "/api/v1/payments/prepare",
                                 "/api/v1/payments/confirm",
                                 "/api/v1/payments/{orderId}/abandon",

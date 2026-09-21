@@ -36,6 +36,7 @@ public class SocialLoginAuthenticationHandler
     private final SocialAccountLinkIntentStore linkIntentStore;
     private final SocialSignupIntentStore signupIntentStore;
     private final CustomerSessionBinder customerSessionBinder;
+    private final PendingSocialSignupStore pendingSignupStore;
     private final CustomerStepUpAuthenticationStore stepUpAuthenticationStore;
     private final RedirectStrategy redirectStrategy = new DefaultRedirectStrategy();
 
@@ -44,12 +45,14 @@ public class SocialLoginAuthenticationHandler
                                             SocialAccountLinkIntentStore linkIntentStore,
                                             SocialSignupIntentStore signupIntentStore,
                                             CustomerSessionBinder customerSessionBinder,
+                                            PendingSocialSignupStore pendingSignupStore,
                                             CustomerStepUpAuthenticationStore stepUpAuthenticationStore) {
         this.socialAuth = socialAuth;
         this.profileResolver = profileResolver;
         this.linkIntentStore = linkIntentStore;
         this.signupIntentStore = signupIntentStore;
         this.customerSessionBinder = customerSessionBinder;
+        this.pendingSignupStore = pendingSignupStore;
         this.stepUpAuthenticationStore = stepUpAuthenticationStore;
     }
 
@@ -57,6 +60,9 @@ public class SocialLoginAuthenticationHandler
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
+        if (request.getSession(false) != null) {
+            PendingSocialSignupStore.clear(request.getSession(false));
+        }
         try {
             SocialIdentity identity = profileResolver.resolveIdentity(authentication);
             SocialAccountLinkIntentStore.LinkIntent linkIntent =
@@ -92,7 +98,15 @@ public class SocialLoginAuthenticationHandler
 
             SocialAuthUseCase.SocialLoginCommand profile = profileResolver.resolveLogin(authentication)
                     .withPolicyAcceptance(signupIntentStore.consume(request, identity.provider()).orElse(null));
-            SocialAuthUseCase.SocialLoginResult result = socialAuth.socialLogin(profile);
+            SocialAuthUseCase.SocialLoginResult result;
+            try {
+                result = socialAuth.socialLogin(profile);
+            } catch (HappyGalleryException exception) {
+                if (exception.getErrorCode() != ErrorCode.POLICY_CONSENT_REQUIRED) throw exception;
+                String attemptId = pendingSignupStore.save(request, profile);
+                redirect(request, response, "signupAttempt", attemptId);
+                return;
+            }
             customerSessionBinder.bind(request, response, result.user());
             redirect(request, response, "newUser", String.valueOf(result.newUser()));
         } catch (HappyGalleryException exception) {
@@ -115,6 +129,7 @@ public class SocialLoginAuthenticationHandler
             throws IOException, ServletException {
         linkIntentStore.clear(request);
         signupIntentStore.clear(request);
+        if (request.getSession(false) != null) PendingSocialSignupStore.clear(request.getSession(false));
         if (exception instanceof OAuth2AuthenticationException oauth2Exception) {
             log.warn("Social OAuth authentication failed: {}", oauth2Exception.getError().getErrorCode());
         } else {

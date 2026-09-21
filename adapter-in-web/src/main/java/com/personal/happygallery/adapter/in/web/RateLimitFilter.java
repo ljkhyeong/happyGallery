@@ -28,6 +28,7 @@ import static com.personal.happygallery.adapter.in.web.ratelimit.RateLimitFailur
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_PROVIDER_PATH;
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_CALLBACK_PROVIDER_PATH;
 import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_INTENT_PROVIDER_PATH;
+import static com.personal.happygallery.adapter.in.web.security.customer.CustomerSecurityRoutes.SOCIAL_SIGNUP_COMPLETION_PATH;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.PATCH;
@@ -72,7 +73,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     "SOCIAL_LOGIN_INIT_IP",
                     new OrRequestMatcher(
                             pathPattern(GET, SOCIAL_AUTHORIZATION_PROVIDER_PATH),
-                            pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH)),
+                            pathPattern(POST, SOCIAL_SIGNUP_INTENT_PROVIDER_PATH),
+                            pathPattern(POST, SOCIAL_SIGNUP_COMPLETION_PATH)),
                     FAIL_CLOSED,
                     IpRules::socialLogin),
             new RouteRule(

@@ -32,6 +32,7 @@ import {
   synchronizeCustomerSessionBoundary,
   type CustomerSessionSnapshot,
 } from "@/shared/api";
+import { completeSocialSignup as completeSocialSignupRequest } from "@/generated/api/customerAccount";
 import { normalizePhone } from "@/shared/validation/phone";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
@@ -59,6 +60,7 @@ interface CustomerAuthContextValue {
     verificationCode: string,
     policyAcceptance: PolicyAcceptance,
   ) => Promise<CustomerUser>;
+  completeSocialSignup: (attemptId: string, policyAcceptance: PolicyAcceptance) => Promise<CustomerUser>;
   logout: () => Promise<void>;
   withdraw: () => Promise<void>;
   refresh: () => Promise<CustomerUser | null>;
@@ -224,21 +226,33 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     };
   }, [clearCustomerQueries, fetchMe, updateStatus]);
 
+  const acceptAuthenticatedCustomer = useCallback((me: CustomerUser) => {
+    publishSessionBoundary(me.id);
+    clearCustomerQueries();
+    userIdRef.current = me.id;
+    setUser(me);
+    setError(null);
+    updateStatus("authenticated");
+    setIsLoading(false);
+    setIsRefreshing(false);
+    return me;
+  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
+
+  const completeSocialSignup = useCallback(async (
+    attemptId: string, policyAcceptance: PolicyAcceptance,
+  ) => {
+    const me = await runForCurrentCustomer(() =>
+      completeSocialSignupRequest({ attemptId, policyAcceptance }));
+    return acceptAuthenticatedCustomer(me);
+  }, [acceptAuthenticatedCustomer]);
+
   const login = useCallback(
     async (email: string, password: string): Promise<CustomerUser> => {
       const me = await runForCurrentCustomer(() =>
         loginCustomer({ email, password }));
-      publishSessionBoundary(me.id);
-      clearCustomerQueries();
-      userIdRef.current = me.id;
-      setUser(me);
-      setError(null);
-      updateStatus("authenticated");
-      setIsLoading(false);
-      setIsRefreshing(false);
-      return me;
+      return acceptAuthenticatedCustomer(me);
     },
-    [clearCustomerQueries, publishSessionBoundary, updateStatus],
+    [acceptAuthenticatedCustomer],
   );
 
   const signup = useCallback(
@@ -259,17 +273,9 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           verificationCode,
           policyAcceptance,
         }));
-      publishSessionBoundary(me.id);
-      clearCustomerQueries();
-      userIdRef.current = me.id;
-      setUser(me);
-      setError(null);
-      updateStatus("authenticated");
-      setIsLoading(false);
-      setIsRefreshing(false);
-      return me;
+      return acceptAuthenticatedCustomer(me);
     },
-    [clearCustomerQueries, publishSessionBoundary, updateStatus],
+    [acceptAuthenticatedCustomer],
   );
 
   const logout = useCallback(async () => {
@@ -309,6 +315,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
         isRefreshing,
         login,
         signup,
+        completeSocialSignup,
         logout,
         withdraw,
         refresh: fetchMe,

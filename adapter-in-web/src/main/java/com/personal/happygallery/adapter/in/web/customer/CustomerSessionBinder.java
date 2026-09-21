@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerAuthenticationFilter;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialAccountLinkIntentStore;
 import com.personal.happygallery.adapter.in.web.security.customer.SocialSignupIntentStore;
+import com.personal.happygallery.adapter.in.web.security.customer.PendingSocialSignupStore;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerStepUpAuthenticationStore;
 import com.personal.happygallery.domain.user.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,7 @@ public class CustomerSessionBinder {
         HttpSession session = request.getSession();
         SocialAccountLinkIntentStore.clear(session);
         SocialSignupIntentStore.clear(session);
+        PendingSocialSignupStore.clear(session);
         if (!session.isNew()) {
             request.changeSessionId();
         }

@@ -8704,6 +8704,20 @@
         "required" : [ "authorizationUrl" ],
         "type" : "object"
       },
+      "SocialSignupCompletionRequest" : {
+        "properties" : {
+          "attemptId" : {
+            "maxLength" : 36,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "policyAcceptance" : {
+            "$ref" : "#/components/schemas/PolicyAcceptanceRequest"
+          }
+        },
+        "required" : [ "attemptId", "policyAcceptance" ],
+        "type" : "object"
+      },
       "StatusCountResponse" : {
         "properties" : {
           "count" : {
@@ -15459,6 +15473,34 @@
           }
         },
         "tags" : [ "customer-auth-controller" ]
+      }
+    },
+    "/api/v1/auth/social/signup-completion" : {
+      "post" : {
+        "operationId" : "completeSocialSignup",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SocialSignupCompletionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CustomerUserResponse"
+                }
+              }
+            },
+            "description" : "OK"
+          }
+        },
+        "tags" : [ "social-signup-controller" ]
       }
     },
     "/api/v1/auth/social/signup-intents/{provider}" : {

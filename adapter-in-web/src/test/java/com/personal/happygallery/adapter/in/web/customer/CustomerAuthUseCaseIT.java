@@ -476,9 +476,44 @@ class CustomerAuthUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getRedirectedUrl())
-                    .isEqualTo("/auth/callback?error=POLICY_CONSENT_REQUIRED");
+                    .startsWith("/auth/callback?signupAttempt=");
             softly.assertThat(userReader.findByEmail("legacy-query@example.com")).isEmpty();
         });
+        String attemptId = response.getRedirectedUrl().split("signupAttempt=")[1];
+        MockHttpSession session = (MockHttpSession) request.getSession();
+        MockMvc completionMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        String completionBody = objectMapper.writeValueAsString(Map.of(
+                "attemptId", attemptId, "policyAcceptance", acceptedPolicies()));
+        completionMvc.perform(post("/api/v1/auth/social/signup-completion")
+                        .session(session).contentType(MediaType.APPLICATION_JSON).content(completionBody))
+                .andExpect(status().isForbidden());
+        completionMvc.perform(post("/api/v1/auth/social/signup-completion")
+                        .session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("attemptId", attemptId,
+                                "policyAcceptance", new PolicyAcceptanceRequest("old", true, "old", true)))))
+                .andExpect(status().isUnprocessableEntity());
+        assertThat(userReader.findByEmail("legacy-query@example.com")).isEmpty();
+        String oldSessionId = session.getId();
+        completionMvc.perform(post("/api/v1/auth/social/signup-completion")
+                        .session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(completionBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("legacy-query@example.com"));
+        var created = userReader.findByEmail("legacy-query@example.com").orElseThrow();
+        assertThat(session.getAttribute(CustomerAuthenticationFilter.CUSTOMER_USER_ID_SESSION_ATTRIBUTE))
+                .isEqualTo(created.getId());
+        assertThat(policyConsentRepository.findAll()).hasSize(2);
+        assertThat(session.getId()).isNotEqualTo(oldSessionId);
+        completionMvc.perform(post("/api/v1/auth/social/signup-completion")
+                        .session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(completionBody))
+                .andExpect(status().isUnauthorized());
+
+        var existingLoginRequest = new MockHttpServletRequest();
+        var existingLoginResponse = new MockHttpServletResponse();
+        socialLoginAuthenticationHandler.onAuthenticationSuccess(
+                existingLoginRequest, existingLoginResponse, authentication);
+        assertThat(existingLoginResponse.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=false");
+        assertThat(existingLoginRequest.getSession().getAttribute("pendingSocialSignup")).isNull();
+        assertThat(policyConsentRepository.findAll()).hasSize(2);
     }
 
     @DisplayName("기존 세션으로 로그인하면 세션 ID가 교체된다")

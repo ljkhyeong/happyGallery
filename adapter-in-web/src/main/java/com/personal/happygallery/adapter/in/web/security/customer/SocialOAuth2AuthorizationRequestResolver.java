@@ -43,6 +43,9 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
             return null;
         }
 
+        if (request.getSession(false) != null) {
+            PendingSocialSignupStore.clear(request.getSession(false));
+        }
         String linkAttemptId = request.getParameter(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER);
         String signupAttemptId = request.getParameter(SocialSignupIntentStore.SIGNUP_ATTEMPT_PARAMETER);
         boolean hasLinkAttempt = StringUtils.hasText(linkAttemptId);

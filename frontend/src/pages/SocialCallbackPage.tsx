@@ -18,6 +18,7 @@ import {
   startSocialAccountLink,
   unlinkSocialAccount,
 } from "@/features/customer-auth/socialAccountApi";
+import { SocialSignupConsent } from "@/features/customer-auth/SocialSignupConsent";
 import type { SocialProvider } from "@/features/customer-auth/socialAuth";
 import {
   ApiError,
@@ -63,6 +64,11 @@ export function SocialCallbackPage() {
         SESSION_KEYS.stepUpReturnAction,
       );
     };
+
+    if (searchParams.get("signupAttempt") && !hasCustomerContinuation) {
+      clearPendingStepUpActions();
+      return;
+    }
 
     const errorCode = searchParams.get("error");
     if (errorCode) {
@@ -184,6 +190,15 @@ export function SocialCallbackPage() {
       }
     })();
   }, [navigate, refresh, searchParams]);
+
+  const signupAttempt = searchParams.get("signupAttempt");
+  if (signupAttempt && !error) {
+    return (
+      <Container className="page-container" style={{ maxWidth: 480 }}>
+        <SocialSignupConsent attemptId={signupAttempt} returnTo={returnTo} />
+      </Container>
+    );
+  }
 
   if (error) {
     const errorHref = linkCallback
