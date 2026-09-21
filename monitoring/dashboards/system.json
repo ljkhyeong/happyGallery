@@ -437,6 +437,30 @@
         }
       ],
       "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 30,
+      "title": "개인정보 정리 실패 항목",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 136
+      },
+      "targets": [
+        {
+          "expr": "max by (application, exported_job, reason) (max_over_time(happygallery_batch_last_failure_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\"}[7d])) > bool on (application, exported_job) group_left max by (application, exported_job) (max_over_time(happygallery_batch_last_success_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\"}[7d]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "description": "최근 7일의 항목별 실패 시각이 마지막 전체 정상 완료보다 늦으면 1. Pod 교체 후에도 Prometheus 이력을 비교한다."
     }
   ],
   "schemaVersion": 39

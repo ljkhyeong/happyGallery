@@ -305,6 +305,10 @@ API 검사는 공개 상품 목록의 `200 + JSON 배열`과 공개 허용 목�
 - 실제 브라우저에서 Secure 세션 cookie, CSRF, Google/Naver/Kakao callback, 결제 confirm
 - 실제 클라이언트 IP별 rate-limit 분리
 - 운영 호스트 재부팅 후 k3s, PVC와 workload 자동 복구
+- 개인정보 보존 정리는 매일 서울 시각 03:30 실행한다. `PersonalDataRetentionFailed`는 항목별 `reason`과 마지막 실패 시각을 표시하고, 최근 7일의 마지막 실패·정상 완료를 비교한다. 전체 정상 완료가 확인되면 해제하며 10분 경과만으로 해제하지 않는다. Pod 교체 후에도 Prometheus 이력으로 비교하지만 7일간 지표가 없거나 저장소가 유실되면 해제될 수 있으므로 `Resolved`만으로 성공을 단정하지 않는다. 기존 `BatchExecutionFailed`의 `Resolved`는 최근 10분 실패 조건 종료였으며 복구 증명이 아니다.
+- 배치 이름은 수집 작업의 `job=happygallery`와 구분되는 `exported_job` 라벨로 조회한다. 실패 원인은 `happygallery_batch_last_failure_seconds{exported_job="personal_data_retention"}`의 `reason`으로 확인한다. Grafana의 개인정보 정리 실패 항목 패널도 같은 비교를 사용한다. 새 실패 지표가 없는 이전 앱은 기존 최근 10분 경보를 유지한다. 이미 사라진 운영 로그의 원인을 새 지표로 소급 복원할 수는 없다.
+- 알림 규칙 회귀는 저장소 루트에서 `docker run --rm --entrypoint /bin/promtool -v "$PWD/monitoring:/rules:ro" -w /rules prom/prometheus:v3.14.0-distroless test rules alerts.test.yml`로 확인한다.
+- 앱 Pod는 `kubectl -n happygallery get pods -l app.kubernetes.io/name=app -o wide`로 조회한다. Pod 교체 전 실패 로그는 기존 Pod 로그 보관본이 필요하다.
 - `df -h`, `kubectl top` 또는 호스트 모니터링을 통한 디스크/메모리 여유
 
 ## 7. 외부 암호화 복구 백업

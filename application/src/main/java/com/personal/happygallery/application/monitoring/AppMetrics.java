@@ -63,6 +63,8 @@ public class AppMetrics {
     private final AtomicLong mediaStorageLastSuccessSeconds = new AtomicLong();
     private final ConcurrentMap<String, AtomicLong> batchLastSuccessSeconds = new ConcurrentHashMap<>();
 
+    private final ConcurrentMap<BatchFailureKey, AtomicLong> batchLastFailureSeconds = new ConcurrentHashMap<>();
+
     public AppMetrics(MeterRegistry registry, Clock clock) {
         this.registry = registry;
         this.clock = clock;
@@ -155,6 +157,10 @@ public class AppMetrics {
         recordBatchItems(job, "failed", result.failureCount());
         if (result.failureCount() == 0) {
             recordBatchLastSuccess(job);
+        } else if (result.failureReasons().isEmpty()) {
+            recordBatchLastFailure(job, "unknown");
+        } else {
+            result.failureReasons().keySet().forEach(reason -> recordBatchLastFailure(job, reason));
         }
     }
 
@@ -167,6 +173,7 @@ public class AppMetrics {
     /** 예외로 중단된 배치를 기록한다. */
     public void recordBatchFailure(String job, long durationNanos) {
         recordBatchRun(job, "failed", durationNanos);
+        recordBatchLastFailure(job, "execution");
     }
 
     private void recordBatchRun(String job, String status, long durationNanos) {
@@ -195,6 +202,22 @@ public class AppMetrics {
                 .register(registry)
                 .increment(count);
     }
+
+    private void recordBatchLastFailure(String job, String reason) {
+        batchLastSuccess(job);
+        batchLastFailureSeconds.computeIfAbsent(new BatchFailureKey(job, reason), key -> {
+            AtomicLong lastFailure = new AtomicLong();
+            Gauge.builder("happygallery.batch.last_failure", lastFailure, AtomicLong::get)
+                    .description("배치 항목별 마지막 실패 Unix 시각")
+                    .tag("job", key.job())
+                    .tag("reason", key.reason())
+                    .baseUnit("seconds")
+                    .register(registry);
+            return lastFailure;
+        }).set(clock.instant().getEpochSecond());
+    }
+
+    private record BatchFailureKey(String job, String reason) {}
 
     private void recordBatchLastSuccess(String job) {
         batchLastSuccess(job).set(Instant.now(clock).getEpochSecond());

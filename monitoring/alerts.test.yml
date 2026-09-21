@@ -1,0 +1,110 @@
+{
+  "rule_files": [
+    "alerts.yml"
+  ],
+  "evaluation_interval": "1m",
+  "tests": [
+    {
+      "name": "개인정보 정리 실패는 10분 후와 Pod 교체 후에도 유지되고 전체 성공 시 해제한다",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "happygallery_batch_last_failure_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",reason=\"image_media\",instance=\"old\"}",
+          "values": "600 600 600 600 600 600 600 600 600 600 600 stale"
+        },
+        {
+          "series": "happygallery_batch_last_success_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",instance=\"old\"}",
+          "values": "0 0 0 0 0 0 0 0 0 0 0 stale"
+        },
+        {
+          "series": "happygallery_batch_last_success_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",instance=\"new\"}",
+          "values": "_ _ _ _ _ _ _ _ _ _ _ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2000 2000 2000 2000 2000 2000"
+        },
+        {
+          "series": "happygallery_batch_runs_total{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",status=\"partial\",instance=\"old\"}",
+          "values": "0 1 1 1 1 1 1 1 1 1 1 stale"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "ALERTS{alertname=\"PersonalDataRetentionFailed\",alertstate=\"firing\"}",
+          "eval_time": "5m",
+          "exp_samples": [
+            {
+              "labels": "ALERTS{alertname=\"PersonalDataRetentionFailed\",alertstate=\"firing\",application=\"happygallery\",exported_job=\"personal_data_retention\",reason=\"image_media\",severity=\"warning\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "ALERTS{alertname=\"PersonalDataRetentionFailed\",alertstate=\"firing\"}",
+          "eval_time": "20m",
+          "exp_samples": [
+            {
+              "labels": "ALERTS{alertname=\"PersonalDataRetentionFailed\",alertstate=\"firing\",application=\"happygallery\",exported_job=\"personal_data_retention\",reason=\"image_media\",severity=\"warning\"}",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "expr": "ALERTS{alertname=\"PersonalDataRetentionFailed\",alertstate=\"firing\"}",
+          "eval_time": "30m",
+          "exp_samples": []
+        },
+        {
+          "expr": "ALERTS{alertname=\"BatchExecutionFailed\"}",
+          "eval_time": "5m",
+          "exp_samples": []
+        }
+      ]
+    },
+    {
+      "name": "일 단위 배치 정체는 실제 exported_job 라벨로 탐지한다",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "happygallery_batch_last_success_seconds{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\"}",
+          "values": "-200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000 -200000"
+        },
+        {
+          "series": "process_start_time_seconds{application=\"happygallery\",job=\"happygallery\"}",
+          "values": "-200000+0x12"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "ALERTS{alertname=\"DailyBusinessBatchStalled\",alertstate=\"firing\"}",
+          "eval_time": "11m",
+          "exp_samples": [
+            {
+              "labels": "ALERTS{alertname=\"DailyBusinessBatchStalled\",alertstate=\"firing\",severity=\"warning\"}",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "새 실패 지표가 없는 이전 앱도 기존 실패 경보를 유지한다",
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "happygallery_batch_runs_total{application=\"happygallery\",job=\"happygallery\",exported_job=\"personal_data_retention\",status=\"partial\"}",
+          "values": "0 1+0x10"
+        }
+      ],
+      "promql_expr_test": [
+        {
+          "expr": "ALERTS{alertname=\"BatchExecutionFailed\",alertstate=\"firing\"}",
+          "eval_time": "5m",
+          "exp_samples": [
+            {
+              "labels": "ALERTS{alertname=\"BatchExecutionFailed\",alertstate=\"firing\",application=\"happygallery\",job=\"happygallery\",exported_job=\"personal_data_retention\",status=\"partial\",severity=\"warning\"}",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

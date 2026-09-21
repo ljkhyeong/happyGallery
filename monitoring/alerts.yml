@@ -282,15 +282,34 @@ groups:
           summary: "승인 마감까지 6시간 이하로 남은 결제 주문이 있습니다"
 
       - alert: BatchExecutionFailed
-        expr: increase(happygallery_batch_runs_total{application="happygallery",status=~"partial|failed"}[10m]) > 0
+        expr: >-
+          (increase(happygallery_batch_runs_total{application="happygallery",status=~"partial|failed"}[10m]) > 0)
+          unless on (application, exported_job)
+          happygallery_batch_last_failure_seconds{application="happygallery",exported_job="personal_data_retention"}
         for: 1m
         labels:
           severity: warning
         annotations:
           summary: "최근 10분 동안 배치 실패 또는 부분 실패가 발생했습니다 ({{ $value | printf \"%.0f\" }}회)"
 
+      - alert: PersonalDataRetentionFailed
+        expr: >-
+          max by (application, exported_job, reason) (
+            max_over_time(happygallery_batch_last_failure_seconds{application="happygallery",exported_job="personal_data_retention"}[7d])
+          )
+          > on (application, exported_job) group_left
+          max by (application, exported_job) (
+            max_over_time(happygallery_batch_last_success_seconds{application="happygallery",exported_job="personal_data_retention"}[7d])
+          )
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "개인정보 보존 정리 실패: {{ $labels.reason }}"
+          description: "최근 7일의 마지막 실패가 마지막 정상 완료보다 늦습니다. Pod 교체 후에도 보존된 지표로 비교하며 전체 배치 정상 완료 시 해제합니다. 실패 시각(UTC): {{ $value | humanizeTimestamp }}. 7일간 지표가 없으면 감지가 종료될 수 있으므로 수집 상태도 확인하세요."
+
       - alert: BatchRecoveryStalled
-        expr: time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"refund_recovery|payment_confirm_recovery|payment_attempt_expiry"}) > 300
+        expr: time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"refund_recovery|payment_confirm_recovery|payment_attempt_expiry"}) > 300
         for: 2m
         labels:
           severity: critical
@@ -298,7 +317,7 @@ groups:
           summary: "결제·환불 복구 배치가 5분 넘게 정상 완료되지 않았습니다"
 
       - alert: SmartStoreRealtimeBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"smartstore_order_sync|smartstore_stock_sync"}) > 300) and (time() - min(process_start_time_seconds{application="happygallery"}) > 300)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"smartstore_order_sync|smartstore_stock_sync"}) > 300) and (time() - min(process_start_time_seconds{application="happygallery"}) > 300)
         for: 2m
         labels:
           severity: critical
@@ -315,7 +334,7 @@ groups:
           summary: "처리 결과를 확인해야 하는 스마트스토어 주문 요청이 있습니다"
 
       - alert: SmartStoreSettlementBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job="smartstore_settlement_sync"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job="smartstore_settlement_sync"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
         for: 5m
         labels:
           severity: critical
@@ -323,7 +342,7 @@ groups:
           summary: "스마트스토어 정산 대사가 2시간 넘게 정상 완료되지 않았습니다"
 
       - alert: HourlyBusinessBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"order_auto_refund|pickup_expire|pickup_deadline_reminder|pass_expiry_notification|booking_d1_reminder|booking_same_day_reminder"}) > 7200) and (time() - min(process_start_time_seconds{application="happygallery"}) > 7200)
         for: 5m
         labels:
           severity: critical
@@ -331,7 +350,7 @@ groups:
           summary: "시간 단위 주문·픽업 배치가 2시간 넘게 정상 완료되지 않았습니다"
 
       - alert: DailyBusinessBatchStalled
-        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",job=~"pass_expiry|personal_data_retention"}) > 108000) and (time() - min(process_start_time_seconds{application="happygallery"}) > 108000)
+        expr: (time() - min(happygallery_batch_last_success_seconds{application="happygallery",exported_job=~"pass_expiry|personal_data_retention"}) > 108000) and (time() - min(process_start_time_seconds{application="happygallery"}) > 108000)
         for: 10m
         labels:
           severity: warning
