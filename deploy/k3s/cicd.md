@@ -1,10 +1,20 @@
 # main 자동 배포
 
-`main` 병합 → 기존 CI → 운영 이미지 빌드·취약점 검사 → GHCR 게시 → SSH → 배포별 백업 실행·R2 검증 → 이미지 반입 → 롤링 배포·공개 경로 확인 순서다. 서버에서 `IMAGE_TAG`나 digest를 입력하지 않는다.
+`main` 병합 → 소스 호환성 사전 검사 → 기존 CI → 운영 이미지 빌드·취약점 검사 → GHCR 게시 → SSH → 배포별 백업 실행·R2 검증 → 이미지 반입 → 롤링 배포·공개 경로 확인 순서다. 서버에서 `IMAGE_TAG`나 digest를 입력하지 않는다.
 
 PR은 기존 CI를 실행한다. `.github/workflows/production.yml`은 main push 또는 main의 수동 실행에서만 동작하며 `CD_ENABLED=true`일 때 게시·배포한다. `ci.yml`을 재사용하므로 main에서도 백엔드·프런트·브라우저 검사를 통과해야 한다. 운영 이미지를 검사할 때는 CI용 이미지를 중복 빌드하지 않는다.
 
 GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://docs.github.com/en/billing/concepts/product-billing/github-actions)다. GHCR 이미지 저장·전송도 [현재 무료](https://docs.github.com/en/billing/concepts/product-billing/github-packages)다. Actions 로그·artifact 할당량과 GHCR 향후 정책 변경은 별도다. 별도 CI 서버나 Argo CD는 설치하지 않는다.
+
+## 배포 전 검사와 실행 시간
+
+`Rolling Compatibility`가 통과해야 백엔드·프런트 빌드가 시작된다. PR은 대상 브랜치와 비교하고, 운영 배포는 GitHub Actions에서 마지막으로 `Roll out production`이 성공한 commit과 비교한다. 실패한 push나 CD를 끈 실행을 배포 기준으로 삼지 않는다. 조회 실패·기준 이력 부재는 검사를 중단한다. 수동 서버 배포나 rollback으로 실제 운영 버전이 달라진 경우까지 GitHub 이력이 보장하지는 않으므로 서버의 manifest 비교도 유지한다.
+
+사전 검사는 서버와 같은 `rolling-release.rb check-source <repo> <기존 SHA> <후보 SHA>`를 사용한다. 인증·세션 검토 누락, 비호환 OpenAPI·migration을 이미지 생성과 서버 백업 전에 발견한다. 검토 기록은 실제 호환성 검토 후 추가하며, 서버의 최종 workload·설정 검사와 백업은 생략하지 않는다.
+
+application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분리한다. 주문·결제·예약과 migration 패키지를 각각 분리하고 core는 나머지 전부를 실행한다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
+
+2026-09-22 실패 실행 `35620477260`의 총 시간은 27분 18초이며 application 검사 17분 49초, 이미지 게시 3분, 서버 단계 6분 14초였다. 변경 후 시간은 새 Production 실행에서 비교한다. 로컬 결과로 운영 실행 단축 시간을 확정하지 않는다.
 
 ## 1. 최초 전환 확인
 
