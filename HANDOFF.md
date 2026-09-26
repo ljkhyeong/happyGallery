@@ -3,10 +3,7 @@
 ## Spring context·컨테이너 재사용 개선 (2026-09-27)
 
 - 시작 SHA `ccce06dc9c004e6bf2a786979c16f44af8eb8e5b`, 시작 시 미커밋 변경 없음. 기존 `codex/work-deploy-preflight-speed` 브랜치에서 진행했다. 사용자 지시대로 로컬 커밋만 유지하며 푸시·배포하지 않는다.
-- 외부 연동 mock 3개 클래스와 실제 Bean spy 3개 클래스의 구성을 각각 공통 어노테이션으로 통일했다. 실제 repository·가짜 PG 타입을 보존해야 하는 `SpiedUseCaseIT`는 `test-support` fixture에 둔다. 배송비·키 교체·알림 실행 방식이 다른 context는 유지한다.
-- `SharedTestContainers`는 JVM마다 서버를 한 번만 시작하고 context별 MySQL DB·Redis DB 번호를 할당한다. migration 검사도 클래스마다 별도 DB를 받는다. 컨테이너는 context 종료 시 닫지 않고 Ryuk이 JVM 종료 후 정리한다. 실행 간 재사용은 하지 않는다.
-- 공유로 드러난 주문 클레임 테스트의 알림 잔여 데이터는 `@AfterEach`에서 비동기 작업 종료를 기다린 뒤 정리한다. 업무 assertion은 유지했다. 상세 원칙: `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`.
-- 같은 로컬 명령 `./gradlew --no-daemon :application:test --rerun-tasks --profile`: 변경 전 5분 34초 → 최종 변경 후 3분 36초(약 35% 단축). Spring 기동 14회 → 10회, 기동 시간 합계 191.22초 → 90.98초. 기존 777개 사례를 전부 보존했고 DB·Redis 격리 회귀 2개를 더한 779개가 통과했다. 실제 GitHub CI 단축 시간은 미측정이다.
+- 구현·로컬 검증 완료: `95526028`, 인계 기록 `01c7a34a`. context 공유 조건·격리·비동기 정리·전후 측정값은 [ADR-0026](docs/ADR/0026_통합_테스트_프로파일과_TestContainer_기준선/adr.md)에 정리했다. 실제 GitHub CI 단축 시간은 아직 미측정이다.
 
 검증 기록(관련 코드·설정·환경이 같으면 재사용):
 

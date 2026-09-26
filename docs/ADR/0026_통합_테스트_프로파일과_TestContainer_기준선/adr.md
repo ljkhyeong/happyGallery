@@ -2,7 +2,7 @@
 
 **날짜**: 2026-03-20  
 **상태**: Accepted
-**갱신**: 2026-08-02
+**갱신**: 2026-09-27
 
 ---
 
@@ -25,7 +25,10 @@
 
 - MySQL: `MySQLContainer("mysql:8.0")`
 - Redis: `GenericContainer("redis:7-alpine")`
-- 두 컨테이너 모두 `@ServiceConnection`으로 연결한다.
+- `SharedTestContainers`가 테스트 JVM마다 서버를 한 번 기동한다. `TestcontainersConfig`의 `DynamicPropertyRegistrar`가 할당된 DB의 연결 정보를 등록한다.
+- context마다 별도 MySQL DB와 Redis DB 번호를 배정한다. migration 검사는 클래스마다 별도 MySQL DB를 받아 `clean()`과 이전 버전 migration이 다른 검사에 영향을 주지 않게 한다.
+- 컨테이너를 Spring Bean이나 JUnit `@Container`로 등록하지 않는다. 개별 context·클래스 종료 시 서버를 닫지 않고, JVM 종료 후 Testcontainers의 Ryuk이 정리한다. 실행 간 컨테이너 재사용 옵션은 켜지 않는다.
+- CI의 별도 실행기·테스트 JVM 사이에서는 서버를 공유하지 않는다.
 
 ### 3. 공통 테스트 설정은 `application-test.yml`에 모은다
 
@@ -59,6 +62,34 @@ Redis cleanup cron은 인덱스 보정용 백그라운드 작업이며, 세션 T
 - DB 정리는 `@AfterEach`에서 테스트가 사용한 범위만 한 번 실행한다. `@BeforeEach`는 fixture, mock, `MockMvc` 설정에만 사용한다.
 - 테스트 중간의 데이터 삭제는 알림 건수 기준점처럼 시나리오 의미가 있는 경우에만 명시적으로 남긴다.
 - 모든 `@UseCaseIT` 실행 후 전체 테이블을 일괄 삭제하는 전역 정리는 사용하지 않는다.
+- 비동기 작업을 발생시킨 테스트는 작업 완료를 기다린 뒤 관련 데이터를 정리한다. 주문 클레임 테스트는 알림 executor의 실행·대기 작업이 끝난 후 주문과 알림 이력을 정리한다. context 재사용을 늘릴 때 기존 정리 범위가 충분한지도 확인한다.
+
+### 7. mock·spy 구성을 통일하되 업무 조건이 다른 context는 유지한다
+
+- 같은 `@UseCaseIT`를 붙여도 mock·spy 구성이나 프로퍼티가 다르면 별도 context가 만들어진다.
+- 외부 연동 응답을 제어하는 테스트는 `@ExternalIntegrationUseCaseIT`의 공통 mock 구성을 사용한다. 이 어노테이션이 대체하는 연동 전체가 해당 테스트의 검증 범위에 적합한지 먼저 확인한다.
+- 실제 Bean의 호출·실패를 관찰하는 테스트는 `@SpiedUseCaseIT`의 공통 spy 구성을 사용한다. JPA repository는 일부 포트 인터페이스로 좁히면 다른 인터페이스를 요구하는 주입이 실패할 수 있으므로 실제 repository 타입을 지정한다. 이 설정은 영속성·외부 adapter 타입을 참조하므로 `test-support` fixture가 소유한다.
+- 공통 mock·spy는 Spring의 테스트 종료 후 reset을 유지한다. 객체 내부 상태나 DB 데이터까지 reset되는 것으로 간주하지 않는다.
+- 배송비·암호화 키·알림 실행 방식처럼 검증하려는 업무 조건이 다른 context는 합치지 않는다. 기동 횟수를 줄이기 위해 모든 테스트에 같은 mock을 강제하지 않는다.
+
+### 8. 실행 시간은 같은 범위에서 측정한다
+
+2026-09-27 로컬 Java 25·Docker 환경에서 아래 명령을 변경 전후 각각 실행했다. 비교 대상은 `ccce06dc`와 구현 커밋 `95526028`이다.
+
+```bash
+./gradlew --no-daemon :application:test --rerun-tasks --profile
+```
+
+| 항목 | 변경 전 | 변경 후 |
+|---|---:|---:|
+| 명령 전체 시간 | 5분 34초 | 3분 36초 |
+| Spring context 기동 횟수 | 14회 | 10회 |
+| context 기동 시간 합계 | 191.22초 | 90.98초 |
+| 통과한 테스트 사례 | 777개 | 779개 |
+
+기존 777개 사례는 모두 유지했고 MySQL·Redis 격리 회귀 2개를 추가했다. 웹 통합 테스트 97개, OpenAPI 일치 검사와 구조 검사도 통과했다. 로컬 전체 시간은 약 35% 줄었지만 단일 환경의 측정값이며, GitHub CI 전체 시간은 아직 측정하지 않았다. 시간 도약 경고가 있었던 중간 실패 실행은 비교에서 제외했다.
+
+재측정할 때는 같은 JDK·Docker·테스트 범위를 사용하고, `build/reports/profile/`의 태스크 시간과 `application/build/test-results/test/`의 테스트 결과·Spring 기동 로그를 함께 확인한다. 테스트 누락이나 실패를 속도 개선으로 계산하지 않는다.
 
 ---
 
@@ -84,6 +115,10 @@ Redis cleanup cron은 인덱스 보정용 백그라운드 작업이며, 세션 T
 
 - `application/src/testFixtures/java/com/personal/happygallery/support/UseCaseIT.java`
 - `application/src/testFixtures/java/com/personal/happygallery/support/TestcontainersConfig.java`
+- `application/src/testFixtures/java/com/personal/happygallery/support/SharedTestContainers.java`
+- `application/src/testFixtures/java/com/personal/happygallery/support/ExternalIntegrationUseCaseIT.java`
+- `test-support/src/testFixtures/java/com/personal/happygallery/support/SpiedUseCaseIT.java`
+- `application/src/test/java/com/personal/happygallery/support/SharedTestContainersTest.java`
 - `application/src/testFixtures/resources/application-test.yml`
 - `test-support/src/testFixtures/java/com/personal/happygallery/support/TestCleanupSupport.java`
 - `test-support/src/testFixtures/java/com/personal/happygallery/support/*TestHelper.java`
