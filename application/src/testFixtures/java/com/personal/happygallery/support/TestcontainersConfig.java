@@ -2,12 +2,9 @@ package com.personal.happygallery.support;
 
 import com.personal.happygallery.domain.time.Clocks;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.mysql.MySQLContainer;
-import org.testcontainers.utility.DockerImageName;
+import org.springframework.test.context.DynamicPropertyRegistrar;
 
 import java.time.Clock;
 import java.time.ZonedDateTime;
@@ -24,16 +21,16 @@ class TestcontainersConfig {
     }
 
     @Bean
-    @ServiceConnection
-    MySQLContainer mysqlContainer() {
-        return new MySQLContainer("mysql:8.0");
-    }
-
-    @Bean
-    @ServiceConnection(name = "redis")
-    GenericContainer<?> redisContainer() {
-        return new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                .withCommand("redis-server", "--notify-keyspace-events", "Egx")
-                .withExposedPorts(6379);
+    DynamicPropertyRegistrar testConnections() {
+        var mysql = SharedTestContainers.newDatabase();
+        var redis = SharedTestContainers.newRedisDatabase();
+        return registry -> {
+            registry.add("spring.datasource.url", mysql::jdbcUrl);
+            registry.add("spring.datasource.username", mysql::username);
+            registry.add("spring.datasource.password", mysql::password);
+            registry.add("spring.data.redis.host", redis::host);
+            registry.add("spring.data.redis.port", redis::port);
+            registry.add("spring.data.redis.database", redis::database);
+        };
     }
 }

@@ -16,7 +16,7 @@ import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.NotificationLogProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.SpiedUseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +25,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
@@ -40,7 +39,7 @@ import static org.mockito.Mockito.doThrow;
  * <p>Proof (§12.1 DoD): sendExpiryNotifications() 호출 시
  * 만료 7일 내 pass에 PASS_EXPIRY_SOON 알림이 발송되고 notification_log에 기록된다.
  */
-@UseCaseIT
+@SpiedUseCaseIT
 class PassExpiryNotificationUseCaseIT {
 
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
@@ -51,7 +50,7 @@ class PassExpiryNotificationUseCaseIT {
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
-    @MockitoSpyBean NotificationOutboxInsertPort notificationOutboxInsertPort;
+    @Autowired NotificationOutboxInsertPort notificationOutboxInsertPort;
 
     @AfterEach
     void tearDown() {

@@ -42,7 +42,7 @@ import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.SpiedUseCaseIT;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -62,9 +62,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -77,7 +78,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mockingDetails;
 
-@UseCaseIT
+@SpiedUseCaseIT
 class OrderClaimUseCaseIT {
 
     @Autowired ProductStorePort productStorePort;
@@ -103,8 +104,9 @@ class OrderClaimUseCaseIT {
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PlatformTransactionManager transactionManager;
-    @MockitoSpyBean OrderRepository orderRepository;
-    @MockitoSpyBean(name = "paymentProviderDelegate") FakePaymentProvider paymentProvider;
+    @Autowired @Qualifier("notificationExecutor") ThreadPoolTaskExecutor notificationExecutor;
+    @Autowired OrderRepository orderRepository;
+    @Autowired @Qualifier("paymentProviderDelegate") FakePaymentProvider paymentProvider;
 
     OrderTestHelper orderHelper;
 
@@ -122,7 +124,11 @@ class OrderClaimUseCaseIT {
 
     @AfterEach
     void tearDown() {
+        await().atMost(Duration.ofSeconds(5)).until(() ->
+                notificationExecutor.getActiveCount() == 0
+                        && notificationExecutor.getThreadPoolExecutor().getQueue().isEmpty());
         cleanupSupport.clearOrderData();
+        cleanupSupport.clearNotificationLogs();
         cleanupSupport.clearUsers();
     }
 

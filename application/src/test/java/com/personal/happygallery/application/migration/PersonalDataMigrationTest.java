@@ -6,14 +6,12 @@ import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.util.HexFormat;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.jdbc.JdbcTestUtils;
-import org.testcontainers.mysql.MySQLContainer;
+import com.personal.happygallery.support.SharedTestContainers;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -24,27 +22,17 @@ class PersonalDataMigrationTest {
     private static final String HMAC_KEY =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
-    private static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.0");
+    private static final SharedTestContainers.Database MYSQL = SharedTestContainers.newDatabase();
 
     private final FieldEncryptor fieldEncryptor = new SpringSecurityFieldEncryptor(
             HexFormat.of().parseHex(ENCRYPT_KEY));
     private final BlindIndexer blindIndexer = new BlindIndexer(HexFormat.of().parseHex(HMAC_KEY));
 
-    @BeforeAll
-    static void startContainer() {
-        MYSQL.start();
-    }
-
-    @AfterAll
-    static void stopContainer() {
-        MYSQL.stop();
-    }
-
     @DisplayName("기존 평문 개인정보를 백필한 뒤 원본 컬럼을 제거한다")
     @Test
     void protectsLegacyPersonalDataAndDropsPlaintextColumns() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(
-                MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
+                MYSQL.jdbcUrl(), MYSQL.username(), MYSQL.password());
         Flyway.configure()
                 .dataSource(dataSource)
                 .locations("classpath:db/migration")

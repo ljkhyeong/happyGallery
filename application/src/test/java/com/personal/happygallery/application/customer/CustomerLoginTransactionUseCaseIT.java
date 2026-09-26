@@ -7,7 +7,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.SpiedUseCaseIT;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -15,7 +15,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,14 +22,14 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 
-@UseCaseIT
+@SpiedUseCaseIT
 class CustomerLoginTransactionUseCaseIT {
 
     @Autowired CustomerAuthUseCase customerAuthUseCase;
     @Autowired UserReaderPort userReader;
     @Autowired UserStorePort userStore;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoSpyBean PasswordEncoder passwordEncoder;
+    @Autowired PasswordEncoder passwordEncoder;
 
     @AfterEach
     void tearDown() {

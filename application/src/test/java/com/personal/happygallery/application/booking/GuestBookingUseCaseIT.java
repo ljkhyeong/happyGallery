@@ -25,7 +25,7 @@ import com.personal.happygallery.support.BookingStateProbe;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.ExternalIntegrationUseCaseIT;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -42,7 +42,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -63,7 +62,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@UseCaseIT
+@ExternalIntegrationUseCaseIT
 class GuestBookingUseCaseIT {
 
     @Autowired MockMvc mockMvc;
@@ -81,7 +80,7 @@ class GuestBookingUseCaseIT {
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired ObjectMapper objectMapper;
     @Autowired PlatformTransactionManager transactionManager;
-    @MockitoBean PhoneVerificationSender phoneVerificationSender;
+    @Autowired PhoneVerificationSender phoneVerificationSender;
 
     Long classId;
     Long slotId;

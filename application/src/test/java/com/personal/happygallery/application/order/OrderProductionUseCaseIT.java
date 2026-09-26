@@ -44,7 +44,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.OrderStateProbe;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.ExternalIntegrationUseCaseIT;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -59,7 +59,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,7 +79,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *
  * <p>Proof (docs/PRD/0001_기준_스펙/spec.md §8.3): 제작 시작 상태에서 취소 요청 시 "환불 불가"로 처리됨.
  */
-@UseCaseIT
+@ExternalIntegrationUseCaseIT
 class OrderProductionUseCaseIT {
 
     private static final long ADMIN_ID = 1L;
@@ -106,8 +105,8 @@ class OrderProductionUseCaseIT {
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
     @Autowired OrderService orderService;
     @Autowired JdbcTemplate jdbcTemplate;
-    @MockitoBean ShipmentTrackingProvider shipmentTrackingProvider;
-    @MockitoBean KoreaPostTrackingLookup koreaPostTrackingLookup;
+    @Autowired ShipmentTrackingProvider shipmentTrackingProvider;
+    @Autowired KoreaPostTrackingLookup koreaPostTrackingLookup;
     OrderTestHelper orderHelper;
 
     @BeforeEach

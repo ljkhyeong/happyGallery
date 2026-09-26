@@ -45,7 +45,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.support.TestCleanupSupport;
-import com.personal.happygallery.support.UseCaseIT;
+import com.personal.happygallery.support.ExternalIntegrationUseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -58,9 +58,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-@UseCaseIT
+@ExternalIntegrationUseCaseIT
 class SmartStoreProductSyncUseCaseIT {
 
     @Autowired ProductRepository productRepository;
@@ -77,8 +76,8 @@ class SmartStoreProductSyncUseCaseIT {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired Clock clock;
     @Autowired TestCleanupSupport cleanupSupport;
-    @MockitoBean SmartStoreInventoryProvider provider;
-    @MockitoBean SmartStoreOrderProvider orderProvider;
+    @Autowired SmartStoreInventoryProvider provider;
+    @Autowired SmartStoreOrderProvider orderProvider;
 
     @BeforeEach
     void setUp() {

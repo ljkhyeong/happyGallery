@@ -13,8 +13,6 @@ import java.util.List;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,7 @@ import org.springframework.core.NestedExceptionUtils;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.testcontainers.mysql.MySQLContainer;
+import com.personal.happygallery.support.SharedTestContainers;
 
 class DomainInvariantMigrationTest {
 
@@ -30,27 +28,17 @@ class DomainInvariantMigrationTest {
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     private static final String HMAC_KEY =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
-    private static final MySQLContainer MYSQL = new MySQLContainer("mysql:8.0");
+    private static final SharedTestContainers.Database MYSQL = SharedTestContainers.newDatabase();
 
     private final FieldEncryptor fieldEncryptor = new SpringSecurityFieldEncryptor(
             HexFormat.of().parseHex(ENCRYPT_KEY));
     private final BlindIndexer blindIndexer = new BlindIndexer(HexFormat.of().parseHex(HMAC_KEY));
     private DriverManagerDataSource dataSource;
 
-    @BeforeAll
-    static void startContainer() {
-        MYSQL.start();
-    }
-
-    @AfterAll
-    static void stopContainer() {
-        MYSQL.stop();
-    }
-
     @BeforeEach
     void cleanDatabase() {
         dataSource = new DriverManagerDataSource(
-                MYSQL.getJdbcUrl(), MYSQL.getUsername(), MYSQL.getPassword());
+                MYSQL.jdbcUrl(), MYSQL.username(), MYSQL.password());
         flyway("121").clean();
     }
 
