@@ -84,6 +84,24 @@ class RollingReleaseTest < Minitest::Test
     }.to_yaml)
   end
 
+  def test_source_check_detects_unreviewed_change_across_failed_pushes
+    path = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
+    change(path, 'new session behavior')
+    commit
+    change('application/task.java', 'later unrelated change')
+    candidate = commit
+    error = assert_raises(RuntimeError) { RollingRelease.check_source(@dir, @old_sha, candidate) }
+    assert_includes error.message, path
+
+    write_compatibility('api' => [path])
+    RollingRelease.check_source(@dir, @old_sha, commit)
+  end
+
+  def test_source_check_requires_available_commits
+    error = assert_raises(RuntimeError) { RollingRelease.check_source(@dir, 'a' * 40, @new_sha) }
+    assert_includes error.message, 'Git commit이 없습니다'
+  end
+
   def test_allows_application_change_with_unchanged_shared_contracts
     RollingRelease.check(@dir, @old, @new)
     assert true

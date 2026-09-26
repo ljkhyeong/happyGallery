@@ -257,6 +257,16 @@ module RollingRelease
     spec
   end
 
+  def self.check_source(repository, old_revision, new_revision)
+    [old_revision, new_revision].each do |revision|
+      raise '40자리 commit SHA가 필요합니다.' unless revision.to_s.match?(/\A[a-f0-9]{40}\z/)
+      _, status = Open3.capture2e('git', '-C', repository, 'cat-file', '-e', "#{revision}^{commit}")
+      raise "배포 이력을 비교할 Git commit이 없습니다: #{revision}" unless status.success?
+    end
+    paths = git_diff_paths(repository, old_revision, new_revision)
+    validate_reviewed_compatibility(repository, old_revision, new_revision, paths) unless paths.empty?
+  end
+
   def self.check(repository, previous, candidate)
     old = documents(previous)
     fresh = documents(candidate)
@@ -268,15 +278,10 @@ module RollingRelease
         raise "#{name}의 40자리 commit SHA/digest 기록이 필요합니다." unless match
         match[1]
       end
-      revisions.each do |revision|
-        _, status = Open3.capture2e('git', '-C', repository, 'cat-file', '-e', "#{revision}^{commit}")
-        raise "배포 이력을 비교할 Git commit이 없습니다: #{revision}" unless status.success?
-      end
       next if checked.include?(revisions)
       checked << revisions
-      paths = git_diff_paths(repository, *revisions)
       begin
-        validate_reviewed_compatibility(repository, *revisions, paths) unless paths.empty?
+        check_source(repository, *revisions)
       rescue RuntimeError => error
         errors << error.message
       end
@@ -315,6 +320,7 @@ end
 if $PROGRAM_NAME == __FILE__
   begin
     case ARGV.shift
+    when 'check-source' then RollingRelease.check_source(*ARGV)
     when 'check' then RollingRelease.check(*ARGV)
     when 'assets' then RollingRelease.extract_assets(*ARGV)
     else abort '사용법: rolling-release.rb check <repo> <이전 YAML> <새 YAML> | assets <YAML> <storage|server|route>'

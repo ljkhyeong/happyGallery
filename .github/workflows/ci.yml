@@ -15,8 +15,27 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
+  compatibility:
+    name: Rolling Compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Check source compatibility before builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCTION_RELEASE: ${{ inputs.production_release }}
+        run: ruby deploy/k3s/scripts/ci-compatibility.rb
+
   agent-feedback:
     name: Agent Feedback Checks
     runs-on: ubuntu-latest
@@ -44,6 +63,7 @@ jobs:
           fail-on-severity: high
 
   backend-package:
+    needs: compatibility
     name: Backend Package & Module Checks
     runs-on: ubuntu-latest
 
@@ -84,12 +104,21 @@ jobs:
           retention-days: 7
 
   backend-tests:
+    needs: compatibility
     name: Backend Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        module: [application, adapter-in-web]
+        include:
+          - module: application-core
+            task: ':application:check -PciTestGroup=core'
+          - module: application-commerce
+            task: ':application:check -PciTestGroup=commerce'
+          - module: application-migration
+            task: ':application:check -PciTestGroup=migration'
+          - module: adapter-in-web
+            task: ':adapter-in-web:check'
     steps:
       - uses: actions/checkout@v4
       - name: Set up JDK 25
@@ -102,7 +131,7 @@ jobs:
         with:
           validate-wrappers: true
       - name: Run module checks
-        run: ./gradlew --no-daemon :${{ matrix.module }}:check --profile
+        run: ./gradlew --no-daemon ${{ matrix.task }} --profile
       - name: Upload backend diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -127,6 +156,7 @@ jobs:
         run: test "$PACKAGE_RESULT" = success && test "$TEST_RESULT" = success
 
   frontend:
+    needs: compatibility
     name: Frontend Build
     runs-on: ubuntu-latest
 

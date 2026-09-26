@@ -2,7 +2,10 @@ version: 1
 mode: expand
 reason: >-
   우체국 배송조회 nullable 조회 시각과 Turnstile 조회 API를 추가하고
-  기존 운영 계약을 보존하는 확장형 변경이다.
+  기존 운영 계약을 보존하는 확장형 변경이다. 소셜 가입 완료 API는 추가 계약이며
+  기존 회원 로그인·사전 동의 가입·세션 인증 키를 유지한다. 새 pendingSocialSignup은
+  토큰 없는 JSON 문자열로 5분만 보관하고 로그인 완료 시 제거한다.
+  배포 경계에서 새 가입 화면을 이전 앱이 처리하면 재시도가 필요할 수 있다.
 reviewed:
   migration:
     - bootstrap/src/main/resources/db/migration/V184__track_shipment_lookup_attempts.sql
@@ -10,6 +13,10 @@ reviewed:
     - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/BotProtectionController.java
     - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/dto/BotProtectionResponse.java
     - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/CustomerSecurityRoutes.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/customer/CustomerSessionBinder.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/PendingSocialSignupStore.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/SocialLoginAuthenticationHandler.java
+    - adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/customer/SocialOAuth2AuthorizationRequestResolver.java
     - docs/PRD/0004_API_계약/openapi3.json
   runtime_config:
     - bootstrap/src/main/resources/application.yml

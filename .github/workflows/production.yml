@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 # 실행 중인 운영 배포를 새 push 때문에 중단하지 않는다.
 concurrency:
