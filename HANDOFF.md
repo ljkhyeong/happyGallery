@@ -1,5 +1,22 @@
 # HANDOFF
 
+## Spring context·컨테이너 재사용 개선 (2026-09-27)
+
+- 시작 SHA `ccce06dc9c004e6bf2a786979c16f44af8eb8e5b`, 시작 시 미커밋 변경 없음. 기존 `codex/work-deploy-preflight-speed` 브랜치에서 진행했다. 사용자 지시대로 로컬 커밋만 유지하며 푸시·배포하지 않는다.
+- 외부 연동 mock 3개 클래스와 실제 Bean spy 3개 클래스의 구성을 각각 공통 어노테이션으로 통일했다. 실제 repository·가짜 PG 타입을 보존해야 하는 `SpiedUseCaseIT`는 `test-support` fixture에 둔다. 배송비·키 교체·알림 실행 방식이 다른 context는 유지한다.
+- `SharedTestContainers`는 JVM마다 서버를 한 번만 시작하고 context별 MySQL DB·Redis DB 번호를 할당한다. migration 검사도 클래스마다 별도 DB를 받는다. 컨테이너는 context 종료 시 닫지 않고 Ryuk이 JVM 종료 후 정리한다. 실행 간 재사용은 하지 않는다.
+- 공유로 드러난 주문 클레임 테스트의 알림 잔여 데이터는 `@AfterEach`에서 비동기 작업 종료를 기다린 뒤 정리한다. 업무 assertion은 유지했다. 상세 원칙: `docs/ADR/0027_테스트_전략과_최소_테스트_세트_기준선/adr.md`.
+- 같은 로컬 명령 `./gradlew --no-daemon :application:test --rerun-tasks --profile`: 변경 전 5분 34초 → 최종 변경 후 3분 36초(약 35% 단축). Spring 기동 14회 → 10회, 기동 시간 합계 191.22초 → 90.98초. 기존 777개 사례를 전부 보존했고 DB·Redis 격리 회귀 2개를 더한 779개가 통과했다. 실제 GitHub CI 단축 시간은 미측정이다.
+
+검증 기록(관련 코드·설정·환경이 같으면 재사용):
+
+- Java 25·Docker 환경. 위 전체 application 검사 통과: `/tmp/hg-context-before.log`, `/tmp/hg-context-after-final.log`. XML 비교 결과 `/tmp/hg-context-before-results/test`, `/tmp/hg-context-after-final-results/test`: 기존 사례 누락 없음, 실패 0. 첫 변경 후 실패 실행은 spy 타입과 알림 정리 문제를 수정했고 시간 도약 경고가 있어 성능 수치에 사용하지 않았다.
+- `:test-support:compileTestFixturesJava` 통과. 실패 범위 3개 클래스 재검증 통과: `/tmp/hg-context-spy-retry2.log`. 이후 전체 검사가 최종 변경을 검증했다.
+- `./gradlew --no-daemon :adapter-in-web:test --tests '*UseCaseIT' :adapter-in-web:verifyOpenApi` 통과: 웹 통합 16개 클래스·97개 사례와 OpenAPI 일치 확인. `/tmp/hg-context-web-tests.log`.
+- `ruby tools/agent-feedback.rb final ccce06dc9c004e6bf2a786979c16f44af8eb8e5b` 통과(실제 architectureTest 포함), `/tmp/hg-context-final-feedback.log`. 전체 diff의 테스트 범위·fixture 의존 방향·격리·중복 구현 검토 완료. 이후 인계 문서만 변경했다.
+- 다음 행동: 사용자 푸시 요청 시 아래 배포 개선과 함께 원격 반영하고 Production 결과·소요 시간을 확인한다.
+
+
 ## 배포 실패·CI 시간 개선 (2026-09-27)
 
 - 작업 브랜치 `codex/work-deploy-preflight-speed`. 시작 SHA `776b6f9a7a153fdf7e670176bb06014fb0abae6b`, 시작 시 미커밋 변경 없음.

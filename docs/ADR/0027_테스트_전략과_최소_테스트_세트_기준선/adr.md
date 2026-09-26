@@ -35,6 +35,9 @@
 - 여러 계층을 함께 거치며 핵심 흐름이 실제처럼 동작하는지 본다.
 - 기본 진입점은 `@UseCaseIT`
 - `@UseCaseIT`에서는 실제 `BatchScheduler`를 격리해 cron이 테스트 데이터를 먼저 소비하지 않게 하고, 스케줄러의 유스케이스 위임은 별도 테스트에서 검증한다.
+- mock·spy 구성이 같아야 Spring context 캐시가 재사용된다. 외부 연동 응답을 제어하는 검사는 `@ExternalIntegrationUseCaseIT`, 실제 Bean의 호출·실패를 관찰하는 검사는 `@SpiedUseCaseIT`의 공통 구성을 사용한다. 배송비·암호화 키·알림 실행 방식처럼 업무 조건이 다른 context는 합치지 않는다. 공통 mock·spy는 Spring의 테스트 종료 후 reset을 유지한다.
+- `SharedTestContainers`는 테스트 JVM마다 MySQL·Redis 서버를 한 번 기동한다. context마다 별도 MySQL DB와 Redis DB 번호를 배정하고, migration 검사도 클래스마다 별도 DB를 사용한다. `clean()`이나 키 변경이 다른 context에 영향을 주지 않도록 데이터 공간은 공유하지 않는다.
+- 컨테이너를 Spring Bean이나 JUnit `@Container`로 등록해 개별 context·클래스 종료 시 닫지 않는다. JVM 종료 시 Testcontainers의 Ryuk이 정리하며, 실행 간 컨테이너 재사용 옵션은 켜지 않는다. 클래스 내 기존 `@AfterEach` 데이터 정리는 유지한다.
 
 #### 도메인 정책 테스트
 
