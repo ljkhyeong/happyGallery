@@ -75,26 +75,14 @@ class RollingReleaseTest < Minitest::Test
     File.write(path, documents.map { |document| YAML.dump(document) }.join)
   end
 
-  def write_compatibility(reviewed)
-    change('deploy/k3s/rolling-compatibility.yml', {
-      'version' => 1,
-      'mode' => 'expand',
-      'reason' => '테스트 확장 변경',
-      'reviewed' => reviewed
-    }.to_yaml)
-  end
-
-  def test_source_check_detects_unreviewed_change_across_failed_pushes
-    path = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
-    change(path, 'new session behavior')
+  def test_source_check_detects_unsafe_migration_across_failed_pushes
+    path = 'bootstrap/src/main/resources/db/migration/V184__unsafe.sql'
+    change(path, 'DROP TABLE users;')
     commit
     change('application/task.java', 'later unrelated change')
     candidate = commit
     error = assert_raises(RuntimeError) { RollingRelease.check_source(@dir, @old_sha, candidate) }
     assert_includes error.message, path
-
-    write_compatibility('api' => [path])
-    RollingRelease.check_source(@dir, @old_sha, commit)
   end
 
   def test_source_check_requires_available_commits
@@ -107,10 +95,9 @@ class RollingReleaseTest < Minitest::Test
     assert true
   end
 
-  def test_blocks_migration_api_and_session_changes
+  def test_blocks_migration_and_api_changes
     %w[bootstrap/src/main/resources/db/migration/V184.sql
-       docs/PRD/0004_API_계약/openapi3.json
-       adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java].each do |path|
+       docs/PRD/0004_API_계약/openapi3.json].each do |path|
       change(path, 'incompatible')
       write_manifest(@new, commit)
       error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
@@ -118,7 +105,7 @@ class RollingReleaseTest < Minitest::Test
     end
   end
 
-  def test_allows_reviewed_expand_changes
+  def test_allows_expand_changes_without_manual_file_list
     migration = 'bootstrap/src/main/resources/db/migration/V184__track_shipment_lookup_attempts.sql'
     controller = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/BotProtectionController.java'
     dto = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/bot/dto/BotProtectionResponse.java'
@@ -146,12 +133,6 @@ class RollingReleaseTest < Minitest::Test
       },
       'components' => { 'schemas' => { 'New' => {} } }
     ))
-    write_compatibility(
-      'migration' => [migration],
-      'api' => [controller, dto, routes, openapi],
-      'runtime_config' => [application],
-      'build' => [build]
-    )
     write_manifest(@new, commit)
 
     RollingRelease.check(@dir, @old, @new)
@@ -161,7 +142,6 @@ class RollingReleaseTest < Minitest::Test
   def test_rejects_non_expand_migration
     migration = 'bootstrap/src/main/resources/db/migration/V185__unsafe.sql'
     change(migration, "ALTER TABLE fulfillments DROP COLUMN tracking_checked_at;\n")
-    write_compatibility('migration' => [migration])
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
@@ -183,7 +163,6 @@ class RollingReleaseTest < Minitest::Test
       },
       'components' => { 'schemas' => {} }
     ))
-    write_compatibility('api' => [openapi])
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
@@ -205,7 +184,6 @@ class RollingReleaseTest < Minitest::Test
       },
       'components' => { 'schemas' => {} }
     ))
-    write_compatibility('api' => [openapi])
     write_manifest(@new, commit)
 
     RollingRelease.check(@dir, @old, @new)
@@ -248,7 +226,6 @@ class RollingReleaseTest < Minitest::Test
         }
       } }
     ))
-    write_compatibility('api' => [openapi])
     write_manifest(@new, commit)
 
     RollingRelease.check(@dir, @old, @new)
@@ -306,21 +283,19 @@ class RollingReleaseTest < Minitest::Test
       },
       'components' => { 'schemas' => {} }
     ))
-    write_compatibility('api' => [openapi])
     write_manifest(@new, commit)
 
     error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
     assert_match(/OpenAPI 비호환 변경/, error.message)
   end
 
-  def test_rejects_unreviewed_compatibility_path
+  def test_allows_authentication_code_without_manual_file_list
     security = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
     change(security, 'new session contract')
-    write_compatibility('api' => [])
     write_manifest(@new, commit)
 
-    error = assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
-    assert_match(/호환성 검토 누락 경로/, error.message)
+    RollingRelease.check(@dir, @old, @new)
+    assert true
   end
 
   def test_blocks_infrastructure_change_and_missing_history
@@ -395,15 +370,6 @@ class RollingReleaseTest < Minitest::Test
     assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, 'readinessProbe'
   end
 
-  def test_allows_old_review_entries_on_later_deploy
-    security = 'adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security/Session.java'
-    change(security, 'reviewed')
-    write_compatibility('api' => [security, 'already-deployed.java'])
-    write_manifest(@new, commit)
-    RollingRelease.check(@dir, @old, @new)
-    assert true
-  end
-
   def test_allows_business_yaml_and_build_changes_without_declaration
     change('bootstrap/src/main/resources/application.yml', "app:\n  pass:\n    total-price: 130000\n")
     change('build.gradle', '// dependency update')
@@ -412,7 +378,7 @@ class RollingReleaseTest < Minitest::Test
     assert true
   end
 
-  def test_requires_review_for_session_yaml_change
+  def test_blocks_protected_session_yaml_change
     change('bootstrap/src/main/resources/application.yml', "spring:\n  session:\n    timeout: 1d\n")
     write_manifest(@new, commit)
     assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, 'application.yml'

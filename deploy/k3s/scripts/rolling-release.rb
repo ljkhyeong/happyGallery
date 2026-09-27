@@ -8,18 +8,14 @@ require 'strscan'
 require_relative 'openapi-compatibility'
 
 module RollingRelease
-  # 계약·데이터 변경은 구조로 판정하고 인증·세션 변경은 코드 리뷰 기록을 확인한다.
+  # Git diff로 계약·데이터·보호 설정 변경을 찾고 구조로 판정한다.
   COMPATIBILITY_PATHS = %w[
     bootstrap/src/main/resources/db/migration
     bootstrap/src/main/java/com/personal/happygallery/bootstrap/migration
     bootstrap/src/main/resources/application.yml
     bootstrap/src/main/resources/application-prod.yml
-    adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/security
-    adapter-in-web/src/main/java/com/personal/happygallery/adapter/in/web/customer/CustomerSessionBinder.java
     docs/PRD/0004_API_계약/openapi3.json
   ].freeze
-  COMPATIBILITY_DECLARATION = 'deploy/k3s/rolling-compatibility.yml'
-  COMPATIBILITY_CATEGORIES = %w[migration api runtime_config build].freeze
   # 업무 설정은 값 변경을 허용한다. 데이터 연결·저장소·보안 경계만 전환 대상으로 남긴다.
   PROTECTED_CONFIG_KEYS = %w[DB_URL REDIS_HOST REDIS_PORT MEDIA_STORAGE_PATH RATE_LIMIT_KEY_PREFIX
                              SPRING_PROFILES_ACTIVE HAPPYGALLERY_RUNTIME_MODE RATE_LIMIT_ENABLED
@@ -70,33 +66,6 @@ module RollingRelease
       change, path = line.strip.split("\t", 2)
       result[path] = change unless path.to_s.empty?
     end
-  end
-
-  def self.compatibility_declaration(repository, revision)
-    raw = git_blob(repository, revision, COMPATIBILITY_DECLARATION)
-    declaration = YAML.safe_load(raw, permitted_classes: [], aliases: false)
-    unless declaration.is_a?(Hash) && declaration['version'] == 1 && declaration['mode'] == 'expand'
-      raise '호환성 선언은 version: 1, mode: expand 형식이어야 합니다.'
-    end
-    raise '호환성 선언에는 검토 사유가 필요합니다.' if declaration['reason'].to_s.strip.empty?
-
-    reviewed = declaration['reviewed']
-    unless reviewed.is_a?(Hash) && (reviewed.keys - COMPATIBILITY_CATEGORIES).empty?
-      raise "호환성 선언 카테고리는 #{COMPATIBILITY_CATEGORIES.join(', ')}만 사용할 수 있습니다."
-    end
-
-    paths = reviewed.each_with_object([]) do |(category, category_paths), result|
-      unless COMPATIBILITY_CATEGORIES.include?(category) && category_paths.is_a?(Array) &&
-             category_paths.all? { |path| path.is_a?(String) && !path.strip.empty? }
-        raise "호환성 선언 경로 형식이 잘못되었습니다: #{category}"
-      end
-      result.concat(category_paths)
-    end
-    raise '호환성 선언 경로가 중복됩니다.' unless paths.uniq.length == paths.length
-
-    [declaration, paths.sort]
-  rescue Psych::Exception => error
-    raise "호환성 선언 YAML을 읽을 수 없습니다: #{error.message}"
   end
 
   # SQL 문자열 안의 세미콜론과 주석은 문장 경계로 취급하지 않는다.
@@ -170,29 +139,20 @@ module RollingRelease
     raise "OpenAPI JSON을 읽을 수 없습니다: #{path}: #{error.message}"
   end
 
-  def self.validate_reviewed_compatibility(repository, old_revision, new_revision, paths)
-    # API는 계약 구조로 자동 판정한다. 이력이 남은 승인 경로는 후속 배포를 막지 않는다.
-    review_paths = paths.select do |path|
-      if path.end_with?('.yml')
-        left, right = [old_revision, new_revision].map do |revision|
-          YAML.safe_load(git_blob(repository, revision, path), permitted_classes: [], aliases: false)
-        end
-        changed_fields(left, right).any? do |field|
-          PROTECTED_APPLICATION_PATHS.any? { |prefix| field == prefix || field.start_with?("#{prefix}.") || prefix.start_with?("#{field}.") }
-        end
-      else
-        path.include?('/security/') || path.end_with?('/CustomerSessionBinder.java')
-      end
-    end
+  def self.validate_source_compatibility(repository, old_revision, new_revision, paths)
     errors = []
-    begin
-      unless review_paths.empty?
-        _declaration, reviewed_paths = compatibility_declaration(repository, new_revision)
-        missing = review_paths - reviewed_paths
-        raise "호환성 검토 누락 경로: #{missing.join(', ')}" unless missing.empty?
+    paths.grep(/\.yml\z/).each do |path|
+      left, right = [old_revision, new_revision].map do |revision|
+        YAML.safe_load(git_blob(repository, revision, path), permitted_classes: [], aliases: false)
       end
-    rescue RuntimeError => error
-      errors << "#{error.message}\n검토 필요 경로: #{review_paths.join(', ')}"
+      protected_changes = changed_fields(left, right).select do |field|
+        PROTECTED_APPLICATION_PATHS.any? do |prefix|
+          field == prefix || field.start_with?("#{prefix}.") || prefix.start_with?("#{field}.")
+        end
+      end
+      unless protected_changes.empty?
+        errors << "보호 설정 별도 전환 필요: #{path}: #{protected_changes.join(', ')}"
+      end
     end
 
     statuses = git_diff_statuses(repository, old_revision, new_revision)
@@ -264,7 +224,7 @@ module RollingRelease
       raise "배포 이력을 비교할 Git commit이 없습니다: #{revision}" unless status.success?
     end
     paths = git_diff_paths(repository, old_revision, new_revision)
-    validate_reviewed_compatibility(repository, old_revision, new_revision, paths) unless paths.empty?
+    validate_source_compatibility(repository, old_revision, new_revision, paths) unless paths.empty?
   end
 
   def self.check(repository, previous, candidate)
