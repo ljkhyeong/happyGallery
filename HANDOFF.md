@@ -1,5 +1,16 @@
 # HANDOFF
 
+## 수동 호환성 목록 제거 (2026-09-27)
+
+- 시작 SHA `458f727cae85e44cffbdcfee504dcf75001bbe39`, 시작 시 미커밋 변경 없음. 사용자 지시에 따라 기존 브랜치에서 로컬 변경만 진행한다. 푸시·배포하지 않는다.
+- 구현 커밋 `6ae83845`. 누적 파일 승인 목록을 제거했다. Git diff 기반 API·migration 검사와 서버 manifest 검사는 유지하며 보호 Spring 설정 변경은 항목을 표시하고 별도 전환 대상으로 차단한다.
+- `SessionCompatibilityTest`는 실제 운영 기준 `df0d4ead`의 로그인 키·가입 intent·계정 연결/재인증 intent·재인증 증명 저장 계약을 고정한다. 이전 상태 읽기와 현재 저장 형식을 확인하며 Spring context를 추가하지 않는다. 자동 판정 밖의 의미·전환은 PR 템플릿에서 검토한다. 설명: `deploy/k3s/rolling-deployments.md`.
+- Java 25에서 `./gradlew --no-daemon :adapter-in-web:test --tests '*SessionCompatibilityTest' --tests '*SocialSignupIntentStoreTest' --tests '*PendingSocialSignupStoreTest'` 통과: 3개 클래스·12개 사례. `/tmp/hg-session-compat.log`. 첫 sandbox 실행은 Gradle 캐시 권한 문제로 시작하지 못했고 승인된 실행에서 통과했다.
+- 새 검사기로 마지막 운영 성공 SHA `df0d4ead`부터 기존 로컬 HEAD `458f727c`까지 `check-source` 통과. 수동 목록 없이 기존 소셜 가입 변경이 허용되는 것을 확인했다. 운영 반영·CI 실제 시간·Redis 직렬화 라이브러리 전체 호환성은 검증하지 않았다.
+
+- `bash deploy/k3s/scripts/validate.sh` 전체 통과: `/tmp/hg-automatic-compat-validate.log` (롤링 검사 24개·79 assertions 포함). `ruby tools/agent-feedback.rb final 458f727cae85e44cffbdcfee504dcf75001bbe39` 통과: `/tmp/hg-automatic-compat-final.log`. 새 파일 포함 전체 diff의 검사 유지·의존 방향·중복·문서 일치 검토 완료. 이후 문서에 결과만 추가했다. 코드·설정·의존성·환경이 같으면 이 검증을 재사용한다.
+- 다음 행동: 사용자 푸시 요청 시 원격 반영 후 Production 결과와 실행 시간을 확인한다. 개인정보 배치 오류 후속 확인은 아래 항목을 유지한다.
+
 ## Spring context·컨테이너 재사용 개선 (2026-09-27)
 
 - 시작 SHA `ccce06dc9c004e6bf2a786979c16f44af8eb8e5b`, 시작 시 미커밋 변경 없음. 기존 `codex/work-deploy-preflight-speed` 브랜치에서 진행했다. 사용자 지시대로 로컬 커밋만 유지하며 푸시·배포하지 않는다.

@@ -10,7 +10,7 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 
 `Rolling Compatibility`가 통과해야 백엔드·프런트 빌드가 시작된다. PR은 대상 브랜치와 비교하고, 운영 배포는 GitHub Actions에서 마지막으로 `Roll out production`이 성공한 commit과 비교한다. 실패한 push나 CD를 끈 실행을 배포 기준으로 삼지 않는다. 조회 실패·기준 이력 부재는 검사를 중단한다. 수동 서버 배포나 rollback으로 실제 운영 버전이 달라진 경우까지 GitHub 이력이 보장하지는 않으므로 서버의 manifest 비교도 유지한다.
 
-사전 검사는 서버와 같은 `rolling-release.rb check-source <repo> <기존 SHA> <후보 SHA>`를 사용한다. 인증·세션 검토 누락, 비호환 OpenAPI·migration을 이미지 생성과 서버 백업 전에 발견한다. 검토 기록은 실제 호환성 검토 후 추가하며, 서버의 최종 workload·설정 검사와 백업은 생략하지 않는다.
+사전 검사는 서버와 같은 `rolling-release.rb check-source <repo> <기존 SHA> <후보 SHA>`를 사용한다. 비호환 OpenAPI·migration과 보호 Spring 설정 변경을 이미지 생성과 서버 백업 전에 발견한다. 인증·세션 저장 계약은 웹 CI 테스트에서 검증하며, 서버의 최종 workload·설정 검사와 백업은 생략하지 않는다.
 
 application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분리한다. 주문·결제·예약과 migration 패키지를 각각 분리하고 core는 나머지 전부를 실행한다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
 
@@ -22,7 +22,7 @@ application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분
 2. 배포 진입점이 배포마다 백업 service를 실행하고 새 R2 복구 묶음을 검증하는지 확인한다. 일반 배포는 이전 백업의 나이로 차단하지 않는다. 온라인 백업 미지원 앱의 최초 전환에만 기존 48시간 내 복구 묶음을 요구한다. 이것도 만료됐다면 앱 중지 백업을 별도 승인·진행한 후 전환해야 한다. 기존 백업 timer와 watchdog은 설치하지 않는다.
 3. 서버에서 적용했던 운영 패치와 이번 CI/CD 코드를 PR로 main에 반영한다. 이 문서 작성만으로 push나 GitHub 설정 변경은 수행되지 않는다.
 
-서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. [롤링 호환성 검사](rolling-deployments.md)는 일반 설정값·문서 변경과 호환 API·SQL 확장을 허용하고, 필드 삭제·타입 변경·데이터 전환이 필요한 변경을 구체적인 경로와 함께 표시한다. 인증·세션 코드 및 민감한 Spring 설정 변경에는 후보 commit의 `deploy/k3s/rolling-compatibility.yml` 검토 기록이 필요하다. 이미 배포된 과거 승인 경로는 남아 있어도 허용하며, 기록으로 실제 비호환 변경을 우회하지 않는다.
+서버의 `/opt/happygallery`에는 수동 패치 커밋이 남아 있을 수 있다. `reset --hard`로 지우지 않는다. CD는 같은 Git 이력을 공유하는 별도 worktree를 사용한다. [롤링 호환성 검사](rolling-deployments.md)는 일반 설정값·문서 변경과 호환 API·SQL 확장을 허용하고, 필드 삭제·타입 변경·데이터 전환이 필요한 변경을 구체적인 경로와 함께 표시한다. 변경 파일은 Git이 찾으며 수동 승인 목록은 사용하지 않는다. 세션은 고정된 이전 저장 계약 테스트로 확인한다. 자동 판정 밖의 의미·전환은 해당 PR에서 검토하고, 보호 설정 변경은 별도 전환을 준비한다.
 
 ## 2. 서버에 배포 진입점 설치
 
