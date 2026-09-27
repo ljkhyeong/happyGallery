@@ -5,8 +5,6 @@ import { ApiError } from "@/shared/api";
 import { CustomerStepUpPrompt } from "@/features/customer-auth/CustomerStepUpPrompt";
 import { ErrorAlert } from "@/shared/ui";
 
-const CONFIRMATION = "탈퇴";
-
 interface Props {
   show: boolean;
   localPasswordEnabled: boolean;
@@ -20,7 +18,7 @@ export function AccountWithdrawalModal({
   onClose,
   onWithdraw,
 }: Props) {
-  const [confirmation, setConfirmation] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [reauthenticated, setReauthenticated] = useState(true);
   const [stepUpBusy, setStepUpBusy] = useState(false);
   const withdrawal = useMutation({
@@ -34,13 +32,14 @@ export function AccountWithdrawalModal({
 
   useEffect(() => {
     if (show) {
+      setAgreed(false);
       setReauthenticated(true);
     }
   }, [show]);
 
   function close() {
     if (withdrawal.isPending || stepUpBusy) return;
-    setConfirmation("");
+    setAgreed(false);
     setReauthenticated(true);
     withdrawal.reset();
     onClose();
@@ -48,7 +47,7 @@ export function AccountWithdrawalModal({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (confirmation === CONFIRMATION) withdrawal.mutate();
+    if (agreed && !withdrawal.isPending && !stepUpBusy) withdrawal.mutate();
   }
 
   return (
@@ -59,6 +58,7 @@ export function AccountWithdrawalModal({
       backdrop={withdrawal.isPending || stepUpBusy ? "static" : true}
       keyboard={!withdrawal.isPending && !stepUpBusy}
       centered
+      scrollable
     >
       <Modal.Header closeButton={!withdrawal.isPending && !stepUpBusy}>
         <Modal.Title id="account-withdrawal-title" className="fs-6">회원 탈퇴</Modal.Title>
@@ -90,7 +90,7 @@ export function AccountWithdrawalModal({
           </Modal.Footer>
         </>
       ) : (
-        <Form onSubmit={submit}>
+        <Form onSubmit={submit} className="d-flex flex-column overflow-hidden">
           <Modal.Body>
             {withdrawal.error instanceof ApiError && withdrawal.error.is("ACCOUNT_WITHDRAWAL_BLOCKED") ? (
               <Alert variant="danger" role="alert">
@@ -100,20 +100,39 @@ export function AccountWithdrawalModal({
                 </ul>
               </Alert>
             ) : <ErrorAlert error={withdrawal.error} />}
-            <p className="small">
-              탈퇴하면 계정과 소셜 로그인이 해제되고 개인정보가 익명화됩니다. 주문과 예약의 거래 기록은 보존됩니다.
+            <h2 className="h6">회원탈퇴 유의사항</h2>
+            <p className="small text-muted">탈퇴하기 전에 아래 내용을 확인해 주세요.</p>
+            <ul className="small ps-3">
+              <li className="mb-2">
+                탈퇴하면 이 계정으로 로그인할 수 없으며, 계정 개인정보와 비밀번호가
+                삭제·익명화되고 소셜 계정 연결이 해제됩니다.
+              </li>
+              <li className="mb-2">
+                사용하지 않은 쿠폰과 적립금은 더 이상 사용할 수 없습니다.
+                재가입해도 기존 계정과 혜택은 복구되지 않습니다.
+              </li>
+              <li className="mb-2">
+                주문·예약 등 거래 기록과 혜택 사용·정산 이력은 개인정보 처리방침에 따라 보존됩니다.
+              </li>
+              <li>
+                진행 중인 결제·주문·반품·교환·예약·환불, 사용 가능한 이용권이나
+                정산할 적립금이 있으면 해당 처리가 끝난 뒤 탈퇴할 수 있습니다.
+                탈퇴 신청으로 자동 취소되거나 환불되지 않습니다.
+              </li>
+            </ul>
+            <p className="small text-muted">
+              탈퇴가 제한되면 먼저 처리해야 할 내역을 안내합니다.
+              필요한 경우 본인 확인을 다시 진행합니다.
             </p>
-            <Form.Group controlId="withdrawal-confirmation">
-              <Form.Label>
-                계속하려면 <strong>{CONFIRMATION}</strong>를 입력하세요.
-              </Form.Label>
-              <Form.Control
-                value={confirmation}
-                onChange={(event) => setConfirmation(event.target.value)}
-                autoComplete="off"
-                autoFocus
-              />
-            </Form.Group>
+            <Form.Check
+              id="withdrawal-agreement"
+              type="checkbox"
+              label="회원탈퇴 유의사항을 확인했으며, 탈퇴에 동의합니다. (필수)"
+              checked={agreed}
+              onChange={(event) => setAgreed(event.target.checked)}
+              disabled={withdrawal.isPending}
+              required
+            />
           </Modal.Body>
           <Modal.Footer>
             <Button
@@ -126,9 +145,9 @@ export function AccountWithdrawalModal({
             <Button
               type="submit"
               variant="danger"
-              disabled={confirmation !== CONFIRMATION || withdrawal.isPending}
+              disabled={!agreed || withdrawal.isPending}
             >
-              {withdrawal.isPending ? "처리 중..." : "회원 탈퇴"}
+              {withdrawal.isPending ? "처리 중..." : "동의하고 탈퇴하기"}
             </Button>
           </Modal.Footer>
         </Form>
