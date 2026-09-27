@@ -82,6 +82,7 @@ test("@identity 탈퇴 제한 사유만 목록으로 표시하고 로그인 상�
   await expect(page.getByText("guidance@example.com").first()).toBeVisible();
   await expect(page).toHaveURL(/\/my$/);
   await page.getByRole("button", { name: "탈퇴", exact: true }).click();
+  await expect(modal).toHaveCSS("opacity", "1");
   await expect(agreement).not.toBeChecked();
   await expect(submit).toBeDisabled();
 });
