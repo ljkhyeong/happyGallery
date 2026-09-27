@@ -370,7 +370,8 @@ class CustomerAuthUseCaseIT {
         Map<String, Object> attributes = Map.of(
                 "id", "naver-account-id",
                 "email", "unverified@naver.com",
-                "name", "네이버 사용자");
+                "name", "네이버 사용자",
+                "mobile", "010-8123-4567");
         DefaultOAuth2User principal = new DefaultOAuth2User(
                 List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
@@ -389,6 +390,8 @@ class CustomerAuthUseCaseIT {
             softly.assertThat(user.getEmailEnc()).isNull();
             softly.assertThat(user.getEmailHmac()).isNull();
             softly.assertThat(user.getName()).isEqualTo("네이버 사용자");
+            softly.assertThat(user.getPhone()).isEqualTo("01081234567");
+            softly.assertThat(user.isPhoneVerified()).isFalse();
             softly.assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
         });
     }
@@ -401,7 +404,9 @@ class CustomerAuthUseCaseIT {
                 "email", "kakao@example.com",
                 "is_email_valid", true,
                 "is_email_verified", true,
-                "nickname", "카카오 사용자");
+                "nickname", "카카오 사용자",
+                "phone_number", "+82 10-8123-4568",
+                "phone_number_needs_agreement", false);
         DefaultOAuth2User principal = new DefaultOAuth2User(
                 List.of(new SimpleGrantedAuthority("ROLE_USER")), attributes, "id");
         OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
@@ -418,6 +423,8 @@ class CustomerAuthUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(user.getEmail()).isEqualTo("kakao@example.com");
             softly.assertThat(user.getName()).isEqualTo("카카오 사용자");
+            softly.assertThat(user.getPhone()).isEqualTo("01081234568");
+            softly.assertThat(user.isPhoneVerified()).isFalse();
             softly.assertThat(response.getRedirectedUrl()).isEqualTo("/auth/callback?newUser=true");
         });
     }

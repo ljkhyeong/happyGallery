@@ -70,7 +70,7 @@ class MemberEmailRegistrationUseCaseIT {
                 "email-registration-naver-id",
                 "ignored-profile-email@naver.com",
                 "네이버 회원",
-                acceptedPolicies())).user();
+                acceptedPolicies()).withProviderPhone("01080000000")).user();
         long credentialVersion = user.getCredentialVersion();
         MockHttpSession session = customerSession(user);
 

@@ -3,6 +3,7 @@ package com.personal.happygallery.adapter.in.web.security.customer;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.LinkedHashSet;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
@@ -23,6 +24,13 @@ public class SocialOAuth2AuthorizationRequestResolver implements OAuth2Authoriza
                                                     SocialSignupIntentStore signupIntentStore) {
         this.delegate = new DefaultOAuth2AuthorizationRequestResolver(
                 clientRegistrations, CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI);
+        this.delegate.setAuthorizationRequestCustomizer(builder -> builder.attributes(attributes -> {
+            if ("kakao".equals(attributes.get(OAuth2ParameterNames.REGISTRATION_ID))) {
+                var scopes = new LinkedHashSet<>(clientRegistrations.findByRegistrationId("kakao").getScopes());
+                scopes.add("phone_number");
+                builder.scopes(scopes);
+            }
+        }));
         this.linkIntentStore = linkIntentStore;
         this.signupIntentStore = signupIntentStore;
     }

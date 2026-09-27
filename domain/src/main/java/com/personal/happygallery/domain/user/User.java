@@ -151,6 +151,15 @@ public class User {
         this.phoneVerified = true;
     }
 
+    /** 소셜 제공자 연락처는 비회원 기록에 접근하는 문자 인증 증명으로 사용하지 않는다. */
+    public void registerSocialPhone(String phone) {
+        if (this.phone != null) {
+            throw new IllegalStateException("기존 연락처는 소셜 프로필로 덮어쓸 수 없습니다.");
+        }
+        this.phone = KoreanPhoneNumber.required(phone);
+        this.phoneVerified = false;
+    }
+
     public void registerVerifiedPhone(String phone) {
         this.phone = KoreanPhoneNumber.required(phone);
         this.phoneVerified = true;

@@ -11,15 +11,25 @@ public interface SocialAuthUseCase {
                               String providerId,
                               String verifiedEmail,
                               String name,
-                              PolicyAcceptance policyAcceptance) {
+                              PolicyAcceptance policyAcceptance,
+                              String providerPhone) {
 
         public SocialLoginCommand(
                 SocialProvider provider, String providerId, String verifiedEmail, String name) {
-            this(provider, providerId, verifiedEmail, name, null);
+            this(provider, providerId, verifiedEmail, name, null, null);
+        }
+
+        public SocialLoginCommand(SocialProvider provider, String providerId, String verifiedEmail,
+                                  String name, PolicyAcceptance policyAcceptance) {
+            this(provider, providerId, verifiedEmail, name, policyAcceptance, null);
+        }
+
+        public SocialLoginCommand withProviderPhone(String phone) {
+            return new SocialLoginCommand(provider, providerId, verifiedEmail, name, policyAcceptance, phone);
         }
 
         public SocialLoginCommand withPolicyAcceptance(PolicyAcceptance acceptance) {
-            return new SocialLoginCommand(provider, providerId, verifiedEmail, name, acceptance);
+            return new SocialLoginCommand(provider, providerId, verifiedEmail, name, acceptance, providerPhone);
         }
     }
 

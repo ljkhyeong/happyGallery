@@ -46,7 +46,7 @@ class EmailVerificationIssueTransactionServiceIT {
                 "email-delivery-order-naver-id",
                 null,
                 "네이버 회원",
-                acceptedPolicies())).user();
+                acceptedPolicies()).withProviderPhone("01080000000")).user();
         LocalDateTime expiresAt = LocalDateTime.now(clock).plusMinutes(5);
         String oldEmail = "old-email@example.com";
         String newEmail = "new-email@example.com";

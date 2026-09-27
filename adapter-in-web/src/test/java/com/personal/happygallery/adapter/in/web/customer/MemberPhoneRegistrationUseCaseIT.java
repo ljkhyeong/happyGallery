@@ -85,8 +85,8 @@ class MemberPhoneRegistrationUseCaseIT {
     @Test
     void socialMemberRegistersVerifiedPhoneBeforePayment() throws Exception {
         User socialUser = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "phone-onboarding-naver-id",
+                SocialProvider.GOOGLE,
+                "phone-onboarding-google-id",
                 "phone-onboarding@example.com",
                 "소셜 회원",
                 acceptedPolicies())).user();
@@ -174,8 +174,8 @@ class MemberPhoneRegistrationUseCaseIT {
     @Test
     void rejectsPhoneChangeWithoutRecentAuthentication() throws Exception {
         User member = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "phone-step-up-naver-id",
+                SocialProvider.GOOGLE,
+                "phone-step-up-google-id",
                 "phone-step-up@example.com",
                 "본인 확인 회원",
                 acceptedPolicies())).user();
@@ -207,8 +207,8 @@ class MemberPhoneRegistrationUseCaseIT {
     @Test
     void rejectPhoneAlreadyUsedByAnotherMember() throws Exception {
         User owner = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "phone-owner-naver-id",
+                SocialProvider.GOOGLE,
+                "phone-owner-google-id",
                 "phone-owner@example.com",
                 "번호 소유자",
                 acceptedPolicies())).user();
@@ -223,8 +223,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 .andExpect(status().isOk());
 
         User another = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "phone-another-naver-id",
+                SocialProvider.GOOGLE,
+                "phone-another-google-id",
                 "phone-another@example.com",
                 "다른 회원",
                 acceptedPolicies())).user();
@@ -245,8 +245,8 @@ class MemberPhoneRegistrationUseCaseIT {
     @Test
     void rejectPhoneChangeConflictingWithGuestBooking() throws Exception {
         User member = socialAuth.socialLogin(new SocialLoginCommand(
-                SocialProvider.NAVER,
-                "phone-booking-owner-naver-id",
+                SocialProvider.GOOGLE,
+                "phone-booking-owner-google-id",
                 "phone-booking-owner@example.com",
                 "예약 회원",
                 acceptedPolicies())).user();

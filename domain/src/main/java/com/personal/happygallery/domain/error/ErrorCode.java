@@ -16,6 +16,7 @@ public enum ErrorCode {
     // 401 Unauthorized — 인증 실패
     UNAUTHORIZED(401, "관리자 인증이 필요합니다."),
     INVALID_CREDENTIALS(401, "이메일 또는 비밀번호가 올바르지 않습니다."),
+    SOCIAL_PHONE_REQUIRED(422, "소셜 계정의 휴대전화번호 제공 동의가 필요합니다. 동의 항목을 확인한 뒤 다시 로그인해주세요."),
     SOCIAL_LOGIN_FAILED(401, "소셜 로그인에 실패했습니다. 다시 시도해주세요."),
 
     // 403 Forbidden — 인증되었지만 권한 부족
@@ -38,7 +39,7 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS(409, "이미 사용 중인 이메일입니다."),
     PHONE_ALREADY_IN_USE(409, "이미 다른 회원이 사용 중인 휴대폰 번호입니다."),
     LOCAL_PASSWORD_NOT_SET(409, "이메일 로그인 비밀번호가 없습니다. 휴대폰 인증으로 비밀번호를 설정해주세요."),
-    SOCIAL_ACCOUNT_LINK_REQUIRED(409, "같은 이메일로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요."),
+    SOCIAL_ACCOUNT_LINK_REQUIRED(409, "같은 이메일 또는 전화번호로 가입된 계정이 있습니다. 기존 로그인 수단을 이용해주세요."),
     SOCIAL_ACCOUNT_ALREADY_LINKED(409, "이 소셜 계정은 이미 다른 회원에 연결되어 있습니다."),
     SOCIAL_PROVIDER_ALREADY_LINKED(409, "해당 제공자의 다른 소셜 계정이 이미 연결되어 있습니다."),
     LAST_LOGIN_METHOD_REQUIRED(409, "로그인 수단을 하나 이상 유지해야 합니다."),

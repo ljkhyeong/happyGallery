@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.port.in.SocialAuthUseCase.
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.SocialProvider;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import java.util.Map;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -53,7 +54,8 @@ public class SocialOAuth2ProfileResolver {
                 SocialProvider.NAVER,
                 requiredIdentifier(attributes.get("id")),
                 null,
-                required(attributes.get("name")));
+                required(attributes.get("name")))
+                .withProviderPhone(providerPhone(attributes.get("mobile")));
     }
 
     private SocialLoginCommand kakaoProfile(Map<String, Object> attributes) {
@@ -65,7 +67,21 @@ public class SocialOAuth2ProfileResolver {
                 SocialProvider.KAKAO,
                 requiredIdentifier(attributes.get("id")),
                 required(attributes.get("email")),
-                required(attributes.get("nickname")));
+                required(attributes.get("nickname")))
+                .withProviderPhone(Boolean.TRUE.equals(attributes.get("phone_number_needs_agreement"))
+                        ? null : providerPhone(attributes.get("phone_number")));
+    }
+
+    private String providerPhone(Object value) {
+        if (!(value instanceof String phone)) return null;
+        String normalized = phone.replaceAll("[\\s-]", "");
+        if (normalized.startsWith("+82")) normalized = "0" + normalized.substring(3);
+        try {
+            return KoreanPhoneNumber.optional(normalized);
+        } catch (HappyGalleryException exception) {
+            // 기존 회원 로그인은 프로필 번호가 누락·변경돼도 유지한다. 신규 가입에서만 거절한다.
+            return null;
+        }
     }
 
     private SocialProvider provider(OAuth2AuthenticationToken token) {

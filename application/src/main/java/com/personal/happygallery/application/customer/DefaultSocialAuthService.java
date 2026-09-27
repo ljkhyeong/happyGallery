@@ -10,6 +10,7 @@ import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.user.EmailAddress;
+import com.personal.happygallery.domain.user.KoreanPhoneNumber;
 import com.personal.happygallery.domain.user.SocialAccount;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
@@ -78,11 +79,24 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
         }
         policyConsentService.requireCurrent(command.policyAcceptance());
 
+        String providerPhone = null;
+        if (command.provider() != SocialProvider.GOOGLE) {
+            providerPhone = KoreanPhoneNumber.optional(command.providerPhone());
+            if (providerPhone == null) {
+                throw new HappyGalleryException(ErrorCode.SOCIAL_PHONE_REQUIRED);
+            }
+            if (userReader.existsByPhone(providerPhone)) {
+                throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+            }
+        }
         User user;
         try {
-            user = userStore.save(User.fromSocialProfile(canonicalEmail, command.name()));
+            User candidate = User.fromSocialProfile(canonicalEmail, command.name());
+            if (providerPhone != null) candidate.registerSocialPhone(providerPhone);
+            user = userStore.save(candidate);
         } catch (HappyGalleryException exception) {
-            if (exception.getErrorCode() == ErrorCode.EMAIL_ALREADY_EXISTS) {
+            if (exception.getErrorCode() == ErrorCode.EMAIL_ALREADY_EXISTS
+                    || exception.getErrorCode() == ErrorCode.PHONE_ALREADY_IN_USE) {
                 throw new HappyGalleryException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
             }
             throw exception;

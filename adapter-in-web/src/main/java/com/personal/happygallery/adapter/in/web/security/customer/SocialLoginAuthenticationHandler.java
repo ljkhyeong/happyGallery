@@ -141,7 +141,8 @@ public class SocialLoginAuthenticationHandler
 
     private ErrorCode socialErrorCode(ErrorCode errorCode) {
         return switch (errorCode) {
-            case SOCIAL_ACCOUNT_LINK_REQUIRED,
+            case SOCIAL_PHONE_REQUIRED,
+                 SOCIAL_ACCOUNT_LINK_REQUIRED,
                  SOCIAL_ACCOUNT_ALREADY_LINKED,
                  SOCIAL_PROVIDER_ALREADY_LINKED,
                  LAST_LOGIN_METHOD_REQUIRED,

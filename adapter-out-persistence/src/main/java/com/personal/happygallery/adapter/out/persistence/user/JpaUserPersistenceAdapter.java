@@ -19,6 +19,7 @@ import org.springframework.stereotype.Repository;
 class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
 
     private static final String DUPLICATE_EMAIL_CONSTRAINT = "uq_users_email_hmac";
+    private static final String DUPLICATE_PHONE_CONSTRAINT = "uq_users_phone_hmac";
 
     private final UserRepository userRepository;
     private final FieldEncryptor fieldEncryptor;
@@ -95,10 +96,7 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
         try {
             return restore(userRepository.save(user));
         } catch (DataIntegrityViolationException exception) {
-            if (PersistenceConstraintNames.matches(exception, DUPLICATE_EMAIL_CONSTRAINT)) {
-                throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
-            }
-            throw exception;
+            throw translateDuplicateIdentity(exception);
         }
     }
 
@@ -108,11 +106,18 @@ class JpaUserPersistenceAdapter implements UserReaderPort, UserStorePort {
         try {
             return restore(userRepository.saveAndFlush(user));
         } catch (DataIntegrityViolationException exception) {
-            if (PersistenceConstraintNames.matches(exception, DUPLICATE_EMAIL_CONSTRAINT)) {
-                throw new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
-            }
-            throw exception;
+            throw translateDuplicateIdentity(exception);
         }
+    }
+
+    private RuntimeException translateDuplicateIdentity(DataIntegrityViolationException exception) {
+        if (PersistenceConstraintNames.matches(exception, DUPLICATE_EMAIL_CONSTRAINT)) {
+            return new HappyGalleryException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+        if (PersistenceConstraintNames.matches(exception, DUPLICATE_PHONE_CONSTRAINT)) {
+            return new HappyGalleryException(ErrorCode.PHONE_ALREADY_IN_USE);
+        }
+        return exception;
     }
 
     private void protect(User user) {

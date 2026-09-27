@@ -17,6 +17,8 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const expired = error instanceof ApiError && error.code === "SOCIAL_LOGIN_FAILED";
+  const restartRequired = expired || (error instanceof ApiError
+    && (error.code === "SOCIAL_PHONE_REQUIRED" || error.code === "SOCIAL_ACCOUNT_LINK_REQUIRED"));
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -24,9 +26,12 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
     setPending(true);
     setError(null);
     try {
-      await completeSocialSignup(attemptId, consent.acceptance);
+      const user = await completeSocialSignup(attemptId, consent.acceptance);
       removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
-      navigate(returnTo, { replace: true });
+      navigate(user.phone === null ? "/my" : returnTo, {
+        replace: true,
+        state: user.phone === null ? { phoneOnboarding: true } : null,
+      });
     } catch (requestError) {
       if (requestError instanceof CustomerSessionChangedError) {
         navigate("/my", { replace: true });
@@ -55,12 +60,12 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
         {consent.policyQuery.isError && (
           <Button variant="link" onClick={() => void consent.policyQuery.refetch()}>약관 다시 불러오기</Button>
         )}
-        <Button type="submit" className="w-100" disabled={!consent.ready || pending || expired}>
+        <Button type="submit" className="w-100" disabled={!consent.ready || pending || restartRequired}>
           {pending ? "가입 처리 중..." : "동의하고 시작하기"}
         </Button>
       </Form>
       <Link className="d-block mt-3" to={buildAuthPageHref("/login", { redirectTo: returnTo })}>
-        {expired ? "다시 로그인하기" : "다른 계정으로 로그인"}
+        {restartRequired ? "다시 로그인하기" : "다른 계정으로 로그인"}
       </Link>
     </section>
   );

@@ -2823,13 +2823,14 @@ X-XSRF-TOKEN: {csrfToken}
 
 - `operationId`: `completeSocialSignup`
 - 성공: `200 OK`, `CustomerUserResponse` + 회전된 회원 세션. 소셜 인증을 반복하지 않는다.
-- 서버가 검증한 제공자·계정 ID·이메일·이름만 같은 세션에 JSON으로 보관하고 OAuth 토큰은 저장하지 않는다.
+- 서버가 검증한 제공자·계정 ID·이메일·이름·제공자 전화번호를 같은 세션에 JSON으로 보관하고 OAuth 토큰은 저장하지 않는다.
 - 가입 대기는 생성 후 5분 정각에 만료한다. 다른 세션·잘못된 시도·소비된 시도는 `401 SOCIAL_LOGIN_FAILED`로 거절한다.
 - `403 FORBIDDEN`: CSRF 검증 실패. `422 POLICY_CONSENT_REQUIRED`: 현재 버전 동의 누락·불일치. 동의 오류에서는 가입 대기를 소비하지 않아 새 약관 확인 후 다시 제출할 수 있다.
 - `429 TOO_MANY_REQUESTS`: 기존 소셜 시작 IP 버킷을 공유한다.
 - 새 OAuth 시작·인증 실패·회원 로그인·가입 완료 시 이전 가입 대기를 폐기한다. 이전 탭의 시도 ID로 새 프로필을 가입시킬 수 없다.
 - 동의가 검증되면 가입 대기를 소비하고 기존 소셜 가입 유스케이스로 계정 생성·동의 이력을 함께 저장한다. 다른 요청에서 이미 가입된 동일 소셜 계정은 기존 로그인 규칙을 따른다.
-- 화면은 동의 완료 후 안전하게 검증한 원래 목적지로 복귀한다. 만료되면 같은 목적지의 로그인 재시도를 안내한다.
+- Naver·Kakao 신규 가입은 제공자 전화번호가 필요하며 누락 시 `422 SOCIAL_PHONE_REQUIRED`, 다른 회원 번호와 중복 시 `409 SOCIAL_ACCOUNT_LINK_REQUIRED`를 반환한다. 번호는 요청 본문에서 받지 않는다. 소셜 번호는 연락처로 저장하고 `phoneVerified=false`를 유지한다.
+- 화면은 동의 완료 후 번호가 있으면 안전하게 검증한 원래 목적지로 복귀하고, 번호가 없는 Google 회원은 마이페이지의 기존 SMS 등록 흐름으로 이동한다. 만료되면 같은 목적지의 로그인 재시도를 안내한다.
 
 #### 2.12.0.3 소셜 로그인 callback
 
@@ -2841,7 +2842,8 @@ GET /api/v1/auth/social/callback/{provider}?code=...&state=...
 - 성공: `302 Found` → `/auth/callback?newUser=true|false`
 - 실패: `302 Found` → `/auth/callback?error=SOCIAL_LOGIN_FAILED`
 - 신규 회원 동의 누락·버전 불일치: `302 Found` → `/auth/callback?signupAttempt={opaqueId}`. 짧은 동의 화면에서 가입을 완료한다.
-- Google/Kakao 검증 이메일이 기존 기준 이메일과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
+- Naver·Kakao 신규 가입의 번호가 없거나 제공 동의가 필요하면 `302 Found` → `/auth/callback?error=SOCIAL_PHONE_REQUIRED`.
+- Google/Kakao 검증 이메일 또는 Naver/Kakao 제공 전화번호가 기존 회원과 충돌: `302 Found` → `/auth/callback?error=SOCIAL_ACCOUNT_LINK_REQUIRED`
 - 명시적 계정 연결 성공: `302 Found` → `/auth/callback?linked=GOOGLE|NAVER|KAKAO`
 - 소셜 재인증 성공: `302 Found` → `/auth/callback?reauthenticated=GOOGLE|NAVER|KAKAO`
 - 처리율 제한 초과: `429 TOO_MANY_REQUESTS`

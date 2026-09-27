@@ -11,6 +11,8 @@ import com.personal.happygallery.application.policy.PolicyConsentService;
 import com.personal.happygallery.application.policy.port.out.PolicyConsentStorePort;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.error.ErrorCode;
+import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SocialSignupApiRestDocsTest extends RestDocsTestSupport {
     private MockMvc mvc;
     private PendingSocialSignupStore pending;
+    private SocialAuthUseCase auth;
     private static final String POLICY = """
             {"termsVersion":"2026-09-11-v1","termsAccepted":true,
              "privacyVersion":"2026-09-12-v1","privacyAccepted":true}
@@ -41,7 +44,7 @@ class SocialSignupApiRestDocsTest extends RestDocsTestSupport {
         Clock clock = Clock.systemUTC();
         var codec = new SessionStateCodec(JsonMapper.builder().build());
         pending = new PendingSocialSignupStore(clock, codec);
-        var auth = mock(SocialAuthUseCase.class);
+        auth = mock(SocialAuthUseCase.class);
         when(auth.socialLogin(any())).thenReturn(new SocialAuthUseCase.SocialLoginResult(
                 User.fromSocialProfile(null, "네이버 회원"), true));
         mvc = mockMvc(documentation, new SocialSignupController(
@@ -67,6 +70,20 @@ class SocialSignupApiRestDocsTest extends RestDocsTestSupport {
                         .session((MockHttpSession) request.getSession()).contentType(APPLICATION_JSON)
                         .content("{\"attemptId\":\"" + attempt + "\",\"policyAcceptance\":" + POLICY + "}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.name").value("네이버 회원"));
+    }
+
+    @Test
+    @DisplayName("소셜 제공자의 번호 동의가 없으면 가입 완료를 거절한다")
+    void requiresProviderPhone() throws Exception {
+        when(auth.socialLogin(any())).thenThrow(new HappyGalleryException(ErrorCode.SOCIAL_PHONE_REQUIRED));
+        var request = new MockHttpServletRequest();
+        String attempt = pending.save(request,
+                new SocialAuthUseCase.SocialLoginCommand(SocialProvider.NAVER, "missing-phone", null, "회원"));
+        mvc.perform(post("/api/v1/auth/social/signup-completion")
+                        .session((MockHttpSession) request.getSession()).contentType(APPLICATION_JSON)
+                        .content("{\"attemptId\":\"" + attempt + "\",\"policyAcceptance\":" + POLICY + "}"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("SOCIAL_PHONE_REQUIRED"));
     }
 
     @Test

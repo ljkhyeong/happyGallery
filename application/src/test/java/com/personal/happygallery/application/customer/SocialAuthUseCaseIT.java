@@ -54,12 +54,12 @@ class SocialAuthUseCaseIT {
                 "naver-account-id",
                 "social-test@example.com",
                 "테스트 네이버 사용자",
-                acceptedPolicies()));
+                acceptedPolicies()).withProviderPhone("01080000000"));
         var secondLogin = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.NAVER,
                 "naver-account-id",
                 "changed-profile@example.com",
-                "테스트 네이버 사용자"));
+                "테스트 네이버 사용자").withProviderPhone("01080000001"));
         var storedSocialAccount = socialAccountRepository.findAll().getFirst();
 
         assertSoftly(softly -> {
@@ -67,6 +67,9 @@ class SocialAuthUseCaseIT {
             softly.assertThat(secondLogin.newUser()).isFalse();
             softly.assertThat(secondLogin.user().getId()).isEqualTo(firstLogin.user().getId());
             softly.assertThat(firstLogin.user().getEmail()).isNull();
+            softly.assertThat(firstLogin.user().getPhone()).isEqualTo("01080000000");
+            softly.assertThat(secondLogin.user().getPhone()).isEqualTo("01080000000");
+            softly.assertThat(firstLogin.user().isPhoneVerified()).isFalse();
             softly.assertThat(firstLogin.user().getEmailEnc()).isNull();
             softly.assertThat(firstLogin.user().getEmailHmac()).isNull();
             softly.assertThat(socialAccountRepository.count()).isEqualTo(1);
@@ -122,13 +125,13 @@ class SocialAuthUseCaseIT {
                 "kakao-account-id",
                 "kakao-social@example.com",
                 "카카오 사용자",
-                acceptedPolicies()));
+                acceptedPolicies()).withProviderPhone("01080000004"));
 
         assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.KAKAO,
                 "another-kakao-account-id",
                 "kakao-social@example.com",
-                "다른 카카오 사용자")))
+                "다른 카카오 사용자").withProviderPhone("01080000005")))
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
@@ -190,7 +193,7 @@ class SocialAuthUseCaseIT {
                 "shared-naver-account",
                 null,
                 "첫 번째 사용자",
-                acceptedPolicies()));
+                acceptedPolicies()).withProviderPhone("01080000007"));
         var loser = socialAuth.socialLogin(new SocialLoginCommand(
                 SocialProvider.GOOGLE,
                 "other-google-account",
@@ -221,7 +224,7 @@ class SocialAuthUseCaseIT {
                 "naver-account-id",
                 "social-link@example.com",
                 "소셜 연결 사용자",
-                acceptedPolicies()));
+                acceptedPolicies()).withProviderPhone("01080000009"));
 
         socialAuth.linkSocialAccount(new SocialLinkCommand(
                 naverLogin.user().getId(),
@@ -284,6 +287,74 @@ class SocialAuthUseCaseIT {
                 .isInstanceOf(HappyGalleryException.class)
                 .extracting(exception -> ((HappyGalleryException) exception).getErrorCode())
                 .isEqualTo(ErrorCode.SOCIAL_LOGIN_FAILED);
+    }
+
+    @Test
+    @DisplayName("번호를 제공하지 않은 신규 네이버·카카오 회원은 생성하지 않는다")
+    void rejectsMissingProviderPhone() {
+        for (SocialProvider provider : List.of(SocialProvider.NAVER, SocialProvider.KAKAO)) {
+            assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(
+                    provider, "missing-phone", "missing@example.com", "번호 없는 회원", acceptedPolicies())))
+                    .isInstanceOfSatisfying(HappyGalleryException.class,
+                            error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.SOCIAL_PHONE_REQUIRED));
+        }
+        assertThat(userRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("구글 프로필에 임의 번호가 있어도 등록하지 않고 기존 문자 인증 경로를 사용한다")
+    void googleDoesNotTrustProfilePhone() {
+        var result = socialAuth.socialLogin(new SocialLoginCommand(SocialProvider.GOOGLE,
+                "google-phone", "google-phone@example.com", "구글 회원", acceptedPolicies())
+                .withProviderPhone("01081234567"));
+        assertThat(result.user().getPhone()).isNull();
+        assertThat(result.user().isPhoneVerified()).isFalse();
+    }
+
+    @Test
+    @DisplayName("같은 전화번호의 다른 소셜 계정은 자동 가입·연결하지 않는다")
+    void rejectsDuplicatePhoneAcrossProviders() {
+        socialAuth.socialLogin(new SocialLoginCommand(SocialProvider.NAVER,
+                "phone-naver", null, "기존 회원", acceptedPolicies()).withProviderPhone("01081234567"));
+        assertThatThrownBy(() -> socialAuth.socialLogin(new SocialLoginCommand(SocialProvider.KAKAO,
+                "phone-kakao", "phone-kakao@example.com", "다른 계정", acceptedPolicies())
+                .withProviderPhone("01081234567")))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        error -> assertThat(error.getErrorCode()).isEqualTo(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED));
+        assertThat(userRepository.count()).isOne();
+        assertThat(socialAccountRepository.count()).isOne();
+    }
+
+    @Test
+    @DisplayName("서로 다른 제공자가 같은 번호로 동시에 가입해도 회원을 하나만 생성한다")
+    void concurrentDuplicatePhone() throws Exception {
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        List<LoginOutcome> outcomes;
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> phoneLoginAfter(ready, start, SocialProvider.NAVER));
+            var second = executor.submit(() -> phoneLoginAfter(ready, start, SocialProvider.KAKAO));
+            ready.await();
+            start.countDown();
+            outcomes = List.of(first.get(), second.get());
+        }
+        assertThat(outcomes).extracting(LoginOutcome::errorCode)
+                .containsExactlyInAnyOrder(null, ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+        assertThat(userRepository.count()).isOne();
+        assertThat(socialAccountRepository.count()).isOne();
+    }
+
+    private LoginOutcome phoneLoginAfter(CountDownLatch ready, CountDownLatch start,
+                                         SocialProvider provider) throws InterruptedException {
+        ready.countDown();
+        start.await();
+        try {
+            var result = socialAuth.socialLogin(new SocialLoginCommand(provider, "concurrent-" + provider,
+                    "concurrent@example.com", "동시 가입", acceptedPolicies()).withProviderPhone("01081234567"));
+            return new LoginOutcome(result.newUser(), null);
+        } catch (HappyGalleryException error) {
+            return new LoginOutcome(false, error.getErrorCode());
+        }
     }
 
     private LoginOutcome loginAfter(CountDownLatch ready,
