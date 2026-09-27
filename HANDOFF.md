@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 소셜 전화번호 등록 (2026-09-28)
+
+- 시작 SHA `1fb44deeb5d917632b5cff41c0250d2d08daa354`. Naver `mobile`·Kakao `phone_number`를 신규 가입 연락처로 자동 등록하고 Google은 가입 후 기존 마이페이지 SMS 등록으로 안내한다. 제공자 번호 누락·미동의는 신규 가입을 차단하며 기존 회원 번호는 덮어쓰지 않는다.
+- 동일 번호 가입은 사전 조회와 DB 유일 제약으로 차단한다. 소셜 연락처는 `phoneVerified=false`를 유지해 과거 비회원 기록이나 비밀번호 복구 권한을 부여하지 않는다. 제품·API 정책은 PRD 0001·0004, 콘솔 설정은 README에 반영했다. 검토 중이던 미추적 PortOne 연동 파일은 제거했다.
+- Java 25·Docker: 소셜 가입/동시 중복/이메일 발급 application 통합 검사, 휴대폰 등록 및 제공자 프로필 검사 통과(`/tmp/hg-social-phone-tests2.log`). 기존 웹 인증·이메일 등록·세션 호환 검사 통과(`/tmp/hg-social-phone-tests.log`; 해당 실행의 휴대폰 fixture 실패만 수정 후 tests2에서 재검증). REST Docs·OpenAPI 생성 통과(`/tmp/hg-social-phone-contract.log`), TypeScript API 재생성 결과 계약 파일 변경 없음.
+- 프론트 타입 검사 및 모바일·데스크톱 제공자별 가입 6개와 가입 오류 3개 검사 통과. 병행 작업과 포트 충돌을 피해 `PLAYWRIGHT_FRONTEND_PORT=3110 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`로 `social-signup-consent.spec.ts`를 실행했다. 로그 `/tmp/hg-social-phone-e2e-isolated.log`, `/tmp/hg-social-phone-error-e2e.log`. 구조·의존 방향 검사와 전체 diff 검토 완료(`/tmp/hg-social-phone-final.log`). 코드·설정·환경이 같으면 결과를 재사용한다.
+- 남은 운영 준비: Naver 개발자센터의 휴대전화번호 제공 항목, Kakao Developers의 `phone_number` 권한·동의 항목을 승인·활성화해야 한다. 실제 제공자 계정으로의 연동 검증은 미실행이다. 배포 전 이미 시작된 5분 가입 대기는 새 번호 필드가 없어 재로그인이 필요할 수 있다. 사용자 요청대로 로컬 커밋만 유지하고 푸시·배포하지 않는다.
+- 병행 작업의 회원탈퇴 화면 변경은 별도 커밋 `80ee19d4`, `96f30773`으로 처리됐다. 이번 변경에 포함하지 않는다.
+
 ## 수동 호환성 목록 제거 (2026-09-27)
 
 - 시작 SHA `458f727cae85e44cffbdcfee504dcf75001bbe39`, 시작 시 미커밋 변경 없음. 사용자 지시에 따라 기존 브랜치에서 로컬 변경만 진행한다. 푸시·배포하지 않는다.
