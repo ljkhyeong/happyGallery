@@ -67,7 +67,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
         <ErrorAlert error={classesError} />
         {visibleClasses?.length === 0 && (
-          <div className="text-center">
+          <div className="text-center pb-4">
             <EmptyState message={passEligibleOnly
               ? "이용권을 사용할 수 있는 수업이 없습니다."
               : "예약 가능한 클래스를 준비하고 있습니다."} />
