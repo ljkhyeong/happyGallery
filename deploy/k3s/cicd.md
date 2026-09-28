@@ -161,3 +161,18 @@ actionlint -shellcheck='' .github/workflows/ci.yml .github/workflows/production.
 ```
 
 로컬 테스트는 잘못된 SSH 명령·오래된 commit·이미지 불일치·전송 실패의 중단과 검증된 이미지 전달, R2 백업 다운로드·손상 거부를 검사한다. GitHub의 실제 토큰 권한, 공유기 SSH 접근, 운영 rollout 성공은 최초 Production 실행으로 별도 확인한다.
+
+### 검증된 백업의 로컬 전달
+
+매 배포의 R2 업로드는 원격 파일 내용을 다시 읽어 로컬과 비교한다. 이 검증을 마친 묶음을 배포 캐시에 전달하면 약 1GB의 복구 이미지를 다시 다운로드하지 않는다. 원격 목록의 최신 백업 시각 확인과 로컬 전체 SHA-256 검사는 유지한다.
+
+호스트의 `/opt/happygallery`에 `rclone-backup.sh`, `cache-verified-backup.sh`와 관련 변경을 반영한 뒤 root 소유 `/etc/happygallery/backup.env`에 다음을 추가한다. 사용자·경로는 실제 CD 설정과 맞춘다.
+
+```dotenv
+RCLONE_VERIFIED_CACHE_USER=ronaldo
+RCLONE_VERIFIED_CACHE_DIR=/home/ronaldo/.local/state/happygallery/cd/backups
+```
+
+root는 백업 원본만 읽고 `runuser`로 배포 계정에 전달한다. 파일 추출·검증·캐시 게시는 배포 계정 권한으로 실행하며 원본 백업의 600 권한을 바꾸지 않는다. 원격 검증 실패 시 캐시를 만들지 않고, 전달·해시 검증 실패도 백업 실패로 처리한다. 임시 디렉터리에서 완성한 뒤 게시하며 원격 경로가 다른 캐시는 거절한다. 설정을 생략하면 기존 다운로드 방식을 유지한다. 캐시는 기존 정책대로 두 세대를 보관한다.
+
+Browser Smoke는 Vite 공통 의존성을 시작 시 미리 최적화해 첫 화면 로딩 중 `504 Outdated Optimize Dep`로 hydration이 중단되는 일을 막는다. 진단은 재시도 성공을 포함해 항상 보관한다. 전체 테스트 통과 여부와 별개로 flaky 결과와 최초 실패 trace를 확인한다.

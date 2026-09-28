@@ -6,6 +6,7 @@ require 'fileutils'
 require 'open3'
 require 'digest'
 require 'time'
+require 'etc'
 
 class RcloneBackupTest < Minitest::Test
   SCRIPT = File.expand_path('../rclone-backup.sh', __dir__)
@@ -128,6 +129,57 @@ class RcloneBackupTest < Minitest::Test
     config = File.join(@dir, 'cd-backup.env')
     private_write(config, @env.slice('RCLONE_BIN', 'RCLONE_CONFIG', 'RCLONE_BACKUP_REMOTE').map { |k, v| "#{k}=#{v}\n" }.join)
     Open3.capture3(@env.merge('TZ' => 'Asia/Seoul'), 'bash', File.expand_path('../prepare-cd-backup.sh', __dir__), config, File.join(@dir, 'cd-cache'))
+  end
+
+  def test_verified_upload_cache_avoids_remote_download_and_rechecks_hashes
+    @env['RCLONE_VERIFIED_CACHE_DIR'] = File.join(@dir, 'cd-cache')
+    @env['RCLONE_VERIFIED_CACHE_USER'] = ENV.fetch('USER')
+    upload
+    File.write(@log, '')
+    path, error, status = prepare_cd
+    assert status.success?, error
+    assert_equal %w[lsf lsf], File.readlines(@log, chomp: true)
+    assert_equal 0, File.stat(path.strip).mode & 0o077
+    File.write(File.join(File.dirname(path.strip), @name.sub('.recovery.env', '.media.tar.gz.age')), 'corrupt')
+    _path, _error, status = prepare_cd
+    refute status.success?
+  end
+
+  def test_failed_remote_verification_never_publishes_local_cache
+    @env['RCLONE_VERIFIED_CACHE_DIR'] = File.join(@dir, 'cd-cache')
+    @env['RCLONE_VERIFIED_CACHE_USER'] = ENV.fetch('USER')
+    _output, status = run_script('upload', File.join(@local, @name), env: { 'HG_RCLONE_TEST_FAIL' => 'check' })
+    refute status.success?
+    refute Dir.exist?(@env['RCLONE_VERIFIED_CACHE_DIR'])
+  end
+
+  def test_root_publishes_cache_as_deployment_user
+    skip 'Linux root의 runuser 검증' unless Process.uid.zero? && RUBY_PLATFORM.include?('linux')
+    account = Etc.getpwnam('nobody')
+    cache = File.join(@dir, 'cd-cache')
+    File.chmod(0o711, @dir)
+    FileUtils.mkdir_p(cache)
+    File.chown(account.uid, account.gid, cache)
+    @env['RCLONE_VERIFIED_CACHE_DIR'] = cache
+    @env['RCLONE_VERIFIED_CACHE_USER'] = account.name
+    upload
+    path, error, status = prepare_cd
+    assert status.success?, error
+    assert_equal account.uid, File.stat(path.strip).uid
+    assert_equal 0, File.stat(path.strip).mode & 0o077
+    assert_equal 0, File.stat(File.join(@local, @name)).uid
+    assert_equal 0, File.stat(File.join(@local, @name)).mode & 0o077
+  end
+
+  def test_verified_cache_rejects_other_remote
+    @env['RCLONE_VERIFIED_CACHE_DIR'] = File.join(@dir, 'cd-cache')
+    @env['RCLONE_VERIFIED_CACHE_USER'] = ENV.fetch('USER')
+    upload
+    marker = Dir.glob(File.join(@dir, 'cd-cache', '*', '.verified-remote')).fetch(0)
+    File.write(marker, "teststore:other/prefix\n")
+    _path, error, status = prepare_cd
+    refute status.success?
+    assert_includes error, '원격 백업 경로가 다릅니다'
   end
 
   def test_cd_downloads_recent_bundle_and_rechecks_cached_contents

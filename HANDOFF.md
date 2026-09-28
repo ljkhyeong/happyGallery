@@ -1,5 +1,14 @@
 # HANDOFF
 
+## smoke·백업 배포 시간 단축 (2026-09-29)
+
+- 시작 SHA `7528c84753e6119a4dcf936e20d01721d3e975f1`, 시작 시 미커밋 변경 없음. 로컬 구현·검증 완료. smoke 커밋 `81010197`. 푸시·운영 반영은 아직 하지 않았다.
+- 최신 운영 성공 `36408132625`는 19분 53초. smoke 첫 실행 실패 두 건은 캐시 없는 로컬에서도 `504 Outdated Optimize Dep`로 재현했다. Vite 공통 의존성을 사전 최적화하고 최초 실패 trace·재시도 성공 진단을 보관한다.
+- R2 내용 검증을 마친 백업을 `runuser`로 배포 계정 캐시에 전달하도록 추가했다. 원격 백업 조회·시각·전체 해시 검사는 유지한다. 다음 운영 준비: `/opt/happygallery` 백업 스크립트 갱신 후 `backup.env`에 캐시 사용자·경로 설정. 정확한 절차는 `deploy/k3s/cicd.md`의 ‘검증된 백업의 로컬 전달’. 설정 전에는 기존 재다운로드 방식이다.
+- 검증: 캐시 없는 CI 조건(`CI=true`, 43220/43221, 백엔드 8088, `--retries=0`)에서 문제의 두 smoke 수정 전 모두 실패(`/tmp/hg-speed-cold-smoke.log`), 수정 후 16.2초 통과(`/tmp/hg-speed-cold-fixed.log`). 전체 `npx playwright test --grep @smoke --retries=0` 20개 약 1분 통과(`/tmp/hg-speed-full-cold.log`). 로컬 결과이며 GitHub 배포 단축 실측은 미확인이다.
+- 검증: `npm run build` 통과(`/tmp/hg-speed-build.log`), `bash deploy/k3s/scripts/validate.sh` 전체 통과(`/tmp/hg-speed-validate.log`), Linux ruby:3.3 root에서 `rclone-backup-test.rb` 16개·102 assertions 통과(`/tmp/hg-speed-linux-cache.log`, 실제 runuser 소유권 분리 포함). actionlint와 최종 검사 통과(`/tmp/hg-speed-final2.log`), 전체 diff의 검증 유지·권한 분리·누락 검토 완료. 같은 코드·설정·환경이면 재사용한다.
+- 기존 개발 DB migration checksum 불일치로 실제 주문 검증은 별도 `hg-speed-e2e-mysql` 컨테이너와 Java 25 백엔드로 분리했다. 기존 DB 이력은 변경하지 않았다. 다음 행동은 사용자 푸시 요청 후 CI 소요 시간과 운영 캐시 활성화 여부 확인이다.
+
 ## 소셜 전화번호 등록 (2026-09-28)
 
 - 시작 SHA `1fb44deeb5d917632b5cff41c0250d2d08daa354`. Naver `mobile`·Kakao `phone_number`를 신규 가입 연락처로 자동 등록하고 Google은 가입 후 기존 마이페이지 SMS 등록으로 안내한다. 제공자 번호 누락·미동의는 신규 가입을 차단하며 기존 회원 번호는 덮어쓰지 않는다.

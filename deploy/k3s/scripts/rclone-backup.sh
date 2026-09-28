@@ -75,6 +75,20 @@ case "$action" in
         rclone_run check "$bundle_root" "$RCLONE_BACKUP_REMOTE" \
             --files-from-raw "$work/metadata-file" --download --one-way
         info "R2 백업 업로드·내용 검증 완료: $name"
+        if [[ -n ${RCLONE_VERIFIED_CACHE_DIR:-} ]]; then
+            : "${RCLONE_VERIFIED_CACHE_USER:?검증 캐시 소유 계정이 필요합니다.}"
+            cache_command=(bash "$SCRIPT_DIR/cache-verified-backup.sh"
+                "$RCLONE_VERIFIED_CACHE_DIR" "$name" "$RCLONE_BACKUP_REMOTE")
+            if [[ $(id -un) != "$RCLONE_VERIFIED_CACHE_USER" ]]; then
+                [[ $(id -u) == 0 ]] || die "다른 계정으로 캐시를 전달하려면 root 실행이 필요합니다."
+                require_command runuser
+                cache_command=(runuser -u "$RCLONE_VERIFIED_CACHE_USER" -- "${cache_command[@]}")
+            fi
+            # root는 원본을 읽기만 한다. 캐시 생성·압축 해제는 배포 계정 권한으로 제한한다.
+            cp "$work/payload-files" "$work/cache-files"
+            printf '%s\n' "$name" >> "$work/cache-files"
+            tar -C "$bundle_root" -cf - -T "$work/cache-files" | "${cache_command[@]}"
+        fi
         ;;
     download)
         [ "$#" -eq 3 ] || die "사용법: $0 download <recovery.env 파일명> <새 로컬 디렉터리>"

@@ -33,6 +33,10 @@ cd_backup_destination="$cd_backup_root/$cd_backup_stamp"
 if [[ ! -d $cd_backup_destination ]]; then
     bash "$SCRIPT_DIR/rclone-backup.sh" download "$cd_backup_name" "$cd_backup_destination" >&2
 fi
+if [[ -f $cd_backup_destination/.verified-remote ]]; then
+    [[ $(cat "$cd_backup_destination/.verified-remote") == "$RCLONE_BACKUP_REMOTE" ]] \
+        || die "검증 캐시의 원격 백업 경로가 다릅니다."
+fi
 verify_recovery_bundle_files "$cd_backup_destination/$cd_backup_name" >&2
 [[ $(require_env_value BACKUP_CREATED_AT "$cd_backup_destination/$cd_backup_name") == "$cd_backup_stamp" ]] \
     || die "백업의 생성 시각과 파일명이 다릅니다."
