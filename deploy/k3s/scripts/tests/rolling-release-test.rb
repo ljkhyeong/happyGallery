@@ -397,6 +397,29 @@ class RollingReleaseTest < Minitest::Test
     assert true
   end
 
+  def test_allows_conditional_public_workshop_email_correction
+    change('bootstrap/src/main/resources/db/migration/V185__contact.sql',
+           "UPDATE workshop_profiles SET email = 'correct@example.com' WHERE email = 'typo@example.com';")
+    write_manifest(@new, commit)
+    RollingRelease.check(@dir, @old, @new)
+    assert true
+  end
+
+  def test_rejects_updates_outside_public_email_correction
+    [
+      "UPDATE workshop_profiles SET email = 'correct@example.com'",
+      "UPDATE customers SET email = 'correct@example.com' WHERE email = 'typo@example.com'",
+      "UPDATE workshop_profiles SET email = 'correct@example.com' WHERE email = 'typo@example.com' OR 1=1",
+      "UPDATE workshop_profiles SET email = NULL WHERE email = 'typo@example.com'",
+      "UPDATE workshop_profiles SET email = 'correct@example.com', name = 'changed' WHERE email = 'typo@example.com'",
+      "UPDATE workshop_profiles SET email = 'correct@example.com' WHERE email = 'typo@example.com'; DELETE FROM workshop_profiles;"
+    ].each do |sql|
+      change('bootstrap/src/main/resources/db/migration/V185__contact.sql', sql)
+      write_manifest(@new, commit)
+      assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    end
+  end
+
   def test_rejects_destructive_second_statement_and_executable_comments
     migration = 'bootstrap/src/main/resources/db/migration/V185__unsafe.sql'
     [

@@ -91,6 +91,10 @@ module RollingRelease
   end
 
   def self.expand_statement?(statement)
+    # 공개 연락처의 기존 값 일치 정정은 구버전 reader와 DB 구조를 바꾸지 않는다.
+    email_literal = "'[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'"
+    return true if statement.match?(/\AUPDATE\s+workshop_profiles\s+SET\s+email\s*=\s*#{email_literal}\s+WHERE\s+email\s*=\s*#{email_literal}\z/i)
+
     identifier = '(?:[A-Za-z0-9_]+|\x60[^\x60]+\x60)'
     column = /\AALTER\s+TABLE\s+#{identifier}\s+ADD\s+(?:COLUMN\s+)?#{identifier}\s+[A-Z]+(?:\([0-9, ]+\))?(?:\s+UNSIGNED)?\s+NULL(?:\s+DEFAULT\s+NULL)?\z/i
     return true if column.match?(statement)
@@ -118,7 +122,7 @@ module RollingRelease
         statements = sql_statements(git_blob(repository, revision, path))
         unsupported = statements.each_index.reject { |index| expand_statement?(statements[index]) }
         unless !statements.empty? && unsupported.empty?
-          raise "migration 별도 검토 필요: #{path} (문장 #{unsupported.map { |i| i + 1 }.join(', ')}). 자동 허용: nullable 컬럼·새 테이블 추가"
+          raise "migration 별도 검토 필요: #{path} (문장 #{unsupported.map { |i| i + 1 }.join(', ')}). 자동 허용: nullable 컬럼·새 테이블 추가·공개 공방 이메일의 기존 값 일치 정정"
         end
       rescue RuntimeError => error
         errors << "#{path}: #{error.message}"
