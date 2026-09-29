@@ -1,5 +1,11 @@
 # HANDOFF
 
+## Jackson 보안 검사 배포 차단 (2026-09-29)
+
+- 시작 SHA `6cce6be7`, 미커밋 변경 없음. 운영 실행 `36575335081`은 호환성 검사 이후 backend Trivy에서 CVE-2026-68497(Jackson 2.21.4·3.1.4)로 실패했다. rollout 이전 실패다.
+- Boot 관리 BOM을 Jackson 2.21.6·3.1.6으로 재정의했다. `:bootstrap:bootJar`, `:adapter-in-web:test --tests "*SessionCompatibilityTest"`(5개), `:application:architectureTest` 통과. JAR의 두 databind·core 버전 반영 확인. `/tmp/hg-jackson-build.log`, `/tmp/hg-jackson-final.log`.
+- 운영과 같은 amd64 이미지 및 Trivy 0.69.3 HIGH/CRITICAL 검사 통과: OS·JAR 모두 취약점 0건. `/tmp/hg-jackson-scan.log`. 원격 푸시·재배포는 미실행이다.
+
 ## 호환성 검사 자동화와 데이터 보정 검토 (2026-09-29)
 
 - 시작 SHA `8f909775`, 미커밋 변경 없음. 완료 검사에 관련 변경의 소스 호환성 검사를 자동 연결했다. 임시 인덱스로 미커밋·신규·삭제·작업 중 커밋을 포함하며 사용자 스테이징은 보존한다. 로컬 기준은 작업 시작 SHA, CI 기준은 마지막 성공 rollout으로 구분한다.
