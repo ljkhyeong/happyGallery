@@ -1,0 +1,9 @@
+{
+  "migration": "bootstrap/src/main/resources/db/migration/V185__correct_workshop_contact_email.sql",
+  "sha256": "f66e825f33cb70cea49a3859c3a389d775efd992cb5ae4faabc29d9aec045e6d",
+  "reason": "사용자가 요청한 공개 연락처 오타 정정",
+  "scope": "workshop_profiles.email이 ssi1972@naver.com과 일치하는 행만 ssim1972@naver.com으로 변경한다. 다른 값과 NULL은 유지한다.",
+  "compatibility": "스키마와 저장 형식이 같으며 이전 앱도 같은 문자열 필드를 읽는다. 로그인·회원 식별에는 사용하지 않는다.",
+  "recovery": "앱 이미지 롤백 시에도 올바른 연락처를 유지한다. 데이터 복구가 필요하면 배포 전 백업의 해당 행과 운영자 변경 이력을 확인하고 별도 보정한다. 새 주소를 원래 사용하던 행까지 일괄 역변환하지 않는다.",
+  "verification": "이전 작업의 격리 MySQL 임시 테이블에서 오타·정상 주소·다른 값·NULL을 검증했고 오타만 변경됨을 확인했다. SQL 해시 변경 시 재검증한다."
+}

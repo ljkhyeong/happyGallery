@@ -2,6 +2,7 @@
 require 'minitest/autorun'
 require 'tmpdir'
 require_relative 'agent-feedback'
+require_relative 'check-working-compatibility'
 
 class AgentFeedbackTest < Minitest::Test
   class RecordingFeedback < AgentFeedback
@@ -53,6 +54,31 @@ class AgentFeedbackTest < Minitest::Test
 
   def architecture_runs
     @feedback.commands.count { |command, _| command.include?(':application:architectureTest') }
+  end
+
+  def test_final_selects_compatibility_only_for_relevant_changes
+    write('notes.md', '문서')
+    @feedback.final(@base)
+    refute @feedback.commands.any? { |command, _| command.any? { |arg| arg.end_with?('check-working-compatibility.rb') } }
+    write('bootstrap/src/main/resources/db/migration/V1__new.sql', 'DROP TABLE samples;')
+    @feedback.final(@base)
+    assert @feedback.commands.any? { |command, _| command.any? { |arg| arg.end_with?('check-working-compatibility.rb') } }
+  end
+
+  def test_working_compatibility_checks_untracked_and_preserves_index
+    write('staged.md', '사용자 스테이징')
+    @feedback.git('add', 'staged.md')
+    before = @feedback.git('write-tree')
+    path = 'bootstrap/src/main/resources/db/migration/V1__new.sql'
+    write(path, 'DROP TABLE samples;')
+    assert_raises(RuntimeError) { WorkingCompatibility.check(@root, @base) }
+    assert_equal before, @feedback.git('write-tree')
+    write(path, 'CREATE TABLE samples (id BIGINT);')
+    WorkingCompatibility.check(@root, @base)
+    assert_equal before, @feedback.git('write-tree')
+    commit
+    write(path, 'CREATE TABLE samples (id INT);')
+    assert_raises(RuntimeError) { WorkingCompatibility.check(@root, @feedback.git('rev-parse', 'HEAD').strip) }
   end
 
   def test_final_includes_committed_staged_unstaged_new_and_deleted_files

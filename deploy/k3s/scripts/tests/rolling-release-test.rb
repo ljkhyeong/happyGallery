@@ -397,15 +397,62 @@ class RollingReleaseTest < Minitest::Test
     assert true
   end
 
-  def test_allows_conditional_public_workshop_email_correction
-    change('bootstrap/src/main/resources/db/migration/V185__contact.sql',
-           "UPDATE workshop_profiles SET email = 'correct@example.com' WHERE email = 'typo@example.com';")
-    write_manifest(@new, commit)
-    RollingRelease.check(@dir, @old, @new)
-    assert true
+  def correction_review(path, sql)
+    change("deploy/k3s/migration-reviews/#{File.basename(path, '.sql')}.json", JSON.generate(
+      'migration' => path, 'sha256' => Digest::SHA256.hexdigest(sql),
+      'reason' => '오타 정정', 'scope' => '기존 값 일치 행', 'compatibility' => '문자열 형식 유지',
+      'recovery' => '백업의 대상 행 확인 후 복구', 'verification' => '격리 DB에서 대상 및 비대상 검증'
+    ))
   end
 
-  def test_rejects_updates_outside_public_email_correction
+  def test_requires_hash_bound_review_for_data_correction
+    path = 'bootstrap/src/main/resources/db/migration/V185__contact.sql'
+    sql = "UPDATE samples SET label = 'correct' WHERE label = 'typo';"
+    change(path, sql)
+    write_manifest(@new, commit)
+    assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    correction_review(path, sql)
+    write_manifest(@new, commit)
+    RollingRelease.check(@dir, @old, @new)
+    change(path, sql.sub('correct', 'different'))
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '해시 불일치'
+  end
+
+  def test_review_only_change_is_validated_again
+    path = 'bootstrap/src/main/resources/db/migration/V185__contact.sql'
+    sql = "UPDATE samples SET label = 'correct' WHERE label = 'typo';"
+    change(path, sql)
+    correction_review(path, sql)
+    write_manifest(@old, commit)
+    review_path = 'deploy/k3s/migration-reviews/V185__contact.json'
+    review = JSON.parse(File.read(File.join(@dir, review_path)))
+    review['sha256'] = '0' * 64
+    change(review_path, JSON.generate(review))
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '해시 불일치'
+  end
+
+  def test_review_cannot_authorize_destructive_sql_or_missing_evidence
+    path = 'bootstrap/src/main/resources/db/migration/V185__contact.sql'
+    ["DROP TABLE samples;", "UPDATE samples SET label = 'all';"].each do |sql|
+      change(path, sql)
+      correction_review(path, sql)
+      write_manifest(@new, commit)
+      assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }
+    end
+    sql = "UPDATE samples SET label = 'correct' WHERE label = 'typo';"
+    change(path, sql)
+    correction_review(path, sql)
+    review_path = 'deploy/k3s/migration-reviews/V185__contact.json'
+    review = JSON.parse(File.read(File.join(@dir, review_path)))
+    review['recovery'] = ''
+    change(review_path, JSON.generate(review))
+    write_manifest(@new, commit)
+    assert_includes assert_raises(RuntimeError) { RollingRelease.check(@dir, @old, @new) }.message, '근거 누락'
+  end
+
+  def test_rejects_unreviewed_or_unsupported_updates
     [
       "UPDATE workshop_profiles SET email = 'correct@example.com'",
       "UPDATE customers SET email = 'correct@example.com' WHERE email = 'typo@example.com'",

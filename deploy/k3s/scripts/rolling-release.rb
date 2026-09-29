@@ -5,11 +5,13 @@ require 'yaml'
 require 'open3'
 require 'json'
 require 'strscan'
+require 'digest'
 require_relative 'openapi-compatibility'
 
 module RollingRelease
   # Git diff로 계약·데이터·보호 설정 변경을 찾고 구조로 판정한다.
   COMPATIBILITY_PATHS = %w[
+    deploy/k3s/migration-reviews
     bootstrap/src/main/resources/db/migration
     bootstrap/src/main/java/com/personal/happygallery/bootstrap/migration
     bootstrap/src/main/resources/application.yml
@@ -91,10 +93,6 @@ module RollingRelease
   end
 
   def self.expand_statement?(statement)
-    # 공개 연락처의 기존 값 일치 정정은 구버전 reader와 DB 구조를 바꾸지 않는다.
-    email_literal = "'[A-Za-z0-9_.+%-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}'"
-    return true if statement.match?(/\AUPDATE\s+workshop_profiles\s+SET\s+email\s*=\s*#{email_literal}\s+WHERE\s+email\s*=\s*#{email_literal}\z/i)
-
     identifier = '(?:[A-Za-z0-9_]+|\x60[^\x60]+\x60)'
     column = /\AALTER\s+TABLE\s+#{identifier}\s+ADD\s+(?:COLUMN\s+)?#{identifier}\s+[A-Z]+(?:\([0-9, ]+\))?(?:\s+UNSIGNED)?\s+NULL(?:\s+DEFAULT\s+NULL)?\z/i
     return true if column.match?(statement)
@@ -112,6 +110,26 @@ module RollingRelease
     depth.zero? && scanner.rest.match?(/\A(?:\s+(?:ENGINE\s*=\s*\w+|(?:DEFAULT\s+)?CHARSET\s*=\s*\w+|(?:DEFAULT\s+)?CHARACTER\s+SET\s*=?\s*\w+|COLLATE\s*=\s*\w+))*\s*\z/i)
   end
 
+  # 데이터 보정은 단일 테이블의 리터럴 대입 + 기존 값 일치 조건만 검토 대상으로 받는다.
+  # SQL 해시와 근거는 PR 검토 자료이며 사람의 승인을 대신하지 않는다.
+  def self.reviewed_data_correction?(repository, revision, path, sql, statements)
+    identifier = '[A-Za-z_][A-Za-z0-9_]*'
+    literal = "'(?:''|[^'\\\\])*'"
+    update = /\AUPDATE\s+#{identifier}\s+SET\s+#{identifier}\s*=\s*#{literal}\s+WHERE\s+#{identifier}\s*=\s*#{literal}\z/i
+    return false unless !statements.empty? && statements.all? { |statement| update.match?(statement) }
+
+    review_path = "deploy/k3s/migration-reviews/#{File.basename(path, '.sql')}.json"
+    review = JSON.parse(git_blob(repository, revision, review_path))
+    raise "migration 검토 SQL 해시 불일치: #{path}" unless review['sha256'] == Digest::SHA256.hexdigest(sql)
+    raise "migration 검토 대상 불일치: #{path}" unless review['migration'] == path
+    %w[reason scope compatibility recovery verification].each do |field|
+      raise "migration 검토 근거 누락: #{review_path}: #{field}" unless review[field].is_a?(String) && !review[field].strip.empty?
+    end
+    true
+  rescue JSON::ParserError => error
+    raise "migration 검토 JSON 오류: #{review_path}: #{error.message}"
+  end
+
   def self.validate_expand_migrations(repository, revision, paths, statuses)
     errors = []
     paths.grep(%r{\Abootstrap/src/(?:main/resources/db/migration|main/java/.+/migration)/}).each do |path|
@@ -119,10 +137,12 @@ module RollingRelease
         raise "적용 이력이 있는 migration 수정·삭제: #{path}" unless statuses[path] == 'A'
         raise "Java migration은 별도 전환 검토가 필요합니다: #{path}" unless path.end_with?('.sql')
 
-        statements = sql_statements(git_blob(repository, revision, path))
+        sql = git_blob(repository, revision, path)
+        statements = sql_statements(sql)
         unsupported = statements.each_index.reject { |index| expand_statement?(statements[index]) }
+        next if !unsupported.empty? && reviewed_data_correction?(repository, revision, path, sql, statements)
         unless !statements.empty? && unsupported.empty?
-          raise "migration 별도 검토 필요: #{path} (문장 #{unsupported.map { |i| i + 1 }.join(', ')}). 자동 허용: nullable 컬럼·새 테이블 추가·공개 공방 이메일의 기존 값 일치 정정"
+          raise "migration 별도 검토 필요: #{path} (문장 #{unsupported.map { |i| i + 1 }.join(', ')}). 자동 허용: nullable 컬럼·새 테이블 추가; 조건부 데이터 보정은 SQL 해시와 검토 근거 필요"
         end
       rescue RuntimeError => error
         errors << "#{path}: #{error.message}"
@@ -156,6 +176,23 @@ module RollingRelease
       end
       unless protected_changes.empty?
         errors << "보호 설정 별도 전환 필요: #{path}: #{protected_changes.join(', ')}"
+      end
+    end
+
+    paths.grep(%r{\Adeploy/k3s/migration-reviews/}).each do |review_path|
+      begin
+        review = JSON.parse(git_blob(repository, new_revision, review_path))
+        path = review.fetch('migration')
+        unless path.match?(%r{\Abootstrap/src/main/resources/db/migration/V[^/]+\.sql\z}) &&
+               review_path == "deploy/k3s/migration-reviews/#{File.basename(path, '.sql')}.json"
+          raise "migration 검토 경로 불일치: #{review_path}"
+        end
+        sql = git_blob(repository, new_revision, path)
+        unless reviewed_data_correction?(repository, new_revision, path, sql, sql_statements(sql))
+          raise "검토 기록으로 허용할 수 없는 SQL: #{path}"
+        end
+      rescue RuntimeError, JSON::ParserError, KeyError, NoMethodError => error
+        errors << error.message
       end
     end
 

@@ -5,6 +5,7 @@ require 'fileutils'
 require 'json'
 require 'open3'
 require 'tempfile'
+require_relative '../deploy/k3s/scripts/rolling-release'
 
 class AgentFeedback
   class CheckFailed < StandardError; end
@@ -121,6 +122,9 @@ class AgentFeedback
       end
     end
     messages << "전체 diff 검토: #{review} (#{paths.length}개 파일, 새 파일·스테이징 포함)"
+    if paths.any? { |path| RollingRelease::COMPATIBILITY_PATHS.any? { |prefix| path == prefix || path.start_with?("#{prefix}/") } }
+      run('ruby', File.join(__dir__, 'check-working-compatibility.rb'), base)
+    end
     architecture = structural?(paths)
     local(paths, base: base, compile: !architecture)
     run('./gradlew', '--console=plain', ':application:architectureTest') if architecture
