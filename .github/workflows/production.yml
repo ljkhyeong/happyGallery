@@ -31,6 +31,7 @@ jobs:
       contents: read
       packages: write
     outputs:
+      security_failed: ${{ steps.scan_backend.outcome == 'failure' || steps.scan_frontend.outcome == 'failure' }}
       app_digest: ${{ steps.publish.outputs.app_digest }}
       frontend_digest: ${{ steps.publish.outputs.frontend_digest }}
     steps:
@@ -47,25 +48,44 @@ jobs:
           VITE_SENTRY_DSN: ${{ vars.PRODUCTION_SENTRY_DSN }}
         run: bash deploy/k3s/scripts/ci-images.sh build
       - name: Scan production backend
+        id: scan_backend
+        continue-on-error: true
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         env:
           TRIVY_EXIT_ON_EOL: "1"
         with:
           image-ref: happygallery-app:production
-          format: table
+          format: json
+          output: trivy-backend.json
           exit-code: "1"
           vuln-type: os,library
           severity: HIGH,CRITICAL
       - name: Scan production frontend
+        id: scan_frontend
+        continue-on-error: true
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         env:
           TRIVY_EXIT_ON_EOL: "1"
         with:
           image-ref: happygallery-frontend:production
-          format: table
+          format: json
+          output: trivy-frontend.json
           exit-code: "1"
           vuln-type: os,library
           severity: HIGH,CRITICAL
+      - name: Preserve security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-security-reports
+          path: trivy-*.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Require both security scans to pass
+        env:
+          BACKEND_RESULT: ${{ steps.scan_backend.outcome }}
+          FRONTEND_RESULT: ${{ steps.scan_frontend.outcome }}
+        run: test "$BACKEND_RESULT" = success && test "$FRONTEND_RESULT" = success
       - name: Publish the scanned images
         id: publish
         env:
@@ -92,3 +112,53 @@ jobs:
           APP_REGISTRY_DIGEST: ${{ needs.publish.outputs.app_digest }}
           FRONTEND_REGISTRY_DIGEST: ${{ needs.publish.outputs.frontend_digest }}
         run: bash deploy/k3s/scripts/ci-deploy-ssh.sh
+
+  security-update:
+    name: Prepare security update PR
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.outputs.security_failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - uses: actions/download-artifact@v4
+        with:
+          name: production-security-reports
+          path: /tmp/security-reports
+      - name: Propose supported patch updates
+        id: update
+        run: ruby deploy/k3s/scripts/security-update.rb /tmp/security-reports/*.json
+      - name: Create PR and start validation
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" != "$GITHUB_SHA" ]; then
+            echo 'main이 변경돼 오래된 검사 결과의 PR 생성을 생략합니다.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="codex/work-security-${GITHUB_SHA:0:12}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo '기존 보안 업데이트 브랜치의 검증을 다시 실행합니다.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            git switch -c "$branch"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add build.gradle
+            git commit -m 'Fix: Trivy 탐지 의존성 보안 패치 업데이트'
+            git push origin "$branch"
+          fi
+          pr=$(gh pr list --head "$branch" --base main --state all --json url --jq '.[0].url // empty')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --head "$branch" --base main --title 'Fix: Trivy 탐지 의존성 보안 패치 업데이트' --body-file /tmp/security-update-body.md)
+          fi
+          echo "보안 업데이트 PR: $pr" >> "$GITHUB_STEP_SUMMARY"
+          gh workflow run security-update-validation.yml --ref "$branch"

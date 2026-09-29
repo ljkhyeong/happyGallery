@@ -46,6 +46,7 @@ jobs:
           ruby-version: '3.3'
       - name: Validate feedback loop and agent instructions
         run: |
+          ruby deploy/k3s/scripts/tests/security-update-test.rb
           ruby tools/agent-feedback-test.rb
           ruby tools/check-agent-skills.rb
 

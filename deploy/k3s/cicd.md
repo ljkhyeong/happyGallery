@@ -176,3 +176,16 @@ RCLONE_VERIFIED_CACHE_DIR=/home/ronaldo/.local/state/happygallery/cd/backups
 root는 백업 원본만 읽고 `runuser`로 배포 계정에 전달한다. 파일 추출·검증·캐시 게시는 배포 계정 권한으로 실행하며 원본 백업의 600 권한을 바꾸지 않는다. 원격 검증 실패 시 캐시를 만들지 않고, 전달·해시 검증 실패도 백업 실패로 처리한다. 임시 디렉터리에서 완성한 뒤 게시하며 원격 경로가 다른 캐시는 거절한다. 설정을 생략하면 기존 다운로드 방식을 유지한다. 캐시는 기존 정책대로 두 세대를 보관한다.
 
 Browser Smoke는 Vite 공통 의존성을 시작 시 미리 최적화해 첫 화면 로딩 중 `504 Outdated Optimize Dep`로 hydration이 중단되는 일을 막는다. 진단은 재시도 성공을 포함해 항상 보관한다. 전체 테스트 통과 여부와 별개로 flaky 결과와 최초 실패 trace를 확인한다.
+
+
+## Trivy 실패 후 보안 업데이트 PR
+
+운영 이미지 검사 결과는 `production-security-reports` artifact에 JSON으로 7일 보관한다. 두 이미지 검사는 독립적으로 실행하되 어느 한쪽이라도 실패하거나 실행되지 않으면 게시와 rollout을 차단한다. 실패 후 별도 최소 권한 job이 수정 가능한 의존성을 판정한다.
+
+현재 자동 수정 범위는 `build.gradle`에서 관리하는 Jackson 2·3 BOM, Tomcat, Netty, HttpCore5다. Trivy의 설치 버전이 현재 선언과 같고 같은 major/minor 계열의 더 높은 패치 수정판이 있을 때만 올린다. 복수 취약점은 필요한 패치 중 높은 버전으로 맞춘다. OS·npm·미등록 라이브러리, 수정판 없음, 계열 전환, 버전 불일치는 실행 요약과 PR에 별도 처리 사유를 남긴다. 기존 Dependabot 주간 업데이트는 유지한다. 이 자동화는 모든 취약점의 해결을 보장하지 않는다.
+
+브랜치는 `codex/work-security-<실패 SHA 앞 12자리>`, PR 대상은 실패한 운영 소스와 같은 `main`이다. 같은 SHA 재실행은 기존 브랜치·PR을 재사용하고, main이 이미 바뀌었으면 오래된 보고서로 PR을 만들지 않는다. 자동 병합·재배포는 하지 않는다. 이는 운영 보안 패치용 경로이며 일반 기능 작업은 기존 codexReview 경로를 따른다.
+
+봇 PR의 이벤트 실행 정책과 관계없이 `Security update validation`을 workflow_dispatch로 명시적으로 실행한다. 기존 CI(빌드·테스트·smoke) 이후 같은 JAR로 두 운영 이미지를 빌드하고 Trivy HIGH/CRITICAL 및 OS EOL 검사를 수행한다. 이미지 게시나 서버 접속 권한은 없다. 검토자는 해당 브랜치의 최신 `Security update validation` 성공을 확인하고 병합한다. 이후 기존 Production 흐름으로 다시 검증·배포한다.
+
+저장소 Actions 설정에서 GitHub Actions의 PR 생성 허용이 필요하다. 별도 PAT는 사용하지 않으며 업데이트 job에만 contents/pull-requests/actions 쓰기 권한을 부여한다. PR 생성·검증 실행 API가 거절되면 해당 job을 실패로 남긴다. 최초 사용 전 이 변경과 검증 워크플로가 main에 반영돼 있어야 한다.

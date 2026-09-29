@@ -1,5 +1,11 @@
 # HANDOFF
 
+## Trivy 보안 업데이트 PR 자동화 (2026-09-29)
+
+- 시작 SHA `781af329`, 미커밋 변경 없음. 두 이미지 JSON 검사 결과를 보관하고 실패하면 관리 중인 Jackson 2·3/Tomcat/Netty/HttpCore5의 동일 major/minor 패치 수정판만 PR로 제안한다. 배포 실패 상태는 유지하고 자동 병합하지 않는다. 브랜치별 workflow_dispatch로 기존 CI와 두 이미지 보안 검사를 다시 실행한다.
+- GitHub Actions 기본 권한 read, `can_approve_pull_request_reviews=false` 확인. PR 생성 허용 옵션은 리뷰 승인 권한도 묶여 있어 auto-review가 변경을 거절했다. 원격 설정 변경 없음. 사용자에게 해당 묶음 권한 승인이 필요함을 알린다. 푸시·실제 PR 생성·원격 CI 실행 미실행.
+- 관련 경로: `.github/workflows/production.yml`, `security-update-validation.yml`, `deploy/k3s/scripts/security-update.rb`, `deploy/k3s/cicd.md`. 로컬 검증 로그 `/tmp/hg-security-auto-*.log`.
+
 ## Jackson 보안 검사 배포 차단 (2026-09-29)
 
 - 시작 SHA `6cce6be7`, 미커밋 변경 없음. 운영 실행 `36575335081`은 호환성 검사 이후 backend Trivy에서 CVE-2026-68497(Jackson 2.21.4·3.1.4)로 실패했다. rollout 이전 실패다.

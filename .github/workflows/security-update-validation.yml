@@ -1,0 +1,58 @@
+name: Security update validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: security-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    name: Validate updated production images
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: bootstrap/build/libs
+      - name: Build candidate images
+        env:
+          VITE_TOSS_CLIENT_KEY: ${{ vars.PRODUCTION_TOSS_CLIENT_KEY }}
+          VITE_SENTRY_DSN: ${{ vars.PRODUCTION_SENTRY_DSN }}
+        run: |
+          docker build --platform linux/amd64 --build-arg APP_JAR=bootstrap/build/libs/happygallery-app.jar -f deploy/k3s/images/Dockerfile.app -t happygallery-app:security .
+          docker build --platform linux/amd64 --build-arg "VITE_TOSS_CLIENT_KEY=$VITE_TOSS_CLIENT_KEY" --build-arg "VITE_SENTRY_DSN=$VITE_SENTRY_DSN" --build-arg "VITE_SENTRY_RELEASE=happygallery@$GITHUB_SHA" -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:security .
+      - name: Scan backend candidate
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        env:
+          TRIVY_EXIT_ON_EOL: "1"
+        with:
+          image-ref: happygallery-app:security
+          format: table
+          exit-code: "1"
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Scan frontend candidate
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        env:
+          TRIVY_EXIT_ON_EOL: "1"
+        with:
+          image-ref: happygallery-frontend:security
+          format: table
+          exit-code: "1"
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
