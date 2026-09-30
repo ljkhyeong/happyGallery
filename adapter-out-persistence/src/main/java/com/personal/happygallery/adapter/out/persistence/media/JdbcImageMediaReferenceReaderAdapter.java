@@ -17,23 +17,24 @@ class JdbcImageMediaReferenceReaderAdapter implements ImageMediaReferenceReaderP
 
     @Override
     public List<String> findReferencedImageUrls() {
+        // 테이블별 collation 차이를 제거하고 대소문자가 다른 파일 참조를 모두 보존한다.
         return jdbc.sql("""
-                        SELECT image_url
+                        SELECT CONVERT(image_url USING utf8mb4) COLLATE utf8mb4_bin AS image_url
                         FROM products
                         WHERE image_url IS NOT NULL
                         UNION
-                        SELECT image_url
+                        SELECT CONVERT(image_url USING utf8mb4) COLLATE utf8mb4_bin AS image_url
                         FROM classes
                         WHERE image_url IS NOT NULL
                         UNION
-                        SELECT image_url
+                        SELECT CONVERT(image_url USING utf8mb4) COLLATE utf8mb4_bin AS image_url
                         FROM events
                         WHERE image_url IS NOT NULL
                         UNION
-                        SELECT image_url
+                        SELECT CONVERT(image_url USING utf8mb4) COLLATE utf8mb4_bin AS image_url
                         FROM review_images
                         UNION
-                        SELECT image_url
+                        SELECT CONVERT(image_url USING utf8mb4) COLLATE utf8mb4_bin AS image_url
                         FROM review_evidence_snapshot_images
                         """)
                 .query(String.class)
