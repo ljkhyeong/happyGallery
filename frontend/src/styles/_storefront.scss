@@ -980,6 +980,21 @@
   font-size: 0.875rem;
 }
 
+.social-login-button-google {
+  --bs-btn-color: #1F1F1F;
+  --bs-btn-bg: #FFFFFF;
+  --bs-btn-border-color: #747775;
+  --bs-btn-hover-color: #1F1F1F;
+  --bs-btn-hover-bg: #FFFFFF;
+  --bs-btn-hover-border-color: #747775;
+  --bs-btn-active-color: #1F1F1F;
+  --bs-btn-active-bg: #FFFFFF;
+  --bs-btn-active-border-color: #747775;
+  --bs-btn-disabled-color: #1F1F1F;
+  --bs-btn-disabled-bg: #FFFFFF;
+  --bs-btn-disabled-border-color: #747775;
+}
+
 .social-login-button-naver {
   --bs-btn-color: #FFFFFF;
   --bs-btn-bg: #03A94D;
@@ -1021,6 +1036,12 @@
   width: 40px;
   height: 40px;
   flex: 0 0 40px;
+  object-fit: contain;
+}
+
+.social-login-button-google .social-login-button-icon,
+.social-login-button-kakao .social-login-button-icon {
+  padding: 10px;
 }
 
 .auth-prefill-card {
