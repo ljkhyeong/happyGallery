@@ -177,6 +177,8 @@ for (const member of [false, true]) {
         : json(route, { id: 99, status: "RECEIVED" }, 201);
     });
     await page.goto("/group-classes");
+    await page.getByRole("button", { name: "단체 수업 문의 접수", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     const form = page.locator("#group-inquiry-form");
     for (const [label, value] of [
       ["기관·모임명", "테스트 기관"], ["담당자 이름", "테스트 담당"], ["담당자 휴대폰", "01012345678"],

@@ -48,14 +48,21 @@ textarea {
 }
 
 .app-utility-bar {
-  background: #704A35;
+  background: var(--hg-surface-dim);
 }
 
 .app-utility-copy,
 .app-utility-link {
   font-family: inherit;
-  color: rgba(255, 253, 248, 0.78);
+  color: #50483F;
   letter-spacing: 0.02em;
+}
+
+.app-utility-link {
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-accent-deep);
+  }
 }
 
 .app-navbar {

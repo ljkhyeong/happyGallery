@@ -46,6 +46,8 @@ for (const member of [false, true]) {
       return json([]);
     });
     await page.goto("/group-classes");
+    await page.getByRole("button", { name: "단체 수업 문의 접수", exact: true }).click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     const form = page.locator("#group-inquiry-form");
     await fillInquiry(form);
     await form.getByRole("button", { name: "단체 수업 문의 접수", exact: true }).click();

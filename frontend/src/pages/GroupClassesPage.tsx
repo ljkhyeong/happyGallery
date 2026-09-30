@@ -79,8 +79,6 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
           </ol>
         </section>
 
-        <GroupInquirySection />
-
         <section className="group-class-inquiry">
           <div>
             <p className="store-section-kicker">수업 문의</p>
@@ -88,6 +86,7 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
             <p>인원, 대상 연령, 장소와 희망 일정을 보내주시면 확인 후 안내합니다.</p>
           </div>
           <div className="group-class-inquiry-actions">
+            <GroupInquirySection />
             {inquiryHref && (
               <a
                 className="btn btn-dark btn-lg"
