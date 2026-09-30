@@ -1,5 +1,13 @@
 # HANDOFF
 
+## 배포 검사 정리 경합·이용권 조회 기대값 수정 (2026-09-30)
+
+- 시작 SHA `c338b487421c08bbf6835c2e98e34ecc187b1947`, 미커밋 변경 없음. 실행 `36708978472`에서 프론트엔드 보안 검사·빌드·smoke와 application 세 그룹은 통과했다. 실패는 `rolling-release-test.rb` teardown의 `.git/objects` ENOENT와 `MePassUseCaseIT`의 신규 구매 기대값 120,000원/실제 300,000원이다. 로그 `/tmp/hg-ci-36708978472-failed.log`, 웹 XML `/tmp/hg-ci-36708978472-web/`.
+- 임시 Git 저장소를 쓰는 rolling-release·agent-feedback fixture의 `gc.autoDetach`와 `maintenance.autoDetach`를 false로 설정해 삭제 전 자동 정리 종료를 보장한다. 프론트엔드 배포 검사 Ruby도 다른 CI 작업과 같은 3.3으로 명시했다. 신규 구매 조회 기대값은 300,000원으로 변경했고 기존 구매/환불 fixture의 240,000원은 보존했다.
+- 검증: `./gradlew --no-daemon :adapter-in-web:check` 전체 통과(일반 192·REST Docs 308·OpenAPI 1건 및 명세 일치 확인), `/tmp/hg-ci-repeat-web-check.log`. Ruby 3.3 Linux에서 빈번한 자동 Git 정리 조건과 실패 seed의 rolling-release 28건·agent-feedback 14건 통과. 배포 전체 검사는 후반 백업 테스트의 USER 누락으로 중단돼 환경에 USER=root를 준비한 후 실패 범위 16건과 마지막 indexnow 14건을 재검증했다. 두 로그 `/tmp/hg-ci-repeat-linux{,-tail}.log`를 합쳐 운영 검사 전 범위 통과를 확인했다. workflow actionlint 통과.
+- 검증: 이번 CI의 application-jar로 backend 이미지를 만들고 현재 frontend도 amd64 이미지로 build했다. 앱 실행 계정 JAR 읽기 검사와 Trivy 0.69.3 OS/library HIGH·CRITICAL 모두 0건 통과. 보안 DB·Java DB를 갱신했고 보고서는 `/tmp/hg-ci-repeat-security/{backend,frontend}.json`, 이미지 build 로그 `/tmp/hg-ci-repeat-{app,frontend}-image.log`. 최종 검사 통과(`/tmp/hg-ci-repeat-final.log`), 전체 5개 파일 diff의 테스트 의미·의존성·검사 생략 여부를 검토했다.
+- 완료 커밋: 이용권 기대값 `2ff0db91`, Git 정리·Ruby 환경 `ae49a4f2`. 푸시·운영 재배포는 아직 하지 않았다. source·의존성·설정 변경 시 영향받는 검사를 재실행하며 runtime이 같은 이전 npm 전체 검사와 이번 CI smoke/application 성공은 재사용한다. 다음 행동은 사용자 푸시 요청 후 새 원격 CI·두 운영 이미지 검사·rollout 성공 확인이다.
+
 ## 프론트엔드 보안 검사 배포 차단 수정 (2026-09-30)
 
 - 시작 SHA `61c7327f0f9883ac735ec322da84951ab38e77bc`, 미커밋 변경 없음. 운영 실행 `36706195838`의 `validate / Frontend Build`는 `npm run audit:dependencies`에서 높은 등급 brace-expansion 및 중간 등급 fast-uri·markdown-it 취약점으로 실패했다. 린트·API 검사·빌드 전에 중단됐으며 실패 로그 `/tmp/hg-frontend-ci-failure.log`를 확인했다.
