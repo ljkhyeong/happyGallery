@@ -330,7 +330,7 @@ app:
   order:
     shipping-fee: ${ORDER_SHIPPING_FEE:0}
   pass:
-    total-price: ${PASS_TOTAL_PRICE:120000}
+    total-price: ${PASS_TOTAL_PRICE:300000}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     key-prefix: ${RATE_LIMIT_KEY_PREFIX:happygallery:rate}

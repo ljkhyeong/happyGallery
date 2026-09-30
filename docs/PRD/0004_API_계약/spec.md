@@ -3651,7 +3651,7 @@ Content-Type: application/json
   - 모든 컨텍스트의 최종 `amount`는 0원 이상 `9,007,199,254,740,991원` 이하의 웹 안전 정수여야 한다. 0원은 유효한 이용권 예약 또는 픽업 상품 금액을 적립금으로 모두 지불한 주문처럼 외부 PG 호출이 없는 내부 승인에 사용한다.
     - `ORDER`: `items`는 0~100건이며 장바구니 결제일 때만 빈 목록을 허용한다. 동일한 `productId + productVariantId + 직접입력값`의 수량을 먼저 합쳐 SKU별 1~99개 제한을 적용한다. 서버가 상품과 옵션을 일괄 조회해 `기본가 + 조합 추가금 + 직접입력 추가금`에 수량을 곱하고, 같은 variant 재고 요구량을 다시 합산한다. `SHIPPING`이면 `app.order.shipping-fee`의 고정액을 더하고 `PICKUP`이면 0원을 더한다. 총액은 `9,007,199,254,740,991원` 이하로 제한한다.
     - `BOOKING`: `passId`가 있으면 0 (이용권 사용 예약, `participantCount=1`), 없으면 `slot.bookingClass.price * participantCount * 10%`이며 결과는 1원 이상
-    - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=120000`)
+    - `PASS`: `app.pass.total-price`(기본 `PASS_TOTAL_PRICE=300000`)
   - 서버는 prepare 시점의 `ORDER` 상품명·기본가·옵션 추가금·항목 단가·variant ID·선택 옵션·직접입력 문구·상품 유형·고정 사양·관리 방법·예상 제작 기간·배송비·쿠폰 할인·적립금 사용·품목별 배분, `BOOKING` 예약금·잔금·인원, `PASS` 총 가격과 계획을 공개 요청 모델과 분리된 내부 payload로 저장한다. 비회원 주문·예약은 같은 prepare 트랜잭션에서 인증 코드를 잠금 후 한 번 소비하고 `context + orderId + 정규화 전화번호 + nonce`에 HMAC 서명한 결제 귀속 증거로 교체한다. 내부 payload 전체는 `payment_attempt.payload_enc`에 AES-GCM 암호문으로 저장하며 인증 코드 원문은 포함하지 않는다. confirm은 현재 가격을 다시 계산하지 않고 이 스냅샷으로 도메인을 생성하며, 저장된 결제 금액과 `payment_attempt.amount`가 다르면 PG 호출 전에 거절한다.
   - 클라이언트의 `ORDER` payload에는 단가를 받지 않는다.
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.

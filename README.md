@@ -266,7 +266,7 @@ Toss 운영 콘솔에는 결제 상태 변경 웹훅 URL로 `https://happy-galle
 | `EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_READ_TIMEOUT_MILLIS` / `EMAIL_VERIFICATION_WRITE_TIMEOUT_MILLIS` | 백엔드 `prod` | SMTP 연결·읽기·쓰기 대기 상한, 기본 `1000` / `2000` / `2000` |
 | `EMAIL_VERIFICATION_STARTTLS_ENABLED` / `EMAIL_VERIFICATION_SSL_ENABLED` | 백엔드 `prod` | SMTP TLS 모드, 기본 `true` / `false`; 정확히 하나를 켜며 인증서 호스트명을 검증 |
 | `MAIL_HEALTH_ENABLED` | 백엔드 | Spring Mail health indicator 활성화 여부, 기본 `false`; 이메일 장애가 전역 readiness를 내리지 않게 알림 CircuitBreaker로 분리 관측 |
-| `PASS_TOTAL_PRICE` | 백엔드 | 4회권 결제 금액 (기본 120,000원) |
+| `PASS_TOTAL_PRICE` | 백엔드 | 4회권 결제 금액 (기본 300,000원) |
 | `ORDER_SHIPPING_FEE` | 백엔드 | 배송 주문에 더하는 고정 배송비, 기본 `0`원 |
 | `DELIVERY_TRACKING_ENABLED` | 백엔드 | Delivery API 배송조회 연동 활성화 여부, 기본 `false` |
 | `DELIVERY_API_KEY` / `DELIVERY_API_SECRET_KEY` | 백엔드 | Delivery API 호출 자격 증명 |
