@@ -181,6 +181,11 @@ jobs:
           npm run api:check
           npm run build
 
+      - name: Setup Ruby for deployment validation
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
       - name: Validate deployment manifests and CSP
         env:
           REQUIRE_FRONTEND_DIST: "1"

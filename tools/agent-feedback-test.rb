@@ -26,6 +26,9 @@ class AgentFeedbackTest < Minitest::Test
     @root = Dir.mktmpdir('agent-feedback-test-')
     @feedback = RecordingFeedback.new(@root)
     @feedback.git('init', '-q')
+    # 임시 저장소 삭제 전에 Git의 자동 정리 작업도 종료되도록 동기 실행한다.
+    @feedback.git('config', 'gc.autoDetach', 'false')
+    @feedback.git('config', 'maintenance.autoDetach', 'false')
     write('.gitignore', ".gradle/\n")
     write('README.md', "기존 문서\n")
     write('domain/src/main/java/Model.java', "class Model {}\n")

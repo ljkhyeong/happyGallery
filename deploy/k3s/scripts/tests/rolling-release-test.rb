@@ -10,6 +10,9 @@ class RollingReleaseTest < Minitest::Test
   def setup
     @dir = Dir.mktmpdir('happygallery-rolling-')
     git('init', '-q')
+    # 임시 저장소 삭제 전에 Git의 자동 정리 작업도 종료되도록 동기 실행한다.
+    git('config', 'gc.autoDetach', 'false')
+    git('config', 'maintenance.autoDetach', 'false')
     git('config', 'user.email', 'test@example.invalid')
     git('config', 'user.name', '배포 검사')
     change('application/task.java', 'old')
