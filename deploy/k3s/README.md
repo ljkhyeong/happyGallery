@@ -287,6 +287,13 @@ V102 적용 전에는 app 쓰기를 중단한 상태에서 복구 묶음을 확�
 
 ## 6. 검증과 내부 관리 접근
 
+`/etc/rancher/k3s/k3s.yaml`은 클러스터 관리자 자격 증명이므로 일반 사용자에게 읽기 권한을 풀지 않는다. `permission denied`는 아래 명령의 조회 권한 문제이며 앱 배치 오류가 아니다. sudo 가능한 운영자 계정은 `sudo /usr/local/bin/k3s kubectl ...`로 조회한다. 배치 실패는 다음 로그에서 source와 예외를 확인한다. Pod 교체로 로그가 사라졌으면 다음 실행 로그와 실패 reason 지표를 함께 확인한다.
+
+```bash
+sudo /usr/local/bin/k3s kubectl -n happygallery logs deployment/app --since=24h \
+  | grep -A 35 -E '개인정보 보존 정리 실패|개인정보 보존 기간 정리.*실패'
+```
+
 ```bash
 ./deploy/k3s/scripts/verify.sh happy-gallery.com
 kubectl -n happygallery get events --sort-by=.lastTimestamp

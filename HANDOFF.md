@@ -1,5 +1,13 @@
 # HANDOFF
 
+## 헤더·4회권 가격·단체 문의 팝업 (2026-09-30)
+
+- 시작 SHA `14c61e07`, 미커밋 변경 없음. 상단 유틸리티 바를 크림 배경과 이어지는 웜그레이로 변경했다. 단체 문의는 상담 영역 버튼에서 scrollable Modal로 열고 접수 중 닫기를 막는다. 기존 회원·비회원 분기·Turnstile·접수 결과 안내를 유지했다.
+- 신규 4회권 기본값과 k3s PASS_TOTAL_PRICE를 300,000원으로 조정했다. 환경 예시·PRD·가격 ADR에 반영하고 기존 구매/결제 준비 스냅샷의 금액은 바꾸지 않았다. API 계약 형식은 동일하다.
+- 검증: frontend build, 회원/비회원 접수 2건, Turnstile 입력 보존·재접수 2건, 1280/390px 팝업 닫기·Escape·포커스 복귀 확인. 미리보기 `/tmp/hg-sep30-preview/`. 결제 준비 서버 가격 통합 1건, 아키텍처·타입·미커밋 소스 호환성 최종 검사 통과. 운영 설정 검증 로그 `/tmp/hg-sep30-deploy-validate.log`.
+- 사용자 오류는 k3s 관리자 kubeconfig 조회 권한 문제다. 운영 가이드에 sudo 로그 조회를 추가했다. 실제 배치 source/예외는 미확인: SSH home-server 공개키 인증이 여전히 실패한다. sudo로 읽은 다음 03:30 배치 실패 로그 또는 PersonalDataRetentionFailed reason을 확인해야 한다.
+- 사용자 승인으로 09-29 Actions PR 생성·승인 허용 옵션은 활성화했고 기본 권한 read 유지했다. 아래 이전 자동화 기록의 설정 차단 상태는 해소됐다. 현재 변경의 푸시·배포는 하지 않았다.
+
 ## Trivy 보안 업데이트 PR 자동화 (2026-09-29)
 
 - 시작 SHA `781af329`, 미커밋 변경 없음. 두 이미지 JSON 검사 결과를 보관하고 실패하면 관리 중인 Jackson 2·3/Tomcat/Netty/HttpCore5의 동일 major/minor 패치 수정판만 PR로 제안한다. 배포 실패 상태는 유지하고 자동 병합하지 않는다. 브랜치별 workflow_dispatch로 기존 CI와 두 이미지 보안 검사를 다시 실행한다.
