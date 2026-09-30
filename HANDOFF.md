@@ -1,10 +1,17 @@
 # HANDOFF
 
+## 프론트엔드 보안 검사 배포 차단 수정 (2026-09-30)
+
+- 시작 SHA `61c7327f0f9883ac735ec322da84951ab38e77bc`, 미커밋 변경 없음. 운영 실행 `36706195838`의 `validate / Frontend Build`는 `npm run audit:dependencies`에서 높은 등급 brace-expansion 및 중간 등급 fast-uri·markdown-it 취약점으로 실패했다. 린트·API 검사·빌드 전에 중단됐으며 실패 로그 `/tmp/hg-frontend-ci-failure.log`를 확인했다.
+- 잠금 파일의 간접 의존성만 brace-expansion 5.0.9 → 5.0.12, fast-uri 3.1.7 → 3.1.8, markdown-it 14.3.0 → 14.3.2로 갱신했다. 상위 도구·직접 의존성·보안 검사 기준은 유지한다. 잠금 갱신 시 취약점 0건 확인(`/tmp/hg-frontend-patch.log`).
+- 검증: Linux amd64·Node 22.23.2·npm 10.9.8의 격리된 작업 복사본에서 `npm ci` → `audit:dependencies`(취약점 0건) → `test:unit`(74건) → `lint` → `api:check` → `build` 모두 통과(`/tmp/hg-frontend-ci-check.log`). 새 결과물로 `REQUIRE_FRONTEND_DIST=1 deploy/k3s/scripts/validate.sh` 통과(`/tmp/hg-frontend-deploy-check.log`). 최종 검사·타입 검사 통과(`/tmp/hg-frontend-final.log`), 전체 diff에서 세 패키지 외 갱신과 생성 API 변경이 없음을 검토했다.
+- 남은 행동: 사용자 푸시 요청 후 수정본으로 CI·배포 확인. 운영 실행 `36706195838`은 이후 취소돼 backend 테스트 일부·smoke·publish·rollout도 중단됐다. 수정본 원격 실행·푸시·배포는 하지 않았다. 이전 화면 작업의 `npm run build` 성공은 프론트엔드 CI 전체 통과와 구분한다. 의존성/설정 변경 시 해당 검사를 다시 실행하며 보안 DB가 갱신될 수 있어 재배포 시 보안 검사는 새 결과를 확인한다.
+
 ## 개인정보 보존 배치 이미지 참조 조회 수정 (2026-09-30)
 
 - 시작 SHA `1b3e8cc5a06369a804662cf95e0b1a7ed40f4d54`, 미커밋 변경 없음. 사용자가 제공한 03:30 운영 로그에서 `image_media` 참조 조회의 MySQL 1271 `Illegal mix of collations for operation 'UNION'`을 확인했다. 이미지 삭제 전 조회에서 실패했다. 함께 기록된 결제·환불 복구 배치는 실패 0건이다.
 - `JdbcImageMediaReferenceReaderAdapter.findReferencedImageUrls`의 다섯 참조 원본을 `utf8mb4 / utf8mb4_bin`으로 통일해 합친다. DB schema는 바꾸지 않고 파일명 대소문자를 구분한다. 실제 MySQL 8의 서로 다른 collation으로 수정 전 동일 오류를 재현하고 수정 후 전체 참조·한글·대소문자·중복·null 처리를 검증했다.
-- 검증: `./gradlew --no-daemon :application:useCaseTest --tests '*JdbcImageMediaReferenceReaderAdapterUseCaseIT' :application:test --tests '*ImageMediaRetentionServiceTest'` 5건 통과(`/tmp/hg-retention-after.log`). 수정 전 재현 로그 `/tmp/hg-retention-before.log`, 지역 컴파일 검사 `/tmp/hg-retention-local.log`。 최종 검사·아키텍처 통과(`/tmp/hg-retention-final.log`), 전체 3개 파일 diff의 참조 누락·의존 방향·중복 구현을 검토했다. 코드·테스트·의존성·환경이 바뀌면 영향받는 검사만 재실행한다.
+- 검증: `./gradlew --no-daemon :application:useCaseTest --tests '*JdbcImageMediaReferenceReaderAdapterUseCaseIT' :application:test --tests '*ImageMediaRetentionServiceTest'` 5건 통과(`/tmp/hg-retention-after.log`). 수정 전 재현 로그 `/tmp/hg-retention-before.log`, 지역 컴파일 검사 `/tmp/hg-retention-local.log`. 최종 검사·아키텍처 통과(`/tmp/hg-retention-final.log`), 전체 3개 파일 diff의 참조 누락·의존 방향·중복 구현을 검토했다. 코드·테스트·의존성·환경이 바뀌면 영향받는 검사만 재실행한다.
 - 남은 행동: 사용자 푸시 요청 후 배포하고 다음 개인정보 보존 배치의 `failureCount=0` 및 경보 해소를 확인한다. 운영 실행은 아직 검증하지 않았고 SSH home-server 공개키 인증 실패 상태다. 사용자가 보여준 k3s kubeconfig 권한 오류와 실제 배치 SQL 오류는 서로 다른 문제다.
 
 ## 헤더·4회권 가격·단체 문의 팝업 (2026-09-30)
