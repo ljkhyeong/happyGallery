@@ -1,11 +1,18 @@
 # HANDOFF
 
+## 개인정보 보존 배치 이미지 참조 조회 수정 (2026-09-30)
+
+- 시작 SHA `1b3e8cc5a06369a804662cf95e0b1a7ed40f4d54`, 미커밋 변경 없음. 사용자가 제공한 03:30 운영 로그에서 `image_media` 참조 조회의 MySQL 1271 `Illegal mix of collations for operation 'UNION'`을 확인했다. 이미지 삭제 전 조회에서 실패했다. 함께 기록된 결제·환불 복구 배치는 실패 0건이다.
+- `JdbcImageMediaReferenceReaderAdapter.findReferencedImageUrls`의 다섯 참조 원본을 `utf8mb4 / utf8mb4_bin`으로 통일해 합친다. DB schema는 바꾸지 않고 파일명 대소문자를 구분한다. 실제 MySQL 8의 서로 다른 collation으로 수정 전 동일 오류를 재현하고 수정 후 전체 참조·한글·대소문자·중복·null 처리를 검증했다.
+- 검증: `./gradlew --no-daemon :application:useCaseTest --tests '*JdbcImageMediaReferenceReaderAdapterUseCaseIT' :application:test --tests '*ImageMediaRetentionServiceTest'` 5건 통과(`/tmp/hg-retention-after.log`). 수정 전 재현 로그 `/tmp/hg-retention-before.log`, 지역 컴파일 검사 `/tmp/hg-retention-local.log`。 최종 검사·아키텍처 통과(`/tmp/hg-retention-final.log`), 전체 3개 파일 diff의 참조 누락·의존 방향·중복 구현을 검토했다. 코드·테스트·의존성·환경이 바뀌면 영향받는 검사만 재실행한다.
+- 남은 행동: 사용자 푸시 요청 후 배포하고 다음 개인정보 보존 배치의 `failureCount=0` 및 경보 해소를 확인한다. 운영 실행은 아직 검증하지 않았고 SSH home-server 공개키 인증 실패 상태다. 사용자가 보여준 k3s kubeconfig 권한 오류와 실제 배치 SQL 오류는 서로 다른 문제다.
+
 ## 헤더·4회권 가격·단체 문의 팝업 (2026-09-30)
 
 - 시작 SHA `14c61e07`, 미커밋 변경 없음. 상단 유틸리티 바를 크림 배경과 이어지는 웜그레이로 변경했다. 단체 문의는 상담 영역 버튼에서 scrollable Modal로 열고 접수 중 닫기를 막는다. 기존 회원·비회원 분기·Turnstile·접수 결과 안내를 유지했다.
 - 신규 4회권 기본값과 k3s PASS_TOTAL_PRICE를 300,000원으로 조정했다. 환경 예시·PRD·가격 ADR에 반영하고 기존 구매/결제 준비 스냅샷의 금액은 바꾸지 않았다. API 계약 형식은 동일하다.
 - 검증: frontend build, 회원/비회원 접수 2건, Turnstile 입력 보존·재접수 2건, 1280/390px 팝업 닫기·Escape·포커스 복귀 확인. 미리보기 `/tmp/hg-sep30-preview/`. 결제 준비 서버 가격 통합 1건, 아키텍처·타입·미커밋 소스 호환성 최종 검사 통과. 운영 설정 검증 로그 `/tmp/hg-sep30-deploy-validate.log`.
-- 사용자 오류는 k3s 관리자 kubeconfig 조회 권한 문제다. 운영 가이드에 sudo 로그 조회를 추가했다. 실제 배치 source/예외는 미확인: SSH home-server 공개키 인증이 여전히 실패한다. sudo로 읽은 다음 03:30 배치 실패 로그 또는 PersonalDataRetentionFailed reason을 확인해야 한다.
+- 사용자 오류는 k3s 관리자 kubeconfig 조회 권한 문제다. 운영 가이드에 sudo 로그 조회를 추가했다. 이후 제공된 03:30 로그로 실제 배치 source/예외를 확인했으며 수정은 위 항목을 참고한다.
 - 사용자 승인으로 09-29 Actions PR 생성·승인 허용 옵션은 활성화했고 기본 권한 read 유지했다. 아래 이전 자동화 기록의 설정 차단 상태는 해소됐다. 현재 변경의 푸시·배포는 하지 않았다.
 
 ## Trivy 보안 업데이트 PR 자동화 (2026-09-29)
@@ -95,6 +102,6 @@
 
 ## 개인정보 보존 배치 후속 확인
 
-- 실제 배치 오류 원인은 미확인이다. 운영 메일은 `BatchExecutionFailed / personal_data_retention / partial`. 일반 SSH는 공개키 인증 오류이며 사용자가 확인한 당시 새 Pod에는 새벽 03:30 실패 로그가 남아 있지 않았다.
-- SHA `776b6f9a`에는 항목별 실패 지표와 정상 완료까지 유지하는 `PersonalDataRetentionFailed` 경보가 있으나 위 배포 실패로 운영 반영되지 않았다. 기존 Resolved 메일은 10분 집계 창 종료였고 정상 재실행을 뜻하지 않았다.
-- 새 배포 후 첫 03:30 실행의 항목별 `reason`과 앱 로그로 실제 오류를 확인한다. `monitoring/alerts.yml`, `application/src/main/java/com/personal/happygallery/application/batch/DefaultPersonalDataRetentionBatchService.java` 참고. 소셜 가입 동의 화면과 관련 업무 검증은 이전 커밋에서 완료했고 이번 작업은 배포/CI 설정만 변경했다.
+- 실제 오류 원인은 위 2026-09-30 이미지 참조 조회 수정 항목에서 확인했다. 운영 메일은 `BatchExecutionFailed / personal_data_retention / partial`이며 일반 SSH는 공개키 인증 오류 상태다.
+- 정상 완료까지 유지하는 `PersonalDataRetentionFailed` 경보는 이전 성공 배포에 반영됐다. 기존 BatchExecutionFailed의 Resolved 메일은 10분 집계 창 종료일 수 있으므로 배치의 정상 재실행으로 판단하지 않는다.
+- 수정 배포 후 첫 실행의 실패 개수와 경보 해소를 확인한다. `monitoring/alerts.yml`, `application/src/main/java/com/personal/happygallery/application/batch/DefaultPersonalDataRetentionBatchService.java` 참고.
