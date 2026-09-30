@@ -114,6 +114,7 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
   });
 
   await page.goto("/guest");
+  await page.getByRole("button", { name: "결제는 했는데 완료 여부를 모르겠어요" }).click();
   const recoveryCard = page.locator(".card")
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();
@@ -214,6 +215,7 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
   });
 
   await page.goto("/guest");
+  await page.getByRole("button", { name: "결제는 했는데 완료 여부를 모르겠어요" }).click();
   const recoveryCard = page.locator(".card")
     .filter({ hasText: "결제 결과 다시 확인" })
     .first();

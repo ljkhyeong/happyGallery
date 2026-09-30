@@ -678,3 +678,126 @@ textarea {
     white-space: pre-line;
   }
 }
+
+// 비회원 조회는 입력과 보조 안내의 순서를 명확히 구분한다.
+.guest-lookup-page {
+  max-width: 672px;
+  padding-top: clamp(2rem, 5vw, 4rem);
+}
+
+.guest-lookup-panel {
+  margin-bottom: 2rem;
+  background: #FFFFFF;
+  border: 1px solid var(--hg-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.guest-lookup-heading {
+  padding: 2rem 2rem 1.5rem;
+
+  h1 {
+    margin-bottom: 0.75rem;
+    font-size: clamp(1.5rem, 4vw, 1.875rem);
+    font-weight: 700;
+    color: var(--hg-dark);
+  }
+
+  p {
+    margin: 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+}
+
+.guest-lookup-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-bottom: 1px solid var(--hg-border);
+
+  a, .btn {
+    display: block;
+    padding: 1rem;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    text-align: center;
+    text-decoration: none;
+    color: var(--hg-ink-soft);
+    font-size: 0.9375rem;
+    font-weight: 500;
+
+    &.active {
+      border-bottom-color: var(--hg-dark);
+      color: var(--hg-dark);
+      font-weight: 700;
+    }
+  }
+}
+
+.guest-lookup-fields {
+  padding: 1.75rem 2rem 2rem;
+}
+
+.guest-lookup-instruction {
+  margin-bottom: 1.5rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.guest-lookup-form {
+  display: grid;
+  gap: 1.25rem;
+
+  .form-label { font-size: 0.9375rem; font-weight: 600; }
+  .form-control { min-height: 48px; border-radius: 6px; background: #FFFFFF; }
+  .btn { min-height: 48px; margin-top: 0.25rem; border-radius: 6px; }
+}
+
+.guest-lookup-help-link {
+  display: block;
+  width: fit-content;
+  margin: 1.25rem auto 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.875rem;
+  text-underline-offset: 4px;
+}
+
+.guest-lookup-help {
+  scroll-margin-top: 7rem;
+  margin-bottom: 2rem;
+
+  h2 { margin-bottom: 1rem; font-size: 1rem; font-weight: 600; }
+  .accordion-item { background: transparent; border-color: var(--hg-border); }
+  .accordion-button {
+    min-height: 56px;
+    padding: 1rem 1.25rem;
+    background: transparent;
+    font-size: 0.875rem;
+    color: var(--hg-dark);
+    box-shadow: none;
+  }
+  .accordion-button:not(.collapsed) { background: var(--hg-surface-alt); }
+  .accordion-body { padding: 1.25rem; }
+  .card { margin: 0 !important; border: 0; background: transparent; box-shadow: none; }
+  .card-body { padding: 0 !important; }
+}
+
+.guest-member-guide {
+  margin-top: 2rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--hg-border);
+
+  h2 { margin-bottom: 0.75rem; font-size: 1rem; font-weight: 600; }
+  p { color: var(--hg-ink-soft); font-size: 0.875rem; line-height: 1.7; }
+  .btn-link { color: var(--hg-ink-soft); }
+}
+
+@media (max-width: 575.98px) {
+  .guest-lookup-heading { padding: 1.5rem 1.25rem 1.25rem; }
+  .guest-lookup-fields { padding: 1.5rem 1.25rem; }
+  .guest-lookup-help .accordion-body { padding: 1.25rem 1rem; }
+}

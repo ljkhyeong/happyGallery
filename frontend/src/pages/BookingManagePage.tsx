@@ -1,7 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { Container, Card, Badge } from "react-bootstrap";
+import { Container, Card } from "react-bootstrap";
 import { useLocation, useSearchParams } from "react-router";
 import {
   cancelBooking,
@@ -9,14 +9,14 @@ import {
   reduceBookingParticipants,
   rescheduleBooking,
 } from "@/features/booking-manage/api";
+import { GuestLookupPanel } from "@/features/guest-lookup/GuestLookupPanel";
+import { GuestMemberGuide } from "@/features/guest-lookup/GuestMemberGuide";
 import { BookingLookupForm } from "@/features/booking-manage/BookingLookupForm";
 import { BookingDetail } from "@/features/booking-manage/BookingDetail";
 import { RescheduleForm } from "@/features/booking-manage/RescheduleForm";
 import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
-import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { trackGuestMemberCta } from "@/features/monitoring/api";
 import { ErrorAlert } from "@/shared/ui";
 import { customerRefundPollingInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
@@ -70,15 +70,6 @@ function BookingManageContent() {
         }
       : null,
   );
-  const claimLoginHref = buildAuthPageHref("/login", {
-    redirectTo: "/my?claim=1",
-    claim: true,
-  });
-  const claimSignupHref = buildAuthPageHref("/signup", {
-    redirectTo: "/my?claim=1",
-    claim: true,
-  });
-
   const {
     data: booking,
     error,
@@ -124,57 +115,8 @@ function BookingManageContent() {
   const currentToken = lookup?.credentials.token ?? "";
 
   return (
-    <Container className="page-container">
-      <Card className="legacy-order-banner mb-4 border-0">
-        <Card.Body className="p-4">
-          <Badge bg="light" text="dark" className="mb-2">비회원 예약 관리</Badge>
-          <h4 className="mb-2">비회원 예약 조회</h4>
-          <p className="text-muted-soft mb-3">
-            비회원으로 신청한 예약을 조회하고 변경·취소 가능 여부를 확인하세요.
-            회원 예약은 <strong>내 정보</strong>에서 확인하세요.
-          </p>
-          <div className="d-flex flex-wrap gap-2">
-            <LinkButton to="/my" variant="dark" size="sm">
-              회원 내 정보
-            </LinkButton>
-            <LinkButton
-              to={claimLoginHref}
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => trackGuestMemberCta("guest_booking_lookup", "login")}
-            >
-              로그인하고 가져오기
-            </LinkButton>
-            <LinkButton
-              to={claimSignupHref}
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => trackGuestMemberCta("guest_booking_lookup", "signup")}
-            >
-              회원가입
-            </LinkButton>
-            <LinkButton
-              to={booking ? `/bookings/new?classId=${booking.classId}` : "/bookings/new"}
-              variant="outline-secondary" size="sm"
-            >
-              {booking ? "같은 수업 예약" : "새 예약 만들기"}
-            </LinkButton>
-          </div>
-          <div className="guest-route-note mt-3">
-            <div className="guest-route-note-title">조회 안내</div>
-            <div className="small text-muted-soft">
-              비회원 예약은 조회 코드로 관리할 수 있고, 회원가입 후에는 같은 휴대폰 번호의 예약을 내 정보로 가져올 수 있습니다.
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
-
-      <Card className="mb-4">
-        <Card.Body>
-          <div className="legacy-order-step-label mb-2">예약 번호와 조회 코드 입력</div>
-          <p className="text-muted-soft small mb-3">
-            예약 조회 후 날짜·시간을 변경하거나 예약을 취소할 수 있습니다.
-          </p>
+    <Container className="page-container guest-lookup-page">
+      <GuestLookupPanel title="비회원 예약 조회" kind="bookings">
           <BookingLookupForm
             onLookup={handleLookup}
             isLoading={isFetching}
@@ -183,14 +125,15 @@ function BookingManageContent() {
               : undefined}
             initialToken={initialCredentials.token || undefined}
           />
-        </Card.Body>
-      </Card>
+      </GuestLookupPanel>
 
       <ErrorAlert error={booking ? null : error} />
 
       {booking && (
         <>
           <BookingDetail booking={booking} />
+          <LinkButton to={`/bookings/new?classId=${booking.classId}`}
+            variant="outline-dark" className="mt-3">같은 수업 예약</LinkButton>
 
           {isBooked && (
             <Card className="mt-4">
@@ -252,6 +195,7 @@ function BookingManageContent() {
           )}
         </>
       )}
+      <GuestMemberGuide source="guest_booking_lookup" />
     </Container>
   );
 }

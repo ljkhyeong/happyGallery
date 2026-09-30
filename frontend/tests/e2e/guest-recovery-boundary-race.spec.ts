@@ -118,6 +118,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
   });
 
   await page.goto("/guest");
+  await page.getByRole("button", { name: "주문·예약 번호나 조회 코드를 잊었어요" }).click();
   const recoveryCard = page.locator(".card")
     .filter({ hasText: "주문·예약 조회 코드 재발급" })
     .first();

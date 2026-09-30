@@ -935,6 +935,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
   let otherPage: Page | undefined;
   try {
     await page.goto("/guest");
+    await page.getByRole("button", { name: "주문·예약 번호나 조회 코드를 잊었어요" }).click();
     await expect(page.getByText(customerA.name).first()).toBeVisible();
     const recoverySection = page
       .getByRole("heading", { name: "주문·예약 조회 코드 재발급" })

@@ -321,6 +321,7 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
   });
 
   await page.goto("/guest");
+  await page.getByRole("button", { name: "주문·예약 번호나 조회 코드를 잊었어요" }).click();
   const recoveryCard = page.locator(".card")
     .filter({ hasText: "주문·예약 조회 코드 재발급" })
     .first();
