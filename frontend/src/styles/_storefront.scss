@@ -971,6 +971,15 @@
   font-size: 0.875rem;
 }
 
+.social-login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding-block: 3px;
+  font-size: 0.875rem;
+}
+
 .social-login-button-naver {
   --bs-btn-color: #FFFFFF;
   --bs-btn-bg: #03A94D;
@@ -984,9 +993,6 @@
   --bs-btn-disabled-color: #FFFFFF;
   --bs-btn-disabled-bg: #03A94D;
   --bs-btn-disabled-border-color: #03A94D;
-  min-height: 48px;
-  padding-block: 3px;
-  font-size: 0.875rem;
 }
 
 .social-login-button-kakao {

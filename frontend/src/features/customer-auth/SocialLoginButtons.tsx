@@ -62,7 +62,7 @@ export function SocialLoginButtons({
             key={provider}
             type="button"
             variant="outline-dark"
-            className={details.buttonClassName}
+            className={`social-login-button ${details.buttonClassName ?? ""}`}
             disabled={startingProvider !== null || (action === "회원가입" && !policyAcceptance)}
             onClick={() => void startSocialLogin(provider)}
           >
