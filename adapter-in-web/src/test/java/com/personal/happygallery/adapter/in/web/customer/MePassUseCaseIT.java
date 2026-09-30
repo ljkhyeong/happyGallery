@@ -161,7 +161,7 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.totalCredits").value(4))
                 .andExpect(jsonPath("$.remainingCredits").value(4))
                 .andExpect(jsonPath("$.receiptUrl").value(nullValue()))
-                .andExpect(jsonPath("$.totalPrice").value(120000));
+                .andExpect(jsonPath("$.totalPrice").value(300000));
     }
 
     @DisplayName("인증 없이 회원 이용권 목록을 조회하면 401을 반환한다")
