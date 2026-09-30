@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 소셜 로그인 버튼 크기 통일 (2026-09-30)
+
+- 시작 SHA `7c562e54cddf605cf6155cb20c4e98d903919d2a`, 미커밋 변경 없음. 네이버 전용의 높이·여백·글자 크기를 공통 social-login-button 스타일로 옮기고 flex 중앙 정렬했다. Google·네이버·카카오 모두 높이 48px, 같은 폭과 글자 크기이며 로그인·회원가입에 함께 적용된다.
+- 검증: frontend `npm run build`, 지역 lint·최종 타입 검사 통과(`/tmp/hg-social-size-{build,local,final}.log`). Playwright CLI로 1280/390px 로그인·회원가입 네 화면에서 버튼 3개의 높이·폭·글자 크기 일치 확인. 화면 캡처 `output/playwright/social-size-*.png`, 치수 로그 `/tmp/hg-social-size-dimensions.log`. API·인증 흐름·의존성은 동일해 이전 관련 검사 결과를 재사용한다. 최종 diff에서 크기 규칙의 중복과 제공자 색상 누락을 검토했다. 푸시·배포 미실행.
+
 ## 배포 검사 정리 경합·이용권 조회 기대값 수정 (2026-09-30)
 
 - 시작 SHA `c338b487421c08bbf6835c2e98e34ecc187b1947`, 미커밋 변경 없음. 실행 `36708978472`에서 프론트엔드 보안 검사·빌드·smoke와 application 세 그룹은 통과했다. 실패는 `rolling-release-test.rb` teardown의 `.git/objects` ENOENT와 `MePassUseCaseIT`의 신규 구매 기대값 120,000원/실제 300,000원이다. 로그 `/tmp/hg-ci-36708978472-failed.log`, 웹 XML `/tmp/hg-ci-36708978472-web/`.
