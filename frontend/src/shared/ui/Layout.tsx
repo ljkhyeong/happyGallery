@@ -80,21 +80,11 @@ export function Layout() {
   return (
     <div className="d-flex flex-column min-vh-100">
       <div className="app-utility-bar">
-        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2" style={{ maxWidth: 1100 }}>
+        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
           <div className="app-utility-copy">충주 해피갤러리 · 공예 클래스와 핸드메이드 작품</div>
-          <div className="d-flex flex-wrap align-items-center gap-3">
-            {!isLoading && (
-              isAuthenticated ? (
-                <>
-                  <Link to="/my/benefits" className="app-utility-link">쿠폰·적립금</Link>
-                  <Link to="/my" className="app-utility-link">내 정보</Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/login" className="app-utility-link">로그인</Link>
-                  <Link to="/signup" className="app-utility-link">회원가입</Link>
-                </>
-              )
+          <div className="app-utility-links">
+            {!isLoading && isAuthenticated && (
+              <Link to="/my/benefits" className="app-utility-link">쿠폰·적립금</Link>
             )}
             <Link to="/my/inquiries" className="app-utility-link">1:1 문의</Link>
             <Link
@@ -109,7 +99,7 @@ export function Layout() {
       </div>
 
       {authStatus === "error" && (
-        <Container className="pt-3" style={{ maxWidth: 1100 }}>
+        <Container className="pt-3">
           <ErrorAlert
             error={authError}
             onRetry={() => { void refreshAuth().catch(() => undefined); }}
@@ -119,7 +109,7 @@ export function Layout() {
       )}
 
       <Navbar expand="lg" collapseOnSelect className="app-navbar" data-bs-theme="light">
-        <Container style={{ maxWidth: 1100 }}>
+        <Container>
           <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
             <span className="app-brand-mark">해피갤러리</span>
             <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
@@ -197,7 +187,7 @@ export function Layout() {
       </main>
 
       <footer className="app-footer py-4 small">
-        <Container style={{ maxWidth: 1100 }}>
+        <Container>
           {workshopError && !workshop && (
             <ErrorAlert
               error={workshopError}

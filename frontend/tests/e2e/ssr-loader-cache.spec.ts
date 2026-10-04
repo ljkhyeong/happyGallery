@@ -170,7 +170,9 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
   await expect(page.getByLabel("검색", { exact: true })).toHaveValue("보존");
   await expect(page.getByLabel("정렬", { exact: true })).toHaveValue("price_asc");
   await page.getByRole("link", { name: new RegExp(selected.name) }).click();
-  await expect(page.getByRole("heading", { name: selected.name })).toBeVisible();
+  // 목록 카드에도 같은 이름의 제목이 있으므로 상세 URL로 이동을 먼저 확인한다.
+  await expect(page).toHaveURL(new RegExp(`/products/${selected.id}$`));
+  await expect(page.getByRole("heading", { level: 1, name: selected.name })).toBeVisible();
   await page.goBack();
   await expect(page.getByLabel("검색", { exact: true })).toHaveValue("보존");
   await page.reload();

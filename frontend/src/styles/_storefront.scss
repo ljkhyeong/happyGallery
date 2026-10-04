@@ -150,132 +150,6 @@
   border-top: 3px solid var(--hg-accent);
 }
 
-// ── Hero section ───────────────────────────────────────
-.store-hero {
-  position: relative;
-  overflow: hidden;
-  padding: 6rem 0 5rem;
-  background:
-    radial-gradient(ellipse at 20% 50%, rgba(0, 184, 212, 0.08), transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(255, 255, 255, 0.04), transparent 40%),
-    var(--hg-dark);
-  color: #FFFFFF;
-
-  // Grain overlay for texture
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    background-size: 200px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  > * {
-    position: relative;
-    z-index: 1;
-  }
-}
-
-.store-hero-badge {
-  display: inline-block;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  letter-spacing: 0.15em;
-  padding: 0.4rem 0.9rem;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.7);
-  background: transparent !important;
-  animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-.store-hero-title {
-  font-family: "Pretendard Variable", sans-serif;
-  font-size: 3.5rem;
-  line-height: 1.1;
-  letter-spacing: 0;
-  font-weight: 800;
-  color: #FFFFFF;
-  animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
-}
-
-.store-hero-copy {
-  max-width: 38rem;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: "Pretendard Variable", sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  line-height: 1.7;
-  animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
-}
-
-.store-hero-actions {
-  animation: fadeUp 0.6s cubic-bezier(0.4, 0, 0.2, 1) 0.3s both;
-}
-
-.store-hero-btn-primary {
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0.75rem 2rem;
-}
-
-.store-hero-btn-secondary {
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  padding: 0.75rem 2rem;
-}
-
-// ── Highlight panel (stats) ────────────────────────────
-.store-highlight-panel {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 2rem;
-  animation: slideInRight 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.2s both;
-}
-
-.store-highlight-kicker,
-.store-section-kicker,
-.store-feature-kicker,
-.store-purchase-kicker,
-.store-detail-kicker,
-.product-card-kicker,
-.legacy-order-step-label {
-  color: var(--hg-accent);
-  font-family: "Gowun Batang", serif;
-  font-size: 0.625rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.store-highlight-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem;
-}
-
-.store-highlight-value {
-  font-family: "Gowun Batang", serif;
-  font-size: 2.5rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  color: #FFFFFF;
-}
-
-.store-highlight-unit {
-  font-size: 0.5em;
-  font-weight: 400;
-  opacity: 0.5;
-}
-
-.store-highlight-label {
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 0.75rem;
-  margin-top: 0.25rem;
-}
-
 // ── Section header ─────────────────────────────────────
 .store-section-header {
   display: flex;
@@ -310,9 +184,7 @@
 }
 
 // ── Shared card base ───────────────────────────────────
-.store-feature-card,
 .lookup-panel,
-.product-card,
 .store-detail-card,
 .store-purchase-card,
 .legacy-order-banner,
@@ -320,72 +192,6 @@
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
   box-shadow: none;
-}
-
-// ── Feature cards ──────────────────────────────────────
-.store-feature-card {
-  display: block;
-  padding: 2rem;
-  color: $body-color;
-  text-decoration: none;
-  background: var(--hg-surface);
-  position: relative;
-  overflow: hidden;
-  transition: all var(--hg-transition);
-
-  &::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 3px;
-    background: var(--hg-accent);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  &:hover,
-  &:focus-visible {
-    color: $body-color;
-    transform: translateY(-3px);
-    border-color: var(--hg-dark);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
-    outline: none;
-
-    &::after {
-      width: 100%;
-    }
-  }
-}
-
-.store-feature-card-accent {
-  background: var(--hg-surface-alt);
-}
-
-.store-feature-title {
-  font-family: "Pretendard Variable", sans-serif;
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--hg-dark);
-  margin-bottom: 0.75rem;
-}
-
-.store-feature-desc {
-  color: var(--hg-ink-soft);
-  font-size: 0.875rem;
-  line-height: 1.7;
-  margin-bottom: 1rem;
-}
-
-.store-feature-cta,
-.product-card-cta {
-  color: var(--hg-accent);
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  transition: letter-spacing var(--hg-transition);
 }
 
 // ── Lookup panel ───────────────────────────────────────
@@ -416,84 +222,6 @@
   margin-bottom: 0.35rem;
 }
 
-// ── Product card ───────────────────────────────────────
-.product-card {
-  color: $body-color;
-  border: 1px solid var(--hg-border);
-  position: relative;
-  overflow: hidden;
-  transition: all var(--hg-transition);
-
-  &::after {
-    content: "";
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 0;
-    height: 2px;
-    background: var(--hg-accent);
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  &:hover,
-  &:focus-visible {
-    color: $body-color;
-    transform: translateY(-4px);
-    border-color: var(--hg-dark);
-    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.1);
-
-    &::after {
-      width: 100%;
-    }
-
-    .product-card-cta {
-      letter-spacing: 0.12em;
-    }
-  }
-}
-
-.product-card-name {
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.product-card-media {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  background: var(--hg-surface-alt);
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
-  }
-}
-
-.product-card:hover .product-card-media img,
-.product-card:focus-visible .product-card-media img {
-  transform: scale(1.025);
-}
-
-.product-card-copy {
-  min-height: 2.5rem;
-  font-size: 0.8125rem;
-  line-height: 1.6;
-}
-
-.product-card-price {
-  font-family: "Gowun Batang", serif;
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: 0;
-}
-
-.product-card-divider {
-  border-top: 1px solid var(--hg-border);
-}
-
 // ── List header ────────────────────────────────────────
 .store-list-header {
   padding: 2rem;
@@ -505,11 +233,6 @@
   font-family: "Gowun Batang", serif;
   font-weight: 800;
   letter-spacing: 0;
-}
-
-.store-list-meta {
-  color: var(--hg-dark);
-  font-weight: 700;
 }
 
 // ── Detail page ────────────────────────────────────────
@@ -540,13 +263,23 @@
   color: var(--hg-dark);
 }
 
-.store-detail-card {
-  background: transparent;
-  border: none;
+// 데스크톱은 사진(왼쪽 고정)과 정보·주문표(오른쪽), 모바일은 DOM 순서대로 쌓는다.
+.store-product-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  align-items: start;
+}
+
+.store-product-gallery {
+  position: sticky;
+  top: 6rem;
 }
 
 .store-product-intro {
-  padding: 0 0 clamp(1.75rem, 4vw, 3rem);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hg-border);
 }
 
 .store-detail-meta {
@@ -604,28 +337,25 @@
 }
 
 .store-detail-title {
-  font-family: "Pretendard Variable", sans-serif;
-  max-width: 18ch;
   margin: 0;
-  font-size: clamp(2.25rem, 5vw, 3.75rem);
-  font-weight: 800;
-  line-height: 1.18;
-  letter-spacing: -0.025em;
+  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+  line-height: 1.25;
   color: var(--hg-dark);
 }
 
 .store-detail-description {
-  max-width: 42rem;
-  margin: 1.25rem 0 0;
-  font-size: 0.9375rem;
+  margin: 1rem 0 1rem;
+  color: #5E554C;
+  font-size: 0.95rem;
   line-height: 1.8;
+  white-space: pre-line;
 }
 
 .store-detail-price-block {
   display: flex;
   align-items: baseline;
   gap: 0.8rem;
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
 
   > span {
     color: var(--hg-ink-soft);
@@ -635,9 +365,11 @@
 
 .store-detail-media {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  margin: 0;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
-  background: var(--hg-surface-alt);
+  border-radius: var(--hg-radius-media);
+  background: var(--hg-surface-dim);
 
   img {
     width: 100%;
@@ -646,21 +378,28 @@
   }
 }
 
-.store-detail-card .store-section-desc {
-  white-space: pre-line;
+.store-detail-media-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--hg-ink-soft);
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: 1.5rem;
 }
 
 .store-detail-price {
-  font-family: "Gowun Batang", serif;
   font-size: clamp(1.6rem, 3vw, 2rem);
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0;
   color: var(--hg-dark);
 }
 
 .store-detail-facts {
-  padding: clamp(2rem, 5vw, 3.5rem) 0;
-  border-bottom: 1px solid var(--hg-border);
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
 }
 
 .store-detail-section-heading {
@@ -728,7 +467,8 @@
   overflow: hidden;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  box-shadow: 0 24px 64px rgba(61, 48, 36, 0.11);
+  border-radius: var(--hg-radius-media);
+  box-shadow: var(--hg-shadow-soft);
 
   &::before {
     position: absolute;
@@ -765,20 +505,6 @@
   margin: 0;
 }
 
-.store-order-sheet-base-price {
-  flex: 0 0 auto;
-  text-align: right;
-
-  span {
-    display: block;
-    color: var(--hg-ink-soft);
-    font-size: 0.6875rem;
-  }
-
-  strong {
-    font-size: 1rem;
-  }
-}
 
 .store-order-sheet-step {
   padding: 1.5rem 0;
@@ -1189,9 +915,7 @@
 
 // ── Reviews ────────────────────────────────────────────
 .review-section {
-  margin-top: 3.5rem;
-  padding-top: 2rem;
-  border-top: 1px solid var(--hg-border);
+  margin-top: clamp(2.5rem, 6vw, 4rem);
 }
 
 .review-section-header {
@@ -1234,9 +958,10 @@
   grid-template-columns: minmax(14rem, 0.8fr) minmax(18rem, 1.2fr);
   gap: 1.5rem;
   margin-bottom: 1.25rem;
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   border: 1px solid var(--hg-border);
-  background: var(--hg-surface-alt);
+  border-radius: var(--hg-radius-media);
+  background: var(--hg-surface);
 }
 
 .review-histogram {
@@ -1578,69 +1303,21 @@
   }
 }
 
-.class-detail-page {
-  max-width: 1120px;
-}
+@media (max-width: 991.98px) {
+  .store-product-layout {
+    grid-template-columns: 1fr;
+  }
 
-.class-detail-media {
-  overflow: hidden;
-  background: var(--hg-surface-alt);
-  aspect-ratio: 4 / 3;
-}
+  .store-product-gallery {
+    position: static;
+  }
 
-.class-detail-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.class-detail-card {
-  background: var(--hg-surface-alt);
-}
-
-.class-detail-card .card-body {
-  padding: clamp(1.5rem, 4vw, 2.5rem);
-}
-
-.class-detail-title {
-  margin-bottom: 1rem;
-  font-size: clamp(2rem, 5vw, 3.25rem);
-}
-
-.class-detail-description {
-  white-space: pre-wrap;
-}
-
-.class-detail-meta {
-  display: grid;
-  gap: 0;
-  margin: 1.5rem 0;
-}
-
-.class-detail-meta > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0;
-  border-bottom: 1px solid var(--hg-border);
-}
-
-.class-detail-meta dt {
-  color: var(--hg-ink-soft);
-  font-weight: 500;
-}
-
-.class-detail-meta dd {
-  margin: 0;
-  text-align: right;
-  font-weight: 600;
+  .store-detail-media {
+    aspect-ratio: 4 / 3;
+  }
 }
 
 // ── Purchase panel sticky ──────────────────────────────
-.purchase-panel {
-  border-color: var(--hg-dark);
-  border-width: 2px;
-}
 
 .store-mobile-purchase-cta {
   display: none;
@@ -1675,7 +1352,6 @@
     display: none;
   }
 
-  .store-highlight-grid,
   .store-detail-terms > div {
     grid-template-columns: 1fr;
   }
@@ -1685,7 +1361,7 @@
   }
 
   .store-detail-title {
-    font-size: 2.25rem;
+    font-size: 1.85rem;
   }
 
   .store-detail-availability {
@@ -1700,10 +1376,6 @@
   .store-order-sheet-header {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .store-order-sheet-base-price {
-    text-align: left;
   }
 }
 

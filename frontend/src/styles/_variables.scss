@@ -22,6 +22,14 @@ $headings-line-height: 1.32;
 
 $spacer: 1rem;
 
+// 헤더·본문·푸터가 같은 폭(1180px)에서 정렬되도록 xl 이상은 같은 container 폭을 쓴다.
+$container-max-widths: (
+  sm: 540px,
+  md: 720px,
+  lg: 960px,
+  xl: 1180px,
+);
+
 $border-radius:    0.375rem;
 $border-radius-sm: 0.25rem;
 $border-radius-lg: 0.75rem;

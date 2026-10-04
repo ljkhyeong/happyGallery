@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
-import { fetchUpcomingSlots } from "@/features/booking-create/api";
+import { UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -23,7 +23,6 @@ interface Props {
   successMessage?: string;
 }
 
-const UPCOMING_DAYS = 14;
 
 export function RescheduleForm({
   classId,
@@ -57,8 +56,7 @@ export function RescheduleForm({
     enabled: date.length > 0,
   });
   const upcomingQuery = useQuery({
-    queryKey: queryKeys.slotAvailability.upcoming.byClass(classId, UPCOMING_DAYS),
-    queryFn: () => fetchUpcomingSlots(classId, UPCOMING_DAYS),
+    ...upcomingSlotsQuery(classId),
   });
 
   const applySuccess = async (requireCurrent: () => void) => {
@@ -96,7 +94,7 @@ export function RescheduleForm({
       }}
     >
       <Form.Group controlId={`booking-reschedule-quick-date-${currentSlotId}`} className="mb-3">
-        <Form.Label>빠른 날짜 선택 ({UPCOMING_DAYS}일 이내)</Form.Label>
+        <Form.Label>빠른 날짜 선택 ({UPCOMING_SLOT_DAYS}일 이내)</Form.Label>
         <Form.Select
           value={availableDates.includes(date) ? date : ""}
           disabled={availableDates.length === 0 || mutation.isPending}
@@ -111,7 +109,7 @@ export function RescheduleForm({
               : upcomingQuery.error && !upcomingQuery.data
                 ? "날짜를 다시 조회해 주세요"
                 : availableDates.length === 0
-                  ? `${UPCOMING_DAYS}일 내 변경 가능한 날짜가 없습니다`
+                  ? `${UPCOMING_SLOT_DAYS}일 내 변경 가능한 날짜가 없습니다`
                   : "날짜를 선택하세요"}
           </option>
           {availableDates.map((availableDate) => (

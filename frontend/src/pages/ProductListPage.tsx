@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Container, Row, Col } from "react-bootstrap";
+import { Container } from "react-bootstrap";
 import { fetchProducts, fetchCategories } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { ProductFilterBar } from "@/features/product/ProductFilterBar";
@@ -92,13 +92,11 @@ export function ProductListPage({
       <ErrorAlert error={error} />
       {products && products.length === 0 && <EmptyState message="조건에 맞는 상품이 없습니다." />}
       {products && products.length > 0 && (
-        <Row xs={1} sm={2} md={3} className="g-4 anim-fade-up anim-delay-2">
+        <div className="product-grid anim-fade-up anim-delay-2">
           {products.map((p) => (
-            <Col key={p.id}>
-              <ProductCard product={p} />
-            </Col>
+            <ProductCard key={p.id} product={p} headingLevel={2} />
           ))}
-        </Row>
+        </div>
       )}
     </Container>
   );

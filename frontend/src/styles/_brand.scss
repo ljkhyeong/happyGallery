@@ -1,169 +1,551 @@
-// ── Chungju happyGallery brand experience ─────────────
-.store-hero {
-  min-height: clamp(520px, calc(86svh - 118px), 700px);
-  background-color: #F7F3EA;
-  background-position: center, right center;
-  background-repeat: no-repeat;
-  background-size: 100% 100%, cover;
-}
+// ── 홈·클래스·단체수업 화면 ──────────────────────────────
+// 섹션 배경은 한지(paper)·한지 밝은 면(surface)·잎(leaf) 계열만 번갈아 쓴다.
 
-.store-hero-title {
-  margin-bottom: 0.65rem;
-  font-size: 6.75rem;
-  letter-spacing: 0;
-}
-
-.store-hero-lead {
-  margin-bottom: 1.25rem;
-  color: var(--hg-burgundy);
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.7rem;
-  font-weight: 700;
-}
-
-.store-hero-content,
-.home-band,
+.home-hero,
+.home-section,
 .home-group-band,
-.class-catalog-hero,
-.class-catalog-page {
+.class-catalog-page,
+.class-detail-page,
+.group-class-page {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
-.home-band {
-  padding-block: clamp(3rem, 6vw, 5.5rem);
+// ── 히어로: 사진 카드(문구 겹침) + 바로 예약 패널 ──────────
+.home-hero {
+  padding-block: clamp(1.25rem, 3vw, 2.5rem) clamp(2rem, 4vw, 3rem);
 }
 
-.home-section-heading,
-.class-catalog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: end;
-  gap: 2rem;
+.home-hero-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(21rem, 0.75fr);
+  gap: clamp(1rem, 2.5vw, 2rem);
+  align-items: stretch;
 }
 
-.home-class-section {
-  background: var(--hg-mint);
+.home-hero-visual {
+  position: relative;
+  min-height: 34rem;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: var(--hg-surface-dim);
+  isolation: isolate;
+
+  > img {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(0deg, rgba(30, 24, 20, 0.82) 0%, rgba(30, 24, 20, 0.35) 45%, rgba(30, 24, 20, 0) 70%),
+      linear-gradient(90deg, rgba(30, 24, 20, 0.35) 0%, rgba(30, 24, 20, 0) 60%);
+  }
 }
 
-.home-craft-specialties {
-  max-width: 62rem;
-  margin: 0 0 1.75rem;
-  color: var(--hg-olive);
-  font-size: 0.875rem;
+.home-hero-copy {
+  position: absolute;
+  right: clamp(1.25rem, 3vw, 2.5rem);
+  bottom: clamp(1.25rem, 3vw, 2.5rem);
+  left: clamp(1.25rem, 3vw, 2.5rem);
+  color: #FFFDF8;
+}
+
+.home-hero-eyebrow {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.3rem 0.75rem;
+  background: rgba(255, 253, 248, 0.18);
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.home-hero-title {
+  margin-bottom: 0.35rem;
+  color: #FFFDF8;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: clamp(2.75rem, 5.5vw, 4.5rem);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.home-hero-lead {
+  margin-bottom: 0.9rem;
+  color: #F3E6D4;
+  font-family: "Gowun Batang", Georgia, serif;
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+  font-weight: 700;
+}
+
+.home-hero-text {
+  max-width: 30rem;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 253, 248, 0.86);
+  font-size: 1rem;
   line-height: 1.8;
 }
 
-.home-class-layout {
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+// ── 바로 예약하기 패널 ───────────────────────────────────
+.quick-booking {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: 1.25rem;
+  box-shadow: var(--hg-shadow-soft);
+
+  h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 800;
+  }
+}
+
+.quick-booking-sub {
+  margin: 0.25rem 0 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.88rem;
+}
+
+.quick-booking-step {
+  margin-top: 1.1rem;
+}
+
+.quick-booking-step-title {
+  margin-bottom: 0.5rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.quick-booking-classes {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(20rem, 1.1fr);
-  gap: clamp(2rem, 6vw, 5.5rem);
+  gap: 0.45rem;
+}
+
+.quick-booking-class {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 0.75rem;
   align-items: center;
-}
-
-.home-class-media,
-.home-editorial-media,
-.home-story-media,
-.group-class-intro figure,
-.class-catalog-media {
-  margin: 0;
-  overflow: hidden;
-  background: var(--hg-surface-dim);
-}
-
-.home-class-media {
-  aspect-ratio: 4 / 3;
-}
-
-.home-class-media img,
-.home-editorial-media img,
-.home-story-media img,
-.group-class-intro img,
-.class-catalog-media img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  padding: 0.45rem 0.75rem 0.45rem 0.45rem;
+  color: var(--hg-dark);
+  text-align: left;
+  background: var(--hg-surface);
+  border: 1.5px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
+  transition: border-color var(--hg-transition), background var(--hg-transition);
+
+  img {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+
+  strong,
+  small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    font-size: 0.92rem;
+  }
+
+  small {
+    color: var(--hg-ink-soft);
+    font-size: 0.75rem;
+  }
+
+  b {
+    font-size: 0.88rem;
+  }
+
+  &:hover {
+    border-color: var(--hg-accent);
+  }
+
+  &[aria-pressed="true"] {
+    background: var(--hg-leaf-tint);
+    border-color: var(--hg-leaf);
+  }
 }
 
-.home-class-media:hover img,
-.home-editorial-media:hover img,
-.home-story-media:hover img,
-.group-class-intro figure:hover img,
-.class-catalog-item:hover .class-catalog-media img {
-  transform: scale(1.025);
+.quick-booking-days,
+.quick-booking-times {
+  display: grid;
+  gap: 0.4rem;
+
+  button {
+    padding: 0.5rem 0.25rem;
+    color: var(--hg-dark);
+    text-align: center;
+    background: var(--hg-paper);
+    border: 1.5px solid transparent;
+    border-radius: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    transition: border-color var(--hg-transition), background var(--hg-transition);
+
+    &:hover:not(:disabled) {
+      border-color: var(--hg-accent);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+    }
+  }
 }
 
-.home-class-list {
-  border-bottom: 1px solid rgba(42, 38, 34, 0.25);
+.quick-booking-days {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+
+  span {
+    display: block;
+    color: var(--hg-ink-soft);
+    font-size: 0.72rem;
+  }
+
+  b {
+    font-size: 1.05rem;
+  }
+
+  button[aria-pressed="true"] {
+    color: #FFFDF8;
+    background: var(--hg-leaf-deep);
+
+    span {
+      color: rgba(255, 253, 248, 0.78);
+    }
+  }
 }
 
-.home-class-row {
+.quick-booking-times {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  button {
+    font-size: 0.88rem;
+    font-weight: 700;
+    background: var(--hg-surface);
+    border-color: var(--hg-border);
+  }
+
+  small {
+    display: block;
+    color: var(--hg-leaf);
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  button[aria-pressed="true"] {
+    background: var(--hg-leaf-tint);
+    border-color: var(--hg-leaf);
+  }
+}
+
+.quick-booking-more {
+  display: inline-block;
+  margin-top: 0.5rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
+}
+
+.quick-booking-state {
+  margin: 1rem 0 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.88rem;
+}
+
+.quick-booking-action {
+  margin-top: auto;
+  padding-top: 1.25rem;
+
+  p {
+    margin: 0.6rem 0 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.78rem;
+    text-align: center;
+  }
+}
+
+// ── 바로가기 ─────────────────────────────────────────────
+.home-shortcuts {
+  border-block: 1px solid var(--hg-border);
+  background: var(--hg-surface);
+}
+
+.home-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.home-shortcut {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1.5rem 2.75rem 1.5rem 1.25rem;
+  color: var(--hg-dark);
+  text-decoration: none;
+  transition: background var(--hg-transition), color var(--hg-transition);
+
+  & + & {
+    border-left: 1px solid var(--hg-border);
+  }
+
+  strong {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  span {
+    color: var(--hg-ink-soft);
+    font-size: 0.82rem;
+  }
+
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-accent-deep);
+    background: var(--hg-clay-tint);
+  }
+}
+
+.home-shortcut-arrow {
+  position: absolute;
+  top: 50%;
+  right: 1.25rem;
+  color: var(--hg-accent) !important;
+  font-size: 1.1rem !important;
+  transform: translateY(-50%);
+  transition: transform var(--hg-transition);
+}
+
+@media (min-width: 992px) {
+  .home-shortcut:first-child {
+    padding-left: 0;
+  }
+}
+
+.home-shortcut:hover .home-shortcut-arrow,
+.home-shortcut:focus-visible .home-shortcut-arrow {
+  transform: translate(4px, -50%);
+}
+
+// ── 공통 섹션 머리 ───────────────────────────────────────
+.home-section {
+  padding-block: clamp(3.5rem, 7vw, 6rem);
+}
+
+.home-section-raised {
+  background: var(--hg-surface);
+}
+
+.home-section-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  min-height: 6rem;
-  padding: 1.25rem 0;
-  color: var(--hg-dark);
-  border-top: 1px solid rgba(42, 38, 34, 0.25);
-  text-decoration: none;
-  transition: padding 220ms ease, color 220ms ease;
+  align-items: flex-end;
+  gap: 1.5rem 2rem;
+  margin-bottom: 2rem;
 }
 
-.home-class-row div {
-  min-width: 0;
-}
-
-.home-class-row strong,
-.home-class-row span {
-  display: block;
-}
-
-.home-class-row strong {
-  margin-bottom: 0.35rem;
+.home-section-title {
+  margin-bottom: 0.6rem;
   font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.4rem;
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  font-weight: 400;
+  line-height: 1.3;
 }
 
-.home-class-row div span {
+.home-section-desc {
+  max-width: 36rem;
+  margin: 0;
   color: var(--hg-ink-soft);
-  font-size: 0.875rem;
 }
 
-.home-class-row > span {
+.home-section-link {
   flex: 0 0 auto;
-  color: var(--hg-burgundy);
-  font-size: 1.25rem;
+  color: var(--hg-dark);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 0.15rem;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-accent-deep);
+  }
 }
 
-.home-class-row:hover,
-.home-class-row:focus-visible {
-  padding-inline: 0.65rem;
-  color: var(--hg-burgundy);
+.home-craft-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 2rem;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 0.35rem 0.85rem;
+    color: var(--hg-leaf-deep);
+    background: var(--hg-leaf-tint);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
 }
 
+// ── 홈 클래스 카드 ───────────────────────────────────────
+.home-class-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.home-class-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--hg-dark);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
+  text-decoration: none;
+  transition: border-color var(--hg-transition), box-shadow var(--hg-transition), transform var(--hg-transition);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--hg-dark);
+    border-color: var(--hg-accent);
+    box-shadow: var(--hg-shadow-soft);
+    transform: translateY(-3px);
+  }
+}
+
+.home-class-card-media {
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--hg-surface-dim);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+.home-class-card:hover .home-class-card-media img,
+.home-class-card:focus-visible .home-class-card-media img {
+  transform: scale(1.04);
+}
+
+.home-class-card-body {
+  padding: 1.25rem 1.35rem 1.5rem;
+
+  h3 {
+    margin: 0.35rem 0 0.4rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.9rem;
+  }
+}
+
+.home-class-card-next {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.9rem !important;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hg-border);
+  font-size: 0.84rem !important;
+
+  b {
+    color: var(--hg-leaf);
+    font-weight: 700;
+  }
+
+  b.is-few {
+    color: var(--hg-accent-deep);
+  }
+}
+
+.home-class-card-meta {
+  color: var(--hg-leaf);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+// ── 단체수업 띠 ──────────────────────────────────────────
 .home-group-band {
-  padding-block: clamp(4.5rem, 8vw, 7.5rem);
-  color: #FFFDF8;
-  background: var(--hg-burgundy);
+  padding-block: clamp(4rem, 8vw, 6.5rem);
+  color: var(--hg-surface);
+  background: var(--hg-leaf-deep);
 }
 
 .home-editorial-layout,
 .home-story-layout,
 .group-class-intro {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.85fr);
-  gap: clamp(2.5rem, 7vw, 7rem);
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  gap: clamp(2.5rem, 6vw, 6rem);
   align-items: center;
 }
 
-.home-editorial-media {
-  aspect-ratio: 16 / 10;
+.home-editorial-media,
+.home-story-media,
+.group-class-intro figure,
+.class-catalog-media,
+.class-detail-media {
+  margin: 0;
+  overflow: hidden;
+  border-radius: var(--hg-radius-media);
+  background: var(--hg-surface-dim);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+.home-editorial-media,
+.home-story-media {
+  aspect-ratio: 16 / 11;
 }
 
 .home-editorial-copy .store-section-kicker {
-  color: #F4DDE2;
+  color: #D9C9A8;
 }
 
 .home-editorial-copy h2,
@@ -173,10 +555,9 @@
 .group-class-inquiry h2 {
   margin-bottom: 1.25rem;
   font-family: "Gowun Batang", Georgia, serif;
-  font-size: 3.25rem;
+  font-size: clamp(1.85rem, 3.4vw, 2.75rem);
   font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0;
+  line-height: 1.35;
 }
 
 .home-editorial-copy p:not(.store-section-kicker),
@@ -188,73 +569,18 @@
 }
 
 .home-editorial-copy p:not(.store-section-kicker) {
-  color: rgba(255, 253, 248, 0.72);
+  color: rgba(255, 253, 248, 0.78);
 }
 
-.home-story-section {
-  background: #FFFCF7;
-}
-
-.home-story-layout {
-  grid-template-columns: minmax(18rem, 0.8fr) minmax(0, 1.2fr);
-}
-
-.home-story-media {
-  aspect-ratio: 16 / 10;
-}
-
-.home-story-links {
-  margin-bottom: 1.5rem;
-  border-top: 1px solid var(--hg-border);
-}
-
-.home-story-links > a {
-  display: grid;
-  grid-template-columns: 6rem minmax(0, 1fr) auto;
-  gap: 1rem;
-  align-items: center;
-  min-height: 3.75rem;
-  color: var(--hg-dark);
-  border-bottom: 1px solid var(--hg-border);
-  text-decoration: none;
-}
-
-.home-story-links > a > span:first-child {
-  color: var(--hg-olive);
-  font-size: 0.75rem;
-}
-
-.home-story-links strong {
-  min-width: 0;
-  font-size: 0.9rem;
-}
-
-.home-story-links > a > span:last-child {
-  color: var(--hg-burgundy);
-}
-
-.home-story-links > a:hover strong,
-.home-story-links > a:focus-visible strong {
-  color: var(--hg-burgundy);
-}
-
-.home-product-section {
-  background: #F3E6E8;
-}
-
-.home-product-section .store-section-desc,
-.home-product-section .text-muted-soft {
-  color: #6B625A;
-}
-
+// ── 공지·이벤트 ──────────────────────────────────────────
 .home-updates-section {
-  padding-block: clamp(3.25rem, 6vw, 5.5rem);
-  background: #FFFDF8;
+  background: var(--hg-surface);
+  border-bottom: 1px solid var(--hg-border);
 }
 
 .home-updates-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: clamp(2rem, 4vw, 4rem);
   align-items: stretch;
 }
@@ -263,36 +589,29 @@
   min-width: 0;
 }
 
-.home-notice-panel {
-  padding: clamp(1.75rem, 3vw, 2.5rem) 0;
-  border-top: 4px solid var(--hg-burgundy);
-  border-bottom: 1px solid var(--hg-border);
-}
-
 .home-update-heading {
-  margin-bottom: 1.75rem;
-}
+  margin-bottom: 1.5rem;
 
-.home-update-heading .store-section-kicker,
-.home-event-labels .store-section-kicker,
-.home-event-empty .store-section-kicker {
-  margin-bottom: 0.45rem;
-}
+  .store-section-kicker {
+    margin-bottom: 0.45rem;
+  }
 
-.home-update-heading h2 {
-  margin-bottom: 0.55rem;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: clamp(2rem, 3vw, 2.7rem);
-}
+  h2 {
+    margin-bottom: 0.45rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+    font-weight: 400;
+  }
 
-.home-update-heading > p:last-child {
-  margin: 0;
-  color: var(--hg-ink-soft);
-  font-size: 0.9rem;
+  > p:last-child {
+    margin: 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.9rem;
+  }
 }
 
 .home-notice-list {
-  border-top: 1px solid var(--hg-border);
+  border-top: 1px solid var(--hg-dark);
 }
 
 .home-notice-row {
@@ -301,16 +620,16 @@
   gap: 1rem;
   align-items: center;
   padding-block: 1rem;
-  color: var(--hg-ink);
+  color: var(--hg-dark);
   border-bottom: 1px solid var(--hg-border);
   text-decoration: none;
   transition: color 180ms ease, padding-left 180ms ease;
-}
 
-.home-notice-row:hover,
-.home-notice-row:focus-visible {
-  padding-left: 0.35rem;
-  color: var(--hg-burgundy);
+  &:hover,
+  &:focus-visible {
+    padding-left: 0.35rem;
+    color: var(--hg-accent-deep);
+  }
 }
 
 .home-notice-title {
@@ -318,15 +637,15 @@
   min-width: 0;
   gap: 0.55rem;
   align-items: center;
-}
 
-.home-notice-title strong {
-  min-width: 0;
-  overflow: hidden;
-  font-size: 0.92rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .home-notice-meta {
@@ -334,18 +653,19 @@
   flex-direction: column;
   align-items: flex-end;
   color: var(--hg-ink-soft);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.55;
   white-space: nowrap;
 }
 
 .home-event-panel {
   display: grid;
-  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(12rem, 0.85fr) minmax(0, 1.15fr);
   min-height: 100%;
   overflow: hidden;
   color: #FFFFFF;
-  background: #302824;
+  background: var(--hg-dark);
+  border-radius: var(--hg-radius-media);
 }
 
 .home-event-panel:not(.has-media) .home-event-copy,
@@ -363,25 +683,33 @@
   margin: 0;
   overflow: hidden;
   background: #211B18;
-}
 
-.home-event-media img {
-  width: 100%;
-  height: 100%;
-  min-height: 22rem;
-  object-fit: cover;
-  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  img {
+    width: 100%;
+    height: 100%;
+    min-height: 20rem;
+    object-fit: cover;
+    transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
 
 .home-event-panel:hover .home-event-media img {
-  transform: scale(1.025);
+  transform: scale(1.03);
 }
 
 .home-event-copy {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: clamp(2rem, 4vw, 3.25rem);
+  padding: clamp(1.75rem, 3.5vw, 3rem);
+
+  h2 {
+    margin-bottom: 0.9rem;
+    color: #FFFFFF;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+    line-height: 1.3;
+  }
 }
 
 .home-event-labels {
@@ -390,7 +718,11 @@
   gap: 0.75rem;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
+
+  .store-section-kicker {
+    margin-bottom: 0;
+  }
 }
 
 .home-event-labels .store-section-kicker,
@@ -398,24 +730,16 @@
   color: #D9C3A3;
 }
 
-.home-event-copy h2 {
-  margin-bottom: 1rem;
-  color: #FFFFFF;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: clamp(1.75rem, 2.6vw, 2.35rem);
-  line-height: 1.25;
-}
-
 .home-event-summary {
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
   color: rgba(255, 255, 255, 0.86);
   line-height: 1.7;
 }
 
 .home-event-period {
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.6rem;
   color: rgba(255, 255, 255, 0.62);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   line-height: 1.65;
 }
 
@@ -427,40 +751,73 @@
 
 .home-event-empty {
   align-items: flex-start;
-}
 
-.home-event-empty > p:not(.store-section-kicker) {
-  max-width: 30rem;
-  margin-bottom: 1.75rem;
-  color: rgba(255, 255, 255, 0.72);
+  > p:not(.store-section-kicker) {
+    max-width: 30rem;
+    margin-bottom: 1.75rem;
+    color: rgba(255, 255, 255, 0.72);
+  }
 }
 
 .event-coupon-panel {
   overflow: hidden;
-  background:
-    linear-gradient(120deg, rgba(120, 40, 55, 0.1), rgba(255, 255, 255, 0.65)),
-    #F7F1EC;
-  box-shadow: inset 0 0 0 1px rgba(93, 44, 42, 0.12);
-}
+  background: var(--hg-clay-tint);
+  border-radius: var(--hg-radius-media);
+  box-shadow: inset 0 0 0 1px rgba(143, 73, 52, 0.16);
 
-.event-coupon-panel .card-body {
-  padding: clamp(1.5rem, 4vw, 2.25rem);
+  .card-body {
+    padding: clamp(1.5rem, 4vw, 2.25rem);
+  }
 }
 
 .event-coupon-kicker {
   margin-bottom: 0.4rem;
-  color: var(--hg-burgundy);
-  font-size: 0.72rem;
+  color: var(--hg-accent-deep);
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
+// ── 공방 기록·방문 안내 ──────────────────────────────────
+.home-story-links {
+  margin-bottom: 1.5rem;
+  border-top: 1px solid var(--hg-border);
+
+  > a {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: center;
+    min-height: 3.75rem;
+    color: var(--hg-dark);
+    border-bottom: 1px solid var(--hg-border);
+    text-decoration: none;
+  }
+
+  > a > span:first-child {
+    color: var(--hg-leaf);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  strong {
+    min-width: 0;
+    font-size: 0.92rem;
+  }
+
+  > a > span:last-child {
+    color: var(--hg-accent);
+  }
+
+  > a:hover strong,
+  > a:focus-visible strong {
+    color: var(--hg-accent-deep);
+  }
+}
+
 .home-workshop-section {
-  padding-block: clamp(4rem, 7vw, 6.5rem);
-  background: #EEF3F0;
-  border-top: 1px solid rgba(86, 103, 93, 0.22);
-  border-bottom: 0;
+  background: var(--hg-paper-deep);
 }
 
 .workshop-visit-links {
@@ -470,127 +827,123 @@
   align-items: flex-start;
 }
 
-.class-catalog-hero,
-.group-class-hero {
-  position: relative;
-  display: flex;
-  align-items: end;
-  isolation: isolate;
-}
-
-.group-class-hero {
-  min-height: clamp(440px, 68svh, 650px);
-}
-
-.class-catalog-hero {
-  min-height: 260px;
-  color: #FFFFFF;
-  background-image: var(--hg-class-hero-image);
-  background-position: center 42%;
-  background-size: cover;
-}
-
-.class-catalog-hero::before,
-.group-class-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background: rgba(25, 30, 27, 0.48);
-}
-
-.class-catalog-hero::before {
-  background: linear-gradient(90deg, rgba(25, 30, 27, 0.84), rgba(25, 30, 27, 0.35));
-}
-
-.class-catalog-hero-copy {
-  max-width: 40rem;
-  padding-block: 3rem;
-}
-
-.group-class-hero .store-section-kicker {
-  color: #E8C3CA;
-}
-
-.class-catalog-hero h1,
-.group-class-hero h1 {
-  margin-bottom: 1.25rem;
-  color: #FFFFFF;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 4.5rem;
-  font-weight: 400;
-  line-height: 1.25;
-  letter-spacing: 0;
-}
-
-.class-catalog-hero h1 {
-  font-size: clamp(2.5rem, 5vw, 3.5rem);
-}
-
-.class-catalog-hero-copy > p:last-child,
-.group-class-hero-inner p:last-child {
-  max-width: 34rem;
-  margin: 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 1rem;
+// ── 클래스 목록 ─────────────────────────────────────────
+.class-catalog-page {
+  padding-block: clamp(2.5rem, 5vw, 4.5rem);
 }
 
 .class-catalog-header {
-  margin-bottom: 0;
-  padding-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem 2rem;
+  margin-bottom: 1.75rem;
+
+  h1 {
+    margin-bottom: 0.5rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(2.1rem, 4vw, 3rem);
+    font-weight: 400;
+  }
+
+  p:last-child {
+    margin: 0;
+    color: var(--hg-ink-soft);
+  }
 }
 
-.class-catalog-page {
-  padding-block: clamp(2rem, 4vw, 3.5rem);
-}
+.class-catalog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem 1.1rem;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
 
-.class-catalog-header h2 {
-  margin: 0;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.75rem;
-  font-weight: 400;
+  .form-check {
+    margin: 0;
+  }
 }
 
 .class-catalog-list {
-  border-top: 1px solid var(--hg-dark);
+  display: grid;
+  gap: 1.25rem;
 }
 
 .class-catalog-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem 2rem;
-  padding-block: 2rem;
-  border-bottom: 1px solid var(--hg-border);
+  grid-template-columns: minmax(14rem, 0.42fr) minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
+  transition: border-color var(--hg-transition), box-shadow var(--hg-transition);
+
+  &:hover {
+    border-color: rgba(185, 101, 69, 0.55);
+    box-shadow: var(--hg-shadow-soft);
+  }
 }
 
-.class-catalog-item.has-media {
-  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
-  align-items: start;
+.class-catalog-item:hover .class-catalog-media img {
+  transform: scale(1.03);
+}
+
+.class-catalog-media {
+  height: 100%;
+  min-height: 15rem;
+  border-radius: 0;
+}
+
+.class-catalog-content {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(1.35rem, 3vw, 2rem);
+}
+
+.class-catalog-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+
+  span {
+    padding: 0.2rem 0.6rem;
+    color: var(--hg-leaf-deep);
+    background: var(--hg-leaf-tint);
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
 }
 
 .class-catalog-title-row {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   align-items: baseline;
   flex-wrap: wrap;
-}
 
-.class-catalog-title-row h3 {
-  margin-bottom: 0;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.75rem;
-  font-weight: 400;
-}
+  h2 {
+    margin-bottom: 0;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(1.4rem, 2.4vw, 1.75rem);
+    font-weight: 700;
+  }
 
-.class-catalog-title-row strong {
-  flex: 0 0 auto;
-  font-size: 1.125rem;
+  strong {
+    flex: 0 0 auto;
+    font-size: 1.15rem;
+  }
 }
 
 .class-catalog-description {
   max-width: 42rem;
-  margin-block: 0.75rem 0;
+  margin-block: 0.65rem 0;
   color: var(--hg-ink-soft);
   line-height: 1.8;
   white-space: pre-line;
@@ -601,28 +954,28 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem 1rem;
   margin: 1.25rem 0;
+  padding-block: 1rem;
+  border-block: 1px solid var(--hg-border);
+
+  dt {
+    color: var(--hg-ink-soft);
+    font-size: 0.78rem;
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    white-space: pre-line;
+  }
 }
 
 .class-catalog-meta-wide {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr);
+  grid-template-columns: 4.5rem minmax(0, 1fr);
   gap: 1rem;
-}
-
-.class-catalog-meta dt {
-  color: var(--hg-olive);
-  font-size: 0.78rem;
-}
-
-.class-catalog-meta dd {
-  margin: 0;
-  font-size: 0.875rem;
-  white-space: pre-line;
-}
-
-.class-catalog-media {
-  aspect-ratio: 4 / 3;
 }
 
 .class-catalog-actions {
@@ -630,133 +983,265 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1.5rem;
+  margin-top: auto;
 }
 
 .class-followup-links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 3rem;
-  border-block: 1px solid var(--hg-dark);
+  gap: 1.25rem;
+  margin-top: 2.5rem;
+
+  > a {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.35rem 1rem;
+    padding: 1.75rem 2rem;
+    color: var(--hg-dark);
+    background: var(--hg-leaf-tint);
+    border-radius: var(--hg-radius-media);
+    text-decoration: none;
+    transition: background var(--hg-transition);
+
+    &:hover,
+    &:focus-visible {
+      background: #DCE3D6;
+    }
+  }
+
+  span:first-child {
+    grid-column: 1;
+    color: var(--hg-leaf);
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  strong {
+    grid-column: 1;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 1.35rem;
+  }
+
+  span:last-child {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    color: var(--hg-leaf-deep);
+  }
 }
 
-.class-followup-links > a {
+// ── 클래스 상세 ─────────────────────────────────────────
+.class-detail-page {
+  max-width: var(--hg-container);
+}
+
+.class-detail-layout {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.35rem 1rem;
-  padding: 2rem;
-  color: var(--hg-dark);
-  text-decoration: none;
+  grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+  gap: clamp(1.75rem, 4vw, 3.5rem);
+  align-items: start;
 }
 
-.class-followup-links > a + a {
-  border-left: 1px solid var(--hg-dark);
+.class-detail-media {
+  aspect-ratio: 4 / 3;
 }
 
-.class-followup-links span:first-child {
-  grid-column: 1;
-  color: var(--hg-ink-soft);
-  font-size: 0.8rem;
+.class-detail-story {
+  margin-top: 2rem;
+
+  h2 {
+    margin-bottom: 0.85rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+  }
 }
 
-.class-followup-links strong {
-  grid-column: 1;
+.class-detail-description {
+  color: #5E554C;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+.class-detail-card {
+  position: sticky;
+  top: 6rem;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border) !important;
+  border-radius: var(--hg-radius-media);
+  box-shadow: var(--hg-shadow-soft);
+
+  .card-body {
+    padding: clamp(1.5rem, 3vw, 2rem);
+  }
+}
+
+.class-detail-title {
+  margin-bottom: 0.75rem;
   font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.35rem;
+  font-size: clamp(1.85rem, 3.4vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.25;
 }
 
-.class-followup-links span:last-child {
-  grid-column: 2;
-  grid-row: 1 / 3;
-  align-self: center;
-  color: var(--hg-burgundy);
+.class-detail-price {
+  margin: 1rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 800;
 }
 
+.class-detail-meta {
+  display: grid;
+  margin: 1.25rem 0 1.5rem;
+  border-top: 1px solid var(--hg-border);
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--hg-border);
+  }
+
+  dt {
+    flex: 0 0 auto;
+    color: var(--hg-ink-soft);
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+    white-space: pre-line;
+  }
+}
+
+.class-detail-helper {
+  margin: 0.75rem 0 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+// ── 단체수업 ────────────────────────────────────────────
 .group-class-hero {
+  position: relative;
+  display: flex;
+  align-items: end;
+  min-height: clamp(420px, 62svh, 600px);
   overflow: hidden;
   color: #FFFFFF;
-}
+  isolation: isolate;
 
-.group-class-hero > img {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(0deg, rgba(30, 36, 29, 0.82) 0%, rgba(30, 36, 29, 0.3) 70%);
+  }
+
+  > img {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .store-section-kicker {
+    color: #D9C9A8;
+  }
+
+  h1 {
+    margin-bottom: 1.25rem;
+    color: #FFFFFF;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(2.5rem, 6vw, 4.25rem);
+    font-weight: 400;
+    line-height: 1.25;
+  }
 }
 
 .group-class-hero-inner {
   width: 100%;
   padding-block: clamp(3rem, 7vw, 5.5rem);
+
+  p:last-child {
+    max-width: 34rem;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.84);
+  }
 }
 
 .group-class-intro {
-  padding-bottom: clamp(4rem, 8vw, 7rem);
-}
+  padding-bottom: clamp(4rem, 8vw, 6rem);
 
-.group-class-intro figure {
-  aspect-ratio: 4 / 5;
+  figure {
+    aspect-ratio: 4 / 5;
+  }
 }
 
 .group-class-process {
-  padding-block: clamp(4rem, 8vw, 7rem);
-  border-block: 1px solid var(--hg-olive);
-}
+  padding-block: clamp(4rem, 8vw, 6rem);
+  border-block: 1px solid var(--hg-border);
 
-.group-class-process header {
-  margin-bottom: 3rem;
-}
+  header {
+    margin-bottom: 2.5rem;
+  }
 
-.group-class-process ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--hg-border);
-}
+  ol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
 
-.group-class-process li {
-  min-width: 0;
-  padding: 2rem;
-  border-bottom: 1px solid var(--hg-border);
-}
+  li {
+    min-width: 0;
+    padding: 1.75rem;
+    background: var(--hg-surface);
+    border: 1px solid var(--hg-border);
+    border-radius: var(--hg-radius-media);
+  }
 
-.group-class-process li + li {
-  border-left: 1px solid var(--hg-border);
-}
+  li > span {
+    color: var(--hg-accent);
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
 
-.group-class-process li > span {
-  color: var(--hg-burgundy);
-  font-family: "Cormorant Garamond", Georgia, serif;
-  font-weight: 700;
-}
+  h3 {
+    margin: 1rem 0 0.6rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 1.35rem;
+  }
 
-.group-class-process h3 {
-  margin: 1.75rem 0 0.75rem;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.35rem;
-}
-
-.group-class-process li p {
-  margin: 0;
-  color: var(--hg-ink-soft);
-  line-height: 1.75;
+  li p {
+    margin: 0;
+    color: var(--hg-ink-soft);
+    line-height: 1.75;
+  }
 }
 
 .group-class-inquiry {
   display: flex;
   justify-content: space-between;
-  align-items: end;
-  gap: 3rem;
-  margin-top: clamp(4rem, 8vw, 7rem);
-  padding: clamp(2.5rem, 6vw, 5rem);
-  background: var(--hg-mint);
-}
+  align-items: flex-end;
+  gap: 2rem 3rem;
+  margin-top: clamp(4rem, 8vw, 6rem);
+  padding: clamp(2rem, 5vw, 4rem);
+  background: var(--hg-leaf-tint);
+  border-radius: 1.25rem;
 
-.group-class-inquiry > div:first-child {
-  max-width: 40rem;
+  > div:first-child {
+    max-width: 40rem;
+  }
 }
 
 .group-class-inquiry-actions {
@@ -765,96 +1250,159 @@
   flex-direction: column;
   gap: 0.8rem;
   align-items: flex-start;
+
+  > span {
+    color: var(--hg-leaf);
+    font-size: 0.875rem;
+  }
 }
 
-.group-class-inquiry-actions > span {
-  color: var(--hg-olive);
-  font-size: 0.875rem;
-}
-
+// ── 반응형 ──────────────────────────────────────────────
 @media (max-width: 991.98px) {
+  .home-hero-inner,
   .home-updates-grid,
-  .home-class-layout,
   .home-editorial-layout,
   .home-story-layout,
-  .group-class-intro {
+  .group-class-intro,
+  .class-detail-layout {
     grid-template-columns: 1fr;
   }
 
-  .home-class-media,
-  .group-class-intro figure {
-    aspect-ratio: 16 / 10;
+  .home-hero-visual {
+    min-height: 26rem;
   }
 
-  .home-story-copy {
+  .home-shortcuts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-inline: 0;
+  }
+
+  .home-shortcut:nth-child(3) {
+    border-left: 0;
+  }
+
+  .home-shortcut:nth-child(n + 3) {
+    border-top: 1px solid var(--hg-border);
+  }
+
+  .home-class-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .class-detail-card {
+    position: static;
+  }
+
+  // 모바일에서는 사진 → 예약 카드(제목·가격) → 수업 소개 순서로 보여 준다.
+  .class-detail-main {
+    display: contents;
+  }
+
+  .class-detail-media {
+    order: 1;
+  }
+
+  .class-detail-card {
     order: 2;
   }
 
-  .home-story-media {
-    order: 1;
+  .class-detail-story {
+    order: 3;
+    margin-top: 0;
+  }
+
+  .group-class-intro figure {
+    aspect-ratio: 16 / 10;
   }
 
   .group-class-inquiry {
     align-items: flex-start;
     flex-direction: column;
   }
-
-  .group-class-hero h1 {
-    font-size: 4.25rem;
-  }
 }
 
 @media (max-width: 767.98px) {
-  .store-hero {
-    min-height: 0;
-    align-items: end;
-    background-image:
-      linear-gradient(0deg, rgba(247, 243, 234, 0.99) 0%, rgba(247, 243, 234, 0.95) 44%, rgba(247, 243, 234, 0.08) 88%),
-      var(--hg-hero-image);
-    background-position: center, 62% center;
+  .home-hero {
+    padding-top: 0.75rem;
   }
 
-  .store-hero-content {
-    padding-block: 10rem 2.5rem;
+  .home-hero-visual {
+    min-height: 24rem;
+    border-radius: var(--hg-radius-media);
   }
 
-  .store-hero-title {
-    font-size: clamp(3rem, 12vw, 4rem);
+  .home-hero-eyebrow {
+    margin-bottom: 0.75rem;
   }
 
-  .store-hero-lead {
-    font-size: 1.4rem;
+  .home-hero-text {
+    margin-bottom: 1.25rem;
+    font-size: 0.92rem;
   }
 
-  .store-hero-copy {
-    font-size: 0.95rem;
+  .home-hero-actions .btn {
+    flex: 1 1 0;
+    padding-inline: 0.75rem;
   }
 
-  .store-hero-actions {
-    gap: 1rem;
+  .quick-booking {
+    border-radius: var(--hg-radius-media);
   }
 
-  .store-hero-actions .btn {
-    padding: 0.75rem 1.25rem;
-    font-size: 1rem;
+  .home-shortcut {
+    padding: 1.1rem 2.25rem 1.1rem 1rem;
+
+    strong {
+      font-size: 0.95rem;
+    }
+
+    span {
+      font-size: 0.76rem;
+    }
   }
 
-  .home-section-heading {
+  .home-shortcut-arrow {
+    right: 0.85rem;
+  }
+
+  .home-section-head,
+  .class-catalog-header {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .class-catalog-header {
-    align-items: center;
-    gap: 1rem;
+  .home-craft-list {
+    flex-wrap: nowrap;
+    margin-inline: calc(var(--bs-gutter-x, 1.5rem) * -0.5);
+    padding-inline: calc(var(--bs-gutter-x, 1.5rem) * 0.5);
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    li {
+      flex: 0 0 auto;
+    }
   }
 
-  .home-class-list {
-    grid-row: 1;
+  // 모바일에서는 클래스 카드를 옆으로 넘겨 본다.
+  .home-class-grid {
+    scroll-padding-inline: calc(var(--bs-gutter-x, 1.5rem) * 0.5);
+    grid-auto-columns: 78%;
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    gap: 0.875rem;
+    margin-inline: calc(var(--bs-gutter-x, 1.5rem) * -0.5);
+    padding: 0 calc(var(--bs-gutter-x, 1.5rem) * 0.5) 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
   }
 
-  .home-updates-grid {
-    gap: 2.25rem;
+  .home-class-card {
+    scroll-snap-align: start;
+  }
+
+  .home-product-grid > :nth-child(n + 5) {
+    display: none;
   }
 
   .home-event-panel {
@@ -869,10 +1417,10 @@
   .home-event-media {
     min-height: auto;
     aspect-ratio: 16 / 10;
-  }
 
-  .home-event-media img {
-    min-height: 0;
+    img {
+      min-height: 0;
+    }
   }
 
   .home-notice-row {
@@ -886,69 +1434,33 @@
     align-items: center;
   }
 
-  .home-editorial-media,
-  .home-story-media {
-    aspect-ratio: 4 / 3;
-  }
-
   .home-story-links > a {
     grid-template-columns: 1fr auto;
     gap: 0.15rem 1rem;
     padding-block: 0.8rem;
+
+    > span:first-child,
+    strong {
+      grid-column: 1;
+    }
+
+    > span:last-child {
+      grid-column: 2;
+      grid-row: 1 / 3;
+    }
   }
 
-  .home-story-links > a > span:first-child,
-  .home-story-links strong {
-    grid-column: 1;
-  }
-
-  .home-story-links > a > span:last-child {
-    grid-column: 2;
-    grid-row: 1 / 3;
-  }
-
-  .group-class-hero {
-    min-height: 520px;
-  }
-
-  .class-catalog-hero {
-    min-height: 220px;
-  }
-
-  .class-catalog-hero-copy {
-    padding-block: 2rem;
-  }
-
-  .home-editorial-copy h2,
-  .home-story-copy h2,
-  .group-class-intro h2,
-  .group-class-process h2,
-  .group-class-inquiry h2 {
-    font-size: 2.25rem;
-  }
-
-  .group-class-hero h1 {
-    font-size: 2.5rem;
-  }
-
-  .class-catalog-title-row h3 {
-    font-size: 1.65rem;
-  }
-
-  .class-catalog-item,
-  .class-catalog-item.has-media {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.25rem;
-  }
-
-  .class-catalog-title-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.5rem;
+  .class-catalog-item {
+    grid-template-columns: 1fr;
   }
 
   .class-catalog-media {
+    min-height: 0;
     aspect-ratio: 16 / 10;
+  }
+
+  .class-catalog-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .class-followup-links,
@@ -956,20 +1468,7 @@
     grid-template-columns: 1fr;
   }
 
-  .class-followup-links > a + a,
-  .group-class-process li + li {
-    border-left: 0;
-    border-top: 1px solid var(--hg-border);
-  }
-
   .group-class-inquiry {
-    margin-inline: -1rem;
-    padding-inline: 1rem;
-  }
-}
-
-@media (max-width: 359.98px) {
-  .group-class-hero h1 {
-    font-size: 2.15rem;
+    padding: 1.75rem 1.25rem;
   }
 }

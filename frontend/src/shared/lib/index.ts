@@ -1,7 +1,8 @@
 export {
-  formatKRW, formatDate, formatDateTime, formatDateInput, formatDateTimeInput, parseApiDateTime,
+  formatKRW, formatDate, formatDateTime, formatDateInput, formatDateTimeInput, formatTime, parseApiDateTime,
 } from "./format";
 export { getUserMessage } from "./errorMessages";
+export { classImageSrc } from "./classImage";
 export { isPositiveSafeIntegerString } from "./number";
 export {
   adminRefundPollingInterval,

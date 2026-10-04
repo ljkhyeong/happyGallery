@@ -50,7 +50,7 @@ export function ProductFilterBar({
     <Card className="my-filter-card border-0 mb-3">
       <Card.Body className="p-3">
         <Row className="g-3 align-items-end">
-          <Col md={3}>
+          <Col xs={12} md={3}>
             <Form.Group controlId="product-search">
               <Form.Label>검색</Form.Label>
               <Form.Control
@@ -60,7 +60,7 @@ export function ProductFilterBar({
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
+          <Col xs={6} md={3}>
             <Form.Group controlId="product-type">
               <Form.Label>상품 타입</Form.Label>
               <Form.Select value={type} onChange={(e) => onTypeChange(e.target.value)}>
@@ -72,7 +72,7 @@ export function ProductFilterBar({
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+          <Col xs={6} md={2}>
             <Form.Group controlId="product-category">
               <Form.Label>카테고리</Form.Label>
               <Form.Select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
@@ -84,7 +84,7 @@ export function ProductFilterBar({
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+          <Col xs={6} md={2}>
             <Form.Group controlId="product-sort">
               <Form.Label>정렬</Form.Label>
               <Form.Select
@@ -99,7 +99,7 @@ export function ProductFilterBar({
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+          <Col xs={6} md={2}>
             <div className="d-grid">
               <Button variant="outline-secondary" onClick={onReset} disabled={!hasActiveFilter}>
                 초기화

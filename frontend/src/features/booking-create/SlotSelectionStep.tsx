@@ -1,30 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, Row, Col, ListGroup, Badge } from "react-bootstrap";
-import { fetchClasses, fetchUpcomingSlots } from "./api";
-import { queryKeys } from "@/shared/api";
+import { fetchClasses } from "./api";
+import { UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "./upcomingSlots";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
-import { CLASS_CATEGORY_OPTIONS, formatDate, formatDateTime } from "@/shared/lib";
+import { CLASS_CATEGORY_OPTIONS, formatDate, formatDateTime, formatTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";
 
+/** 위에서 고른 날짜의 슬롯만 보여 주므로 화면에는 시간만 표시한다. 날짜는 보조기기용 숨김 텍스트로 붙이고, 다음 날 끝나는 수업만 종료 날짜를 보인다. */
+function formatSlotTimeRange(slot: Pick<PublicSlotResponse, "startAt" | "endAt">): string {
+  const sameDay = slot.endAt.slice(0, 10) === slot.startAt.slice(0, 10);
+  return `${formatTime(slot.startAt)} ~ ${sameDay ? formatTime(slot.endAt) : formatDateTime(slot.endAt)}`;
+}
+
 interface Props {
   initialClassId?: number | null;
   initialSlotId?: number | null;
+  /** 빈자리 알림 링크는 날짜만 펼치고, 사용자가 이미 시간을 고른 홈 빠른 예약은 남은 자리가 있으면 바로 선택한다. */
+  selectInitialSlot?: boolean;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
   onClassChange?: (bookingClass: ClassResponse | null) => void;
 }
 
-const UPCOMING_DAYS = 14;
 
 export function SlotSelectionStep({
   initialClassId,
   initialSlotId,
+  selectInitialSlot = false,
   selectedSlot,
   onSelect,
   onDeselect,
@@ -80,11 +88,7 @@ export function SlotSelectionStep({
     error: slotsError,
     refetch: refetchSlots,
   } = useQuery({
-    queryKey: queryKeys.slotAvailability.upcoming.byClass(
-      selectedClass?.id ?? 0,
-      UPCOMING_DAYS,
-    ),
-    queryFn: () => fetchUpcomingSlots(selectedClass!.id, UPCOMING_DAYS),
+    ...upcomingSlotsQuery(selectedClass?.id ?? 0),
     enabled: selectedClass !== null,
     refetchOnMount: initialSlotId != null ? "always" : true,
   });
@@ -115,8 +119,9 @@ export function SlotSelectionStep({
     const initialSlot = upcomingSlots.find((slot) => slot.id === initialSlotId);
     if (initialSlot && selectedSlot === null) {
       setDate(initialSlot.startAt.slice(0, 10));
+      if (selectInitialSlot && initialSlot.remainingCapacity > 0) onSelect(initialSlot);
     }
-  }, [initialClassId, initialSlotId, selectedClass, selectedSlot, slotsError, slotsFetching, upcomingSlots]);
+  }, [initialClassId, initialSlotId, onSelect, selectInitialSlot, selectedClass, selectedSlot, slotsError, slotsFetching, upcomingSlots]);
 
   useEffect(() => {
     if (selectedSlot === null || upcomingSlots === undefined) return;
@@ -198,7 +203,7 @@ export function SlotSelectionStep({
                 ))}
               </Form.Select>
               <Form.Text className="text-muted">
-                앞으로 {UPCOMING_DAYS}일 안에 예약 가능하거나 빈자리 알림을 신청할 수 있는 날짜를 표시합니다.
+                앞으로 {UPCOMING_SLOT_DAYS}일 안에 예약 가능하거나 빈자리 알림을 신청할 수 있는 날짜를 표시합니다.
               </Form.Text>
             </Form.Group>
           </Col>
@@ -245,7 +250,7 @@ export function SlotSelectionStep({
 
       {!slotsError && upcomingSlots && upcomingSlots.length === 0 && (
         <div>
-          <EmptyState message={`앞으로 ${UPCOMING_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
+          <EmptyState message={`앞으로 ${UPCOMING_SLOT_DAYS}일 안에 예약 가능한 일정이 없습니다.`} />
           <Form.Group controlId="booking-inquiry-date" className="mt-3">
             <Form.Label>문의할 희망일</Form.Label>
             <Form.Control
@@ -265,7 +270,7 @@ export function SlotSelectionStep({
       )}
 
       {slots && slots.length > 0 && (
-        <ListGroup>
+        <ListGroup className="booking-slot-list">
           {slots.map((slot) => slot.remainingCapacity === 0 ? (
             <ListGroup.Item
               key={slot.id}
@@ -274,7 +279,7 @@ export function SlotSelectionStep({
             >
               <span>
                 {slot.id === initialSlotId && <small className="d-block text-muted">알림 신청한 일정</small>}
-                {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
+                <span className="visually-hidden">{formatDate(slot.startAt)} </span>{formatSlotTimeRange(slot)}
               </span>
               <span className="d-flex align-items-center gap-2">
                 <Badge bg="secondary" className="badge-status">만석</Badge>
@@ -292,7 +297,7 @@ export function SlotSelectionStep({
             >
               <span>
                 {slot.id === initialSlotId && <small className="d-block">알림 신청한 일정</small>}
-                {formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}
+                <span className="visually-hidden">{formatDate(slot.startAt)} </span>{formatSlotTimeRange(slot)}
               </span>
               <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">
                 {slot.remainingCapacity}명 예약 가능

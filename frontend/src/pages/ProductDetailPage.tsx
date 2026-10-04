@@ -3,7 +3,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
-import { Alert, Container, Card, Button, Form, Row, Col } from "react-bootstrap";
+import { Alert, Container, Card, Button, Form } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { fetchProduct } from "@/features/product/api";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
@@ -212,7 +212,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
 
   return (
     <Container className="page-container">
-      <div className="store-detail-breadcrumb anim-fade-up">
+      <div className="store-detail-breadcrumb">
         <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
         <span>/</span>
         <Link to="/products" className="store-detail-breadcrumb-link">작품</Link>
@@ -220,63 +220,43 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         <span className="store-detail-breadcrumb-current">{product.name}</span>
       </div>
 
-      <Row className="gx-0 gy-4 gx-lg-5 align-items-start">
-        <Col lg={7} className="anim-fade-up anim-delay-1">
-          <article className="store-detail-card">
-            <header className="store-product-intro">
-              <div className="store-detail-meta">
-                <span className="store-detail-kicker">
-                  {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
-                </span>
-                {product.category && (
-                  <span className="store-detail-category">{product.category}</span>
-                )}
-                <span className={`store-detail-availability ${product.available ? "is-available" : "is-sold-out"}`}>
-                  {product.available ? "주문 가능" : "품절"}
-                </span>
-              </div>
-              <h1 className="store-detail-title">{product.name}</h1>
-              <FavoriteButton type="PRODUCT" targetId={product.id} />
-              <p className="text-muted-soft store-section-desc store-detail-description">
-                {product.description || (product.type === "MADE_TO_ORDER"
-                  ? "주문 승인 후 제작하는 상품입니다."
-                  : "재고가 있으면 바로 주문할 수 있는 상품입니다.")}
-              </p>
-              <div className="store-detail-price-block">
-                <span>기본가</span>
-                <strong className="store-detail-price">{formatKRW(product.price)}</strong>
-              </div>
-            </header>
-
-            {product.imageUrl && (
-              <div className="store-detail-media">
-                <img src={product.imageUrl} alt={product.name} />
-              </div>
+      <div className="store-product-layout">
+        <div className="store-product-gallery">
+          <figure className="store-detail-media">
+            {product.imageUrl ? (
+              <img src={product.imageUrl} alt={product.name} fetchPriority="high" />
+            ) : (
+              <span className="store-detail-media-empty" aria-hidden="true">해피갤러리</span>
             )}
+          </figure>
+        </div>
 
-            <section className="store-detail-facts" aria-labelledby="product-information-title">
-              <div className="store-detail-section-heading">
-                <h2 id="product-information-title">작품 안내</h2>
-                <span>상품 정보</span>
-              </div>
-              <div className="store-detail-terms">
-                <ProductPurchaseTerms
-                  productName={product.name}
-                  type={product.type}
-                  specification={product.specification}
-                  careInstructions={product.careInstructions}
-                  productionLeadDays={product.productionLeadDays}
-                />
-              </div>
-              <div className="store-detail-fulfillment">
-                <strong>배송·수령</strong>
-                <span>{PRODUCT_FULFILLMENT_LABEL[product.type] ?? ""}</span>
-              </div>
-            </section>
-          </article>
-        </Col>
+        <div className="store-product-buy">
+          <header className="store-product-intro">
+            <div className="store-detail-meta">
+              <span className="store-detail-kicker">
+                {PRODUCT_TYPE_LABEL[product.type] ?? "상품 종류 확인 필요"}
+              </span>
+              {product.category && (
+                <span className="store-detail-category">{product.category}</span>
+              )}
+              <span className={`store-detail-availability ${product.available ? "is-available" : "is-sold-out"}`}>
+                {product.available ? "주문 가능" : "품절"}
+              </span>
+            </div>
+            <h1 className="store-detail-title">{product.name}</h1>
+            <div className="store-detail-price-block">
+              <span>기본가</span>
+              <strong className="store-detail-price">{formatKRW(product.price)}</strong>
+            </div>
+            <p className="store-detail-description">
+              {product.description || (product.type === "MADE_TO_ORDER"
+                ? "주문 승인 후 제작하는 상품입니다."
+                : "재고가 있으면 바로 주문할 수 있는 상품입니다.")}
+            </p>
+            <FavoriteButton type="PRODUCT" targetId={product.id} />
+          </header>
 
-        <Col lg={5} className="anim-fade-up anim-delay-2">
           <Card ref={purchasePanelRef} className="purchase-panel store-purchase-card store-order-sheet">
             <Card.Body className="p-4 p-xl-5">
               <header className="store-order-sheet-header">
@@ -284,10 +264,6 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                   <div className="store-purchase-kicker">상품 주문</div>
                   <h2>공방 주문표</h2>
                   <p>원하는 옵션을 고른 뒤 주문 방법을 선택해 주세요.</p>
-                </div>
-                <div className="store-order-sheet-base-price">
-                  <span>기본가</span>
-                  <strong>{formatKRW(product.price)}</strong>
                 </div>
               </header>
 
@@ -506,8 +482,27 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
               </div>
             </Card.Body>
           </Card>
-        </Col>
-      </Row>
+        </div>
+      </div>
+
+      <section className="store-detail-facts" aria-labelledby="product-information-title">
+        <div className="store-detail-section-heading">
+          <h2 id="product-information-title">작품 안내</h2>
+        </div>
+        <div className="store-detail-terms">
+          <ProductPurchaseTerms
+            productName={product.name}
+            type={product.type}
+            specification={product.specification}
+            careInstructions={product.careInstructions}
+            productionLeadDays={product.productionLeadDays}
+          />
+        </div>
+        <div className="store-detail-fulfillment">
+          <strong>배송·수령</strong>
+          <span>{PRODUCT_FULFILLMENT_LABEL[product.type] ?? ""}</span>
+        </div>
+      </section>
 
       {showMobilePurchaseCta && product.available && (
         <div className="store-mobile-purchase-cta d-lg-none">
