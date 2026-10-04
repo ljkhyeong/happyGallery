@@ -1,5 +1,12 @@
 # HANDOFF
 
+## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
+
+- 시작 SHA `b4edd17dec8414163812a48fc77c8b8843adce2a`, 미커밋 변경 없음. 전역 Codex 스킬(playwright·gh-fix-ci·gh-address-comments·yeet·review-agent·security-*·seo-*)을 이 저장소 기준으로 다시 써서 `happygallery-{ui-verification,github-flows,code-review,security-review,seo-ssr}`를 추가했다. 스킬이 없던 쿠폰·적립금(`benefit-flows`), 후기·이미지 미디어(`review-flows`), 스마트스토어(`smartstore-flows`)도 추가했다. screenshot·sentry·figma·diagram·hope-* 등은 범용이거나 운영 전이라 가져오지 않았다.
+- 기존 product(ADR-0046 SKU 규칙)·payment·order·batch·booking·frontend 스킬과 `AGENTS.md`에 새 스킬 연결 문구만 넣었다.
+- 검증: `ruby tools/check-agent-skills.rb` 27개 통과, `agent-feedback.rb final` 통과. 스킬에 적은 클래스·식별자·명령은 `rg`로 존재를 확인했다. 문서 변경이라 앱 빌드·테스트는 실행하지 않았다. 셸 locale이 US-ASCII면 검사 도구가 인코딩 오류를 내므로 `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`을 붙인다.
+- 조사 중 발견한 미확인 후속 후보(수정 안 함): 서버 Sentry 이벤트에 `X-Access-Token`·`X-Payment-Status-Token` 헤더와 query가 포함될 가능성(`application.yml`의 `send-default-pii`만 설정, `GlobalExceptionHandler`의 `captureException`), `SensitiveLogMasker`에 `X-Payment-Status-Token` 패턴 없음, 공지 JSON-LD `datePublished` 시간대 누락(`frontend/src/shared/seo/schemas.ts`), 상세 JSON-LD의 Organization `@id` 단독 참조, `BatchScheduler` 정산 Javadoc "최근 7일"과 실제 커서 방식 불일치.
+
 ## 소셜 아이콘·비회원 조회 화면 개편 (2026-09-30)
 
 - 시작 SHA `84b52cc800cc46a2993ca83ba54756663dbcd1ba`, 미커밋 변경 없음. Google 공식 G와 카카오 공식 말풍선 아이콘을 로그인·회원가입 버튼에 추가했다. 제공자 색상과 세 버튼 높이 48px를 유지하며 출처는 `frontend/src/assets/README.md`에 적었다.
