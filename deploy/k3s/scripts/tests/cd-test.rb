@@ -17,7 +17,7 @@ class CdTest < Minitest::Test
     @scripts = File.join(@dir, 'deploy/k3s/scripts')
     @bin = File.join(@dir, 'bin')
     FileUtils.mkdir_p([@scripts, @bin])
-    %w[common.sh ci-deploy-ssh.sh ci-images.sh accept-cd-ssh.sh deploy-registry-images.sh update-release-images.rb].each do |name|
+    %w[common.sh ci-deploy-ssh.sh ci-images.sh verify-app-image.sh accept-cd-ssh.sh deploy-registry-images.sh update-release-images.rb].each do |name|
       FileUtils.cp(File.join(SCRIPTS, name), @scripts)
     end
     @log = File.join(@dir, 'calls')
@@ -132,6 +132,57 @@ class CdTest < Minitest::Test
   def test_non_main_cannot_publish
     @env['GITHUB_REF'] = 'refs/pull/1/merge'
     _out, _error, status = run_script('ci-images.sh', 'publish')
+    refute status.success?
+    assert_empty calls
+  end
+
+  def prepare_jar
+    jar = File.join(@dir, 'bootstrap/build/libs/happygallery-app.jar')
+    FileUtils.mkdir_p(File.dirname(jar))
+    File.write(jar, '검증된 JAR fixture')
+  end
+
+  def test_candidate_uses_production_arguments_and_checks_app_without_publishing
+    prepare_jar
+    @env.merge!('GITHUB_REF' => 'refs/heads/codex/work-security',
+                'VITE_TOSS_CLIENT_KEY' => 'live_ck_fixture', 'VITE_SENTRY_DSN' => 'https://sentry.example')
+    _out, error, status = run_script('ci-images.sh', 'build', 'candidate')
+    assert status.success?, error
+    builds = calls.select { |call| call[1] == 'build' }
+    assert_equal 2, builds.size
+    assert builds.all? { |call| call.include?('linux/amd64') && call.include?("org.opencontainers.image.revision=#{SHA}") }
+    assert_includes builds.last, 'VITE_TOSS_CLIENT_KEY=live_ck_fixture'
+    assert_includes builds.last, 'VITE_SENTRY_DSN=https://sentry.example'
+    assert_includes builds.last, 'VITE_SENTRY_ENVIRONMENT=production'
+    assert_includes builds.last, "VITE_SENTRY_RELEASE=happygallery@#{SHA}"
+    assert calls.any? { |call| call[1] == 'run' && call.include?('happygallery-app:candidate') }
+    refute calls.any? { |call| %w[login push].include?(call[1]) }
+  end
+
+  def test_pr_images_use_test_settings_even_when_production_variables_exist
+    prepare_jar
+    @env.merge!('GITHUB_REF' => 'refs/pull/1/merge',
+                'VITE_TOSS_CLIENT_KEY' => 'live_ck_fixture', 'VITE_SENTRY_DSN' => 'https://sentry.example')
+    _out, error, status = run_script('ci-images.sh', 'build', 'ci')
+    assert status.success?, error
+    frontend = calls.select { |call| call[1] == 'build' }.last
+    assert_includes frontend, 'VITE_TOSS_CLIENT_KEY=test_ck_ci'
+    assert_includes frontend, 'VITE_SENTRY_DSN='
+    refute calls.any? { |call| %w[login push].include?(call[1]) }
+  end
+
+  def test_candidate_requires_production_key_before_docker
+    prepare_jar
+    _out, error, status = run_script('ci-images.sh', 'build', 'candidate')
+    refute status.success?
+    assert_includes error, 'PRODUCTION_TOSS_CLIENT_KEY'
+    assert_empty calls
+  end
+
+  def test_non_main_cannot_build_publishable_production_tag
+    prepare_jar
+    @env['GITHUB_REF'] = 'refs/pull/1/merge'
+    _out, _error, status = run_script('ci-images.sh', 'build')
     refute status.success?
     assert_empty calls
   end

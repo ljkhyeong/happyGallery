@@ -3,14 +3,23 @@ name: CI
 on:
   pull_request:
     branches: [main, codexReview]
+  workflow_dispatch:
+    inputs:
+      production_candidate:
+        description: 운영 설정으로 이미지를 검증한다 (게시·배포 없음).
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       production_release:
         type: boolean
         default: false
+      production_candidate:
+        type: boolean
+        default: false
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -23,11 +32,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
           ruby-version: '3.3'
       - name: Check source compatibility before builds
@@ -39,14 +48,27 @@ jobs:
   agent-feedback:
     name: Agent Feedback Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
           ruby-version: '3.3'
+      - name: Validate GitHub Actions workflows
+        env:
+          ACTIONLINT_VERSION: '1.7.12'
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v$ACTIONLINT_VERSION/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o "$archive"
+          printf '%s  %s\n' "$ACTIONLINT_SHA256" "$archive" | sha256sum --check
+          tar -xzf "$archive" -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
       - name: Validate feedback loop and agent instructions
         run: |
-          ruby deploy/k3s/scripts/tests/security-update-test.rb
           ruby tools/agent-feedback-test.rb
           ruby tools/check-agent-skills.rb
 
@@ -54,12 +76,15 @@ jobs:
     name: Dependency Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Review dependency changes
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
 
@@ -67,18 +92,21 @@ jobs:
     needs: compatibility
     name: Backend Package & Module Checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '25'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
           validate-wrappers: true
 
@@ -87,15 +115,16 @@ jobs:
         run: ./gradlew --no-daemon build -x :application:check -x :adapter-in-web:check --profile
 
       - name: Upload application jar
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: application-jar
           path: bootstrap/build/libs/happygallery-app.jar
-          retention-days: 1
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload backend diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backend-package-diagnostics
           path: |
@@ -108,6 +137,7 @@ jobs:
     needs: compatibility
     name: Backend Tests (${{ matrix.module }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -121,21 +151,23 @@ jobs:
           - module: adapter-in-web
             task: ':adapter-in-web:check'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '25'
           distribution: 'temurin'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
         with:
           validate-wrappers: true
       - name: Run module checks
         run: ./gradlew --no-daemon ${{ matrix.task }} --profile
       - name: Upload backend diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: backend-${{ matrix.module }}-diagnostics
           path: |
@@ -147,6 +179,7 @@ jobs:
   backend:
     name: Backend Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     needs: [backend-package, backend-tests]
     if: always()
     steps:
@@ -160,12 +193,15 @@ jobs:
     needs: compatibility
     name: Frontend Build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: 'npm'
@@ -182,7 +218,7 @@ jobs:
           npm run build
 
       - name: Setup Ruby for deployment validation
-        uses: ruby/setup-ruby@v1
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
           ruby-version: '3.3'
 
@@ -194,6 +230,7 @@ jobs:
   e2e-smoke:
     name: Browser Smoke E2E
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: backend-package
     services:
       mysql:
@@ -221,23 +258,25 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '25'
           distribution: 'temurin'
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
       - name: Download application jar
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: application-jar
           path: bootstrap/build/libs
@@ -286,7 +325,7 @@ jobs:
 
       - name: Upload browser diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-smoke-diagnostics
           path: |
@@ -300,40 +339,59 @@ jobs:
     # 운영 이미지 검사는 production workflow에서 실제 운영 설정으로 수행한다.
     if: ${{ !inputs.production_release }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [backend-package, frontend]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Download application jar
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: application-jar
           path: bootstrap/build/libs
 
       - name: Build release images
+        env:
+          IMAGE_PROFILE: ${{ inputs.production_candidate && 'candidate' || 'ci' }}
+          VITE_TOSS_CLIENT_KEY: ${{ vars.PRODUCTION_TOSS_CLIENT_KEY }}
+          VITE_SENTRY_DSN: ${{ vars.PRODUCTION_SENTRY_DSN }}
+        run: bash deploy/k3s/scripts/ci-images.sh build "$IMAGE_PROFILE"
+
+      - name: Scan both images
+        id: scan
+        uses: ./.github/actions/scan-images
+        with:
+          image-tag: ${{ inputs.production_candidate && 'candidate' || 'ci' }}
+          report-name: container-security-reports
+
+      - name: Require both security scans to pass
+        env:
+          SECURITY_PASSED: ${{ steps.scan.outputs.passed }}
+        run: test "$SECURITY_PASSED" = true
+
+  gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    if: always()
+    needs: [compatibility, agent-feedback, dependency-review, backend, frontend, e2e-smoke, container-security]
+    steps:
+      - name: Require all applicable checks
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          EVENT_NAME: ${{ github.event_name }}
+          PRODUCTION_RELEASE: ${{ inputs.production_release }}
         run: |
-          APP_JAR=bootstrap/build/libs/happygallery-app.jar
-          test -f "$APP_JAR"
-          chmod 600 "$APP_JAR"
-          docker build --build-arg "APP_JAR=$APP_JAR" -f deploy/k3s/images/Dockerfile.app -t happygallery-app:ci .
-          ./deploy/k3s/scripts/verify-app-image.sh happygallery-app:ci
-          docker build --build-arg "VITE_TOSS_CLIENT_KEY=test_ck_ci" -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:ci .
-
-      - name: Scan backend image
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          image-ref: happygallery-app:ci
-          format: table
-          exit-code: "1"
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-
-      - name: Scan frontend image
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          image-ref: happygallery-frontend:ci
-          format: table
-          exit-code: "1"
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
+          ruby -rjson <<'RUBY'
+          expected_skips = []
+          expected_skips << 'dependency-review' unless ENV.fetch('EVENT_NAME') == 'pull_request'
+          expected_skips << 'container-security' if ENV.fetch('PRODUCTION_RELEASE') == 'true'
+          failed = JSON.parse(ENV.fetch('NEEDS_JSON')).reject do |name, job|
+            expected = expected_skips.include?(name) ? 'skipped' : 'success'
+            job.fetch('result') == expected
+          end
+          abort "필수 CI 검사 실패: #{failed.transform_values { |job| job.fetch('result') }}" unless failed.empty?
+          RUBY

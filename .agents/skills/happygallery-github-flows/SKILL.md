@@ -22,7 +22,7 @@ description: happyGallery의 원격 푸시·PR 작성·CI 실패 분석·PR 리�
 | CI 작업 | 로컬 재현 |
 |---|---|
 | Rolling Compatibility | `ruby deploy/k3s/scripts/ci-compatibility.rb` |
-| Agent Feedback Checks | `ruby deploy/k3s/scripts/tests/security-update-test.rb`, `ruby tools/agent-feedback-test.rb`, `ruby tools/check-agent-skills.rb` |
+| Agent Feedback Checks | `actionlint`, `ruby tools/agent-feedback-test.rb`, `ruby tools/check-agent-skills.rb` |
 | Backend Package & Module Checks | `./gradlew --no-daemon build -x :application:check -x :adapter-in-web:check` |
 | Backend Tests (application-*) | 실패 클래스만 `--tests`로 실행한다. 그룹 전체는 `:application:check -PciTestGroup=<core\|commerce\|migration>` |
 | Backend Tests (adapter-in-web) | 실패 클래스를 `:adapter-in-web:test` 또는 `restDocsTest`로 실행한다 |

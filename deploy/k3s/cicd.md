@@ -2,7 +2,20 @@
 
 `main` 병합 → 소스 호환성 사전 검사 → 기존 CI → 운영 이미지 빌드·취약점 검사 → GHCR 게시 → SSH → 배포별 백업 실행·R2 검증 → 이미지 반입 → 롤링 배포·공개 경로 확인 순서다. 서버에서 `IMAGE_TAG`나 digest를 입력하지 않는다.
 
-PR은 기존 CI를 실행한다. `.github/workflows/production.yml`은 main push 또는 main의 수동 실행에서만 동작하며 `CD_ENABLED=true`일 때 게시·배포한다. `ci.yml`을 재사용하므로 main에서도 백엔드·프런트·브라우저 검사를 통과해야 한다. 운영 이미지를 검사할 때는 CI용 이미지를 중복 빌드하지 않는다.
+PR은 `.github/workflows/ci.yml`을 실행한다. CI는 수동 실행도 지원하며 `production_candidate=true`이면 운영 설정의 이미지를 검증한다. `.github/workflows/production.yml`은 main push 또는 main의 수동 실행에서만 동작하며 `CD_ENABLED=true`일 때 게시·배포한다. `ci.yml`을 재사용하므로 main에서도 백엔드·프런트·브라우저 검사를 통과해야 한다. 운영 이미지를 검사할 때는 CI용 이미지를 중복 빌드하지 않는다.
+
+| 단계 | 담당과 통과 조건 |
+| --- | --- |
+| 소스 호환성 | PR 기준 브랜치 또는 마지막 성공 배포와 API·migration·설정 비교 |
+| 코드 검증 | 백엔드 모듈·application 세 그룹·웹 계약, 프런트 단위·lint·API·build, 브라우저 smoke |
+| 운영 구성 | `validate.sh`의 manifest·배포·백업·복구 검사, actionlint의 workflow·shell 검사 |
+| 이미지 검증 | 공통 `ci-images.sh` 빌드·앱 사용자 JAR 읽기 검사, `scan-images` action의 양쪽 이미지 검사 |
+| CI Gate | 필요한 작업이 모두 성공해야 통과. PR 외 Dependency Review와 운영 배포가 뒤에서 수행할 이미지 검사만 생략 허용 |
+| 게시·배포 | 검사한 이미지를 재빌드 없이 게시하고 digest를 전달. 백업·서버 호환성·순차 rollout·공개 경로 검증 유지 |
+
+공통 이미지 검사는 HIGH/CRITICAL 취약점·비밀값과 OS 지원 종료를 확인한다. 한쪽이 실패해도 다른 쪽을 검사하고 JSON 보고서를 7일 보관한다. 어느 쪽이든 실패하거나 실행되지 않으면 다음 단계로 진행하지 않는다. `production` 태그 빌드와 게시에는 main 제한을 유지하며 `candidate`는 운영 설정으로 검증만 한다. PR용 `ci`는 운영 변수가 있어도 테스트 클라이언트 키와 빈 Sentry DSN을 사용한다.
+
+빌드·검사 작업은 2~30분으로 제한하고 운영 배포는 기존 60분을 유지한다. 실행 중인 배포를 취소하지 않으며, 재사용 CI의 동시 실행 그룹에는 호출 workflow 이름을 넣어 서로 다른 실행이 같은 대기열을 공유하지 않게 한다. JAR artifact는 누락 시 즉시 실패하고 7일 보관한다. 외부 Actions는 확인한 commit SHA로 고정하며 Dependabot으로 갱신한다. Node 24 실행 환경으로 전환하되 Gradle Actions는 기존 라이선스의 v5 계열을 유지한다.
 
 GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://docs.github.com/en/billing/concepts/product-billing/github-actions)다. GHCR 이미지 저장·전송도 [현재 무료](https://docs.github.com/en/billing/concepts/product-billing/github-packages)다. Actions 로그·artifact 할당량과 GHCR 향후 정책 변경은 별도다. 별도 CI 서버나 Argo CD는 설치하지 않는다.
 
@@ -14,7 +27,24 @@ GitHub의 일반 호스팅 러너는 [공개 저장소에서 무료](https://doc
 
 application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분리한다. 주문·결제·예약과 migration 패키지를 각각 분리하고 core는 나머지 전부를 실행한다. 각 실행기의 DB는 독립적이며 로컬 `:application:check`는 속성 없이 전체 범위를 유지한다. 웹 검사와 필수 통합·브라우저 검사는 그대로 실행한다.
 
-2026-09-22 실패 실행 `35620477260`의 총 시간은 27분 18초이며 application 검사 17분 49초, 이미지 게시 3분, 서버 단계 6분 14초였다. 변경 후 시간은 새 Production 실행에서 비교한다. 로컬 결과로 운영 실행 단축 시간을 확정하지 않는다.
+2026-10-05 조회 기준 최근 운영 성공은 [Production 36722337863](https://github.com/ljkhyeong/happyGallery/actions/runs/36722337863), SHA `b4edd17d`다. 2026-09-30 22:32~22:50 KST에 약 17분 52초가 걸렸다. CI는 약 5분 37초, 이미지 게시 2분 35초, 서버 배포 9분 33초였다. application 세 그룹은 각각 3~4분으로, 현재 가장 긴 구간은 서버 백업·배포다. 이 기록은 이번 공통화 이전의 실측이며 새 구성의 시간은 원격 반영 후 비교한다. 백업을 생략해 시간을 줄이지 않는다.
+
+## 브랜치 보호 적용
+
+2026-10-05 확인 결과 `main`·`codexReview`는 보호되지 않았고 기존 `jkrule` ruleset도 비활성 상태였다. `production` environment는 main만 허용했고 `CD_ENABLED=true`, Actions 기본 토큰은 읽기 권한이었다. 따라서 당시에는 CI 실패가 있어도 병합을 강제 차단하지 않았다. 저장소 파일 변경만으로 원격 보호 설정이 바뀌지는 않는다.
+
+[branch-protection.json](../../.github/branch-protection.json)은 두 브랜치에 적용할 설정이다. PR 경유, 최신 대상 브랜치와의 CI Gate 성공, 대화 해결, 관리자 포함 적용, 강제 푸시·삭제 금지를 요구한다. 1인 개발 흐름을 유지해 다른 사람의 승인은 필수로 두지 않는다. 검사는 GitHub Actions 앱 ID `15368`로 제한한다. 기존 ruleset은 생성·갱신 차단과 광범위 우회 항목이 있어 그대로 활성화하지 않는다.
+
+새 workflow를 원격에 반영하고 해당 PR의 `CI Gate`가 실제 생성·성공한 뒤 적용한다. 아직 존재하지 않는 검사를 필수로 지정해 병합을 막지 않는다. 이 문서의 설정은 준비된 적용안이며 원격 적용 완료 기록이 아니다.
+
+```bash
+for branch in main codexReview; do
+  gh api --method PUT "repos/ljkhyeong/happyGallery/branches/$branch/protection" \
+    --input .github/branch-protection.json
+done
+```
+
+적용 후 두 브랜치의 protection API에서 필수 검사와 관리자 적용을 다시 읽어 확인한다. [GitHub 브랜치 보호 문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)의 필수 상태 검사는 `skipped`도 허용하므로, 개별 job 대신 생략 사유까지 확인하는 `CI Gate`를 필수로 사용한다. 봇 PR도 CI를 직접 수동 실행해 같은 검사 이름을 제공한다.
 
 ## 1. 최초 전환 확인
 
@@ -126,7 +156,7 @@ Mac에서 `pbcopy < ~/.ssh/id_ed25519_happygallery_cd`로 복사해 Secret 입�
 
 ## 6. 최초 실행과 이후 운영
 
-위 설정과 최초 온라인 백업 확인이 끝나면 `CD_ENABLED=true`로 바꾸고 **Actions → Production → Run workflow → main**을 실행한다. 이후 main 병합마다 자동 실행된다. 보호된 main 브랜치와 기존 PR 필수 검사를 유지한다.
+위 설정과 최초 온라인 백업 확인이 끝나면 `CD_ENABLED=true`로 바꾸고 **Actions → Production → Run workflow → main**을 실행한다. 이후 main 병합마다 자동 실행된다. 위 브랜치 보호 설정의 실제 적용 여부도 확인한다.
 
 1. `validate`: 기존 테스트·E2E가 통과한다.
 2. `publish`: 실제 운영 설정으로 빌드한 두 이미지를 HIGH/CRITICAL 취약점 검사 후 GHCR에 올린다.
@@ -154,10 +184,8 @@ ps -eo pid,ppid,lstart,args | grep -E 'accept-cd|happygallery-cd-ssh|deploy-regi
 ## 로컬 검증
 
 ```bash
-ruby deploy/k3s/scripts/tests/cd-test.rb
-ruby deploy/k3s/scripts/tests/rclone-backup-test.rb
 bash deploy/k3s/scripts/validate.sh
-actionlint -shellcheck='' .github/workflows/ci.yml .github/workflows/production.yml
+actionlint
 ```
 
 로컬 테스트는 잘못된 SSH 명령·오래된 commit·이미지 불일치·전송 실패의 중단과 검증된 이미지 전달, R2 백업 다운로드·손상 거부를 검사한다. GitHub의 실제 토큰 권한, 공유기 SSH 접근, 운영 rollout 성공은 최초 Production 실행으로 별도 확인한다.
@@ -186,6 +214,6 @@ Browser Smoke는 Vite 공통 의존성을 시작 시 미리 최적화해 첫 화
 
 브랜치는 `codex/work-security-<실패 SHA 앞 12자리>`, PR 대상은 실패한 운영 소스와 같은 `main`이다. 같은 SHA 재실행은 기존 브랜치·PR을 재사용하고, main이 이미 바뀌었으면 오래된 보고서로 PR을 만들지 않는다. 자동 병합·재배포는 하지 않는다. 이는 운영 보안 패치용 경로이며 일반 기능 작업은 기존 codexReview 경로를 따른다.
 
-봇 PR의 이벤트 실행 정책과 관계없이 `Security update validation`을 workflow_dispatch로 명시적으로 실행한다. 기존 CI(빌드·테스트·smoke) 이후 같은 JAR로 두 운영 이미지를 빌드하고 Trivy HIGH/CRITICAL 및 OS EOL 검사를 수행한다. 이미지 게시나 서버 접속 권한은 없다. 검토자는 해당 브랜치의 최신 `Security update validation` 성공을 확인하고 병합한다. 이후 기존 Production 흐름으로 다시 검증·배포한다.
+봇 PR의 이벤트 실행 정책과 관계없이 `gh workflow run ci.yml --ref <보안 브랜치> -f production_candidate=true`로 CI를 직접 실행한다. 기존 테스트·smoke와 함께 같은 JAR로 두 운영 이미지를 한 번만 빌드·검사한다. 중복 실행하던 `security-update-validation.yml`은 제거했다. 이미지 게시나 서버 접속 권한은 없다. 검토자는 해당 브랜치 최신 commit의 `CI Gate` 성공을 확인하고 병합한다. 이후 기존 Production 흐름으로 다시 검증·배포한다.
 
-저장소 Actions 설정에서 GitHub Actions의 PR 생성 허용이 필요하다. 별도 PAT는 사용하지 않으며 업데이트 job에만 contents/pull-requests/actions 쓰기 권한을 부여한다. PR 생성·검증 실행 API가 거절되면 해당 job을 실패로 남긴다. 최초 사용 전 이 변경과 검증 워크플로가 main에 반영돼 있어야 한다.
+저장소 Actions 설정에서 GitHub Actions의 PR 생성 허용이 필요하다. 별도 PAT는 사용하지 않으며 업데이트 job에만 contents/pull-requests/actions 쓰기 권한을 부여한다. PR 생성·검증 실행 API가 거절되면 해당 job을 실패로 남긴다. 최초 사용 전 `ci.yml`의 workflow_dispatch 지원이 main에 반영돼 있어야 한다.

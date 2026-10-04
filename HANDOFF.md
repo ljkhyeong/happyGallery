@@ -1,5 +1,13 @@
 # HANDOFF
 
+## CI/CD 정리 후 원격 반영 대기 (2026-10-05)
+
+- 시작 SHA `23002b0ab4d6091743587147c9659f66622e50a8`. 기존 화면·README·프런트 스킬 변경과 작업 중 추가된 화면 변경은 별도 작업이며 이 커밋에 넣지 않는다. 현재 브랜치를 유지한다.
+- CI 이미지 빌드·Trivy 검사를 공통화하고 `security-update-validation.yml`을 제거했다. 보안 봇은 `ci.yml`을 `production_candidate=true`로 직접 실행한다. 실패·취소·예상 밖 생략을 차단하는 `CI Gate`, 작업별 시간 제한, actionlint, 외부 Action SHA 고정·Node 24 실행 환경, JAR 7일 보관을 반영했다. 배포 백업·서버 호환성·digest·배포 직렬화는 유지한다. 구성·적용 절차는 [CI/CD 운영](deploy/k3s/cicd.md)에 있다.
+- 실제 원격 조회: 최근 운영 성공 `36722337863`, SHA `b4edd17d`, 약 17분 52초. 과거 인계의 9월 말 변경들은 이 배포 이력을 기준으로 다시 판단한다. `CD_ENABLED=true`, production environment는 main만 허용하지만 main·codexReview 보호와 기존 ruleset은 꺼져 있다. `.github/branch-protection.json`은 적용안만 준비했으며 원격 설정을 바꾸지 않았다.
+- 검증: `bash deploy/k3s/scripts/validate.sh` 통과(`/tmp/hg-cicd-validate.log`, Ruby 153건 중 Linux 전용 1건은 macOS에서 생략 후 `ruby:3.3` root 컨테이너에서 개별 통과, `/tmp/hg-cicd-linux-backup.log`). actionlint 1.7.12·ShellCheck 통과, 실제 CI Gate 실행문에 성공·실패·생략·취소 7조건 확인. `ruby tools/agent-feedback-test.rb` 14건 통과(`/tmp/hg-cicd-agent-tests.log`). 최종 검사 `ruby tools/agent-feedback.rb final 23002b0ab4d6091743587147c9659f66622e50a8` 통과(`/tmp/hg-cicd-final.log`). CI/CD diff의 의존 순서·검사 누락·중복을 검토했다. 같은 코드·설정·환경이면 재사용한다.
+- 남은 행동: 사용자 원격 푸시 요청 후 PR의 새 CI Gate와 운영 후보 이미지 검사를 확인하고 두 브랜치 보호 적용안을 반영한다. 운영 배포·새 Actions 버전의 원격 실행·새 이미지 실빌드/Trivy는 이번 세션에서 실행하지 않았다. 화면 병행 변경은 해당 작업의 검증 기록을 따른다.
+
 ## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
 
 - 시작 SHA `b4edd17dec8414163812a48fc77c8b8843adce2a`, 미커밋 변경 없음. 전역 Codex 스킬(playwright·gh-fix-ci·gh-address-comments·yeet·review-agent·security-*·seo-*)을 이 저장소 기준으로 다시 써서 `happygallery-{ui-verification,github-flows,code-review,security-review,seo-ssr}`를 추가했다. 스킬이 없던 쿠폰·적립금(`benefit-flows`), 후기·이미지 미디어(`review-flows`), 스마트스토어(`smartstore-flows`)도 추가했다. screenshot·sentry·figma·diagram·hope-* 등은 범용이거나 운영 전이라 가져오지 않았다.
@@ -56,7 +64,7 @@
 
 - 시작 SHA `781af329`, 미커밋 변경 없음. 두 이미지 JSON 검사 결과를 보관하고 실패하면 관리 중인 Jackson 2·3/Tomcat/Netty/HttpCore5의 동일 major/minor 패치 수정판만 PR로 제안한다. 배포 실패 상태는 유지하고 자동 병합하지 않는다. 브랜치별 workflow_dispatch로 기존 CI와 두 이미지 보안 검사를 다시 실행한다.
 - GitHub Actions 기본 권한 read, `can_approve_pull_request_reviews=false` 확인. PR 생성 허용 옵션은 리뷰 승인 권한도 묶여 있어 auto-review가 변경을 거절했다. 원격 설정 변경 없음. 사용자에게 해당 묶음 권한 승인이 필요함을 알린다. 푸시·실제 PR 생성·원격 CI 실행 미실행.
-- 관련 경로: `.github/workflows/production.yml`, `security-update-validation.yml`, `deploy/k3s/scripts/security-update.rb`, `deploy/k3s/cicd.md`. 로컬 검증 로그 `/tmp/hg-security-auto-*.log`.
+- 관련 경로: `.github/workflows/production.yml`, `.github/workflows/ci.yml`(2026-10-05 보안 검증 통합), `deploy/k3s/scripts/security-update.rb`, `deploy/k3s/cicd.md`. 로컬 검증 로그 `/tmp/hg-security-auto-*.log`.
 
 ## Jackson 보안 검사 배포 차단 (2026-09-29)
 

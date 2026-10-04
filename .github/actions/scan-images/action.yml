@@ -1,0 +1,55 @@
+name: Scan release images
+description: 두 이미지의 취약점·OS 지원 종료를 같은 기준으로 검사하고 결과를 보관한다.
+inputs:
+  image-tag:
+    description: 같은 실행에서 빌드한 app/frontend 이미지 태그
+    required: true
+  report-name:
+    description: 검사 보고서 artifact 이름
+    required: true
+outputs:
+  passed:
+    description: 두 검사 모두 성공했는지 여부
+    value: ${{ steps.backend.outcome == 'success' && steps.frontend.outcome == 'success' }}
+  security-failed:
+    description: 보안 검사 실패로 패치 검토가 필요한지 여부
+    value: ${{ steps.backend.outcome == 'failure' || steps.frontend.outcome == 'failure' }}
+runs:
+  using: composite
+  steps:
+    - name: Scan backend
+      id: backend
+      continue-on-error: true
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+      env:
+        TRIVY_EXIT_ON_EOL: '1'
+      with:
+        image-ref: happygallery-app:${{ inputs.image-tag }}
+        format: json
+        output: trivy-backend.json
+        exit-code: '1'
+        vuln-type: os,library
+        scanners: vuln,secret
+        severity: HIGH,CRITICAL
+    - name: Scan frontend
+      id: frontend
+      continue-on-error: true
+      uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+      env:
+        TRIVY_EXIT_ON_EOL: '1'
+      with:
+        image-ref: happygallery-frontend:${{ inputs.image-tag }}
+        format: json
+        output: trivy-frontend.json
+        exit-code: '1'
+        vuln-type: os,library
+        scanners: vuln,secret
+        severity: HIGH,CRITICAL
+    - name: Preserve security reports
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ inputs.report-name }}
+        path: trivy-*.json
+        if-no-files-found: error
+        retention-days: 7

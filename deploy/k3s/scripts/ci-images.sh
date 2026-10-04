@@ -5,22 +5,36 @@ cd "$REPO_ROOT"
 
 [[ ${GITHUB_SHA:-} =~ ^[a-f0-9]{40}$ ]] || die "40자리 GITHUB_SHA가 필요합니다."
 [[ ${GITHUB_REPOSITORY:-} == ljkhyeong/happyGallery ]] || die "허용되지 않은 저장소입니다."
-[[ ${GITHUB_REF:-} == refs/heads/main ]] || die "main에서만 운영 이미지를 게시합니다."
 source_url=https://github.com/ljkhyeong/happyGallery
 registry=ghcr.io/ljkhyeong
 
 case "${1:-}" in
     build)
-        [[ -n ${VITE_TOSS_CLIENT_KEY:-} && $VITE_TOSS_CLIENT_KEY != test_ck_ci ]] \
-            || die "PRODUCTION_TOSS_CLIENT_KEY를 GitHub Actions 변수에 설정하세요."
+        profile=${2:-production}
+        case "$profile" in
+            ci)
+                VITE_TOSS_CLIENT_KEY=test_ck_ci
+                VITE_SENTRY_DSN=
+                ;;
+            production|candidate)
+                if [[ $profile == production ]]; then
+                    [[ ${GITHUB_REF:-} == refs/heads/main ]] || die "main에서만 운영 이미지를 빌드합니다."
+                fi
+                [[ -n ${VITE_TOSS_CLIENT_KEY:-} && $VITE_TOSS_CLIENT_KEY != test_ck_ci ]] \
+                    || die "PRODUCTION_TOSS_CLIENT_KEY를 GitHub Actions 변수에 설정하세요."
+                ;;
+            *) die "알 수 없는 이미지 빌드 프로필입니다: $profile" ;;
+        esac
         jar=bootstrap/build/libs/happygallery-app.jar
         [[ -s $jar ]] || die "같은 CI 실행에서 검증한 app JAR가 없습니다."
+        # artifact의 권한과 무관하게 Dockerfile이 앱 사용자에게 읽기 권한을 부여해야 한다.
+        chmod 600 "$jar"
         docker build --platform linux/amd64 \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=$source_url" \
             --build-arg "APP_JAR=$jar" -f deploy/k3s/images/Dockerfile.app \
-            -t happygallery-app:production .
-        "$SCRIPT_DIR/verify-app-image.sh" happygallery-app:production
+            -t "happygallery-app:$profile" .
+        "$SCRIPT_DIR/verify-app-image.sh" "happygallery-app:$profile"
         docker build --platform linux/amd64 \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
             --label "org.opencontainers.image.source=$source_url" \
@@ -28,9 +42,10 @@ case "${1:-}" in
             --build-arg "VITE_SENTRY_DSN=${VITE_SENTRY_DSN:-}" \
             --build-arg VITE_SENTRY_ENVIRONMENT=production \
             --build-arg "VITE_SENTRY_RELEASE=happygallery@$GITHUB_SHA" \
-            -f deploy/k3s/images/Dockerfile.frontend -t happygallery-frontend:production .
+            -f deploy/k3s/images/Dockerfile.frontend -t "happygallery-frontend:$profile" .
         ;;
     publish)
+        [[ ${GITHUB_REF:-} == refs/heads/main ]] || die "main에서만 운영 이미지를 게시합니다."
         : "${GHCR_TOKEN:?GHCR_TOKEN이 필요합니다.}"
         : "${GITHUB_OUTPUT:?GITHUB_OUTPUT이 필요합니다.}"
         : "${GITHUB_ACTOR:?GITHUB_ACTOR가 필요합니다.}"
@@ -51,5 +66,5 @@ case "${1:-}" in
             printf '%s@%s\n' "$image" "$digest" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
         done
         ;;
-    *) die "사용법: $0 <build|publish>" ;;
+    *) die "사용법: $0 build [ci|candidate|production] 또는 $0 publish" ;;
 esac
