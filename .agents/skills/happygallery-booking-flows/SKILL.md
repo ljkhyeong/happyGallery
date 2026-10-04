@@ -17,6 +17,7 @@ description: happyGallery의 예약 생성·변경·취소, 슬롯 정원·잠�
 - 관리자 과거 조회는 탈퇴 회원을 포함하는 전용 일괄 조회를 사용한다. `userId`가 있으면 회원 예약으로 유지하고 익명화된 이름·null 전화번호만 노출한다.
 - 알림 outbox는 예약 트랜잭션에서 저장하고 커밋 후 발송한다.
 - 유료 예약은 서버가 수업료의 10%를 예약금으로 계산하고 결제 confirm 후 생성한다. 결제 변경은 `happygallery-payment-flows`를 함께 적용한다.
+- 수강 완료 처리가 바뀌면 후기 작성 자격·후기 요청 알림을 `happygallery-review-flows`로 확인한다.
 
 ## 검증
 

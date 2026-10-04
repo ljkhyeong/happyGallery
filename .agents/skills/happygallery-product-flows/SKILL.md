@@ -7,11 +7,14 @@ description: happyGallery의 상품 등록·조회·수정, 재고 차감·복�
 
 ## 규칙
 
-- `application/src/main/java/com/personal/happygallery/application/product/`와 `qna/`, PRD-0001, ADR-0012·0013·0014를 확인한다.
+- `application/src/main/java/com/personal/happygallery/application/product/`와 `qna/`, PRD-0001, ADR-0012·0013·0014·0046을 확인한다.
 - 상품과 재고 생성을 같은 서비스 흐름에서 처리한다. 중복 상품 수량은 먼저 합산하고 repository가 정한 순서로 재고를 잠근다.
 - 재고 변경은 `Inventory.deduct`·`restore`를 사용한다. 결제 후 주문 생성과 재고 차감은 `happygallery-payment-flows`의 confirm 처리와 맞춘다.
 - 독립적으로 수정하는 `Product`의 `@Version`을 유지해 관리자 동시 수정의 덮어쓰기를 막는다.
 - 재고 상품과 주문 제작 상품의 재고·처리 규칙을 구분한다. 필요한 필드만 읽는 조회는 projection을 검토한다.
+- 기성품은 상품 단위 `Inventory`, 주문 제작 상품은 선택형 옵션 조합별 `ProductVariant`(SKU) 재고를 쓴다. 조합 키는 저장과 편집 조회가 같은 생성 함수로 옵션 키 문자열 순서에 맞춰 만든다. 직접입력값은 SKU를 나누지 않는 제작 지시다.
+- 기존 SKU 정보 수정(`updateDetails`)은 수량을 받지 않는다. 수량은 재고 조정 API로 바꿔 이력과 동기화 요청을 남긴다. confirm은 SKU를 id 순으로 잠그고, 환불·교환은 주문 항목의 variant ID로 같은 SKU를 처리한다.
+- 재고 변경 뒤 `requestIfMapped` 호출을 유지한다. 채널 연동은 `happygallery-smartstore-flows`, 상품 후기와 상품 이미지 업로드·연결은 `happygallery-review-flows`를 함께 사용한다.
 - 비밀 Q&A는 로그인한 작성자 소유권으로 보호한다. 공용 비밀번호·공개 확인 API를 추가하지 않는다. 공개·회원·관리자 조회의 노출 범위를 함께 확인한다.
 
 ## 검증

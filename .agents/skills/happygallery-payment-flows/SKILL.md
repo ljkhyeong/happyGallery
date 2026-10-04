@@ -16,6 +16,7 @@ description: happyGallery의 Toss prepare/confirm·PaymentAttempt·환불 실행
 - 같은 CONFIRMED 요청은 actor·금액·paymentKey가 같을 때 저장된 context·도메인 ID·비회원 token을 반환한다. PG·fulfillment를 재실행하지 않는다. 도메인 ID는 필수, 비회원 token은 암호문으로만 저장한다.
 - 금액이 있는 결제는 최종 주문·예약·이용권에 확정 paymentKey를 저장한다. 결제 없는 이용권 예약은 null을 유지한다.
 - fulfillment 전에 회원 상태를 재확인한다. PG 승인 후 생성이 실패하거나 회원이 탈퇴했다면 도메인 데이터를 생성하지 말고 attempt에 연결한 보상 환불을 사용한다.
+- ORDER 결제의 쿠폰·적립금 예약·해제·사용 확정과 환불 혜택 후처리가 바뀌면 `happygallery-benefit-flows`를 함께 사용한다.
 
 ## 환불·외부 호출 규칙
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: HG SmartStore Flows
+  short_description: happyGallery 스마트스토어 재고·주문·문의·정산 연동 변경에 필요한 작업 규칙과 검증 안내
+  default_prompt: $happygallery-smartstore-flows 스킬을 사용해 happyGallery 스마트스토어 연동 작업을 진행해줘.

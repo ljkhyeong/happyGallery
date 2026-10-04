@@ -13,6 +13,7 @@ description: happyGallery의 공통 scheduler·cron·BatchExecutor·BatchResult�
 - 대량 정리·보관 만료 처리는 제한된 크기로 조회·커밋하고 후보가 없어질 때까지 반복한다.
 - cron과 `Asia/Seoul`, `BatchResult(successCount, failureCount, failureReasons)` 계약을 유지한다. 변경 시 PRD와 해당 도메인 ADR을 갱신한다.
 - `NotificationOutboxScheduler`는 별도 polling 흐름이다. 수동 관리자 실행은 정기 실행과 같은 도메인 동작을 호출한다.
+- 스마트스토어 주문·재고·정산 배치의 수집 순서·선점·커서는 `happygallery-smartstore-flows`, 후기 증거·tombstone·이미지 고아 정리 순서는 `happygallery-review-flows`를 따른다.
 
 ## 검증
 
