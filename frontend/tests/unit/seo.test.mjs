@@ -141,3 +141,9 @@ test("상세 구조화 데이터의 조직 참조는 같은 식별자와 이름�
   assert.deepEqual(article.author, organization);
   assert.deepEqual(article.publisher, organization);
 });
+
+test("클래스 가격 정보는 noindex 예약 화면이 아닌 색인 대상 상세를 가리킨다", () => {
+  const course = buildCourseJsonLd(bookingClass, "/classes/7", "대체 설명");
+
+  assert.equal(course.offers.url, "https://happy-gallery.com/classes/7");
+});

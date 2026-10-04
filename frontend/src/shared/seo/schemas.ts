@@ -112,7 +112,7 @@ export function buildCourseJsonLd(
     }),
     offers: {
       "@type": "Offer",
-      url: absoluteSiteUrl(`/bookings/new?classId=${bookingClass.id}`),
+      url,
       priceCurrency: "KRW",
       price: bookingClass.price,
     },
