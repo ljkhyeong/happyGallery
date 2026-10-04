@@ -7,7 +7,11 @@ import {
   buildWebSiteJsonLd,
   seoDescription,
 } from "../../src/shared/seo/metadata.ts";
-import { buildNoticeArticleJsonLd } from "../../src/shared/seo/schemas.ts";
+import {
+  buildCourseJsonLd,
+  buildNoticeArticleJsonLd,
+  buildProductJsonLd,
+} from "../../src/shared/seo/schemas.ts";
 
 const notice = {
   id: 3,
@@ -17,6 +21,23 @@ const notice = {
   viewCount: 0,
   version: 0,
   createdAt: "2026-10-03T23:30:00",
+};
+const product = {
+  id: 5,
+  name: "레진 코스터",
+  description: "투명 레진 코스터",
+  imageUrl: null,
+  price: 18000,
+  available: true,
+};
+const bookingClass = {
+  id: 7,
+  name: "레진아트 원데이",
+  description: "레진아트 기초 수업",
+  imageUrl: null,
+  durationMin: 120,
+  price: 45000,
+  targetAudience: null,
 };
 
 test("대표 도메인으로 canonical과 공유 메타데이터를 만든다", () => {
@@ -104,4 +125,19 @@ test("공지 게시 시각은 DB 생성 시각 기준인 UTC offset을 붙여 �
   assert.equal(article.datePublished, "2026-10-03T23:30:00Z");
   assert.equal(Date.parse(article.datePublished), Date.parse("2026-10-04T08:30:00+09:00"));
   assert.equal(offsetArticle.datePublished, "2026-10-04T08:30:00+09:00");
+});
+
+test("상세 구조화 데이터의 조직 참조는 같은 식별자와 이름을 함께 제공한다", () => {
+  const organization = {
+    "@type": "Organization",
+    "@id": "https://happy-gallery.com/#organization",
+    name: "해피갤러리",
+    url: "https://happy-gallery.com/",
+  };
+  const article = buildNoticeArticleJsonLd(notice, "/notices/3", "/images/notice.jpg");
+
+  assert.deepEqual(buildProductJsonLd(product, "/products/5", "대체 설명").brand, organization);
+  assert.deepEqual(buildCourseJsonLd(bookingClass, "/classes/7", "대체 설명").provider, organization);
+  assert.deepEqual(article.author, organization);
+  assert.deepEqual(article.publisher, organization);
 });

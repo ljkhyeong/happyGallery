@@ -3,11 +3,24 @@ import type { NoticeDetailResponse } from "@/generated/api/notice";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
 import { withUtcOffset } from "../lib/format.ts";
-import { absoluteSiteUrl, SITE_ORIGIN, seoDescription } from "./metadata.ts";
+import { absoluteSiteUrl, SITE_NAME, SITE_ORIGIN, seoDescription } from "./metadata.ts";
 
 type JsonLd = Record<string, unknown>;
 
 const ORGANIZATION_ID = `${SITE_ORIGIN}/#organization`;
+
+/**
+ * 검색엔진은 다른 페이지의 노드를 `@id`로 이어 붙이지 않는다.
+ * 홈·사업자 정보 밖에서 조직을 참조할 때도 이름과 대표 URL을 함께 둔다.
+ */
+function organizationReference(): JsonLd {
+  return {
+    "@type": "Organization",
+    "@id": ORGANIZATION_ID,
+    name: SITE_NAME,
+    url: `${SITE_ORIGIN}/`,
+  };
+}
 
 export function buildLocalBusinessJsonLd(
   workshop: WorkshopProfileResponse,
@@ -62,7 +75,7 @@ export function buildProductJsonLd(
     description: seoDescription(product.description, fallbackDescription),
     url,
     ...(product.imageUrl && { image: absoluteSiteUrl(product.imageUrl) }),
-    brand: { "@id": ORGANIZATION_ID },
+    brand: organizationReference(),
     offers: {
       "@type": "Offer",
       url,
@@ -88,7 +101,7 @@ export function buildCourseJsonLd(
     name: bookingClass.name,
     description: seoDescription(bookingClass.description, fallbackDescription),
     url,
-    provider: { "@id": ORGANIZATION_ID },
+    provider: organizationReference(),
     timeRequired: `PT${bookingClass.durationMin}M`,
     ...(bookingClass.imageUrl && { image: absoluteSiteUrl(bookingClass.imageUrl) }),
     ...(bookingClass.targetAudience && {
@@ -121,7 +134,7 @@ export function buildNoticeArticleJsonLd(
     datePublished: withUtcOffset(notice.createdAt),
     mainEntityOfPage: url,
     image: absoluteSiteUrl(image),
-    author: { "@id": ORGANIZATION_ID },
-    publisher: { "@id": ORGANIZATION_ID },
+    author: organizationReference(),
+    publisher: organizationReference(),
   };
 }
