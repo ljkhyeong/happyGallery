@@ -17,9 +17,10 @@ final class SensitiveLogMasker {
     private static final Pattern BOT_TOKEN_PATTERN =
             Pattern.compile("((?i:X-Bot-Token)[\"']?\\s*[=:]\\s*[\"']?)[^\\s,;\"'\\]}]+");
 
-    private static final Pattern ACCESS_TOKEN_PATTERN =
+    /** 비회원 접근 token과 결제 상태 확인 token은 같은 서명 형식(AccessTokenSigner)을 쓴다. */
+    private static final Pattern GUEST_TOKEN_PATTERN =
             Pattern.compile(
-                    "((?i:X-Access-Token)[\"']?\\s*[=:]\\s*[\"']?)"
+                    "((?i:X-Access-Token|X-Payment-Status-Token)[\"']?\\s*[=:]\\s*[\"']?)"
                             + "(?:[A-Za-z0-9_-]{16,}\\.[A-Za-z0-9_-]{32,}|[A-Fa-f0-9]{32,64})"
                             + "(?![A-Za-z0-9._-])");
 
@@ -32,7 +33,7 @@ final class SensitiveLogMasker {
         String masked = PHONE_PATTERN.matcher(message).replaceAll("$1-****-****");
         masked = BEARER_PATTERN.matcher(masked).replaceAll("$1***");
         masked = SESSION_PATTERN.matcher(masked).replaceAll("$1***");
-        masked = ACCESS_TOKEN_PATTERN.matcher(masked).replaceAll("$1***");
+        masked = GUEST_TOKEN_PATTERN.matcher(masked).replaceAll("$1***");
         masked = BOT_TOKEN_PATTERN.matcher(masked).replaceAll("$1***");
         return masked;
     }

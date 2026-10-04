@@ -57,7 +57,7 @@
   - 전화번호: `01x-xxxx-xxxx` → `01x-****-****`
   - Bearer 토큰: `Bearer xxx` → `Bearer ***`
   - 세션 토큰: `HG_SESSION=xxx` → `HG_SESSION=***`
-  - Access 토큰: legacy SHA-256 hex와 현재 `base64url(payload).base64url(signature)` 형식을 `X-Access-Token=xxx` → `X-Access-Token=***`로 치환한다. `:`, `=`, JSON 따옴표 표기를 모두 보존한다.
+  - 비회원 토큰: legacy SHA-256 hex와 현재 `base64url(payload).base64url(signature)` 형식을 `X-Access-Token=xxx` → `X-Access-Token=***`로 치환한다. 같은 서명 형식인 결제 상태 확인 `X-Payment-Status-Token`도 같은 규칙을 적용한다. `:`, `=`, JSON 따옴표 표기를 모두 보존한다.
 - 마스킹은 예기치 않은 문자열 유입을 막는 방어선으로 유지하되, 애플리케이션 로그 호출 자체에도 전화번호·이름·인증 코드·결제 키를 전달하지 않는다.
 - 알림·결제 외부 호출 실패는 예외 원문 대신 HTTP 상태, 예외 타입과 내부 식별자만 기록한다. `notification_log.fail_reason` 등 영속 실패 사유에는 `DELIVERY_EXCEPTION` 같은 통제된 문구를 저장한다.
 - 운영 프런트 Node SSR 서버는 request access log를 남기지 않는다. React Router의 기본 운영 서버는 query string을 포함한 URL을 기록하므로 사용하지 않고, 공식 Express adapter로 정적 자원과 route handler만 연결한다. 따라서 Toss 성공 callback의 `paymentKey`와 `orderId`, 로그인·관리 화면 query가 Pod 로그에 남지 않는다.

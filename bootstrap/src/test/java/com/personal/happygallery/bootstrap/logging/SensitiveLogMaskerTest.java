@@ -9,6 +9,8 @@ import com.fasterxml.jackson.core.JsonFactory;
 import java.io.StringWriter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class SensitiveLogMaskerTest {
 
@@ -29,19 +31,20 @@ class SensitiveLogMaskerTest {
                 .contains("x-bot-token=***, action=phone_verification");
     }
 
-    @DisplayName("실제 Base64URL 서명 접근 토큰은 헤더 구분자와 JSON 따옴표를 보존해 마스킹한다")
-    @Test
-    void mask_signedAccessToken_preservesLogStructure() {
+    @DisplayName("실제 Base64URL 서명 비회원 토큰은 헤더 구분자와 JSON 따옴표를 보존해 마스킹한다")
+    @ParameterizedTest(name = "[{index}] {0}")
+    @ValueSource(strings = {"X-Access-Token", "X-Payment-Status-Token"})
+    void mask_signedGuestToken_preservesLogStructure(String header) {
         String message = """
-                headers={"X-Access-Token":"%s"} X-Access-Token: %s trace.id=value.with.dot
-                """.formatted(SIGNED_ACCESS_TOKEN, SIGNED_ACCESS_TOKEN);
+                headers={"%1$s":"%2$s"} %1$s: %2$s trace.id=value.with.dot
+                """.formatted(header, SIGNED_ACCESS_TOKEN);
 
         String masked = SensitiveLogMasker.mask(message);
 
         assertThat(masked)
                 .doesNotContain(SIGNED_ACCESS_TOKEN)
-                .contains("\"X-Access-Token\":\"***\"")
-                .contains("X-Access-Token: ***")
+                .contains("\"" + header + "\":\"***\"")
+                .contains(header + ": ***")
                 .contains("trace.id=value.with.dot");
     }
 
