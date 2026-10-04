@@ -1,0 +1,4 @@
+interface:
+  display_name: HG GitHub Flows
+  short_description: happyGallery PR·CI 실패 분석·리뷰 대응·병합 절차
+  default_prompt: $happygallery-github-flows 스킬을 사용해 happyGallery PR·CI 작업을 진행해줘.

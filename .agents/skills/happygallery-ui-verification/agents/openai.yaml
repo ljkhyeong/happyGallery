@@ -1,0 +1,4 @@
+interface:
+  display_name: HG UI Verification
+  short_description: happyGallery 화면을 실제 브라우저에서 확인하고 결과를 기록하는 절차
+  default_prompt: $happygallery-ui-verification 스킬을 사용해 happyGallery 화면 변경을 실제 브라우저에서 확인해줘.

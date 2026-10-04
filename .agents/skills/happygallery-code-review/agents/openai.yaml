@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Code Review
+  short_description: happyGallery 변경을 결함 중심으로 리뷰하는 기준과 결과 형식
+  default_prompt: $happygallery-code-review 스킬을 사용해 happyGallery 변경을 리뷰해줘.

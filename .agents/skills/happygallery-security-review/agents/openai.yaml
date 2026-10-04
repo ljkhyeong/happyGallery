@@ -1,0 +1,4 @@
+interface:
+  display_name: HG Security Review
+  short_description: happyGallery 신뢰 경계 기준 보안 리뷰와 위협 모델 작성 안내
+  default_prompt: $happygallery-security-review 스킬을 사용해 happyGallery 보안 검토를 진행해줘.
