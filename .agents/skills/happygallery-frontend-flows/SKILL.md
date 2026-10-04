@@ -14,7 +14,7 @@ description: happyGallery의 React Router 화면·SSR·스타일·폼·React Que
 - 인증·결제·회원 데이터·비회원 복구 상태를 변경하면 [세션과 비동기 결과](references/session-state.md)를 읽는다.
 - `ErrorAlert`, `LoadingSpinner`, `EmptyState`, `StatusBadge`, 공용 toast를 재사용한다. 비동기 환불의 REQUESTED 응답을 환불 완료로 표시하지 않는다.
 - offset 없는 서버 날짜·시각은 서울 시각으로 해석한다. 브라우저 시간대로 예약·픽업·관리자 폼 시간을 바꾸지 않는다.
-- Pretendard·Bootstrap 기반 스타일을 사용한다. `global.scss`는 import 순서만 관리하고 규칙은 담당 partial에 둔다.
+- Pretendard·Bootstrap 기반 스타일을 사용한다. `global.scss`는 import 순서만 관리하고 규칙은 담당 partial에 둔다. 색 체계·partial 담당 범위는 README `프론트엔드 디자인 기준`을 따른다.
 - Toss 화면은 `VITE_TOSS_CLIENT_KEY`를 사용한다. 결제 prepare/confirm은 결제 스킬, 휴대폰 인증은 identity 스킬과 맞춘다. 운영 화면에 인증 코드를 노출하지 않는다.
 
 ## 검증

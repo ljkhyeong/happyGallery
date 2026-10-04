@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 스토어프런트 디자인 개편·홈 바로 예약 (2026-10-05)
+
+- 시작 SHA `619bb890f1ddfd2121be007011a1fe0f1d361f17`. 같은 브랜치에 병행 세션의 Sentry·JSON-LD·CI 커밋이 먼저 들어왔고 겹치는 파일은 없다. 색 체계를 한지·점토·잎으로 정리하고(민트·분홍·와인 섹션 색과 줄무늬 배경 제거), 주요 버튼을 먹색으로 통일했다. 히어로·작품 카드·클래스 상세의 중복 스타일을 담당 partial 하나로 모았고, container 폭은 1180px로 맞췄다. 담당 범위는 README `프론트엔드 디자인 기준`에 있다.
+- 화면: 홈은 사진 카드 + 바로 예약 패널(수업·날짜·시간·남은 자리) → 바로가기 → 사진 클래스 카드(다음 수업·남은 자리) → 4열/모바일 2열 작품 순이다. 상품 상세는 사진(고정)·정보·주문표 2단, 클래스 목록·상세는 사진 카드·고정 예약 패널, 예약 시간은 2열 시간 칩이다. 헤더의 중복 로그인·회원가입 링크를 정리했다. 시안 A·B·C 비교는 `output/design-candidates/`, 사용자가 A+C 혼합을 골랐다.
+- 예약 연결: 홈 패널은 `/bookings/new?classId&slotId&selectSlot=1`로 넘기고, 예약 화면은 `selectSlot=1`이고 자리가 남았을 때만 시간을 미리 선택한다. 빈자리 알림 링크는 PRD대로 날짜만 펼친다. 일정 조회 기간·쿼리는 `features/booking-create/upcomingSlots.ts`가 예약·일정 변경·홈에 공통으로 제공한다.
+- 검증: 변경 파일 ESLint, `npm run build`(SCSS 경고 없음), `npm run test:unit` 77건, `agent-feedback.rb final 619bb890` 통과(architectureTest 포함). 1280/390px 캡처 결과 모든 공개 화면 가로 넘침 없음(`output/playwright/after{2,3,4}`). E2E는 영향 spec 60건 중 53건 통과 후 원인 수정, 예약·검색 관련 6개 파일 17건, @smoke 20건, 새 `home-quick-booking.spec.ts`, 빈자리 알림 3건 통과.
+- 기존 실패(변경 전 HEAD 별도 worktree에서 같은 지점 실패 확인, 수정 안 함): `customer-account-boundary` 203·355·656, `event-coupon-admin` 457, `guest-claim-onboarding` P8-9, `member-self-service` P8-7·P8-10. 관리자 상품 등록에서 기성품 수량 0은 400이 아닌 500(`IllegalArgumentException`)이다. 각각 별도 작업 카드로 남겼다.
+- E2E 실행 조건: 이 노트북은 3000번(다른 Next 서버)과 `127.0.0.1:8080`(다른 Spring 앱)이 점유돼 있다. `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://localhost:8080/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`로 실행했다. 기존 로컬 DB(`happygallery-mysql`)는 V22 체크섬 불일치라 건드리지 않고 확인용 `hg-design-mysql`(3307)을 사용했다. `bootRun` 중 다른 빌드가 산출물을 바꾸면 `NoClassDefFoundError`가 나므로 백엔드를 재시작한 뒤 실제 백엔드 E2E를 돌린다. 푸시·배포 미실행.
+
 ## CI/CD 정리 후 원격 반영 대기 (2026-10-05)
 
 - 시작 SHA `23002b0ab4d6091743587147c9659f66622e50a8`. 기존 화면·README·프런트 스킬 변경과 작업 중 추가된 화면 변경은 별도 작업이며 이 커밋에 넣지 않는다. 현재 브랜치를 유지한다.
