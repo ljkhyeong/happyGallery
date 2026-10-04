@@ -62,6 +62,7 @@
 - 알림·결제 외부 호출 실패는 예외 원문 대신 HTTP 상태, 예외 타입과 내부 식별자만 기록한다. `notification_log.fail_reason` 등 영속 실패 사유에는 `DELIVERY_EXCEPTION` 같은 통제된 문구를 저장한다.
 - 운영 프런트 Node SSR 서버는 request access log를 남기지 않는다. React Router의 기본 운영 서버는 query string을 포함한 URL을 기록하므로 사용하지 않고, 공식 Express adapter로 정적 자원과 route handler만 연결한다. 따라서 Toss 성공 callback의 `paymentKey`와 `orderId`, 로그인·관리 화면 query가 Pod 로그에 남지 않는다.
 - 전역 예외 처리와 Sentry 전송은 DB·JSON·외부 서비스 예외 원문 대신 예외 종류와 공통 오류 메시지만 남긴다. Sentry event·breadcrumb·API 경로 태그와 Referer의 URL은 경로만 남기고 query와 fragment를 제거한다. 요청 본문·쿠키·query string과 인증·CSRF·비회원 접근 토큰 헤더도 제거해 관리자 검색어, 결제 키와 내부 식별자를 전송하지 않는다.
+- 서버 Sentry는 `send-default-pii: false`만으로 부족하다. sentry-spring은 query string을 요청 정보에 그대로 담아 오류 이벤트와 트랜잭션에 붙이고, SDK 기본 제거 헤더에 `X-Access-Token`·`X-Payment-Status-Token`·`X-Bot-Token`이 없다. 외부 호출 계측도 query를 breadcrumb·span의 `http.query`에 남긴다. 그래서 `SentryEventSanitizer`가 `beforeSend`·`beforeSendTransaction`에서 위 기준을 강제하고, `SentryEventSanitizerTest`가 실제 자동 설정·필터를 거친 전송 envelope으로 검증한다.
 - 로컬 Hibernate SQL bind 로깅도 개인정보가 노출되지 않도록 `WARN` 수준으로 유지한다.
 - `logstash-logback-encoder`를 `runtimeOnly` → `implementation`으로 변경 (커스텀 JsonProvider 컴파일에 필요).
 
