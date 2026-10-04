@@ -51,6 +51,7 @@ fallback으로 HTTP 200을 받았고, sitemap·canonical·`og:url`이 없었다.
   공개 경로만 포함한다. 신뢰할 수 있는 수정 시각이 없는 현재 모델에서
   `lastmod`를 임의로 만들지 않는다.
 - 알 수 없는 경로와 존재하지 않거나 비활성인 공개 상세는 실제 HTTP 404를 반환한다.
+  404·오류 응답은 대표 URL이 없으므로 canonical·`og:url`·JSON-LD를 내보내지 않는다.
 - `/healthz`는 frontend Node 프로세스의 startup·readiness·liveness probe로 사용한다.
 
 ### 4. 운영 frontend는 정적 Nginx 대신 Node SSR 프로세스로 배포한다

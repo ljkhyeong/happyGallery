@@ -42,6 +42,8 @@ export function buildSeoMeta({
 }: SeoMetadata): MetaDescriptor[] {
   const canonical = absoluteSiteUrl(pathname);
   const socialImage = absoluteSiteUrl(image);
+  // 색인과 링크 추적을 모두 막는 404·오류 응답은 대표 URL이 없으므로 내보내지 않는다.
+  const hasRepresentativeUrl = indexable || followLinks;
 
   return [
     { title },
@@ -50,13 +52,13 @@ export function buildSeoMeta({
       name: "robots",
       content: `${indexable ? "index" : "noindex"},${followLinks ? "follow" : "nofollow"}`,
     },
-    { tagName: "link", rel: "canonical", href: canonical },
+    ...(hasRepresentativeUrl ? [{ tagName: "link", rel: "canonical", href: canonical }] : []),
     { property: "og:type", content: type },
     { property: "og:locale", content: "ko_KR" },
     { property: "og:site_name", content: SITE_NAME },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
-    { property: "og:url", content: canonical },
+    ...(hasRepresentativeUrl ? [{ property: "og:url", content: canonical }] : []),
     { property: "og:image", content: socialImage },
     { name: "twitter:card", content: "summary_large_image" },
     { name: "twitter:title", content: title },

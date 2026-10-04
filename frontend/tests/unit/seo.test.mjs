@@ -87,7 +87,7 @@ test("홈 WebSite 구조화 데이터는 WebPage가 참조하는 안정적인 �
   });
 });
 
-test("과거 정책 문서는 색인하지 않되 링크 추적은 허용할 수 있다", () => {
+test("과거 정책 문서는 색인하지 않되 링크 추적은 허용하고, 없는 문서는 대표 URL을 선언하지 않는다", () => {
   const historyMeta = buildSeoMeta({
     title: "이전 이용약관 | 해피갤러리",
     description: "이전 이용약관",
@@ -111,6 +111,14 @@ test("과거 정책 문서는 색인하지 않되 링크 추적은 허용할 수
   assert.deepEqual(
     missingMeta.find((descriptor) => descriptor.name === "robots"),
     { name: "robots", content: "noindex,nofollow" },
+  );
+  assert.deepEqual(
+    historyMeta.find((descriptor) => descriptor.rel === "canonical"),
+    { tagName: "link", rel: "canonical", href: "https://happy-gallery.com/terms/2025-01-01" },
+  );
+  assert.equal(
+    missingMeta.some((descriptor) => descriptor.rel === "canonical" || descriptor.property === "og:url"),
+    false,
   );
 });
 
