@@ -21,6 +21,15 @@ export function parseApiDateTime(value: string): number {
   return Date.parse(`${trimmed}+09:00`);
 }
 
+/**
+ * DB 기본값으로 생성한 `created_at`은 UTC다.
+ * offset 없이 내려온 값에 `Z`를 붙여 외부로 내보낼 때 절대 시각을 보존한다.
+ */
+export function withUtcOffset(value: string): string {
+  const trimmed = value.trim();
+  return ISO_OFFSET_SUFFIX.test(trimmed) ? trimmed : `${trimmed}Z`;
+}
+
 export function formatKRW(amount: number): string {
   return krwFormatter.format(amount);
 }

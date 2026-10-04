@@ -7,6 +7,17 @@ import {
   buildWebSiteJsonLd,
   seoDescription,
 } from "../../src/shared/seo/metadata.ts";
+import { buildNoticeArticleJsonLd } from "../../src/shared/seo/schemas.ts";
+
+const notice = {
+  id: 3,
+  title: "추석 휴무 안내",
+  content: "추석 연휴에는 공방을 쉽니다.",
+  pinned: false,
+  viewCount: 0,
+  version: 0,
+  createdAt: "2026-10-03T23:30:00",
+};
 
 test("대표 도메인으로 canonical과 공유 메타데이터를 만든다", () => {
   const meta = buildSeoMeta({
@@ -80,4 +91,17 @@ test("과거 정책 문서는 색인하지 않되 링크 추적은 허용할 수
     missingMeta.find((descriptor) => descriptor.name === "robots"),
     { name: "robots", content: "noindex,nofollow" },
   );
+});
+
+test("공지 게시 시각은 DB 생성 시각 기준인 UTC offset을 붙여 내보낸다", () => {
+  const article = buildNoticeArticleJsonLd(notice, "/notices/3", "/images/notice.jpg");
+  const offsetArticle = buildNoticeArticleJsonLd(
+    { ...notice, createdAt: "2026-10-04T08:30:00+09:00" },
+    "/notices/3",
+    "/images/notice.jpg",
+  );
+
+  assert.equal(article.datePublished, "2026-10-03T23:30:00Z");
+  assert.equal(Date.parse(article.datePublished), Date.parse("2026-10-04T08:30:00+09:00"));
+  assert.equal(offsetArticle.datePublished, "2026-10-04T08:30:00+09:00");
 });

@@ -2,7 +2,8 @@ import type { ClassResponse } from "@/generated/api/booking";
 import type { NoticeDetailResponse } from "@/generated/api/notice";
 import type { ProductDetailResponse } from "@/generated/api/product";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
-import { absoluteSiteUrl, SITE_ORIGIN, seoDescription } from "./metadata";
+import { withUtcOffset } from "../lib/format.ts";
+import { absoluteSiteUrl, SITE_ORIGIN, seoDescription } from "./metadata.ts";
 
 type JsonLd = Record<string, unknown>;
 
@@ -117,7 +118,7 @@ export function buildNoticeArticleJsonLd(
     "@id": `${url}#article`,
     headline: notice.title,
     articleBody: notice.content,
-    datePublished: notice.createdAt,
+    datePublished: withUtcOffset(notice.createdAt),
     mainEntityOfPage: url,
     image: absoluteSiteUrl(image),
     author: { "@id": ORGANIZATION_ID },

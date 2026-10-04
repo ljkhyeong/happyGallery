@@ -37,6 +37,7 @@ fallback으로 HTTP 200을 받았고, sitemap·canonical·`og:url`이 없었다.
   단일 원본으로 삼는다. 자유 문자열 영업시간을 요일·시간 구조로 임의 파싱하지 않는다.
 - 상품은 `Product`/`Offer`, 클래스는 `Course`, 공지는 `Article`로 표현한다.
   현재 도메인의 이벤트는 프로모션도 포함하므로 schema.org `Event`로 단정하지 않는다.
+- 공지 `datePublished`는 DB 기본값으로 만든 UTC `created_at`이므로 offset이 없으면 `Z`를 붙여 내보낸다.
 - 현재 버전의 `/terms`, `/privacy`만 sitemap에 포함한다. 과거 버전은
   `noindex,follow`, 알 수 없는 버전은 404로 처리한다.
 
