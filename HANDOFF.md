@@ -5,7 +5,8 @@
 - 시작 SHA `b4edd17dec8414163812a48fc77c8b8843adce2a`, 미커밋 변경 없음. 전역 Codex 스킬(playwright·gh-fix-ci·gh-address-comments·yeet·review-agent·security-*·seo-*)을 이 저장소 기준으로 다시 써서 `happygallery-{ui-verification,github-flows,code-review,security-review,seo-ssr}`를 추가했다. 스킬이 없던 쿠폰·적립금(`benefit-flows`), 후기·이미지 미디어(`review-flows`), 스마트스토어(`smartstore-flows`)도 추가했다. screenshot·sentry·figma·diagram·hope-* 등은 범용이거나 운영 전이라 가져오지 않았다.
 - 기존 product(ADR-0046 SKU 규칙)·payment·order·batch·booking·frontend 스킬과 `AGENTS.md`에 새 스킬 연결 문구만 넣었다.
 - 검증: `ruby tools/check-agent-skills.rb` 27개 통과, `agent-feedback.rb final` 통과. 스킬에 적은 클래스·식별자·명령은 `rg`로 존재를 확인했다. 문서 변경이라 앱 빌드·테스트는 실행하지 않았다. 셸 locale이 US-ASCII면 검사 도구가 인코딩 오류를 내므로 `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`을 붙인다.
-- 조사 중 발견한 미확인 후속 후보(수정 안 함): 서버 Sentry 이벤트에 `X-Access-Token`·`X-Payment-Status-Token` 헤더와 query가 포함될 가능성(`application.yml`의 `send-default-pii`만 설정, `GlobalExceptionHandler`의 `captureException`), `SensitiveLogMasker`에 `X-Payment-Status-Token` 패턴 없음, 공지 JSON-LD `datePublished` 시간대 누락(`frontend/src/shared/seo/schemas.ts`), 상세 JSON-LD의 Organization `@id` 단독 참조, `BatchScheduler` 정산 Javadoc "최근 7일"과 실제 커서 방식 불일치.
+- 조사 중 발견한 미확인 후속 후보(수정 안 함): 서버 Sentry 이벤트에 `X-Access-Token`·`X-Payment-Status-Token` 헤더와 query가 포함될 가능성(`application.yml`의 `send-default-pii`만 설정, `GlobalExceptionHandler`의 `captureException`), `SensitiveLogMasker`에 `X-Payment-Status-Token` 패턴 없음, `BatchScheduler` 정산 Javadoc "최근 7일"과 실제 커서 방식 불일치. 공지 JSON-LD 시간대·Organization 참조·Course Offer URL·404 canonical은 2026-10-05에 수정했다(ADR-0045).
+- 확인된 후속 후보(수정 안 함): 공지 `createdAt`은 DB 기본값 UTC인데 `NoticeDetailResponse`·`NoticeListResponse`(관리자 공지 API도 같은 DTO)가 offset 없는 `LocalDateTime`으로 내보낸다. 프론트 `formatDateTime`이 서울 시각으로 해석해 공지 목록·상세·관리자 화면 시각이 9시간 이르게 보인다. 다른 DB 생성 시각처럼 응답을 `atOffset(ZoneOffset.UTC)`로 바꾸는 API 계약 변경이 필요하다(api-contract). JSON-LD는 offset이 있으면 그대로 쓰므로 함께 고칠 필요는 없다.
 
 ## 소셜 아이콘·비회원 조회 화면 개편 (2026-09-30)
 
