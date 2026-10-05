@@ -430,53 +430,48 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                     >
                       로그인 후 구매하기
                     </Button>
-                    <LinkButton
-                      to={signupHref}
-                      variant="outline-dark"
-                      className="w-100 mb-2"
-                    >
-                      회원가입 후 구매하기
-                    </LinkButton>
-                    <Button
-                      variant="outline-dark"
-                      className="w-100 mb-2"
-                      disabled={!canBuy || cartMutation.isPending}
-                      onClick={() => cartMutation.mutate()}
-                    >
-                      {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
-                    </Button>
-                    {hasConfiguredOptions ? (
+                    {/* 비회원 주문도 장바구니와 같은 크기로 보여 찾기 쉽게 하고, 회원가입은 혜택과 함께 문장 링크로 둔다. */}
+                    <div className="store-purchase-secondary">
+                      {hasConfiguredOptions ? (
+                        <Button
+                          variant="outline-dark"
+                          disabled={!canBuy}
+                          onClick={() => {
+                            const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
+                              productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
+                            })));
+                            if (!draftId) {
+                              toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
+                              return;
+                            }
+                            navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
+                          }}
+                        >
+                          비회원 주문하기
+                        </Button>
+                      ) : (
+                        <LinkButton
+                          to={guestFallbackPath}
+                          aria-disabled={!canBuy}
+                          tabIndex={canBuy ? undefined : -1}
+                          onClick={(event) => { if (!canBuy) event.preventDefault(); }}
+                          variant="outline-dark"
+                          className={canBuy ? undefined : "disabled"}
+                        >
+                          비회원 주문하기
+                        </LinkButton>
+                      )}
                       <Button
-                        variant="link"
-                        className="w-100 text-muted-soft store-purchase-guest-link"
-                        disabled={!canBuy}
-                        onClick={() => {
-                          const draftId = saveGuestOrderDraft(productId, purchaseLines.map((line) => ({
-                            productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
-                          })));
-                          if (!draftId) {
-                            toast.show("주문 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인한 뒤 다시 시도해 주세요.");
-                            return;
-                          }
-                          navigate(`/orders/new?productId=${productId}&draft=options&draftId=${draftId}`);
-                        }}
+                        variant="outline-dark"
+                        disabled={!canBuy || cartMutation.isPending}
+                        onClick={() => cartMutation.mutate()}
                       >
-                        비회원 주문하기 →
+                        {cartMutation.isPending ? "담는 중..." : "장바구니 담기"}
                       </Button>
-                    ) : (
-                      <LinkButton
-                        to={guestFallbackPath}
-                        aria-disabled={!canBuy}
-                        tabIndex={canBuy ? undefined : -1}
-                        onClick={(event) => { if (!canBuy) event.preventDefault(); }}
-                        variant="link"
-                        className={`w-100 text-muted-soft store-purchase-guest-link${canBuy ? "" : " disabled"}`}
-                      >
-                        비회원 주문하기 →
-                      </LinkButton>
-                    )}
+                    </div>
                     <p className="store-purchase-helper mb-0 mt-2">
-                      선택한 상품과 수량으로 비회원 주문을 시작합니다.
+                      회원은 쿠폰과 결제 금액 1% 적립을 받을 수 있습니다.{" "}
+                      <Link to={signupHref}>회원가입 후 구매하기</Link>
                     </p>
                   </section>
                 ) : null}

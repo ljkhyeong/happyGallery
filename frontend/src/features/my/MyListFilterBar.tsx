@@ -1,4 +1,5 @@
-import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
+import { Search } from "lucide-react";
+import { Badge, Button, Card, Form } from "react-bootstrap";
 
 export interface MyFilterOption {
   value: string;
@@ -86,62 +87,53 @@ export function MyListFilterBar({
             })}
           </div>
         )}
-        <Row className="g-3 align-items-end">
-          <Col md={hasSort ? 4 : 5}>
-            <Form.Group controlId={`${idPrefix}-search`}>
-              <Form.Label>{searchLabel}</Form.Label>
-              <Form.Control
-                value={searchValue}
-                onChange={(event) => onSearchChange(event.target.value)}
-                placeholder={searchPlaceholder}
-              />
-            </Form.Group>
-          </Col>
-          <Col md={hasSort ? 3 : 4}>
-            <Form.Group controlId={`${idPrefix}-filter`}>
-              <Form.Label>{filterLabel}</Form.Label>
+        {/* 작품 목록과 같은 도구 막대: 선택 상자 값이 스스로 설명하므로 라벨은 보조기기용으로만 둔다. */}
+        <div className="store-filter-controls">
+          <Form.Group controlId={`${idPrefix}-search`} className="store-filter-search">
+            <Form.Label className="visually-hidden">{searchLabel}</Form.Label>
+            <Search className="store-filter-search-icon" size={16} aria-hidden="true" />
+            <Form.Control
+              type="search"
+              value={searchValue}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={searchPlaceholder}
+            />
+          </Form.Group>
+          <Form.Group controlId={`${idPrefix}-filter`} className="store-filter-select">
+            <Form.Label className="visually-hidden">{filterLabel}</Form.Label>
+            <Form.Select
+              value={filterValue}
+              onChange={(event) => onFilterChange(event.target.value)}
+            >
+              {filterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          {hasSort && (
+            <Form.Group controlId={`${idPrefix}-sort`} className="store-filter-select">
+              <Form.Label className="visually-hidden">{sortLabel}</Form.Label>
               <Form.Select
-                value={filterValue}
-                onChange={(event) => onFilterChange(event.target.value)}
+                value={sortValue}
+                onChange={(event) => onSortChange(event.target.value)}
               >
-                {filterOptions.map((option) => (
+                {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </Form.Select>
             </Form.Group>
-          </Col>
-          {hasSort && (
-            <Col md={3}>
-              <Form.Group controlId={`${idPrefix}-sort`}>
-                <Form.Label>{sortLabel}</Form.Label>
-                <Form.Select
-                  value={sortValue}
-                  onChange={(event) => onSortChange(event.target.value)}
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            </Col>
           )}
-          <Col md={hasSort ? 2 : 3}>
-            <div className="d-grid">
-              <Button
-                variant="outline-secondary"
-                onClick={onReset}
-                disabled={!hasActiveFilter}
-              >
-                초기화
-              </Button>
-            </div>
-          </Col>
-        </Row>
-        <div className="my-filter-result mt-3">{resultText}</div>
+        </div>
+        <div className="store-filter-meta">
+          <span className="my-filter-result">{resultText}</span>
+          <Button variant="link" size="sm" onClick={onReset} disabled={!hasActiveFilter}>
+            초기화
+          </Button>
+        </div>
       </Card.Body>
     </Card>
   );

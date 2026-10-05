@@ -635,8 +635,22 @@
   letter-spacing: 0.04em;
 }
 
-.store-purchase-guest-link {
-  font-size: 0.8125rem;
+// 비회원 주문과 장바구니 담기를 같은 크기로 나란히 둔다.
+.store-purchase-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+
+  .btn {
+    min-height: 44px;
+    white-space: nowrap;
+  }
+}
+
+.store-purchase-helper a {
+  color: var(--hg-dark);
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 // ── Auth pages ─────────────────────────────────────────
