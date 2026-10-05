@@ -5,8 +5,8 @@ import {
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
-import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
-import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
+import groupToleWreath from "@/assets/happygallery/group-tole-wreath.jpg";
+import leatherWorkshopHands from "@/assets/happygallery/leather-workshop-hands.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
 import { QuickBookingPanel } from "@/features/booking-create/QuickBookingPanel";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
@@ -277,7 +277,7 @@ export function HomePage({
       <section className="home-group-band" aria-labelledby="home-group-title">
         <Container className="home-editorial-layout">
           <figure className="home-editorial-media">
-            <img src={groupResinClass} alt="해피갤러리 단체 레진아트 수업 결과물" loading="lazy" />
+            <img src={groupToleWreath} alt="직장인 동아리 단체수업에서 원목 인형을 리스에 다는 모습" loading="lazy" />
           </figure>
           <div className="home-editorial-copy">
             <p className="store-section-kicker">단체·기관 수업</p>
@@ -300,7 +300,7 @@ export function HomePage({
       <section className="home-section home-story-section" aria-labelledby="home-story-title">
         <Container className="home-story-layout">
           <figure className="home-story-media">
-            <img src={upcyclingClass} alt="해피갤러리 업사이클링 공예 수업 기록" loading="lazy" />
+            <img src={leatherWorkshopHands} alt="빈티지가죽 카드지갑 원데이클래스에서 가죽에 각인하는 모습" loading="lazy" />
           </figure>
           <div className="home-story-copy">
             <p className="store-section-kicker">공방 기록</p>
