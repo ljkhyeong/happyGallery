@@ -8,9 +8,6 @@ import { CheckoutPanel, LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/
 import {
   CLASS_CATEGORY_OPTIONS,
   classImageSrc,
-  formatDate,
-  formatDateTime,
-  formatTime,
   getClassCategoryLabel,
   isPerfumeClassCategory,
 } from "@/shared/lib";
@@ -18,18 +15,7 @@ import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";
-
-/** 위에서 고른 날짜의 슬롯만 보여 주므로 화면에는 시간만 표시한다. 날짜는 보조기기용 숨김 텍스트로 붙이고, 다음 날 끝나는 수업만 종료 날짜를 보인다. */
-function SlotTime({ slot }: { slot: Pick<PublicSlotResponse, "startAt" | "endAt"> }) {
-  const sameDay = slot.endAt.slice(0, 10) === slot.startAt.slice(0, 10);
-  return (
-    <span className="booking-slot-time">
-      <span className="visually-hidden">{formatDate(slot.startAt)} </span>
-      <b>{formatTime(slot.startAt)}</b>
-      <small> ~ {sameDay ? formatTime(slot.endAt) : formatDateTime(slot.endAt)}</small>
-    </span>
-  );
-}
+import { BookingDateChips, BookingSlotTime } from "./BookingDateChips";
 
 interface Props {
   initialClassId?: number | null;
@@ -119,8 +105,6 @@ export function SlotSelectionStep({
       .map((slot) => slot.startAt.slice(0, 10)) ?? []),
     [upcomingSlots],
   );
-  const monthLabel = Array.from(new Set(availableDates.map((value) => `${slotDayParts(value).month}월`)))
-    .join(" · ");
   const slots = useMemo(
     () => upcomingSlots?.filter((slot) => slot.startAt.startsWith(activeDate)),
     [activeDate, upcomingSlots],
@@ -270,30 +254,13 @@ export function SlotSelectionStep({
         )}
 
         {availableDates.length > 0 && (
-          <div className="booking-date-step">
-            <p className="booking-step-label">{monthLabel}</p>
-            <div className="booking-date-chips" role="group" aria-label="날짜">
-              {availableDates.map((value) => {
-                const { month, day, weekday } = slotDayParts(value);
-                const open = openDates.has(value);
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    data-booking-date={value}
-                    aria-pressed={value === activeDate}
-                    aria-label={`${month}월 ${day}일 ${weekday}요일${open ? "" : " 마감"}`}
-                    className={open ? undefined : "is-full"}
-                    onClick={() => { setDate(value); onDeselect?.(); }}
-                  >
-                    <span>{weekday}</span>
-                    <b>{day}</b>
-                    {!open && <small>마감</small>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <BookingDateChips
+            label="날짜"
+            dates={availableDates}
+            activeDate={activeDate}
+            isFull={(value) => !openDates.has(value)}
+            onSelect={(value) => { setDate(value); onDeselect?.(); }}
+          />
         )}
 
         {slots && slots.length > 0 && activeDay && (
@@ -305,7 +272,7 @@ export function SlotSelectionStep({
               {slots.map((slot) => slot.remainingCapacity === 0 ? (
                 <ListGroup.Item key={slot.id} data-slot-id={slot.id} className="is-full">
                   {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
-                  <SlotTime slot={slot} />
+                  <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">만석</span>
                   <VacancyAlertButton slotId={slot.id} />
                 </ListGroup.Item>
@@ -319,7 +286,7 @@ export function SlotSelectionStep({
                   className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
                 >
                   {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
-                  <SlotTime slot={slot} />
+                  <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>
                 </ListGroup.Item>
               ))}

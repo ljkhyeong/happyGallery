@@ -165,7 +165,7 @@ function BookingManageContent() {
             variant="outline-dark" className="mt-3">같은 수업 예약</LinkButton>
 
           {isBooked && (
-            <Card className="mt-4">
+            <Card className="mt-4 my-action-card border-0">
               <Card.Header>예약 변경</Card.Header>
               <Card.Body>
                 <p className="text-muted-soft small mb-3">

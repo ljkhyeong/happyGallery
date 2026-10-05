@@ -438,16 +438,27 @@
   }
 }
 
-.store-detail-fulfillment {
-  display: grid;
-  grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
-  gap: 1rem;
-  padding: 1rem 0;
-  border-top: 1px solid var(--hg-border);
-  font-size: 0.8125rem;
+// 작품 구매 안내: 수령·배송비·교환반품·적립을 같은 줄 구성으로 보여 준다.
+.store-detail-policy {
+  margin: 0;
 
-  span {
+  > div {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.35fr) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem 0;
+    border-top: 1px solid var(--hg-border);
+    font-size: 0.8125rem;
+  }
+
+  dt {
+    font-weight: 700;
+  }
+
+  dd {
+    margin: 0;
     color: var(--hg-ink-soft);
+    line-height: 1.7;
   }
 }
 
@@ -1302,7 +1313,7 @@
     margin-left: 0;
   }
 
-  .store-detail-fulfillment {
+  .store-detail-policy > div {
     grid-template-columns: 1fr;
     gap: 0.35rem;
   }
@@ -2596,5 +2607,34 @@
 
   > div {
     justify-content: center;
+  }
+}
+
+// 예약 변경: 빠른 날짜 칩 → 직접 날짜 입력 → 시간 칩 순서로 고른다.
+.reschedule-form {
+  .booking-date-step {
+    margin-bottom: 1rem;
+  }
+}
+
+.reschedule-date-field {
+  margin-bottom: 1rem;
+
+  .form-control {
+    max-width: 14rem;
+  }
+}
+
+// 예약 변경·인원 변경·취소 카드: 제목 줄을 같은 굵기로 맞춘다.
+.my-action-card {
+  border-radius: 1rem;
+  overflow: hidden;
+
+  > .card-header {
+    padding: 0.9rem 1.25rem;
+    color: var(--hg-dark);
+    background: transparent;
+    border-bottom: 1px solid var(--hg-border);
+    font-weight: 800;
   }
 }

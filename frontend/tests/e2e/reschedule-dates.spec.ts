@@ -96,8 +96,10 @@ test("회원은 현재 인원이 모두 이동 가능한 날짜만 골라 예약
   await expect(popup).toHaveURL(/^https:\/\/calendar\.google\.com\/calendar\/r\/eventedit\?/);
   await popup.close();
   const quickDates = panel.getByLabel("빠른 날짜 선택 (14일 이내)");
-  await expect(quickDates.locator("option")).toHaveText(["날짜를 선택하세요", "2099. 01. 14.", "2099. 01. 15."]);
-  await quickDates.selectOption("2099-01-14");
+  await expect(quickDates.locator("[data-booking-date]")).toHaveCount(2);
+  await expect(quickDates.locator('[data-booking-date="2099-01-15"]')).toBeVisible();
+  await quickDates.locator('[data-booking-date="2099-01-14"]').click();
+  await expect(quickDates.locator('[data-booking-date="2099-01-14"]')).toHaveAttribute("aria-pressed", "true");
   await expect(panel.getByLabel("변경할 날짜")).toHaveValue("2099-01-14");
   await expect(panel.locator("[data-slot-id]")).toHaveCount(2);
   await panel.locator('[data-slot-id="72"]').click();
@@ -132,7 +134,7 @@ test("비회원은 날짜·시간 조회 실패를 재시도하고 직접 입력
   options.upcomingFailure = false;
   await panel.getByRole("button", { name: "다시 시도" }).click();
   await expect(panel.getByRole("alert")).toHaveCount(0);
-  await panel.getByLabel("빠른 날짜 선택 (14일 이내)").selectOption("2099-01-14");
+  await panel.getByLabel("빠른 날짜 선택 (14일 이내)").locator('[data-booking-date="2099-01-14"]').click();
   await expect(panel.getByRole("alert")).toBeVisible();
   await expect(panel.getByLabel("변경할 날짜")).toHaveValue("2099-01-14");
   await page.screenshot({ path: testInfo.outputPath("mobile-retry.png"), fullPage: true });
@@ -148,9 +150,8 @@ test("비회원은 날짜·시간 조회 실패를 재시도하고 직접 입력
 
 test("14일 내 후보가 없어도 날짜를 직접 입력해 변경 가능한 시간을 찾는다", async ({ page }) => {
   const { panel } = await openBooking(page, true, { upcomingFailure: false, dateFailure: false, noUpcoming: true });
-  const quickDates = panel.getByLabel("빠른 날짜 선택 (14일 이내)");
-  await expect(quickDates).toBeDisabled();
-  await expect(quickDates.locator("option:checked")).toHaveText("14일 내 변경 가능한 날짜가 없습니다");
+  await expect(panel.getByLabel("빠른 날짜 선택 (14일 이내)")).toHaveCount(0);
+  await expect(panel.getByText("14일 내 변경 가능한 날짜가 없습니다.", { exact: false })).toBeVisible();
   await panel.getByLabel("변경할 날짜").fill("2099-02-12");
   await expect(panel.locator('[data-slot-id="75"]')).toBeVisible();
   await panel.locator('[data-slot-id="75"]').click();

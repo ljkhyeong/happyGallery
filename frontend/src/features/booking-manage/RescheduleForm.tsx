@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Form, ListGroup } from "react-bootstrap";
+import { Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
+import { BookingDateChips, BookingSlotTime } from "@/features/booking-create/BookingDateChips";
 import { UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import {
   invalidateSlotAvailability,
   queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
-import { formatDate, formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
@@ -88,43 +88,34 @@ export function RescheduleForm({
 
   return (
     <Form
+      className="reschedule-form"
       onSubmit={(event) => {
         event.preventDefault();
         if (selectedSlot) mutation.mutate(selectedSlot.id);
       }}
     >
-      <Form.Group controlId={`booking-reschedule-quick-date-${currentSlotId}`} className="mb-3">
-        <Form.Label>빠른 날짜 선택 ({UPCOMING_SLOT_DAYS}일 이내)</Form.Label>
-        <Form.Select
-          value={availableDates.includes(date) ? date : ""}
-          disabled={availableDates.length === 0 || mutation.isPending}
-          onChange={(event) => {
-            setDate(event.target.value);
-            setSelectedSlotId(null);
-          }}
-        >
-          <option value="" disabled>
-            {upcomingQuery.isLoading
-              ? "예약 가능한 날짜 조회 중..."
-              : upcomingQuery.error && !upcomingQuery.data
-                ? "날짜를 다시 조회해 주세요"
-                : availableDates.length === 0
-                  ? `${UPCOMING_SLOT_DAYS}일 내 변경 가능한 날짜가 없습니다`
-                  : "날짜를 선택하세요"}
-          </option>
-          {availableDates.map((availableDate) => (
-            <option key={availableDate} value={availableDate}>{formatDate(availableDate)}</option>
-          ))}
-        </Form.Select>
-        <Form.Text>{participantCount}명이 모두 이동할 수 있는 날짜입니다. 다른 날짜는 아래에 입력하세요.</Form.Text>
-      </Form.Group>
+      {upcomingQuery.isLoading && <p className="booking-step-label">예약 가능한 날짜를 확인하고 있습니다.</p>}
       <ErrorAlert
         error={upcomingQuery.error}
         onRetry={() => { void upcomingQuery.refetch(); }}
         retrying={upcomingQuery.isFetching}
       />
+      {availableDates.length > 0 ? (
+        <BookingDateChips
+          label={`빠른 날짜 선택 (${UPCOMING_SLOT_DAYS}일 이내)`}
+          dates={availableDates}
+          activeDate={date}
+          disabled={mutation.isPending}
+          onSelect={(value) => {
+            setDate(value);
+            setSelectedSlotId(null);
+          }}
+        />
+      ) : upcomingQuery.isSuccess && (
+        <p className="booking-step-label">{UPCOMING_SLOT_DAYS}일 내 변경 가능한 날짜가 없습니다. 아래에서 날짜를 직접 골라 주세요.</p>
+      )}
 
-      <Form.Group controlId={`booking-reschedule-date-${currentSlotId}`} className="mb-3">
+      <Form.Group controlId={`booking-reschedule-date-${currentSlotId}`} className="reschedule-date-field">
         <Form.Label>변경할 날짜</Form.Label>
         <Form.Control
           type="date"
@@ -135,8 +126,8 @@ export function RescheduleForm({
             setSelectedSlotId(null);
           }}
         />
-        <Form.Text className="text-muted">
-          현재 예약 {participantCount}명이 모두 이동할 수 있는 시간만 표시됩니다.
+        <Form.Text>
+          현재 예약 {participantCount}명이 모두 이동할 수 있는 날짜와 시간만 보여 줍니다. {UPCOMING_SLOT_DAYS}일 뒤는 직접 고르세요.
         </Form.Text>
       </Form.Group>
 
@@ -151,7 +142,7 @@ export function RescheduleForm({
       )}
 
       {availableSlots.length > 0 && (
-        <ListGroup className="mb-3">
+        <ListGroup className="booking-slot-list mb-3">
           {availableSlots.map((slot) => (
             <ListGroup.Item
               key={slot.id}
@@ -160,12 +151,10 @@ export function RescheduleForm({
               type="button"
               active={selectedSlotId === slot.id}
               onClick={() => setSelectedSlotId(slot.id)}
-              className="d-flex justify-content-between align-items-center gap-3"
+              className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
             >
-              <span>{formatDateTime(slot.startAt)} ~ {formatDateTime(slot.endAt)}</span>
-              <Badge bg={slot.remainingCapacity <= 2 ? "warning" : "info"} className="badge-status">
-                {slot.remainingCapacity}명 예약 가능
-              </Badge>
+              <BookingSlotTime slot={slot} />
+              <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>
             </ListGroup.Item>
           ))}
         </ListGroup>
@@ -173,7 +162,7 @@ export function RescheduleForm({
 
       <Button
         type="submit"
-        variant="warning"
+        variant="primary"
         disabled={!selectedSlot || mutation.isPending}
       >
         {mutation.isPending ? "변경 중..." : "선택한 시간으로 변경"}

@@ -19,7 +19,6 @@ import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
 import {
   formatKRW,
-  PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "@/shared/lib";
 import { ProductQnaSection } from "@/features/product-qna/ProductQnaSection";
@@ -40,6 +39,7 @@ import {
 } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
 import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
+import { ProductPurchaseGuide } from "@/features/product/ProductPurchaseGuide";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
@@ -499,10 +499,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
             productionLeadDays={product.productionLeadDays}
           />
         </div>
-        <div className="store-detail-fulfillment">
-          <strong>배송·수령</strong>
-          <span>{PRODUCT_FULFILLMENT_LABEL[product.type] ?? ""}</span>
-        </div>
+        <ProductPurchaseGuide type={product.type} />
       </section>
 
       {showMobilePurchaseCta && product.available && (
