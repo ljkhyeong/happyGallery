@@ -15,9 +15,9 @@ dependencies {
 	implementation 'org.apache.httpcomponents.client5:httpclient5'
 	implementation 'org.mindrot:jbcrypt:0.4'
 	implementation 'io.micrometer:micrometer-core'
-	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.3.0'
-	implementation 'io.github.resilience4j:resilience4j-micrometer:2.3.0'
-	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.3.0'
+	implementation 'io.github.resilience4j:resilience4j-circuitbreaker:2.4.0'
+	implementation 'io.github.resilience4j:resilience4j-micrometer:2.4.0'
+	implementation 'io.github.resilience4j:resilience4j-timelimiter:2.4.0'
 
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
