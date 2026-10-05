@@ -1,12 +1,14 @@
 # HANDOFF
 
-## 디자인 점검 후속: 작은 결함 정리 완료, 거래 화면 개편 남음 (2026-10-05)
+## 디자인 점검 후속: 결함 정리·예약/4회권/주문서 2단 체크아웃 완료 (2026-10-05)
 
-- 시작 SHA `403d5eaa`. 점검에서 홈·클래스·작품·단체수업·이벤트 목록은 새 디자인이 적용됐고, 예약(`/bookings/new`)·4회권·장바구니·주문서·결제 결과·마이페이지는 `h4` 제목·`Card`·inline `maxWidth` 예전 구성임을 확인했다.
-- 1단계 완료: 이벤트 상세 관련 작품을 SSR loader에서 조회해 작품 카드로 표시(비공개·조회 실패는 생략), 예약 단계 번호 제거, 입력 포커스·체크·`btn-outline-primary`를 먹색으로 통일, 후기 0개면 빈 상태만, 로그인·회원가입은 모바일에서 폼 먼저(DOM 순서도 폼 먼저), 사진 없는 작품은 다른 사진 대신 `ProductMediaPlaceholder`, 자정~자정 이벤트는 날짜만(종료일은 종료 시각 전날).
-- 남은 행동: ① 예약·4회권·주문서 공용 페이지 머리와 2단(입력 | 고정 요약) 배치를 시안 2~3개로 비교해 사용자 선택 받기 ② 테스트 회원으로 마이페이지 계열 실제 화면 확인 후 범위 결정 ③ 다듬기 후보: 홈 사진 반복(레진·양말목), STEP 카드 클릭 단서, 푸터 영문 브랜드·VISIT 중복, 모바일 클래스 카드 길이.
-- 검증: `node --test tests/unit/eventTime.test.mjs` 6건, `npm run build`, 영향 E2E 13건(이벤트 쿠폰 파일 전체·예약 선택기 재시도·로그인 폼 사용 spec), @smoke 20건 통과. 캡처는 `output/playwright/design-review-1005/{,fix1/}`.
-- 실행 조건: `127.0.0.1:8080`을 다른 프로젝트 앱이 점유해 SSR이 403을 받는다. 백엔드는 `SERVER_PORT=8081`, 확인용 DB(3307)로 띄우고 `.claude/launch.json`의 `frontend-review`(3030, 8081 연결)를 쓴다. E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`. @smoke 병렬 실행은 휴대폰 인증 IP 제한(1분 5회)에 걸릴 수 있어 실패 시 1분 뒤 해당 테스트만 `--workers=1`로 재실행한다.
+- 1단계(`0fe51af7`): 이벤트 관련 작품 카드, 먹색 포커스·`btn-outline-primary`, 빈 후기, 로그인 폼 우선, 사진 준비 중 표시, 자정 기준 이벤트 기간.
+- 2단계(시작 SHA `0fe51af7`): 사용자가 시안 G(2단 체크아웃, `output/design-candidates/g-checkout-split.html`)를 골랐다. 공용 `PageHeader`·`CheckoutLayout`·`CheckoutPanel`·`CheckoutSummary`(`frontend/src/shared/ui`)로 예약·4회권·주문서를 입력 | 고정 요약 2단으로 바꾸고 이벤트 목록 머리도 `PageHeader`로 맞췄다. 스타일은 `_storefront.scss` 체크아웃 절이 담당한다.
+- 결정: 수업은 9개 이상으로 늘 수 있고 대부분 미리 선택돼 들어와 선택 상자(`클래스` label, 시각적으로 숨김)를 유지했다. 날짜만 칩(`data-booking-date`)으로 바꾸고 시간 칩은 `data-slot-id`·`.active`·`N명 예약 가능` 문구를 유지했다. 결제 버튼은 요약 안 한 개만 두고 모바일은 CSS로 하단 고정한다. 단계 패널은 랜드마크로 만들지 않는다(`getByLabel("상품")` 같은 부분 일치 선택자 충돌 방지). 주문서 요약에는 `결제 예정 금액` 중복을 피하려 모바일 금액 줄을 두지 않았다.
+- 검증: build·lint·typecheck, `agent-feedback.rb final 0fe51af7` 통과(architectureTest 포함, Gradle은 `~/.gradle` 쓰기 때문에 샌드박스 밖 실행). 영향 E2E 21개 파일 122건 중 103건 통과, 선택자 수정 후 재실행 13건 중 11건 통과(2건은 아래 기존 실패), @smoke 20건, 장바구니 5건 통과. 1280/390px 캡처 `output/playwright/checkout-1005/`(비회원 주문서 인증 흐름 포함), 가로 넘침 없음.
+- 기존 실패(이번 변경과 무관, 수정 안 함): `customer-account-boundary` 203(SSR이 확인용 DB에 없는 상품 42 조회)·355·656(mock 상품에 `variants` 없음으로 `useOrderItems` 오류), `event-coupon-admin` 462(이전 457, 관리자 쿠폰 카드 `사용 중지` 중복), `guest-claim-onboarding` P8-9(비회원 주문 조회 문구), `member-self-service` P8-7·P8-10(내 예약 상세), `history-pagination` 346, `picker-resilience` 52·158.
+- 남은 행동: ① 테스트 회원으로 마이페이지 계열 실제 화면을 확인하고 범위 결정 ② 다듬기 후보: 홈 사진 반복(레진·양말목), STEP 카드 클릭 단서, 푸터 영문 브랜드·VISIT 중복, 모바일 클래스 카드 길이, 장바구니·결제 결과 화면의 예전 머리.
+- 실행 조건: `127.0.0.1:8080`은 다른 프로젝트 앱이 점유한다. 백엔드는 `SERVER_PORT=8081`, 확인용 DB(3307), E2E 병렬 실행 시 `RATE_LIMIT_ENABLED=false`로 띄운다. 프론트 확인은 `.claude/launch.json`의 `frontend-review`(3030 → 8081), E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`. 푸시·배포 미실행.
 
 ## 상황별 수업 찾기·원데이 다음 단계·모바일 하단 탭 (2026-10-05)
 

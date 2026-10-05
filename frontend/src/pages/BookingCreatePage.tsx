@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Alert, Container, Card, Form, Row, Col, Button } from "react-bootstrap";
+import { Alert, Container, Form, Button } from "react-bootstrap";
 import { useSearchParams } from "react-router";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
+import { formatSlotStart } from "@/features/booking-create/upcomingSlots";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
@@ -15,8 +16,15 @@ import {
   type BookingPayload,
 } from "@/features/payment";
 import { ApiError, queryKeys } from "@/shared/api";
-import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert } from "@/shared/ui";
+import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel } from "@/shared/lib";
+import {
+  CheckoutAmounts,
+  CheckoutLayout,
+  CheckoutPanel,
+  CheckoutSummary,
+  ErrorAlert,
+  PageHeader,
+} from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
 import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
@@ -329,76 +337,156 @@ function BookingCreateContent({
       }
     : null;
 
+  const passPathSelected = paymentPath === "pass";
+  const submitButton = (
+    <Button
+      variant="primary" size="lg" className="w-100"
+      disabled={!formReady || isResumeRevalidating || startPayment.isPending}
+      onClick={() => {
+        if (isAuthenticated) {
+          onMemberResumeHandled();
+          startPayment.mutate(undefined);
+        } else {
+          const draft = captureBookingDraft();
+          if (!draft) return;
+          onMemberAuthenticationStarted(draft);
+          setShowGate(true);
+        }
+      }}
+    >
+      {isResumeRevalidating
+        ? "선택 내용 확인 중..."
+        : startPayment.isPending
+        ? passPathSelected ? "예약 처리 중..." : "결제창 여는 중..."
+        : passPathSelected ? "이용권으로 예약하기" : "결제 진행하기"}
+    </Button>
+  );
+
   return (
-    <Container className="page-container" style={{ maxWidth: 640 }}>
-      <h4 className="mb-4">체험 예약</h4>
+    <Container className="page-container checkout-page">
+      <PageHeader
+        kicker="Booking"
+        title="체험 예약"
+        description="수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."
+      />
 
-      <Card className="mb-4">
-        <Card.Body>
-          <SlotSelectionStep
-            initialClassId={initialClassId}
-            initialSlotId={initialClassId === requestedClassId
-              && Number.isSafeInteger(requestedSlotId) && requestedSlotId > 0
-              ? requestedSlotId : null}
-            selectInitialSlot={selectRequestedSlot}
-            selectedSlot={selectedSlot}
-            onSelect={(slot) => setSelectedSlot(slot)}
-            onDeselect={() => setSelectedSlot(null)}
-            onClassChange={setSelectedClass}
-          />
-        </Card.Body>
-      </Card>
+      <CheckoutLayout
+        summary={(
+          <CheckoutSummary
+            label="예약 요약"
+            media={selectedClass ? <img src={classImageSrc(selectedClass)} alt="" /> : undefined}
+            action={submitButton}
+            mobileTotal={selectedSlot && selectedClass
+              ? passPathSelected
+                ? { label: "이용권", amount: "1회 차감" }
+                : { label: "지금 결제", amount: formatKRW(depositAmount) }
+              : undefined}
+            note={selectedSlot && !passPathSelected
+              ? "결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다. 체험 전날 23:59까지 취소하면 예약금을 환불하며, 체험 당일 00:00부터는 환불되지 않습니다."
+              : undefined}
+          >
+            {selectedClass ? (
+              <>
+                <p className="checkout-summary-kicker">
+                  {getClassCategoryLabel(selectedClass.category)} · {selectedClass.durationMin}분
+                </p>
+                <h2 className="checkout-summary-title">{selectedClass.name}</h2>
+              </>
+            ) : (
+              <h2 className="checkout-summary-title">수업을 선택해 주세요</h2>
+            )}
+            <p className="checkout-summary-when">
+              {selectedSlot
+                ? `${formatSlotStart(selectedSlot)} · ${participantCount}명`
+                : "날짜와 시간을 선택해 주세요"}
+            </p>
+            {selectedClass && selectedSlot && (passPathSelected ? (
+              <CheckoutAmounts
+                rows={[{ label: "1인 수업료", value: formatKRW(classPrice) }]}
+                total={{ label: "이용권 차감", value: "1회" }}
+              />
+            ) : (
+              <CheckoutAmounts
+                rows={[
+                  { label: "1인 수업료", value: formatKRW(classPrice) },
+                  { label: `총 ${participantCount}명 금액`, value: formatKRW(totalAmount) },
+                  { label: "체험 당일 현장 잔금", value: formatKRW(balanceAmount) },
+                ]}
+                total={{ label: "지금 결제할 예약금", value: formatKRW(depositAmount) }}
+              />
+            ))}
+            <PaymentErrorAlert error={startPayment.error} />
+            {matchingResume !== null && (
+              <Alert variant="info" role="status">
+                {isResumeRevalidating
+                  ? "로그인이 완료되었습니다. 클래스와 일정의 최신 정보를 확인하고 있습니다."
+                  : "로그인이 완료되었습니다. 선택한 클래스와 일정을 다시 확인한 뒤 결제를 계속해 주세요."}
+              </Alert>
+            )}
+          </CheckoutSummary>
+        )}
+      >
+        <SlotSelectionStep
+          initialClassId={initialClassId}
+          initialSlotId={initialClassId === requestedClassId
+            && Number.isSafeInteger(requestedSlotId) && requestedSlotId > 0
+            ? requestedSlotId : null}
+          selectInitialSlot={selectRequestedSlot}
+          selectedSlot={selectedSlot}
+          onSelect={(slot) => setSelectedSlot(slot)}
+          onDeselect={() => setSelectedSlot(null)}
+          onClassChange={setSelectedClass}
+        />
 
-      {selectedSlot && (
-        <Card className="mb-4">
-          <Card.Body>
-            <h6 className="mb-3">결제 방식</h6>
-
-            <Form.Group controlId="booking-participant-count" className="mb-3">
-              <Form.Label>예약 인원</Form.Label>
+        {selectedSlot && (
+          <CheckoutPanel step={3} title="인원과 결제 방식">
+            <Form.Group controlId="booking-participant-count" className="checkout-field-row">
+              <div>
+                <Form.Label>예약 인원</Form.Label>
+                <Form.Text>
+                  {passPathSelected
+                    ? "이용권 예약은 본인 1명만 이용할 수 있습니다."
+                    : `현재 최대 ${selectedSlot.remainingCapacity}명까지 예약할 수 있습니다.`}
+                </Form.Text>
+              </div>
               <Form.Control
                 type="number"
                 min={1}
                 max={selectedSlot.remainingCapacity}
                 step={1}
                 value={participantCount}
-                disabled={paymentPath === "pass"}
+                disabled={passPathSelected}
                 onChange={(event) => setParticipantCount(Number(event.target.value))}
               />
-              <Form.Text className="text-muted">
-                {paymentPath === "pass"
-                  ? "이용권 예약은 본인 1명만 이용할 수 있습니다."
-                  : `현재 최대 ${selectedSlot.remainingCapacity}명까지 예약할 수 있습니다.`}
-              </Form.Text>
             </Form.Group>
 
-            <Form.Group className="mb-3">
-              <div>
+            <div className="checkout-choices" role="radiogroup" aria-label="결제 방식">
+              <Form.Check
+                type="radio"
+                id="booking-path-deposit"
+                label={<>예약금 결제<small>지금 10%, 잔금은 체험 당일 현장에서</small></>}
+                name="paymentPath"
+                checked={paymentPath === "deposit"}
+                onChange={() => {
+                  setPaymentPath("deposit");
+                  if (hasRequestedPass) setPassFallbackAccepted(true);
+                }}
+              />
+              {isAuthenticated && (
                 <Form.Check
-                  inline type="radio"
-                  id="booking-path-deposit" label="예약금 결제"
+                  type="radio"
+                  id="booking-path-pass"
+                  label={<>이용권 사용<small>잔여 횟수에서 1회 차감</small></>}
                   name="paymentPath"
-                  checked={paymentPath === "deposit"}
+                  checked={passPathSelected}
+                  disabled={passesLoading || availablePasses.length === 0}
                   onChange={() => {
-                    setPaymentPath("deposit");
-                    if (hasRequestedPass) setPassFallbackAccepted(true);
+                    setPaymentPath("pass");
+                    setParticipantCount(1);
                   }}
                 />
-                {isAuthenticated && (
-                  <Form.Check
-                    inline type="radio"
-                    id="booking-path-pass" label="이용권 사용"
-                    name="paymentPath"
-                    checked={paymentPath === "pass"}
-                    disabled={passesLoading || availablePasses.length === 0}
-                    onChange={() => {
-                      setPaymentPath("pass");
-                      setParticipantCount(1);
-                    }}
-                  />
-                )}
-              </div>
-            </Form.Group>
+              )}
+            </div>
 
             {isAuthenticated && (
               <ErrorAlert
@@ -429,33 +517,8 @@ function BookingCreateContent({
               </Alert>
             )}
 
-            {paymentPath === "deposit" ? (
-              <Row className="g-2 mb-3">
-                <Col xs={12}>
-                  <p className="small text-muted mb-0">
-                    결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다.
-                  </p>
-                </Col>
-                {selectedClass && (
-                  <Col xs={12}>
-                    <dl className="row small mb-0 mt-2">
-                      <dt className="col-6 fw-normal text-muted">1인 클래스 금액</dt>
-                      <dd className="col-6 text-end mb-2">{formatKRW(classPrice)}</dd>
-                      <dt className="col-6 fw-normal text-muted">총 {participantCount}명 금액</dt>
-                      <dd className="col-6 text-end mb-2">{formatKRW(totalAmount)}</dd>
-                      <dt className="col-6 fw-normal text-muted">지금 결제할 예약금</dt>
-                      <dd className="col-6 text-end mb-2 fw-semibold">{formatKRW(depositAmount)}</dd>
-                      <dt className="col-6 fw-normal text-muted">체험 당일 현장 잔금</dt>
-                      <dd className="col-6 text-end mb-0">{formatKRW(balanceAmount)}</dd>
-                    </dl>
-                    <p className="text-muted-soft small mt-3 mb-0">
-                      체험 전날 23:59까지 취소하면 예약금을 환불하며, 체험 당일 00:00부터는 환불되지 않습니다.
-                    </p>
-                  </Col>
-                )}
-              </Row>
-            ) : (
-              <Form.Group controlId="booking-pass" className="mb-3">
+            {passPathSelected && (
+              <Form.Group controlId="booking-pass" className="mt-3">
                 <Form.Label>사용할 이용권</Form.Label>
                 <Form.Select
                   value={passId}
@@ -481,48 +544,24 @@ function BookingCreateContent({
               </Form.Group>
             )}
             {!isAuthenticated && (
-              <p className="text-muted-soft small mb-0">
+              <p className="text-muted-soft small mt-3 mb-0">
                 이용권 예약은 로그인한 회원만 이용할 수 있습니다.
               </p>
             )}
-          </Card.Body>
-        </Card>
-      )}
+          </CheckoutPanel>
+        )}
 
-      {paymentPath === "deposit" && (
-        <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={startPayment.isPending} />
-      )}
-      <PaymentErrorAlert error={startPayment.error} />
-
-      {matchingResume !== null && (
-        <Alert variant="info" role="status">
-          {isResumeRevalidating
-            ? "로그인이 완료되었습니다. 클래스와 일정의 최신 정보를 확인하고 있습니다."
-            : "로그인이 완료되었습니다. 선택한 클래스와 일정을 다시 확인한 뒤 결제를 계속해 주세요."}
-        </Alert>
-      )}
-
-      <Button
-        variant="primary" size="lg" className="w-100"
-        disabled={!formReady || isResumeRevalidating || startPayment.isPending}
-        onClick={() => {
-          if (isAuthenticated) {
-            onMemberResumeHandled();
-            startPayment.mutate(undefined);
-          } else {
-            const draft = captureBookingDraft();
-            if (!draft) return;
-            onMemberAuthenticationStarted(draft);
-            setShowGate(true);
-          }
-        }}
-      >
-        {isResumeRevalidating
-          ? "선택 내용 확인 중..."
-          : startPayment.isPending
-          ? paymentPath === "pass" ? "예약 처리 중..." : "결제창 여는 중..."
-          : paymentPath === "pass" ? "이용권으로 예약하기" : "결제 진행하기"}
-      </Button>
+        {paymentPath === "deposit" && (
+          <CheckoutPanel step={selectedSlot ? 4 : 3} title="결제 수단">
+            <PaymentMethodFields
+              value={checkoutSelection}
+              onChange={setCheckoutSelection}
+              disabled={startPayment.isPending}
+              showLegend={false}
+            />
+          </CheckoutPanel>
+        )}
+      </CheckoutLayout>
 
       <AuthGateModal
         show={showGate}

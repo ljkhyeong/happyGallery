@@ -83,7 +83,7 @@ for (const member of [true, false]) {
     await bookAgain.click();
     await expect(page).toHaveURL(/\/bookings\/new\?classId=27$/);
     await expect(page.getByLabel("클래스", { exact: true })).toHaveValue("27");
-    await expect(page.getByLabel("날짜", { exact: true })).toHaveValue("2099-01-12");
+    await expect(page.locator('[data-booking-date="2099-01-12"]')).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByLabel("예약 인원", { exact: true })).toHaveCount(0);
     await page.locator('[data-slot-id="71"]').click();
     await expect(page.getByLabel("예약 인원", { exact: true })).toHaveValue("1");

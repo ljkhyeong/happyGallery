@@ -182,7 +182,8 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 - 햇빛이 드는 공방을 중심 이미지로 삼고 한지색, 점토색, 잎색을 기본 팔레트로 사용한다. 섹션 배경은 한지(`--hg-paper`·`--hg-surface`·`--hg-paper-deep`)와 잎(`--hg-leaf-tint`·`--hg-leaf-deep`) 계열만 쓰고, 점토색은 kicker·화살표·hover 강조에 쓴다.
 - 주요 행동 버튼(`btn-dark`·`btn-primary`)과 보조 버튼(`btn-outline-primary`)은 먹색으로 통일한다. 점토색은 오류색과 가까워 입력 포커스·체크 상태도 먹색을 쓴다. 사진·카드는 `--hg-radius-media` 모서리를 쓰고, 헤더·본문·푸터는 같은 1180px 폭에 맞춘다.
 - 본문은 Pretendard, 전시 제목과 브랜드 표기는 Gowun Batang 계열을 사용한다. 한글 kicker는 자간을 넓히지 않는다.
-- Bootstrap 변수는 `frontend/src/styles/_variables.scss`, 색·모서리 토큰과 헤더·푸터·작품 카드는 `_atelier.scss`, 홈·클래스·단체수업 화면은 `_brand.scss`, 상품 상세·주문·회원 화면은 `_storefront.scss`가 담당한다. 새 스타일은 담당 partial에 두고, 다른 partial의 같은 선택자를 뒤에서 다시 덮어쓰지 않는다. `frontend/src/styles/global.scss`는 Bootstrap과 `_foundation.scss`, `_admin.scss`, `_storefront.scss`, `_atelier.scss`, `_brand.scss`를 불러오는 순서만 정의한다.
+- 목록·체크아웃 화면 머리는 `PageHeader`, 예약·4회권·주문서는 `CheckoutLayout`·`CheckoutPanel`·`CheckoutSummary`로 입력과 고정 요약 2단을 만든다. 결제 버튼은 요약 안에 한 개만 두고 모바일에서는 CSS로 하단에 고정한다. 같은 이름의 버튼을 화면 크기별로 두 번 렌더링하지 않는다.
+- Bootstrap 변수는 `frontend/src/styles/_variables.scss`, 색·모서리 토큰과 헤더·푸터·작품 카드는 `_atelier.scss`, 홈·클래스·단체수업 화면은 `_brand.scss`, 상품 상세·주문·회원 화면과 예약·4회권·주문서 체크아웃은 `_storefront.scss`가 담당한다. 새 스타일은 담당 partial에 두고, 다른 partial의 같은 선택자를 뒤에서 다시 덮어쓰지 않는다. `frontend/src/styles/global.scss`는 Bootstrap과 `_foundation.scss`, `_admin.scss`, `_storefront.scss`, `_atelier.scss`, `_brand.scss`를 불러오는 순서만 정의한다.
 - 홈과 클래스·단체수업 화면은 `frontend/src/assets/happygallery`의 실제 공방 사진을 사용한다. 관리자가 수업 사진을 등록하지 않은 클래스는 같은 공예 분야의 공방 사진을 보여 준다. 사진 없는 작품은 다른 작품 사진으로 대신하지 않고 `ProductMediaPlaceholder`의 사진 준비 중 표시를 쓴다. 사진 원문은 같은 디렉터리의 `SOURCES.md`에 기록하며, 외부 이미지 CDN에 런타임 의존하지 않는다.
 - 공개 화면은 요청 시점 SSR로 본문·제목·설명·canonical·Open Graph·JSON-LD를 제공하고, 인증·결제·고객 이력·관리자 경로는 client-only 화면과 `noindex`로 분리한다.
 - 대표 운영 origin은 `https://happy-gallery.com`이며 robots·sitemap·canonical에서 같은 origin만 사용한다.

@@ -222,8 +222,7 @@ textarea {
 .store-section-kicker,
 .store-purchase-kicker,
 .store-detail-kicker,
-.product-card-kicker,
-.legacy-order-step-label {
+.product-card-kicker {
   margin-bottom: 0.75rem;
   padding: 0;
   border: 0;
@@ -669,7 +668,6 @@ textarea {
 .lookup-panel,
 .store-detail-card,
 .store-purchase-card,
-.legacy-order-banner,
 .store-list-header,
 .auth-hero-card,
 .auth-form-card,
@@ -741,68 +739,6 @@ textarea {
     gap: 0.4rem;
   }
 }
-// 예약 시간은 같은 날짜의 시간 칩으로 보여 준다. 선택 상태는 주요 버튼과 같은 먹색이다.
-.booking-slot-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-
-  .list-group-item {
-    margin: 0 !important;
-    padding: 0.85rem 1rem;
-    border: 1px solid var(--hg-border) !important;
-    border-radius: var(--hg-radius-media) !important;
-    background: var(--hg-surface);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    flex-direction: column;
-    align-items: flex-start !important;
-    justify-content: flex-start !important;
-    gap: 0.4rem;
-
-    > span:first-child {
-      white-space: nowrap;
-    }
-  }
-
-  .list-group-item-action:hover,
-  .list-group-item-action:focus-visible {
-    border-color: var(--hg-accent) !important;
-    background: var(--hg-clay-tint);
-  }
-
-  .list-group-item.active {
-    color: #FFFDF8;
-    border-color: var(--hg-dark) !important;
-    background: var(--hg-dark);
-  }
-}
-
-@media (max-width: 575.98px) {
-  .booking-slot-list {
-    grid-template-columns: 1fr;
-  }
-}
-
-.booking-class-detail {
-  border-top: 1px solid var(--bs-border-color);
-  padding-top: 1rem;
-
-  img {
-    display: block;
-    width: 100%;
-    max-height: 280px;
-    margin-bottom: 1rem;
-    border-radius: 6px;
-    object-fit: cover;
-  }
-
-  p,
-  span {
-    white-space: pre-line;
-  }
-}
-
 // 비회원 조회는 입력과 보조 안내의 순서를 명확히 구분한다.
 .guest-lookup-page {
   max-width: 672px;

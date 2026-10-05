@@ -30,7 +30,7 @@ test("P8-2 @smoke @payment 자동 캘린더 회차로 예약 생성, 변경, 취
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await page.getByLabel("날짜").selectOption(bookingDate);
+  await page.locator(`[data-booking-date="${bookingDate}"]`).click();
   await page.locator(`[data-slot-id="${firstSlot.id}"]`).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await completeGuestAuthGate(page, phone, guestName);
@@ -130,7 +130,7 @@ test("P8-3 @smoke @payment 회원은 4회권 구매 후 이용권으로 예약�
   await passCard.getByRole("link", { name: "이 이용권으로 예약" }).click();
   await expect(page).toHaveURL(new RegExp(`/bookings/new\\?passId=${passId}$`));
   await page.getByLabel("클래스").selectOption(String(bookingClass!.id));
-  await page.getByLabel("날짜").selectOption(slotDate);
+  await page.locator(`[data-booking-date="${slotDate}"]`).click();
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
   await expect(page.getByLabel("이용권 사용")).toBeChecked();
   await expect(page.getByLabel("사용할 이용권")).toHaveValue(String(passId));

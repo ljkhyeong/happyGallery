@@ -231,7 +231,8 @@ test("예약 슬롯과 소셜 본인 확인 선택기는 조회 실패 후 수�
   });
 
   await page.goto("/bookings/new");
-  const selectionCard = page.locator(".card").filter({ hasText: "클래스 / 날짜 / 시간 선택" });
+  const selectionCard = page.locator(".checkout-panel")
+    .filter({ has: page.getByRole("heading", { name: "수업", exact: true }) });
   await expect(selectionCard.getByRole("button", { name: "다시 시도" })).toBeVisible();
   await expect(selectionCard.getByLabel("클래스")).toHaveCount(0);
 

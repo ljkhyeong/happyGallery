@@ -119,7 +119,7 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await page.getByLabel("날짜").selectOption(slotDate);
+  await page.locator(`[data-booking-date="${slotDate}"]`).click();
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();

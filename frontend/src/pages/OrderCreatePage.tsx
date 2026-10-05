@@ -1,7 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Container, Card, Button, Form, Badge, Alert } from "react-bootstrap";
+import { Container, Card, Button, Form, Alert } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { trackClientEvent } from "@/features/monitoring/api";
@@ -16,7 +16,13 @@ import {
   useCheckoutSelection,
   type OrderPayload,
 } from "@/features/payment";
-import { LoadingSpinner } from "@/shared/ui";
+import {
+  CheckoutLayout,
+  CheckoutPanel,
+  CheckoutSummary,
+  LoadingSpinner,
+  PageHeader,
+} from "@/shared/ui";
 import type { OrderItemInput } from "@/shared/types";
 import {
   FulfillmentForm,
@@ -187,36 +193,43 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
     </Container>;
   }
 
-  return (
-    <Container className="page-container" style={{ maxWidth: 640 }}>
-      <div className="legacy-order-banner mb-4">
-        <Badge bg="light" text="dark" className="mb-2">비회원 주문</Badge>
-        <h4 className="mb-2">비회원 주문</h4>
-        <p className="text-muted-soft mb-3">
-          로그인 없이 한 번에 여러 상품을 주문할 수 있습니다.
-        </p>
-        <div className="d-flex flex-wrap gap-2">
-          <LinkButton to="/products" variant="dark" size="sm">
-            상품 보러가기
-          </LinkButton>
-          {!user && (
-            <LinkButton to={loginHref} variant="outline-secondary" size="sm">
-              로그인 후 주문하기
+  const header = (
+    <>
+      <PageHeader
+        kicker="Order"
+        title={user ? "주문서" : "비회원 주문"}
+        description={user
+          ? "주문할 상품과 수령 방법을 확인한 뒤 결제해 주세요."
+          : "로그인 없이 한 번에 여러 상품을 주문할 수 있습니다."}
+        actions={(
+          <>
+            <LinkButton to="/products" variant="dark" size="sm">
+              상품 보러가기
             </LinkButton>
-          )}
-        </div>
-        {hasPrefilledItem && (
-          <Alert variant="info" className="mt-3 mb-0">
-            선택한 상품과 수량을 주문서에 담았습니다.
-            아래에서 상품을 추가하거나 삭제할 수 있습니다.
-          </Alert>
+            {!user && (
+              <LinkButton to={loginHref} variant="outline-secondary" size="sm">
+                로그인 후 주문하기
+              </LinkButton>
+            )}
+          </>
         )}
-      </div>
+      />
+      {hasPrefilledItem && (
+        <Alert variant="info" className="mb-4">
+          선택한 상품과 수량을 주문서에 담았습니다.
+          아래에서 상품을 추가하거나 삭제할 수 있습니다.
+        </Alert>
+      )}
+    </>
+  );
 
-      {shouldShowManualEntryGate ? (
-        <Card className="mb-4 border-0 my-claim-card">
+  if (shouldShowManualEntryGate) {
+    return (
+      <Container className="page-container checkout-page">
+        {header}
+        <Card className="mb-4 border-0 my-claim-card checkout-gate">
           <Card.Body className="p-4">
-            <h5 className="mb-2">주문할 상품을 먼저 선택해 주세요</h5>
+            <h2 className="h5 mb-2">주문할 상품을 먼저 선택해 주세요</h2>
             <p className="text-muted-soft mb-3">
               작품 목록에서 상품과 수량을 고르면 주문서에 자동으로 입력됩니다.
               여러 상품을 직접 선택할 수도 있습니다.
@@ -251,10 +264,56 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
             </div>
           </Card.Body>
         </Card>
-      ) : !user ? (
-        <Card className="mb-4">
-          <Card.Body>
-            <div className="legacy-order-step-label">1. 휴대폰 인증</div>
+      </Container>
+    );
+  }
+
+  // 비회원은 휴대폰 인증이 첫 단계라 이후 단계 번호가 하나씩 밀린다.
+  const stepOffset = user ? 0 : 1;
+  const showConsentPanel = requiresMadeToOrderConsent || !user;
+
+  return (
+    <Container className="page-container checkout-page">
+      {header}
+
+      <CheckoutLayout
+        summary={step === "items" ? (
+          <CheckoutSummary
+            label="결제 요약"
+            action={(
+              <Button
+                variant="primary" size="lg" className="w-100"
+                disabled={!normalizedName || !orderItems.canPurchase || draftSaveFailed
+                  || !isFulfillmentComplete(fulfillment) || !consent.ready
+                  || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
+                onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
+                {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
+              </Button>
+            )}
+          >
+            <h2 className="checkout-summary-title">결제 금액</h2>
+            {user ? (
+              <MemberOrderBenefits
+                productAmount={itemAmount}
+                fulfillmentType={fulfillment.fulfillmentType}
+                selectedCouponId={issuedCouponId}
+                rewardPointsToUse={rewardAmount}
+                disabled={mutation.isPending}
+                onCouponChange={setIssuedCouponId}
+                onRewardPointsChange={setRewardAmount}
+              />
+            ) : (
+              <OrderPriceSummary
+                itemAmount={itemAmount}
+                fulfillmentType={fulfillment.fulfillmentType}
+              />
+            )}
+            <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+          </CheckoutSummary>
+        ) : undefined}
+      >
+        {!user && (
+          <CheckoutPanel step={1} title="휴대폰 인증">
             {!code && verificationReset.message && <Alert variant="info">{verificationReset.message}</Alert>}
             <PhoneVerificationStep
               key={verificationReset.version}
@@ -268,15 +327,12 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 setStep("items");
               }}
             />
-          </Card.Body>
-        </Card>
-      ) : null}
+          </CheckoutPanel>
+        )}
 
-      {step === "items" && (
-        <>
-          <Card className="mb-4">
-            <Card.Body>
-              <div className="legacy-order-step-label">{user ? "1." : "2."} 주문자 정보</div>
+        {step === "items" && (
+          <>
+            <CheckoutPanel step={1 + stepOffset} title="주문자 정보">
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
@@ -294,12 +350,9 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                   이름을 입력해 주세요.
                 </Form.Control.Feedback>
               </Form.Group>
-            </Card.Body>
-          </Card>
+            </CheckoutPanel>
 
-          <Card className="mb-4">
-            <Card.Header>{user ? "2." : "3."} 상품 선택</Card.Header>
-            <Card.Body>
+            <CheckoutPanel step={2 + stepOffset} title="상품 선택">
               <OrderItemsForm
                 state={orderItems}
                 onChange={updateItems}
@@ -308,72 +361,49 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 변경한 주문 내용을 저장하지 못했습니다. 현재 선택은 유지됩니다. 브라우저 저장소 설정을 확인한 뒤 다시 저장해 주세요.
                 <Button variant="link" onClick={() => updateItems(items)}>다시 저장</Button>
               </Alert>}
-            </Card.Body>
-          </Card>
+            </CheckoutPanel>
 
-          <Card className="mb-4">
-            <Card.Header>{user ? "3." : "4."} 수령 방법</Card.Header>
-            <Card.Body>
+            <CheckoutPanel step={3 + stepOffset} title="수령 방법">
               <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
-            </Card.Body>
-          </Card>
+            </CheckoutPanel>
 
-          <Card className="mb-4">
-            <Card.Header>{user ? "4." : "5."} 결제 금액</Card.Header>
-            <Card.Body>
-              {user ? (
-                <MemberOrderBenefits
-                  productAmount={itemAmount}
-                  fulfillmentType={fulfillment.fulfillmentType}
-                  selectedCouponId={issuedCouponId}
-                  rewardPointsToUse={rewardAmount}
-                  disabled={mutation.isPending}
-                  onCouponChange={setIssuedCouponId}
-                  onRewardPointsChange={setRewardAmount}
+            <CheckoutPanel step={4 + stepOffset} title="결제 수단">
+              <PaymentMethodFields
+                value={checkoutSelection}
+                onChange={setCheckoutSelection}
+                disabled={mutation.isPending}
+                showLegend={false}
+              />
+            </CheckoutPanel>
+
+            {showConsentPanel && (
+              <CheckoutPanel step={5 + stepOffset} title="동의">
+                <MadeToOrderConsent
+                  required={requiresMadeToOrderConsent}
+                  policy={consent.policyQuery.data}
+                  isLoading={consent.policyQuery.isLoading}
+                  isFetching={consent.policyQuery.isFetching}
+                  error={consent.policyQuery.error}
+                  checked={consent.checked}
+                  onChange={consent.setChecked}
+                  versionMismatch={consent.versionMismatch}
+                  refreshRequired={consent.refreshRequired}
                 />
-              ) : (
-                <OrderPriceSummary
-                  itemAmount={itemAmount}
-                  fulfillmentType={fulfillment.fulfillmentType}
-                />
-              )}
-            </Card.Body>
-          </Card>
-
-          <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={mutation.isPending} />
-          <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
-          <MadeToOrderConsent
-            required={requiresMadeToOrderConsent}
-            policy={consent.policyQuery.data}
-            isLoading={consent.policyQuery.isLoading}
-            isFetching={consent.policyQuery.isFetching}
-            error={consent.policyQuery.error}
-            checked={consent.checked}
-            onChange={consent.setChecked}
-            versionMismatch={consent.versionMismatch}
-            refreshRequired={consent.refreshRequired}
-          />
-          {!user && (
-            <PolicyConsentFields
-              id="guest-order-policy-consent"
-              policy={guestPolicyConsent.policyQuery.data}
-              checked={guestPolicyConsent.accepted}
-              onChange={guestPolicyConsent.setAccepted}
-              isLoading={guestPolicyConsent.policyQuery.isLoading}
-              error={guestPolicyConsent.policyQuery.error}
-            />
-          )}
-
-          <Button
-            variant="primary" size="lg" className="w-100"
-            disabled={!normalizedName || !orderItems.canPurchase || draftSaveFailed
-              || !isFulfillmentComplete(fulfillment) || !consent.ready
-              || (!user && (!code || !guestPolicyConsent.ready)) || mutation.isPending}
-            onClick={() => { if (!mutation.isPending) mutation.mutate(); }}>
-            {mutation.isPending ? "결제창 여는 중..." : "결제 진행하기"}
-          </Button>
-        </>
-      )}
+                {!user && (
+                  <PolicyConsentFields
+                    id="guest-order-policy-consent"
+                    policy={guestPolicyConsent.policyQuery.data}
+                    checked={guestPolicyConsent.accepted}
+                    onChange={guestPolicyConsent.setAccepted}
+                    isLoading={guestPolicyConsent.policyQuery.isLoading}
+                    error={guestPolicyConsent.policyQuery.error}
+                  />
+                )}
+              </CheckoutPanel>
+            )}
+          </>
+        )}
+      </CheckoutLayout>
     </Container>
   );
 }

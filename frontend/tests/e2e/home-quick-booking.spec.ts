@@ -96,7 +96,7 @@ test("홈에서 수업·날짜·시간을 고르면 같은 일정이 선택된 �
 
   // 홈에서 고른 시간은 예약 화면에서 다시 고르지 않아도 선택되어 있다.
   await expect(page).toHaveURL(/\/bookings\/new\?classId=42&slotId=903&selectSlot=1$/);
-  await expect(page.getByLabel("날짜", { exact: true })).toHaveValue("2099-01-03");
+  await expect(page.locator('[data-booking-date="2099-01-03"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-slot-id="903"]')).toHaveClass(/active/);
   await expect(page.getByLabel("예약 인원", { exact: true })).toHaveValue("1");
 });

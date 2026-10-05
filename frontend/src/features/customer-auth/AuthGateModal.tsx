@@ -253,6 +253,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
             {!guestVerified ? (
               <PhoneVerificationStep
                 key={guestVerificationReset.version}
+                title="휴대폰 인증"
                 initialPhone={guestPhone}
                 purpose="GUEST_BOOKING"
                 onVerified={(p, c) => {

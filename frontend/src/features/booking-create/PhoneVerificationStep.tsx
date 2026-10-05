@@ -13,6 +13,7 @@ interface Props {
   purpose: PhoneVerificationPurpose;
   onVerified: (phone: string, code: string) => void;
   onReset?: () => void;
+  /** 바깥 패널이 제목을 이미 보여 주면 생략한다. */
   title?: string;
   description?: string;
   initialPhone?: string;
@@ -26,7 +27,7 @@ export function PhoneVerificationStep({
   purpose,
   onVerified,
   onReset,
-  title = "1. 휴대폰 인증",
+  title,
   description,
   initialPhone = "",
   lockPhone = false,
@@ -65,7 +66,7 @@ export function PhoneVerificationStep({
 
   return (
     <div aria-busy={sendMutation.isPending || confirming}>
-      <h6 className="mb-3">{title}</h6>
+      {title && <h6 className="mb-3">{title}</h6>}
       {description && <p className="text-muted-soft small mb-3">{description}</p>}
       <ErrorAlert error={sendMutation.error} />
 

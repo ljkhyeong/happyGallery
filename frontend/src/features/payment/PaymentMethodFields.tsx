@@ -12,14 +12,16 @@ interface Props {
   value: CheckoutSelection;
   onChange: (value: CheckoutSelection) => void;
   disabled?: boolean;
+  /** 체크아웃 패널처럼 바깥 제목이 이미 있으면 범례는 보조기기에만 남긴다. */
+  showLegend?: boolean;
 }
 
-export function PaymentMethodFields({ value, onChange, disabled }: Props) {
+export function PaymentMethodFields({ value, onChange, disabled, showLegend = true }: Props) {
   const id = useId();
   return (
     <fieldset className="mb-3" disabled={disabled}>
-      <legend className="fs-6 fw-semibold">결제수단</legend>
-      <div className="d-flex flex-wrap gap-3 mb-2">
+      <legend className={showLegend ? "fs-6 fw-semibold" : "visually-hidden"}>결제수단</legend>
+      <div className="payment-method-choices mb-2">
         {Object.entries(METHOD_LABELS).map(([method, label]) => (
           <Form.Check
             key={method} type="radio" id={`${id}-${method}`} name={`${id}-method`}

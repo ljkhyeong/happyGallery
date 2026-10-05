@@ -109,12 +109,12 @@ test("빈자리 알림에서 해당 날짜로 이동하고 재방문 시 최신 
   await page.getByRole("link", { name: "가죽 카드지갑 예약 가능 여부 확인" }).click();
   await expect(page).toHaveURL(/\/bookings\/new\?classId=42&slotId=78$/);
   await expect(page.getByLabel("클래스", { exact: true })).toHaveValue("42");
-  await expect(page.getByLabel("날짜", { exact: true })).toHaveValue("2099-01-03");
+  await expect(page.locator('[data-booking-date="2099-01-03"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-slot-id="78"]')).toContainText("알림 신청한 일정");
   await expect(page.locator('[data-slot-id="78"]')).toContainText("2명 예약 가능");
   await expect(page.getByLabel("예약 인원", { exact: true })).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("vacancy-booking-390.png"), fullPage: true, animations: "disabled" });
-  await page.getByLabel("날짜", { exact: true }).selectOption("2099-01-02");
+  await page.locator('[data-booking-date="2099-01-02"]').click();
   await expect(page.locator('[data-slot-id="77"]')).toBeVisible();
   const readsBeforeReturn = state.slotReads;
   await page.goBack();
@@ -122,7 +122,7 @@ test("빈자리 알림에서 해당 날짜로 이동하고 재방문 시 최신 
   state.slots[1] = { ...availableSlot, bookedCount: 8, remainingCapacity: 0 };
   await page.getByRole("link", { name: "가죽 카드지갑 예약 가능 여부 확인" }).click();
   await expect.poll(() => state.slotReads).toBeGreaterThan(readsBeforeReturn);
-  await expect(page.getByLabel("날짜", { exact: true })).toHaveValue("2099-01-03");
+  await expect(page.locator('[data-booking-date="2099-01-03"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator('[data-slot-id="78"]')).toContainText("만석");
   await expect(page.getByRole("button", { name: "빈자리 알림", exact: true })).toBeVisible();
   expect(state.unexpectedWrites).toEqual([]);
@@ -155,7 +155,7 @@ test("일정 조회 실패는 재시도하고 사라진 일정은 다른 일정�
   state.slotError = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(page.getByText(/이 일정은 현재 예약할 수 없습니다/)).toBeVisible();
-  await expect(page.getByLabel("날짜", { exact: true })).toHaveValue("2099-01-02");
+  await expect(page.locator('[data-booking-date="2099-01-02"]')).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("예약 인원", { exact: true })).toHaveCount(0);
   await page.locator('[data-slot-id="77"]').click();
   await expect(page.getByLabel("예약 인원", { exact: true })).toHaveValue("1");

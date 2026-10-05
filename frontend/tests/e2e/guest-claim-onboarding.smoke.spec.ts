@@ -54,7 +54,7 @@ test("P8-8 @smoke @identity 회원은 같은 번호의 비회원 주문과 예�
 
   await page.goto("/bookings/new");
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
-  await page.getByLabel("날짜").selectOption(slotDate);
+  await page.locator(`[data-booking-date="${slotDate}"]`).click();
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
   await page.getByRole("button", { name: "결제 진행하기" }).click();
   await completeGuestAuthGate(page, guestPhone, guestName);
