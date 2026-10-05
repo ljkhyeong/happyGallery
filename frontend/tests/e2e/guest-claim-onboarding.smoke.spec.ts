@@ -113,5 +113,5 @@ test("P8-9 @identity 비회원 주문 결제 후 조회 화면에서 회원 전�
   await expect(page.getByRole("heading", { name: "비회원 주문 조회" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "주문 상품" })).toBeVisible();
   await expect(page.getByRole("main").getByRole("link", { name: "회원가입" })).toBeVisible();
-  await expect(page.getByText("비회원 주문은 조회 코드로 확인하고")).toBeVisible();
+  await expect(page.getByText("비회원 내역도 같은 휴대폰 번호로 가져올 수 있어요.", { exact: false })).toBeVisible();
 });

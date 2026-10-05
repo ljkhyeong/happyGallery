@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { abandonPayment, fetchPaymentStatus } from "@/features/payment/api";
-import { PaymentStatusNotice, PaymentCompletionNext, shouldPollPaymentStatus } from "@/features/payment";
+import { PaymentResultCard, PaymentStatusNotice, PaymentCompletionNext, shouldPollPaymentStatus } from "@/features/payment";
 import { paymentFailureMessage } from "@/features/payment/paymentFailure";
 import { consumePaymentReturnHint, readPaymentReturnHint, readPaymentStatusToken } from "@/features/payment/session";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
@@ -9,7 +9,7 @@ import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { captureCustomerSession, requireCurrentCustomerSession, runForCustomerSession } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import { Container, Alert, Button } from "react-bootstrap";
+import { Container, Button } from "react-bootstrap";
 import { useNavigate, useSearchParams } from "react-router";
 
 export function PaymentFailPage() {
@@ -54,38 +54,41 @@ export function PaymentFailPage() {
   }, []);
 
   return (
-    <Container className="page-container" style={{ maxWidth: 540 }}>
-      <h4 className="mb-4">결제 실패</h4>
-      <Alert variant="danger" className="mb-3">
-        <Alert.Heading className="h6 mb-2">결제가 완료되지 않았습니다.</Alert.Heading>
-        <p className="mb-0 small">{message}</p>
-      </Alert>
-      {returnHint && <ErrorAlert error={returnMutation.error} />}
-      {returnHint && statusQuery.data && (
-        <div className="mb-3">
-          <PaymentStatusNotice status={statusQuery.data} />
-          {statusQuery.data.status === "COMPLETED" && statusQuery.data.domainId != null && (
-            <div className="mt-2"><PaymentCompletionNext result={{ ...statusQuery.data, domainId: statusQuery.data.domainId }} /></div>
-          )}
-        </div>
-      )}
-      {returnHint?.value.orderId && (
-        <p className="small text-muted">구매 화면으로 돌아가면 승인 전 결제를 종료하고 쿠폰·적립금 사용 예약을 해제합니다.</p>
-      )}
-      <div className="d-flex flex-wrap gap-2">
-        {returnPath !== "/" && (
-          <Button variant="primary" disabled={returnMutation.isPending}
-            onClick={() => returnMutation.mutate()}>
-            {returnMutation.isPending ? "결제 종료 중…" : "구매 화면으로 돌아가기"}
-          </Button>
+    <Container className="page-container payment-result-page">
+      <PaymentResultCard
+        tone="danger"
+        title="결제 실패"
+        lead={<>결제가 완료되지 않았습니다.<br />{message}</>}
+        actions={(
+          <>
+            {returnPath !== "/" && (
+              <Button variant="primary" disabled={returnMutation.isPending}
+                onClick={() => returnMutation.mutate()}>
+                {returnMutation.isPending ? "결제 종료 중…" : "구매 화면으로 돌아가기"}
+              </Button>
+            )}
+            {orderId && returnMutation.isError && (
+              <Button variant="outline-primary" disabled={statusQuery.isFetching}
+                onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
+            )}
+            <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
+            <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>상품 둘러보기</LinkButton>
+          </>
         )}
-        {orderId && returnMutation.isError && (
-          <Button variant="outline-primary" disabled={statusQuery.isFetching}
-            onClick={() => void statusQuery.refetch()}>결제 상태 확인</Button>
+      >
+        {returnHint && <ErrorAlert error={returnMutation.error} />}
+        {returnHint && statusQuery.data && (
+          <div className="mb-3">
+            <PaymentStatusNotice status={statusQuery.data} />
+            {statusQuery.data.status === "COMPLETED" && statusQuery.data.domainId != null && (
+              <div className="mt-2"><PaymentCompletionNext result={{ ...statusQuery.data, domainId: statusQuery.data.domainId }} /></div>
+            )}
+          </div>
         )}
-        <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
-        <LinkButton to="/products" variant={returnPath === "/" ? "primary" : "outline-secondary"}>상품 둘러보기</LinkButton>
-      </div>
+        {returnHint?.value.orderId && (
+          <p className="payment-result-note">구매 화면으로 돌아가면 승인 전 결제를 종료하고 쿠폰·적립금 사용 예약을 해제합니다.</p>
+        )}
+      </PaymentResultCard>
     </Container>
   );
 }

@@ -215,7 +215,7 @@ export function Layout() {
           )}
           <div className="app-footer-grid">
             <div>
-              <div className="app-footer-brand">happyGallery</div>
+              <div className="app-footer-brand">{workshop?.name ?? "해피갤러리"}</div>
               {workshop?.introduction && (
                 <p className="app-footer-introduction">{workshop.introduction}</p>
               )}

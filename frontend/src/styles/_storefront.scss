@@ -459,14 +459,6 @@
   border: 1px solid var(--hg-border);
   border-radius: var(--hg-radius-media);
   box-shadow: var(--hg-shadow-soft);
-
-  &::before {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 0.3rem;
-    background: var(--hg-accent);
-    content: "";
-  }
 }
 
 .store-order-sheet-header {
@@ -2393,5 +2385,216 @@
 
   .my-stat-hint {
     display: none;
+  }
+}
+
+// ── 장바구니: 데스크톱은 표, 모바일은 작품마다 카드로 쌓는다 ─────────────
+.cart-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 34rem;
+  margin: 1rem auto 3rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: 1.1rem;
+
+  svg {
+    color: var(--hg-ink-soft);
+  }
+
+  h2 {
+    margin: 0.5rem 0 0;
+    font-size: 1.35rem;
+    font-weight: 400;
+  }
+
+  p {
+    margin: 0;
+    color: var(--hg-ink-soft);
+  }
+}
+
+.cart-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.cart-select-all {
+  margin: -0.25rem 0 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--hg-border);
+  font-weight: 600;
+}
+
+.cart-table {
+  --bs-table-bg: transparent;
+
+  th {
+    color: var(--hg-ink-soft);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  td {
+    padding: 1rem 0.5rem;
+    vertical-align: top;
+  }
+
+  tr.is-unavailable .cart-item-main a {
+    color: var(--hg-ink-soft);
+  }
+}
+
+.cart-item-title {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+
+  .form-check {
+    margin: 0.15rem 0 0;
+    min-height: 0;
+  }
+
+  a {
+    color: var(--hg-dark);
+    font-weight: 700;
+    text-decoration: none;
+  }
+}
+
+.cart-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  span {
+    min-width: 1.75rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.cart-item-qty {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cart-item-subtotal {
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cart-item-remove .btn {
+  padding: 0;
+  color: var(--hg-ink-soft);
+}
+
+@media (max-width: 767.98px) {
+  .cart-table {
+    thead {
+      display: none;
+    }
+
+    tbody,
+    tr {
+      display: block;
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 0.5rem 0.75rem;
+      padding: 0.9rem 0;
+      border-bottom: 1px solid var(--hg-border);
+    }
+
+    td {
+      display: block;
+      padding: 0;
+      border: 0;
+    }
+
+    .cart-item-main {
+      grid-column: 1 / -1;
+    }
+
+    .cart-item-qty {
+      text-align: left;
+    }
+
+    .cart-item-subtotal {
+      text-align: right;
+    }
+  }
+}
+
+// ── 결제 결과 ─────────────────────────────────────────
+.payment-result-page {
+  max-width: 600px;
+  padding-top: clamp(1.5rem, 5vw, 3.5rem);
+}
+
+.payment-result {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  margin-bottom: 3rem;
+  padding: clamp(1.75rem, 5vw, 2.75rem) clamp(1.25rem, 5vw, 2.5rem);
+  text-align: center;
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: 1.25rem;
+
+  h1 {
+    margin: 0.25rem 0 0;
+    font-size: clamp(1.7rem, 4vw, 2.2rem);
+    font-weight: 400;
+  }
+
+  > .alert,
+  > div:not(.payment-result-actions) {
+    width: 100%;
+    text-align: left;
+  }
+}
+
+.payment-result-icon {
+  color: var(--hg-leaf);
+}
+
+.payment-result.is-danger .payment-result-icon {
+  color: var(--hg-accent-deep);
+}
+
+.payment-result-lead {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--hg-ink-soft);
+}
+
+.payment-result-note {
+  margin: 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
+}
+
+.payment-result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+
+  > div {
+    justify-content: center;
   }
 }

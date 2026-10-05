@@ -48,7 +48,7 @@ export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
 
   return (
     <Container className="page-container" style={{ maxWidth: 900 }}>
-      <Link to="/events" className="text-decoration-none small text-muted-soft d-inline-block mb-3">
+      <Link to="/events" className="page-back-link">
         &larr; 이벤트 목록
       </Link>
 

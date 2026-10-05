@@ -1,8 +1,5 @@
-import { StatusBadge } from "@/shared/ui";
-import { BOOKING_BALANCE_STATUS_LABEL, formatDateTime, formatKRW, formatTime } from "@/shared/lib";
-import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
-import { AddBookingToCalendarButton } from "@/features/booking-manage/AddBookingToCalendarButton";
-import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
+import { BOOKING_BALANCE_STATUS_LABEL, formatKRW } from "@/shared/lib";
+import { BookingInfoCard } from "@/features/booking-manage/BookingInfoCard";
 import type { MyBookingDetailResponse } from "@/shared/types";
 
 interface Props {
@@ -22,39 +19,14 @@ export function MyBookingDetailCard({ booking }: Props) {
   ];
 
   return (
-    <article className="my-detail-card">
-      <header className="my-detail-card-head">
-        <span>예약 #{booking.bookingId}</span>
-        <StatusBadge status={booking.status} />
-      </header>
-      <div className="my-detail-card-hero">
-        <h2>{booking.className}</h2>
-        <p>
-          {formatDateTime(booking.startAt)} ~ {booking.endAt.slice(0, 10) === booking.startAt.slice(0, 10)
-            ? formatTime(booking.endAt)
-            : formatDateTime(booking.endAt)}
-        </p>
-      </div>
-      <dl className="my-detail-rows">
-        {rows.map((row) => (
-          <div key={row.label}>
-            <dt>{row.label}</dt>
-            <dd>{row.value}</dd>
-          </div>
-        ))}
-      </dl>
-      <div className="my-detail-card-actions">
-        <AddBookingToCalendarButton
-          className={booking.className}
-          startAt={booking.startAt}
-          endAt={booking.endAt}
-          status={booking.status}
-        />
-      </div>
-      <RefundProgressAlert refund={booking.refund} />
-      <div className="my-detail-card-visit">
-        <WorkshopVisitInfo compact />
-      </div>
-    </article>
+    <BookingInfoCard
+      label={`예약 #${booking.bookingId}`}
+      status={booking.status}
+      className={booking.className}
+      startAt={booking.startAt}
+      endAt={booking.endAt}
+      refund={booking.refund}
+      rows={rows}
+    />
   );
 }

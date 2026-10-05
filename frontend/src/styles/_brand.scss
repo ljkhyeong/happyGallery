@@ -1163,6 +1163,101 @@ a.home-step:focus-visible {
   white-space: pre-wrap;
 }
 
+// 상세 아래쪽 정보: 다가오는 일정·예약 안내·방문 안내를 같은 간격으로 쌓는다.
+.class-detail-section {
+  margin-top: 2.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--hg-border);
+}
+
+.class-detail-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+
+  h2 {
+    margin: 0;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: 1.5rem;
+    font-weight: 400;
+  }
+
+  span {
+    color: var(--hg-ink-soft);
+    font-size: 0.82rem;
+  }
+}
+
+.class-detail-muted {
+  margin: 0;
+  color: var(--hg-ink-soft);
+  font-size: 0.9rem;
+}
+
+.class-slot-chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.75rem 0.9rem;
+    color: var(--hg-dark);
+    background: var(--hg-surface);
+    border: 1.5px solid var(--hg-border);
+    border-radius: 0.85rem;
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+    transition: border-color var(--hg-transition), background var(--hg-transition);
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--hg-leaf);
+      background: var(--hg-leaf-tint);
+    }
+  }
+
+  strong {
+    font-size: 0.92rem;
+  }
+
+  small {
+    color: var(--hg-leaf);
+    font-size: 0.75rem;
+    font-weight: 700;
+
+    &.is-few {
+      color: var(--hg-accent-deep);
+    }
+  }
+}
+
+.class-detail-more {
+  display: inline-block;
+  margin-top: 0.75rem;
+  color: var(--hg-ink-soft);
+  font-size: 0.85rem;
+}
+
+.class-detail-policy {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #5E554C;
+  font-size: 0.92rem;
+  line-height: 1.8;
+
+  li + li {
+    margin-top: 0.35rem;
+  }
+}
+
 .class-detail-card {
   position: sticky;
   top: 6rem;
@@ -1416,6 +1511,16 @@ a.home-step:focus-visible {
     margin-top: 0;
   }
 
+  // 다가오는 일정·예약 안내·방문 안내는 수업 소개 뒤에 둔다.
+  .class-detail-section {
+    order: 4;
+    margin-top: 0;
+  }
+
+  .class-slot-chips {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .group-class-intro figure {
     aspect-ratio: 16 / 10;
   }
@@ -1568,11 +1673,23 @@ a.home-step:focus-visible {
 
   .class-catalog-media {
     min-height: 0;
-    aspect-ratio: 16 / 10;
+    aspect-ratio: 16 / 9;
   }
 
+  // 모바일 목록은 비교에 필요한 시간·정원만 남기고 추천 대상·준비물은 상세에서 본다.
   .class-catalog-meta {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .class-catalog-meta-wide {
+    display: none;
+  }
+
+  .class-catalog-description {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .class-followup-links,
@@ -1583,4 +1700,17 @@ a.home-step:focus-visible {
   .group-class-inquiry {
     padding: 1.75rem 1.25rem;
   }
+}
+
+// 링크로 이어지는 단계 카드에는 이동 화살표를 붙여 누를 수 있음을 알린다.
+a.home-step strong::after {
+  margin-left: 0.35rem;
+  color: var(--hg-accent);
+  content: "→";
+  transition: margin var(--hg-transition);
+}
+
+a.home-step:hover strong::after,
+a.home-step:focus-visible strong::after {
+  margin-left: 0.6rem;
 }

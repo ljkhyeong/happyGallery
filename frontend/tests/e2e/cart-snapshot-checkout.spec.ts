@@ -145,7 +145,7 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
   await page.goto("/cart");
   await expect(page.getByText("스냅샷 확인 작품", { exact: true })).toBeVisible();
   await page.getByRole("checkbox", { name: "전체 선택" }).uncheck();
-  await expect(page.getByText("구매할 상품을 선택해 주세요.")).toBeVisible();
+  await expect(page.getByText("구매할 작품을 선택해 주세요.")).toBeVisible();
   await page.getByRole("checkbox", { name: "스냅샷 확인 작품 선택" }).check();
   await expect(page.getByRole("checkbox", { name: "나중에 구매할 작품 선택" })).not.toBeChecked();
   await page.getByRole("button", { name: "매장 수령" }).click();

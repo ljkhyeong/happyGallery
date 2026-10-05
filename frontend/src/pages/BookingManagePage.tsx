@@ -1,7 +1,7 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
-import { Container, Card } from "react-bootstrap";
+import { Button, Container, Card } from "react-bootstrap";
 import { useLocation, useSearchParams } from "react-router";
 import {
   cancelBooking,
@@ -93,7 +93,10 @@ function BookingManageContent() {
       ),
   });
 
+  const [relookupOpen, setRelookupOpen] = useState(false);
+
   function handleLookup(bookingId: number, token: string) {
+    setRelookupOpen(false);
     if (
       lookup?.credentials.bookingId === bookingId &&
       lookup.credentials.token === token
@@ -116,7 +119,32 @@ function BookingManageContent() {
 
   return (
     <Container className="page-container guest-lookup-page">
-      <GuestLookupPanel title="비회원 예약 조회" kind="bookings">
+      {Boolean(booking) && (
+        <header className="guest-detail-header">
+          <div>
+            <p className="store-section-kicker mb-1">Guest booking</p>
+            <h1>비회원 예약 조회</h1>
+            <p>예약 일정과 변경·취소 가능 여부를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요.</p>
+          </div>
+          <div className="guest-detail-actions">
+            <Button variant="outline-dark" size="sm" disabled={isFetching} onClick={() => void refetchBooking()}>
+              {isFetching ? "확인 중..." : "최신 상태 확인"}
+            </Button>
+            <Button
+              variant="outline-dark"
+              size="sm"
+              aria-expanded={relookupOpen}
+              aria-controls="guest-relookup"
+              onClick={() => setRelookupOpen((open) => !open)}
+            >
+              {relookupOpen ? "다른 번호 입력 닫기" : "다른 번호로 찾기"}
+            </Button>
+          </div>
+        </header>
+      )}
+      {/* 조회 후에도 입력값은 유지해야 하므로 지우지 않고 숨긴다. */}
+      <div id="guest-relookup" hidden={Boolean(booking) && !relookupOpen}>
+        <GuestLookupPanel title="비회원 예약 조회" kind="bookings">
           <BookingLookupForm
             onLookup={handleLookup}
             isLoading={isFetching}
@@ -125,7 +153,8 @@ function BookingManageContent() {
               : undefined}
             initialToken={initialCredentials.token || undefined}
           />
-      </GuestLookupPanel>
+        </GuestLookupPanel>
+      </div>
 
       <ErrorAlert error={booking ? null : error} />
 

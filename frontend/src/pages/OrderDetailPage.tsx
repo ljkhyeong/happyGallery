@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
-import { Container } from "react-bootstrap";
+import { Button, Container } from "react-bootstrap";
 import { useLocation, useSearchParams } from "react-router";
 import { cancelGuestOrder, fetchOrder, respondToGuestOrderDelay } from "@/features/order/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -103,7 +103,10 @@ function OrderDetailContent() {
     ),
   });
 
+  const [relookupOpen, setRelookupOpen] = useState(false);
+
   function handleLookup(id: number, token: string) {
+    setRelookupOpen(false);
     if (lookup?.credentials.id === id && lookup.credentials.token === token) {
       void refetchOrder();
       return;
@@ -113,11 +116,37 @@ function OrderDetailContent() {
 
   return (
     <Container className="page-container guest-lookup-page">
-      <GuestLookupPanel title="비회원 주문 조회" kind="orders">
-        <GuestLookupForm kind="orders" onLookup={handleLookup} isLoading={isFetching}
-          initialId={initialCredentials.orderId ? String(initialCredentials.orderId) : undefined}
-          initialToken={initialCredentials.token} submitLabel="조회" />
-      </GuestLookupPanel>
+      {Boolean(order) && (
+        <header className="guest-detail-header">
+          <div>
+            <p className="store-section-kicker mb-1">Guest order</p>
+            <h1>비회원 주문 조회</h1>
+            <p>주문 상태와 수령 정보를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요.</p>
+          </div>
+          <div className="guest-detail-actions">
+            <Button variant="outline-dark" size="sm" disabled={isFetching} onClick={() => void refetchOrder()}>
+              {isFetching ? "확인 중..." : "최신 상태 확인"}
+            </Button>
+            <Button
+              variant="outline-dark"
+              size="sm"
+              aria-expanded={relookupOpen}
+              aria-controls="guest-relookup"
+              onClick={() => setRelookupOpen((open) => !open)}
+            >
+              {relookupOpen ? "다른 번호 입력 닫기" : "다른 번호로 찾기"}
+            </Button>
+          </div>
+        </header>
+      )}
+      {/* 조회 후에도 입력값은 유지해야 하므로 지우지 않고 숨긴다. */}
+      <div id="guest-relookup" hidden={Boolean(order) && !relookupOpen}>
+        <GuestLookupPanel title="비회원 주문 조회" kind="orders">
+          <GuestLookupForm kind="orders" onLookup={handleLookup} isLoading={isFetching}
+            initialId={initialCredentials.orderId ? String(initialCredentials.orderId) : undefined}
+            initialToken={initialCredentials.token} submitLabel="조회" />
+        </GuestLookupPanel>
+      </div>
 
       <ErrorAlert error={order ? null : error} />
 

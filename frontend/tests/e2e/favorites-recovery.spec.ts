@@ -66,6 +66,7 @@ async function mockFavorites(page: Page) {
           hasMore, nextCursor: hasMore ? "next-page" : null });
       }
       case "/api/v1/classes/42": return route.fallback();
+      case "/api/v1/slots/upcoming": return json([]);
       case "/api/v1/classes/42/reviews": return json({ content: [], filteredCount: 0, hasMore: false, nextCursor: null,
         summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
       default: throw new Error(`정의하지 않은 찜 테스트 요청: ${pathname}`);

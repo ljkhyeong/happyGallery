@@ -42,11 +42,12 @@ interface SummaryProps {
   /** 모바일 하단 고정 바에 버튼과 함께 보이는 짧은 금액. 요약 본문과 겹치므로 보조기기에는 숨긴다. */
   mobileTotal?: { label: string; amount: string };
   note?: ReactNode;
+  className?: string;
 }
 
-export function CheckoutSummary({ label, media, children, action, mobileTotal, note }: SummaryProps) {
+export function CheckoutSummary({ label, media, children, action, mobileTotal, note, className }: SummaryProps) {
   return (
-    <aside className="checkout-summary" aria-label={label}>
+    <aside className={className ? `checkout-summary ${className}` : "checkout-summary"} aria-label={label}>
       {media && <div className="checkout-summary-media">{media}</div>}
       <div className="checkout-summary-body">{children}</div>
       <div className="checkout-summary-action">

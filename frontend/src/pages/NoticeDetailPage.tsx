@@ -1,10 +1,12 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Container, Badge } from "react-bootstrap";
 import { Link } from "react-router";
-import { fetchNotice } from "@/features/notice/api";
+import { fetchNotice, fetchNotices } from "@/features/notice/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
-import { formatDateTime } from "@/shared/lib";
+import { formatDate, formatDateTime } from "@/shared/lib";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import type { NoticeDetailResponse } from "@/generated/api/notice";
 
 export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetailResponse }) {
@@ -24,31 +26,53 @@ export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetai
   }, initialNotice);
 
   return (
-    <Container className="page-container" style={{ maxWidth: 720 }}>
-      <Link to="/" className="text-decoration-none small text-muted-soft d-inline-block mb-3">
-        &larr; 홈으로
-      </Link>
+    <Container className="page-container notice-detail-page">
+      <Link to="/" className="page-back-link">&larr; 홈으로</Link>
 
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} />
 
       {notice && (
-        <article>
-          <div className="mb-3">
-            <div className="d-flex align-items-center gap-2 mb-2">
-              {notice.pinned && <Badge bg="dark" className="badge-sm">고정</Badge>}
-              <h1 className="h4 mb-0">{notice.title}</h1>
-            </div>
-            <div className="text-muted-soft small">
-              {formatDateTime(notice.createdAt)} · 조회 {notice.viewCount}
-            </div>
-          </div>
-          <hr />
-          <div className="notice-content" style={{ whiteSpace: "pre-wrap", lineHeight: 1.8 }}>
-            {notice.content}
-          </div>
+        <article className="notice-article">
+          <header>
+            <p className="store-section-kicker">
+              Notice{notice.pinned && <Badge bg="dark" className="ms-2">고정</Badge>}
+            </p>
+            <h1>{notice.title}</h1>
+            <p className="notice-meta">
+              <time dateTime={notice.createdAt}>{formatDateTime(notice.createdAt)}</time> · 조회 {notice.viewCount}
+            </p>
+          </header>
+          <div className="notice-content">{notice.content}</div>
         </article>
       )}
+
+      <OtherNotices currentId={noticeId} />
     </Container>
+  );
+}
+
+/** 공지 목록 화면이 따로 없으므로 상세 아래에서 다른 공지로 이어 간다. */
+function OtherNotices({ currentId }: { currentId: number }) {
+  const { data: notices } = useQuery({
+    queryKey: queryKeys.notices.all,
+    queryFn: fetchNotices,
+    staleTime: PUBLIC_DATA_STALE_TIME,
+  });
+  const others = notices?.filter((notice) => notice.id !== currentId).slice(0, 4) ?? [];
+  if (others.length === 0) return null;
+
+  return (
+    <nav className="notice-others" aria-labelledby="notice-others-title">
+      <h2 id="notice-others-title">다른 공지</h2>
+      <ul>
+        {others.map((notice) => (
+          <li key={notice.id}>
+            <Link to={`/notices/${notice.id}`}>{notice.title}</Link>
+            <time dateTime={notice.createdAt}>{formatDate(notice.createdAt)}</time>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

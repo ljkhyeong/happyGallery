@@ -2,14 +2,15 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
-import { Alert, Container, Card, Button, Row, Col, Modal, Table, Form } from "react-bootstrap";
+import { Alert, Container, Button, Modal, Table, Form } from "react-bootstrap";
+import { ShoppingBag } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { productQuantities, productSkuKey } from "@/features/product/purchaseStock";
 import type { CartItemIdentifier, CartItemView } from "@/features/cart/guestCartView";
 import { useCart } from "@/features/cart/useCart";
 import { CartQuantityError } from "@/features/cart/useGuestCart";
 import { executePaymentFlow, PaymentErrorAlert, PaymentMethodFields, useCheckoutSelection, type OrderPayload } from "@/features/payment";
-import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
+import { CheckoutLayout, CheckoutPanel, CheckoutSummary, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 import { formatKRW } from "@/shared/lib";
 import {
   FulfillmentForm,
@@ -38,8 +39,8 @@ export function CartPage() {
   } = useCustomerAuth();
   if (status === "error") {
     return (
-      <Container className="page-container">
-        <h2 className="mb-4">장바구니</h2>
+      <Container className="page-container checkout-page">
+        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
       </Container>
     );
@@ -206,8 +207,8 @@ function CartContent() {
 
   if (cartError && isAuthenticated) {
     return (
-      <Container className="page-container">
-        <h2 className="mb-4">장바구니</h2>
+      <Container className="page-container checkout-page">
+        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         {mergeRecovery}
         {discardConfirmModal}
         <ErrorAlert
@@ -221,14 +222,19 @@ function CartContent() {
 
   if (items.length === 0) {
     return (
-      <Container className="page-container">
-        <h2 className="mb-4">장바구니</h2>
+      <Container className="page-container checkout-page">
+        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         {mergeRecovery}
         {discardConfirmModal}
-        <EmptyState message="장바구니가 비어 있습니다." />
-        <div className="text-center mt-3">
-          <LinkButton to="/products" variant="outline-primary">상품 보러 가기</LinkButton>
-        </div>
+        <section className="cart-empty">
+          <ShoppingBag size={36} strokeWidth={1.4} aria-hidden="true" />
+          <h2>장바구니가 비어 있습니다.</h2>
+          <p>공방에서 만든 작품을 둘러보고 마음에 드는 작품을 담아 보세요.</p>
+          <div className="cart-empty-actions">
+            <LinkButton to="/products" variant="primary">작품 둘러보기</LinkButton>
+            <LinkButton to="/classes" variant="outline-dark">클래스 둘러보기</LinkButton>
+          </div>
+        </section>
       </Container>
     );
   }
@@ -244,9 +250,28 @@ function CartContent() {
     }
   };
 
+  const checkoutButton = isAuthenticated ? (
+    <Button
+      variant="primary"
+      size="lg"
+      className="w-100"
+      disabled={checkout.isPending || selectedItems.length === 0 || stockExceededItems.length > 0
+        || !cartVersion
+        || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
+        || !isFulfillmentComplete(fulfillment) || !consent.ready}
+      onClick={handleCheckout}
+    >
+      {checkout.isPending ? "결제 준비 중..." : "결제하기"}
+    </Button>
+  ) : (
+    <LinkButton to={loginHref} variant="primary" size="lg" className="w-100">
+      로그인하고 주문하기
+    </LinkButton>
+  );
+
   return (
-    <Container className="page-container">
-      <h2 className="mb-4">장바구니</h2>
+    <Container className="page-container checkout-page">
+      <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
       {mergeRecovery}
       {discardConfirmModal}
       {!isAuthenticated && cartError != null && (
@@ -265,220 +290,212 @@ function CartContent() {
         </Alert>
       )}
 
-      <Row className="g-4">
-        <Col lg={8}>
-          <Card>
-            <Card.Body className="p-0">
-              {isAuthenticated && <div className="p-3 border-bottom">
-                <Form.Check id="cart-select-all" label={`전체 선택 (${selectedItems.length}/${availableItems.length})`}
-                  checked={availableItems.length > 0 && selectedItems.length === availableItems.length}
-                  disabled={selectionDisabled || availableItems.length === 0}
-                  onChange={(event) => changeSelection(event.target.checked
-                    ? new Set() : new Set(availableItems.map((item) => item.cartItemId)))} />
-                <div className="small text-muted mt-1">선택하지 않은 상품은 결제 후에도 장바구니에 남습니다.</div>
-              </div>}
-              <Table responsive className="mb-0">
-                <thead>
-                  <tr>
-                    <th>상품</th>
-                    <th className="text-center" style={{ width: 140 }}>수량</th>
-                    <th className="text-end" style={{ width: 120 }}>소계</th>
-                    <th style={{ width: 60 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.cartItemId} className={canSelect(item) ? "" : "text-muted"}>
-                      <td>
-                        {isAuthenticated && <Form.Check className="mb-2"
-                          id={`cart-select-${item.cartItemId}`} label={`${item.productName} 선택`}
-                          checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
-                          disabled={selectionDisabled || !canSelect(item)}
-                          onChange={(event) => {
-                            const next = new Set(excludedItemIds);
-                            if (event.target.checked) next.delete(item.cartItemId);
-                            else next.add(item.cartItemId);
-                            changeSelection(next);
-                          }} />}
-                        <Link to={`/products/${item.productId}`} className="text-decoration-none">
+      <CheckoutLayout
+        summary={(
+          <CheckoutSummary
+            label="주문 요약"
+            className="store-purchase-card"
+            action={checkoutButton}
+            note={isAuthenticated
+              ? "선택하지 않은 작품은 결제 후에도 장바구니에 남습니다."
+              : "담은 작품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다."}
+          >
+            <h2 className="checkout-summary-title">주문 요약</h2>
+            <div className="d-flex justify-content-between mb-3">
+              <span className="text-muted-soft">{isAuthenticated ? "선택 작품" : "담은 작품"}</span>
+              <span>{isAuthenticated ? selectedItems.length : items.length}종</span>
+            </div>
+            {!isAuthenticated ? (
+              <OrderPriceSummary
+                itemAmount={totalAmount}
+                fulfillmentType={fulfillment.fulfillmentType}
+              />
+            ) : (
+              <>
+                {selectedItems.length === 0 && <Alert variant="info">구매할 작품을 선택해 주세요.</Alert>}
+                {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
+                  {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
+                  현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
+                </Alert>)}
+                <MemberOrderBenefits
+                  productAmount={totalAmount}
+                  fulfillmentType={fulfillment.fulfillmentType}
+                  selectedCouponId={issuedCouponId}
+                  rewardPointsToUse={rewardAmount}
+                  disabled={checkout.isPending || isItemMutationPending || isRefetching}
+                  onCouponChange={setIssuedCouponId}
+                  onRewardPointsChange={setRewardAmount}
+                />
+                <PaymentErrorAlert
+                  error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
+                />
+                {cartSnapshotConflict && (
+                  <Alert variant="warning" role="alert" className="mb-3">
+                    {isRefetching
+                      ? "장바구니 내용이 변경되어 최신 정보를 다시 불러오고 있습니다."
+                      : "장바구니 내용이 변경되어 최신 정보로 갱신했습니다. 수량과 금액을 다시 확인한 뒤 결제를 진행해 주세요."}
+                  </Alert>
+                )}
+                {!cartVersion && (
+                  <Alert variant="warning" role="alert" className="mb-3">
+                    <div>장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.</div>
+                    <Button
+                      type="button"
+                      variant="outline-dark"
+                      size="sm"
+                      className="mt-2"
+                      disabled={isRefetching}
+                      onClick={refetch}
+                    >
+                      {isRefetching ? "다시 확인 중..." : "장바구니 다시 확인"}
+                    </Button>
+                  </Alert>
+                )}
+              </>
+            )}
+          </CheckoutSummary>
+        )}
+      >
+        <CheckoutPanel step={isAuthenticated ? 1 : undefined} title="담은 작품" meta={`${items.length}종`}>
+          {isAuthenticated && (
+            <div className="cart-select-all">
+              <Form.Check id="cart-select-all" label={`전체 선택 (${selectedItems.length}/${availableItems.length})`}
+                checked={availableItems.length > 0 && selectedItems.length === availableItems.length}
+                disabled={selectionDisabled || availableItems.length === 0}
+                onChange={(event) => changeSelection(event.target.checked
+                  ? new Set() : new Set(availableItems.map((item) => item.cartItemId)))} />
+            </div>
+          )}
+          <Table className="cart-table mb-0">
+            <thead>
+              <tr>
+                <th>작품</th>
+                <th className="text-center">수량</th>
+                <th className="text-end">소계</th>
+                <th><span className="visually-hidden">삭제</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.cartItemId} className={canSelect(item) ? undefined : "is-unavailable"}>
+                  <td className="cart-item-main">
+                    <div className="cart-item-title">
+                      {isAuthenticated && <Form.Check
+                        id={`cart-select-${item.cartItemId}`}
+                        aria-label={`${item.productName} 선택`}
+                        checked={canSelect(item) && !excludedItemIds.has(item.cartItemId)}
+                        disabled={selectionDisabled || !canSelect(item)}
+                        onChange={(event) => {
+                          const next = new Set(excludedItemIds);
+                          if (event.target.checked) next.delete(item.cartItemId);
+                          else next.add(item.cartItemId);
+                          changeSelection(next);
+                        }} />}
+                      <div>
+                        <Link to={`/products/${item.productId}`}>
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
-                        <div className="small text-muted">{formatKRW(item.price)}</div>
-                        <OrderOptionList options={item.options} />
-                        {item.productType && (
-                          <div className="mt-2">
-                            <ProductPurchaseTerms
-                              productName={item.productName}
-                              type={item.productType}
-                              specification={item.specification}
-                              careInstructions={item.careInstructions}
-                              productionLeadDays={item.productionLeadDays}
-                              compact
-                            />
-                          </div>
-                        )}
-                        {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
-                        {!canSelect(item) && !item.quantityWarning && (
-                          <div>
-                            <span className="badge bg-secondary">구매 불가</span>
-                            <div className="small text-danger">
-                              재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                      <td className="text-center">
-                        <div className="d-flex align-items-center justify-content-center gap-2">
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            disabled={checkout.isPending || isItemMutationPending || item.qty <= 1}
-                            onClick={() => {
-                              void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
-                            }}
-                          >
-                            -
-                          </Button>
-                          <span style={{ minWidth: 28, textAlign: "center" }}>{item.qty}</span>
-                          <Button
-                            variant="outline-secondary"
-                            size="sm"
-                            disabled={checkout.isPending || isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
-                            onClick={() => {
-                              void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
-                            }}
-                          >
-                            +
-                          </Button>
+                        <div className="small text-muted-soft">{formatKRW(item.price)}</div>
+                      </div>
+                    </div>
+                    <OrderOptionList options={item.options} />
+                    {item.productType && (
+                      <div className="mt-2">
+                        <ProductPurchaseTerms
+                          productName={item.productName}
+                          type={item.productType}
+                          specification={item.specification}
+                          careInstructions={item.careInstructions}
+                          productionLeadDays={item.productionLeadDays}
+                          compact
+                        />
+                      </div>
+                    )}
+                    {item.quantityWarning && <div className="small text-danger">{item.quantityWarning}</div>}
+                    {!canSelect(item) && !item.quantityWarning && (
+                      <div>
+                        <span className="badge bg-secondary">구매 불가</span>
+                        <div className="small text-danger">
+                          재고 또는 판매 옵션이 변경되었습니다. 수량을 줄이거나 삭제해 주세요.
                         </div>
-                      </td>
-                      <td className="text-end fw-semibold">{formatKRW(item.subtotal)}</td>
-                      <td>
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="text-danger p-0"
-                          disabled={checkout.isPending || isItemMutationPending}
-                          onClick={() => {
-                            void removeItem(item.cartItemId).catch(() => undefined);
-                          }}
-                        >
-                          삭제
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col lg={4}>
-          <Card className="store-purchase-card">
-            <Card.Body>
-              <h5 className="mb-3">주문 요약</h5>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">{isAuthenticated ? "선택 상품" : "상품 수"}</span>
-                <span>{isAuthenticated ? selectedItems.length : items.length}종</span>
-              </div>
-              {!isAuthenticated ? (
-                <>
-                  <OrderPriceSummary
-                    itemAmount={totalAmount}
-                    fulfillmentType={fulfillment.fulfillmentType}
-                    className="mb-3"
-                  />
-                  <Alert variant="light" className="border mb-3">
-                    담은 상품은 이 기기에 유지됩니다. 로그인하면 회원 장바구니로 옮겨 결제할 수 있습니다.
-                  </Alert>
-                  <LinkButton
-                    to={loginHref}
-                    variant="primary"
-                    size="lg"
-                    className="w-100"
-                  >
-                    로그인하고 주문하기
-                  </LinkButton>
-                </>
-              ) : (
-                <>
-                  {selectedItems.length === 0 && <Alert variant="info">구매할 상품을 선택해 주세요.</Alert>}
-                  {stockExceededItems.map((item) => <Alert key={productSkuKey(item)} variant="warning">
-                    {item.productName}: 같은 상품·옵션은 합계 {item.availableQuantity}개까지 구매할 수 있습니다.
-                    현재 {selectedQuantities.get(productSkuKey(item))}개를 선택했습니다. 선택을 줄이거나 수량을 조정해 주세요.
-                  </Alert>)}
-                  <div className="border-top pt-3 mb-3">
-                    <MemberOrderBenefits
-                      productAmount={totalAmount}
-                      fulfillmentType={fulfillment.fulfillmentType}
-                      selectedCouponId={issuedCouponId}
-                      rewardPointsToUse={rewardAmount}
-                      disabled={checkout.isPending || isItemMutationPending || isRefetching}
-                      onCouponChange={setIssuedCouponId}
-                      onRewardPointsChange={setRewardAmount}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
-                  </div>
-
-                  <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={checkout.isPending} />
-                  <PaymentErrorAlert
-                    error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
-                  />
-                  {cartSnapshotConflict && (
-                    <Alert variant="warning" role="alert" className="mb-3">
-                      {isRefetching
-                        ? "장바구니 내용이 변경되어 최신 정보를 다시 불러오고 있습니다."
-                        : "장바구니 내용이 변경되어 최신 정보로 갱신했습니다. 수량과 금액을 다시 확인한 뒤 결제를 진행해 주세요."}
-                    </Alert>
-                  )}
-                  {!cartVersion && (
-                    <Alert variant="warning" role="alert" className="mb-3">
-                      <div>장바구니 최신 정보를 확인할 수 없어 결제를 진행할 수 없습니다.</div>
+                      </div>
+                    )}
+                  </td>
+                  <td className="cart-item-qty">
+                    <div className="cart-qty-stepper">
                       <Button
-                        type="button"
-                        variant="outline-dark"
+                        variant="outline-secondary"
                         size="sm"
-                        className="mt-2"
-                        disabled={isRefetching}
-                        onClick={refetch}
+                        disabled={checkout.isPending || isItemMutationPending || item.qty <= 1}
+                        onClick={() => {
+                          void updateQty(item.cartItemId, item.qty - 1).catch(() => undefined);
+                        }}
                       >
-                        {isRefetching ? "다시 확인 중..." : "장바구니 다시 확인"}
+                        -
                       </Button>
-                    </Alert>
-                  )}
-                  <MadeToOrderConsent
-                    required={requiresMadeToOrderConsent}
-                    policy={consent.policyQuery.data}
-                    isLoading={consent.policyQuery.isLoading}
-                    isFetching={consent.policyQuery.isFetching}
-                    error={consent.policyQuery.error}
-                    checked={consent.checked}
-                    onChange={consent.setChecked}
-                    versionMismatch={consent.versionMismatch}
-                    refreshRequired={consent.refreshRequired}
-                  />
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="w-100"
-                    disabled={checkout.isPending || selectedItems.length === 0 || stockExceededItems.length > 0
-                      || !cartVersion
-                      || isItemMutationPending || isRefetching || guestCartMergeIssue !== null
-                      || !isFulfillmentComplete(fulfillment) || !consent.ready}
-                    onClick={handleCheckout}
-                  >
-                    {checkout.isPending ? "결제 준비 중..." : "결제하기"}
-                  </Button>
-                </>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
+                      <span>{item.qty}</span>
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        disabled={checkout.isPending || isItemMutationPending || item.qty >= (item.maxQuantity ?? MAX_PRODUCT_QUANTITY)}
+                        onClick={() => {
+                          void updateQty(item.cartItemId, item.qty + 1).catch(() => undefined);
+                        }}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </td>
+                  <td className="cart-item-subtotal">{formatKRW(item.subtotal)}</td>
+                  <td className="cart-item-remove">
+                    <Button
+                      variant="link"
+                      size="sm"
+                      disabled={checkout.isPending || isItemMutationPending}
+                      onClick={() => {
+                        void removeItem(item.cartItemId).catch(() => undefined);
+                      }}
+                    >
+                      삭제
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </CheckoutPanel>
+
+        {isAuthenticated && (
+          <>
+            <CheckoutPanel step={2} title="수령 방법">
+              <FulfillmentForm value={fulfillment} onChange={setFulfillment} />
+            </CheckoutPanel>
+            <CheckoutPanel step={3} title="결제 수단">
+              <PaymentMethodFields
+                value={checkoutSelection}
+                onChange={setCheckoutSelection}
+                disabled={checkout.isPending}
+                showLegend={false}
+              />
+            </CheckoutPanel>
+            {requiresMadeToOrderConsent && (
+              <CheckoutPanel step={4} title="동의">
+                <MadeToOrderConsent
+                  required={requiresMadeToOrderConsent}
+                  policy={consent.policyQuery.data}
+                  isLoading={consent.policyQuery.isLoading}
+                  isFetching={consent.policyQuery.isFetching}
+                  error={consent.policyQuery.error}
+                  checked={consent.checked}
+                  onChange={consent.setChecked}
+                  versionMismatch={consent.versionMismatch}
+                  refreshRequired={consent.refreshRequired}
+                />
+              </CheckoutPanel>
+            )}
+          </>
+        )}
+      </CheckoutLayout>
     </Container>
   );
 }

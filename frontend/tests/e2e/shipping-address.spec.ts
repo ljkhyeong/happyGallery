@@ -101,7 +101,7 @@ for (const member of [true, false]) {
     expect(requests).toHaveLength(1);
     status = "SHIPPING_PREPARING";
     if (member) await page.reload();
-    else await page.getByRole("button", { name: "조회", exact: true }).click();
+    else await page.getByRole("button", { name: "최신 상태 확인", exact: true }).click();
     await expect(page.getByText("배송 준비 중", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "배송지 수정", exact: true })).toHaveCount(0);
   });
