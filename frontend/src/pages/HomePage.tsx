@@ -128,8 +128,9 @@ export function HomePage({
       <section className="home-hero">
         <Container className="home-hero-inner">
           <div className="home-hero-copy">
-            <p className="home-hero-eyebrow">충주 계명대로 공예공방 해피갤러리</p>
-            <h1 className="home-hero-title">재료를 만지고,<br />내 손으로 완성합니다</h1>
+            {/* 공방 이름이 검색 제목(H1)에 들어가야 하므로 위쪽 한 줄을 H1으로, 큰 문구는 소개 문장으로 둔다. */}
+            <h1 className="home-hero-eyebrow">충주 계명대로 공예공방 해피갤러리</h1>
+            <p className="home-hero-title">재료를 만지고,<br />내 손으로 완성합니다</p>
             <p className="home-hero-text">
               빈티지 가죽, 레진, 양말목, 톨페인팅까지. 원데이클래스부터 자격증반·창업반까지
               처음이어도 집에 가져갈 작품을 완성합니다.
