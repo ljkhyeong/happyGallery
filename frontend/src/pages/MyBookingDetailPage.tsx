@@ -76,11 +76,6 @@ export function MyBookingDetailPage() {
           <MyBookingDetailCard booking={booking} />
           {booking.receiptUrl && <div className="mb-3"><PaymentReceiptLink receiptUrl={booking.receiptUrl} /></div>}
 
-          <BookingReviewSection
-            bookingId={booking.bookingId}
-            className={booking.className}
-          />
-
           {isBooked && (
             <Card className="mt-4 border-0 my-action-card">
               <Card.Header>예약 변경</Card.Header>
@@ -142,6 +137,14 @@ export function MyBookingDetailPage() {
               />
             </div>
           )}
+
+          {/* 다가오는 예약은 변경·취소가 먼저 필요하므로 후기는 그 아래에 둔다. */}
+          <div className="mt-4">
+            <BookingReviewSection
+              bookingId={booking.bookingId}
+              className={booking.className}
+            />
+          </div>
         </>
       )}
     </>

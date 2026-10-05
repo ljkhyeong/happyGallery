@@ -37,11 +37,13 @@ export function BookingReviewSection({ bookingId, className }: Props) {
         <div>
           <p className="my-section-kicker mb-1">Review</p>
           <h5 id="booking-review-heading" className="mb-1">클래스 후기</h5>
-          <p className="text-muted-soft small mb-0">
-            {creationStateQuery.data?.status === "AVAILABLE"
-              ? `${className} 수업 경험을 들려주세요.`
-              : "공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다."}
-          </p>
+          {/* 상태별 안내는 아래 본문이 보여 주므로, 머리에는 작성 가능·대기 상태만 적어 문장이 겹치거나 어긋나지 않게 한다. */}
+          {creationStateQuery.data?.status === "AVAILABLE" && (
+            <p className="text-muted-soft small mb-0">{className} 수업 경험을 들려주세요.</p>
+          )}
+          {creationStateQuery.data?.status === "NOT_REVIEWABLE" && (
+            <p className="text-muted-soft small mb-0">공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다.</p>
+          )}
         </div>
         {creationStateQuery.data?.status === "AVAILABLE" && reviewStateAvailable && !review && !writing && (
           <Button
@@ -77,9 +79,6 @@ export function BookingReviewSection({ bookingId, className }: Props) {
       )}
       {!review && creationStateQuery.data?.status === "REVIEW_EXISTS" && (
         <p className="text-muted-soft small mb-0">이 예약에는 이미 후기를 작성했습니다.</p>
-      )}
-      {!review && creationStateQuery.data?.status === "NOT_REVIEWABLE" && (
-        <p className="text-muted-soft small mb-0">공방에서 수업 완료로 처리한 뒤 후기를 작성할 수 있습니다.</p>
       )}
       {reviewStateAvailable && writing && !review && creationStateQuery.data?.status === "AVAILABLE" && (
         <Card className="review-card">
