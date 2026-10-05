@@ -845,6 +845,79 @@
   letter-spacing: 0.02em;
 }
 
+// 작품 목록 도구 막대: 검색은 왼쪽, 종류·카테고리·정렬은 오른쪽 한 줄. 모바일은 검색 아래 세 칸으로 나눈다.
+.store-filter-bar {
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--hg-border);
+}
+
+.store-filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.store-filter-search {
+  position: relative;
+  flex: 1 1 16rem;
+  max-width: 24rem;
+  margin-right: auto;
+
+  .form-control {
+    padding-left: 2.25rem;
+  }
+}
+
+.store-filter-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 0.85rem;
+  color: var(--hg-ink-soft);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.store-filter-select {
+  flex: 0 1 10.5rem;
+}
+
+.store-filter-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.6rem;
+
+  .btn-link {
+    padding: 0;
+    color: var(--hg-ink-soft);
+    font-size: 0.8rem;
+
+    &:disabled {
+      visibility: hidden;
+    }
+  }
+}
+
+@media (max-width: 575.98px) {
+  .store-filter-search {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .store-filter-select {
+    flex: 1 1 0;
+    min-width: 0;
+
+    .form-select {
+      padding-inline: 0.6rem 1.6rem;
+      background-position: right 0.45rem center;
+      font-size: 0.82rem;
+    }
+  }
+}
+
 .notification-popover {
   top: calc(100% + 0.5rem);
   z-index: 1050;

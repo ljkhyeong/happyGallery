@@ -1,4 +1,5 @@
-import { Button, Card, Col, Form, Row } from "react-bootstrap";
+import { Search } from "lucide-react";
+import { Button, Form } from "react-bootstrap";
 import { PRODUCT_TYPE_LABEL, PRODUCT_SORT_LABEL } from "@/shared/lib";
 import type { ProductSortOrder } from "@/shared/types";
 
@@ -46,69 +47,60 @@ export function ProductFilterBar({
   const hasActiveFilter =
     keyword.trim() !== "" || type !== "ALL" || category !== "ALL" || sort !== "newest";
 
+  // 선택 상자는 값("전체 타입"·"최신순" 등)이 스스로 설명하므로 라벨은 보조기기용으로만 둔다.
   return (
-    <Card className="my-filter-card border-0 mb-3">
-      <Card.Body className="p-3">
-        <Row className="g-3 align-items-end">
-          <Col xs={12} md={3}>
-            <Form.Group controlId="product-search">
-              <Form.Label>검색</Form.Label>
-              <Form.Control
-                value={keyword}
-                onChange={(e) => onKeywordChange(e.target.value)}
-                placeholder="상품명으로 검색"
-              />
-            </Form.Group>
-          </Col>
-          <Col xs={6} md={3}>
-            <Form.Group controlId="product-type">
-              <Form.Label>상품 타입</Form.Label>
-              <Form.Select value={type} onChange={(e) => onTypeChange(e.target.value)}>
-                {TYPE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-          <Col xs={6} md={2}>
-            <Form.Group controlId="product-category">
-              <Form.Label>카테고리</Form.Label>
-              <Form.Select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
-                {categoryOptions.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-          <Col xs={6} md={2}>
-            <Form.Group controlId="product-sort">
-              <Form.Label>정렬</Form.Label>
-              <Form.Select
-                value={sort}
-                onChange={(e) => onSortChange(e.target.value as ProductSortOrder)}
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          </Col>
-          <Col xs={6} md={2}>
-            <div className="d-grid">
-              <Button variant="outline-secondary" onClick={onReset} disabled={!hasActiveFilter}>
-                초기화
-              </Button>
-            </div>
-          </Col>
-        </Row>
-        <div className="my-filter-result mt-3">{resultText}</div>
-      </Card.Body>
-    </Card>
+    <div className="store-filter-bar">
+      <div className="store-filter-controls">
+        <Form.Group controlId="product-search" className="store-filter-search">
+          <Form.Label className="visually-hidden">검색</Form.Label>
+          <Search className="store-filter-search-icon" size={16} aria-hidden="true" />
+          <Form.Control
+            type="search"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            placeholder="작품 이름으로 검색"
+          />
+        </Form.Group>
+        <Form.Group controlId="product-type" className="store-filter-select">
+          <Form.Label className="visually-hidden">상품 타입</Form.Label>
+          <Form.Select value={type} onChange={(e) => onTypeChange(e.target.value)}>
+            {TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+        <Form.Group controlId="product-category" className="store-filter-select">
+          <Form.Label className="visually-hidden">카테고리</Form.Label>
+          <Form.Select value={category} onChange={(e) => onCategoryChange(e.target.value)}>
+            {categoryOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+        <Form.Group controlId="product-sort" className="store-filter-select">
+          <Form.Label className="visually-hidden">정렬</Form.Label>
+          <Form.Select
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value as ProductSortOrder)}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+      </div>
+      <div className="store-filter-meta">
+        <span className="my-filter-result">{resultText}</span>
+        <Button variant="link" size="sm" onClick={onReset} disabled={!hasActiveFilter}>
+          초기화
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -78,7 +78,7 @@ export function ProductListPage({
           categories={categories ?? []}
           sort={sort}
           onSortChange={(value) => updateFilter("sort", value)}
-          resultText={products ? `${products.length}개의 상품` : "상품을 불러오는 중"}
+          resultText={products ? `작품 ${products.length}개` : "작품을 불러오는 중"}
           onReset={resetFilters}
         />
       </div>
