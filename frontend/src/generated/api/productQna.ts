@@ -271,7 +271,7 @@ export const getListAdminProductQnaUrl = (params: ListAdminProductQnaParams,) =>
   return stringifiedParams.length > 0 ? `/api/v1/admin/qna?${stringifiedParams}` : `/api/v1/admin/qna`
 }
 
-export const listAdminProductQna = async (params: ListAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaResponse[]> => {
+export const listAdminProductQna = async (params: ListAdminProductQnaParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminQnaResponse[]> => {
 
   return generatedApiClient<AdminQnaResponse[]>(getListAdminProductQnaUrl(params),
   {
@@ -299,7 +299,7 @@ export const getListAdminProductQnaPageUrl = (params: ListAdminProductQnaPagePar
   return stringifiedParams.length > 0 ? `/api/v1/admin/qna/page?${stringifiedParams}` : `/api/v1/admin/qna/page`
 }
 
-export const listAdminProductQnaPage = async (params: ListAdminProductQnaPageParams, options?: RequestInit): Promise<AdminQnaPageResponse> => {
+export const listAdminProductQnaPage = async (params: ListAdminProductQnaPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminQnaPageResponse> => {
 
   return generatedApiClient<AdminQnaPageResponse>(getListAdminProductQnaPageUrl(params),
   {
@@ -327,7 +327,7 @@ export const getListUnansweredAdminProductQnaUrl = (params?: ListUnansweredAdmin
   return stringifiedParams.length > 0 ? `/api/v1/admin/qna/unanswered?${stringifiedParams}` : `/api/v1/admin/qna/unanswered`
 }
 
-export const listUnansweredAdminProductQna = async (params?: ListUnansweredAdminProductQnaParams, options?: RequestInit): Promise<AdminQnaPageResponse> => {
+export const listUnansweredAdminProductQna = async (params?: ListUnansweredAdminProductQnaParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminQnaPageResponse> => {
 
   return generatedApiClient<AdminQnaPageResponse>(getListUnansweredAdminProductQnaUrl(params),
   {
@@ -349,13 +349,27 @@ export const getReplyProductQnaUrl = (id: number,) => {
 }
 
 export const replyProductQna = async (id: number,
-    qnaReplyRequest: QnaReplyRequest, options?: RequestInit): Promise<AdminQnaResponse> => {
+    qnaReplyRequest: QnaReplyRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminQnaResponse> => {
 
-  return generatedApiClient<AdminQnaResponse>(getReplyProductQnaUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminQnaResponse>(getReplyProductQnaUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(qnaReplyRequest)
   }
 );}
@@ -377,7 +391,7 @@ export const getListSmartStoreInquiriesUrl = (params?: ListSmartStoreInquiriesPa
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries`
 }
 
-export const listSmartStoreInquiries = async (params?: ListSmartStoreInquiriesParams, options?: RequestInit): Promise<SmartStoreInquiryResponse[]> => {
+export const listSmartStoreInquiries = async (params?: ListSmartStoreInquiriesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInquiryResponse[]> => {
 
   return generatedApiClient<SmartStoreInquiryResponse[]>(getListSmartStoreInquiriesUrl(params),
   {
@@ -405,7 +419,7 @@ export const getListSmartStoreCustomerInquiriesUrl = (params?: ListSmartStoreCus
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/customers?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/customers`
 }
 
-export const listSmartStoreCustomerInquiries = async (params?: ListSmartStoreCustomerInquiriesParams, options?: RequestInit): Promise<SmartStoreCustomerInquiryResponse[]> => {
+export const listSmartStoreCustomerInquiries = async (params?: ListSmartStoreCustomerInquiriesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreCustomerInquiryResponse[]> => {
 
   return generatedApiClient<SmartStoreCustomerInquiryResponse[]>(getListSmartStoreCustomerInquiriesUrl(params),
   {
@@ -433,7 +447,7 @@ export const getListSmartStoreCustomerInquiriesPageUrl = (params: ListSmartStore
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/customers/page?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/customers/page`
 }
 
-export const listSmartStoreCustomerInquiriesPage = async (params: ListSmartStoreCustomerInquiriesPageParams, options?: RequestInit): Promise<SmartStoreCustomerInquiryPageResponse> => {
+export const listSmartStoreCustomerInquiriesPage = async (params: ListSmartStoreCustomerInquiriesPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreCustomerInquiryPageResponse> => {
 
   return generatedApiClient<SmartStoreCustomerInquiryPageResponse>(getListSmartStoreCustomerInquiriesPageUrl(params),
   {
@@ -455,13 +469,27 @@ export const getAnswerSmartStoreCustomerInquiryUrl = (inquiryNo: number,) => {
 }
 
 export const answerSmartStoreCustomerInquiry = async (inquiryNo: number,
-    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getAnswerSmartStoreCustomerInquiryUrl(inquiryNo),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getAnswerSmartStoreCustomerInquiryUrl(inquiryNo),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(smartStoreInquiryAnswerRequest)
   }
 );}
@@ -479,13 +507,27 @@ export const getUpdateSmartStoreCustomerInquiryAnswerUrl = (inquiryNo: number,
 
 export const updateSmartStoreCustomerInquiryAnswer = async (inquiryNo: number,
     answerContentId: number,
-    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateSmartStoreCustomerInquiryAnswerUrl(inquiryNo,answerContentId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateSmartStoreCustomerInquiryAnswerUrl(inquiryNo,answerContentId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(smartStoreInquiryAnswerRequest)
   }
 );}
@@ -507,7 +549,7 @@ export const getListSmartStoreInquiriesPageUrl = (params: ListSmartStoreInquirie
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-inquiries/page?${stringifiedParams}` : `/api/v1/admin/smartstore-inquiries/page`
 }
 
-export const listSmartStoreInquiriesPage = async (params: ListSmartStoreInquiriesPageParams, options?: RequestInit): Promise<SmartStoreInquiryPageResponse> => {
+export const listSmartStoreInquiriesPage = async (params: ListSmartStoreInquiriesPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInquiryPageResponse> => {
 
   return generatedApiClient<SmartStoreInquiryPageResponse>(getListSmartStoreInquiriesPageUrl(params),
   {
@@ -528,7 +570,7 @@ export const getGetSmartStoreInquiryAnswerTemplateUrl = () => {
   return `/api/v1/admin/smartstore-inquiries/template`
 }
 
-export const getSmartStoreInquiryAnswerTemplate = async ( options?: RequestInit): Promise<SmartStoreInquiryAnswerTemplateResponse> => {
+export const getSmartStoreInquiryAnswerTemplate = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInquiryAnswerTemplateResponse> => {
 
   return generatedApiClient<SmartStoreInquiryAnswerTemplateResponse>(getGetSmartStoreInquiryAnswerTemplateUrl(),
   {
@@ -550,13 +592,27 @@ export const getAnswerSmartStoreInquiryUrl = (questionId: number,) => {
 }
 
 export const answerSmartStoreInquiry = async (questionId: number,
-    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: RequestInit): Promise<void> => {
+    smartStoreInquiryAnswerRequest: SmartStoreInquiryAnswerRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getAnswerSmartStoreInquiryUrl(questionId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getAnswerSmartStoreInquiryUrl(questionId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(smartStoreInquiryAnswerRequest)
   }
 );}
@@ -571,7 +627,7 @@ export const getListMyProductQnaUrl = (productId: number,) => {
   return `/api/v1/me/products/${productId}/qna`
 }
 
-export const listMyProductQna = async (productId: number, options?: RequestInit): Promise<MyProductQnaListItem[]> => {
+export const listMyProductQna = async (productId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyProductQnaListItem[]> => {
 
   return generatedApiClient<MyProductQnaListItem[]>(getListMyProductQnaUrl(productId),
   {
@@ -593,13 +649,27 @@ export const getCreateProductQnaUrl = (productId: number,) => {
 }
 
 export const createProductQna = async (productId: number,
-    createQnaRequest: CreateQnaRequest, options?: RequestInit): Promise<QnaCreatedResponse> => {
+    createQnaRequest: CreateQnaRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<QnaCreatedResponse> => {
 
-  return generatedApiClient<QnaCreatedResponse>(getCreateProductQnaUrl(productId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<QnaCreatedResponse>(getCreateProductQnaUrl(productId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createQnaRequest)
   }
 );}
@@ -623,7 +693,7 @@ export const getListMyProductQnaPageUrl = (productId: number,
 }
 
 export const listMyProductQnaPage = async (productId: number,
-    params?: ListMyProductQnaPageParams, options?: RequestInit): Promise<MyProductQnaPageResponse> => {
+    params?: ListMyProductQnaPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyProductQnaPageResponse> => {
 
   return generatedApiClient<MyProductQnaPageResponse>(getListMyProductQnaPageUrl(productId,params),
   {
@@ -646,7 +716,7 @@ export const getGetMyProductQnaUrl = (productId: number,
 }
 
 export const getMyProductQna = async (productId: number,
-    id: number, options?: RequestInit): Promise<ProductQnaDetail> => {
+    id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductQnaDetail> => {
 
   return generatedApiClient<ProductQnaDetail>(getGetMyProductQnaUrl(productId,id),
   {
@@ -667,7 +737,7 @@ export const getListProductQnaUrl = (productId: number,) => {
   return `/api/v1/products/${productId}/qna`
 }
 
-export const listProductQna = async (productId: number, options?: RequestInit): Promise<ProductQnaListItem[]> => {
+export const listProductQna = async (productId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductQnaListItem[]> => {
 
   return generatedApiClient<ProductQnaListItem[]>(getListProductQnaUrl(productId),
   {
@@ -697,7 +767,7 @@ export const getListProductQnaPageUrl = (productId: number,
 }
 
 export const listProductQnaPage = async (productId: number,
-    params?: ListProductQnaPageParams, options?: RequestInit): Promise<ProductQnaPageResponse> => {
+    params?: ListProductQnaPageParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductQnaPageResponse> => {
 
   return generatedApiClient<ProductQnaPageResponse>(getListProductQnaPageUrl(productId,params),
   {
@@ -720,7 +790,7 @@ export const getGetPublicProductQnaUrl = (productId: number,
 }
 
 export const getPublicProductQna = async (productId: number,
-    id: number, options?: RequestInit): Promise<ProductQnaDetail> => {
+    id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductQnaDetail> => {
 
   return generatedApiClient<ProductQnaDetail>(getGetPublicProductQnaUrl(productId,id),
   {

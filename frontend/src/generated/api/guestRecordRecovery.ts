@@ -158,13 +158,27 @@ export const getRecoverGuestPaymentStatusesUrl = () => {
   return `/api/v1/guest-records/payment-status-recovery`
 }
 
-export const recoverGuestPaymentStatuses = async (recoverPaymentStatusesRequest: RecoverPaymentStatusesRequest, options?: RequestInit): Promise<PaymentStatusRecoveryResponse> => {
+export const recoverGuestPaymentStatuses = async (recoverPaymentStatusesRequest: RecoverPaymentStatusesRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<PaymentStatusRecoveryResponse> => {
 
-  return generatedApiClient<PaymentStatusRecoveryResponse>(getRecoverGuestPaymentStatusesUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<PaymentStatusRecoveryResponse>(getRecoverGuestPaymentStatusesUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(recoverPaymentStatusesRequest)
   }
 );}
@@ -179,13 +193,27 @@ export const getRecoverGuestRecordsUrl = () => {
   return `/api/v1/guest-records/recovery`
 }
 
-export const recoverGuestRecords = async (recoverGuestRecordsRequest: RecoverGuestRecordsRequest, options?: RequestInit): Promise<GuestRecordRecoveryResponse> => {
+export const recoverGuestRecords = async (recoverGuestRecordsRequest: RecoverGuestRecordsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestRecordRecoveryResponse> => {
 
-  return generatedApiClient<GuestRecordRecoveryResponse>(getRecoverGuestRecordsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<GuestRecordRecoveryResponse>(getRecoverGuestRecordsUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(recoverGuestRecordsRequest)
   }
 );}
@@ -207,7 +235,7 @@ export const getListRecoveredGuestBookingsUrl = (params?: ListRecoveredGuestBook
   return stringifiedParams.length > 0 ? `/api/v1/guest-records/recovery/bookings?${stringifiedParams}` : `/api/v1/guest-records/recovery/bookings`
 }
 
-export const listRecoveredGuestBookings = async (params?: ListRecoveredGuestBookingsParams, options?: RequestInit): Promise<GuestRecoveredBookingPageResponse> => {
+export const listRecoveredGuestBookings = async (params?: ListRecoveredGuestBookingsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestRecoveredBookingPageResponse> => {
 
   return generatedApiClient<GuestRecoveredBookingPageResponse>(getListRecoveredGuestBookingsUrl(params),
   {
@@ -235,7 +263,7 @@ export const getListRecoveredGuestOrdersUrl = (params?: ListRecoveredGuestOrders
   return stringifiedParams.length > 0 ? `/api/v1/guest-records/recovery/orders?${stringifiedParams}` : `/api/v1/guest-records/recovery/orders`
 }
 
-export const listRecoveredGuestOrders = async (params?: ListRecoveredGuestOrdersParams, options?: RequestInit): Promise<GuestRecoveredOrderPageResponse> => {
+export const listRecoveredGuestOrders = async (params?: ListRecoveredGuestOrdersParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<GuestRecoveredOrderPageResponse> => {
 
   return generatedApiClient<GuestRecoveredOrderPageResponse>(getListRecoveredGuestOrdersUrl(params),
   {

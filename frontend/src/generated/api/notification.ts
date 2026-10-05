@@ -79,7 +79,7 @@ export const getListMyNotificationsUrl = (params?: ListMyNotificationsParams,) =
   return stringifiedParams.length > 0 ? `/api/v1/me/notifications?${stringifiedParams}` : `/api/v1/me/notifications`
 }
 
-export const listMyNotifications = async (params?: ListMyNotificationsParams, options?: RequestInit): Promise<NotificationResponse[]> => {
+export const listMyNotifications = async (params?: ListMyNotificationsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<NotificationResponse[]> => {
 
   return generatedApiClient<NotificationResponse[]>(getListMyNotificationsUrl(params),
   {
@@ -100,7 +100,7 @@ export const getMarkAllMyNotificationsAsReadUrl = () => {
   return `/api/v1/me/notifications/read-all`
 }
 
-export const markAllMyNotificationsAsRead = async ( options?: RequestInit): Promise<void> => {
+export const markAllMyNotificationsAsRead = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getMarkAllMyNotificationsAsReadUrl(),
   {
@@ -121,7 +121,7 @@ export const getGetMyUnreadNotificationCountUrl = () => {
   return `/api/v1/me/notifications/unread-count`
 }
 
-export const getMyUnreadNotificationCount = async ( options?: RequestInit): Promise<UnreadCountResponse> => {
+export const getMyUnreadNotificationCount = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<UnreadCountResponse> => {
 
   return generatedApiClient<UnreadCountResponse>(getGetMyUnreadNotificationCountUrl(),
   {
@@ -142,7 +142,7 @@ export const getMarkMyNotificationAsReadUrl = (id: number,) => {
   return `/api/v1/me/notifications/${id}/read`
 }
 
-export const markMyNotificationAsRead = async (id: number, options?: RequestInit): Promise<void> => {
+export const markMyNotificationAsRead = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getMarkMyNotificationAsReadUrl(id),
   {

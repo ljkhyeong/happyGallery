@@ -24,7 +24,7 @@ export const getListPublicEventsUrl = () => {
   return `/api/v1/events`
 }
 
-export const listPublicEvents = async ( options?: RequestInit): Promise<EventResponse[]> => {
+export const listPublicEvents = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse[]> => {
 
   return generatedApiClient<EventResponse[]>(getListPublicEventsUrl(),
   {
@@ -45,7 +45,7 @@ export const getGetPublicEventUrl = (id: number,) => {
   return `/api/v1/events/${id}`
 }
 
-export const getPublicEvent = async (id: number, options?: RequestInit): Promise<EventResponse> => {
+export const getPublicEvent = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<EventResponse> => {
 
   return generatedApiClient<EventResponse>(getGetPublicEventUrl(id),
   {

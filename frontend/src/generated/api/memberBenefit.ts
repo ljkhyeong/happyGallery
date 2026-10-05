@@ -105,7 +105,7 @@ export const getListMyCouponsUrl = () => {
 /**
  * 최근 발급 100개와 사용 가능·결제 처리 중인 모든 쿠폰을 중복 없이 최신 발급순으로 조회한다.
  */
-export const listMyCoupons = async ( options?: RequestInit): Promise<MyCouponResponse[]> => {
+export const listMyCoupons = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<MyCouponResponse[]> => {
 
   return generatedApiClient<MyCouponResponse[]>(getListMyCouponsUrl(),
   {
@@ -126,13 +126,27 @@ export const getClaimMyCouponUrl = () => {
   return `/api/v1/me/coupons`
 }
 
-export const claimMyCoupon = async (claimCouponRequest: ClaimCouponRequest, options?: RequestInit): Promise<MyCouponResponse> => {
+export const claimMyCoupon = async (claimCouponRequest: ClaimCouponRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<MyCouponResponse> => {
 
-  return generatedApiClient<MyCouponResponse>(getClaimMyCouponUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<MyCouponResponse>(getClaimMyCouponUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(claimCouponRequest)
   }
 );}
@@ -147,7 +161,7 @@ export const getListClaimableCouponsUrl = () => {
   return `/api/v1/me/coupons/claimable`
 }
 
-export const listClaimableCoupons = async ( options?: RequestInit): Promise<ClaimableCouponResponse[]> => {
+export const listClaimableCoupons = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<ClaimableCouponResponse[]> => {
 
   return generatedApiClient<ClaimableCouponResponse[]>(getListClaimableCouponsUrl(),
   {
@@ -168,7 +182,7 @@ export const getGetMyRewardWalletUrl = () => {
   return `/api/v1/me/rewards`
 }
 
-export const getMyRewardWallet = async ( options?: RequestInit): Promise<RewardWalletResponse> => {
+export const getMyRewardWallet = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<RewardWalletResponse> => {
 
   return generatedApiClient<RewardWalletResponse>(getGetMyRewardWalletUrl(),
   {

@@ -703,7 +703,7 @@ export const getListAdminGroupInquiriesUrl = (params?: ListAdminGroupInquiriesPa
   return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries?${stringifiedParams}` : `/api/v1/admin/group-inquiries`
 }
 
-export const listAdminGroupInquiries = async (params?: ListAdminGroupInquiriesParams, options?: RequestInit): Promise<GroupInquiryPageResponse> => {
+export const listAdminGroupInquiries = async (params?: ListAdminGroupInquiriesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<GroupInquiryPageResponse> => {
 
   return generatedApiClient<GroupInquiryPageResponse>(getListAdminGroupInquiriesUrl(params),
   {
@@ -724,13 +724,27 @@ export const getCreateAdminGroupInquiryUrl = () => {
   return `/api/v1/admin/group-inquiries`
 }
 
-export const createAdminGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+export const createAdminGroupInquiry = async (groupInquiryRequest: GroupInquiryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminGroupInquiryResponse> => {
 
-  return generatedApiClient<AdminGroupInquiryResponse>(getCreateAdminGroupInquiryUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminGroupInquiryResponse>(getCreateAdminGroupInquiryUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(groupInquiryRequest)
   }
 );}
@@ -752,7 +766,7 @@ export const getListAdminGroupInquiryFollowUpsUrl = (params?: ListAdminGroupInqu
   return stringifiedParams.length > 0 ? `/api/v1/admin/group-inquiries/follow-ups?${stringifiedParams}` : `/api/v1/admin/group-inquiries/follow-ups`
 }
 
-export const listAdminGroupInquiryFollowUps = async (params?: ListAdminGroupInquiryFollowUpsParams, options?: RequestInit): Promise<GroupInquiryFollowUpPageResponse> => {
+export const listAdminGroupInquiryFollowUps = async (params?: ListAdminGroupInquiryFollowUpsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<GroupInquiryFollowUpPageResponse> => {
 
   return generatedApiClient<GroupInquiryFollowUpPageResponse>(getListAdminGroupInquiryFollowUpsUrl(params),
   {
@@ -773,7 +787,7 @@ export const getGetAdminGroupInquiryUrl = (id: number,) => {
   return `/api/v1/admin/group-inquiries/${id}`
 }
 
-export const getAdminGroupInquiry = async (id: number, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+export const getAdminGroupInquiry = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminGroupInquiryResponse> => {
 
   return generatedApiClient<AdminGroupInquiryResponse>(getGetAdminGroupInquiryUrl(id),
   {
@@ -795,13 +809,27 @@ export const getUpdateAdminGroupInquiryUrl = (id: number,) => {
 }
 
 export const updateAdminGroupInquiry = async (id: number,
-    groupInquiryUpdateRequest: GroupInquiryUpdateRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+    groupInquiryUpdateRequest: GroupInquiryUpdateRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminGroupInquiryResponse> => {
 
-  return generatedApiClient<AdminGroupInquiryResponse>(getUpdateAdminGroupInquiryUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminGroupInquiryResponse>(getUpdateAdminGroupInquiryUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(groupInquiryUpdateRequest)
   }
 );}
@@ -817,13 +845,27 @@ export const getScheduleAdminGroupInquiryContactUrl = (id: number,) => {
 }
 
 export const scheduleAdminGroupInquiryContact = async (id: number,
-    groupInquiryContactRequest: GroupInquiryContactRequest, options?: RequestInit): Promise<AdminGroupInquiryResponse> => {
+    groupInquiryContactRequest: GroupInquiryContactRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminGroupInquiryResponse> => {
 
-  return generatedApiClient<AdminGroupInquiryResponse>(getScheduleAdminGroupInquiryContactUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminGroupInquiryResponse>(getScheduleAdminGroupInquiryContactUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(groupInquiryContactRequest)
   }
 );}
@@ -845,7 +887,7 @@ export const getListAdminInquiriesUrl = (params?: ListAdminInquiriesParams,) => 
   return stringifiedParams.length > 0 ? `/api/v1/admin/inquiries?${stringifiedParams}` : `/api/v1/admin/inquiries`
 }
 
-export const listAdminInquiries = async (params?: ListAdminInquiriesParams, options?: RequestInit): Promise<AdminInquiryPageResponse> => {
+export const listAdminInquiries = async (params?: ListAdminInquiriesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminInquiryPageResponse> => {
 
   return generatedApiClient<AdminInquiryPageResponse>(getListAdminInquiriesUrl(params),
   {
@@ -866,7 +908,7 @@ export const getGetAdminInquiryUrl = (id: number,) => {
   return `/api/v1/admin/inquiries/${id}`
 }
 
-export const getAdminInquiry = async (id: number, options?: RequestInit): Promise<AdminInquiryResponse> => {
+export const getAdminInquiry = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminInquiryResponse> => {
 
   return generatedApiClient<AdminInquiryResponse>(getGetAdminInquiryUrl(id),
   {
@@ -888,13 +930,27 @@ export const getReplyToAdminInquiryUrl = (id: number,) => {
 }
 
 export const replyToAdminInquiry = async (id: number,
-    inquiryReplyRequest: InquiryReplyRequest, options?: RequestInit): Promise<AdminInquiryResponse> => {
+    inquiryReplyRequest: InquiryReplyRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminInquiryResponse> => {
 
-  return generatedApiClient<AdminInquiryResponse>(getReplyToAdminInquiryUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminInquiryResponse>(getReplyToAdminInquiryUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(inquiryReplyRequest)
   }
 );}
@@ -909,7 +965,7 @@ export const getListFailedNotificationsUrl = () => {
   return `/api/v1/admin/notifications/failed`
 }
 
-export const listFailedNotifications = async ( options?: RequestInit): Promise<FailedNotificationResponse[]> => {
+export const listFailedNotifications = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<FailedNotificationResponse[]> => {
 
   return generatedApiClient<FailedNotificationResponse[]>(getListFailedNotificationsUrl(),
   {
@@ -930,7 +986,7 @@ export const getRetryNotificationUrl = (outboxId: number,) => {
   return `/api/v1/admin/notifications/${outboxId}/retry`
 }
 
-export const retryNotification = async (outboxId: number, options?: RequestInit): Promise<FailedNotificationResponse> => {
+export const retryNotification = async (outboxId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<FailedNotificationResponse> => {
 
   return generatedApiClient<FailedNotificationResponse>(getRetryNotificationUrl(outboxId),
   {
@@ -951,7 +1007,7 @@ export const getTriggerExpiryUrl = () => {
   return `/api/v1/admin/passes/expire`
 }
 
-export const triggerExpiry = async ( options?: RequestInit): Promise<BatchResponse> => {
+export const triggerExpiry = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<BatchResponse> => {
 
   return generatedApiClient<BatchResponse>(getTriggerExpiryUrl(),
   {
@@ -979,7 +1035,7 @@ export const getSearchAdminPassesUrl = (params?: SearchAdminPassesParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/passes/search?${stringifiedParams}` : `/api/v1/admin/passes/search`
 }
 
-export const searchAdminPasses = async (params?: SearchAdminPassesParams, options?: RequestInit): Promise<AdminPassPageResponse> => {
+export const searchAdminPasses = async (params?: SearchAdminPassesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminPassPageResponse> => {
 
   return generatedApiClient<AdminPassPageResponse>(getSearchAdminPassesUrl(params),
   {
@@ -1000,7 +1056,7 @@ export const getGetAdminPassUrl = (passId: number,) => {
   return `/api/v1/admin/passes/${passId}`
 }
 
-export const getAdminPass = async (passId: number, options?: RequestInit): Promise<AdminPassResponse> => {
+export const getAdminPass = async (passId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminPassResponse> => {
 
   return generatedApiClient<AdminPassResponse>(getGetAdminPassUrl(passId),
   {
@@ -1021,7 +1077,7 @@ export const getRefundPassUrl = (passId: number,) => {
   return `/api/v1/admin/passes/${passId}/refund`
 }
 
-export const refundPass = async (passId: number, options?: RequestInit): Promise<PassRefundResponse> => {
+export const refundPass = async (passId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<PassRefundResponse> => {
 
   return generatedApiClient<PassRefundResponse>(getRefundPassUrl(passId),
   {
@@ -1042,7 +1098,7 @@ export const getListRequiredUrl = () => {
   return `/api/v1/admin/payment-attempts/reconciliation-required`
 }
 
-export const listRequired = async ( options?: RequestInit): Promise<PaymentReconciliationRequiredResponse[]> => {
+export const listRequired = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<PaymentReconciliationRequiredResponse[]> => {
 
   return generatedApiClient<PaymentReconciliationRequiredResponse[]>(getListRequiredUrl(),
   {
@@ -1063,7 +1119,7 @@ export const getReconcileUrl = (attemptId: number,) => {
   return `/api/v1/admin/payment-attempts/${attemptId}/reconcile`
 }
 
-export const reconcile = async (attemptId: number, options?: RequestInit): Promise<PaymentReconciliationResultResponse> => {
+export const reconcile = async (attemptId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<PaymentReconciliationResultResponse> => {
 
   return generatedApiClient<PaymentReconciliationResultResponse>(getReconcileUrl(attemptId),
   {
@@ -1087,7 +1143,7 @@ export const getListPaymentSettlementIssuesUrl = () => {
 /**
  * @summary PG 정산 대사 불일치 목록 조회
  */
-export const listPaymentSettlementIssues = async ( options?: RequestInit): Promise<PaymentSettlementIssueResponse[]> => {
+export const listPaymentSettlementIssues = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<PaymentSettlementIssueResponse[]> => {
 
   return generatedApiClient<PaymentSettlementIssueResponse[]>(getListPaymentSettlementIssuesUrl(),
   {
@@ -1115,7 +1171,7 @@ export const getListFailedUrl = (params?: ListFailedParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/refunds/failed?${stringifiedParams}` : `/api/v1/admin/refunds/failed`
 }
 
-export const listFailed = async (params?: ListFailedParams, options?: RequestInit): Promise<FailedRefundPageResponse> => {
+export const listFailed = async (params?: ListFailedParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<FailedRefundPageResponse> => {
 
   return generatedApiClient<FailedRefundPageResponse>(getListFailedUrl(params),
   {
@@ -1136,7 +1192,7 @@ export const getGetRefundUrl = (refundId: number,) => {
   return `/api/v1/admin/refunds/${refundId}`
 }
 
-export const getRefund = async (refundId: number, options?: RequestInit): Promise<RefundStatusResponse> => {
+export const getRefund = async (refundId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<RefundStatusResponse> => {
 
   return generatedApiClient<RefundStatusResponse>(getGetRefundUrl(refundId),
   {
@@ -1157,7 +1213,7 @@ export const getRetryUrl = (refundId: number,) => {
   return `/api/v1/admin/refunds/${refundId}/retry`
 }
 
-export const retry = async (refundId: number, options?: RequestInit): Promise<RefundStatusResponse> => {
+export const retry = async (refundId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<RefundStatusResponse> => {
 
   return generatedApiClient<RefundStatusResponse>(getRetryUrl(refundId),
   {
@@ -1188,7 +1244,7 @@ export const getGetSmartStoreAccountingReportUrl = (params: GetSmartStoreAccount
 /**
  * @summary 스마트스토어 일별 정산·수수료·부가세 자료 조회
  */
-export const getSmartStoreAccountingReport = async (params: GetSmartStoreAccountingReportParams, options?: RequestInit): Promise<SmartStoreAccountingReportResponse> => {
+export const getSmartStoreAccountingReport = async (params: GetSmartStoreAccountingReportParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreAccountingReportResponse> => {
 
   return generatedApiClient<SmartStoreAccountingReportResponse>(getGetSmartStoreAccountingReportUrl(params),
   {
@@ -1212,7 +1268,7 @@ export const getListSmartStoreSettlementIssuesUrl = () => {
 /**
  * @summary 스마트스토어 정산 대사 불일치 목록 조회
  */
-export const listSmartStoreSettlementIssues = async ( options?: RequestInit): Promise<SmartStoreSettlementIssueResponse[]> => {
+export const listSmartStoreSettlementIssues = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreSettlementIssueResponse[]> => {
 
   return generatedApiClient<SmartStoreSettlementIssueResponse[]>(getListSmartStoreSettlementIssuesUrl(),
   {
@@ -1236,13 +1292,27 @@ export const getSynchronizeSmartStoreSettlementsUrl = () => {
 /**
  * @summary 스마트스토어 정산 기간 재동기화
  */
-export const synchronizeSmartStoreSettlements = async (synchronizeSmartStoreSettlementRequest: SynchronizeSmartStoreSettlementRequest, options?: RequestInit): Promise<SmartStoreSettlementSyncResponse> => {
+export const synchronizeSmartStoreSettlements = async (synchronizeSmartStoreSettlementRequest: SynchronizeSmartStoreSettlementRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreSettlementSyncResponse> => {
 
-  return generatedApiClient<SmartStoreSettlementSyncResponse>(getSynchronizeSmartStoreSettlementsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreSettlementSyncResponse>(getSynchronizeSmartStoreSettlementsUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(synchronizeSmartStoreSettlementRequest)
   }
 );}
