@@ -1,5 +1,13 @@
 # HANDOFF
 
+## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
+
+- 시작 SHA `0aea325d`. 이전 절들에 "기존 실패"로 남긴 E2E 6건과 MFA 2건이 이제 모두 통과한다(앱 253건 전체, `--project=admin-mfa`는 MFA 서버를 켜고 2건).
+- 관리자: `AdminPanel`·`AdminFormPanel`·현황 대시보드를 `SectionErrorBoundary`로 감싸 한 영역의 화면 오류가 관리자 화면 전체를 막지 않는다(다시 시도는 `["admin"]` 조회를 reset). 클래스 목록 조회 실패에 다시 시도, "예약이 있는 회차 관리"의 클래스 선택 라벨 연결(`controlId`). `picker-resilience` 52는 사라진 일정 생성 패널 대신 클래스 목록·회차 관리 기준으로 다시 썼다. 161·`history-pagination` 346은 오류 경계로 해결.
+- E2E 데이터: `customer-account-boundary`에 쿠폰·적립금 응답(`fulfillMemberBenefits`)과 상품 `variants`·`optionGroups`·`stockQuantity`를 채웠다. `default-address-recovery`는 성공 토스트와 겹치지 않게 알림을 `main` 안에서 찾는다.
+- 화면: 작품 상세 비회원 영역은 [비회원 주문하기][장바구니 담기]를 같은 크기로, 회원가입은 혜택 문장 링크로 둔다(역할·문구 유지). 내 정보 예약·주문·이용권 목록 필터를 작품 목록과 같은 도구 막대로 줄였다(라벨은 숨김, 선택자 유지). 비회원 조회 코드 칸 `autoCapitalize`·`autoCorrect` 끔(코드는 대소문자 구분 Base64), 고객 숫자 칸 9곳 `inputMode="numeric"`, 상태 배지·구매 안내·검색 결과 수·재고·남은 자리 등 정보 글자를 12~13px로 키웠다.
+- 검증: typecheck·lint·build, E2E 전체 253건 중 252건 통과(1건은 실행 중 파일 수정으로 토스트가 겹친 `default-address-recovery`, 선택자 범위 수정 후 2회 반복 10건 통과), 이후 내 정보·구매 관련 8개 파일 46건, @smoke 20건 통과.
+
 ## 사용 편의 점검 2: 회원 흐름·장바구니·키보드 (2026-10-05)
 
 - 시작 SHA `6ce837f3`. 모바일 390px 회원 흐름(로그인→내 정보→예약·주문 상세→작품→장바구니→회원 주문서→쿠폰·적립금)을 단계별로 캡처했다(`output/playwright/sweep-1005/member-flow.mjs`, `member/`, `member2/`). 확인용 DB·Redis는 작업 동안만 켜고 끝나면 다시 끈다.
