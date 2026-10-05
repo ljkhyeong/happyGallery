@@ -491,19 +491,22 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
               >
                 수정
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline-danger"
-                disabled={!coupon.active || deleteMutation.isPending}
-                onClick={() => {
-                  if (confirm("이 쿠폰의 신규 발급과 사용을 중지하시겠습니까?")) {
-                    deleteMutation.mutate({ id: coupon.id, version: coupon.version });
-                  }
-                }}
-              >
-                사용 중지
-              </Button>
+              {/* 이미 중지된 쿠폰은 상태 배지로만 알리고, 같은 문구의 비활성 버튼은 두지 않는다. */}
+              {coupon.active && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-danger"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    if (confirm("이 쿠폰의 신규 발급과 사용을 중지하시겠습니까?")) {
+                      deleteMutation.mutate({ id: coupon.id, version: coupon.version });
+                    }
+                  }}
+                >
+                  사용 중지
+                </Button>
+              )}
             </div>
           </Card.Body>
         </Card>
