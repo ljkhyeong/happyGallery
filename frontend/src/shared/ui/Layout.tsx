@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useMatches } from "react-router";
 import { Container, Navbar, Nav } from "react-bootstrap";
+import { CalendarDays, ClipboardList, House, Palette, UserRound } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
@@ -17,6 +18,9 @@ const NAV_ITEMS = [
   { path: "/events", label: "이벤트" },
   { path: "/passes/purchase", label: "4회권" },
 ] as const;
+
+/** 둘러보기 화면에서만 모바일 하단 탭바를 보여 주고, 상세·결제 화면의 하단 버튼과 겹치지 않게 한다. */
+const TAB_BAR_PATHS = new Set(["/", "/classes", "/products", "/events", "/group-classes", "/guest", "/my"]);
 
 function isActive(pathname: string, itemPath: string): boolean {
   if (itemPath === "/") return pathname === "/";
@@ -77,8 +81,22 @@ export function Layout() {
     }
   };
 
+  const showTabBar = TAB_BAR_PATHS.has(pathname);
+  const tabItems = [
+    { to: "/", label: "홈", icon: House, active: pathname === "/" },
+    { to: "/classes", label: "클래스", icon: CalendarDays, active: isMainNavActive(pathname, "/classes") },
+    { to: "/products", label: "작품", icon: Palette, active: isActive(pathname, "/products") },
+    {
+      to: isAuthenticated ? "/my/bookings" : "/guest",
+      label: "예약 조회",
+      icon: ClipboardList,
+      active: pathname === "/guest" || isActive(pathname, "/my/bookings"),
+    },
+    { to: "/my", label: "내 정보", icon: UserRound, active: pathname === "/my" },
+  ];
+
   return (
-    <div className="d-flex flex-column min-vh-100">
+    <div className={`d-flex flex-column min-vh-100${showTabBar ? " has-tab-bar" : ""}`}>
       <div className="app-utility-bar">
         <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
           <div className="app-utility-copy">충주 해피갤러리 · 공예 클래스와 핸드메이드 작품</div>
@@ -245,6 +263,17 @@ export function Layout() {
           </div>
         </Container>
       </footer>
+
+      {showTabBar && (
+        <nav className="app-tab-bar" aria-label="주요 메뉴">
+          {tabItems.map(({ to, label, icon: Icon, active }) => (
+            <Link key={label} to={to} className={active ? "is-active" : undefined} aria-current={active ? "page" : undefined}>
+              <Icon size={21} strokeWidth={1.8} aria-hidden="true" />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }

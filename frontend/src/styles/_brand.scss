@@ -18,12 +18,16 @@
 
 .home-hero-inner {
   display: grid;
+  grid-template-areas:
+    "visual panel"
+    "situations situations";
   grid-template-columns: minmax(0, 1.25fr) minmax(21rem, 0.75fr);
   gap: clamp(1rem, 2.5vw, 2rem);
   align-items: stretch;
 }
 
 .home-hero-visual {
+  grid-area: visual;
   position: relative;
   min-height: 34rem;
   overflow: hidden;
@@ -104,6 +108,7 @@
 
 // ── 바로 예약하기 패널 ───────────────────────────────────
 .quick-booking {
+  grid-area: panel;
   display: flex;
   flex-direction: column;
   padding: clamp(1.25rem, 2.5vw, 1.75rem);
@@ -289,67 +294,121 @@
   }
 }
 
-// ── 바로가기 ─────────────────────────────────────────────
-.home-shortcuts {
-  border-block: 1px solid var(--hg-border);
-  background: var(--hg-surface);
+// ── 상황별 바로가기 (솜씨당·프립 참고) ─────────────────
+.home-situations {
+  grid-area: situations;
 }
 
-.home-shortcuts-grid {
+.home-situation-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1.25rem 0;
+  list-style: none;
+  border-block: 1px solid var(--hg-border);
 }
 
-.home-shortcut {
-  position: relative;
+.home-situation {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 1.5rem 2.75rem 1.5rem 1.25rem;
+  align-items: center;
+  gap: 0.55rem;
   color: var(--hg-dark);
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-align: center;
   text-decoration: none;
-  transition: background var(--hg-transition), color var(--hg-transition);
-
-  & + & {
-    border-left: 1px solid var(--hg-border);
-  }
-
-  strong {
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  span {
-    color: var(--hg-ink-soft);
-    font-size: 0.82rem;
-  }
 
   &:hover,
   &:focus-visible {
     color: var(--hg-accent-deep);
-    background: var(--hg-clay-tint);
+
+    .home-situation-icon {
+      color: var(--hg-accent-deep);
+      background: var(--hg-clay-tint);
+      transform: translateY(-2px);
+    }
   }
 }
 
-.home-shortcut-arrow {
-  position: absolute;
-  top: 50%;
-  right: 1.25rem;
-  color: var(--hg-accent) !important;
-  font-size: 1.1rem !important;
-  transform: translateY(-50%);
-  transition: transform var(--hg-transition);
+.home-situation-icon {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  color: var(--hg-leaf-deep);
+  background: var(--hg-leaf-tint);
+  border-radius: 1.1rem;
+  transition: transform var(--hg-transition), background var(--hg-transition), color var(--hg-transition);
 }
 
-@media (min-width: 992px) {
-  .home-shortcut:first-child {
-    padding-left: 0;
+// ── 원데이 다음 단계 ─────────────────────────────────────
+.home-steps {
+  padding-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+.home-steps-head {
+  margin-bottom: 1.25rem;
+
+  h2 {
+    margin-bottom: 0.35rem;
+    font-family: "Gowun Batang", Georgia, serif;
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 400;
+  }
+
+  p {
+    margin: 0;
+    color: var(--hg-ink-soft);
   }
 }
 
-.home-shortcut:hover .home-shortcut-arrow,
-.home-shortcut:focus-visible .home-shortcut-arrow {
-  transform: translate(4px, -50%);
+.home-step-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.home-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: 100%;
+  padding: 1.35rem 1.5rem;
+  color: var(--hg-dark);
+  background: var(--hg-surface);
+  border: 1px solid var(--hg-border);
+  border-radius: var(--hg-radius-media);
+  text-decoration: none;
+  transition: border-color var(--hg-transition), box-shadow var(--hg-transition);
+
+  span {
+    color: var(--hg-accent-deep);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+  }
+
+  strong {
+    font-size: 1.1rem;
+  }
+
+  small {
+    color: var(--hg-ink-soft);
+    font-size: 0.85rem;
+  }
+}
+
+a.home-step:hover,
+a.home-step:focus-visible {
+  color: var(--hg-dark);
+  border-color: var(--hg-accent);
+  box-shadow: var(--hg-shadow-soft);
 }
 
 // ── 공통 섹션 머리 ───────────────────────────────────────
@@ -479,7 +538,8 @@
   }
 }
 
-.home-class-card-next {
+.home-class-card-next,
+.class-catalog-next {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -497,6 +557,13 @@
   b.is-few {
     color: var(--hg-accent-deep);
   }
+}
+
+.class-catalog-next {
+  margin: 0 0 1rem !important;
+  padding-top: 0;
+  border-top: 0;
+  color: var(--hg-ink-soft);
 }
 
 .home-class-card-meta {
@@ -852,6 +919,34 @@
   }
 }
 
+.class-situation-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+
+  button {
+    padding: 0.45rem 0.95rem;
+    color: var(--hg-dark);
+    background: var(--hg-surface);
+    border: 1px solid var(--hg-border);
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 650;
+    transition: border-color var(--hg-transition), background var(--hg-transition);
+
+    &:hover {
+      border-color: var(--hg-accent);
+    }
+
+    &[aria-pressed="true"] {
+      color: #FFFDF8;
+      background: var(--hg-dark);
+      border-color: var(--hg-dark);
+    }
+  }
+}
+
 .class-catalog-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -918,6 +1013,11 @@
     border-radius: 999px;
     font-size: 0.75rem;
     font-weight: 700;
+  }
+
+  span.is-situation {
+    color: var(--hg-accent-deep);
+    background: var(--hg-clay-tint);
   }
 }
 
@@ -1259,7 +1359,14 @@
 
 // ── 반응형 ──────────────────────────────────────────────
 @media (max-width: 991.98px) {
-  .home-hero-inner,
+  .home-hero-inner {
+    grid-template-areas:
+      "visual"
+      "situations"
+      "panel";
+    grid-template-columns: 1fr;
+  }
+
   .home-updates-grid,
   .home-editorial-layout,
   .home-story-layout,
@@ -1272,21 +1379,19 @@
     min-height: 26rem;
   }
 
-  .home-shortcuts-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding-inline: 0;
-  }
-
-  .home-shortcut:nth-child(3) {
-    border-left: 0;
-  }
-
-  .home-shortcut:nth-child(n + 3) {
-    border-top: 1px solid var(--hg-border);
-  }
 
   .home-class-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-situation-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 1.1rem;
+  }
+
+  .home-step-list {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
   }
 
   .class-detail-card {
@@ -1349,26 +1454,33 @@
     border-radius: var(--hg-radius-media);
   }
 
-  .home-shortcut {
-    padding: 1.1rem 2.25rem 1.1rem 1rem;
-
-    strong {
-      font-size: 0.95rem;
-    }
-
-    span {
-      font-size: 0.76rem;
-    }
-  }
-
-  .home-shortcut-arrow {
-    right: 0.85rem;
-  }
 
   .home-section-head,
   .class-catalog-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .home-situation-icon {
+    width: 3.1rem;
+    height: 3.1rem;
+    border-radius: 1rem;
+  }
+
+  .home-situation {
+    font-size: 0.8rem;
+  }
+
+  .class-situation-chips {
+    flex-wrap: nowrap;
+    margin-inline: calc(var(--bs-gutter-x, 1.5rem) * -0.5);
+    padding-inline: calc(var(--bs-gutter-x, 1.5rem) * 0.5);
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    button {
+      flex: 0 0 auto;
+    }
   }
 
   .home-craft-list {

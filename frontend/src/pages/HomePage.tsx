@@ -1,4 +1,7 @@
-import { useQueries, type UseQueryResult } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
+import {
+  Baby, CalendarDays, Gift, Heart, School, Ticket, Users, Zap, type LucideIcon,
+} from "lucide-react";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
@@ -6,13 +9,8 @@ import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
 import { QuickBookingPanel } from "@/features/booking-create/QuickBookingPanel";
-import {
-  formatSlotStart,
-  nextOpenSlot,
-  remainingSeatLabel,
-  UPCOMING_SLOT_DAYS,
-  upcomingSlotsQuery,
-} from "@/features/booking-create/upcomingSlots";
+import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
+import { upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
 import { fetchProducts } from "@/features/product/api";
@@ -23,7 +21,7 @@ import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/
 import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
-import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
+import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
 import type { ProductDetailResponse } from "@/generated/api/product";
@@ -42,12 +40,17 @@ const CRAFT_SPECIALTIES = [
   "POP",
 ] as const;
 
-const SHORTCUTS = [
-  { to: "/classes", label: "원데이 클래스", description: "날짜를 골라 바로 예약" },
-  { to: "/passes/purchase", label: "정규 4회권", description: "꾸준히 배우는 정규 과정" },
-  { to: "/group-classes", label: "단체·기관 수업", description: "학교·기관으로 찾아가는 수업" },
-  { to: "/guest", label: "비회원 조회", description: "주문·예약 번호로 확인" },
-] as const;
+/** 솜씨당·프립처럼 상황으로 수업을 찾는다. 주말·오늘은 실제 일정, 나머지는 클래스 상황 태그로 거른다. */
+const SITUATIONS: ReadonlyArray<{ to: string; label: string; icon: LucideIcon }> = [
+  { to: "/classes?when=weekend", label: "이번 주말", icon: CalendarDays },
+  { to: "/classes?when=today", label: "오늘 바로", icon: Zap },
+  { to: "/classes?tag=DATE", label: "데이트", icon: Heart },
+  { to: "/classes?tag=WITH_KIDS", label: "아이와 함께", icon: Baby },
+  { to: "/classes?tag=FRIENDS", label: "친구 모임", icon: Users },
+  { to: "/classes?tag=GIFT", label: "선물 만들기", icon: Gift },
+  { to: "/passes/purchase", label: "정규 4회권", icon: Ticket },
+  { to: "/group-classes", label: "단체·기관", icon: School },
+];
 
 const BLOG_STORIES = [
   {
@@ -112,6 +115,8 @@ export function HomePage({
     : Math.min(HOME_PRODUCT_LIMIT, availableProducts.length - (availableProducts.length % 4)));
   const featuredClasses = classes?.slice(0, HOME_CLASS_LIMIT) ?? [];
   const blogUrl = workshop?.naverBlogUrl;
+  const consultHref = workshop?.naverTalkUrl
+    ?? (workshop?.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
   const classSlotResults = useQueries({
     queries: featuredClasses.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
@@ -140,21 +145,22 @@ export function HomePage({
               </div>
             </div>
           </div>
+          <nav className="home-situations" aria-label="상황별로 수업 찾기">
+            <ul className="home-situation-grid">
+              {SITUATIONS.map(({ to, label, icon: Icon }) => (
+                <li key={to}>
+                  <Link to={to} className="home-situation">
+                    <span className="home-situation-icon" aria-hidden="true"><Icon size={24} strokeWidth={1.8} /></span>
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
           <QuickBookingPanel classes={classes ?? []} />
         </Container>
       </section>
 
-      <nav className="home-shortcuts" aria-label="해피갤러리 바로가기">
-        <Container className="home-shortcuts-grid">
-          {SHORTCUTS.map((shortcut) => (
-            <Link key={shortcut.to} to={shortcut.to} className="home-shortcut">
-              <strong>{shortcut.label}</strong>
-              <span>{shortcut.description}</span>
-              <span className="home-shortcut-arrow" aria-hidden="true">→</span>
-            </Link>
-          ))}
-        </Container>
-      </nav>
 
       <section className="home-section" aria-labelledby="home-class-title">
         <Container>
@@ -191,7 +197,7 @@ export function HomePage({
                     </span>
                     <h3>{bookingClass.name}</h3>
                     <p>{bookingClass.durationMin}분 · {formatKRW(bookingClass.price)}</p>
-                    <ClassNextSlot result={classSlotResults[index]} />
+                    <ClassNextSlot result={classSlotResults[index]} className="home-class-card-next" />
                   </div>
                 </Link>
               ))}
@@ -200,6 +206,46 @@ export function HomePage({
           {!classesLoading && !classesError && featuredClasses.length === 0 && (
             <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
           )}
+        </Container>
+      </section>
+
+      <section className="home-steps" aria-labelledby="home-steps-title">
+        <Container>
+          <header className="home-steps-head">
+            <h2 id="home-steps-title">원데이 다음, 더 깊게</h2>
+            <p>재미를 붙였다면 다음 단계로 이어 가세요.</p>
+          </header>
+          <ol className="home-step-list">
+            <li>
+              <Link to="/classes" className="home-step">
+                <span>STEP 1</span>
+                <strong>원데이 클래스</strong>
+                <small>한 번의 수업으로 작품 하나를 완성해 가져가요</small>
+              </Link>
+            </li>
+            <li>
+              <Link to="/passes/purchase" className="home-step">
+                <span>STEP 2</span>
+                <strong>정규 4회권</strong>
+                <small>결제일 포함 90일 동안 4회, 원하는 정규 수업으로 예약해요</small>
+              </Link>
+            </li>
+            <li>
+              {consultHref ? (
+                <a href={consultHref} className="home-step" target={workshop?.naverTalkUrl ? "_blank" : undefined} rel="noreferrer">
+                  <span>STEP 3</span>
+                  <strong>자격증·창업반</strong>
+                  <small>강사 과정과 창업 준비를 공방장과 상담해요</small>
+                </a>
+              ) : (
+                <div className="home-step">
+                  <span>STEP 3</span>
+                  <strong>자격증·창업반</strong>
+                  <small>강사 과정과 창업 준비는 공방으로 문의해 주세요</small>
+                </div>
+              )}
+            </li>
+          </ol>
         </Container>
       </section>
 
@@ -284,24 +330,5 @@ export function HomePage({
         <Container><WorkshopVisitInfo /></Container>
       </section>
     </>
-  );
-}
-
-function ClassNextSlot({ result }: { result: UseQueryResult<PublicSlotResponse[]> | undefined }) {
-  if (!result || result.isPending) {
-    return <p className="home-class-card-next">일정 확인 중</p>;
-  }
-  if (result.isError) {
-    return <p className="home-class-card-next">일정은 수업 상세에서 확인해 주세요</p>;
-  }
-  const next = nextOpenSlot(result.data);
-  if (!next) {
-    return <p className="home-class-card-next">{UPCOMING_SLOT_DAYS}일 안에 예약 가능한 일정 없음</p>;
-  }
-  return (
-    <p className="home-class-card-next">
-      <span>다음 수업 {formatSlotStart(next)}</span>
-      <b className={next.remainingCapacity <= 2 ? "is-few" : undefined}>{remainingSeatLabel(next.remainingCapacity)}</b>
-    </p>
   );
 }

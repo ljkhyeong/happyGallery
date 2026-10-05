@@ -1,16 +1,41 @@
+import { useQueries } from "@tanstack/react-query";
 import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
 import { fetchClasses } from "@/features/booking-create/api";
+import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
+import {
+  hasOpenSlotOn,
+  isSlotWhen,
+  type SlotWhen,
+  slotWhenDates,
+  upcomingSlotsQuery,
+} from "@/features/booking-create/upcomingSlots";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
+import {
+  CLASS_SITUATION_TAG_OPTIONS,
+  type ClassSituationTagCode,
+  classImageSrc,
+  formatKRW,
+  getClassCategoryLabel,
+  getClassSituationTagLabel,
+  isClassSituationTag,
+  isPerfumeClassCategory,
+} from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
+const WHEN_LABEL: Record<SlotWhen, string> = { weekend: "이번 주말", today: "오늘 바로" };
+const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
+
 export function ClassListPage({ initialClasses }: { initialClasses: ClassResponse[] }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const passEligibleOnly = searchParams.get("passEligible") === "true";
+  const tagParam = searchParams.get("tag");
+  const whenParam = searchParams.get("when");
+  const tag: ClassSituationTagCode | null = isClassSituationTag(tagParam) ? tagParam : null;
+  const when: SlotWhen | null = isSlotWhen(whenParam) ? whenParam : null;
   const {
     data: classes,
     error: classesError,
@@ -20,17 +45,53 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialClasses);
-  const visibleClasses = passEligibleOnly
-    ? classes?.filter((bookingClass) => bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category))
-    : classes;
+  const slotResults = useQueries({
+    queries: (classes ?? []).map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
+  });
+  const slotResultByClassId = new Map((classes ?? []).map((bookingClass, index) => [bookingClass.id, slotResults[index]]));
+  // 주말·오늘 조건은 일정이 모두 도착한 뒤에 걸러 목록이 줄어드는 깜빡임을 막는다.
+  const whenPending = when !== null && slotResults.some((result) => result.isPending);
+  const whenDates = when ? slotWhenDates(when) : [];
+  const visibleClasses = whenPending ? undefined : classes?.filter((bookingClass) =>
+    (!passEligibleOnly || (bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category)))
+    && (!tag || bookingClass.situationTags.includes(tag))
+    && (!when || hasOpenSlotOn(slotResultByClassId.get(bookingClass.id)?.data, whenDates)));
+  const emptyMessage = when
+    ? `${WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
+    : tag
+      ? `${getClassSituationTagLabel(tag)} 수업을 준비하고 있습니다.`
+      : passEligibleOnly
+        ? "이용권을 사용할 수 있는 수업이 없습니다."
+        : "예약 가능한 클래스를 준비하고 있습니다.";
+  const hasFilter = passEligibleOnly || tag !== null || when !== null;
 
-  function updatePassFilter(enabled: boolean) {
+  function updateParams(apply: (next: URLSearchParams) => void) {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      if (enabled) next.set("passEligible", "true");
-      else next.delete("passEligible");
+      apply(next);
       return next;
     }, { preventScrollReset: true });
+  }
+
+  function updatePassFilter(enabled: boolean) {
+    updateParams((next) => {
+      if (enabled) next.set("passEligible", "true");
+      else next.delete("passEligible");
+    });
+  }
+
+  /** 상황 조건은 하나만 고른다. 주말·오늘(일정)과 상황 태그는 서로를 지운다. */
+  function selectSituation(situation: { tag: ClassSituationTagCode } | { when: SlotWhen } | null) {
+    updateParams((next) => {
+      next.delete("tag");
+      next.delete("when");
+      if (situation && "tag" in situation) next.set("tag", situation.tag);
+      if (situation && "when" in situation) next.set("when", situation.when);
+    });
+  }
+
+  function clearFilters() {
+    updateParams((next) => FILTER_PARAMS.forEach((param) => next.delete(param)));
   }
 
   return (
@@ -44,6 +105,20 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         <LinkButton to="/group-classes" variant="outline-dark">단체수업 문의</LinkButton>
       </header>
 
+      <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
+        <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>
+        {(Object.keys(WHEN_LABEL) as SlotWhen[]).map((option) => (
+          <button key={option} type="button" aria-pressed={when === option} onClick={() => selectSituation({ when: option })}>
+            {WHEN_LABEL[option]}
+          </button>
+        ))}
+        {CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => (
+          <button key={code} type="button" aria-pressed={tag === code} onClick={() => selectSituation({ tag: code })}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <div className="class-catalog-toolbar">
         <Form.Check
           id="class-pass-filter"
@@ -55,14 +130,13 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
       </div>
 
       {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
+      {whenPending && <LoadingSpinner text={`${WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (
         <div className="text-center pb-4">
-          <EmptyState message={passEligibleOnly
-            ? "이용권을 사용할 수 있는 수업이 없습니다."
-            : "예약 가능한 클래스를 준비하고 있습니다."} />
-          {passEligibleOnly && (
-            <Button variant="outline-dark" onClick={() => updatePassFilter(false)}>전체 수업 보기</Button>
+          <EmptyState message={emptyMessage} />
+          {hasFilter && (
+            <Button variant="outline-dark" onClick={clearFilters}>전체 수업 보기</Button>
           )}
         </div>
       )}
@@ -83,6 +157,9 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                 {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && (
                   <span>4회권 사용 가능</span>
                 )}
+                {bookingClass.situationTags.map((situationTag) => (
+                  <span key={situationTag} className="is-situation">{getClassSituationTagLabel(situationTag)}</span>
+                ))}
               </div>
               <div className="class-catalog-title-row">
                 <h2>{bookingClass.name}</h2>
@@ -109,6 +186,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
                   <div className="class-catalog-meta-wide"><dt>준비물</dt><dd>{bookingClass.preparationInfo}</dd></div>
                 )}
               </dl>
+              <ClassNextSlot result={slotResultByClassId.get(bookingClass.id)} className="class-catalog-next" />
               <div className="class-catalog-actions">
                 <LinkButton
                   to={`/bookings/new?classId=${bookingClass.id}`}

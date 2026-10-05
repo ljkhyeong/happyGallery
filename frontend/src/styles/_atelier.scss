@@ -146,6 +146,47 @@ textarea {
   font-weight: 600;
 }
 
+// ── 모바일 하단 탭바 (둘러보기 화면에서만) ───────────────
+.app-tab-bar {
+  display: none;
+}
+
+@media (max-width: 991.98px) {
+  .has-tab-bar {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+  }
+
+  .app-tab-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1030;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding: 0.4rem 0 calc(0.4rem + env(safe-area-inset-bottom));
+    background: rgba(255, 253, 248, 0.97);
+    border-top: 1px solid var(--hg-border);
+    backdrop-filter: blur(8px);
+
+    a {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      padding-block: 0.25rem;
+      color: var(--hg-ink-soft);
+      font-size: 0.7rem;
+      font-weight: 650;
+      text-decoration: none;
+
+      &.is-active {
+        color: var(--hg-dark);
+      }
+    }
+  }
+}
+
 // 주요 행동 버튼은 화면마다 색이 달라지지 않도록 먹색으로 통일하고, 점토색은 hover·강조에만 쓴다.
 .btn-primary {
   --bs-btn-color: #FFFDF8;
