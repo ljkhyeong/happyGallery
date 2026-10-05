@@ -250,6 +250,14 @@ function CartContent() {
     }
   };
 
+  // 결제하기가 비활성인 이유를 화면 순서대로 알려 준다. 수량 초과·장바구니 변경 중 안내는 각 알림이 따로 보인다.
+  const remainingSteps = isAuthenticated ? [
+    selectedItems.length === 0 && "작품 선택",
+    !fulfillment.fulfillmentType && "수령 방법",
+    fulfillment.fulfillmentType === "SHIPPING" && !isFulfillmentComplete(fulfillment) && "배송지 입력",
+    !consent.ready && "주문제작 조건 동의",
+  ].filter((value): value is string => Boolean(value)) : [];
+
   const checkoutButton = isAuthenticated ? (
     <Button
       variant="primary"
@@ -295,6 +303,7 @@ function CartContent() {
           <CheckoutSummary
             label="주문 요약"
             className="store-purchase-card"
+            hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
             action={checkoutButton}
             note={isAuthenticated
               ? "선택하지 않은 작품은 결제 후에도 장바구니에 남습니다."

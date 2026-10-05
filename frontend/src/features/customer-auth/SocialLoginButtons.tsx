@@ -50,9 +50,15 @@ export function SocialLoginButtons({
     }
   }
 
+  const consentRequired = action === "회원가입" && !policyAcceptance;
+
   return (
     <div className="d-grid gap-2">
       <ErrorAlert error={error} />
+      {/* 소셜 가입 버튼이 왜 눌리지 않는지 알 수 있게 위의 동의 항목을 가리킨다. */}
+      {consentRequired && (
+        <p className="social-login-consent-hint">위의 이용약관·개인정보처리방침에 동의하면 소셜 계정으로 가입할 수 있습니다.</p>
+      )}
       {SOCIAL_PROVIDERS.map((provider) => {
         const details = SOCIAL_PROVIDER_DETAILS[provider];
         const isStarting = startingProvider === provider;
@@ -63,7 +69,7 @@ export function SocialLoginButtons({
             type="button"
             variant="outline-dark"
             className={`social-login-button ${details.buttonClassName ?? ""}`}
-            disabled={startingProvider !== null || (action === "회원가입" && !policyAcceptance)}
+            disabled={startingProvider !== null || consentRequired}
             onClick={() => void startSocialLogin(provider)}
           >
             <span className="social-login-button-content">
