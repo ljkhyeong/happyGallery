@@ -1,5 +1,13 @@
 # HANDOFF
 
+## Claude Design 디자인 시스템·방향 시안 (2026-10-05, 결정 대기)
+
+- 사용자가 Claude Design으로 프로젝트에 맞는 디자인 재설정을 요청했다. 코드 변경 없음(시작 SHA `82cf935e`).
+- 디자인 시스템 "해피갤러리"(비공개): https://claude.ai/artifact/B5oN2mN457iEcFXctURTuY . 현재 사이트 값을 1280px 실제 화면의 계산된 스타일로 옮겼다(색 21·글자 스타일 15·간격·모서리·그림자, 사진 6장, 정적 컴포넌트 7종: Button·PageHeader·DateChips·SlotCard·ProductCard·CheckoutSummary·StatusBadge, 표지). Pretendard는 jsDelivr 글꼴이라 파일을 담지 않았다. 추출 스크립트 `output/playwright/design-system/computed.mjs`.
+- 기준서에 표시한 대비 미달(원본 유지): 상태 배지 흰 글자+`brass` 2.55:1·흰 글자+`clay` 4.19:1, 포커스 링(점토 30%) 약 1.4:1, 입력 테두리 1.68:1. 방향과 무관하게 코드에서 고칠 후보다.
+- 방향 시안 캔버스 "해피갤러리 디자인 방향"(비공개): https://claude.ai/artifact/DDHozVRb6PEFs2G5q7giSY . 홈 첫 화면을 같은 내용으로 4안 비교: 현재(햇빛 드는 작업실), A 작업대(커팅매트 초록·자 눈금·가죽 태그, Hahmlet+IBM Plex), B 레진 빛(흰 바탕·바다색/호박색·원형 코스터 사진, 고운돋움+Gothic A1), C 공방 노트(모눈·형광펜·마스킹테이프·손글씨, Gothic A1+Gaegu). 시안 생성기 `scratchpad`의 `hg-canvas/gen.py`(세션 임시).
+- 다음 행동: 사용자가 방향을 고르면 ① 디자인 시스템 토큰·README를 그 방향으로 개정 ② `_variables.scss`·`_atelier.scss`·`_brand.scss` 토큰과 홈부터 화면별로 적용 ③ E2E 전체·캡처 확인. 현재 유지를 고르면 위 대비 미달만 코드에서 고친다.
+
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
 
 - 시작 SHA `0aea325d`. 이전 절들에 "기존 실패"로 남긴 E2E 6건과 MFA 2건이 이제 모두 통과한다(앱 253건 전체, `--project=admin-mfa`는 MFA 서버를 켜고 2건).
