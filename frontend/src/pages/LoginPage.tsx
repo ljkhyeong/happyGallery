@@ -5,6 +5,7 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { PasswordInput } from "@/features/customer-auth/PasswordInput";
 import { ErrorAlert } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 
@@ -61,6 +62,7 @@ export function LoginPage() {
                   <Form.Label>이메일</Form.Label>
                   <Form.Control
                     type="email"
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -78,8 +80,8 @@ export function LoginPage() {
                       비밀번호 재설정
                     </Link>
                   </div>
-                  <Form.Control
-                    type="password"
+                  <PasswordInput
+                    autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required

@@ -159,14 +159,14 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
             <Form.Group className="mb-2" controlId="gate-login-email">
               <Form.Label className="small">이메일</Form.Label>
               <Form.Control
-                type="email" size="sm" value={email}
+                type="email" size="sm" autoComplete="username" value={email}
                 onChange={(e) => setEmail(e.target.value)} required
               />
             </Form.Group>
             <Form.Group className="mb-3" controlId="gate-login-password">
               <Form.Label className="small">비밀번호</Form.Label>
               <Form.Control
-                type="password" size="sm" value={password}
+                type="password" size="sm" autoComplete="current-password" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
                 maxLength={72}
               />
@@ -188,14 +188,14 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
             <Form.Group className="mb-2" controlId="gate-signup-email">
               <Form.Label className="small">이메일</Form.Label>
               <Form.Control
-                type="email" size="sm" value={email}
+                type="email" size="sm" autoComplete="email" value={email}
                 onChange={(e) => setEmail(e.target.value)} required
               />
             </Form.Group>
             <Form.Group className="mb-2" controlId="gate-signup-password">
               <Form.Label className="small">비밀번호</Form.Label>
               <Form.Control
-                type="password" size="sm" value={password}
+                type="password" size="sm" autoComplete="new-password" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
                 maxLength={72}
               />
@@ -204,7 +204,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
             <Form.Group className="mb-2" controlId="gate-signup-name">
               <Form.Label className="small">이름</Form.Label>
               <Form.Control
-                size="sm" value={signupName}
+                size="sm" autoComplete="name" value={signupName}
                 onChange={(e) => setSignupName(e.target.value)} required
               />
             </Form.Group>
@@ -267,7 +267,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                 <Form.Group className="mb-3" controlId="gate-guest-name">
                   <Form.Label className="small">이름</Form.Label>
                   <Form.Control
-                    size="sm" value={guestName}
+                    size="sm" autoComplete="name" value={guestName}
                     onChange={(e) => setGuestName(e.target.value)}
                     onBlur={() => setGuestNameTouched(true)}
                     placeholder="이름"

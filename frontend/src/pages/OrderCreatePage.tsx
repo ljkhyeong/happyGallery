@@ -336,6 +336,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onBlur={() => setNameTouched(true)}

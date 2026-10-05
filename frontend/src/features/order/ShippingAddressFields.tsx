@@ -1,6 +1,6 @@
 import { Col, Form, InputGroup, Row } from "react-bootstrap";
 import type { ShippingAddress } from "@/features/payment";
-import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
+import { isValidPhone, normalizePhone, toPhoneInputValue } from "@/shared/validation/phone";
 import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
 
 interface Props {
@@ -19,6 +19,7 @@ export function ShippingAddressFields({ value, onChange }: Props) {
         <Form.Group controlId="shipping-recipient-name">
           <Form.Label>받는 분</Form.Label>
           <Form.Control
+            autoComplete="name"
             value={value.recipientName}
             maxLength={100}
             onChange={(event) => updateAddress("recipientName", event.target.value)}
@@ -31,14 +32,13 @@ export function ShippingAddressFields({ value, onChange }: Props) {
           <Form.Control
             type="tel"
             inputMode="numeric"
-            autoComplete="tel"
-            maxLength={11}
+            autoComplete="tel-national"
             value={value.phone}
             isInvalid={
               value.phone.length > 0
               && !isValidPhone(value.phone)
             }
-            onChange={(event) => updateAddress("phone", normalizePhone(event.target.value))}
+            onChange={(event) => updateAddress("phone", toPhoneInputValue(event.target.value))}
             onPaste={(event) => {
               const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
               if (pastedPhone.length <= 11) {

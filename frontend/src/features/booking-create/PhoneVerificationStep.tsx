@@ -6,7 +6,7 @@ import {
   type PhoneVerificationPurpose,
 } from "./api";
 import { ErrorAlert } from "@/shared/ui";
-import { isValidPhone, normalizePhone } from "@/shared/validation/phone";
+import { isValidPhone, normalizePhone, toPhoneInputValue } from "@/shared/validation/phone";
 import { useBotProtection } from "@/features/bot-protection/useBotProtection";
 
 interface Props {
@@ -75,8 +75,11 @@ export function PhoneVerificationStep({
           <Form.Group controlId={`${fieldId}-phone`}>
             <Form.Label>휴대폰 번호</Form.Label>
             <Form.Control
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel-national"
               value={phone}
-              onChange={(e) => setPhone(normalizePhone(e.target.value))}
+              onChange={(e) => setPhone(toPhoneInputValue(e.target.value))}
               onPaste={(event) => {
                 const pastedPhone = normalizePhone(event.clipboardData.getData("text"));
                 if (pastedPhone.length <= 11) {
@@ -86,7 +89,6 @@ export function PhoneVerificationStep({
               }}
               onBlur={() => setTouched(true)}
               placeholder="01012345678"
-              maxLength={11}
               disabled={sent || lockPhone || sendMutation.isPending || confirming}
               isInvalid={showPhoneError}
               aria-invalid={showPhoneError}

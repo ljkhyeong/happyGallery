@@ -211,6 +211,7 @@ export function VacancyAlertButton({ slotId }: { slotId: number }) {
           <Form.Group controlId={`vacancy-alert-name-${slotId}`} className="mb-3">
             <Form.Label>이름</Form.Label>
             <Form.Control
+              autoComplete="name"
               value={guestName}
               maxLength={100}
               onChange={(event) => setGuestName(event.target.value)}

@@ -6,6 +6,7 @@ import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificati
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { PasswordInput } from "@/features/customer-auth/PasswordInput";
 import { ErrorAlert } from "@/shared/ui";
 import { normalizePhone } from "@/shared/validation/phone";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
@@ -68,6 +69,7 @@ export function SignupPage() {
                   <Form.Label>이메일</Form.Label>
                   <Form.Control
                     type="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -76,8 +78,8 @@ export function SignupPage() {
                 </Form.Group>
                 <Form.Group className="mb-3" controlId="password">
                   <Form.Label>비밀번호</Form.Label>
-                  <Form.Control
-                    type="password"
+                  <PasswordInput
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -93,6 +95,7 @@ export function SignupPage() {
                   <Form.Label>이름</Form.Label>
                   <Form.Control
                     type="text"
+                    autoComplete="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
