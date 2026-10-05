@@ -29,7 +29,7 @@
   "dependencies": {
     "@react-router/express": "^8.4.0",
     "@react-router/node": "^8.4.0",
-    "@sentry/react": "^10.43.0",
+    "@sentry/react": "^11.2.0",
     "@tanstack/react-query": "^5.104.0",
     "bootstrap": "^5.3.8",
     "compression": "^1.8.2",
