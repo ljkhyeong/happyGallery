@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 내 정보 영역 공통 셸 개편 완료·main 반영 후 원격 검사 확인 (2026-10-05)
+
+- 시작 SHA `7604f4d4`. 회원 화면 16개를 `features/my/MyShell`(중첩 layout `routes/client/my-layout.tsx`)로 묶었다. 데스크톱 왼쪽 메뉴, 모바일은 홈 묶음 목록·하위 화면 가로 메뉴. 메뉴 이름=화면 h1은 `features/my/myNavigation.ts`(예약 내역·주문 내역·이용권·쿠폰·적립금·내 찜·1:1 문의·내 후기·단체 수업 문의·알림함·빈자리 알림·재입고 알림·기본 배송지). 로그인 확인·안내 카드·로그아웃·`/my#...` 이동은 셸이 맡고 각 페이지의 Container·로그인 분기·"← 내 정보"·"불러온 ~ 중" 칩을 지웠다. 대시보드(MyDashboardHero·MyStatsRow·최근 예약/주문 3건), 예약 상세 카드(이용권 예약은 예약금 행 숨김), 1:1 문의 카드, 스타일은 `_storefront.scss` 끝 절. `MyManagementLinks` 삭제.
+- 정리 시작 SHA `130136653f168f226b7df5db3a1424a0b6e438b8`. 사용자가 남은 로컬 변경 분류·커밋·원격 main 푸시를 요청했다. 화면 기능·회귀 테스트·제품 규격과 인계 문서를 나눠 저장하며 기존 로컬 25개 커밋도 main 반영 대상이다. 원격 main `b4edd17d`는 현재 브랜치의 조상이며 강제 푸시는 필요 없다.
+- 검증: frontend build·lint 통과(`/tmp/hg-main-build-final.log`, `/tmp/hg-main-lint.log`), 단위 79건(75건 먼저 통과, 로컬 포트 권한으로 막힌 4건은 해당 3개 파일 재실행으로 통과: `/tmp/hg-main-unit{,-retry}.log`), 의존성 audit 0건(`/tmp/hg-main-audit.json`). 회원 화면 관련 12개 spec 41건(`/tmp/hg-main-member-e2e.log`), @smoke 20건(`/tmp/hg-main-smoke.log`), P8-10·P8-7 개별 통과(`/tmp/hg-main-member-payment-retry.log`, `/tmp/hg-main-member-pass-final.log`). 검사 도구 테스트 16건(`/tmp/hg-main-agent-tests.log`), 원격 main 기준 소스 호환성 통과(`/tmp/hg-main-origin-compatibility.log`). 전체 종료 검사 `ruby tools/agent-feedback.rb final 130136653f168f226b7df5db3a1424a0b6e438b8` 통과(`/tmp/hg-main-final-complete.log`), 전체 diff의 메뉴·세션 경계·조회 범위·스타일 담당·테스트 누락을 검토했다. 코드·설정·환경이 같으면 결과를 재사용한다.
+- 실패 원인과 보완: 최초 취소 요청까지 센 재연결 검사는 초기 조회 수 대비 한 번 추가를 확인하도록 바꿨다. 세션 키는 유지했다. P8-7은 이용권 가능 클래스·구매한 passId·이용권 결제 경로와 현재 취소 상태를 명시했고, P8-10은 후기 부가 조회 mock 누락으로 실제 401을 받던 문제를 보완했다. PRD `내 정보와 관리 화면`을 최근 각 3건·공통 메뉴 구조와 일치시켰다. 1280/390px 메뉴·폼·긴 문의 줄바꿈 캡처는 `output/playwright/main-member-review/`; 관련 E2E에서 모바일 가로 넘침 없음 확인.
+- 남은 행동: main 반영 후 해당 SHA의 CI·Production 결과를 확인한다. 기존 화면 실패 목록의 P8-7·P8-10은 위 보완으로 해결됐다. 다른 기존 실패는 해당 절을 따른다. 디자인 후보(이번 반영 범위 밖): 장바구니 체크아웃 배치, 결제 결과 카드, 푸터 브랜드·VISIT 중복, 모바일 클래스 카드 축소.
+- 실행 조건: 확인용 `hg-design-mysql`(3307)·`happygallery-redis`를 재시작해 재사용했다. Java 25는 `~/.gradle/jdks/eclipse_adoptium-25-aarch64-os_x.2/jdk-25.0.3+9/Contents/Home`, 백엔드 8081·`RATE_LIMIT_ENABLED=false`, E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`. 기존 기본 DB·운영 데이터는 변경하지 않았다.
+
 ## 디자인 점검 후속: 결함 정리·예약/4회권/주문서 2단 체크아웃 완료 (2026-10-05)
 
 - 1단계(`0fe51af7`): 이벤트 관련 작품 카드, 먹색 포커스·`btn-outline-primary`, 빈 후기, 로그인 폼 우선, 사진 준비 중 표시, 자정 기준 이벤트 기간.
