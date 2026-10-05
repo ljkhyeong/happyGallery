@@ -135,7 +135,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
         <>
           <Row className="g-2 mb-3">
             <Col xs={12} sm={6}>
-              <Form.Group>
+              <Form.Group controlId="admin-slot-class">
                 <Form.Label>클래스 선택</Form.Label>
                 <Form.Select value={classId} onChange={(e) => setClassId(e.target.value)}>
                   <option value="">클래스를 선택하세요</option>

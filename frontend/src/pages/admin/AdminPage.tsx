@@ -3,6 +3,7 @@ import { GroupInquiryFollowUpSection } from "@/features/admin-inquiry/GroupInqui
 import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Alert, Button, Container, Form, Nav } from "react-bootstrap";
 import { useSearchParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAdminKey } from "@/features/admin-product/useAdminKey";
 import { AdminLoginGate } from "@/features/admin-auth/AdminLoginGate";
 import { AdminMfaSettings } from "@/features/admin-auth/AdminMfaSettings";
@@ -42,7 +43,7 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
 import type { BookingStatus, OrderStatus } from "@/shared/types";
 
 const ADMIN_VIEWS = [
@@ -140,11 +141,21 @@ function parseBookingStatus(value: string | null): BookingStatus | undefined {
   return BOOKING_STATUSES.find((status) => status === value);
 }
 
+/** 한 작업 영역의 화면 오류가 관리자 화면 전체를 막지 않게 영역마다 따로 감싼다. 다시 시도하면 관리자 조회를 새로 받는다. */
+function AdminSectionBoundary({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  return (
+    <SectionErrorBoundary onReset={() => void queryClient.resetQueries({ queryKey: ["admin"] })}>
+      {children}
+    </SectionErrorBoundary>
+  );
+}
+
 function AdminPanel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="admin-workspace-panel">
       <h5>{title}</h5>
-      {children}
+      <AdminSectionBoundary>{children}</AdminSectionBoundary>
     </section>
   );
 }
@@ -165,7 +176,7 @@ function AdminFormPanel({ title, openLabel, children }: { title: string; openLab
           {open ? "닫기" : openLabel}
         </Button>
       </div>
-      {open && children}
+      {open && <AdminSectionBoundary>{children}</AdminSectionBoundary>}
     </section>
   );
 }
@@ -420,7 +431,9 @@ export function AdminPage() {
 
       {activeView === "overview" && (
         <>
-          <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
+          <AdminSectionBoundary>
+            <AdminDashboardSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminSectionBoundary>
           <AdminPanel title="고객·주문·예약 검색">
             <AdminSearchSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>

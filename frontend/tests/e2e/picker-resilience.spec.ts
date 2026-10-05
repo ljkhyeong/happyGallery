@@ -49,7 +49,7 @@ function adminPanel(page: Page, title: string) {
     .filter({ has: page.getByRole("heading", { name: title, exact: true }) });
 }
 
-test("@admin 클래스·슬롯 선택기는 조회 실패를 빈 상태로 단정하지 않고 다시 조회한다", async ({
+test("@admin 클래스 목록과 회차 관리 선택기는 조회 실패를 빈 상태로 단정하지 않고 다시 조회한다", async ({
   page,
 }) => {
   let classesAvailable = false;
@@ -66,35 +66,38 @@ test("@admin 클래스·슬롯 선택기는 조회 실패를 빈 상태로 단�
       await fulfillJson(route, slotsAvailable ? [] : temporaryError, slotsAvailable ? 200 : 503);
       return;
     }
+    if (pathname === "/api/v1/admin/slots/calendar") {
+      await fulfillJson(route, {
+        settings: { openTime: "10:00", closeTime: "19:00", slotIntervalMin: 30, blockPublicHolidays: true, version: 1 },
+        days: [],
+      });
+      return;
+    }
 
     await fulfillJson(route, []);
   });
 
   await openAuthenticatedAdmin(page, "classes");
-  const createPanel = adminPanel(page, "수업 일정 생성");
-  const bulkPanel = adminPanel(page, "수업 일정 여러 개 생성");
-  const listPanel = adminPanel(page, "수업 일정 목록");
+  const listPanel = adminPanel(page, "클래스 목록");
+  const slotPanel = adminPanel(page, "예약이 있는 회차 관리");
 
-  await expect(createPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(createPanel.getByLabel("클래스")).toHaveCount(0);
-  await expect(createPanel.getByText("등록된 클래스가 없습니다.")).toHaveCount(0);
-  await expect(bulkPanel.getByLabel("클래스")).toHaveCount(0);
-  await expect(listPanel.getByRole("combobox")).toHaveCount(0);
-  await expect(listPanel.getByText("클래스를 선택하면 수업 일정이 표시됩니다.")).toHaveCount(0);
-
-  classesAvailable = true;
-  await createPanel.getByRole("button", { name: "다시 시도" }).click();
-  await expect(createPanel.getByLabel("클래스")).toBeVisible();
-  await expect(bulkPanel.getByLabel("클래스")).toBeVisible();
-  await expect(listPanel.getByRole("combobox")).toBeVisible();
-
-  await listPanel.getByRole("combobox").selectOption("1");
   await expect(listPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
-  await expect(listPanel.getByText("해당 클래스에 등록된 수업 일정이 없습니다.")).toHaveCount(0);
+  await expect(listPanel.getByText("등록된 클래스가 없습니다.")).toHaveCount(0);
+  await expect(slotPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
+  await expect(slotPanel.getByLabel("클래스 선택")).toHaveCount(0);
+
+  // 두 영역은 같은 클래스 조회를 쓰므로 한 곳에서 다시 조회하면 함께 복구된다.
+  classesAvailable = true;
+  await listPanel.getByRole("button", { name: "다시 시도" }).click();
+  await expect(listPanel.getByText("회복 클래스", { exact: true })).toBeVisible();
+  await slotPanel.getByLabel("클래스 선택").selectOption("1");
+
+  await expect(slotPanel.getByRole("button", { name: "다시 시도" })).toBeVisible();
+  await expect(slotPanel.getByText(/관리할 예약 회차가 없습니다/)).toHaveCount(0);
 
   slotsAvailable = true;
-  await listPanel.getByRole("button", { name: "다시 시도" }).click();
-  await expect(listPanel.getByText("해당 클래스에 등록된 수업 일정이 없습니다.")).toBeVisible();
+  await slotPanel.getByRole("button", { name: "다시 시도" }).click();
+  await expect(slotPanel.getByText(/관리할 예약 회차가 없습니다/)).toBeVisible();
 });
 
 test("@admin 수기 예약 선택기는 클래스와 슬롯 조회 실패를 각각 복구한다", async ({ page }) => {

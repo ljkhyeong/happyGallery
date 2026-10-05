@@ -23,7 +23,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
-  const { data: classes, isLoading, error } = useAdminQuery(onAuthError, {
+  const { data: classes, isLoading, error, refetch, isFetching } = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.classes,
     queryFn: () => fetchAdminClasses(adminKey),
   });
@@ -43,7 +43,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   if (isLoading) return <LoadingSpinner />;
   if (error) {
     if (error instanceof ApiError && error.status === 401) return null;
-    return <ErrorAlert error={error} />;
+    return <ErrorAlert error={error} onRetry={() => void refetch()} retrying={isFetching} />;
   }
   if (!classes?.length) return <EmptyState message="등록된 클래스가 없습니다." />;
 
