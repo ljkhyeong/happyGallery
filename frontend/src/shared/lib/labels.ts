@@ -14,6 +14,24 @@ export function getClassCategoryLabel(category: string): string {
     ?? category;
 }
 
+/** 서버 `ClassSituationTag` enum과 같은 순서를 유지한다. */
+export const CLASS_SITUATION_TAG_OPTIONS = [
+  { code: "DATE", label: "데이트" },
+  { code: "WITH_KIDS", label: "아이와 함께" },
+  { code: "FRIENDS", label: "친구 모임" },
+  { code: "GIFT", label: "선물 만들기" },
+] as const;
+
+export type ClassSituationTagCode = (typeof CLASS_SITUATION_TAG_OPTIONS)[number]["code"];
+
+export function isClassSituationTag(value: string | null | undefined): value is ClassSituationTagCode {
+  return CLASS_SITUATION_TAG_OPTIONS.some(({ code }) => code === value);
+}
+
+export function getClassSituationTagLabel(tag: string): string {
+  return CLASS_SITUATION_TAG_OPTIONS.find(({ code }) => code === tag)?.label ?? tag;
+}
+
 export function isPerfumeClassCategory(category: string): boolean {
   return category.trim().toUpperCase() === "PERFUME";
 }

@@ -45,7 +45,7 @@ class AdminClassUseCaseIT {
         cleanupSupport.clearBookingData();
     }
 
-    @DisplayName("관리자는 클래스 콘텐츠와 이용권 정책을 수정하고 운영을 중지할 수 있다")
+    @DisplayName("관리자는 클래스 콘텐츠·이용권 정책·상황 태그를 수정하고 운영을 중지할 수 있다")
     @Test
     void manageClassLifecycle_success() throws Exception {
         String created = mockMvc.perform(post("/api/v1/admin/classes")
@@ -62,10 +62,14 @@ class AdminClassUseCaseIT {
                                   "passEligible": false,
                                   "description": "향을 조합하는 원데이 클래스",
                                   "preparationInfo": "편한 복장",
-                                  "targetAudience": "향수 만들기가 처음인 분"
+                                  "targetAudience": "향수 만들기가 처음인 분",
+                                  "situationTags": ["FRIENDS", "DATE", "DATE"]
                                 }
                                 """))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.situationTags.length()").value(2))
+                .andExpect(jsonPath("$.situationTags[0]").value("DATE"))
+                .andExpect(jsonPath("$.situationTags[1]").value("FRIENDS"))
                 .andExpect(jsonPath("$.category").value("PERFUME"))
                 .andExpect(jsonPath("$.capacity").value(3))
                 .andExpect(jsonPath("$.passEligible").value(false))
@@ -92,7 +96,29 @@ class AdminClassUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("우드 정규 클래스"))
                 .andExpect(jsonPath("$.category").value("WOOD"))
-                .andExpect(jsonPath("$.passEligible").value(true));
+                .andExpect(jsonPath("$.passEligible").value(true))
+                // 태그를 보내지 않은 수정은 기존 상황 태그를 유지한다.
+                .andExpect(jsonPath("$.situationTags.length()").value(2));
+
+        mockMvc.perform(get("/api/v1/classes/{id}", classId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situationTags[0]").value("DATE"))
+                .andExpect(jsonPath("$.situationTags[1]").value("FRIENDS"));
+
+        mockMvc.perform(patch("/api/v1/admin/classes/{id}", classId)
+                        .header("X-Admin-Key", ADMIN_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "우드 정규 클래스",
+                                  "category": "wood",
+                                  "price": 60000,
+                                  "passEligible": true,
+                                  "situationTags": []
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.situationTags.length()").value(0));
 
         mockMvc.perform(patch("/api/v1/admin/classes/{id}/status", classId)
                         .header("X-Admin-Key", ADMIN_KEY)
@@ -117,6 +143,7 @@ class AdminClassUseCaseIT {
                     assertThat(bookingClass.getName()).isEqualTo("우드 정규 클래스");
                     assertThat(bookingClass.getCapacity()).isEqualTo(3);
                     assertThat(bookingClass.isPassEligible()).isTrue();
+                    assertThat(bookingClass.getSituationTags()).isEmpty();
                     assertThat(bookingClass.getStatus()).isEqualTo(BookingClassStatus.INACTIVE);
                 });
     }

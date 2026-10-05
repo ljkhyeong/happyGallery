@@ -9,7 +9,7 @@ import {
 const leather: ClassResponse = {
   id: 41, name: "가죽 카드지갑 정규", category: "LEATHER", durationMin: 120,
   price: 50000, bufferMin: 30, capacity: 8, passEligible: true,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, status: "ACTIVE",
+  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
 };
 const resin: ClassResponse = {
   ...leather, id: 42, name: "레진아트 원데이", category: "RESIN", durationMin: 90, price: 42000, passEligible: false,

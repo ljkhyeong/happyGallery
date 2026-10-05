@@ -61,6 +61,7 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
         preparationInfo: null,
         status: "ACTIVE",
         targetAudience: null,
+        situationTags: [],
       }]);
       return;
     }

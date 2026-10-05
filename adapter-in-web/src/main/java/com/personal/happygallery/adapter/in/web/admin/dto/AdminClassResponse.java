@@ -2,7 +2,9 @@ package com.personal.happygallery.adapter.in.web.admin.dto;
 
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingClassStatus;
+import com.personal.happygallery.domain.booking.ClassSituationTag;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.List;
 
 public record AdminClassResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
@@ -17,6 +19,7 @@ public record AdminClassResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String imageUrl,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String preparationInfo,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String targetAudience,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ClassSituationTag> situationTags,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) BookingClassStatus status
 ) {
 
@@ -34,6 +37,7 @@ public record AdminClassResponse(
                 bookingClass.getImageUrl(),
                 bookingClass.getPreparationInfo(),
                 bookingClass.getTargetAudience(),
+                List.copyOf(bookingClass.getSituationTags()),
                 bookingClass.getStatus());
     }
 }

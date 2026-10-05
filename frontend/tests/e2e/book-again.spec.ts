@@ -4,7 +4,7 @@ import type { BookingDetailResponse, ClassResponse, MyBookingDetail } from "../.
 const bookingClass: ClassResponse = {
   id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 90,
   price: 45000, bufferMin: 30, capacity: 6, passEligible: true,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, status: "ACTIVE",
+  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
 };
 const previousBooking = {
   bookingId: 7, classId: 27, className: "가죽 공예", slotId: 70,

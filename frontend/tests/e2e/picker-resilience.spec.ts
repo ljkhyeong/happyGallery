@@ -25,6 +25,7 @@ const adminClass = {
   imageUrl: null,
   preparationInfo: null,
   targetAudience: null,
+  situationTags: [],
 };
 
 async function fulfillJson(route: Route, body: unknown, status = 200) {

@@ -31,7 +31,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
     });
     if (pathname === "/api/v1/classes") return json(route, [{
       id: 42, name: "재인증 확인 수업", price: 50000, category: "LEATHER", status: "ACTIVE",
-      durationMin: 90, bufferMin: 0, passEligible: false,
+      durationMin: 90, bufferMin: 0, passEligible: false, situationTags: [],
     }]);
     if (pathname === "/api/v1/slots/upcoming") return json(route, [{
       id: 77, classId: 42, startAt: "2099-01-02T10:00:00", endAt: "2099-01-02T11:30:00",

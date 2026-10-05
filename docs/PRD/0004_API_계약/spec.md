@@ -353,7 +353,8 @@ Authorization: Bearer {token}
   "description": "나만의 향을 조합하는 원데이 클래스입니다.",
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "preparationInfo": "향에 민감하면 미리 알려주세요.",
-  "targetAudience": "만 14세 이상"
+  "targetAudience": "만 14세 이상",
+  "situationTags": ["DATE", "FRIENDS"]
 }
 ```
 
@@ -371,6 +372,7 @@ Authorization: Bearer {token}
   "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
   "preparationInfo": "향에 민감하면 미리 알려주세요.",
   "targetAudience": "만 14세 이상",
+  "situationTags": ["DATE", "FRIENDS"],
   "status": "ACTIVE"
 }
 ```
@@ -384,6 +386,7 @@ Authorization: Bearer {token}
   - `capacity`는 1명 이상이며 자동 생성되는 모든 회차가 이 정원을 사용한다. 기존 클래스는 8명으로 이관한다.
   - `description`, `imageUrl`, `preparationInfo`, `targetAudience`는 선택값이다. `imageUrl`은 상품과 같은 공용 도메인 정책을 적용해 `/`로 시작하되 `//`가 아닌 서비스 경로 또는 호스트가 있는 `http(s)` URL만 허용한다.
   - 새 클래스는 `ACTIVE`로 생성된다. `passEligible`은 구매한 이용권 계획의 카테고리 정책과 함께 이용권 사용 가능 여부를 결정한다.
+  - `situationTags`는 고객이 상황으로 수업을 찾는 선택값이다. 값은 `DATE`(데이트), `WITH_KIDS`(아이와 함께), `FRIENDS`(친구 모임), `GIFT`(선물 만들기)이며 중복은 하나로 합쳐 enum 순서로 응답한다. 생략하면 태그 없이 만든다.
 
 #### 2.1.2 기본 개방 예약 캘린더
 
@@ -512,7 +515,7 @@ Authorization: Bearer {token}
 #### 2.1.5 클래스 전체 조회·수정·상태 변경
 
 - `GET /api/v1/admin/classes` — `ACTIVE`, `INACTIVE` 클래스를 모두 반환한다.
-- `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내를 수정한다. 운영 시간·버퍼·회차 정원은 이미 생성된 회차와 예약에 영향을 주므로 이 API에서 바꾸지 않는다.
+- `PATCH /api/v1/admin/classes/{id}` — 이름·카테고리·가격·`passEligible`·설명·대표 이미지·준비물·대상 안내·`situationTags`를 수정한다. `situationTags`를 생략하면 기존 태그를 유지하고, 빈 배열은 모든 태그를 지운다. 운영 시간·버퍼·회차 정원은 이미 생성된 회차와 예약에 영향을 주므로 이 API에서 바꾸지 않는다.
 - `PATCH /api/v1/admin/classes/{id}/status` — `{ "status": "ACTIVE|INACTIVE" }`로 공개·예약 가능 상태를 변경한다.
 - 성공: `200 OK`, 응답은 2.1.1의 클래스 응답과 같다.
 - `INACTIVE` 클래스는 공개 목록, 자동 회차 조회와 결제 prepare 대상에서 제외한다. 기존 예약 이력은 유지한다.
@@ -609,6 +612,7 @@ GET /api/v1/classes
     "imageUrl": "/api/v1/media/images/21ad89d4-73ca-43af-a11e-d7953851acb0.jpg",
     "preparationInfo": null,
     "targetAudience": "만 14세 이상",
+    "situationTags": ["WITH_KIDS"],
     "status": "ACTIVE"
   }
 ]
@@ -618,6 +622,7 @@ GET /api/v1/classes
 - 정책:
   - `ACTIVE` 클래스만 반환한다. 관리자는 별도 전체 조회 API를 사용한다.
   - 프론트 예약 생성 화면은 이 응답을 기준으로 클래스 선택지를 구성한다.
+  - `situationTags`는 항상 배열로 반환한다(태그가 없으면 빈 배열). 홈 상황별 바로가기와 클래스 목록 상황 필터가 이 값을 사용한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
   - `If-None-Match`가 현재 ETag와 같으면 `304 Not Modified`를 반환한다.
 

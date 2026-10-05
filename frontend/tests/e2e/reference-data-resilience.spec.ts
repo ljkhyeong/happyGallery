@@ -233,6 +233,7 @@ test("@smoke 이용권 링크 예약은 이용권 조회가 복구되기 전 예
         price: 50000,
         status: "ACTIVE",
         targetAudience: null,
+        situationTags: [],
       }]);
       return;
     }
@@ -341,6 +342,7 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
           price: 50000,
           status: "ACTIVE",
           targetAudience: null,
+          situationTags: [],
         },
         {
           bufferMin: 30,
@@ -355,6 +357,7 @@ test("@smoke 이용권 링크 예약은 호환 클래스가 바뀌어도 링크�
           price: 45000,
           status: "ACTIVE",
           targetAudience: null,
+          situationTags: [],
         },
       ]);
       return;

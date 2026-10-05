@@ -342,6 +342,13 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "situationTags" : {
+            "items" : {
+              "enum" : [ "DATE", "WITH_KIDS", "FRIENDS", "GIFT" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "status" : {
             "enum" : [ "ACTIVE", "INACTIVE" ],
             "type" : "string"
@@ -350,7 +357,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "bufferMin", "capacity", "category", "description", "durationMin", "id", "imageUrl", "name", "passEligible", "preparationInfo", "price", "status", "targetAudience" ],
+        "required" : [ "bufferMin", "capacity", "category", "description", "durationMin", "id", "imageUrl", "name", "passEligible", "preparationInfo", "price", "situationTags", "status", "targetAudience" ],
         "type" : "object"
       },
       "AdminCouponResponse" : {
@@ -2196,6 +2203,13 @@
             "format" : "int64",
             "type" : "integer"
           },
+          "situationTags" : {
+            "items" : {
+              "enum" : [ "DATE", "WITH_KIDS", "FRIENDS", "GIFT" ],
+              "type" : "string"
+            },
+            "type" : "array"
+          },
           "status" : {
             "enum" : [ "ACTIVE", "INACTIVE" ],
             "type" : "string"
@@ -2204,7 +2218,7 @@
             "type" : [ "string", "null" ]
           }
         },
-        "required" : [ "bufferMin", "capacity", "category", "description", "durationMin", "id", "imageUrl", "name", "passEligible", "preparationInfo", "price", "status", "targetAudience" ],
+        "required" : [ "bufferMin", "capacity", "category", "description", "durationMin", "id", "imageUrl", "name", "passEligible", "preparationInfo", "price", "situationTags", "status", "targetAudience" ],
         "type" : "object"
       },
       "CommissionDetailResponse" : {
@@ -2433,6 +2447,14 @@
             "maximum" : 9007199254740991,
             "minimum" : 10,
             "type" : "integer"
+          },
+          "situationTags" : {
+            "description" : "고객이 상황으로 수업을 찾을 때 쓰는 태그. 생략하면 태그 없이 만든다.",
+            "items" : {
+              "enum" : [ "DATE", "WITH_KIDS", "FRIENDS", "GIFT" ],
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
           },
           "targetAudience" : {
             "maxLength" : 1000,
@@ -9011,6 +9033,14 @@
             "maximum" : 9007199254740991,
             "minimum" : 10,
             "type" : "integer"
+          },
+          "situationTags" : {
+            "description" : "고객이 상황으로 수업을 찾을 때 쓰는 태그. 생략하면 기존 태그를 유지하고 빈 배열은 모두 지운다.",
+            "items" : {
+              "enum" : [ "DATE", "WITH_KIDS", "FRIENDS", "GIFT" ],
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
           },
           "targetAudience" : {
             "maxLength" : 1000,

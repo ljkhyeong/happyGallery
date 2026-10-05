@@ -8,7 +8,7 @@ test.afterEach(clearSsrUpstreamFixtures);
 const bookingClass: ClassResponse = {
   id: 42, name: "가죽 카드지갑 수업", category: "LEATHER", durationMin: 90, price: 50000,
   bufferMin: 10, capacity: 8, passEligible: false, description: null, imageUrl: null,
-  preparationInfo: null, targetAudience: null, status: "ACTIVE",
+  preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
 };
 const favorites: FavoriteResponse[] = [
   { id: 2, targetType: "CLASS", targetId: 42, name: bookingClass.name, active: true, createdAt: "2026-09-12T10:00:00" },

@@ -4,11 +4,12 @@ import { Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { updateClass } from "./api";
 import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
-import { isPerfumeClassCategory } from "@/shared/lib";
+import { type ClassSituationTagCode, isClassSituationTag, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse } from "@/shared/types";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { ClassCategoryField } from "./ClassCategoryField";
+import { ClassSituationTagField } from "./ClassSituationTagField";
 import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
 
 interface Props {
@@ -29,6 +30,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
   const [imageUrl, setImageUrl] = useState("");
   const [preparationInfo, setPreparationInfo] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+  const [situationTags, setSituationTags] = useState<ClassSituationTagCode[]>([]);
 
   useEffect(() => {
     if (!bookingClass) return;
@@ -43,6 +45,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
     setImageUrl(bookingClass.imageUrl ?? "");
     setPreparationInfo(bookingClass.preparationInfo ?? "");
     setTargetAudience(bookingClass.targetAudience ?? "");
+    setSituationTags(bookingClass.situationTags.filter(isClassSituationTag));
   }, [bookingClass]);
 
   const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
@@ -62,6 +65,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
       imageUrl: imageUrl.trim() || undefined,
       preparationInfo: preparationInfo.trim() || undefined,
       targetAudience: targetAudience.trim() || undefined,
+      situationTags,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
@@ -155,6 +159,9 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
                 <Form.Label>추천 대상</Form.Label>
                 <Form.Control as="textarea" rows={3} value={targetAudience} maxLength={1000} onChange={(e) => setTargetAudience(e.target.value)} />
               </Form.Group>
+            </Col>
+            <Col xs={12}>
+              <ClassSituationTagField idPrefix="admin-edit-class-tag" value={situationTags} onChange={setSituationTags} />
             </Col>
           </Row>
         </Modal.Body>

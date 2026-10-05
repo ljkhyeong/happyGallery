@@ -45,7 +45,7 @@ async function prepare(page: Page, clipboardAvailable = true) {
     });
     if (path === "/api/v1/classes") return json([{
       id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 60, price: 30000,
-      bufferMin: 30, capacity: 6, passEligible: true, status: "ACTIVE",
+      bufferMin: 30, capacity: 6, passEligible: true, status: "ACTIVE", situationTags: [],
     }]);
     if (path === "/api/v1/products/80") return route.fallback();
     if (path === "/api/v1/orders/policy") return json({

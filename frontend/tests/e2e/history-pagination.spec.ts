@@ -460,6 +460,7 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
         price: 50000,
         status: "ACTIVE",
         targetAudience: null,
+        situationTags: [],
       }]);
       return;
     }

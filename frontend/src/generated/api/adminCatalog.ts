@@ -1,4 +1,14 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+export type AdminClassResponseSituationTagsItem = typeof AdminClassResponseSituationTagsItem[keyof typeof AdminClassResponseSituationTagsItem];
+
+
+export const AdminClassResponseSituationTagsItem = {
+  DATE: 'DATE',
+  WITH_KIDS: 'WITH_KIDS',
+  FRIENDS: 'FRIENDS',
+  GIFT: 'GIFT',
+} as const;
+
 export type AdminClassResponseStatus = typeof AdminClassResponseStatus[keyof typeof AdminClassResponseStatus];
 
 
@@ -23,10 +33,21 @@ export interface AdminClassResponse {
   /** @nullable */
   preparationInfo: string | null;
   price: number;
+  situationTags: AdminClassResponseSituationTagsItem[];
   status: AdminClassResponseStatus;
   /** @nullable */
   targetAudience: string | null;
 }
+
+export type CreateClassRequestSituationTagsItem = typeof CreateClassRequestSituationTagsItem[keyof typeof CreateClassRequestSituationTagsItem];
+
+
+export const CreateClassRequestSituationTagsItem = {
+  DATE: 'DATE',
+  WITH_KIDS: 'WITH_KIDS',
+  FRIENDS: 'FRIENDS',
+  GIFT: 'GIFT',
+} as const;
 
 export interface CreateClassRequest {
   bufferMin: number;
@@ -65,11 +86,26 @@ export interface CreateClassRequest {
      */
   price: number;
   /**
+     * 고객이 상황으로 수업을 찾을 때 쓰는 태그. 생략하면 태그 없이 만든다.
+     * @nullable
+     */
+  situationTags?: CreateClassRequestSituationTagsItem[] | null;
+  /**
      * @minLength 0
      * @maxLength 1000
      */
   targetAudience?: string;
 }
+
+export type UpdateClassRequestSituationTagsItem = typeof UpdateClassRequestSituationTagsItem[keyof typeof UpdateClassRequestSituationTagsItem];
+
+
+export const UpdateClassRequestSituationTagsItem = {
+  DATE: 'DATE',
+  WITH_KIDS: 'WITH_KIDS',
+  FRIENDS: 'FRIENDS',
+  GIFT: 'GIFT',
+} as const;
 
 export interface UpdateClassRequest {
   /**
@@ -103,6 +139,11 @@ export interface UpdateClassRequest {
      * @maximum 9007199254740991
      */
   price: number;
+  /**
+     * 고객이 상황으로 수업을 찾을 때 쓰는 태그. 생략하면 기존 태그를 유지하고 빈 배열은 모두 지운다.
+     * @nullable
+     */
+  situationTags?: UpdateClassRequestSituationTagsItem[] | null;
   /**
      * @minLength 0
      * @maxLength 1000

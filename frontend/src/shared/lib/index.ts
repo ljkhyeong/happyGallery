@@ -12,6 +12,9 @@ export {
 export {
   BOOKING_BALANCE_STATUS_LABEL,
   CLASS_CATEGORY_OPTIONS,
+  CLASS_SITUATION_TAG_OPTIONS,
+  getClassSituationTagLabel,
+  isClassSituationTag,
   FULFILLMENT_TYPE_LABEL,
   getClassCategoryLabel,
   getStatusLabel,
@@ -21,4 +24,4 @@ export {
   PRODUCT_SORT_LABEL,
   PRODUCT_TYPE_LABEL,
 } from "./labels";
-export type { StatusAudience } from "./labels";
+export type { ClassSituationTagCode, StatusAudience } from "./labels";

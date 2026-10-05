@@ -6,6 +6,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -14,6 +15,10 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
 
 /** 체험 클래스 — classes 테이블 */
 @Entity
@@ -68,6 +73,11 @@ public class BookingClass {
 
     @Column(name = "pass_eligible", nullable = false)
     private boolean passEligible;
+
+    /** 태그가 없으면 NULL로 저장한다. 무중단 배포에서 이전 이미지가 이 컬럼 없이 행을 만들어도 된다. */
+    @Convert(converter = ClassSituationTagsConverter.class)
+    @Column(name = "situation_tags", length = 100)
+    private Set<ClassSituationTag> situationTags = Collections.unmodifiableSet(EnumSet.noneOf(ClassSituationTag.class));
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
@@ -186,6 +196,15 @@ public class BookingClass {
         return normalized;
     }
 
+    /** 상황 태그 전체를 바꾼다. 중복은 하나로 합치고 enum 순서로 보관한다. */
+    public void replaceSituationTags(Collection<ClassSituationTag> tags) {
+        EnumSet<ClassSituationTag> next = EnumSet.noneOf(ClassSituationTag.class);
+        if (tags != null) {
+            next.addAll(tags);
+        }
+        this.situationTags = Collections.unmodifiableSet(next);
+    }
+
     public void changeStatus(BookingClassStatus status) {
         this.status = status;
     }
@@ -212,6 +231,9 @@ public class BookingClass {
     public String getPreparationInfo() { return preparationInfo; }
     public String getTargetAudience() { return targetAudience; }
     public boolean isPassEligible() { return passEligible; }
+    public Set<ClassSituationTag> getSituationTags() {
+        return situationTags == null ? Collections.unmodifiableSet(EnumSet.noneOf(ClassSituationTag.class)) : situationTags;
+    }
     public BookingClassStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

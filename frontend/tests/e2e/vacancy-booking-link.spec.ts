@@ -5,7 +5,7 @@ import type { NotificationResponse } from "../../src/generated/api/notification"
 const bookingClass: ClassResponse = {
   id: 42, name: "가죽 카드지갑", category: "LEATHER", durationMin: 90,
   price: 50000, bufferMin: 10, capacity: 8, passEligible: false,
-  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, status: "ACTIVE",
+  description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [], status: "ACTIVE",
 };
 const notified: VacancyAlertResponse = {
   alertId: 701, classId: 42, slotId: 78, className: bookingClass.name,

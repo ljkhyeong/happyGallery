@@ -9,7 +9,7 @@ test("상품과 클래스를 찜하고 내 목록에서 종류를 골라 해제�
     imageUrl: null, available: true, stockQuantity: 10, specification: null, careInstructions: null,
     productionLeadDays: null, optionGroups: [], variants: [] };
   const bookingClass = { id: 42, name: "찜할 클래스", category: "WOOD", durationMin: 60, price: 30000,
-    bufferMin: 30, capacity: 8, passEligible: true, description: null, imageUrl: null, preparationInfo: null, targetAudience: null };
+    bufferMin: 30, capacity: 8, passEligible: true, description: null, imageUrl: null, preparationInfo: null, targetAudience: null, situationTags: [] };
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product), ssrApiFixture("/classes/42", bookingClass));
   const saved = new Set<string>();
   await page.route("**/api/v1/**", async (route) => {

@@ -9,9 +9,12 @@ import com.personal.happygallery.application.booking.port.in.ClassManagementUseC
 import com.personal.happygallery.application.booking.port.in.ClassManagementUseCase.UpdateClassCommand;
 import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.ClassSituationTag;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -42,7 +45,7 @@ public class AdminClassController {
         BookingClass bookingClass = classManagementUseCase.createClass(new CreateClassCommand(
                 request.name(), request.category(), request.durationMin(), request.price(), request.bufferMin(),
                 request.capacity(), request.passEligible(), request.description(), request.imageUrl(),
-                request.preparationInfo(), request.targetAudience()));
+                request.preparationInfo(), request.targetAudience(), situationTags(request.situationTags())));
         return AdminClassResponse.from(bookingClass);
     }
 
@@ -57,7 +60,7 @@ public class AdminClassController {
         return AdminClassResponse.from(classManagementUseCase.updateClass(new UpdateClassCommand(
                 id, request.name(), request.category(), request.price(), request.passEligible(),
                 request.description(), request.imageUrl(),
-                request.preparationInfo(), request.targetAudience())));
+                request.preparationInfo(), request.targetAudience(), situationTags(request.situationTags()))));
     }
 
     @PatchMapping("/{id}/status")
@@ -65,5 +68,13 @@ public class AdminClassController {
     public AdminClassResponse changeStatus(@PathVariable Long id,
                                            @RequestBody @Valid UpdateClassStatusRequest request) {
         return AdminClassResponse.from(classManagementUseCase.changeStatus(id, request.status()));
+    }
+
+    /** 생략(null)은 그대로 넘겨 수정 시 기존 태그를 유지하게 한다. */
+    private static Set<ClassSituationTag> situationTags(List<ClassSituationTag> tags) {
+        if (tags == null) {
+            return null;
+        }
+        return tags.isEmpty() ? EnumSet.noneOf(ClassSituationTag.class) : EnumSet.copyOf(tags);
     }
 }

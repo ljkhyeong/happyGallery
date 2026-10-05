@@ -1189,7 +1189,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                   "passEligible": false,
                                   "description": "향을 조합해 나만의 향수를 만듭니다.",
                                   "preparationInfo": "편한 복장",
-                                  "targetAudience": "향수 만들기가 처음인 분"
+                                  "targetAudience": "향수 만들기가 처음인 분",
+                                  "situationTags": ["DATE", "FRIENDS"]
                                 }
                                 """))
                 .andExpect(status().isCreated());

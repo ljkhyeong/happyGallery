@@ -40,6 +40,7 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
                 command.imageUrl(),
                 command.preparationInfo(),
                 command.targetAudience());
+        bookingClass.replaceSituationTags(command.situationTags());
         imageMediaReferenceGuard.validateAssignment(bookingClass.getImageUrl());
         return classStorePort.save(bookingClass);
     }
@@ -57,6 +58,9 @@ public class DefaultClassManagementService implements ClassManagementUseCase {
                 command.imageUrl(),
                 command.preparationInfo(),
                 command.targetAudience());
+        if (command.situationTags() != null) {
+            bookingClass.replaceSituationTags(command.situationTags());
+        }
         imageMediaReferenceGuard.validateAssignment(bookingClass.getImageUrl());
         return classStorePort.save(bookingClass);
     }

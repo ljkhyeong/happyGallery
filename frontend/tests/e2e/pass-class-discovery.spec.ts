@@ -19,6 +19,7 @@ const craftClass: ClassResponse = {
   imageUrl: null,
   preparationInfo: null,
   targetAudience: null,
+  situationTags: [],
   status: "ACTIVE",
 };
 const classes: ClassResponse[] = [

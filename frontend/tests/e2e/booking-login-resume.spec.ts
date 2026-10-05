@@ -81,6 +81,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
         preparationInfo: null,
         status: "ACTIVE",
         targetAudience: null,
+        situationTags: [],
       }]);
       return;
     }
@@ -234,6 +235,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
         preparationInfo: null,
         status: "ACTIVE",
         targetAudience: null,
+        situationTags: [],
       }]);
       return;
     }

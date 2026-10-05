@@ -157,6 +157,16 @@ export interface RescheduleResponse {
   status: RescheduleResponseStatus;
 }
 
+export type ClassResponseSituationTagsItem = typeof ClassResponseSituationTagsItem[keyof typeof ClassResponseSituationTagsItem];
+
+
+export const ClassResponseSituationTagsItem = {
+  DATE: 'DATE',
+  WITH_KIDS: 'WITH_KIDS',
+  FRIENDS: 'FRIENDS',
+  GIFT: 'GIFT',
+} as const;
+
 export type ClassResponseStatus = typeof ClassResponseStatus[keyof typeof ClassResponseStatus];
 
 
@@ -181,6 +191,7 @@ export interface ClassResponse {
   /** @nullable */
   preparationInfo: string | null;
   price: number;
+  situationTags: ClassResponseSituationTagsItem[];
   status: ClassResponseStatus;
   /** @nullable */
   targetAudience: string | null;

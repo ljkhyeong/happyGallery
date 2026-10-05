@@ -93,6 +93,7 @@ class CatalogImageAssignmentNormalizationTest {
                 null,
                 RAW_IMAGE_URL,
                 null,
+                null,
                 null));
 
         verify(guard).validateAssignment(NORMALIZED_IMAGE_URL);

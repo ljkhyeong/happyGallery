@@ -3,11 +3,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { queryKeys } from "@/shared/api";
-import { isPerfumeClassCategory } from "@/shared/lib";
+import { type ClassSituationTagCode, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { createClass } from "./api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { ClassCategoryField } from "./ClassCategoryField";
+import { ClassSituationTagField } from "./ClassSituationTagField";
 import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
 
 interface Props {
@@ -29,6 +30,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [preparationInfo, setPreparationInfo] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
+  const [situationTags, setSituationTags] = useState<ClassSituationTagCode[]>([]);
 
   const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
     setCategoryValue(nextCategoryValue);
@@ -50,6 +52,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       imageUrl: imageUrl.trim() || undefined,
       preparationInfo: preparationInfo.trim() || undefined,
       targetAudience: targetAudience.trim() || undefined,
+      situationTags,
     }),
     onSuccess: (bookingClass) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
@@ -66,6 +69,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       setImageUrl("");
       setPreparationInfo("");
       setTargetAudience("");
+      setSituationTags([]);
     },
   });
 
@@ -199,6 +203,9 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
               onChange={(e) => setTargetAudience(e.target.value)}
             />
           </Form.Group>
+        </Col>
+        <Col xs={12}>
+          <ClassSituationTagField idPrefix="admin-class-tag" value={situationTags} onChange={setSituationTags} />
         </Col>
         <Col xs={12} className="d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div>
