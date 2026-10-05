@@ -8,6 +8,7 @@
 - 주소 검색: `RoadAddressSearchButton`이 `onSelect` 변경마다 Kakao 스크립트를 다시 불러오고 검색창을 다시 심던 문제를 `useEffectEvent`로 고쳤다. `shipping-address` 비회원 E2E가 변경 전 HEAD에서도 같은 원인으로 실패했다(스크립트 요청 2회 예상, 3회).
 - Claude Design: 디자인 시스템 "해피갤러리"(https://claude.ai/artifact/B5oN2mN457iEcFXctURTuY)를 새 방향으로 개정했다(토큰 40개, 글자 스타일 17개, 컴포넌트 9종(HomeHero·ClassCard 추가), 표지, 사진 8장). 방향 시안 캔버스 https://claude.ai/artifact/DDHozVRb6PEFs2G5q7giSY 의 "확정" 보드가 기준 시안이다. 계산값 측정 `output/playwright/redesign/computed.mjs`.
 - 검증: typecheck·lint·build, 단위 81건, E2E 전체 253건 중 252건 통과(실패 1건은 위 주소 검색, 수정 후 주소 관련 2개 파일 3회 반복 21건·`admin-content-recovery` 3건 통과), @smoke 20건. 캡처 `output/playwright/redesign/`(홈·목록·상세·예약·로그인 1280/390px, 회원 흐름 `member/`, 관리자 `admin/`, 사진 있는 작품 타일은 `mock-products.mjs`).
+- 배포: 사용자 요청으로 `main`에 직접 푸시했다(`6e9cb5a5`, CD 켜짐). Production 실행 `37329975290`에서 검증·이미지 게시·파드 교체는 성공했지만 배포 후 점검 `deploy/k3s/scripts/verify.sh`가 실패했다. 이 점검은 홈 SSR H1에 태그 없이 "해피갤러리"가 있는지 확인하는데, 새 H1에 공방 이름이 없고 `<br>`가 있었다. H1을 eyebrow 줄 "충주 계명대로 공예공방 해피갤러리"로 옮기고 큰 문구는 문단으로 바꿨다. 로컬 SSR에서 같은 정규식 통과, 홈 관련 E2E 5개 파일 20건·@smoke 20건 통과. 다시 푸시한 뒤의 배포 결과는 GitHub Actions Production 실행에서 확인한다.
 - 남은 후보: 관리자 화면은 같은 글꼴·버튼만 따르고 자체 색(청록·회색 상태 칩)은 유지했다. 원하면 관리자 상태 칩·답변 상자(`#f0f4ff` 인라인)도 초록 계열로 맞춘다.
 
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
