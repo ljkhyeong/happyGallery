@@ -83,6 +83,7 @@ async function reconnect(page: Page) {
 
 test("재조회로 문의가 바뀌어도 입력을 보존하고 최신 내용 조회가 성공할 때만 교체한다", async ({ page }, testInfo) => {
   const state = await mockInquiries(page);
+  const initialReads = state.readCount;
   await page.clock.install();
   await editInquiry(page);
   const detail = state.accounts.get(501)!.get(51)!;
@@ -90,7 +91,7 @@ test("재조회로 문의가 바뀌어도 입력을 보존하고 최신 내용 �
   detail.summary.headcount = 25;
   detail.summary.preferredSchedule = "10월 오후";
   await reconnect(page);
-  await expect.poll(() => state.readCount).toBe(2);
+  await expect.poll(() => state.readCount).toBe(initialReads + 1);
   await expect(page.getByLabel("참여 인원", { exact: true })).toHaveValue("30");
   await expect(page.getByLabel("희망 일정", { exact: true })).toHaveValue("11월 오후");
   await expect(page.getByRole("button", { name: "변경 저장", exact: true })).toBeDisabled();
@@ -176,6 +177,7 @@ test("저장·취소 실패를 같은 내용으로 재시도하고 처리 중 �
 
 test("늦게 도착한 저장 응답이 더 최신인 문의 상태를 덮어쓰지 않는다", async ({ page }) => {
   const state = await mockInquiries(page);
+  const initialReads = state.readCount;
   await page.clock.install();
   await page.clock.fastForward(31_000);
   await editInquiry(page);
@@ -189,7 +191,7 @@ test("늦게 도착한 저장 응답이 더 최신인 문의 상태를 덮어쓰
   detail.summary.preferredSchedule = "12월 확정 일정";
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await expect.poll(() => state.readCount).toBe(2);
+  await expect.poll(() => state.readCount).toBe(initialReads + 1);
   await expect(page.locator(".card.mt-4").getByText("확정", { exact: true })).toBeVisible();
   const completed = page.waitForResponse((response) => response.request().method() === "PUT");
   state.release();

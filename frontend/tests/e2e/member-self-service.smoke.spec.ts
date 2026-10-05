@@ -88,7 +88,8 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   const classes = await fetchClasses(request);
   expect(classes.length, "P8 member booking flow requires at least one class in the local DB")
     .toBeGreaterThan(0);
-  const bookingClass = classes[0]!;
+  const bookingClass = classes.find((candidate) => candidate.passEligible);
+  if (!bookingClass) throw new Error("이용권을 사용할 수 있는 클래스가 필요합니다.");
 
   const slot = await findAvailableBookingSlot(request, bookingClass.id, 6);
   const secondSlot = await findAvailableBookingSlot(
@@ -107,7 +108,7 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   await expect(page.getByRole("link", { name: "내 이용권 확인하기" })).toBeVisible();
   await page.getByRole("link", { name: "내 이용권 확인하기" }).click();
   await expect(page).toHaveURL(/\/my\/passes$/);
-  await expect(page.getByText("전체 이용권")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "이용권", level: 1 })).toBeVisible();
   const passCardText = await page.locator(".my-list-card").first().textContent();
   if (!passCardText) {
     throw new Error("Member pass list text was empty");
@@ -117,11 +118,13 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   await page.getByLabel("이용권 번호 검색").fill(String(passId));
   await expect(page.getByText(`4회권 #${passId}`)).toBeVisible();
 
-  await page.goto("/bookings/new");
+  await page.goto(`/bookings/new?passId=${passId}`);
   await page.getByLabel("클래스").selectOption(String(bookingClass.id));
   await page.locator(`[data-booking-date="${slotDate}"]`).click();
   await page.locator(`[data-slot-id="${slot.id}"]`).click();
-  await page.getByRole("button", { name: "결제 진행하기" }).click();
+  await expect(page.getByLabel("이용권 사용")).toBeChecked();
+  await expect(page.getByLabel("사용할 이용권")).toHaveValue(String(passId));
+  await page.getByRole("button", { name: "이용권으로 예약하기" }).click();
   await expect(page.getByRole("heading", { name: "결제 완료" })).toBeVisible();
   await expect(page.getByRole("link", { name: "내 예약 상세 보기" })).toBeVisible();
   await page.getByRole("link", { name: "내 예약 상세 보기" }).click();
@@ -155,10 +158,10 @@ test("P8-7 @payment 회원은 4회권 구매와 예약 생성 후 내 정보에�
   const cancelDialog = page.getByRole("dialog", { name: "예약 취소 및 환불 안내" });
   await expect(cancelDialog.getByText("사용한 이용권 1회를 돌려드립니다.")).toBeVisible();
   await cancelDialog.getByRole("button", { name: "예약 취소 및 1회 복원" }).click();
-  await expect(page.getByText("취소됨")).toBeVisible();
+  await expect(page.locator(".badge-status").filter({ hasText: "예약 취소" })).toBeVisible();
 
   await page.goto("/my/bookings");
-  await page.getByLabel("상태", { exact: true }).selectOption("취소됨");
+  await page.getByLabel("상태", { exact: true }).selectOption("CANCELED");
   await page.getByLabel("예약 검색").fill(String(bookingId));
   await expect(page.getByText(bookingClass.name)).toBeVisible();
 });
@@ -211,6 +214,14 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
         phone: "01012345678",
         phoneVerified: true,
       }),
+    });
+  });
+
+  await page.route(new RegExp(`/api/v1/me/reviews/(?:bookings|classes)/${bookingId}(?:/creation-state)?$`), async (route) => {
+    const creationState = new URL(route.request().url()).pathname.endsWith("/creation-state");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(creationState ? { status: "NOT_REVIEWABLE" } : []),
     });
   });
 

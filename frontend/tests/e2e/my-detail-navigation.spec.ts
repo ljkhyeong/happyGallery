@@ -103,7 +103,7 @@ for (const scenario of scenarios) {
     await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText(scenario.detailText, { exact: true })).toBeVisible();
-    await page.getByRole("link", { name: `내 ${scenario.title}`, exact: false }).click();
+    await page.locator(".my-back-link").click();
 
     await expect(page).toHaveURL(listUrl);
     await expect(page.getByLabel(scenario.label, { exact: true })).toHaveValue("9090");
@@ -119,7 +119,7 @@ for (const scenario of scenarios) {
     await page.goto(`/my/${scenario.path}/9090`);
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
     await expect(retry).toBeVisible();
-    const backLink = page.getByRole("link", { name: `내 ${scenario.title}`, exact: false });
+    const backLink = page.locator(".my-back-link");
     await expect(backLink).toHaveAttribute("href", `/my/${scenario.path}`);
     const failedRequests = api.detailRequests;
 

@@ -79,13 +79,14 @@ test("저장·삭제 실패는 해당 요청을 재시도하고 처리 중에는
 
 test("재연결로 최신 주소를 조회해도 입력을 유지하고 사용자가 불러올 때만 교체한다", async ({ page }, testInfo) => {
   const state = await mockAddress(page);
+  const initialReads = state.readCount;
   await page.clock.install();
   await page.getByLabel("기본 주소", { exact: true }).fill("아직 저장하지 않은 주소");
   state.accounts.set(501, { version: 5, shippingAddress: { ...originalAddress, addressLine1: "다른 화면의 주소" } });
   await page.clock.fastForward(31_000);
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
   await page.evaluate(() => window.dispatchEvent(new Event("online")));
-  await expect.poll(() => state.readCount).toBe(2);
+  await expect.poll(() => state.readCount).toBe(initialReads + 1);
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("아직 저장하지 않은 주소");
   await expect(page.getByRole("button", { name: "기본 배송지 저장", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "기본 배송지 삭제", exact: true })).toBeDisabled();

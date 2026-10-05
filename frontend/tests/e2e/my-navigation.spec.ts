@@ -20,7 +20,7 @@ test("내 정보는 관리 화면을 열 때 해당 목록을 조회하고 이�
   expect(requested).not.toContain("/api/v1/me/favorites");
   expect(requested).not.toContain("/api/v1/me/default-shipping-address");
   expect(requested).not.toContain("/api/v1/me/group-inquiries");
-  for (const [title, route] of [["내 찜", "favorites"], ["기본 배송지", "shipping-address"], ["재입고 알림 신청", "restock-alerts"], ["예약 빈자리 알림 신청", "vacancy-alerts"], ["단체 수업 문의", "group-inquiries"]]) {
+  for (const [title, route] of [["내 찜", "favorites"], ["기본 배송지", "shipping-address"], ["재입고 알림", "restock-alerts"], ["빈자리 알림", "vacancy-alerts"], ["단체 수업 문의", "group-inquiries"]]) {
     await menu.getByRole("link").filter({ hasText: title! }).click();
     await expect(page).toHaveURL(new RegExp(`/my/${route}$`));
     await expect(page.getByRole("heading", { name: title, exact: true }).first()).toBeVisible();

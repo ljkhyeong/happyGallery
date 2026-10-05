@@ -26,7 +26,7 @@ test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공
     return json([]);
   });
   await page.goto("/my/notifications");
-  await expect(page.getByRole("heading", { name: "전체 알림" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "알림함", level: 1 })).toBeVisible();
   await expect(page.getByText(orderTitle, { exact: true })).toBeVisible();
   await expect(page.getByText("예약 #701 · 가죽공예", { exact: true })).toBeVisible();
   await expect(page.getByText(/현재 예약일:/)).toContainText("2026. 09. 12.");

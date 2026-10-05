@@ -54,7 +54,7 @@ test("문의 입력이 있을 때만 이동을 확인하고 계속 작성하거�
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "문의 작성", exact: true }).click();
   await writeInquiry(page);
-  await page.getByRole("link", { name: "내 문의 목록", exact: false }).click();
+  await page.getByRole("link", { name: "1:1 문의 목록" }).click();
   const dialog = page.getByRole("dialog", { name: "문의 작성을 그만둘까요?" });
   await expect(dialog).toBeVisible();
   for (const [name, width] of [["desktop", 1280], ["mobile", 390]] as const) {
@@ -100,7 +100,7 @@ test("등록 중 입력·중복 제출·이동을 막고 실패 뒤 재제출 �
   await expect(page.getByLabel("제목", { exact: true })).toBeDisabled();
   await expect(page.getByLabel("내용", { exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "등록 중..." })).toBeDisabled();
-  await page.getByRole("link", { name: "내 문의 목록", exact: false }).click();
+  await page.getByRole("link", { name: "1:1 문의 목록" }).click();
   const pendingDialog = page.getByRole("dialog", { name: "문의 등록 중" });
   await expect(pendingDialog.getByRole("button", { name: "나가기" })).toBeDisabled();
   state.hold = false;
@@ -112,7 +112,7 @@ test("등록 중 입력·중복 제출·이동을 막고 실패 뒤 재제출 �
   state.hold = true;
   await page.getByRole("button", { name: "등록", exact: true }).click();
   await expect.poll(() => state.requests.length).toBe(2);
-  await page.getByRole("link", { name: "내 문의 목록", exact: false }).click();
+  await page.getByRole("link", { name: "1:1 문의 목록" }).click();
   await expect(pendingDialog).toBeVisible();
   state.release();
   await expect(page).toHaveURL(/\/my\/inquiries$/);
@@ -128,7 +128,7 @@ test("계정 전환 시 문의 입력·이탈 확인창을 비우고 이전 등�
   state.hold = true;
   await page.getByRole("button", { name: "등록", exact: true }).click();
   await expect.poll(() => state.requests.length).toBe(1);
-  await page.getByRole("link", { name: "내 문의 목록", exact: false }).click();
+  await page.getByRole("link", { name: "1:1 문의 목록" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   state.accountId = 502;
   await page.evaluate(() => {
