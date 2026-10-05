@@ -883,7 +883,7 @@ export interface UpdateStockThresholdRequest {
 }
 
 export type UploadImageBody = {
-  file: Blob;
+  file: Blob | File;
 };
 
 export type ListSmartStoreProductsParams = {
@@ -957,7 +957,7 @@ export const getListClassesUrl = () => {
   return `/api/v1/admin/classes`
 }
 
-export const listClasses = async ( options?: RequestInit): Promise<AdminClassResponse[]> => {
+export const listClasses = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminClassResponse[]> => {
 
   return generatedApiClient<AdminClassResponse[]>(getListClassesUrl(),
   {
@@ -978,13 +978,27 @@ export const getCreateClassUrl = () => {
   return `/api/v1/admin/classes`
 }
 
-export const createClass = async (createClassRequest: CreateClassRequest, options?: RequestInit): Promise<AdminClassResponse> => {
+export const createClass = async (createClassRequest: CreateClassRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminClassResponse> => {
 
-  return generatedApiClient<AdminClassResponse>(getCreateClassUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminClassResponse>(getCreateClassUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createClassRequest)
   }
 );}
@@ -1000,13 +1014,27 @@ export const getUpdateClassUrl = (id: number,) => {
 }
 
 export const updateClass = async (id: number,
-    updateClassRequest: UpdateClassRequest, options?: RequestInit): Promise<AdminClassResponse> => {
+    updateClassRequest: UpdateClassRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminClassResponse> => {
 
-  return generatedApiClient<AdminClassResponse>(getUpdateClassUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminClassResponse>(getUpdateClassUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateClassRequest)
   }
 );}
@@ -1022,13 +1050,27 @@ export const getChangeAdminClassStatusUrl = (id: number,) => {
 }
 
 export const changeAdminClassStatus = async (id: number,
-    updateClassStatusRequest: UpdateClassStatusRequest, options?: RequestInit): Promise<AdminClassResponse> => {
+    updateClassStatusRequest: UpdateClassStatusRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminClassResponse> => {
 
-  return generatedApiClient<AdminClassResponse>(getChangeAdminClassStatusUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminClassResponse>(getChangeAdminClassStatusUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateClassStatusRequest)
   }
 );}
@@ -1043,7 +1085,7 @@ export const getUploadImageUrl = () => {
   return `/api/v1/admin/media/images`
 }
 
-export const uploadImage = async (uploadImageBody: UploadImageBody, options?: RequestInit): Promise<ImageUploadResponse> => {
+export const uploadImage = async (uploadImageBody: UploadImageBody, options?: Parameters<typeof generatedApiClient>[1]): Promise<ImageUploadResponse> => {
     const formData = new FormData();
 formData.append(`file`, uploadImageBody.file);
 
@@ -1066,7 +1108,7 @@ export const getGetAdminImageUrl = (fileName: string,) => {
   return `/api/v1/admin/media/images/${fileName}`
 }
 
-export const getAdminImage = async (fileName: string, options?: RequestInit): Promise<Blob> => {
+export const getAdminImage = async (fileName: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<Blob> => {
 
   return generatedApiClient<Blob>(getGetAdminImageUrl(fileName),
   {
@@ -1087,7 +1129,7 @@ export const getListAllUrl = () => {
   return `/api/v1/admin/products`
 }
 
-export const listAll = async ( options?: RequestInit): Promise<ProductResponse[]> => {
+export const listAll = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductResponse[]> => {
 
   return generatedApiClient<ProductResponse[]>(getListAllUrl(),
   {
@@ -1108,13 +1150,27 @@ export const getRegisterUrl = () => {
   return `/api/v1/admin/products`
 }
 
-export const register = async (createProductRequest: CreateProductRequest, options?: RequestInit): Promise<ProductResponse> => {
+export const register = async (createProductRequest: CreateProductRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductResponse> => {
 
-  return generatedApiClient<ProductResponse>(getRegisterUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ProductResponse>(getRegisterUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createProductRequest)
   }
 );}
@@ -1136,7 +1192,7 @@ export const getListSmartStoreProductsUrl = (params?: ListSmartStoreProductsPara
   return stringifiedParams.length > 0 ? `/api/v1/admin/products/smartstore-catalog?${stringifiedParams}` : `/api/v1/admin/products/smartstore-catalog`
 }
 
-export const listSmartStoreProducts = async (params?: ListSmartStoreProductsParams, options?: RequestInit): Promise<SmartStoreProductCatalogPageResponse> => {
+export const listSmartStoreProducts = async (params?: ListSmartStoreProductsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreProductCatalogPageResponse> => {
 
   return generatedApiClient<SmartStoreProductCatalogPageResponse>(getListSmartStoreProductsUrl(params),
   {
@@ -1157,7 +1213,7 @@ export const getGetSmartStoreProductUrl = (originProductNo: number,) => {
   return `/api/v1/admin/products/smartstore-catalog/${originProductNo}`
 }
 
-export const getSmartStoreProduct = async (originProductNo: number, options?: RequestInit): Promise<SmartStoreChannelProductResponse> => {
+export const getSmartStoreProduct = async (originProductNo: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelProductResponse> => {
 
   return generatedApiClient<SmartStoreChannelProductResponse>(getGetSmartStoreProductUrl(originProductNo),
   {
@@ -1185,7 +1241,7 @@ export const getListSmartStoreInspectionProductsUrl = (params?: ListSmartStoreIn
   return stringifiedParams.length > 0 ? `/api/v1/admin/products/smartstore-inspections?${stringifiedParams}` : `/api/v1/admin/products/smartstore-inspections`
 }
 
-export const listSmartStoreInspectionProducts = async (params?: ListSmartStoreInspectionProductsParams, options?: RequestInit): Promise<SmartStoreInspectionPageResponse> => {
+export const listSmartStoreInspectionProducts = async (params?: ListSmartStoreInspectionProductsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInspectionPageResponse> => {
 
   return generatedApiClient<SmartStoreInspectionPageResponse>(getListSmartStoreInspectionProductsUrl(params),
   {
@@ -1206,7 +1262,7 @@ export const getRestoreSmartStoreInspectionProductUrl = (channelProductNo: numbe
   return `/api/v1/admin/products/smartstore-inspections/${channelProductNo}/restore`
 }
 
-export const restoreSmartStoreInspectionProduct = async (channelProductNo: number, options?: RequestInit): Promise<void> => {
+export const restoreSmartStoreInspectionProduct = async (channelProductNo: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getRestoreSmartStoreInspectionProductUrl(channelProductNo),
   {
@@ -1228,13 +1284,27 @@ export const getUpdateAdminProductUrl = (id: number,) => {
 }
 
 export const updateAdminProduct = async (id: number,
-    updateProductRequest: UpdateProductRequest, options?: RequestInit): Promise<ProductResponse> => {
+    updateProductRequest: UpdateProductRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductResponse> => {
 
-  return generatedApiClient<ProductResponse>(getUpdateAdminProductUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ProductResponse>(getUpdateAdminProductUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateProductRequest)
   }
 );}
@@ -1249,7 +1319,7 @@ export const getListInventoryAdjustmentsUrl = (id: number,) => {
   return `/api/v1/admin/products/${id}/inventory-adjustments`
 }
 
-export const listInventoryAdjustments = async (id: number, options?: RequestInit): Promise<InventoryAdjustmentResponse[]> => {
+export const listInventoryAdjustments = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<InventoryAdjustmentResponse[]> => {
 
   return generatedApiClient<InventoryAdjustmentResponse[]>(getListInventoryAdjustmentsUrl(id),
   {
@@ -1271,13 +1341,27 @@ export const getAdjustInventoryUrl = (id: number,) => {
 }
 
 export const adjustInventory = async (id: number,
-    adjustInventoryRequest: AdjustInventoryRequest, options?: RequestInit): Promise<InventoryAdjustmentResponse> => {
+    adjustInventoryRequest: AdjustInventoryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<InventoryAdjustmentResponse> => {
 
-  return generatedApiClient<InventoryAdjustmentResponse>(getAdjustInventoryUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<InventoryAdjustmentResponse>(getAdjustInventoryUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adjustInventoryRequest)
   }
 );}
@@ -1301,7 +1385,7 @@ export const getDeleteSmartStoreInventoryMappingUrl = (id: number,
 }
 
 export const deleteSmartStoreInventoryMapping = async (id: number,
-    params: DeleteSmartStoreInventoryMappingParams, options?: RequestInit): Promise<void> => {
+    params: DeleteSmartStoreInventoryMappingParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteSmartStoreInventoryMappingUrl(id,params),
   {
@@ -1322,7 +1406,7 @@ export const getGetSmartStoreInventoryMappingUrl = (id: number,) => {
   return `/api/v1/admin/products/${id}/smartstore-inventory`
 }
 
-export const getSmartStoreInventoryMapping = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+export const getSmartStoreInventoryMapping = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInventoryMappingResponse> => {
 
   return generatedApiClient<SmartStoreInventoryMappingResponse>(getGetSmartStoreInventoryMappingUrl(id),
   {
@@ -1344,13 +1428,27 @@ export const getSaveSmartStoreInventoryMappingUrl = (id: number,) => {
 }
 
 export const saveSmartStoreInventoryMapping = async (id: number,
-    saveSmartStoreInventoryMappingRequest: SaveSmartStoreInventoryMappingRequest, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+    saveSmartStoreInventoryMappingRequest: SaveSmartStoreInventoryMappingRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInventoryMappingResponse> => {
 
-  return generatedApiClient<SmartStoreInventoryMappingResponse>(getSaveSmartStoreInventoryMappingUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreInventoryMappingResponse>(getSaveSmartStoreInventoryMappingUrl(id),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(saveSmartStoreInventoryMappingRequest)
   }
 );}
@@ -1365,7 +1463,7 @@ export const getListSmartStoreInventoryMappingHistoryUrl = (id: number,) => {
   return `/api/v1/admin/products/${id}/smartstore-inventory/history`
 }
 
-export const listSmartStoreInventoryMappingHistory = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingHistoryResponse[]> => {
+export const listSmartStoreInventoryMappingHistory = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInventoryMappingHistoryResponse[]> => {
 
   return generatedApiClient<SmartStoreInventoryMappingHistoryResponse[]>(getListSmartStoreInventoryMappingHistoryUrl(id),
   {
@@ -1386,7 +1484,7 @@ export const getRetrySmartStoreInventorySyncUrl = (id: number,) => {
   return `/api/v1/admin/products/${id}/smartstore-inventory/retry`
 }
 
-export const retrySmartStoreInventorySync = async (id: number, options?: RequestInit): Promise<SmartStoreInventoryMappingResponse> => {
+export const retrySmartStoreInventorySync = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreInventoryMappingResponse> => {
 
   return generatedApiClient<SmartStoreInventoryMappingResponse>(getRetrySmartStoreInventorySyncUrl(id),
   {
@@ -1407,7 +1505,7 @@ export const getPreviewSmartStoreProductSyncUrl = (id: number,) => {
   return `/api/v1/admin/products/${id}/smartstore-product-preview`
 }
 
-export const previewSmartStoreProductSync = async (id: number, options?: RequestInit): Promise<SmartStoreProductPreviewResponse> => {
+export const previewSmartStoreProductSync = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreProductPreviewResponse> => {
 
   return generatedApiClient<SmartStoreProductPreviewResponse>(getPreviewSmartStoreProductSyncUrl(id),
   {
@@ -1429,13 +1527,27 @@ export const getApplySmartStoreProductSyncUrl = (id: number,) => {
 }
 
 export const applySmartStoreProductSync = async (id: number,
-    applySmartStoreProductRequest: ApplySmartStoreProductRequest, options?: RequestInit): Promise<void> => {
+    applySmartStoreProductRequest: ApplySmartStoreProductRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getApplySmartStoreProductSyncUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getApplySmartStoreProductSyncUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(applySmartStoreProductRequest)
   }
 );}
@@ -1451,13 +1563,27 @@ export const getChangeStatusUrl = (id: number,) => {
 }
 
 export const changeStatus = async (id: number,
-    updateProductStatusRequest: UpdateProductStatusRequest, options?: RequestInit): Promise<ProductResponse> => {
+    updateProductStatusRequest: UpdateProductStatusRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ProductResponse> => {
 
-  return generatedApiClient<ProductResponse>(getChangeStatusUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ProductResponse>(getChangeStatusUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateProductStatusRequest)
   }
 );}
@@ -1479,7 +1605,7 @@ export const getListAdminRestockDemandUrl = (params?: ListAdminRestockDemandPara
   return stringifiedParams.length > 0 ? `/api/v1/admin/restock-demand?${stringifiedParams}` : `/api/v1/admin/restock-demand`
 }
 
-export const listAdminRestockDemand = async (params?: ListAdminRestockDemandParams, options?: RequestInit): Promise<RestockDemandPageResponse> => {
+export const listAdminRestockDemand = async (params?: ListAdminRestockDemandParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<RestockDemandPageResponse> => {
 
   return generatedApiClient<RestockDemandPageResponse>(getListAdminRestockDemandUrl(params),
   {
@@ -1507,7 +1633,7 @@ export const getListSlotsUrl = (params: ListSlotsParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/slots?${stringifiedParams}` : `/api/v1/admin/slots`
 }
 
-export const listSlots = async (params: ListSlotsParams, options?: RequestInit): Promise<SlotResponse[]> => {
+export const listSlots = async (params: ListSlotsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SlotResponse[]> => {
 
   return generatedApiClient<SlotResponse[]>(getListSlotsUrl(params),
   {
@@ -1535,7 +1661,7 @@ export const getGetAdminBookingCalendarUrl = (params: GetAdminBookingCalendarPar
   return stringifiedParams.length > 0 ? `/api/v1/admin/slots/calendar?${stringifiedParams}` : `/api/v1/admin/slots/calendar`
 }
 
-export const getAdminBookingCalendar = async (params: GetAdminBookingCalendarParams, options?: RequestInit): Promise<BookingCalendarResponse> => {
+export const getAdminBookingCalendar = async (params: GetAdminBookingCalendarParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingCalendarResponse> => {
 
   return generatedApiClient<BookingCalendarResponse>(getGetAdminBookingCalendarUrl(params),
   {
@@ -1557,13 +1683,27 @@ export const getUpdateAdminBookingCalendarDayUrl = (date: string,) => {
 }
 
 export const updateAdminBookingCalendarDay = async (date: string,
-    updateBookingCalendarDayRequest: UpdateBookingCalendarDayRequest, options?: RequestInit): Promise<void> => {
+    updateBookingCalendarDayRequest: UpdateBookingCalendarDayRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateAdminBookingCalendarDayUrl(date),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateAdminBookingCalendarDayUrl(date),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateBookingCalendarDayRequest)
   }
 );}
@@ -1578,13 +1718,27 @@ export const getUpdateAdminBookingCalendarSettingsUrl = () => {
   return `/api/v1/admin/slots/calendar/settings`
 }
 
-export const updateAdminBookingCalendarSettings = async (updateBookingCalendarSettingsRequest: UpdateBookingCalendarSettingsRequest, options?: RequestInit): Promise<BookingCalendarSettingsResponse> => {
+export const updateAdminBookingCalendarSettings = async (updateBookingCalendarSettingsRequest: UpdateBookingCalendarSettingsRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingCalendarSettingsResponse> => {
 
-  return generatedApiClient<BookingCalendarSettingsResponse>(getUpdateAdminBookingCalendarSettingsUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<BookingCalendarSettingsResponse>(getUpdateAdminBookingCalendarSettingsUrl(),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateBookingCalendarSettingsRequest)
   }
 );}
@@ -1599,13 +1753,27 @@ export const getCreateAdminBookingTimeBlockUrl = () => {
   return `/api/v1/admin/slots/calendar/time-blocks`
 }
 
-export const createAdminBookingTimeBlock = async (createBookingTimeBlockRequest: CreateBookingTimeBlockRequest, options?: RequestInit): Promise<BookingTimeBlockResponse> => {
+export const createAdminBookingTimeBlock = async (createBookingTimeBlockRequest: CreateBookingTimeBlockRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<BookingTimeBlockResponse> => {
 
-  return generatedApiClient<BookingTimeBlockResponse>(getCreateAdminBookingTimeBlockUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<BookingTimeBlockResponse>(getCreateAdminBookingTimeBlockUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(createBookingTimeBlockRequest)
   }
 );}
@@ -1620,7 +1788,7 @@ export const getDeleteAdminBookingTimeBlockUrl = (id: number,) => {
   return `/api/v1/admin/slots/calendar/time-blocks/${id}`
 }
 
-export const deleteAdminBookingTimeBlock = async (id: number, options?: RequestInit): Promise<void> => {
+export const deleteAdminBookingTimeBlock = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteAdminBookingTimeBlockUrl(id),
   {
@@ -1641,7 +1809,7 @@ export const getActivateSlotUrl = (id: number,) => {
   return `/api/v1/admin/slots/${id}/activate`
 }
 
-export const activateSlot = async (id: number, options?: RequestInit): Promise<SlotResponse> => {
+export const activateSlot = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SlotResponse> => {
 
   return generatedApiClient<SlotResponse>(getActivateSlotUrl(id),
   {
@@ -1662,7 +1830,7 @@ export const getDeactivateSlotUrl = (id: number,) => {
   return `/api/v1/admin/slots/${id}/deactivate`
 }
 
-export const deactivateSlot = async (id: number, options?: RequestInit): Promise<SlotResponse> => {
+export const deactivateSlot = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SlotResponse> => {
 
   return generatedApiClient<SlotResponse>(getDeactivateSlotUrl(id),
   {
@@ -1684,13 +1852,27 @@ export const getCancelAdminSlotSessionUrl = (slotId: number,) => {
 }
 
 export const cancelAdminSlotSession = async (slotId: number,
-    adminSlotSessionCancelRequest: AdminSlotSessionCancelRequest, options?: RequestInit): Promise<AdminSlotSessionCancelResponse> => {
+    adminSlotSessionCancelRequest: AdminSlotSessionCancelRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminSlotSessionCancelResponse> => {
 
-  return generatedApiClient<AdminSlotSessionCancelResponse>(getCancelAdminSlotSessionUrl(slotId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<AdminSlotSessionCancelResponse>(getCancelAdminSlotSessionUrl(slotId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(adminSlotSessionCancelRequest)
   }
 );}
@@ -1712,7 +1894,7 @@ export const getListSmartStoreProductNoticesUrl = (params?: ListSmartStoreProduc
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-notices?${stringifiedParams}` : `/api/v1/admin/smartstore-notices`
 }
 
-export const listSmartStoreProductNotices = async (params?: ListSmartStoreProductNoticesParams, options?: RequestInit): Promise<SmartStoreNoticePageResponse> => {
+export const listSmartStoreProductNotices = async (params?: ListSmartStoreProductNoticesParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreNoticePageResponse> => {
 
   return generatedApiClient<SmartStoreNoticePageResponse>(getListSmartStoreProductNoticesUrl(params),
   {
@@ -1733,13 +1915,27 @@ export const getCreateSmartStoreProductNoticeUrl = () => {
   return `/api/v1/admin/smartstore-notices`
 }
 
-export const createSmartStoreProductNotice = async (saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: RequestInit): Promise<SmartStoreNoticeIdResponse> => {
+export const createSmartStoreProductNotice = async (saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreNoticeIdResponse> => {
 
-  return generatedApiClient<SmartStoreNoticeIdResponse>(getCreateSmartStoreProductNoticeUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreNoticeIdResponse>(getCreateSmartStoreProductNoticeUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(saveSmartStoreNoticeRequest)
   }
 );}
@@ -1754,7 +1950,7 @@ export const getDeleteSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => 
   return `/api/v1/admin/smartstore-notices/${sellerNoticeId}`
 }
 
-export const deleteSmartStoreProductNotice = async (sellerNoticeId: number, options?: RequestInit): Promise<void> => {
+export const deleteSmartStoreProductNotice = async (sellerNoticeId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getDeleteSmartStoreProductNoticeUrl(sellerNoticeId),
   {
@@ -1775,7 +1971,7 @@ export const getGetSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
   return `/api/v1/admin/smartstore-notices/${sellerNoticeId}`
 }
 
-export const getSmartStoreProductNotice = async (sellerNoticeId: number, options?: RequestInit): Promise<SmartStoreNoticeResponse> => {
+export const getSmartStoreProductNotice = async (sellerNoticeId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreNoticeResponse> => {
 
   return generatedApiClient<SmartStoreNoticeResponse>(getGetSmartStoreProductNoticeUrl(sellerNoticeId),
   {
@@ -1797,13 +1993,27 @@ export const getUpdateSmartStoreProductNoticeUrl = (sellerNoticeId: number,) => 
 }
 
 export const updateSmartStoreProductNotice = async (sellerNoticeId: number,
-    saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: RequestInit): Promise<SmartStoreNoticeIdResponse> => {
+    saveSmartStoreNoticeRequest: SaveSmartStoreNoticeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreNoticeIdResponse> => {
 
-  return generatedApiClient<SmartStoreNoticeIdResponse>(getUpdateSmartStoreProductNoticeUrl(sellerNoticeId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreNoticeIdResponse>(getUpdateSmartStoreProductNoticeUrl(sellerNoticeId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(saveSmartStoreNoticeRequest)
   }
 );}
@@ -1819,13 +2029,27 @@ export const getApplySmartStoreProductNoticeUrl = (sellerNoticeId: number,) => {
 }
 
 export const applySmartStoreProductNotice = async (sellerNoticeId: number,
-    applySmartStoreNoticeRequest: ApplySmartStoreNoticeRequest, options?: RequestInit): Promise<void> => {
+    applySmartStoreNoticeRequest: ApplySmartStoreNoticeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getApplySmartStoreProductNoticeUrl(sellerNoticeId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getApplySmartStoreProductNoticeUrl(sellerNoticeId),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(applySmartStoreNoticeRequest)
   }
 );}
@@ -1847,7 +2071,7 @@ export const getListAdminStockLevelsUrl = (params?: ListAdminStockLevelsParams,)
   return stringifiedParams.length > 0 ? `/api/v1/admin/stock-levels?${stringifiedParams}` : `/api/v1/admin/stock-levels`
 }
 
-export const listAdminStockLevels = async (params?: ListAdminStockLevelsParams, options?: RequestInit): Promise<StockLevelResponse[]> => {
+export const listAdminStockLevels = async (params?: ListAdminStockLevelsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<StockLevelResponse[]> => {
 
   return generatedApiClient<StockLevelResponse[]>(getListAdminStockLevelsUrl(params),
   {
@@ -1868,13 +2092,27 @@ export const getUpdateAdminStockThresholdUrl = () => {
   return `/api/v1/admin/stock-levels/threshold`
 }
 
-export const updateAdminStockThreshold = async (updateStockThresholdRequest: UpdateStockThresholdRequest, options?: RequestInit): Promise<void> => {
+export const updateAdminStockThreshold = async (updateStockThresholdRequest: UpdateStockThresholdRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getUpdateAdminStockThresholdUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getUpdateAdminStockThresholdUrl(),
   {
     ...options,
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(updateStockThresholdRequest)
   }
 );}

@@ -187,7 +187,7 @@ export const getListAdminOrderClaimsUrl = (params?: ListAdminOrderClaimsParams,)
   return stringifiedParams.length > 0 ? `/api/v1/admin/order-claims?${stringifiedParams}` : `/api/v1/admin/order-claims`
 }
 
-export const listAdminOrderClaims = async (params?: ListAdminOrderClaimsParams, options?: RequestInit): Promise<AdminOrderClaimPageResponse> => {
+export const listAdminOrderClaims = async (params?: ListAdminOrderClaimsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminOrderClaimPageResponse> => {
 
   return generatedApiClient<AdminOrderClaimPageResponse>(getListAdminOrderClaimsUrl(params),
   {
@@ -209,13 +209,27 @@ export const getCompleteOrderClaimExchangeUrl = (claimId: number,) => {
 }
 
 export const completeOrderClaimExchange = async (claimId: number,
-    completeOrderExchangeRequest: CompleteOrderExchangeRequest, options?: RequestInit): Promise<OrderClaimResponse> => {
+    completeOrderExchangeRequest: CompleteOrderExchangeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse> => {
 
-  return generatedApiClient<OrderClaimResponse>(getCompleteOrderClaimExchangeUrl(claimId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderClaimResponse>(getCompleteOrderClaimExchangeUrl(claimId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(completeOrderExchangeRequest)
   }
 );}
@@ -231,13 +245,27 @@ export const getResolveOrderClaimUrl = (claimId: number,) => {
 }
 
 export const resolveOrderClaim = async (claimId: number,
-    resolveOrderClaimRequest: ResolveOrderClaimRequest, options?: RequestInit): Promise<OrderClaimResponse> => {
+    resolveOrderClaimRequest: ResolveOrderClaimRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse> => {
 
-  return generatedApiClient<OrderClaimResponse>(getResolveOrderClaimUrl(claimId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderClaimResponse>(getResolveOrderClaimUrl(claimId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(resolveOrderClaimRequest)
   }
 );}
@@ -252,7 +280,7 @@ export const getListMyOrderClaimsUrl = (orderId: number,) => {
   return `/api/v1/me/orders/${orderId}/claims`
 }
 
-export const listMyOrderClaims = async (orderId: number, options?: RequestInit): Promise<OrderClaimResponse[]> => {
+export const listMyOrderClaims = async (orderId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse[]> => {
 
   return generatedApiClient<OrderClaimResponse[]>(getListMyOrderClaimsUrl(orderId),
   {
@@ -274,13 +302,27 @@ export const getRequestMyOrderClaimUrl = (orderId: number,) => {
 }
 
 export const requestMyOrderClaim = async (orderId: number,
-    orderClaimRequest: OrderClaimRequest, options?: RequestInit): Promise<OrderClaimResponse> => {
+    orderClaimRequest: OrderClaimRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse> => {
 
-  return generatedApiClient<OrderClaimResponse>(getRequestMyOrderClaimUrl(orderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderClaimResponse>(getRequestMyOrderClaimUrl(orderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(orderClaimRequest)
   }
 );}
@@ -295,7 +337,7 @@ export const getListGuestOrderClaimsUrl = (orderId: number,) => {
   return `/api/v1/orders/${orderId}/claims`
 }
 
-export const listGuestOrderClaims = async (orderId: number, options?: RequestInit): Promise<OrderClaimResponse[]> => {
+export const listGuestOrderClaims = async (orderId: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse[]> => {
 
   return generatedApiClient<OrderClaimResponse[]>(getListGuestOrderClaimsUrl(orderId),
   {
@@ -317,13 +359,27 @@ export const getRequestGuestOrderClaimUrl = (orderId: number,) => {
 }
 
 export const requestGuestOrderClaim = async (orderId: number,
-    orderClaimRequest: OrderClaimRequest, options?: RequestInit): Promise<OrderClaimResponse> => {
+    orderClaimRequest: OrderClaimRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderClaimResponse> => {
 
-  return generatedApiClient<OrderClaimResponse>(getRequestGuestOrderClaimUrl(orderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderClaimResponse>(getRequestGuestOrderClaimUrl(orderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(orderClaimRequest)
   }
 );}

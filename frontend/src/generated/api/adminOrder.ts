@@ -1154,7 +1154,7 @@ export const getListOrdersUrl = (params?: ListOrdersParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/orders?${stringifiedParams}` : `/api/v1/admin/orders`
 }
 
-export const listOrders = async (params?: ListOrdersParams, options?: RequestInit): Promise<AdminOrderPageResponse> => {
+export const listOrders = async (params?: ListOrdersParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminOrderPageResponse> => {
 
   return generatedApiClient<AdminOrderPageResponse>(getListOrdersUrl(params),
   {
@@ -1175,7 +1175,7 @@ export const getExpirePickupsUrl = () => {
   return `/api/v1/admin/orders/expire-pickups`
 }
 
-export const expirePickups = async ( options?: RequestInit): Promise<BatchResponse> => {
+export const expirePickups = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<BatchResponse> => {
 
   return generatedApiClient<BatchResponse>(getExpirePickupsUrl(),
   {
@@ -1203,7 +1203,7 @@ export const getSearchOrdersUrl = (params?: SearchOrdersParams,) => {
   return stringifiedParams.length > 0 ? `/api/v1/admin/orders/search?${stringifiedParams}` : `/api/v1/admin/orders/search`
 }
 
-export const searchOrders = async (params?: SearchOrdersParams, options?: RequestInit): Promise<AdminOrderSearchPageResponse> => {
+export const searchOrders = async (params?: SearchOrdersParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminOrderSearchPageResponse> => {
 
   return generatedApiClient<AdminOrderSearchPageResponse>(getSearchOrdersUrl(params),
   {
@@ -1224,7 +1224,7 @@ export const getApproveUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/approve`
 }
 
-export const approve = async (id: number, options?: RequestInit): Promise<void> => {
+export const approve = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getApproveUrl(id),
   {
@@ -1245,7 +1245,7 @@ export const getCancelForDelayRejectionUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/cancel-for-delay-rejection`
 }
 
-export const cancelForDelayRejection = async (id: number, options?: RequestInit): Promise<OrderDelayCancellationResponse> => {
+export const cancelForDelayRejection = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderDelayCancellationResponse> => {
 
   return generatedApiClient<OrderDelayCancellationResponse>(getCancelForDelayRejectionUrl(id),
   {
@@ -1266,7 +1266,7 @@ export const getConfirmPickupUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/complete-pickup`
 }
 
-export const confirmPickup = async (id: number, options?: RequestInit): Promise<PickupResponse> => {
+export const confirmPickup = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<PickupResponse> => {
 
   return generatedApiClient<PickupResponse>(getConfirmPickupUrl(id),
   {
@@ -1287,7 +1287,7 @@ export const getCompleteProductionUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/complete-production`
 }
 
-export const completeProduction = async (id: number, options?: RequestInit): Promise<OrderProductionResponse> => {
+export const completeProduction = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderProductionResponse> => {
 
   return generatedApiClient<OrderProductionResponse>(getCompleteProductionUrl(id),
   {
@@ -1308,7 +1308,7 @@ export const getProposeDelayUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/delay`
 }
 
-export const proposeDelay = async (id: number, options?: RequestInit): Promise<OrderProductionResponse> => {
+export const proposeDelay = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderProductionResponse> => {
 
   return generatedApiClient<OrderProductionResponse>(getProposeDelayUrl(id),
   {
@@ -1330,13 +1330,27 @@ export const getSetExpectedShipDateUrl = (id: number,) => {
 }
 
 export const setExpectedShipDate = async (id: number,
-    setExpectedShipDateRequest: SetExpectedShipDateRequest, options?: RequestInit): Promise<OrderProductionResponse> => {
+    setExpectedShipDateRequest: SetExpectedShipDateRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderProductionResponse> => {
 
-  return generatedApiClient<OrderProductionResponse>(getSetExpectedShipDateUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<OrderProductionResponse>(getSetExpectedShipDateUrl(id),
   {
     ...options,
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(setExpectedShipDateRequest)
   }
 );}
@@ -1351,7 +1365,7 @@ export const getGetFulfillmentUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/fulfillment`
 }
 
-export const getFulfillment = async (id: number, options?: RequestInit): Promise<AdminOrderFulfillmentResponse> => {
+export const getFulfillment = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminOrderFulfillmentResponse> => {
 
   return generatedApiClient<AdminOrderFulfillmentResponse>(getGetFulfillmentUrl(id),
   {
@@ -1372,7 +1386,7 @@ export const getGetOrderHistoryUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/history`
 }
 
-export const getOrderHistory = async (id: number, options?: RequestInit): Promise<AdminOrderHistoryResponse[]> => {
+export const getOrderHistory = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<AdminOrderHistoryResponse[]> => {
 
   return generatedApiClient<AdminOrderHistoryResponse[]>(getGetOrderHistoryUrl(id),
   {
@@ -1393,7 +1407,7 @@ export const getMarkDeliveredUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/mark-delivered`
 }
 
-export const markDelivered = async (id: number, options?: RequestInit): Promise<ShippingResponse> => {
+export const markDelivered = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ShippingResponse> => {
 
   return generatedApiClient<ShippingResponse>(getMarkDeliveredUrl(id),
   {
@@ -1415,13 +1429,27 @@ export const getMarkShippedUrl = (id: number,) => {
 }
 
 export const markShipped = async (id: number,
-    markShippedRequest: MarkShippedRequest, options?: RequestInit): Promise<ShippingResponse> => {
+    markShippedRequest: MarkShippedRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<ShippingResponse> => {
 
-  return generatedApiClient<ShippingResponse>(getMarkShippedUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<ShippingResponse>(getMarkShippedUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(markShippedRequest)
   }
 );}
@@ -1437,13 +1465,27 @@ export const getMarkPickupReadyUrl = (id: number,) => {
 }
 
 export const markPickupReady = async (id: number,
-    markPickupReadyRequest: MarkPickupReadyRequest, options?: RequestInit): Promise<PickupResponse> => {
+    markPickupReadyRequest: MarkPickupReadyRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<PickupResponse> => {
 
-  return generatedApiClient<PickupResponse>(getMarkPickupReadyUrl(id),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<PickupResponse>(getMarkPickupReadyUrl(id),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(markPickupReadyRequest)
   }
 );}
@@ -1458,7 +1500,7 @@ export const getPrepareShippingUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/prepare-shipping`
 }
 
-export const prepareShipping = async (id: number, options?: RequestInit): Promise<ShippingResponse> => {
+export const prepareShipping = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<ShippingResponse> => {
 
   return generatedApiClient<ShippingResponse>(getPrepareShippingUrl(id),
   {
@@ -1479,7 +1521,7 @@ export const getRefundMissedPickupUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/refund-missed-pickup`
 }
 
-export const refundMissedPickup = async (id: number, options?: RequestInit): Promise<MissedPickupRefundResponse> => {
+export const refundMissedPickup = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<MissedPickupRefundResponse> => {
 
   return generatedApiClient<MissedPickupRefundResponse>(getRefundMissedPickupUrl(id),
   {
@@ -1500,7 +1542,7 @@ export const getRejectUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/reject`
 }
 
-export const reject = async (id: number, options?: RequestInit): Promise<OrderRejectResponse> => {
+export const reject = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderRejectResponse> => {
 
   return generatedApiClient<OrderRejectResponse>(getRejectUrl(id),
   {
@@ -1521,7 +1563,7 @@ export const getResumeOrderAfterDelayUrl = (id: number,) => {
   return `/api/v1/admin/orders/${id}/resume-after-delay`
 }
 
-export const resumeOrderAfterDelay = async (id: number, options?: RequestInit): Promise<OrderProductionResponse> => {
+export const resumeOrderAfterDelay = async (id: number, options?: Parameters<typeof generatedApiClient>[1]): Promise<OrderProductionResponse> => {
 
   return generatedApiClient<OrderProductionResponse>(getResumeOrderAfterDelayUrl(id),
   {
@@ -1549,7 +1591,7 @@ export const getListSmartStoreChannelOrdersUrl = (params?: ListSmartStoreChannel
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-orders?${stringifiedParams}` : `/api/v1/admin/smartstore-orders`
 }
 
-export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannelOrdersParams, options?: RequestInit): Promise<SmartStoreChannelOrderPageResponse> => {
+export const listSmartStoreChannelOrders = async (params?: ListSmartStoreChannelOrdersParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelOrderPageResponse> => {
 
   return generatedApiClient<SmartStoreChannelOrderPageResponse>(getListSmartStoreChannelOrdersUrl(params),
   {
@@ -1577,7 +1619,7 @@ export const getListUnresolvedSmartStoreOrderActionsUrl = (params?: ListUnresolv
   return stringifiedParams.length > 0 ? `/api/v1/admin/smartstore-orders/actions/unresolved?${stringifiedParams}` : `/api/v1/admin/smartstore-orders/actions/unresolved`
 }
 
-export const listUnresolvedSmartStoreOrderActions = async (params?: ListUnresolvedSmartStoreOrderActionsParams, options?: RequestInit): Promise<SmartStoreOrderActionPageResponse> => {
+export const listUnresolvedSmartStoreOrderActions = async (params?: ListUnresolvedSmartStoreOrderActionsParams, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreOrderActionPageResponse> => {
 
   return generatedApiClient<SmartStoreOrderActionPageResponse>(getListUnresolvedSmartStoreOrderActionsUrl(params),
   {
@@ -1599,13 +1641,27 @@ export const getReconcileSmartStoreOrderActionUrl = (historyId: number,) => {
 }
 
 export const reconcileSmartStoreOrderAction = async (historyId: number,
-    reconcileSmartStoreOrderActionRequest: ReconcileSmartStoreOrderActionRequest, options?: RequestInit): Promise<SmartStoreOrderActionHistoryResponse> => {
+    reconcileSmartStoreOrderActionRequest: ReconcileSmartStoreOrderActionRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreOrderActionHistoryResponse> => {
 
-  return generatedApiClient<SmartStoreOrderActionHistoryResponse>(getReconcileSmartStoreOrderActionUrl(historyId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreOrderActionHistoryResponse>(getReconcileSmartStoreOrderActionUrl(historyId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(reconcileSmartStoreOrderActionRequest)
   }
 );}
@@ -1620,13 +1676,27 @@ export const getConfirmSmartStoreChannelOrdersUrl = () => {
   return `/api/v1/admin/smartstore-orders/confirm`
 }
 
-export const confirmSmartStoreChannelOrders = async (bulkConfirmSmartStoreOrdersRequest: BulkConfirmSmartStoreOrdersRequest, options?: RequestInit): Promise<SmartStoreOrderBulkActionResponse> => {
+export const confirmSmartStoreChannelOrders = async (bulkConfirmSmartStoreOrdersRequest: BulkConfirmSmartStoreOrdersRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreOrderBulkActionResponse> => {
 
-  return generatedApiClient<SmartStoreOrderBulkActionResponse>(getConfirmSmartStoreChannelOrdersUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreOrderBulkActionResponse>(getConfirmSmartStoreChannelOrdersUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(bulkConfirmSmartStoreOrdersRequest)
   }
 );}
@@ -1641,13 +1711,27 @@ export const getDispatchSmartStoreChannelOrdersUrl = () => {
   return `/api/v1/admin/smartstore-orders/dispatch`
 }
 
-export const dispatchSmartStoreChannelOrders = async (bulkDispatchSmartStoreOrdersRequest: BulkDispatchSmartStoreOrdersRequest, options?: RequestInit): Promise<SmartStoreOrderBulkActionResponse> => {
+export const dispatchSmartStoreChannelOrders = async (bulkDispatchSmartStoreOrdersRequest: BulkDispatchSmartStoreOrdersRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreOrderBulkActionResponse> => {
 
-  return generatedApiClient<SmartStoreOrderBulkActionResponse>(getDispatchSmartStoreChannelOrdersUrl(),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreOrderBulkActionResponse>(getDispatchSmartStoreChannelOrdersUrl(),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(bulkDispatchSmartStoreOrdersRequest)
   }
 );}
@@ -1662,7 +1746,7 @@ export const getListSmartStoreReturnDeliveryCompaniesUrl = () => {
   return `/api/v1/admin/smartstore-orders/return-delivery-companies`
 }
 
-export const listSmartStoreReturnDeliveryCompanies = async ( options?: RequestInit): Promise<SmartStoreReturnDeliveryCompanyResponse[]> => {
+export const listSmartStoreReturnDeliveryCompanies = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreReturnDeliveryCompanyResponse[]> => {
 
   return generatedApiClient<SmartStoreReturnDeliveryCompanyResponse[]>(getListSmartStoreReturnDeliveryCompaniesUrl(),
   {
@@ -1683,7 +1767,7 @@ export const getGetSmartStoreChannelOrderUrl = (productOrderId: string,) => {
   return `/api/v1/admin/smartstore-orders/${productOrderId}`
 }
 
-export const getSmartStoreChannelOrder = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreChannelOrderDetailResponse> => {
+export const getSmartStoreChannelOrder = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelOrderDetailResponse> => {
 
   return generatedApiClient<SmartStoreChannelOrderDetailResponse>(getGetSmartStoreChannelOrderUrl(productOrderId),
   {
@@ -1704,7 +1788,7 @@ export const getListSmartStoreChannelOrderActionsUrl = (productOrderId: string,)
   return `/api/v1/admin/smartstore-orders/${productOrderId}/actions`
 }
 
-export const listSmartStoreChannelOrderActions = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreOrderActionHistoryResponse[]> => {
+export const listSmartStoreChannelOrderActions = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreOrderActionHistoryResponse[]> => {
 
   return generatedApiClient<SmartStoreOrderActionHistoryResponse[]>(getListSmartStoreChannelOrderActionsUrl(productOrderId),
   {
@@ -1725,7 +1809,7 @@ export const getApproveSmartStoreCancelClaimUrl = (productOrderId: string,) => {
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/cancel/approve`
 }
 
-export const approveSmartStoreCancelClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const approveSmartStoreCancelClaim = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getApproveSmartStoreCancelClaimUrl(productOrderId),
   {
@@ -1747,13 +1831,27 @@ export const getRequestSmartStoreSellerCancelUrl = (productOrderId: string,) => 
 }
 
 export const requestSmartStoreSellerCancel = async (productOrderId: string,
-    requestSmartStoreSellerCancelRequest: RequestSmartStoreSellerCancelRequest, options?: RequestInit): Promise<void> => {
+    requestSmartStoreSellerCancelRequest: RequestSmartStoreSellerCancelRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getRequestSmartStoreSellerCancelUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getRequestSmartStoreSellerCancelUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(requestSmartStoreSellerCancelRequest)
   }
 );}
@@ -1768,7 +1866,7 @@ export const getCompleteSmartStoreExchangeCollectUrl = (productOrderId: string,)
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/collect/complete`
 }
 
-export const completeSmartStoreExchangeCollect = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const completeSmartStoreExchangeCollect = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getCompleteSmartStoreExchangeCollectUrl(productOrderId),
   {
@@ -1790,13 +1888,27 @@ export const getDispatchSmartStoreExchangeClaimUrl = (productOrderId: string,) =
 }
 
 export const dispatchSmartStoreExchangeClaim = async (productOrderId: string,
-    dispatchSmartStoreExchangeRequest: DispatchSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+    dispatchSmartStoreExchangeRequest: DispatchSmartStoreExchangeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getDispatchSmartStoreExchangeClaimUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getDispatchSmartStoreExchangeClaimUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(dispatchSmartStoreExchangeRequest)
   }
 );}
@@ -1812,13 +1924,27 @@ export const getHoldSmartStoreExchangeClaimUrl = (productOrderId: string,) => {
 }
 
 export const holdSmartStoreExchangeClaim = async (productOrderId: string,
-    holdSmartStoreExchangeRequest: HoldSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+    holdSmartStoreExchangeRequest: HoldSmartStoreExchangeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getHoldSmartStoreExchangeClaimUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getHoldSmartStoreExchangeClaimUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(holdSmartStoreExchangeRequest)
   }
 );}
@@ -1833,7 +1959,7 @@ export const getReleaseSmartStoreExchangeHoldUrl = (productOrderId: string,) => 
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/exchange/hold/release`
 }
 
-export const releaseSmartStoreExchangeHold = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const releaseSmartStoreExchangeHold = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getReleaseSmartStoreExchangeHoldUrl(productOrderId),
   {
@@ -1855,13 +1981,27 @@ export const getRejectSmartStoreExchangeClaimUrl = (productOrderId: string,) => 
 }
 
 export const rejectSmartStoreExchangeClaim = async (productOrderId: string,
-    rejectSmartStoreExchangeRequest: RejectSmartStoreExchangeRequest, options?: RequestInit): Promise<void> => {
+    rejectSmartStoreExchangeRequest: RejectSmartStoreExchangeRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getRejectSmartStoreExchangeClaimUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getRejectSmartStoreExchangeClaimUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(rejectSmartStoreExchangeRequest)
   }
 );}
@@ -1876,7 +2016,7 @@ export const getApproveSmartStoreReturnClaimUrl = (productOrderId: string,) => {
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/approve`
 }
 
-export const approveSmartStoreReturnClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const approveSmartStoreReturnClaim = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getApproveSmartStoreReturnClaimUrl(productOrderId),
   {
@@ -1898,13 +2038,27 @@ export const getHoldSmartStoreReturnClaimUrl = (productOrderId: string,) => {
 }
 
 export const holdSmartStoreReturnClaim = async (productOrderId: string,
-    holdSmartStoreReturnRequest: HoldSmartStoreReturnRequest, options?: RequestInit): Promise<void> => {
+    holdSmartStoreReturnRequest: HoldSmartStoreReturnRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getHoldSmartStoreReturnClaimUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getHoldSmartStoreReturnClaimUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(holdSmartStoreReturnRequest)
   }
 );}
@@ -1919,7 +2073,7 @@ export const getReleaseSmartStoreReturnHoldUrl = (productOrderId: string,) => {
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/hold/release`
 }
 
-export const releaseSmartStoreReturnHold = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const releaseSmartStoreReturnHold = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getReleaseSmartStoreReturnHoldUrl(productOrderId),
   {
@@ -1940,7 +2094,7 @@ export const getRejectSmartStoreReturnClaimUrl = (productOrderId: string,) => {
   return `/api/v1/admin/smartstore-orders/${productOrderId}/claims/return/reject`
 }
 
-export const rejectSmartStoreReturnClaim = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const rejectSmartStoreReturnClaim = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getRejectSmartStoreReturnClaimUrl(productOrderId),
   {
@@ -1962,13 +2116,27 @@ export const getRequestSmartStoreSellerReturnUrl = (productOrderId: string,) => 
 }
 
 export const requestSmartStoreSellerReturn = async (productOrderId: string,
-    requestSmartStoreSellerReturnRequest: RequestSmartStoreSellerReturnRequest, options?: RequestInit): Promise<void> => {
+    requestSmartStoreSellerReturnRequest: RequestSmartStoreSellerReturnRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getRequestSmartStoreSellerReturnUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getRequestSmartStoreSellerReturnUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(requestSmartStoreSellerReturnRequest)
   }
 );}
@@ -1983,7 +2151,7 @@ export const getConfirmSmartStoreChannelOrderUrl = (productOrderId: string,) => 
   return `/api/v1/admin/smartstore-orders/${productOrderId}/confirm`
 }
 
-export const confirmSmartStoreChannelOrder = async (productOrderId: string, options?: RequestInit): Promise<void> => {
+export const confirmSmartStoreChannelOrder = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
   return generatedApiClient<void>(getConfirmSmartStoreChannelOrderUrl(productOrderId),
   {
@@ -2004,7 +2172,7 @@ export const getGetCurrentSmartStoreOrderStatusUrl = (productOrderId: string,) =
   return `/api/v1/admin/smartstore-orders/${productOrderId}/current-status`
 }
 
-export const getCurrentSmartStoreOrderStatus = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreCurrentOrderStatusResponse> => {
+export const getCurrentSmartStoreOrderStatus = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreCurrentOrderStatusResponse> => {
 
   return generatedApiClient<SmartStoreCurrentOrderStatusResponse>(getGetCurrentSmartStoreOrderStatusUrl(productOrderId),
   {
@@ -2026,13 +2194,27 @@ export const getDelaySmartStoreChannelOrderUrl = (productOrderId: string,) => {
 }
 
 export const delaySmartStoreChannelOrder = async (productOrderId: string,
-    delaySmartStoreOrderRequest: DelaySmartStoreOrderRequest, options?: RequestInit): Promise<void> => {
+    delaySmartStoreOrderRequest: DelaySmartStoreOrderRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getDelaySmartStoreChannelOrderUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getDelaySmartStoreChannelOrderUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(delaySmartStoreOrderRequest)
   }
 );}
@@ -2048,13 +2230,27 @@ export const getDispatchSmartStoreChannelOrderUrl = (productOrderId: string,) =>
 }
 
 export const dispatchSmartStoreChannelOrder = async (productOrderId: string,
-    dispatchSmartStoreOrderRequest: DispatchSmartStoreOrderRequest, options?: RequestInit): Promise<void> => {
+    dispatchSmartStoreOrderRequest: DispatchSmartStoreOrderRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<void> => {
 
-  return generatedApiClient<void>(getDispatchSmartStoreChannelOrderUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<void>(getDispatchSmartStoreChannelOrderUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(dispatchSmartStoreOrderRequest)
   }
 );}
@@ -2070,13 +2266,27 @@ export const getResolveSmartStoreChannelOrderInventoryUrl = (productOrderId: str
 }
 
 export const resolveSmartStoreChannelOrderInventory = async (productOrderId: string,
-    resolveSmartStoreInventoryRequest: ResolveSmartStoreInventoryRequest, options?: RequestInit): Promise<SmartStoreChannelOrderResponse> => {
+    resolveSmartStoreInventoryRequest: ResolveSmartStoreInventoryRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelOrderResponse> => {
 
-  return generatedApiClient<SmartStoreChannelOrderResponse>(getResolveSmartStoreChannelOrderInventoryUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreChannelOrderResponse>(getResolveSmartStoreChannelOrderInventoryUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(resolveSmartStoreInventoryRequest)
   }
 );}
@@ -2091,7 +2301,7 @@ export const getRetrySmartStoreChannelOrderInventoryUrl = (productOrderId: strin
   return `/api/v1/admin/smartstore-orders/${productOrderId}/inventory/retry`
 }
 
-export const retrySmartStoreChannelOrderInventory = async (productOrderId: string, options?: RequestInit): Promise<SmartStoreChannelOrderResponse> => {
+export const retrySmartStoreChannelOrderInventory = async (productOrderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelOrderResponse> => {
 
   return generatedApiClient<SmartStoreChannelOrderResponse>(getRetrySmartStoreChannelOrderInventoryUrl(productOrderId),
   {
@@ -2113,13 +2323,27 @@ export const getResolveSmartStoreChannelOrderReturnUrl = (productOrderId: string
 }
 
 export const resolveSmartStoreChannelOrderReturn = async (productOrderId: string,
-    resolveSmartStoreReturnRequest: ResolveSmartStoreReturnRequest, options?: RequestInit): Promise<SmartStoreChannelOrderResponse> => {
+    resolveSmartStoreReturnRequest: ResolveSmartStoreReturnRequest, options?: Parameters<typeof generatedApiClient>[1]): Promise<SmartStoreChannelOrderResponse> => {
 
-  return generatedApiClient<SmartStoreChannelOrderResponse>(getResolveSmartStoreChannelOrderReturnUrl(productOrderId),
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return generatedApiClient<SmartStoreChannelOrderResponse>(getResolveSmartStoreChannelOrderReturnUrl(productOrderId),
   {
     ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(resolveSmartStoreReturnRequest)
   }
 );}

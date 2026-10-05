@@ -51,7 +51,7 @@ export const getGetPassPaymentPolicyUrl = () => {
   return `/api/v1/payments/pass-policy`
 }
 
-export const getPassPaymentPolicy = async ( options?: RequestInit): Promise<PassPaymentPolicyResponse> => {
+export const getPassPaymentPolicy = async ( options?: Parameters<typeof generatedApiClient>[1]): Promise<PassPaymentPolicyResponse> => {
 
   return generatedApiClient<PassPaymentPolicyResponse>(getGetPassPaymentPolicyUrl(),
   {
@@ -72,7 +72,7 @@ export const getGetPaymentStatusUrl = (orderId: string,) => {
   return `/api/v1/payments/${orderId}`
 }
 
-export const getPaymentStatus = async (orderId: string, options?: RequestInit): Promise<PaymentStatusResponse> => {
+export const getPaymentStatus = async (orderId: string, options?: Parameters<typeof generatedApiClient>[1]): Promise<PaymentStatusResponse> => {
 
   return generatedApiClient<PaymentStatusResponse>(getGetPaymentStatusUrl(orderId),
   {
