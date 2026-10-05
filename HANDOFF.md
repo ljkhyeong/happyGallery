@@ -1,12 +1,14 @@
 # HANDOFF
 
-## Claude Design 디자인 시스템·방향 시안 (2026-10-05, 결정 대기)
+## 디자인 재설정 적용: 레진 빛 + 작업대 초록 (2026-10-05)
 
-- 사용자가 Claude Design으로 프로젝트에 맞는 디자인 재설정을 요청했다. 코드 변경 없음(시작 SHA `82cf935e`).
-- 디자인 시스템 "해피갤러리"(비공개): https://claude.ai/artifact/B5oN2mN457iEcFXctURTuY . 현재 사이트 값을 1280px 실제 화면의 계산된 스타일로 옮겼다(색 21·글자 스타일 15·간격·모서리·그림자, 사진 6장, 정적 컴포넌트 7종: Button·PageHeader·DateChips·SlotCard·ProductCard·CheckoutSummary·StatusBadge, 표지). Pretendard는 jsDelivr 글꼴이라 파일을 담지 않았다. 추출 스크립트 `output/playwright/design-system/computed.mjs`.
-- 기준서에 표시한 대비 미달(원본 유지): 상태 배지 흰 글자+`brass` 2.55:1·흰 글자+`clay` 4.19:1, 포커스 링(점토 30%) 약 1.4:1, 입력 테두리 1.68:1. 방향과 무관하게 코드에서 고칠 후보다.
-- 방향 시안 캔버스 "해피갤러리 디자인 방향"(비공개): https://claude.ai/artifact/DDHozVRb6PEFs2G5q7giSY . 홈 첫 화면을 같은 내용으로 4안 비교: 현재(햇빛 드는 작업실), A 작업대(커팅매트 초록·자 눈금·가죽 태그, Hahmlet+IBM Plex), B 레진 빛(흰 바탕·바다색/호박색·원형 코스터 사진, 고운돋움+Gothic A1), C 공방 노트(모눈·형광펜·마스킹테이프·손글씨, Gothic A1+Gaegu). 시안 생성기 `scratchpad`의 `hg-canvas/gen.py`(세션 임시).
-- 다음 행동: 사용자가 방향을 고르면 ① 디자인 시스템 토큰·README를 그 방향으로 개정 ② `_variables.scss`·`_atelier.scss`·`_brand.scss` 토큰과 홈부터 화면별로 적용 ③ E2E 전체·캡처 확인. 현재 유지를 고르면 위 대비 미달만 코드에서 고친다.
+- 시작 SHA `d7d3507f`. 사용자가 방향 시안 3번(B 레진 빛)을 고르고, 메인 문구는 "재료를 만지고, 내 손으로 완성합니다", 상단 배경은 2번(A 작업대)의 초록, 전체 배경도 어울리게 바꾸라고 했다. 푸시 미실행.
+- 색·글꼴: 커팅매트 초록 `--hg-leaf` #2F4A3D(주색·버튼·포커스), `--hg-leaf-deep` #233A2F(선택 칩·단체수업 띠·푸터), 실 노랑 `--hg-accent` #E3B23C(채움·테두리 전용, 글자는 `--hg-accent-deep` #9A4B0C), 바탕 #F4F6F1. 토큰 이름은 그대로 두고 값만 바꿨다(`--hg-clay-tint`는 노랑 옅은 면). 제목·브랜드는 고운돋움(한 굵기라 `font-synthesis-weight: none`), 본문 Pretendard. 대비는 글자 조합 모두 4.75:1 이상으로 계산했다.
+- 화면: 홈 첫 화면은 초록 격자 띠·문구·코스터 사진 3장(`tole-materials.jpg`·`wreath-hands.jpg` 새로 받음, `SOURCES.md`)과 띠에 걸친 바로 예약 패널이다. 작품 카드는 옅은 초록 타일에 둥근 사진(품절 알약은 원 아래에 걸침), 홈 클래스 카드는 초록·노랑 옅은 면을 번갈아 쓴다. 헤더 표식(초록·노랑 겹친 원), 날짜 칩 알약, 체크아웃 패널·내 정보 카드 1.5rem 모서리, 선택 칩·단계 번호 초록으로 맞췄다. 노랑 배지·노랑 테두리 버튼은 짙은 글자로 바꿨다.
+- 주소 검색: `RoadAddressSearchButton`이 `onSelect` 변경마다 Kakao 스크립트를 다시 불러오고 검색창을 다시 심던 문제를 `useEffectEvent`로 고쳤다. `shipping-address` 비회원 E2E가 변경 전 HEAD에서도 같은 원인으로 실패했다(스크립트 요청 2회 예상, 3회).
+- Claude Design: 디자인 시스템 "해피갤러리"(https://claude.ai/artifact/B5oN2mN457iEcFXctURTuY)를 새 방향으로 개정했다(토큰 40개, 글자 스타일 17개, 컴포넌트 9종(HomeHero·ClassCard 추가), 표지, 사진 8장). 방향 시안 캔버스 https://claude.ai/artifact/DDHozVRb6PEFs2G5q7giSY 의 "확정" 보드가 기준 시안이다. 계산값 측정 `output/playwright/redesign/computed.mjs`.
+- 검증: typecheck·lint·build, 단위 81건, E2E 전체 253건 중 252건 통과(실패 1건은 위 주소 검색, 수정 후 주소 관련 2개 파일 3회 반복 21건·`admin-content-recovery` 3건 통과), @smoke 20건. 캡처 `output/playwright/redesign/`(홈·목록·상세·예약·로그인 1280/390px, 회원 흐름 `member/`, 관리자 `admin/`, 사진 있는 작품 타일은 `mock-products.mjs`).
+- 남은 후보: 관리자 화면은 같은 글꼴·버튼만 따르고 자체 색(청록·회색 상태 칩)은 유지했다. 원하면 관리자 상태 칩·답변 상자(`#f0f4ff` 인라인)도 초록 계열로 맞춘다.
 
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
 
