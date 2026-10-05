@@ -376,10 +376,11 @@ function BookingCreateContent({
             label="예약 요약"
             media={selectedClass ? <img src={classImageSrc(selectedClass)} alt="" /> : undefined}
             action={submitButton}
+            // 모바일은 요약이 화면 아래에 있으므로 고정 바에 고른 일시를 함께 보여 준다.
             mobileTotal={selectedSlot && selectedClass
               ? passPathSelected
-                ? { label: "이용권", amount: "1회 차감" }
-                : { label: "지금 결제", amount: formatKRW(depositAmount) }
+                ? { label: formatSlotStart(selectedSlot), amount: "이용권 1회" }
+                : { label: formatSlotStart(selectedSlot), amount: `${formatKRW(depositAmount)} 결제` }
               : undefined}
             note={selectedSlot && !passPathSelected
               ? "결제 전에 예약 가능 여부와 최신 가격을 다시 확인합니다. 체험 전날 23:59까지 취소하면 예약금을 환불하며, 체험 당일 00:00부터는 환불되지 않습니다."

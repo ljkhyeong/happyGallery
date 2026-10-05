@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Form, Button, Row, Col } from "react-bootstrap";
+import { CircleCheck } from "lucide-react";
 import {
   sendVerification,
   type PhoneVerificationPurpose,
@@ -21,6 +22,11 @@ interface Props {
   confirmLabel?: string;
   confirming?: boolean;
   confirmDisabled?: boolean;
+  /**
+   * 확인 뒤에도 이 칸이 화면에 남는 곳(주문서·회원가입)에서 입력이 끝났음을 알리는 문장.
+   * 넘기면 확인 버튼 자리에 "입력 완료"를 보여 주고, 인증번호를 고치거나 다시 받으면 되돌린다.
+   */
+  confirmedNote?: string;
 }
 
 export function PhoneVerificationStep({
@@ -34,11 +40,13 @@ export function PhoneVerificationStep({
   confirmLabel = "확인",
   confirming = false,
   confirmDisabled = false,
+  confirmedNote,
 }: Props) {
   const fieldId = useId();
   const [phone, setPhone] = useState(normalizePhone(initialPhone));
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const [touched, setTouched] = useState(false);
   const botProtection = useBotProtection("phone_verification");
 
@@ -51,6 +59,7 @@ export function PhoneVerificationStep({
     onMutate: () => {
       setCode("");
       setSent(false);
+      setConfirmed(false);
       onReset?.();
     },
     onSuccess: () => {
@@ -122,7 +131,13 @@ export function PhoneVerificationStep({
                 <Form.Control
                   value={code}
                   disabled={confirming}
-                  onChange={(e) => setCode(e.target.value)}
+                  onChange={(e) => {
+                    setCode(e.target.value);
+                    if (confirmed) {
+                      setConfirmed(false);
+                      onReset?.();
+                    }
+                  }}
                   placeholder="인증번호 입력"
                   inputMode="numeric"
                   autoComplete="one-time-code"
@@ -130,17 +145,30 @@ export function PhoneVerificationStep({
               </Form.Group>
             </Col>
             <Col xs={12} sm={4}>
-              <Button
-                type="button"
-                variant="primary"
-                className="w-100"
-                disabled={!normalizedCode || confirming || confirmDisabled}
-                onClick={() => onVerified(phone, normalizedCode)}
-              >
-                {confirming ? "확인 중..." : confirmLabel}
-              </Button>
+              {confirmed && !confirming ? (
+                <p className="phone-verification-done-badge">
+                  <CircleCheck size={16} aria-hidden="true" />
+                  입력 완료
+                </p>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="w-100"
+                  disabled={!normalizedCode || confirming || confirmDisabled}
+                  onClick={() => {
+                    onVerified(phone, normalizedCode);
+                    if (confirmedNote) setConfirmed(true);
+                  }}
+                >
+                  {confirming ? "확인 중..." : confirmLabel}
+                </Button>
+              )}
             </Col>
           </Row>
+          {confirmed && confirmedNote && (
+            <p className="phone-verification-done" role="status">{confirmedNote}</p>
+          )}
         </>
       )}
     </div>

@@ -102,12 +102,12 @@ export function OrderItemsForm({ state, onChange }: Props) {
                       <small className="text-muted-soft ms-2">{formatKRW(selection.unitPrice * item.qty)}</small>
                     )}
                   </span>
-                  <div className="d-flex align-items-center gap-2">
+                  <div className="d-flex align-items-center gap-2 flex-shrink-0">
                     <Form.Control type="number" size="sm" style={{ width: 80 }}
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
                       aria-label={`${product?.name ?? "상품"} ${selection?.label ?? ""} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />
-                    <Button size="sm" variant="outline-danger"
+                    <Button size="sm" variant="outline-danger" className="text-nowrap"
                       onClick={() => onChange(lines.filter((line) => line.key !== key).map((line) => line.item))}>삭제</Button>
                   </div>
                 </div>

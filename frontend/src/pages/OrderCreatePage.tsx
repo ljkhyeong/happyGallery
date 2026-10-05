@@ -96,6 +96,8 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const draftMissing = draft === null;
   const { user } = useCustomerAuth();
   const [step, setStep] = useState<Step>(user ? "items" : "verify");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [moveToNameAfterVerify, setMoveToNameAfterVerify] = useState(false);
   const [manualEntryConfirmed, setManualEntryConfirmed] = useState((draft?.value.items.length ?? 0) > 0);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
@@ -181,6 +183,15 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
     },
   });
   const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
+
+  useEffect(() => {
+    if (!moveToNameAfterVerify || step !== "items") return;
+    setMoveToNameAfterVerify(false);
+    const input = nameInputRef.current;
+    if (!input || input.value.trim()) return;
+    // 포커스까지 옮기면 다른 곳을 누를 때 빈 이름 오류가 먼저 떠서 화면이 밀리므로 보이게만 한다.
+    input.scrollIntoView({ block: "center" });
+  }, [moveToNameAfterVerify, step]);
 
   if (draftMissing) {
     return <Container className="page-container" style={{ maxWidth: 640 }}>
@@ -270,6 +281,15 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
   // 비회원은 휴대폰 인증이 첫 단계라 이후 단계 번호가 하나씩 밀린다.
   const stepOffset = user ? 0 : 1;
+  // 결제 버튼이 비활성인 이유를 화면 순서대로 알려 준다. 상품·임시 저장 오류는 각 안내가 따로 보인다.
+  const remainingSteps = [
+    !user && !code && "휴대폰 인증",
+    !normalizedName && "주문자 이름",
+    !fulfillment.fulfillmentType && "수령 방법",
+    fulfillment.fulfillmentType === "SHIPPING" && !isFulfillmentComplete(fulfillment) && "배송지 입력",
+    !consent.ready && "주문제작 조건 동의",
+    !user && !guestPolicyConsent.ready && "약관 동의",
+  ].filter((value): value is string => Boolean(value));
   const showConsentPanel = requiresMadeToOrderConsent || !user;
 
   return (
@@ -280,6 +300,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
         summary={step === "items" ? (
           <CheckoutSummary
             label="결제 요약"
+            hint={remainingSteps.length > 0 ? `남은 단계: ${remainingSteps.join(" · ")}` : undefined}
             action={(
               <Button
                 variant="primary" size="lg" className="w-100"
@@ -320,10 +341,13 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               initialPhone={phone}
               confirming={mutation.isPending}
               purpose="GUEST_ORDER"
+              confirmedNote="인증번호를 입력했습니다. 결제할 때 함께 확인합니다."
               onReset={() => setCode("")}
               onVerified={(p, c) => {
                 setPhone(p);
                 setCode(c);
+                // 처음 인증을 마치면 다음 입력인 주문자 이름이 보이게 옮긴다. 결제 실패 뒤 재인증할 때는 그대로 둔다.
+                if (step !== "items") setMoveToNameAfterVerify(true);
                 setStep("items");
               }}
             />
@@ -336,6 +360,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               <Form.Group controlId="order-create-name">
                 <Form.Label>주문자 이름</Form.Label>
                 <Form.Control
+                  ref={nameInputRef}
                   autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}

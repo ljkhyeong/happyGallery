@@ -42,15 +42,18 @@ interface SummaryProps {
   /** 모바일 하단 고정 바에 버튼과 함께 보이는 짧은 금액. 요약 본문과 겹치므로 보조기기에는 숨긴다. */
   mobileTotal?: { label: string; amount: string };
   note?: ReactNode;
+  /** 결제 버튼이 아직 눌리지 않는 이유. 모바일 하단 고정 바에도 버튼 바로 위에 보인다. */
+  hint?: ReactNode;
   className?: string;
 }
 
-export function CheckoutSummary({ label, media, children, action, mobileTotal, note, className }: SummaryProps) {
+export function CheckoutSummary({ label, media, children, action, mobileTotal, note, hint, className }: SummaryProps) {
   return (
     <aside className={className ? `checkout-summary ${className}` : "checkout-summary"} aria-label={label}>
       {media && <div className="checkout-summary-media">{media}</div>}
       <div className="checkout-summary-body">{children}</div>
       <div className="checkout-summary-action">
+        {hint && <p className="checkout-summary-hint" role="status">{hint}</p>}
         {mobileTotal && (
           <p className="checkout-summary-mobile-total" aria-hidden="true">
             {mobileTotal.label}
