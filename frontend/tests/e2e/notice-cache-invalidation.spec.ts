@@ -87,8 +87,21 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최�
       return;
     }
     if (pathname === "/api/v1/admin/qna/unanswered"
-      || pathname === "/api/v1/admin/inquiries") {
+      || pathname === "/api/v1/admin/inquiries"
+      || pathname === "/api/v1/admin/group-inquiries") {
       await fulfillJson(route, { content: [], nextCursor: null, hasMore: false });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/page") {
+      await fulfillJson(route, { content: [], totalPages: 0, totalCount: 0, page: 0, size: 50 });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-inquiries/template") {
+      await fulfillJson(route, { content: "", questionType: "", subject: "" });
+      return;
+    }
+    if (pathname === "/api/v1/admin/smartstore-notices") {
+      await fulfillJson(route, { notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0 });
       return;
     }
     if (pathname === "/api/v1/workshop") {

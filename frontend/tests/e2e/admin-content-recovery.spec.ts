@@ -99,7 +99,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
       await json(route, EMPTY_CURSOR_PAGE);
       return;
     }
-    if (pathname === "/api/v1/admin/inquiries") {
+    if (pathname === "/api/v1/admin/inquiries" || pathname === "/api/v1/admin/group-inquiries") {
       await json(route, EMPTY_CURSOR_PAGE);
       return;
     }
