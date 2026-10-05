@@ -8,6 +8,7 @@
 | --- | --- |
 | UseCase가 JPA 엔티티(`Booking`, `Slot` 등)를 컨트롤러에 직접 반환한다. 현재는 즉시 DTO로 바꾸기 때문에 안전하지만, 비동기 처리 도입 시 `LazyInitializationException` 위험이 있다. | 비동기 응답 조립이 필요해지면 UseCase 반환 타입을 record로 바꾼다. `CancelResult`, `ProductionResult` 같은 기존 패턴을 따른다. |
 | 비밀번호 해시는 롤백 호환을 위해 식별자 없는 BCrypt로 쓰고 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽는다. | 이 호환 버전을 운영·롤백 대상으로 확정한 뒤 `{bcrypt}` 형식으로 저장한다. 기존 해시는 별도 마이그레이션으로 변환한다. |
+| 운영·CI JVM은 UTC지만 로컬 `bootRun`은 PC 시간대(KST)를 쓴다. JDBC가 UTC로 저장된 DB 기본 생성 시각을 KST로 바꿔 읽어, `Z`를 붙여 내보내는 `createdAt`(공지·관리자 주문 등)이 로컬 화면에서만 9시간 늦게 보인다. | `bootRun`에 `user.timezone=UTC`를 지정해 운영과 같게 맞춘다. 로컬 JVM이 KST일 때 저장한 업무 시각은 9시간 어긋나 보이므로 로컬 DB를 다시 만든다. |
 
 <details>
 <summary>완료된 개선 기록</summary>

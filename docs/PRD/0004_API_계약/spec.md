@@ -2101,13 +2101,14 @@ GET /api/v1/notices
     "pinned": true,
     "viewCount": 18,
     "version": 0,
-    "createdAt": "2026-03-24T09:00:00"
+    "createdAt": "2026-03-24T00:00:00Z"
   }
 ]
 ```
 
 - 성공: `200 OK`
 - 정책:
+  - DB 생성 시각인 `createdAt`은 UTC 오프셋(`Z`)을 포함한다. 관리자 공지 응답도 같다.
   - pinned 우선, 같은 pinned 그룹 안에서는 `createdAt DESC`로 정렬한다.
   - 홈 위젯은 이 목록에서 최근 5건만 노출한다.
   - `200 OK` 응답에는 `ETag` 헤더를 포함한다.
@@ -2127,7 +2128,7 @@ GET /api/v1/notices/{id}
   "pinned": true,
   "viewCount": 19,
   "version": 0,
-  "createdAt": "2026-03-24T09:00:00"
+  "createdAt": "2026-03-24T00:00:00Z"
 }
 ```
 

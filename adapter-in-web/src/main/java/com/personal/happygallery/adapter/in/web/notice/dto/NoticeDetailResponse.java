@@ -2,7 +2,8 @@ package com.personal.happygallery.adapter.in.web.notice.dto;
 
 import com.personal.happygallery.domain.notice.Notice;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 public record NoticeDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
@@ -11,7 +12,7 @@ public record NoticeDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean pinned,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int viewCount,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long version,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime createdAt
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) OffsetDateTime createdAt
 ) {
     public static NoticeDetailResponse from(Notice n) {
         return new NoticeDetailResponse(
@@ -21,6 +22,6 @@ public record NoticeDetailResponse(
                 n.isPinned(),
                 n.getViewCount(),
                 n.getVersion(),
-                n.getCreatedAt());
+                n.getCreatedAt().atOffset(ZoneOffset.UTC));
     }
 }

@@ -72,6 +72,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.hamcrest.Matchers.endsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
@@ -792,7 +793,8 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("공지 목록 API를 문서화한다")
     void list_notices() throws Exception {
         mockMvc.perform(get("/api/v1/notices"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].createdAt").value(endsWith("Z")));
     }
 
     @Test
@@ -800,6 +802,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
     void get_notice() throws Exception {
         mockMvc.perform(get("/api/v1/notices/{id}", 1L))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.createdAt").value(endsWith("Z")))
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"));
     }
 
