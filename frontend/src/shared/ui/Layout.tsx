@@ -97,6 +97,18 @@ export function Layout() {
 
   return (
     <div className={`d-flex flex-column min-vh-100${showTabBar ? " has-tab-bar" : ""}`}>
+      {/* 키보드 사용자가 머리글 링크를 건너뛰고 본문으로 바로 가게 한다. */}
+      <a
+        href="#main-content"
+        className="skip-link visually-hidden-focusable"
+        onClick={(event) => {
+          // 주소에 해시를 남기지 않고 본문으로 포커스만 옮긴다(내 정보 화면은 해시로 화면을 바꾼다).
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
+        본문 바로가기
+      </a>
       <div className="app-utility-bar">
         <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
           <div className="app-utility-copy">충주 해피갤러리 · 공예 클래스와 핸드메이드 작품</div>
@@ -200,7 +212,7 @@ export function Layout() {
         </Container>
       </Navbar>
 
-      <main className="flex-grow-1">
+      <main id="main-content" tabIndex={-1} className="flex-grow-1">
         <Outlet />
       </main>
 
