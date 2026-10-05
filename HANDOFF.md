@@ -1,5 +1,14 @@
 # HANDOFF
 
+## 상황별 수업 찾기·원데이 다음 단계·모바일 하단 탭 (2026-10-05)
+
+- 시작 SHA `4d5ce356`. 솜씨당·아이디어스·프립을 참고한 시안 D·E·F(`output/design-candidates/{d,e,f}-*.html`) 중 사용자가 A+C+D 혼합을 골랐다. 같은 브랜치의 병행 세션 커밋 `391f90ac`(종료 검사)는 겹치는 파일이 없다.
+- 백엔드: 클래스 상황 태그 `DATE·WITH_KIDS·FRIENDS·GIFT`를 `classes.situation_tags`(V186, `VARCHAR(100) NULL`) 한 컬럼에 쉼표로 저장한다. OSIV가 꺼져 있어 컬렉션 테이블 대신 `ClassSituationTagsConverter`를 썼고, 무중단 배포 호환 검사 때문에 NOT NULL·기본값 없이 NULL=태그 없음으로 둔다. 관리자 수정은 `situationTags` 생략 시 유지, `[]`이면 모두 지운다. 공개·관리자 응답은 항상 배열을 준다(PRD-0004).
+- 화면: 홈 히어로에 상황별 바로가기(이번 주말·오늘 바로=실제 일정, 데이트·아이와 함께·친구 모임·선물 만들기=태그, 이용권·단체)와 원데이→이용권→자격증·창업반 3단계 안내를 넣었다. 클래스 목록은 `?tag=`·`?when=weekend|today` 칩 필터와 카드별 다음 수업을 보여 준다. 주말·오늘 조건은 브라우저에서 서울 날짜로 계산해 SSR에서는 로딩을 표시한다. 하단 탭은 둘러보기 화면(`Layout.tsx`의 `TAB_BAR_PATHS`)에서 992px 미만만 표시해 상품 상세 고정 버튼과 겹치지 않는다.
+- 검증: `AdminClassUseCaseIT` 2건(V186 nullable 변경 후 재실행), 관리자 카탈로그 REST Docs, OpenAPI·Orval 재생성, `agent-feedback.rb final 4d5ce356` 통과(호환성 검사·architectureTest·typecheck 포함). 확인용 DB에서 V186 재적용 후 NULL→`[]`, PATCH 저장값 `DATE,FRIENDS` 확인. E2E 영향 59건 중 56건, @smoke 20건, 새 `class-situation-filter.spec.ts` 통과. 1280/390px 캡처는 `output/playwright/after5`.
+- 기존 실패(수정 안 함): `history-pagination` 346, `picker-resilience` 52·158. 관리자 API를 모두 `[]`로 mock해 `AdminGroupInquirySection`·`SmartStoreInspectionSection`이 page 객체 대신 배열을 받아 화면 전체가 오류 경계로 넘어간다. 두 컴포넌트는 이번 변경과 무관하다.
+- 실행 조건: E2E는 아래 디자인 개편과 같은 환경변수로 실행했다. V186 재확인은 `127.0.0.1:8080` 점유 앱과 섞이지 않게 백엔드를 `SERVER_PORT=8081`로 띄워 확인했다. 푸시·배포 미실행.
+
 ## 스토어프런트 디자인 개편·홈 바로 예약 (2026-10-05)
 
 - 시작 SHA `619bb890f1ddfd2121be007011a1fe0f1d361f17`. 같은 브랜치에 병행 세션의 Sentry·JSON-LD·CI 커밋이 먼저 들어왔고 겹치는 파일은 없다. 색 체계를 한지·점토·잎으로 정리하고(민트·분홍·와인 섹션 색과 줄무늬 배경 제거), 주요 버튼을 먹색으로 통일했다. 히어로·작품 카드·클래스 상세의 중복 스타일을 담당 partial 하나로 모았고, container 폭은 1180px로 맞췄다. 담당 범위는 README `프론트엔드 디자인 기준`에 있다.
