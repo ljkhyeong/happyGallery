@@ -14,7 +14,7 @@ test("허용된 결제 실패 코드를 한국어 안내로 변환한다", () =>
 });
 
 test("알 수 없는 코드와 빈 코드는 일반 안내만 반환한다", () => {
-  const expected = "결제가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.";
+  const expected = "잠시 후 다시 시도해 주세요.";
   assert.equal(paymentFailureMessage("UNTRUSTED_EXTERNAL_MESSAGE"), expected);
   assert.equal(paymentFailureMessage("__proto__"), expected);
   assert.equal(paymentFailureMessage(null), expected);

@@ -10,8 +10,8 @@ const PAYMENT_FAILURE_MESSAGE_BY_CODE = new Map<string, string>([
   ["NOT_AVAILABLE_PAYMENT", "현재 사용할 수 없는 결제 수단입니다. 다른 결제 수단을 이용해 주세요."],
 ]);
 
-const DEFAULT_PAYMENT_FAILURE_MESSAGE =
-  "결제가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.";
+/** 결제 실패 화면은 "결제가 완료되지 않았습니다"를 먼저 보여 주므로 기본 안내는 다음 행동만 적는다. */
+const DEFAULT_PAYMENT_FAILURE_MESSAGE = "잠시 후 다시 시도해 주세요.";
 
 export function paymentFailureMessage(code: string | null): string {
   if (!code) return DEFAULT_PAYMENT_FAILURE_MESSAGE;

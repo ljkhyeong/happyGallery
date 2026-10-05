@@ -22,7 +22,7 @@ import {
 } from "@/features/payment";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import {
   ApiError,
   captureCustomerSession,
@@ -64,13 +64,14 @@ export function PaymentSuccessPage() {
   const navigate = useNavigate();
   const callbackPresent = params.has("paymentKey") || params.has("orderId") || params.has("amount");
   const completedOrderId = callbackPresent ? null : params.get("completedOrderId")?.trim() || null;
-  const { sessionVersion } = useCustomerAuth();
+  const { sessionVersion, isAuthenticated } = useCustomerAuth();
   const [customerSession] = useState(captureCustomerSession);
   const [error, setError] = useState<unknown>(null);
   const [result, setResult] = useState<ConfirmPaymentResponse | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
   const [statusError, setStatusError] = useState("");
   const [confirming, setConfirming] = useState(true);
+  const [missingPaymentInfo, setMissingPaymentInfo] = useState(false);
   const [sessionChanged, setSessionChanged] = useState(false);
   const calledRef = useRef(false);
   const latestStatusRequestRef = useRef(0);
@@ -180,7 +181,7 @@ export function PaymentSuccessPage() {
       throw requestError;
     }
     if (!confirmRequest && !completedOrderId) {
-      setError(new Error("결제 정보가 올바르지 않습니다."));
+      setMissingPaymentInfo(true);
       setConfirming(false);
       return;
     }
@@ -321,6 +322,27 @@ export function PaymentSuccessPage() {
     return (
       <Container className="page-container text-center" style={{ maxWidth: 540 }}>
         <LoadingSpinner text={completedOrderId ? "결제 결과를 조회하고 있습니다..." : "결제를 확정하고 있습니다..."} />
+      </Container>
+    );
+  }
+
+  // 결제창을 거치지 않고 들어왔거나 결제 정보 보관 시간이 지난 경우. 오류가 아니라 확인할 곳을 안내한다.
+  if (missingPaymentInfo) {
+    return (
+      <Container className="page-container payment-result-page">
+        <PaymentResultCard
+          tone="danger"
+          title="확인할 결제 정보가 없습니다"
+          lead="결제창을 거치지 않았거나 결과 확인 시간이 지났습니다. 결제 상태는 주문·예약 내역에서 확인할 수 있습니다."
+          actions={(
+            <>
+              {isAuthenticated
+                ? <LinkButton to="/my">내 정보에서 확인</LinkButton>
+                : <LinkButton to="/guest">비회원 조회</LinkButton>}
+              <LinkButton to="/" variant="outline-secondary">홈으로</LinkButton>
+            </>
+          )}
+        />
       </Container>
     );
   }
