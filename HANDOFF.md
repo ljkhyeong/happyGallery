@@ -34,7 +34,12 @@
 - 검증: `bash deploy/k3s/scripts/validate.sh` 통과(`/tmp/hg-cicd-validate.log`, Ruby 153건 중 Linux 전용 1건은 macOS에서 생략 후 `ruby:3.3` root 컨테이너에서 개별 통과, `/tmp/hg-cicd-linux-backup.log`). actionlint 1.7.12·ShellCheck 통과, 실제 CI Gate 실행문에 성공·실패·생략·취소 7조건 확인. `ruby tools/agent-feedback-test.rb` 14건 통과(`/tmp/hg-cicd-agent-tests.log`). 최종 검사 `ruby tools/agent-feedback.rb final 23002b0ab4d6091743587147c9659f66622e50a8` 통과(`/tmp/hg-cicd-final.log`). CI/CD diff의 의존 순서·검사 누락·중복을 검토했다. 같은 코드·설정·환경이면 재사용한다.
 - 남은 행동: 사용자 원격 푸시 요청 후 PR의 새 CI Gate와 운영 후보 이미지 검사를 확인하고 두 브랜치 보호 적용안을 반영한다. 운영 배포·새 Actions 버전의 원격 실행·새 이미지 실빌드/Trivy는 이번 세션에서 실행하지 않았다. 화면 병행 변경은 해당 작업의 검증 기록을 따른다.
 - Dependabot(2026-10-05): `codexReview`에 checkout v7·dependency-review v5·@types/node 26.4.0·trivy-action v0.36.0·upload-artifact v7이 병합돼 이 브랜치와 `.github/workflows/ci.yml`이 충돌한다. 해소할 때 이 브랜치의 SHA 고정 구조를 유지하고, Trivy만 공식 `v0.36.0` 태그 `ed142fd0673e97e23eac54620cfb913e5ce36c25`로 올린다. 3월 태그 탈취 이후 Aqua가 `v` 접두 태그로 재발행해서 `0.36.0`이 아니라 `v0.36.0`이다.
-- 남은 Dependabot PR(미병합): #126 gradle/actions v6은 캐시 구성요소의 상용 이용약관 동의가 필요해 사용자 결정 대기. #158 프론트 묶음은 orval 8.39가 취약한 undici 7.29.0을 끌어와 `npm audit` 실패. #120 Gradle 묶음은 springdoc 3.1.1로 OpenAPI 산출물이 바뀌고 Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요. #122 logstash-logback-encoder 9는 Jackson 3 전환 필요. #127 TypeScript 7은 typescript-eslint 범위 밖. #128 vite 8은 1개월 전 기준 CI라 재실행 필요. #156 Node 25는 2026-06-01 지원 종료라 24 LTS로 가야 한다.
+- Dependabot 후속: #126(gradle/actions v6)은 사용자 결정으로 v5 유지, `@dependabot ignore this major version`으로 닫았다. #156(Node 25)도 같은 명령으로 닫았고, 홀수 Node major 제외 규칙을 `.github/dependabot.yml`에 넣었다(`d314d7e7`, Dependabot은 기본 브랜치 설정을 읽으므로 main 반영 후 적용).
+- #158 진행 중: PR 브랜치에 lockfile 보안 패치(`8a9b2453`, @scalar/openapi-parser 0.29.10으로 undici 7.29.1, brace-expansion 5.0.12)와 orval 8.39 생성 클라이언트 재생성(`eedeba2e`, 명세 변경 없음)을 push했다. CI `37254764346`은 Container Security만 실패했다. 원인은 이 PR과 무관한 백엔드 JAR의 Jackson 2.21.4·3.1.4 고위험 CVE다.
+- #159(`codex/work-20261005-jackson-security` → codexReview): jackson-2-bom 2.21.7·jackson-bom 3.1.7 고정. 같은 3줄을 이 브랜치에도 동일하게 커밋했다(`0796c4c5`). 순서: #159 CI 통과 후 병합 → #158 브랜치에 codexReview를 병합해 CI 재실행 → 통과 시 병합 → #128에 `@dependabot rebase` 후 CI 확인.
+- `main`(jackson 2.21.6·3.1.6)도 신규 CVE 4건에 해당한다. `codex/work-security-*` → main 보안 PR이 필요하며 병합 시 운영 배포가 진행되니 사용자 확인 후 진행한다.
+- #158 병합 후 이 브랜치를 codexReview와 합치면 `frontend/package-lock.json`과 `src/generated/api`가 충돌한다. 이 브랜치 쪽을 택한 뒤 `npm install`과 `npm run api:generate`를 orval 8.39로 다시 실행한다.
+- 미병합 유지: #120 Gradle 묶음(springdoc 3.1.1로 OpenAPI 산출물이 바뀌고, Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요), #122 logstash-logback-encoder 9(Jackson 3 전환 필요), #127 TypeScript 7(typescript-eslint 범위 밖).
 
 ## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
 
