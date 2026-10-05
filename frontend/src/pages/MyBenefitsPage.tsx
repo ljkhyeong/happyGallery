@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge, Button, Card, Col, Container, Row } from "react-bootstrap";
-import { Link } from "react-router";
+import { Badge, Button, Card, Col, Row } from "react-bootstrap";
 import {
   claimCoupon,
   fetchClaimableCoupons,
@@ -9,14 +8,14 @@ import {
 } from "@/features/coupon/api";
 import { couponDiscountLabel } from "@/features/coupon/presentation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
+import { myNavLabel } from "@/features/my/myNavigation";
 import {
   fetchMyRewardWallet,
   type RewardHistoryResponse,
 } from "@/features/reward/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, useToast, PageHeader } from "@/shared/ui";
 
 const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
   AVAILABLE: { label: "사용 가능", bg: "success" },
@@ -45,7 +44,7 @@ export function MyBenefitsPage() {
 function MyBenefitsContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const couponsQuery = useQuery({
     queryKey: queryKeys.member.coupons,
     queryFn: ({ signal }) => fetchMyCoupons(signal),
@@ -75,36 +74,17 @@ function MyBenefitsContent() {
     ),
   });
 
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 760 }}>
-        <MyAuthGateCard
-          title="로그인이 필요합니다"
-          description="로그인하면 내 쿠폰과 적립금을 확인할 수 있습니다."
-        />
-      </Container>
-    );
-  }
-
   const coupons = couponsQuery.data ?? [];
   const availableCoupons = coupons.filter((coupon) => coupon.status === "AVAILABLE");
   const wallet = rewardsQuery.data;
 
   return (
-    <Container className="page-container" style={{ maxWidth: 820 }}>
-      <div className="my-detail-header mb-4">
-        <Link to="/my" className="text-decoration-none small d-inline-block mb-3">
-          &larr; 내 정보
-        </Link>
-        <div className="my-section-kicker mb-2">내 정보</div>
-        <h4 className="mb-2">쿠폰·적립금</h4>
-        <p className="text-muted-soft small mb-0">
-          보유 쿠폰과 적립금 내역을 확인하세요.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        kicker="My page"
+        title={myNavLabel("/my/benefits")}
+        description="보유 쿠폰과 적립금 내역을 확인하세요."
+      />
 
       <section className="mb-5" aria-labelledby="reward-wallet-heading">
         <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
@@ -249,6 +229,6 @@ function MyBenefitsContent() {
           );
         })}
       </section>
-    </Container>
+    </>
   );
 }

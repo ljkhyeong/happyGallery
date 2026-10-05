@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { Container, Badge } from "react-bootstrap";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { GuestClaimModal } from "@/features/customer-claim/GuestClaimModal";
 import { AccountWithdrawalModal } from "@/features/customer-auth/AccountWithdrawalModal";
@@ -14,8 +13,6 @@ import {
   fetchRecentMyOrders,
   fetchRecentMyPasses,
 } from "@/features/my/api";
-import { MyManagementLinks } from "@/features/my/MyManagementLinks";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyDashboardHero } from "@/features/my/MyDashboardHero";
 import { MyStatsRow } from "@/features/my/MyStatsRow";
 import { MyClaimCard } from "@/features/my/MyClaimCard";
@@ -23,21 +20,12 @@ import { MyAccountCard } from "@/features/my/MyAccountCard";
 import { MyOrdersSection } from "@/features/my/MyOrdersSection";
 import { MyBookingsSection } from "@/features/my/MyBookingsSection";
 import { getPassFilterKey } from "@/features/my/listUtils";
-import { CustomerSessionChangedError, queryKeys } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
 import { parseApiDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyPage() {
   const { sessionVersion } = useCustomerAuth();
-  const { hash } = useLocation();
-  const movedSection: Record<string, string> = {
-    "#my-favorites": "/my/favorites",
-    "#my-default-shipping-address": "/my/shipping-address",
-    "#my-restock-alerts": "/my/restock-alerts",
-    "#my-vacancy-alerts": "/my/vacancy-alerts",
-    "#my-group-inquiries": "/my/group-inquiries",
-  };
-  if (movedSection[hash]) return <Navigate to={movedSection[hash]} replace />;
   return <MyPageContent key={sessionVersion} />;
 }
 
@@ -55,8 +43,7 @@ function MyPageContent() {
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
   const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading, logout, withdraw, refresh } = useCustomerAuth();
-  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, isAuthenticated, withdraw, refresh } = useCustomerAuth();
   const toast = useToast();
 
   const {
@@ -213,21 +200,6 @@ function MyPageContent() {
     setSearchParams(nextSearchParams, { replace: true });
   }, [isAuthenticated, searchParams, setSearchParams]);
 
-  if (authLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
-
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 760 }}>
-        <Badge bg="light" text="dark" className="mb-3">내 정보</Badge>
-        <MyAuthGateCard
-          title="로그인하고 주문, 예약, 이용권을 한 곳에서 관리하세요"
-          description="로그인하면 추가 휴대폰 인증 없이 주문·예약·이용권과 쿠폰·적립금을 확인할 수 있습니다."
-          showGuestLinks
-        />
-      </Container>
-    );
-  }
-
   const handleOpenClaim = (source: string) => {
     if (!user?.phone) {
       setPhoneOnboardingHandled(false);
@@ -247,30 +219,9 @@ function MyPageContent() {
     }
   };
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await logout();
-      navigate("/");
-    } catch (error) {
-      if (error instanceof CustomerSessionChangedError) return;
-      toast.show(
-        "로그아웃 여부를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-        "danger",
-      );
-    } finally {
-      setLoggingOut(false);
-    }
-  };
-
   return (
-    <Container className="page-container" style={{ maxWidth: 720 }}>
-      <MyDashboardHero
-        user={user!}
-        nextBooking={nextBooking}
-        onLogout={handleLogout}
-        loggingOut={loggingOut}
-      />
+    <>
+      <MyDashboardHero user={user!} nextBooking={nextBooking} />
 
       {orderCount !== undefined
         && bookingCount !== undefined
@@ -288,7 +239,23 @@ function MyPageContent() {
 
       {passesLoading && <LoadingSpinner text="이용권 현황을 확인하고 있습니다" />}
       <ErrorAlert error={passesError} onRetry={() => { void refetchPasses(); }} retrying={passesFetching} />
-      <MyManagementLinks />
+
+      <div className="my-recent-grid">
+        <MyBookingsSection
+          bookings={bookings}
+          isLoading={bookingsLoading}
+          error={bookingsError}
+          isFetching={bookingsFetching}
+          onRetry={() => void refetchBookings()}
+        />
+        <MyOrdersSection
+          orders={orders}
+          isLoading={ordersLoading}
+          error={ordersError}
+          isFetching={ordersFetching}
+          onRetry={() => void refetchOrders()}
+        />
+      </div>
 
       <MyClaimCard
         user={user!}
@@ -310,24 +277,6 @@ function MyPageContent() {
           setShowEmailRegistration(true);
         }}
         onWithdraw={() => setShowWithdrawal(true)}
-      />
-
-      <MyOrdersSection
-        orders={orders}
-        previewSize={1}
-        isLoading={ordersLoading}
-        error={ordersError}
-        isFetching={ordersFetching}
-        onRetry={() => void refetchOrders()}
-      />
-
-      <MyBookingsSection
-        bookings={bookings}
-        previewSize={1}
-        isLoading={bookingsLoading}
-        error={bookingsError}
-        isFetching={bookingsFetching}
-        onRetry={() => void refetchBookings()}
       />
 
       {showClaimModal && user!.phone && (
@@ -385,6 +334,6 @@ function MyPageContent() {
           }
         }}
       />
-    </Container>
+    </>
   );
 }

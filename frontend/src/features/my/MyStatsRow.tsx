@@ -1,6 +1,6 @@
-import { Card, Col, Row } from "react-bootstrap";
+import { Link } from "react-router";
+import { formatDate } from "@/shared/lib";
 import type { MyBookingSummary, MyOrderSummary } from "./api";
-import { formatDateTime } from "@/shared/lib";
 
 interface Props {
   orderCount: number;
@@ -11,6 +11,7 @@ interface Props {
   nextBooking: MyBookingSummary | undefined;
 }
 
+/** 각 숫자는 해당 내역 화면으로 이어진다. 숫자는 최근 조회분 기준이라 '최근'으로 표시한다. */
 export function MyStatsRow({
   orderCount,
   bookingCount,
@@ -19,47 +20,36 @@ export function MyStatsRow({
   latestOrder,
   nextBooking,
 }: Props) {
+  const tiles = [
+    {
+      to: "/my/bookings",
+      label: "최근 예약",
+      value: `${bookingCount}건`,
+      hint: nextBooking ? `다음 수업 ${formatDate(nextBooking.startAt)}` : "예정된 수업 없음",
+    },
+    {
+      to: "/my/orders",
+      label: "최근 주문",
+      value: `${orderCount}건`,
+      hint: latestOrder ? `최근 주문 ${formatDate(latestOrder.createdAt)}` : "주문 내역 없음",
+    },
+    {
+      to: "/my/passes",
+      label: "이용권 잔여",
+      value: `${remainingCredits}회`,
+      hint: activePassCount > 0 ? `사용 가능한 이용권 ${activePassCount}건` : "사용 가능한 이용권 없음",
+    },
+  ];
+
   return (
-    <Row className="g-3 mb-4">
-      <Col md={4}>
-        <Card className="my-stat-card h-100 border-0">
-          <Card.Body>
-            <div className="my-section-kicker mb-2">주문</div>
-            <div className="my-stat-value">{orderCount}</div>
-            <div className="text-muted-soft small">
-              {latestOrder
-                ? `조회된 주문 ${orderCount}건 · 최근 주문 ${formatDateTime(latestOrder.createdAt)}`
-                : `조회된 주문 ${orderCount}건`}
-            </div>
-          </Card.Body>
-        </Card>
-      </Col>
-      <Col md={4}>
-        <Card className="my-stat-card h-100 border-0">
-          <Card.Body>
-            <div className="my-section-kicker mb-2">예약</div>
-            <div className="my-stat-value">{bookingCount}</div>
-            <div className="text-muted-soft small">
-              {nextBooking
-                ? `조회된 예약 ${bookingCount}건 · 다음 일정 ${formatDateTime(nextBooking.startAt)}`
-                : `조회된 예약 ${bookingCount}건 · 예정된 예약 없음`}
-            </div>
-          </Card.Body>
-        </Card>
-      </Col>
-      <Col md={4}>
-        <Card className="my-stat-card h-100 border-0">
-          <Card.Body>
-            <div className="my-section-kicker mb-2">이용권 잔여 횟수</div>
-            <div className="my-stat-value">{remainingCredits}</div>
-            <div className="text-muted-soft small">
-              {activePassCount > 0
-                ? `사용 가능한 이용권 ${activePassCount}건의 남은 횟수`
-                : "사용 가능한 이용권이 없습니다."}
-            </div>
-          </Card.Body>
-        </Card>
-      </Col>
-    </Row>
+    <div className="my-stat-row">
+      {tiles.map((tile) => (
+        <Link key={tile.to} to={tile.to} className="my-stat-tile">
+          <span className="my-stat-label">{tile.label}</span>
+          <strong className="my-stat-value">{tile.value}</strong>
+          <span className="my-stat-hint">{tile.hint}</span>
+        </Link>
+      ))}
+    </div>
   );
 }

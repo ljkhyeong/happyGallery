@@ -1,66 +1,53 @@
-import { LinkButton } from "@/shared/ui/LinkButton";
-import { Badge, Button, Card } from "react-bootstrap";
+import { Badge } from "react-bootstrap";
+import { Link } from "react-router";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
-import type { MyBookingSummary } from "./api";
 import { formatDateTime } from "@/shared/lib";
+import { LinkButton } from "@/shared/ui/LinkButton";
+import type { MyBookingSummary } from "./api";
 
 interface Props {
   user: CustomerUser;
   nextBooking: MyBookingSummary | undefined;
-  onLogout: () => void;
-  loggingOut: boolean;
 }
 
-export function MyDashboardHero({ user, nextBooking, onLogout, loggingOut }: Props) {
+/** 인사·계정 상태와 다음 예약을 한 줄에 둔다. 메뉴·로그아웃은 MyShell이 맡는다. */
+export function MyDashboardHero({ user, nextBooking }: Props) {
   return (
-    <Card className="my-dashboard-hero mb-4 border-0">
-      <Card.Body>
-        <div className="d-flex flex-column flex-lg-row justify-content-between gap-4">
-          <div className="flex-grow-1">
-            <div className="my-section-kicker mb-2">내 정보</div>
-            <h3 className="mb-2">{user.name}님, 다시 오셨네요</h3>
-            <p className="text-muted-soft mb-3">
-              주문·예약 내역과 이용권·쿠폰·적립금을 확인하세요.
-            </p>
-            <div className="d-flex flex-wrap gap-2 align-items-center mb-3">
-              <Badge bg={user.phoneVerified ? "success" : "secondary"}>
-                {user.phoneVerified
-                  ? "휴대폰 인증 완료"
-                  : user.phone
-                    ? "휴대폰 재확인 필요"
-                    : "휴대폰 등록 필요"}
-              </Badge>
-              <span className="text-muted-soft small">{user.email}</span>
-              {user.phone && <span className="text-muted-soft small">{user.phone}</span>}
-            </div>
-            {nextBooking && (
-              <div className="my-dashboard-note">
-                다음 예약: <strong>{nextBooking.className}</strong> · {formatDateTime(nextBooking.startAt)}
-              </div>
-            )}
-          </div>
-          <div className="d-flex flex-wrap align-content-start gap-2">
-            <LinkButton to="/products" variant="dark" size="sm">
-              상품 보러가기
-            </LinkButton>
-            <LinkButton to="/bookings/new" variant="outline-primary" size="sm">
-              체험 예약
-            </LinkButton>
-            <LinkButton to="/passes/purchase" variant="outline-primary" size="sm">
-              4회권 구매
-            </LinkButton>
-            <LinkButton to="/my/benefits" variant="outline-primary" size="sm">
-              쿠폰·적립금
-            </LinkButton>
-            <LinkButton to="/my/reviews" variant="outline-primary" size="sm">
-              내 후기
-            </LinkButton>
-            <Button variant="outline-secondary" size="sm" onClick={onLogout} disabled={loggingOut}>
-              {loggingOut ? "로그아웃 중..." : "로그아웃"}
-            </Button>
-          </div>
+    <section className="my-dashboard-hero" aria-labelledby="my-dashboard-title">
+      <div className="my-dashboard-hello">
+        <p className="store-section-kicker">My page</p>
+        <h1 id="my-dashboard-title">{user.name}님, 다시 오셨네요</h1>
+        <div className="my-dashboard-meta">
+          <Badge bg={user.phoneVerified ? "success" : "secondary"}>
+            {user.phoneVerified
+              ? "휴대폰 인증 완료"
+              : user.phone
+                ? "휴대폰 재확인 필요"
+                : "휴대폰 등록 필요"}
+          </Badge>
+          <span>{user.email}</span>
+          {user.phone && <span>{user.phone}</span>}
         </div>
-      </Card.Body>
-    </Card>
+        <div className="my-dashboard-actions">
+          <LinkButton to="/bookings/new" variant="primary" size="sm">체험 예약</LinkButton>
+          <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
+        </div>
+      </div>
+
+      {nextBooking ? (
+        <Link to={`/my/bookings/${nextBooking.bookingId}`} className="my-next-booking">
+          <span className="my-next-booking-label">다음 예약</span>
+          <strong>{nextBooking.className}</strong>
+          <span>{formatDateTime(nextBooking.startAt)} · {nextBooking.participantCount}명</span>
+          <span className="my-next-booking-link">예약 상세 보기 →</span>
+        </Link>
+      ) : (
+        <div className="my-next-booking is-empty">
+          <span className="my-next-booking-label">다음 예약</span>
+          <strong>예정된 수업이 없어요</strong>
+          <Link to="/classes" className="my-next-booking-link">수업 둘러보기 →</Link>
+        </div>
+      )}
+    </section>
   );
 }

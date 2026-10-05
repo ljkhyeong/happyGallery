@@ -1,11 +1,11 @@
 import { useId, useRef, useState } from "react";
-import { Container, Card, Form, Button, Modal } from "react-bootstrap";
+import { Card, Form, Button, Modal } from "react-bootstrap";
 import { useNavigate, useBlocker, useBeforeUnload, Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createInquiry } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
-import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { ErrorAlert, PageHeader, useToast } from "@/shared/ui";
+import { myNavLabel } from "@/features/my/myNavigation";
 import {
   captureCustomerSession,
   queryKeys,
@@ -28,8 +28,7 @@ function MyInquiryCreateContent() {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
-  const loginHref = buildAuthPageHref("/login", { redirectTo: "/my/inquiries/new" });
+  const { isAuthenticated } = useCustomerAuth();
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -61,28 +60,18 @@ function MyInquiryCreateContent() {
     onSettled: () => { submission.current.pending = false; },
   });
 
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container">
-        <Card className="text-center p-4">
-          <p>로그인이 필요합니다.</p>
-          <Link to={loginHref}>로그인</Link>
-        </Card>
-      </Container>
-    );
-  }
-
   const canSubmit = title.trim().length > 0 && content.trim().length > 0;
 
   return (
-    <Container className="page-container" style={{ maxWidth: 640 }}>
-      <h4 className="mb-3">1:1 문의 작성</h4>
+    <>
+      <Link to="/my/inquiries" className="my-back-link">&larr; {myNavLabel("/my/inquiries")} 목록</Link>
+      <PageHeader
+        kicker="My page"
+        title="1:1 문의 작성"
+        description="답변은 알림과 1:1 문의 목록에서 확인할 수 있습니다."
+      />
 
-      <Card>
+      <Card className="my-form-card">
         <Card.Body>
           <Form onSubmit={(e) => {
             e.preventDefault();
@@ -135,10 +124,6 @@ function MyInquiryCreateContent() {
         </Card.Body>
       </Card>
 
-      <div className="mt-3">
-        <Link to="/my/inquiries" className="text-decoration-none">&larr; 내 문의 목록</Link>
-      </div>
-
       <Modal show={blocker.state === "blocked"} onHide={() => blocker.reset?.()}
         aria-labelledby={leaveTitleId} centered>
         <Modal.Header closeButton>
@@ -158,6 +143,6 @@ function MyInquiryCreateContent() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </Container>
+    </>
   );
 }

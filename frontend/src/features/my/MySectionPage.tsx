@@ -1,23 +1,17 @@
 import type { ReactNode } from "react";
-import { Container } from "react-bootstrap";
-import { Link } from "react-router";
-import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { MyAuthGateCard } from "./MyAuthGateCard";
-import { LoadingSpinner } from "@/shared/ui";
+import { PageHeader } from "@/shared/ui";
+import { myNavLabel } from "./myNavigation";
 
-export function MySectionPage({ title, children }: { title: string; children: ReactNode }) {
-  const { isAuthenticated, isLoading, sessionVersion } = useCustomerAuth();
+/** 로그인 확인과 메뉴는 MyShell이 맡고, 이 컴포넌트는 메뉴와 같은 제목의 머리만 붙인다. */
+export function MySectionPage({ path, description, children }: {
+  path: string;
+  description?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <Container className="page-container" style={{ maxWidth: 720 }}>
-      {isLoading ? <LoadingSpinner /> : !isAuthenticated ? (
-        <MyAuthGateCard title="로그인이 필요합니다" description={`${title}은 로그인 후 확인할 수 있습니다.`} />
-      ) : (
-        <div key={sessionVersion}>
-          <Link to="/my" className="text-decoration-none small">← 내 정보</Link>
-          <h1 className="h4 mt-3 mb-4">{title}</h1>
-          {children}
-        </div>
-      )}
-    </Container>
+    <>
+      <PageHeader kicker="My page" title={myNavLabel(path)} description={description} />
+      {children}
+    </>
   );
 }

@@ -9,7 +9,7 @@ import { formatDateTime, NOTIFICATION_EVENT_LABEL } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function MyNotificationsPage() {
-  return <MySectionPage title="전체 알림"><NotificationInbox /></MySectionPage>;
+  return <MySectionPage path="/my/notifications" description="예약·주문·이용권 소식을 모아 봅니다."><NotificationInbox /></MySectionPage>;
 }
 
 function NotificationInbox() {

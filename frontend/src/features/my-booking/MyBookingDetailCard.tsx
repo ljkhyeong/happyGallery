@@ -1,6 +1,5 @@
-import { Card, Row, Col } from "react-bootstrap";
 import { StatusBadge } from "@/shared/ui";
-import { BOOKING_BALANCE_STATUS_LABEL, formatDateTime, formatKRW } from "@/shared/lib";
+import { BOOKING_BALANCE_STATUS_LABEL, formatDateTime, formatKRW, formatTime } from "@/shared/lib";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { AddBookingToCalendarButton } from "@/features/booking-manage/AddBookingToCalendarButton";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
@@ -11,60 +10,51 @@ interface Props {
 }
 
 export function MyBookingDetailCard({ booking }: Props) {
+  // 이용권 예약은 예약금·잔금이 없으므로 결제 방식만 보여 준다.
+  const rows = [
+    { label: "예약 인원", value: `${booking.participantCount}명` },
+    { label: "결제 방식", value: booking.passBooking ? "이용권 사용" : "예약금 결제" },
+    ...(booking.passBooking ? [] : [
+      { label: "예약금", value: formatKRW(booking.depositAmount) },
+      { label: "현장 잔금", value: formatKRW(booking.balanceAmount) },
+      { label: "잔금 상태", value: BOOKING_BALANCE_STATUS_LABEL[booking.balanceStatus] ?? "확인 필요" },
+    ]),
+  ];
+
   return (
-    <Card>
-      <Card.Header className="d-flex justify-content-between align-items-center">
+    <article className="my-detail-card">
+      <header className="my-detail-card-head">
         <span>예약 #{booking.bookingId}</span>
         <StatusBadge status={booking.status} />
-      </Card.Header>
-      <Card.Body>
-        <Row className="g-3">
-          <Col xs={12}>
-            <small className="text-muted-soft d-block">클래스</small>
-            <span>{booking.className}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">시작</small>
-            <span>{formatDateTime(booking.startAt)}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">종료</small>
-            <span>{formatDateTime(booking.endAt)}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">예약 인원</small>
-            <span>{booking.participantCount}명</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">예약금</small>
-            <span>{formatKRW(booking.depositAmount)}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">잔금</small>
-            <span>{formatKRW(booking.balanceAmount)}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">잔금 상태</small>
-            <span>{BOOKING_BALANCE_STATUS_LABEL[booking.balanceStatus] ?? "확인 필요"}</span>
-          </Col>
-          <Col xs={6}>
-            <small className="text-muted-soft d-block">결제 방식</small>
-            <span>{booking.passBooking ? "이용권 사용" : "예약금 결제"}</span>
-          </Col>
-        </Row>
-        <div className="mt-3">
-          <AddBookingToCalendarButton
-            className={booking.className}
-            startAt={booking.startAt}
-            endAt={booking.endAt}
-            status={booking.status}
-          />
-        </div>
-        <RefundProgressAlert refund={booking.refund} />
-        <div className="mt-4">
-          <WorkshopVisitInfo compact />
-        </div>
-      </Card.Body>
-    </Card>
+      </header>
+      <div className="my-detail-card-hero">
+        <h2>{booking.className}</h2>
+        <p>
+          {formatDateTime(booking.startAt)} ~ {booking.endAt.slice(0, 10) === booking.startAt.slice(0, 10)
+            ? formatTime(booking.endAt)
+            : formatDateTime(booking.endAt)}
+        </p>
+      </div>
+      <dl className="my-detail-rows">
+        {rows.map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="my-detail-card-actions">
+        <AddBookingToCalendarButton
+          className={booking.className}
+          startAt={booking.startAt}
+          endAt={booking.endAt}
+          status={booking.status}
+        />
+      </div>
+      <RefundProgressAlert refund={booking.refund} />
+      <div className="my-detail-card-visit">
+        <WorkshopVisitInfo compact />
+      </div>
+    </article>
   );
 }

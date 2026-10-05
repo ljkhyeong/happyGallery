@@ -3,16 +3,16 @@ import { ListMyOrdersPageSort, ListMyOrdersPageStatus } from "@/generated/api/cu
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Button, Card, Col, Container, Row } from "react-bootstrap";
+import { Button, Card, Col, Row } from "react-bootstrap";
 import { Link, useLocation } from "react-router";
 import { fetchMyOrdersPage } from "@/features/my/api";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
+import { myNavLabel } from "@/features/my/myNavigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys } from "@/shared/api";
-import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, getStatusLabel } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, PageHeader } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
@@ -25,7 +25,7 @@ const ORDER_SORT_OPTIONS = [
 
 export function MyOrdersPage() {
   const { search } = useLocation();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const { searchQuery, statusFilter, sortValue, updateFilters, resetFilters } =
     useMyListFilters({
       defaultSort: DEFAULT_SORT,
@@ -65,70 +65,23 @@ export function MyOrdersPage() {
     { value: "ALL", label: "전체" },
     ...buildStatusFilterOptions(["PAID_APPROVAL_PENDING", "SHIPPED", "DELIVERED"]),
   ];
-  const activeCount = orders.filter((order) =>
-    ![
-      "PICKED_UP",
-      "DELIVERED",
-      "COMPLETED",
-      "REJECTED",
-      "CUSTOMER_CANCELED",
-      "AUTO_REFUND_TIMEOUT",
-      "PICKUP_EXPIRED",
-      "PICKUP_FORFEITED",
-      "DELAY_REJECTED_CANCELED",
-    ].includes(order.status),
-  ).length;
-  const completedCount = orders.filter((order) =>
-    ["PICKED_UP", "DELIVERED", "COMPLETED"].includes(order.status),
-  ).length;
-
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 720 }}>
-        <MyAuthGateCard
-          title="로그인이 필요합니다"
-          description="로그인하면 내 주문을 확인할 수 있습니다."
-        />
-      </Container>
-    );
-  }
 
   return (
-    <Container className="page-container" style={{ maxWidth: 720 }}>
-      <div className="my-detail-header">
-        <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-3">
-          <Link to="/my" className="text-decoration-none small">
-            &larr; 내 정보
-          </Link>
-          <LinkButton to="/products" variant="outline-secondary" size="sm">
-            상품 보러가기
-          </LinkButton>
-        </div>
-        <div className="my-section-kicker mb-2">내 정보</div>
-        <h4 className="mb-2">전체 주문</h4>
-        <p className="text-muted-soft small mb-0">
-          주문 상태와 결제 금액을 확인하고, 원하는 주문을 검색하세요.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        kicker="My page"
+        title={myNavLabel("/my/orders")}
+        description="주문 상태와 결제 금액을 확인하고 주문을 검색하세요."
+        actions={(
+          <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
+        )}
+      />
 
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
         retrying={isFetching && !isFetchingNextPage}
       />
-      {orders.length > 0 && (
-        <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">불러온 주문 중 진행 중 {activeCount}건</span>
-          <span className="my-summary-chip">불러온 주문 중 완료 {completedCount}건</span>
-          <span className="my-summary-chip">
-            현재 필터 {statusFilter === "ALL" ? "전체 상태" : getStatusLabel(statusFilter)}
-          </span>
-        </div>
-      )}
       <MyListFilterBar
         idPrefix="my-orders"
         searchLabel="주문 번호·상품명 검색"
@@ -190,6 +143,6 @@ export function MyOrdersPage() {
           </Button>
         </div>
       )}
-    </Container>
+    </>
   );
 }

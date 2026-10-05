@@ -3,10 +3,8 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Card, Col, Container, Modal, Row } from "react-bootstrap";
-import { Link } from "react-router";
+import { Alert, Button, Card, Col, Modal, Row } from "react-bootstrap";
 import { fetchMyPassesPage, refundMyPass, type MyPassSummary } from "@/features/my/api";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import {
   getPassFilterKey,
@@ -14,6 +12,7 @@ import {
   isPassRefundable,
 } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
+import { myNavLabel } from "@/features/my/myNavigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   invalidateSlotAvailability,
@@ -22,7 +21,7 @@ import {
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast, PageHeader } from "@/shared/ui";
 import {
   customerRefundPollingInterval,
   formatDateTime,
@@ -45,7 +44,7 @@ export function MyPassesPage() {
 function MyPassesContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const [refundTarget, setRefundTarget] = useState<MyPassSummary | null>(null);
   const {
     searchQuery,
@@ -100,12 +99,10 @@ function MyPassesContent() {
     { value: "USED_UP", label: "사용 완료" },
     { value: "EXPIRED", label: "만료" },
   ];
-  const activePassCount = passes.filter((pass) => getPassFilterKey(pass) === "ACTIVE").length;
   const expiringSoonCount = passes.filter((pass) => {
     const expiresIn = parseApiDateTime(pass.expiresAt) - Date.now();
     return getPassFilterKey(pass) === "ACTIVE" && expiresIn <= 7 * 24 * 60 * 60 * 1000;
   }).length;
-  const remainingCredits = passes.reduce((sum, pass) => sum + pass.remainingCredits, 0);
   const refundMutation = useMutation({
     mutationFn: (passId: number) =>
       runForCurrentCustomer(
@@ -130,50 +127,26 @@ function MyPassesContent() {
       ),
   });
 
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 720 }}>
-        <MyAuthGateCard
-          title="로그인이 필요합니다"
-          description="로그인하면 내 이용권을 확인할 수 있습니다."
-        />
-      </Container>
-    );
-  }
-
   return (
-    <Container className="page-container" style={{ maxWidth: 720 }}>
-      <div className="my-detail-header">
-        <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-3">
-          <Link to="/my" className="text-decoration-none small">
-            &larr; 내 정보
-          </Link>
-          <LinkButton to="/passes/purchase" variant="outline-secondary" size="sm">
-            4회권 구매
-          </LinkButton>
-        </div>
-        <div className="my-section-kicker mb-2">내 정보</div>
-        <h4 className="mb-2">전체 이용권</h4>
-        <p className="text-muted-soft small mb-0">
-          이용권의 남은 횟수와 만료일을 확인하세요.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        kicker="My page"
+        title={myNavLabel("/my/passes")}
+        description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
+        actions={(
+          <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
+        )}
+      />
 
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
         retrying={isFetching && !isFetchingNextPage}
       />
-      {passes.length > 0 && (
-        <div className="my-list-summary mb-3">
-          <span className="my-summary-chip">불러온 이용권 중 사용 가능 {activePassCount}건</span>
-          <span className="my-summary-chip">불러온 이용권 잔여 {remainingCredits}회</span>
-          <span className="my-summary-chip">불러온 이용권 중 7일 내 만료 {expiringSoonCount}건</span>
-        </div>
+      {expiringSoonCount > 0 && (
+        <Alert variant="warning" className="mb-3">
+          7일 안에 만료되는 이용권이 {expiringSoonCount}건 있습니다. 만료 전에 예약해 주세요.
+        </Alert>
       )}
       <MyListFilterBar
         idPrefix="my-passes"
@@ -302,6 +275,6 @@ function MyPassesContent() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </Container>
+    </>
   );
 }

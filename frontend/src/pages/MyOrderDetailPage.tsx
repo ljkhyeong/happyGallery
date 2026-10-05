@@ -1,16 +1,15 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { useParams, Link, useLocation } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Container } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
+import { myNavLabel } from "@/features/my/myNavigation";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { getMyOrder } from "@/generated/api/customerStore";
 import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
-import { LoadingSpinner, ErrorAlert } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
 import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
@@ -22,7 +21,7 @@ export function MyOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
   const validOrderId = isPositiveSafeIntegerString(id);
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const queryClient = useQueryClient();
 
   const { data: order, isLoading, isFetching, error, refetch } = useQuery({
@@ -51,38 +50,17 @@ export function MyOrderDetailPage() {
 
   if (!validOrderId) return <NotFoundPage />;
 
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 640 }}>
-        <MyAuthGateCard
-          title="로그인이 필요합니다"
-          description="로그인하면 주문 상세를 확인할 수 있습니다."
-        />
-      </Container>
-    );
-  }
-
   return (
-    <Container className="page-container" style={{ maxWidth: 640 }}>
-      <div className="my-detail-header">
-        <div className="d-flex flex-wrap justify-content-between gap-2 align-items-start mb-3">
-          <Link to={{ pathname: "/my/orders", search }} className="text-decoration-none small">
-            &larr; 내 주문
-          </Link>
-          <LinkButton to="/products" variant="outline-secondary" size="sm">
-            스토어 둘러보기
-          </LinkButton>
-        </div>
-        <div className="my-section-kicker mb-2">내 정보</div>
-        <h4 className="mb-2">주문 상세</h4>
-        <p className="text-muted-soft small mb-0">
-          주문 상태와 배송·수령 정보를 확인하세요.
-        </p>
-      </div>
+    <>
+      <Link to={{ pathname: "/my/orders", search }} className="my-back-link">
+        &larr; {myNavLabel("/my/orders")}
+      </Link>
+      <PageHeader
+        kicker="My page"
+        title="주문 상세"
+        description="주문 상태와 배송·수령 정보를 확인하세요."
+        actions={<LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>}
+      />
       <ErrorAlert error={error} onRetry={() => void refetch()} retrying={isFetching} />
       {isLoading && <LoadingSpinner />}
       {order && (
@@ -102,6 +80,6 @@ export function MyOrderDetailPage() {
           <OrderClaimSection order={order} access={{ kind: "member" }} />
         </>
       )}
-    </Container>
+    </>
   );
 }

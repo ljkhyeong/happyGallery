@@ -111,7 +111,6 @@ export function MyDefaultShippingAddressSection() {
     ).catch(() => { /* 조회 실패 시 입력을 유지한다. */ });
   };
   return <Card id="my-default-shipping-address" className="mb-4"><Card.Body>
-    <h6>기본 배송지</h6>
     <p className="small text-muted">다음 주문에서 불러올 주소입니다. 이미 접수한 주문의 배송지는 변경되지 않습니다.</p>
     {query.isLoading && <LoadingSpinner />}
     <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} retrying={query.isFetching} />

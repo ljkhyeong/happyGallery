@@ -1,8 +1,8 @@
-import { Card, Col, Row } from "react-bootstrap";
 import { Link } from "react-router";
+import { EmptyState, ErrorAlert, LoadingSpinner, StatusBadge } from "@/shared/ui";
+import { formatDateTime } from "@/shared/lib";
 import type { MyBookingSummary } from "./api";
-import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
-import { formatKRW, formatDateTime } from "@/shared/lib";
+import { bookingDepositLabel } from "./listUtils";
 
 interface Props {
   previewSize?: number;
@@ -13,57 +13,28 @@ interface Props {
   onRetry: () => void;
 }
 
-export function MyBookingsSection({
-  bookings,
-  isLoading,
-  error,
-  isFetching,
-  onRetry,
-  previewSize = 5,
-}: Props) {
+export function MyBookingsSection({ bookings, isLoading, error, isFetching, onRetry, previewSize = 3 }: Props) {
   return (
-    <section id="my-bookings" className="mb-4">
-      <div className="d-flex justify-content-between align-items-center mb-2">
-        <div>
-          <h6 className="mb-1">내 예약</h6>
-          <p className="text-muted-soft small mb-0">다가오는 예약과 지난 예약 상태를 확인하고 상세로 이동합니다.</p>
-        </div>
-        <div className="d-flex align-items-center gap-3">
-          {bookings && <span className="text-muted-soft small">표시 중 {Math.min(bookings.length, previewSize)}건</span>}
-          <Link to="/my/bookings" className="my-inline-link small">전체 보기</Link>
-        </div>
+    <section id="my-bookings" className="my-recent" aria-labelledby="my-bookings-title">
+      <div className="my-recent-head">
+        <h2 id="my-bookings-title">최근 예약</h2>
+        <Link to="/my/bookings">전체 보기 →</Link>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />
       {bookings && bookings.length === 0 && <EmptyState message="예약 내역이 없습니다." />}
-      {bookings && bookings.length > 0 && bookings.slice(0, previewSize).map((b) => (
-        <Card
-          key={b.bookingId}
-          as={Link}
-          to={`/my/bookings/${b.bookingId}`}
-          className="mb-2 text-decoration-none my-list-card border-0"
-        >
-          <Card.Body className="py-3 px-3">
-            <Row className="align-items-center g-2">
-              <Col xs={12} md={5}>
-                <div className="fw-semibold small">{b.className}</div>
-                <small className="text-muted-soft">
-                  {formatDateTime(b.startAt)} · {b.participantCount}명
-                </small>
-              </Col>
-              <Col xs={6} md={3}>
-                <StatusBadge status={b.status} />
-              </Col>
-              <Col xs={6} md={4} className="text-md-end">
-                <small>{formatKRW(b.depositAmount)}</small>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+      {bookings?.slice(0, previewSize).map((booking) => (
+        <Link key={booking.bookingId} to={`/my/bookings/${booking.bookingId}`} className="my-list-card my-recent-item">
+          <div className="my-recent-main">
+            <strong>{booking.className}</strong>
+            <small>{formatDateTime(booking.startAt)} · {booking.participantCount}명</small>
+          </div>
+          <div className="my-recent-side">
+            <StatusBadge status={booking.status} />
+            <span>{bookingDepositLabel(booking.depositAmount)}</span>
+          </div>
+        </Link>
       ))}
-      {bookings && bookings.length > previewSize && (
-        <p className="text-muted-soft small mt-2 mb-0">최근 {previewSize}건만 표시합니다.</p>
-      )}
     </section>
   );
 }

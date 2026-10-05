@@ -1,5 +1,5 @@
 import { getStatusLabel } from "@/shared/ui";
-import { parseApiDateTime } from "@/shared/lib";
+import { formatKRW, parseApiDateTime } from "@/shared/lib";
 import type { MyPassSummary } from "./api";
 import type { MyFilterOption } from "./MyListFilterBar";
 
@@ -27,4 +27,9 @@ export function isPassAvailableForBooking(pass: MyPassSummary): boolean {
 
 export function isPassRefundable(pass: MyPassSummary): boolean {
   return isPassAvailableForBooking(pass);
+}
+
+/** 이용권·무료 예약은 예약금이 0원이라 금액 대신 '예약금 없음'으로 보여 준다. */
+export function bookingDepositLabel(depositAmount: number): string {
+  return depositAmount > 0 ? `예약금 ${formatKRW(depositAmount)}` : "예약금 없음";
 }

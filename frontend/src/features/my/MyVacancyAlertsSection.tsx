@@ -41,7 +41,6 @@ export function MyVacancyAlertsSection() {
     <section id="my-vacancy-alerts" className="mb-4">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <div>
-          <h6 className="mb-1">내 빈자리 알림</h6>
           <p className="text-muted-soft small mb-0">
             신청한 일정의 잔여 좌석을 확인할 수 있습니다. 알림으로 자리가 확보되지는 않습니다.
           </p>

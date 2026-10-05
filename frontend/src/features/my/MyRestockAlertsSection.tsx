@@ -13,7 +13,6 @@ export function MyRestockAlertsSection() {
   const needsStatusCheck = mutation.isSuccess && query.isError;
   return (
     <section id="my-restock-alerts" className="mb-4">
-      <h6>내 재입고 알림</h6>
       {query.isLoading && <LoadingSpinner />}
       {needsStatusCheck && <p role="status">해지 요청을 처리했습니다. 최신 신청 상태를 확인해 주세요.</p>}
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }}

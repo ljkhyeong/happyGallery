@@ -1,13 +1,12 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { Button, Container } from "react-bootstrap";
-import { Link } from "react-router";
+import { Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { MyAuthGateCard } from "@/features/my/MyAuthGateCard";
+import { myNavLabel } from "@/features/my/myNavigation";
 import { fetchMyReviews } from "@/features/review/api";
 import { MemberReviewCard } from "@/features/review/MemberReviewCard";
 import { ReviewOpportunityList } from "@/features/review/ReviewOpportunityList";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
 
 export function MyReviewsPage() {
   const { sessionVersion } = useCustomerAuth();
@@ -15,7 +14,7 @@ export function MyReviewsPage() {
 }
 
 function MyReviewsContent() {
-  const { isAuthenticated, isLoading: authLoading } = useCustomerAuth();
+  const { isAuthenticated } = useCustomerAuth();
   const reviewsQuery = useInfiniteQuery({
     queryKey: queryKeys.member.reviews.history,
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(
@@ -29,30 +28,13 @@ function MyReviewsContent() {
   });
   const reviews = reviewsQuery.data?.pages.flatMap((page) => page.content) ?? [];
 
-  if (authLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-  if (!isAuthenticated) {
-    return (
-      <Container className="page-container" style={{ maxWidth: 720 }}>
-        <MyAuthGateCard
-          title="로그인이 필요합니다"
-          description="내가 작성한 상품·클래스 후기는 로그인 후 확인하고 수정할 수 있습니다."
-        />
-      </Container>
-    );
-  }
-
   return (
-    <Container className="page-container" style={{ maxWidth: 760 }}>
-      <header className="my-detail-header">
-        <Link to="/my" className="text-decoration-none small">&larr; 내 정보</Link>
-        <div className="my-section-kicker mt-3 mb-2">내 정보</div>
-        <h2 className="mb-2">내 후기</h2>
-        <p className="text-muted-soft mb-0">
-          작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다.
-        </p>
-      </header>
+    <>
+      <PageHeader
+        kicker="My page"
+        title={myNavLabel("/my/reviews")}
+        description="작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다."
+      />
 
       <ReviewOpportunityList />
 
@@ -94,6 +76,6 @@ function MyReviewsContent() {
           </Button>
         </div>
       )}
-    </Container>
+    </>
   );
 }

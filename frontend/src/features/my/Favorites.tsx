@@ -98,7 +98,7 @@ export function MyFavoritesSection() {
   const items = query.data?.pages.flatMap((page) => page.content) ?? [];
   return <Card id="my-favorites" className="mb-4"><Card.Body>
     <div className="d-flex align-items-center justify-content-between mb-2">
-      <h6 className="mb-0">내 찜</h6>
+      <span className="text-muted-soft small">최근 저장한 순서로 보여 줍니다.</span>
       <Form.Select aria-label="찜 종류" size="sm" style={{ width: 140 }} value={type} onChange={(event) => {
         const next = new URLSearchParams(searchParams);
         if (event.target.value) next.set("type", event.target.value);

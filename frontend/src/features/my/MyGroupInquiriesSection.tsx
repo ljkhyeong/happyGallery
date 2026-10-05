@@ -18,7 +18,6 @@ export function MyGroupInquiriesSection() {
     queryFn: ({ signal }) => runForCurrentCustomer(() => listMyGroupInquiries({ cursor: paging.cursor, size: 20 }, { signal })) });
   return (
     <section id="my-group-inquiries" className="mb-4">
-      <h6>내 단체 수업 문의</h6>
       {query.isLoading && <LoadingSpinner />}
       <ErrorAlert error={query.error} onRetry={() => { void query.refetch(); }} />
       {query.data?.content.length === 0 && <EmptyState message="접수한 단체 수업 문의가 없습니다." />}
