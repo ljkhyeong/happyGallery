@@ -75,7 +75,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
           <Form.Group controlId="order-item-qty">
             <Form.Label>수량</Form.Label>
             <Form.Control
-              type="number" min={1} max={Math.max(1, remaining)} value={qty}
+              type="number" inputMode="numeric" min={1} max={Math.max(1, remaining)} value={qty}
               onChange={(e) => setQty(e.target.value)}
               isInvalid={Boolean(selectedProduct) && !canAdd}
               aria-invalid={Boolean(selectedProduct) && !canAdd}
@@ -103,7 +103,7 @@ export function OrderItemsForm({ state, onChange }: Props) {
                     )}
                   </span>
                   <div className="d-flex align-items-center gap-2 flex-shrink-0">
-                    <Form.Control type="number" size="sm" style={{ width: 80 }}
+                    <Form.Control type="number" inputMode="numeric" size="sm" style={{ width: 80 }}
                       min={1} max={Math.max(1, maxQuantity)} value={item.qty}
                       aria-label={`${product?.name ?? "상품"} ${selection?.label ?? ""} 주문 수량`}
                       onChange={(event) => updateQty(key, Number(event.target.value))} />

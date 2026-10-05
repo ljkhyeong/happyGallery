@@ -175,7 +175,7 @@ export function ProductPurchaseOptions({ product, initialVariant, lines, onChang
                   <td style={{ width: 100 }}>
                     <Form.Control
                       size="sm"
-                      type="number"
+                      type="number" inputMode="numeric"
                       min={1}
                       max={maximumLineQuantity}
                       aria-label={`${view.label} 수량`}

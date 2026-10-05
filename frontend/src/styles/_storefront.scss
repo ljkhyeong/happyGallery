@@ -11,7 +11,7 @@
 // ── Status badge ───────────────────────────────────────
 .badge-status {
   font-weight: 600;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -315,7 +315,7 @@
   gap: 0.4rem;
   margin-left: auto;
   color: var(--hg-ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 
   &::before {
@@ -583,7 +583,7 @@
 
 .store-purchase-helper {
   color: var(--hg-ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 
@@ -862,7 +862,7 @@
 
 .my-filter-result {
   color: var(--hg-ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   letter-spacing: 0.02em;
 }
 
@@ -1885,7 +1885,7 @@
 
   .booking-slot-flag {
     color: var(--hg-accent-deep);
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
   }
 

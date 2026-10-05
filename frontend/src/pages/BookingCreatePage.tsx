@@ -451,7 +451,7 @@ function BookingCreateContent({
                 </Form.Text>
               </div>
               <Form.Control
-                type="number"
+                type="number" inputMode="numeric"
                 min={1}
                 max={selectedSlot.remainingCapacity}
                 step={1}

@@ -125,7 +125,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
             <fieldset disabled={!editable || busy}>
               <Form.Group controlId={`inquiry-${id}-headcount`} className="mb-3">
                 <Form.Label>참여 인원</Form.Label>
-                <Form.Control type="number" min={1} max={500} required value={values.headcount}
+                <Form.Control type="number" inputMode="numeric" min={1} max={500} required value={values.headcount}
                   onChange={(event) => edit({ headcount: event.target.value })} />
               </Form.Group>
               <Form.Group controlId={`inquiry-${id}-schedule`} className="mb-3">

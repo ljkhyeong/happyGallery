@@ -49,6 +49,8 @@ export function GuestLookupForm({
         <Form.Label>조회 코드</Form.Label>
         <Form.Control
           value={token} autoComplete="off" spellCheck={false}
+          // 조회 코드는 대소문자를 구분하므로 휴대폰의 첫 글자 대문자·자동 수정을 끈다.
+          autoCapitalize="off" autoCorrect="off"
           onChange={(event) => setToken(event.target.value)}
           onBlur={() => setTouched((current) => ({ ...current, token: true }))}
           placeholder={`${label} 시 발급된 조회 코드`}

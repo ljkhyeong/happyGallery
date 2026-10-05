@@ -215,7 +215,7 @@ export function OrderClaimSection({ order, access }: Props) {
                   />
                   {quantity > 0 && (
                     <Form.Control
-                      type="number"
+                      type="number" inputMode="numeric"
                       min={1}
                       max={item.availableQuantity}
                       value={quantity}

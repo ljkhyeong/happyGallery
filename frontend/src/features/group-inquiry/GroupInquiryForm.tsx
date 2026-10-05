@@ -45,7 +45,7 @@ export function GroupInquiryForm({ onSubmit, pending, error, initialContact, sub
           <Col md={6}>
             <Form.Group controlId={`${id}-headcount`} className="mb-3">
               <Form.Label>참여 인원</Form.Label>
-              <Form.Control type="number" required min={1} max={500} value={form.headcount} onChange={(event) => update("headcount", event.target.value)} />
+              <Form.Control type="number" inputMode="numeric" required min={1} max={500} value={form.headcount} onChange={(event) => update("headcount", event.target.value)} />
             </Form.Group>
           </Col>
         </Row>

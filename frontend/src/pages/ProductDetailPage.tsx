@@ -306,7 +306,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                       </Button>
                       <Form.Control
                         id="product-qty"
-                        type="number"
+                        type="number" inputMode="numeric"
                         min={1}
                         max={Math.max(1, defaultQuantityLimit)}
                         value={qty}

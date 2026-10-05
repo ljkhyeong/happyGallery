@@ -95,7 +95,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
             <OrderOptionList options={selection.options} />
             <Form.Group controlId={`reorder-qty-${item.orderItemId}`} className="mt-3">
               <Form.Label>다시 담을 수량</Form.Label>
-              <Form.Control type="number" min={1} max={Math.max(1, limit)} step={1} value={qty} disabled={mutation.isPending || limit === 0}
+              <Form.Control type="number" inputMode="numeric" min={1} max={Math.max(1, limit)} step={1} value={qty} disabled={mutation.isPending || limit === 0}
                 onChange={(event) => setQty(event.target.value)} />
             </Form.Group>
             {limit === 0 ? <Alert variant="warning" className="mt-3">품절되었거나 현재 장바구니 수량으로 추가 가능한 수량을 모두 담았습니다.</Alert>
