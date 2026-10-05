@@ -180,7 +180,7 @@ export function OrderListSection({
             <tbody>
               {allOrders.map((o) => (
                 <tr key={o.orderId}>
-                  <td>{o.orderNumber}</td>
+                  <td className="text-nowrap">{o.orderNumber}</td>
                   <td>
                     {o.items.map((item) => (
                       <div key={`${item.productId}-${item.productVariantId ?? 0}`} className="mb-2">
@@ -204,8 +204,8 @@ export function OrderListSection({
                     ))}
                   </td>
                   <td><StatusBadge status={o.status} audience="admin" /></td>
-                  <td>{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "매장 수령" : "-"}</td>
-                  <td>{formatKRW(o.totalAmount)}</td>
+                  <td className="text-nowrap">{o.fulfillmentType === "SHIPPING" ? "택배" : o.fulfillmentType === "PICKUP" ? "매장 수령" : "-"}</td>
+                  <td className="text-nowrap">{formatKRW(o.totalAmount)}</td>
                   <td><small>{o.paidAt ? formatDateTime(o.paidAt) : "-"}</small></td>
                   <td><small>{formatDateTime(o.createdAt)}</small></td>
                   <td><OrderActionCell orderId={o.orderId} status={o.status}

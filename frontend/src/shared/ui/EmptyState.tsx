@@ -4,7 +4,7 @@ interface Props {
 
 export function EmptyState({ message = "데이터가 없습니다." }: Props) {
   return (
-    <div className="text-center py-5 text-muted-soft">
+    <div className="empty-state">
       <p className="mb-0">{message}</p>
     </div>
   );

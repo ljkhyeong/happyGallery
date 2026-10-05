@@ -408,6 +408,18 @@ export function AdminPage() {
 
       {activeView === "orders" && (
         <>
+          <AdminPanel title="주문 목록">
+            <OrderListSection
+              adminKey={adminKey}
+              onAuthError={handleAuthError}
+              initialStatus={focusedOrderStatus}
+              focusOrderId={focusedOrderId}
+              focusOrderStatus={focusedOrderStatus}
+            />
+          </AdminPanel>
+          <AdminPanel title="교환·환불 요청">
+            <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
+          </AdminPanel>
           <AdminPanel title="스마트스토어 채널 주문">
             <SmartStoreChannelOrderSection
               key={focusedSmartStoreOrderId ?? "smartstore-orders"}
@@ -421,18 +433,6 @@ export function AdminPage() {
           </AdminPanel>
           <AdminPanel title="스마트스토어 회계 자료">
             <SmartStoreAccountingSection adminKey={adminKey} onAuthError={handleAuthError} />
-          </AdminPanel>
-          <AdminPanel title="교환·환불 요청">
-            <AdminOrderClaimSection adminKey={adminKey} onAuthError={handleAuthError} />
-          </AdminPanel>
-          <AdminPanel title="주문 목록">
-            <OrderListSection
-              adminKey={adminKey}
-              onAuthError={handleAuthError}
-              initialStatus={focusedOrderStatus}
-              focusOrderId={focusedOrderId}
-              focusOrderStatus={focusedOrderStatus}
-            />
           </AdminPanel>
         </>
       )}

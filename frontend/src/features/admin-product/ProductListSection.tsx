@@ -82,9 +82,9 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
                 </Badge>
               </td>
               <td>
-                <Badge bg={product.quantity > 0 ? "primary" : "secondary"}>
-                  {product.quantity > 0 ? "재고 있음" : "품절"}
-                </Badge>
+                {product.quantity > 0
+                  ? <Badge bg="light" text="dark">재고 있음</Badge>
+                  : <Badge bg="warning" text="dark">품절</Badge>}
               </td>
               <td>
                 <div className="d-flex gap-2 justify-content-end flex-wrap" style={{ minWidth: 360 }}>

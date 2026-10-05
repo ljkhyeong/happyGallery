@@ -59,6 +59,23 @@
   border-bottom: 0;
 }
 
+// 처리할 일이 없는 섹션은 한 줄로 줄여 다음 섹션을 바로 보이게 한다.
+.admin-workspace .empty-state {
+  padding-block: 0.25rem;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+// 한글이 글자 단위로 끊겨 표가 화면 폭에 눌리지 않게 단어 단위로 줄바꿈한다.
+// 좁은 화면에서는 Table responsive의 가로 스크롤로 본다.
+.admin-workspace .table {
+  word-break: keep-all;
+}
+
+.admin-workspace .table > thead th {
+  white-space: nowrap;
+}
+
 .admin-workspace-title + .admin-dashboard {
   border-top: 0;
 }

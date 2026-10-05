@@ -46,6 +46,12 @@
   padding: 2rem 1.5rem;
 }
 
+.empty-state {
+  padding-block: 3rem;
+  color: var(--hg-ink-soft);
+  text-align: center;
+}
+
 .text-muted-soft {
   color: var(--hg-ink-soft);
 }
