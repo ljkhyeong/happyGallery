@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 사용 편의 점검: 입력 자동완성·결제 단계 안내 (2026-10-05)
+
+- 시작 SHA `c8f35cb3`. 모바일 390px로 비회원 예약(클래스 상세→예약→진행 방식 선택)과 주문(작품→바로 구매→주문서)을 단계별로 따라가며 캡처했다(`output/playwright/sweep-1005/flow.mjs`, `flow/`). 도중에 확인용 DB·Redis 컨테이너가 정상 종료돼 있어 다시 켰다.
+- 입력: 휴대폰 번호 칸은 숫자 키패드·`tel-national` 자동완성, `maxLength` 대신 `toPhoneInputValue`로 숫자 11자리만 남긴다. `normalizePhone`은 `+82 10-…`을 `010…`으로 바꾼다(`tests/unit/phone.test.mjs`). 로그인·회원가입·진행 방식 선택 창에 email/username·current/new-password·name 자동완성, 로그인·회원가입 비밀번호에 `PasswordInput`(보기/숨기기, 버튼 이름에 "비밀번호"를 넣지 않음).
+- 결제 단계: `CheckoutSummary`에 `hint`를 더해 주문서 결제 버튼 위(모바일 고정 바 포함)에 "남은 단계: …"를 보여 준다. 예약 고정 바는 고른 일시와 금액을 보여 준다. `PhoneVerificationStep`의 `confirmedNote`(주문서·회원가입만)로 확인 뒤 "입력 완료"와 안내를 띄우고, 인증번호 수정·재발송 때 되돌린다. 주문서는 처음 인증 뒤 주문자 이름이 보이게 스크롤만 한다(포커스까지 옮기면 다른 버튼을 누를 때 빈 이름 오류가 먼저 떠 클릭이 빗나감, `product-option-checkout` 199로 확인). 주문 상품 줄 "삭제" 버튼 줄바꿈도 막았다.
+- 검증: `npm run typecheck`(`tsc -b`; `tsc --noEmit -p .`는 페이지 타입 오류를 놓쳐 쓰지 않는다)·lint·build, 단위 81건, 인증·결제 관련 E2E 29개 파일 151건 중 142건 통과 → 실패 9건은 기존(`customer-account-boundary` 3, `history-pagination` 346, `picker-resilience` 2), MFA 전용 서버 미기동(`admin-auth-mfa` 2), 위 `product-option-checkout` 199(수정 후 파일 전체 2회 반복 42건 통과). 주문 재확인 3개 파일 28건, @smoke 20건 통과.
+
 ## 공방 블로그 사진·결제 중간 상태·관리자 등록 폼 (2026-10-05)
 
 - 시작 SHA `b4f446bb`. 사용자가 공방 사진은 홈에 연결된 블로그·인스타그램에서 가져오면 된다고 했다. 수업별 사진이 충분한 공방 네이버 블로그(`ssim1972`)만 썼고(인스타그램은 확인하지 않음), 내장 브라우저는 네이버 블로그를 막아 `m.blog.naver.com` 글 HTML과 `mblogthumb-phinf.pstatic.net` 이미지(가로 900px)를 명령줄로 받았다.
