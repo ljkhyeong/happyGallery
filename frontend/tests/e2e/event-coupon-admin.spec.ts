@@ -53,9 +53,14 @@ test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 
     relatedProductIds: [],
   };
 
+  const relatedProduct = { id: 501, name: "겨울 오픈데이 머그", description: null, category: "도자기", type: "READY_STOCK",
+    price: 28000, imageUrl: null, available: true, stockQuantity: 3, specification: null, careInstructions: null,
+    productionLeadDays: null, optionGroups: [], variants: [] };
+
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/events", [upcomingEvent, endedEvent]),
     ssrApiFixture("/events/21", upcomingEvent),
+    ssrApiFixture("/products/501", relatedProduct),
   );
 
   await page.route("**/api/v1/**", async (route) => {
@@ -88,7 +93,7 @@ test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 
   await page.getByRole("link", { name: /자세히 보기/ }).click();
   await expect(page).toHaveURL(/\/events\/21$/);
   await expect(page.getByText("작가의 신작과 제작 이야기를 소개합니다.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "작품 #501" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: /겨울 오픈데이 머그/ })).toHaveAttribute(
     "href",
     "/products/501",
   );

@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
 import type { ProductDetailResponse } from "@/shared/types";
+import { ProductMediaPlaceholder } from "./ProductMediaPlaceholder";
 
 interface Props {
   product: ProductDetailResponse;
@@ -23,7 +24,7 @@ export function ProductCard({ product, headingLevel = 3 }: Props) {
         {product.imageUrl ? (
           <img src={product.imageUrl} alt={product.name} loading="lazy" />
         ) : (
-          <span className="product-card-media-empty" aria-hidden="true">해피갤러리</span>
+          <ProductMediaPlaceholder />
         )}
         {!product.available && <span className="product-card-status">품절</span>}
       </div>

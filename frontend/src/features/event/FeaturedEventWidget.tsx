@@ -1,10 +1,10 @@
 import { Badge } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvents } from "./api";
+import { EventPeriodText } from "./EventPeriodText";
 import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import type { EventResponse } from "./api";
 
@@ -67,11 +67,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           </div>
           <h2 id="home-event-title">{featured.title}</h2>
           <p className="home-event-summary">{featured.summary}</p>
-          <p className="home-event-period">
-            <time dateTime={featured.startAt}>{formatDateTime(featured.startAt)}</time>
-            <span aria-hidden="true"> — </span>
-            <time dateTime={featured.endAt}>{formatDateTime(featured.endAt)}</time>
-          </p>
+          <EventPeriodText event={featured} className="home-event-period" />
           <div className="home-event-actions">
             <Link to={`/events/${featured.id}`} className="btn btn-light">이벤트 보기</Link>
             <Link to="/events" className="btn btn-outline-light">전체 이벤트</Link>

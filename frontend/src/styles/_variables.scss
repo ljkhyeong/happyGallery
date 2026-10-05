@@ -52,5 +52,8 @@ $input-border-radius:    0.375rem;
 $input-border-radius-sm: 0.25rem;
 $input-border-radius-lg: 0.5rem;
 $input-border-color: #CFC5B7;
-$input-focus-border-color: $primary;
-$input-focus-box-shadow: 0 0 0 0.2rem rgba($primary, 0.12);
+// 점토색은 오류(danger)와 가까워 입력 포커스·체크 상태는 먹색을 쓴다.
+$focus-ring-color: rgba($dark, 0.16);
+$input-focus-border-color: $dark;
+$input-focus-box-shadow: 0 0 0 0.2rem rgba($dark, 0.1);
+$form-check-input-checked-bg-color: $dark;

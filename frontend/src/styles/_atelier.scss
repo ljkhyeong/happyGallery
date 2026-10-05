@@ -187,7 +187,7 @@ textarea {
   }
 }
 
-// 주요 행동 버튼은 화면마다 색이 달라지지 않도록 먹색으로 통일하고, 점토색은 hover·강조에만 쓴다.
+// 주요·보조 행동 버튼은 화면마다 색이 달라지지 않도록 먹색으로 통일하고, 점토색은 hover·강조에만 쓴다.
 .btn-primary {
   --bs-btn-color: #FFFDF8;
   --bs-btn-bg: var(--hg-dark);
@@ -201,6 +201,21 @@ textarea {
   --bs-btn-disabled-color: #FFFDF8;
   --bs-btn-disabled-bg: #8C837A;
   --bs-btn-disabled-border-color: #8C837A;
+  --bs-btn-focus-shadow-rgb: 42, 38, 34;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--hg-dark);
+  --bs-btn-border-color: var(--hg-dark);
+  --bs-btn-hover-color: #FFFDF8;
+  --bs-btn-hover-bg: var(--hg-dark);
+  --bs-btn-hover-border-color: var(--hg-dark);
+  --bs-btn-active-color: #FFFDF8;
+  --bs-btn-active-bg: var(--hg-dark);
+  --bs-btn-active-border-color: var(--hg-dark);
+  --bs-btn-disabled-color: #8C837A;
+  --bs-btn-disabled-border-color: #8C837A;
+  --bs-btn-focus-shadow-rgb: 42, 38, 34;
 }
 
 // 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
@@ -267,13 +282,26 @@ textarea {
   transform: scale(1.04);
 }
 
-.product-card-media-empty {
-  display: grid;
-  place-items: center;
+// 사진 없는 작품은 카드·상세 모두 같은 준비 중 표시를 쓴다.
+.product-media-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   height: 100%;
   color: var(--hg-ink-soft);
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  svg {
+    opacity: 0.65;
+  }
+
+  &.is-large {
+    gap: 0.75rem;
+    font-size: 0.95rem;
+  }
 }
 
 .product-card-status {

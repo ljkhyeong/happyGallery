@@ -7,14 +7,24 @@ import {
   buildWebPageJsonLd,
   seoDescription,
 } from "@/shared/seo/metadata";
-import { loadEvent, requirePublicId } from "@/shared/seo/serverApi.server";
+import { loadEvent, loadProduct, requirePublicId } from "@/shared/seo/serverApi.server";
 import { CspJsonLd } from "@/shared/seo/CspJsonLd";
 
 const FALLBACK_DESCRIPTION = "해피갤러리 이벤트 일정과 참여 내용을 확인하세요.";
 
 export async function loader({ params, request }: Route.LoaderArgs) {
   const eventId = requirePublicId(params.id);
-  return { event: await loadEvent(eventId, request.signal) };
+  const event = await loadEvent(eventId, request.signal);
+  // 비공개·삭제된 관련 상품이나 상품 조회 장애는 이벤트 본문을 막지 않고 카드만 생략한다.
+  const relatedProducts = await Promise.allSettled(
+    event.relatedProductIds.map((productId) => loadProduct(productId, request.signal)),
+  );
+  return {
+    event,
+    relatedProducts: relatedProducts.flatMap((result) => (
+      result.status === "fulfilled" ? [result.value] : []
+    )),
+  };
 }
 
 export function meta({ loaderData, params }: Route.MetaArgs) {
@@ -47,7 +57,10 @@ export default function EventDetailRoute({ loaderData }: Route.ComponentProps) {
           { name: loaderData.event.title, pathname },
         ]),
       ]} />
-      <EventDetailPage initialEvent={loaderData.event} />
+      <EventDetailPage
+        initialEvent={loaderData.event}
+        relatedProducts={loaderData.relatedProducts}
+      />
     </>
   );
 }

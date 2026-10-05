@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  eventPeriodLabel,
   eventRefetchInterval,
   eventTimingLabel,
   isEventAvailable,
@@ -37,4 +38,21 @@ test("가까운 시작 경계 직후 다시 조회하고 먼 경계는 최대 1�
 test("알려진 다음 경계가 없어도 새 게시를 반영하도록 1분마다 다시 조회한다", () => {
   assert.equal(eventRefetchInterval([], end), 60_000);
   assert.equal(eventRefetchInterval([{ startAt: "invalid", endAt: "invalid" }], end), 60_000);
+});
+
+test("자정에 시작·종료하는 이벤트는 날짜만 보여 주고 종료 시각 전날을 마지막 날로 표시한다", () => {
+  assert.deepEqual(
+    eventPeriodLabel({ startAt: "2026-10-01T00:00:00", endAt: "2026-11-01T00:00:00" }),
+    { start: "2026. 10. 01.", end: "2026. 10. 31." },
+  );
+  assert.deepEqual(
+    eventPeriodLabel({ startAt: "2026-10-09T00:00:00", endAt: "2026-10-10T00:00:00" }),
+    { start: "2026. 10. 09.", end: null },
+  );
+});
+
+test("시각이 있는 이벤트는 시작·종료 시각을 그대로 보여 준다", () => {
+  const label = eventPeriodLabel({ startAt: "2026-12-01T10:00:00", endAt: "2026-12-31T18:00:00" });
+  assert.match(label.start, /오전 10:00/);
+  assert.match(label.end ?? "", /오후 06:00/);
 });

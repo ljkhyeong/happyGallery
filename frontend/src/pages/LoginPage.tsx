@@ -46,34 +46,7 @@ export function LoginPage() {
   return (
     <Container className="page-container auth-shell" style={{ maxWidth: 980 }}>
       <Row className="g-4 align-items-stretch">
-        <Col lg={5}>
-          <Card className="auth-hero-card border-0 h-100">
-            <Card.Body className="p-4 p-lg-5 d-flex flex-column">
-              <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "비회원 주문·예약 가져오기" : "회원 로그인"}
-              </Badge>
-              <h2 className="mb-3">
-                {claimIntent
-                  ? "비회원 주문·예약을 내 정보로 가져오세요"
-                  : "로그인하고 내 주문·예약·이용권을 확인하세요"}
-              </h2>
-              <p className="text-muted-soft mb-4">
-                {claimIntent
-                  ? "로그인 후 내 정보에서 가져올 주문·예약을 선택하세요."
-                  : "로그인하면 추가 인증 없이 이용 내역을 확인할 수 있습니다."}
-              </p>
-              <div className="auth-benefit-list mb-4">
-                <div className="auth-benefit-item">주문, 예약, 이용권을 한 화면에서 관리</div>
-                <div className="auth-benefit-item">같은 번호의 비회원 주문·예약 가져오기</div>
-              </div>
-              <div className="d-flex flex-wrap gap-3 mt-auto small">
-                <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>
-                <Link to="/guest/bookings" className="auth-inline-link">비회원 예약 조회</Link>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col lg={7}>
+        <Col lg={{ span: 7, order: 2 }}>
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
               <h3 className="mb-3">로그인</h3>
@@ -131,6 +104,33 @@ export function LoginPage() {
               <SocialLoginButtons action="로그인" returnTo={returnTo} />
               <div className="auth-footer-link mt-4">
                 계정이 없으신가요? <Link to={signupHref}>회원가입</Link>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col lg={{ span: 5, order: 1 }}>
+          <Card className="auth-hero-card border-0 h-100">
+            <Card.Body className="p-4 p-lg-5 d-flex flex-column">
+              <Badge bg="light" text="dark" className="auth-kicker mb-3">
+                {claimIntent ? "비회원 주문·예약 가져오기" : "회원 로그인"}
+              </Badge>
+              <h2 className="mb-3">
+                {claimIntent
+                  ? "비회원 주문·예약을 내 정보로 가져오세요"
+                  : "로그인하고 내 주문·예약·이용권을 확인하세요"}
+              </h2>
+              <p className="text-muted-soft mb-4">
+                {claimIntent
+                  ? "로그인 후 내 정보에서 가져올 주문·예약을 선택하세요."
+                  : "로그인하면 추가 인증 없이 이용 내역을 확인할 수 있습니다."}
+              </p>
+              <div className="auth-benefit-list mb-4">
+                <div className="auth-benefit-item">주문, 예약, 이용권을 한 화면에서 관리</div>
+                <div className="auth-benefit-item">같은 번호의 비회원 주문·예약 가져오기</div>
+              </div>
+              <div className="d-flex flex-wrap gap-3 mt-auto small">
+                <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>
+                <Link to="/guest/bookings" className="auth-inline-link">비회원 예약 조회</Link>
               </div>
             </Card.Body>
           </Card>

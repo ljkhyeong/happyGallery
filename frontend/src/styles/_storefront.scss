@@ -378,15 +378,6 @@
   }
 }
 
-.store-detail-media-empty {
-  display: grid;
-  place-items: center;
-  height: 100%;
-  color: var(--hg-ink-soft);
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: 1.5rem;
-}
-
 .store-detail-price {
   font-size: clamp(1.6rem, 3vw, 2rem);
   font-weight: 800;

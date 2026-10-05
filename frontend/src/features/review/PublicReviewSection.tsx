@@ -49,7 +49,9 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     () => query.data?.pages.flatMap((page) => page.content) ?? [],
     [query.data?.pages],
   );
-  const summary = query.data?.pages[0]?.summary;
+  // 후기가 하나도 없으면 0점 분포·필터 대신 빈 상태 안내만 보여 준다.
+  const firstPageSummary = query.data?.pages[0]?.summary;
+  const summary = firstPageSummary && firstPageSummary.reviewCount > 0 ? firstPageSummary : undefined;
   const filteredCount = query.data?.pages[0]?.filteredCount ?? 0;
   const reactionIdChunks = useMemo(
     () => chunkReviewIdsByPage(

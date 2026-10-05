@@ -135,7 +135,7 @@ export function SlotSelectionStep({
 
   return (
     <div>
-      <h6 className="mb-3">2. 클래스 / 날짜 / 시간 선택</h6>
+      <h6 className="mb-3">클래스 / 날짜 / 시간 선택</h6>
 
       {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다..." />}
       <ErrorAlert

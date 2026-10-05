@@ -39,6 +39,7 @@ import {
   useMadeToOrderConsent,
 } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
+import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 import { sumQuantitiesByVariant } from "@/features/product/purchaseQuantity";
 import { productSelectionView } from "@/features/product/productSelectionView";
@@ -226,7 +227,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
             {product.imageUrl ? (
               <img src={product.imageUrl} alt={product.name} fetchPriority="high" />
             ) : (
-              <span className="store-detail-media-empty" aria-hidden="true">해피갤러리</span>
+              <ProductMediaPlaceholder size="detail" />
             )}
           </figure>
         </div>

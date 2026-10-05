@@ -3,13 +3,21 @@ import { Badge, Container } from "react-bootstrap";
 import { Link } from "react-router";
 import { fetchEvent, type EventResponse } from "@/features/event/api";
 import { EventCouponClaim } from "@/features/event/EventCouponClaim";
+import { EventPeriodText } from "@/features/event/EventPeriodText";
 import { eventRefetchInterval, eventTimingLabel } from "@/features/event/time";
+import { ProductCard } from "@/features/product/ProductCard";
 import { ApiError, queryKeys, useLoaderBackedQuery } from "@/shared/api";
-import { formatDateTime } from "@/shared/lib";
+import type { ProductDetailResponse } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
-export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse }) {
+interface Props {
+  initialEvent: EventResponse;
+  /** SSR loader가 공개 조회에 성공한 관련 상품만 담는다. */
+  relatedProducts: ProductDetailResponse[];
+}
+
+export function EventDetailPage({ initialEvent, relatedProducts }: Props) {
   const eventId = initialEvent.id;
   const eventQueryKey = useMemo(
     () => queryKeys.events.detail(eventId),
@@ -28,6 +36,13 @@ export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse 
       ? false
       : eventRefetchInterval(state.data ? [state.data] : undefined),
   }, initialEvent);
+
+  // 관리자가 관련 상품을 바꾸면 갱신된 이벤트 기준으로 빠진 상품을 숨기고 순서를 따른다.
+  const relatedProductIds = event?.relatedProductIds ?? [];
+  const visibleRelatedProducts = relatedProductIds.flatMap((productId) => {
+    const product = relatedProducts.find(({ id }) => id === productId);
+    return product ? [product] : [];
+  });
 
   if (isNotFoundError(error)) return <NotFoundPage />;
 
@@ -62,9 +77,7 @@ export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse 
           </div>
           <h1 className="mb-3">{event.title}</h1>
           <p className="lead text-muted-soft">{event.summary}</p>
-          <p className="small text-muted-soft">
-            {formatDateTime(event.startAt)} ~ {formatDateTime(event.endAt)}
-          </p>
+          <EventPeriodText event={event} className="small text-muted-soft" />
           <hr className="my-4" />
           <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.85 }}>{event.content}</div>
 
@@ -75,18 +88,12 @@ export function EventDetailPage({ initialEvent }: { initialEvent: EventResponse 
             />
           )}
 
-          {event.relatedProductIds.length > 0 && (
-            <section className="mt-5 pt-4 border-top">
-              <h2 className="h5 mb-3">함께 보면 좋은 작품</h2>
-              <div className="d-flex flex-wrap gap-2">
-                {event.relatedProductIds.map((productId: number) => (
-                  <Link
-                    key={productId}
-                    to={`/products/${productId}`}
-                    className="btn btn-sm btn-outline-dark"
-                  >
-                    작품 #{productId}
-                  </Link>
+          {visibleRelatedProducts.length > 0 && (
+            <section className="mt-5 pt-4 border-top" aria-labelledby="event-related-products">
+              <h2 id="event-related-products" className="h5 mb-4">함께 보면 좋은 작품</h2>
+              <div className="product-grid">
+                {visibleRelatedProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             </section>
