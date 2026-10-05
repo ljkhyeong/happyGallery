@@ -51,6 +51,10 @@ updates:
       day: monday
       time: "04:45"
       timezone: Asia/Seoul
+    ignore:
+      # 홀수 Node major는 LTS가 되지 않고 반년 뒤 지원이 끝나므로 배포 이미지는 짝수 LTS만 받는다.
+      - dependency-name: node
+        versions: ["23.x", "25.x", "27.x", "29.x"]
     groups:
       container-minor-and-patch:
         update-types:
