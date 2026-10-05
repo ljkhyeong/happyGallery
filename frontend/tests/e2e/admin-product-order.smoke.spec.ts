@@ -27,6 +27,7 @@ test("P8-1 @admin 상품 등록 후 관리자 목록에서 확인할 수 있다"
   await openAdminView(page, "상품");
 
   const createCard = adminCard(page, "상품 등록");
+  await createCard.getByRole("button", { name: "새 상품 등록" }).click();
   await createCard.getByLabel("상품명").fill(productName);
   await createCard.getByLabel("유형").selectOption("READY_STOCK");
   await createCard.getByLabel("가격 (원)").fill("19000");

@@ -149,6 +149,27 @@ function AdminPanel({ title, children }: { title: string; children: ReactNode })
   );
 }
 
+/** 등록 폼은 목록 작업보다 드물게 쓰므로 접어 두고 버튼으로 연다. 닫으면 입력 중인 내용도 지운다. */
+function AdminFormPanel({ title, openLabel, children }: { title: string; openLabel: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className={`admin-workspace-panel admin-form-panel${open ? " is-open" : ""}`}>
+      <div className="admin-form-panel-head">
+        <h5>{title}</h5>
+        <Button
+          size="sm"
+          variant={open ? "outline-secondary" : "primary"}
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "닫기" : openLabel}
+        </Button>
+      </div>
+      {open && children}
+    </section>
+  );
+}
+
 export function AdminPage() {
   const {
     adminKey,
@@ -459,9 +480,9 @@ export function AdminPage() {
 
       {activeView === "products" && (
         <>
-          <AdminPanel title="상품 등록">
+          <AdminFormPanel title="상품 등록" openLabel="새 상품 등록">
             <CreateProductForm adminKey={adminKey} onAuthError={handleAuthError} />
-          </AdminPanel>
+          </AdminFormPanel>
           <AdminPanel title="재입고 알림 대기 현황">
             <RestockDemandSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
@@ -478,9 +499,9 @@ export function AdminPage() {
 
       {activeView === "classes" && (
         <>
-          <AdminPanel title="클래스 생성">
+          <AdminFormPanel title="클래스 생성" openLabel="새 클래스 만들기">
             <CreateClassForm adminKey={adminKey} onAuthError={handleAuthError} />
-          </AdminPanel>
+          </AdminFormPanel>
           <AdminPanel title="클래스 목록">
             <ClassListSection adminKey={adminKey} onAuthError={handleAuthError} />
           </AdminPanel>
