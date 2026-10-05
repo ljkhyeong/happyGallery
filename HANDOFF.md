@@ -25,6 +25,8 @@
 - 실제 원격 조회: 최근 운영 성공 `36722337863`, SHA `b4edd17d`, 약 17분 52초. 과거 인계의 9월 말 변경들은 이 배포 이력을 기준으로 다시 판단한다. `CD_ENABLED=true`, production environment는 main만 허용하지만 main·codexReview 보호와 기존 ruleset은 꺼져 있다. `.github/branch-protection.json`은 적용안만 준비했으며 원격 설정을 바꾸지 않았다.
 - 검증: `bash deploy/k3s/scripts/validate.sh` 통과(`/tmp/hg-cicd-validate.log`, Ruby 153건 중 Linux 전용 1건은 macOS에서 생략 후 `ruby:3.3` root 컨테이너에서 개별 통과, `/tmp/hg-cicd-linux-backup.log`). actionlint 1.7.12·ShellCheck 통과, 실제 CI Gate 실행문에 성공·실패·생략·취소 7조건 확인. `ruby tools/agent-feedback-test.rb` 14건 통과(`/tmp/hg-cicd-agent-tests.log`). 최종 검사 `ruby tools/agent-feedback.rb final 23002b0ab4d6091743587147c9659f66622e50a8` 통과(`/tmp/hg-cicd-final.log`). CI/CD diff의 의존 순서·검사 누락·중복을 검토했다. 같은 코드·설정·환경이면 재사용한다.
 - 남은 행동: 사용자 원격 푸시 요청 후 PR의 새 CI Gate와 운영 후보 이미지 검사를 확인하고 두 브랜치 보호 적용안을 반영한다. 운영 배포·새 Actions 버전의 원격 실행·새 이미지 실빌드/Trivy는 이번 세션에서 실행하지 않았다. 화면 병행 변경은 해당 작업의 검증 기록을 따른다.
+- Dependabot(2026-10-05): `codexReview`에 checkout v7·dependency-review v5·@types/node 26.4.0·trivy-action v0.36.0·upload-artifact v7이 병합돼 이 브랜치와 `.github/workflows/ci.yml`이 충돌한다. 해소할 때 이 브랜치의 SHA 고정 구조를 유지하고, Trivy만 공식 `v0.36.0` 태그 `ed142fd0673e97e23eac54620cfb913e5ce36c25`로 올린다. 3월 태그 탈취 이후 Aqua가 `v` 접두 태그로 재발행해서 `0.36.0`이 아니라 `v0.36.0`이다.
+- 남은 Dependabot PR(미병합): #126 gradle/actions v6은 캐시 구성요소의 상용 이용약관 동의가 필요해 사용자 결정 대기. #158 프론트 묶음은 orval 8.39가 취약한 undici 7.29.0을 끌어와 `npm audit` 실패. #120 Gradle 묶음은 springdoc 3.1.1로 OpenAPI 산출물이 바뀌고 Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요. #122 logstash-logback-encoder 9는 Jackson 3 전환 필요. #127 TypeScript 7은 typescript-eslint 범위 밖. #128 vite 8은 1개월 전 기준 CI라 재실행 필요. #156 Node 25는 2026-06-01 지원 종료라 24 LTS로 가야 한다.
 
 ## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
 
