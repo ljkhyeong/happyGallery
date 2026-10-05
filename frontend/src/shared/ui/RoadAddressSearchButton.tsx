@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "./ErrorAlert";
 
@@ -60,6 +60,10 @@ function PostcodeSearch({ onSelect }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>();
+  // 부모가 다시 그려져 onSelect가 바뀌어도 검색창을 다시 심지 않는다(스크립트 재요청·입력 중인 검색어 초기화 방지).
+  const complete = useEffectEvent((data: PostcodeData) => {
+    onSelect({ postalCode: data.zonecode, roadAddress: data.roadAddress || data.address });
+  });
 
   useEffect(() => {
     let active = true;
@@ -68,7 +72,7 @@ function PostcodeSearch({ onSelect }: Props) {
       if (!active || !element) return;
       new Postcode({
         oncomplete: (data) => {
-          if (active) onSelect({ postalCode: data.zonecode, roadAddress: data.roadAddress || data.address });
+          if (active) complete(data);
         },
         width: "100%",
         height: "100%",
@@ -84,7 +88,7 @@ function PostcodeSearch({ onSelect }: Props) {
       active = false;
       element?.replaceChildren();
     };
-  }, [onSelect]);
+  }, []);
 
   return (
     <>
