@@ -177,7 +177,8 @@ class AgentFeedback
       # 스테이징만 바뀐 경우도 종료 검사에서 놓치지 않는다.
       inputs = [current, ENV.values_at('JAVA_HOME', 'GRADLE_USER_HOME', 'PATH')]
       signature = Digest::SHA256.hexdigest(JSON.generate(inputs) + git('diff', '--cached', state['base'], '--'))
-      if event['stop_hook_active'] && state['failed_signature'] == signature
+      retrying = state.key?('failed_signature')
+      if retrying && state['failed_signature'] == signature
         state['finished'] = true
         return { 'systemMessage' => "종료 검사 미통과 상태가 그대로입니다. 자동 재시도를 멈춥니다. 미확인 범위와 실패 이유를 최종 결과에 명시하세요.\n#{state['failure']}" }
       end
@@ -185,12 +186,17 @@ class AgentFeedback
         final(state['base'])
         state['finished'] = true
         state.delete('failed_signature')
+        state.delete('failure')
         {}
       rescue CheckFailed => error
         state['failed_signature'] = signature
         state['failure'] = error.message
-        state['finished'] = false
-        { 'decision' => 'block', 'reason' => "종료 검사 실패. 원인을 해결하고 필요한 검사만 다시 실행하세요.\n#{error.message}" }
+        state['finished'] = retrying
+        if retrying
+          { 'systemMessage' => "종료 재검사도 미통과했습니다. 자동 수정 요청은 한 번으로 제한합니다. 미확인 범위와 실패 이유를 최종 결과에 명시하세요.\n#{error.message}" }
+        else
+          { 'decision' => 'block', 'reason' => "종료 검사 실패. 원인을 해결하고 필요한 검사만 다시 실행하세요.\n#{error.message}" }
+        end
       end
     else
       {}

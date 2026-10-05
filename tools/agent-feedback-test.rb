@@ -179,6 +179,36 @@ class AgentFeedbackTest < Minitest::Test
     assert_equal 1, architecture_runs
   end
 
+  def test_stop_without_retry_flag_does_not_repeat_unchanged_failure
+    @feedback.hook(event('UserPromptSubmit'))
+    write('domain/src/main/java/Model.java', "class Model { int id; }\n")
+    @feedback.fail_architecture = true
+    assert_equal 'block', @feedback.hook(event('Stop'))['decision']
+
+    result = @feedback.hook(event('Stop'))
+    refute result.key?('decision')
+    assert_includes result.fetch('systemMessage'), '미통과'
+    assert_equal 1, architecture_runs
+  end
+
+  def test_unrelated_changes_do_not_trigger_more_than_one_automatic_fix_request
+    @feedback.hook(event('UserPromptSubmit'))
+    write('domain/src/main/java/Model.java', "class Model { int id; }\n")
+    @feedback.fail_architecture = true
+    assert_equal 'block', @feedback.hook(event('Stop'))['decision']
+
+    write('README.md', "병행 문서 변경\n")
+    result = @feedback.hook(event('Stop'))
+    refute result.key?('decision')
+    assert_includes result.fetch('systemMessage'), '의존 방향 위반'
+    assert_equal 2, architecture_runs
+
+    # 새 사용자 요청에서는 다시 한 번 수정 요청을 보낼 수 있다.
+    @feedback.hook(event('UserPromptSubmit'))
+    assert_equal 'block', @feedback.hook(event('Stop'))['decision']
+    assert_equal 3, architecture_runs
+  end
+
   def test_stop_retries_when_execution_environment_is_fixed
     previous_java = ENV['JAVA_HOME']
     @feedback.hook(event('UserPromptSubmit'))
