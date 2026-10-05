@@ -148,7 +148,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Download application jar
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: application-jar
           path: bootstrap/build/libs
@@ -215,7 +215,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Download application jar
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: application-jar
           path: bootstrap/build/libs
