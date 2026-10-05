@@ -28,14 +28,14 @@
 
 // ── Design tokens ──────────────────────────────────────
 :root {
-  --hg-surface: #FFFCF6;
-  --hg-surface-alt: #F1EADF;
-  --hg-surface-dim: #E7DED0;
-  --hg-ink-soft: #746B61;
-  --hg-shadow-soft: 0 12px 40px rgba(42, 38, 34, 0.08);
-  --hg-accent: #B96545;
-  --hg-dark: #2A2622;
-  --hg-border: #D9CFC0;
+  --hg-surface: #FFFFFF;
+  --hg-surface-alt: #EAF0E8;
+  --hg-surface-dim: #DFE6DC;
+  --hg-ink-soft: #5B655F;
+  --hg-shadow-soft: 0 12px 40px rgba(24, 33, 28, 0.08);
+  --hg-accent: #E3B23C;
+  --hg-dark: #18211C;
+  --hg-border: #D9DFD6;
   --hg-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 

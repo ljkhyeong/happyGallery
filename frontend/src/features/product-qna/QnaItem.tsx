@@ -92,7 +92,7 @@ export function QnaItem({ item, productId, owned }: Props) {
           <div className="mt-2 small">
             <div className="bg-light p-2 rounded text-break" style={{ whiteSpace: "pre-wrap" }}>{displayContent}</div>
             {displayReply && (
-              <div className="mt-2 p-2 rounded" style={{ background: "#f0f4ff" }}>
+              <div className="mt-2 p-2 rounded" style={{ background: "var(--hg-leaf-tint)" }}>
                 <strong className="small">공방 답변</strong>
                 <div className="text-break" style={{ whiteSpace: "pre-wrap" }}>{displayReply}</div>
               </div>

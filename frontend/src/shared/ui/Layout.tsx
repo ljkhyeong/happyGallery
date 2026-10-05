@@ -140,9 +140,12 @@ export function Layout() {
 
       <Navbar expand="lg" collapseOnSelect className="app-navbar" data-bs-theme="light">
         <Container>
-          <Navbar.Brand as={Link} to="/" className="app-brand d-flex flex-column">
-            <span className="app-brand-mark">해피갤러리</span>
-            <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
+          <Navbar.Brand as={Link} to="/" className="app-brand d-flex">
+            <span className="app-brand-dots" aria-hidden="true" />
+            <span className="app-brand-text">
+              <span className="app-brand-mark">해피갤러리</span>
+              <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
+            </span>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="main-nav" label="메뉴 열기/닫기" />
           <Navbar.Collapse id="main-nav">

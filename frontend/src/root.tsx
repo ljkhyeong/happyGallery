@@ -48,7 +48,7 @@ export function links() {
     },
     {
       rel: "stylesheet",
-      href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Gowun+Batang:wght@400;700&display=swap",
+      href: "https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap",
     },
   ];
 }
@@ -60,7 +60,7 @@ export function Layout({ children }: { children: ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#56675d" />
+        <meta name="theme-color" content="#2F4A3D" />
         <Meta />
         <Links nonce={LINK_NONCE_DISABLED} />
       </head>

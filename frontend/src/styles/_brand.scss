@@ -11,91 +11,61 @@
   overflow-wrap: anywhere;
 }
 
-// ── 히어로: 사진 카드(문구 겹침) + 바로 예약 패널 ──────────
+// ── 히어로: 커팅매트 초록 띠 + 레진 코스터처럼 둥근 공방 사진 ──────────
+// 초록 바탕의 옅은 격자는 가죽 공예 커팅매트 눈금이다.
 .home-hero {
-  padding-block: clamp(1.25rem, 3vw, 2.5rem) clamp(2rem, 4vw, 3rem);
+  color: #FFFFFF;
+  background-color: var(--hg-leaf);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+
+  // 초록 위에서는 초록 포커스 링이 보이지 않으므로 실 노랑(4.94:1)으로 바꾼다.
+  a:focus-visible,
+  button:focus-visible {
+    outline-color: var(--hg-accent);
+  }
 }
 
 .home-hero-inner {
   display: grid;
-  grid-template-areas:
-    "visual panel"
-    "situations situations";
-  grid-template-columns: minmax(0, 1.25fr) minmax(21rem, 0.75fr);
-  gap: clamp(1rem, 2.5vw, 2rem);
-  align-items: stretch;
-}
-
-.home-hero-visual {
-  grid-area: visual;
-  position: relative;
-  min-height: 34rem;
-  overflow: hidden;
-  border-radius: 1.25rem;
-  background: var(--hg-surface-dim);
-  isolation: isolate;
-
-  > img {
-    position: absolute;
-    inset: 0;
-    z-index: -2;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background:
-      linear-gradient(0deg, rgba(30, 24, 20, 0.82) 0%, rgba(30, 24, 20, 0.35) 45%, rgba(30, 24, 20, 0) 70%),
-      linear-gradient(90deg, rgba(30, 24, 20, 0.35) 0%, rgba(30, 24, 20, 0) 60%);
-  }
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1.5rem, 4vw, 3rem);
+  align-items: center;
+  padding-block: clamp(2.5rem, 5vw, 3.5rem) clamp(5rem, 8vw, 6.5rem);
 }
 
 .home-hero-copy {
-  position: absolute;
-  right: clamp(1.25rem, 3vw, 2.5rem);
-  bottom: clamp(1.25rem, 3vw, 2.5rem);
-  left: clamp(1.25rem, 3vw, 2.5rem);
-  color: #FFFDF8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.1rem;
 }
 
 .home-hero-eyebrow {
-  display: inline-block;
-  margin-bottom: 1rem;
-  padding: 0.3rem 0.75rem;
-  background: rgba(255, 253, 248, 0.18);
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
-  backdrop-filter: blur(6px);
   font-size: 0.82rem;
   font-weight: 700;
 }
 
 .home-hero-title {
-  margin-bottom: 0.35rem;
-  color: #FFFDF8;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: clamp(2.75rem, 5.5vw, 4.5rem);
+  margin: 0;
+  color: #FFFFFF;
+  font-family: var(--hg-font-display);
+  font-size: clamp(2.4rem, 5vw, 3.9rem);
   font-weight: 400;
-  line-height: 1.1;
+  line-height: 1.15;
   letter-spacing: -0.01em;
-}
-
-.home-hero-lead {
-  margin-bottom: 0.9rem;
-  color: #F3E6D4;
-  font-family: "Gowun Batang", Georgia, serif;
-  font-size: clamp(1.2rem, 2vw, 1.5rem);
-  font-weight: 700;
 }
 
 .home-hero-text {
   max-width: 30rem;
-  margin-bottom: 1.5rem;
-  color: rgba(255, 253, 248, 0.86);
+  margin: 0;
+  color: rgba(255, 255, 255, 0.86);
   font-size: 1rem;
   line-height: 1.8;
 }
@@ -104,24 +74,89 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem;
+
+  .btn {
+    min-height: 2.9rem;
+    padding-inline: 1.5rem;
+    font-weight: 700;
+  }
+}
+
+// 코스터 세 장: 큰 공방 사진 하나에 재료 사진 둘을 겹쳐 놓는다.
+.home-hero-coasters {
+  position: relative;
+  min-height: 25rem;
+
+  img {
+    position: absolute;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    border: 0.5rem solid #FFFFFF;
+    border-radius: 50%;
+    box-shadow: 0 16px 40px rgba(16, 26, 20, 0.28);
+  }
+
+  img:nth-child(1) {
+    top: 4%;
+    left: 4%;
+    width: 58%;
+  }
+
+  img:nth-child(2) {
+    top: 0;
+    right: 2%;
+    width: 40%;
+  }
+
+  img:nth-child(3) {
+    right: 14%;
+    bottom: 0;
+    width: 40%;
+  }
+}
+
+// 바로 예약 띠는 초록 띠 아래에 살짝 걸쳐 첫 화면에서 바로 보이게 한다.
+.home-quick {
+  position: relative;
+  margin-top: clamp(-4.5rem, -6vw, -3rem);
+  padding-bottom: clamp(1rem, 2vw, 1.5rem);
+}
+
+// 바로가기 줄 아래가 비어 보이지 않게 바로 다음 섹션의 위 여백을 줄인다.
+.home-quick + .home-section {
+  padding-top: clamp(2.5rem, 5vw, 3.75rem);
 }
 
 // ── 바로 예약하기 패널 ───────────────────────────────────
+// 데스크톱: 왼쪽 제목·수업, 가운데 날짜·시간, 오른쪽 예약 버튼. 모바일은 한 줄로 쌓는다.
 .quick-booking {
-  grid-area: panel;
-  display: flex;
-  flex-direction: column;
-  padding: clamp(1.25rem, 2.5vw, 1.75rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(16.5rem, 0.8fr);
+  grid-template-areas:
+    "title date action"
+    "sub date action"
+    "class time action";
+  grid-template-rows: auto auto 1fr;
+  column-gap: clamp(1.25rem, 3vw, 2.5rem);
+  padding: clamp(1.25rem, 2.5vw, 1.75rem) clamp(1.25rem, 3vw, 2rem);
   background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
-  border-radius: 1.25rem;
+  border-radius: 2rem;
   box-shadow: var(--hg-shadow-soft);
 
   h2 {
+    grid-area: title;
     margin: 0;
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-family: var(--hg-font-display);
+    font-size: 1.5rem;
+    font-weight: 400;
   }
+
+  > .quick-booking-sub { grid-area: sub; }
+  > .is-class { grid-area: class; }
+  > .is-date { grid-area: date; margin-top: 0; }
+  > .is-time { grid-area: time; }
+  > .quick-booking-state { grid-area: date; align-self: center; }
+  > .quick-booking-action { grid-area: action; align-self: end; }
 }
 
 .quick-booking-sub {
@@ -207,9 +242,9 @@
     padding: 0.5rem 0.25rem;
     color: var(--hg-dark);
     text-align: center;
-    background: var(--hg-paper);
-    border: 1.5px solid transparent;
-    border-radius: 0.75rem;
+    background: var(--hg-surface);
+    border: 1.5px solid var(--hg-border);
+    border-radius: 999px;
     font-variant-numeric: tabular-nums;
     transition: border-color var(--hg-transition), background var(--hg-transition);
 
@@ -226,6 +261,10 @@
 .quick-booking-days {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 
+  button {
+    padding-block: 0.65rem;
+  }
+
   span {
     display: block;
     color: var(--hg-ink-soft);
@@ -237,11 +276,12 @@
   }
 
   button[aria-pressed="true"] {
-    color: #FFFDF8;
+    color: #FFFFFF;
     background: var(--hg-leaf-deep);
+    border-color: var(--hg-leaf-deep);
 
     span {
-      color: rgba(255, 253, 248, 0.78);
+      color: rgba(255, 255, 255, 0.78);
     }
   }
 }
@@ -286,6 +326,14 @@
   margin-top: auto;
   padding-top: 1.25rem;
 
+  // "10/6(화) 오전 10:00 예약하기"가 한 줄에 들어가게 글자를 한 단계 줄인다.
+  .btn {
+    padding-inline: 1rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
   p {
     margin: 0.6rem 0 0;
     color: var(--hg-ink-soft);
@@ -296,7 +344,7 @@
 
 // ── 상황별 바로가기 (솜씨당·프립 참고) ─────────────────
 .home-situations {
-  grid-area: situations;
+  margin-top: clamp(1.25rem, 3vw, 2rem);
 }
 
 .home-situation-grid {
@@ -353,7 +401,7 @@
 
   h2 {
     margin-bottom: 0.35rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.5rem, 2.6vw, 2rem);
     font-weight: 400;
   }
@@ -430,7 +478,7 @@ a.home-step:focus-visible {
 
 .home-section-title {
   margin-bottom: 0.6rem;
-  font-family: "Gowun Batang", Georgia, serif;
+  font-family: var(--hg-font-display);
   font-size: clamp(1.75rem, 3.2vw, 2.5rem);
   font-weight: 400;
   line-height: 1.3;
@@ -482,21 +530,24 @@ a.home-step:focus-visible {
   gap: 1.5rem;
 }
 
+// 초록·노랑 옅은 면을 번갈아 깔고, 사진은 안쪽에 둥글게 넣는다.
 .home-class-card {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  padding: 0.9rem;
   color: var(--hg-dark);
-  background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
-  border-radius: var(--hg-radius-media);
+  background: var(--hg-leaf-tint);
+  border-radius: var(--hg-radius-card);
   text-decoration: none;
-  transition: border-color var(--hg-transition), box-shadow var(--hg-transition), transform var(--hg-transition);
+  transition: box-shadow var(--hg-transition), transform var(--hg-transition);
+
+  &:nth-child(even) {
+    background: var(--hg-clay-tint);
+  }
 
   &:hover,
   &:focus-visible {
     color: var(--hg-dark);
-    border-color: var(--hg-accent);
     box-shadow: var(--hg-shadow-soft);
     transform: translateY(-3px);
   }
@@ -506,6 +557,7 @@ a.home-step:focus-visible {
   margin: 0;
   aspect-ratio: 4 / 3;
   overflow: hidden;
+  border-radius: var(--hg-radius-media);
   background: var(--hg-surface-dim);
 
   img {
@@ -522,11 +574,11 @@ a.home-step:focus-visible {
 }
 
 .home-class-card-body {
-  padding: 1.25rem 1.35rem 1.5rem;
+  padding: 1.1rem 0.5rem 0.4rem;
 
   h3 {
     margin: 0.35rem 0 0.4rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.35rem;
     font-weight: 700;
   }
@@ -557,6 +609,10 @@ a.home-step:focus-visible {
   b.is-few {
     color: var(--hg-accent-deep);
   }
+}
+
+.home-class-card .home-class-card-next {
+  border-top-color: rgba(24, 33, 28, 0.12);
 }
 
 .class-catalog-next {
@@ -612,7 +668,7 @@ a.home-step:focus-visible {
 }
 
 .home-editorial-copy .store-section-kicker {
-  color: #D9C9A8;
+  color: #E3B23C;
 }
 
 .home-editorial-copy h2,
@@ -621,7 +677,7 @@ a.home-step:focus-visible {
 .group-class-process h2,
 .group-class-inquiry h2 {
   margin-bottom: 1.25rem;
-  font-family: "Gowun Batang", Georgia, serif;
+  font-family: var(--hg-font-display);
   font-size: clamp(1.85rem, 3.4vw, 2.75rem);
   font-weight: 400;
   line-height: 1.35;
@@ -636,7 +692,7 @@ a.home-step:focus-visible {
 }
 
 .home-editorial-copy p:not(.store-section-kicker) {
-  color: rgba(255, 253, 248, 0.78);
+  color: rgba(255, 255, 255, 0.78);
 }
 
 // ── 공지·이벤트 ──────────────────────────────────────────
@@ -665,7 +721,7 @@ a.home-step:focus-visible {
 
   h2 {
     margin-bottom: 0.45rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 2.6vw, 2.1rem);
     font-weight: 400;
   }
@@ -731,7 +787,7 @@ a.home-step:focus-visible {
   min-height: 100%;
   overflow: hidden;
   color: #FFFFFF;
-  background: var(--hg-dark);
+  background: var(--hg-leaf);
   border-radius: var(--hg-radius-media);
 }
 
@@ -749,7 +805,7 @@ a.home-step:focus-visible {
   min-height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #211B18;
+  background: #18211C;
 
   img {
     width: 100%;
@@ -773,7 +829,7 @@ a.home-step:focus-visible {
   h2 {
     margin-bottom: 0.9rem;
     color: #FFFFFF;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
     line-height: 1.3;
   }
@@ -794,7 +850,7 @@ a.home-step:focus-visible {
 
 .home-event-labels .store-section-kicker,
 .home-event-empty .store-section-kicker {
-  color: #D9C3A3;
+  color: #E3B23C;
 }
 
 .home-event-summary {
@@ -908,7 +964,7 @@ a.home-step:focus-visible {
 
   h1 {
     margin-bottom: 0.5rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(2.1rem, 4vw, 3rem);
     font-weight: 400;
   }
@@ -940,9 +996,9 @@ a.home-step:focus-visible {
     }
 
     &[aria-pressed="true"] {
-      color: #FFFDF8;
-      background: var(--hg-dark);
-      border-color: var(--hg-dark);
+      color: #FFFFFF;
+      background: var(--hg-leaf-deep);
+      border-color: var(--hg-leaf-deep);
     }
   }
 }
@@ -972,14 +1028,15 @@ a.home-step:focus-visible {
 .class-catalog-item {
   display: grid;
   grid-template-columns: minmax(14rem, 0.42fr) minmax(0, 1fr);
+  padding: 0.75rem;
   overflow: hidden;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: var(--hg-radius-media);
+  border-radius: var(--hg-radius-card);
   transition: border-color var(--hg-transition), box-shadow var(--hg-transition);
 
   &:hover {
-    border-color: rgba(185, 101, 69, 0.55);
+    border-color: rgba(47, 74, 61, 0.45);
     box-shadow: var(--hg-shadow-soft);
   }
 }
@@ -991,7 +1048,7 @@ a.home-step:focus-visible {
 .class-catalog-media {
   height: 100%;
   min-height: 15rem;
-  border-radius: 0;
+  border-radius: var(--hg-radius-media);
 }
 
 .class-catalog-content {
@@ -1030,7 +1087,7 @@ a.home-step:focus-visible {
 
   h2 {
     margin-bottom: 0;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(1.4rem, 2.4vw, 1.75rem);
     font-weight: 700;
   }
@@ -1118,7 +1175,7 @@ a.home-step:focus-visible {
 
   strong {
     grid-column: 1;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.35rem;
   }
 
@@ -1151,14 +1208,14 @@ a.home-step:focus-visible {
 
   h2 {
     margin-bottom: 0.85rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.5rem;
     font-weight: 400;
   }
 }
 
 .class-detail-description {
-  color: #5E554C;
+  color: #4F5953;
   line-height: 1.9;
   white-space: pre-wrap;
 }
@@ -1179,7 +1236,7 @@ a.home-step:focus-visible {
 
   h2 {
     margin: 0;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.5rem;
     font-weight: 400;
   }
@@ -1249,7 +1306,7 @@ a.home-step:focus-visible {
 .class-detail-policy {
   margin: 0;
   padding-left: 1.1rem;
-  color: #5E554C;
+  color: #4F5953;
   font-size: 0.92rem;
   line-height: 1.8;
 
@@ -1273,7 +1330,7 @@ a.home-step:focus-visible {
 
 .class-detail-title {
   margin-bottom: 0.75rem;
-  font-family: "Gowun Batang", Georgia, serif;
+  font-family: var(--hg-font-display);
   font-size: clamp(1.85rem, 3.4vw, 2.5rem);
   font-weight: 700;
   line-height: 1.25;
@@ -1347,13 +1404,13 @@ a.home-step:focus-visible {
   }
 
   .store-section-kicker {
-    color: #D9C9A8;
+    color: #E3B23C;
   }
 
   h1 {
     margin-bottom: 1.25rem;
     color: #FFFFFF;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: clamp(2.5rem, 6vw, 4.25rem);
     font-weight: 400;
     line-height: 1.25;
@@ -1406,14 +1463,14 @@ a.home-step:focus-visible {
 
   li > span {
     color: var(--hg-accent);
-    font-family: "Cormorant Garamond", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.35rem;
     font-weight: 700;
   }
 
   h3 {
     margin: 1rem 0 0.6rem;
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.35rem;
   }
 
@@ -1455,11 +1512,31 @@ a.home-step:focus-visible {
 // ── 반응형 ──────────────────────────────────────────────
 @media (max-width: 991.98px) {
   .home-hero-inner {
-    grid-template-areas:
-      "visual"
-      "situations"
-      "panel";
     grid-template-columns: 1fr;
+  }
+
+  .home-hero-coasters {
+    min-height: 20rem;
+    max-width: 30rem;
+    width: 100%;
+    justify-self: center;
+  }
+
+  // 좁은 화면의 바로 예약은 제목 → 수업 → 날짜 → 시간 → 버튼 순서로 쌓는다.
+  .quick-booking {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "title"
+      "sub"
+      "class"
+      "date"
+      "time"
+      "action";
+    grid-template-rows: none;
+
+    > .is-date { margin-top: 1.1rem; }
+    > .quick-booking-state { grid-area: date; }
+    > .quick-booking-action { align-self: stretch; }
   }
 
   .home-updates-grid,
@@ -1468,10 +1545,6 @@ a.home-step:focus-visible {
   .group-class-intro,
   .class-detail-layout {
     grid-template-columns: 1fr;
-  }
-
-  .home-hero-visual {
-    min-height: 26rem;
   }
 
 
@@ -1532,31 +1605,22 @@ a.home-step:focus-visible {
 }
 
 @media (max-width: 767.98px) {
-  .home-hero {
-    padding-top: 0.75rem;
-  }
-
-  .home-hero-visual {
-    min-height: 24rem;
-    border-radius: var(--hg-radius-media);
-  }
-
-  .home-hero-eyebrow {
-    margin-bottom: 0.75rem;
+  .home-hero-coasters {
+    min-height: 16rem;
   }
 
   .home-hero-text {
-    margin-bottom: 1.25rem;
     font-size: 0.92rem;
   }
 
   .home-hero-actions .btn {
-    flex: 1 1 0;
-    padding-inline: 0.75rem;
+    flex: 1 1 auto;
+    padding-inline: 1.1rem;
+    white-space: nowrap;
   }
 
   .quick-booking {
-    border-radius: var(--hg-radius-media);
+    border-radius: 1.5rem;
   }
 
 

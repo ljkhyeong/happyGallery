@@ -7,6 +7,8 @@ import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
 import groupToleWreath from "@/assets/happygallery/group-tole-wreath.jpg";
 import leatherWorkshopHands from "@/assets/happygallery/leather-workshop-hands.jpg";
+import toleMaterials from "@/assets/happygallery/tole-materials.jpg";
+import wreathHands from "@/assets/happygallery/wreath-hands.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
 import { QuickBookingPanel } from "@/features/booking-create/QuickBookingPanel";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
@@ -125,26 +127,30 @@ export function HomePage({
     <>
       <section className="home-hero">
         <Container className="home-hero-inner">
-          <div className="home-hero-visual">
-            <img
-              src={heroWorkshop}
-              alt="빈티지 가죽 가방과 소품이 진열된 해피갤러리 공방 내부"
-              fetchPriority="high"
-            />
-            <div className="home-hero-copy">
-              <p className="home-hero-eyebrow">충주 계명대로 공예공방</p>
-              <h1 className="home-hero-title">해피갤러리</h1>
-              <p className="home-hero-lead">손으로 만드는 즐거움</p>
-              <p className="home-hero-text">
-                원데이클래스부터 자격증반·창업반까지.
-                공예를 배우고 나만의 작품을 만들어 보세요.
-              </p>
-              <div className="home-hero-actions">
-                <LinkButton to="/classes" variant="light">클래스 둘러보기</LinkButton>
-                <LinkButton to="/products" variant="outline-light">공방 작품 보기</LinkButton>
-              </div>
+          <div className="home-hero-copy">
+            <p className="home-hero-eyebrow">충주 계명대로 공예공방 해피갤러리</p>
+            <h1 className="home-hero-title">재료를 만지고,<br />내 손으로 완성합니다</h1>
+            <p className="home-hero-text">
+              빈티지 가죽, 레진, 양말목, 톨페인팅까지. 원데이클래스부터 자격증반·창업반까지
+              처음이어도 집에 가져갈 작품을 완성합니다.
+            </p>
+            <div className="home-hero-actions">
+              <LinkButton to="/classes" variant="accent">클래스 둘러보기</LinkButton>
+              <LinkButton to="/products" variant="outline-light">공방 작품 보기</LinkButton>
             </div>
           </div>
+          {/* 레진 코스터처럼 둥글게 자른 공방 사진. 내용은 문구가 전하므로 장식으로 둔다. */}
+          <div className="home-hero-coasters" aria-hidden="true">
+            <img src={heroWorkshop} alt="" fetchPriority="high" />
+            <img src={toleMaterials} alt="" />
+            <img src={wreathHands} alt="" />
+          </div>
+        </Container>
+      </section>
+
+      <section className="home-quick">
+        <Container>
+          <QuickBookingPanel classes={classes ?? []} />
           <nav className="home-situations" aria-label="상황별로 수업 찾기">
             <ul className="home-situation-grid">
               {SITUATIONS.map(({ to, label, icon: Icon }) => (
@@ -157,10 +163,8 @@ export function HomePage({
               ))}
             </ul>
           </nav>
-          <QuickBookingPanel classes={classes ?? []} />
         </Container>
       </section>
-
 
       <section className="home-section" aria-labelledby="home-class-title">
         <Container>

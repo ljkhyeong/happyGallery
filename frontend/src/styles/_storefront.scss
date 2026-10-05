@@ -56,7 +56,7 @@
 }
 
 .app-brand-mark {
-  font-family: "Gowun Batang", serif;
+  font-family: var(--hg-font-display);
   font-size: 1.375rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -179,7 +179,7 @@
   transition: color var(--hg-transition);
 
   &:hover {
-    color: darken(#B96545, 12%);
+    color: var(--hg-accent-deep);
   }
 }
 
@@ -229,7 +229,7 @@
 }
 
 .store-list-title {
-  font-family: "Gowun Batang", serif;
+  font-family: var(--hg-font-display);
   font-weight: 800;
   letter-spacing: 0;
 }
@@ -344,7 +344,7 @@
 
 .store-detail-description {
   margin: 1rem 0 1rem;
-  color: #5E554C;
+  color: #4F5953;
   font-size: 0.95rem;
   line-height: 1.8;
   white-space: pre-line;
@@ -516,7 +516,7 @@
     width: 1.5rem;
     height: 1.5rem;
     color: #FFFFFF;
-    background: var(--hg-dark);
+    background: var(--hg-leaf);
     border-radius: 50%;
     font-size: 0.6875rem;
     font-weight: 700;
@@ -576,7 +576,7 @@
 }
 
 .store-purchase-total-value {
-  font-family: "Gowun Batang", serif;
+  font-family: var(--hg-font-display);
   font-size: 1.25rem;
   font-weight: 800;
 }
@@ -605,8 +605,8 @@
 .store-option-form .form-control,
 .store-option-form .form-select {
   min-height: 44px;
-  border-color: #CFC5B7;
-  background-color: #FFFDF8;
+  border-color: #C3CCC0;
+  background-color: #FFFFFF;
 }
 
 .store-option-form .form-text {
@@ -695,7 +695,7 @@
 
   &:hover,
   &:focus-visible {
-    color: darken(#B96545, 15%);
+    color: var(--hg-accent-deep);
   }
 }
 
@@ -825,7 +825,7 @@
 
   &:hover,
   &:focus-visible {
-    color: darken(#B96545, 15%);
+    color: var(--hg-accent-deep);
   }
 }
 
@@ -1034,7 +1034,7 @@
 
 .review-histogram-track {
   height: 0.45rem;
-  background: #DDD8D0;
+  background: #D9DFD6;
 }
 
 .review-histogram-track > span {
@@ -1127,7 +1127,7 @@
 }
 
 .review-image-link:focus-visible {
-  outline: 3px solid rgba(42, 38, 34, 0.28);
+  outline: 3px solid rgba(24, 33, 28, 0.28);
   outline-offset: 2px;
 }
 
@@ -1222,7 +1222,7 @@
   width: 2.5rem;
   min-height: 2.5rem;
   border: 1px solid transparent;
-  color: #B7B0A8;
+  color: #A9B2AB;
   cursor: pointer;
   font-size: 1.6rem;
   line-height: 1;
@@ -1230,7 +1230,7 @@
 
 .btn-check:focus-visible + .review-star {
   border-color: var(--hg-dark);
-  box-shadow: 0 0 0 0.2rem rgba(42, 38, 34, 0.16);
+  box-shadow: 0 0 0 0.2rem rgba(24, 33, 28, 0.16);
 }
 
 .member-source-reviews {
@@ -1313,7 +1313,7 @@
   place-items: center;
   width: 2.25rem;
   height: 2.25rem;
-  background: var(--hg-dark);
+  background: var(--hg-leaf);
   color: #FFFFFF;
 }
 
@@ -1374,7 +1374,7 @@
 
     .btn {
       min-height: 44px;
-      box-shadow: 0 8px 24px rgba(42, 38, 34, 0.22);
+      box-shadow: 0 8px 24px rgba(24, 33, 28, 0.22);
     }
   }
 }
@@ -1454,7 +1454,7 @@
   padding: 1.6rem 1.75rem;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
 }
 
 .checkout-panel-head {
@@ -1478,8 +1478,8 @@
   place-items: center;
   width: 1.5rem;
   height: 1.5rem;
-  color: #FFFDF8;
-  background: var(--hg-dark);
+  color: #FFFFFF;
+  background: var(--hg-leaf);
   border-radius: 50%;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1600,7 +1600,7 @@
   overflow-y: auto;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
   box-shadow: var(--hg-shadow-soft);
 }
 
@@ -1807,7 +1807,7 @@
     color: var(--hg-dark);
     background: var(--hg-surface-alt);
     border: 1.5px solid transparent;
-    border-radius: 0.85rem;
+    border-radius: 999px;
     font-variant-numeric: tabular-nums;
     transition: border-color var(--hg-transition), background var(--hg-transition);
 
@@ -1831,13 +1831,13 @@
     }
 
     &[aria-pressed="true"] {
-      color: #FFFDF8;
+      color: #FFFFFF;
       background: var(--hg-leaf-deep);
       opacity: 1;
 
       span,
       small {
-        color: rgba(255, 253, 248, 0.78);
+        color: rgba(255, 255, 255, 0.78);
       }
     }
   }
@@ -1858,7 +1858,7 @@
     color: var(--hg-dark);
     background: #FFFFFF;
     border: 1.5px solid var(--hg-border) !important;
-    border-radius: 0.85rem !important;
+    border-radius: 1.1rem !important;
     font-variant-numeric: tabular-nums;
   }
 
@@ -1968,9 +1968,9 @@
     gap: 0.75rem;
     flex-wrap: wrap;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
-    background: rgba(255, 253, 248, 0.97);
+    background: rgba(255, 255, 255, 0.97);
     border-top: 1px solid var(--hg-border);
-    box-shadow: 0 -10px 30px rgba(61, 48, 36, 0.06);
+    box-shadow: 0 -10px 30px rgba(24, 33, 28, 0.06);
   }
 
   .checkout-summary-hint {
@@ -2029,7 +2029,7 @@
 
 .my-shell-hello {
   margin: 0 0 1.25rem 0.75rem;
-  font-family: "Gowun Batang", Georgia, serif;
+  font-family: var(--hg-font-display);
   font-size: 1.3rem;
 }
 
@@ -2125,7 +2125,7 @@
   padding: 1.75rem;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
 
   h1 {
     margin-bottom: 0.75rem;
@@ -2160,13 +2160,13 @@
   justify-content: center;
   gap: 0.25rem;
   padding: 1.25rem 1.4rem;
-  color: #FFFDF8;
+  color: #FFFFFF;
   background: var(--hg-leaf-deep);
   border-radius: 0.9rem;
   text-decoration: none;
 
   strong {
-    font-family: "Gowun Batang", Georgia, serif;
+    font-family: var(--hg-font-display);
     font-size: 1.3rem;
     font-weight: 400;
     line-height: 1.35;
@@ -2174,7 +2174,7 @@
 
   &:hover,
   &:focus-visible {
-    color: #FFFDF8;
+    color: #FFFFFF;
     background: var(--hg-leaf);
   }
 
@@ -2193,7 +2193,7 @@
 }
 
 .my-next-booking-label {
-  color: rgba(255, 253, 248, 0.75);
+  color: rgba(255, 255, 255, 0.75);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -2312,7 +2312,7 @@
   margin-bottom: 1.5rem;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
   overflow: hidden;
 }
 
@@ -2429,7 +2429,7 @@
 .my-form-card {
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
 }
 
 @media (max-width: 991.98px) {
@@ -2466,9 +2466,9 @@
         white-space: nowrap;
 
         &.active {
-          color: #FFFDF8;
-          background: var(--hg-dark);
-          border-color: var(--hg-dark);
+          color: #FFFFFF;
+          background: var(--hg-leaf-deep);
+          border-color: var(--hg-leaf-deep);
           box-shadow: none;
         }
       }
@@ -2544,7 +2544,7 @@
   text-align: center;
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
-  border-radius: 1.1rem;
+  border-radius: 1.5rem;
 
   svg {
     color: var(--hg-ink-soft);

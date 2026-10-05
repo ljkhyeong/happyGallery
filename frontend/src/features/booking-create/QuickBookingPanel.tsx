@@ -62,7 +62,7 @@ export function QuickBookingPanel({ classes }: { classes: ClassResponse[] }) {
       <h2 id="quick-booking-title">바로 예약하기</h2>
       <p className="quick-booking-sub">수업과 날짜를 고르면 남은 자리를 보여 드립니다.</p>
 
-      <div className="quick-booking-step" role="group" aria-labelledby="quick-booking-class">
+      <div className="quick-booking-step is-class" role="group" aria-labelledby="quick-booking-class">
         <p id="quick-booking-class" className="quick-booking-step-title">1. 수업</p>
         <div className="quick-booking-classes">
           {options.map((option) => (
@@ -107,7 +107,7 @@ export function QuickBookingPanel({ classes }: { classes: ClassResponse[] }) {
 
       {dates.length > 0 && (
         <>
-          <div className="quick-booking-step" role="group" aria-labelledby="quick-booking-date">
+          <div className="quick-booking-step is-date" role="group" aria-labelledby="quick-booking-date">
             <p id="quick-booking-date" className="quick-booking-step-title">2. 날짜</p>
             <div className="quick-booking-days">
               {dates.slice(0, DAY_LIMIT).map((value) => {
@@ -131,7 +131,7 @@ export function QuickBookingPanel({ classes }: { classes: ClassResponse[] }) {
             </div>
           </div>
 
-          <div className="quick-booking-step" role="group" aria-labelledby="quick-booking-time">
+          <div className="quick-booking-step is-time" role="group" aria-labelledby="quick-booking-time">
             <p id="quick-booking-time" className="quick-booking-step-title">3. 시간</p>
             <div className="quick-booking-times">
               {daySlots.slice(0, TIME_LIMIT).map((slot) => (

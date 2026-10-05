@@ -20,12 +20,15 @@ export function ProductCard({ product, headingLevel = 3 }: Props) {
       to={`/products/${product.id}`}
       className={`product-card${product.available ? "" : " is-sold-out"}`}
     >
-      <div className="product-card-media">
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} loading="lazy" />
-        ) : (
-          <ProductMediaPlaceholder />
-        )}
+      {/* 품절 표시는 둥근 사진 밖 아래 가장자리에 걸치도록 사진 틀 바깥에 둔다. */}
+      <div className="product-card-visual">
+        <div className="product-card-media">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} loading="lazy" />
+          ) : (
+            <ProductMediaPlaceholder />
+          )}
+        </div>
         {!product.available && <span className="product-card-status">품절</span>}
       </div>
       <div className="product-card-body">
