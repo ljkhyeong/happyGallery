@@ -82,6 +82,19 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
+/** 작품 상세·주문서가 함께 부르는 회원 주문 혜택 조회. 기본 응답 `{}` 대신 실제 형태를 준다. */
+async function fulfillMemberBenefits(route: Route, pathname: string): Promise<boolean> {
+  if (pathname === "/api/v1/me/coupons") {
+    await fulfillJson(route, []);
+    return true;
+  }
+  if (pathname === "/api/v1/me/rewards") {
+    await fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
+    return true;
+  }
+  return false;
+}
+
 async function flushBrowserTasks(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => {
     requestAnimationFrame(() => {
@@ -316,6 +329,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
       return;
     }
 
+    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 
@@ -444,9 +458,12 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
         price: 30000,
         imageUrl: null,
         available: true,
+        stockQuantity: 10,
         specification: null,
         careInstructions: null,
         productionLeadDays: null,
+        optionGroups: [],
+        variants: [],
       }]);
       return;
     }
@@ -482,6 +499,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       return;
     }
 
+    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 
@@ -777,6 +795,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
       return;
     }
 
+    if (await fulfillMemberBenefits(route, pathname)) return;
     await fulfillJson(route, {});
   });
 

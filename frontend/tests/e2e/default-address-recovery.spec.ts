@@ -60,15 +60,15 @@ test("저장·삭제 실패는 해당 요청을 재시도하고 처리 중에는
   await expect(page.getByRole("button", { name: "주소 검색" })).toBeDisabled();
   state.hold = false;
   state.release();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("수정한 주소");
   state.failWrite = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect.poll(() => state.accounts.get(501)?.version).toBe(5);
   state.failWrite = true;
   await page.getByRole("button", { name: "기본 배송지 삭제", exact: true }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
   state.failWrite = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(page.getByRole("button", { name: "기본 배송지 삭제", exact: true })).toHaveCount(0);
@@ -96,7 +96,7 @@ test("재연결로 최신 주소를 조회해도 입력을 유지하고 사용�
   }
   await page.getByRole("button", { name: "최신 주소 불러오기", exact: true }).click();
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("다른 화면의 주소");
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   expect(state.requests).toEqual([]);
 });
 
@@ -131,7 +131,7 @@ test("저장 성공 후 조회만 실패하면 입력을 유지하고 재조회 
   expect(state.requests).toHaveLength(1);
   state.failRead = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "최신 주소 불러오기", exact: true })).toHaveCount(0);
   await page.getByLabel("기본 주소", { exact: true }).fill("다시 수정한 주소");
   await page.getByRole("button", { name: "기본 배송지 저장", exact: true }).click();
@@ -157,5 +157,5 @@ test("계정 전환 후 이전 주소 저장 결과는 새 계정의 입력과 �
   await response;
   await expect(page.getByLabel("기본 주소", { exact: true })).toHaveValue("새 회원 주소");
   await expect(page.getByText("기본 배송지를 저장했습니다.", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
 });
