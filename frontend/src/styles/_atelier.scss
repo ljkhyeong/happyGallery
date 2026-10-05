@@ -980,3 +980,85 @@ textarea {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+// 없는 주소·불러오기 실패·화면 오류 안내(StatusPage): 이유와 돌아갈 곳을 함께 보여 준다.
+.page-container.status-page {
+  max-width: 760px;
+  padding-block: clamp(3rem, 8vw, 6rem);
+}
+
+.status-page-brand {
+  display: inline-block;
+  margin-bottom: 2.5rem;
+  color: var(--hg-dark);
+  font-family: $headings-font-family;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.status-page-card {
+  text-align: center;
+}
+
+.status-page-title {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  word-break: keep-all;
+}
+
+.status-page-desc {
+  max-width: 32rem;
+  word-break: keep-all;
+  margin: 0 auto 1.5rem;
+  color: var(--hg-ink-soft);
+}
+
+.status-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.status-page-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--hg-border);
+
+  a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 1rem;
+    border: 1px solid var(--hg-border);
+    border-radius: var(--hg-radius-media);
+    background: var(--hg-surface);
+    color: var(--hg-dark);
+    text-decoration: none;
+    transition: border-color var(--hg-transition);
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--hg-dark);
+    }
+  }
+
+  b {
+    font-size: 0.95rem;
+  }
+
+  span {
+    color: var(--hg-ink-soft);
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .status-page-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Alert, Button } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import * as Sentry from "@sentry/react";
+import { StatusPage } from "./StatusPage";
 
 interface Props {
   children: ReactNode;
@@ -26,16 +27,15 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // 화면 전체를 대신하므로 머리글 없이 공방 이름과 바로가기를 함께 보여 준다.
       return (
-        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "50vh" }}>
-          <Alert variant="danger" className="text-center">
-            <Alert.Heading>예기치 않은 오류가 발생했습니다.</Alert.Heading>
-            <p className="mb-3">페이지를 새로고침해 주세요. 오류가 계속되면 공방에 문의해 주세요.</p>
-            <Button variant="outline-danger" onClick={() => window.location.reload()}>
-              새로고침
-            </Button>
-          </Alert>
-        </div>
+        <StatusPage
+          standalone
+          kicker="ERROR"
+          title="예기치 않은 오류가 발생했습니다"
+          description="페이지를 새로고침해 주세요. 오류가 계속되면 공방에 문의해 주세요."
+          actions={<Button onClick={() => window.location.reload()}>새로고침</Button>}
+        />
       );
     }
     return this.props.children;

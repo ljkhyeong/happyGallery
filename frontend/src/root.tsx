@@ -8,13 +8,14 @@ import {
   isRouteErrorResponse,
   useRouteError,
 } from "react-router";
-import { Container } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import { CustomerAuthProvider } from "@/features/customer-auth/useCustomerAuth";
 import { CartProvider } from "@/features/cart/CartProvider";
 import { createQueryClient } from "@/shared/api";
 import {
   ErrorBoundary as AppErrorBoundary,
   Layout as AppLayout,
+  StatusPage,
   ToastProvider,
 } from "@/shared/ui";
 import { CspNonceContext } from "@/shared/seo/CspJsonLd";
@@ -94,16 +95,22 @@ export function ErrorBoundary() {
   const error = useRouteError();
   const notFound = isRouteErrorResponse(error) && error.status === 404;
 
-  return (
-    <Container className="page-container text-center py-5">
-      <h1 className="h3 mb-3">
-        {notFound ? "페이지를 찾을 수 없습니다" : "페이지를 불러오지 못했습니다"}
-      </h1>
-      <p className="text-muted-soft mb-0">
-        {notFound
-          ? "주소를 다시 확인하거나 홈에서 원하는 내용을 찾아보세요."
-          : "잠시 후 다시 시도해 주세요."}
-      </p>
-    </Container>
+  // 루트 오류는 머리글 없이 그려지므로 공방 이름으로 홈 링크를 함께 보여 준다.
+  return notFound ? (
+    <StatusPage
+      standalone
+      kicker="404"
+      title="페이지를 찾을 수 없습니다"
+      description="주소가 바뀌었거나 없는 페이지입니다. 아래에서 원하는 화면을 찾아 주세요."
+      actions={<a href="/" className="btn btn-primary">홈으로</a>}
+    />
+  ) : (
+    <StatusPage
+      standalone
+      kicker="ERROR"
+      title="페이지를 불러오지 못했습니다"
+      description="잠시 후 다시 시도해 주세요. 계속 열리지 않으면 공방에 문의해 주세요."
+      actions={<Button onClick={() => window.location.reload()}>다시 시도</Button>}
+    />
   );
 }

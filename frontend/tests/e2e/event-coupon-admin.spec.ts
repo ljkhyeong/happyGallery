@@ -282,7 +282,7 @@ test("열어 둔 이벤트가 종료되면 상세를 404로 전환하고 반복 
   await expect(page.getByRole("heading", { name: expiringEvent.title })).toBeVisible();
   eventExpired = true;
   await page.clock.fastForward(4_250);
-  await expect(page.getByRole("heading", { name: "404" })).toBeVisible({ timeout: 8_000 });
+  await expect(page.getByRole("heading", { name: "이벤트를 찾을 수 없습니다" })).toBeVisible({ timeout: 8_000 });
   await expect(page.getByText(expiringEvent.title)).toHaveCount(0);
   expect(expiredRequests).toBe(1);
 
