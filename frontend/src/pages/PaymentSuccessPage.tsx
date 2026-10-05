@@ -306,14 +306,13 @@ export function PaymentSuccessPage() {
 
   if (sessionChanged) {
     return (
-      <Container className="page-container" style={{ maxWidth: 540 }}>
-        <Alert variant="warning">
-          <Alert.Heading className="fs-5">회원 계정이 변경되었습니다</Alert.Heading>
-          <p className="mb-0">
-            이전 계정에서 시작한 결제 결과는 이 화면에 표시하지 않습니다.
-          </p>
-        </Alert>
-        <Button variant="primary" onClick={() => navigate("/")}>홈으로</Button>
+      <Container className="page-container payment-result-page">
+        <PaymentResultCard
+          tone="notice"
+          title="회원 계정이 변경되었습니다"
+          lead="이전 계정에서 시작한 결제 결과는 이 화면에 표시하지 않습니다."
+          actions={<Button variant="primary" onClick={() => navigate("/")}>홈으로</Button>}
+        />
       </Container>
     );
   }
@@ -349,29 +348,36 @@ export function PaymentSuccessPage() {
 
   if (paymentStatus && paymentStatus.status !== "COMPLETED") {
     return (
-      <Container className="page-container" style={{ maxWidth: 540 }}>
-        <PaymentStatusNotice status={paymentStatus} />
-        {statusError && <Alert variant="warning" className="mt-3 mb-0">{statusError}</Alert>}
-        <div className="d-flex gap-2 mt-3">
-          {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (
-            <Button variant="primary" onClick={() => void resolvePayment()}>
-              {completedOrderId ? "상태 새로고침" : "결제 결과 다시 확인"}
-            </Button>
+      <Container className="page-container payment-result-page">
+        <PaymentResultCard
+          tone="notice"
+          title="결제 결과 확인"
+          actions={(
+            <>
+              {(paymentStatus.status === "READY" || paymentStatus.status === "RETRYABLE") && (
+                <Button variant="primary" onClick={() => void resolvePayment()}>
+                  {completedOrderId ? "상태 새로고침" : "결제 결과 다시 확인"}
+                </Button>
+              )}
+              {(paymentStatus.status === "REVIEW_REQUIRED"
+                || paymentStatus.status === "SUPPORT_REQUIRED") && (
+                <Button variant="primary" onClick={() => void checkStatus().catch((requestError) => {
+                  if (requestError instanceof CustomerSessionChangedError) {
+                    abandonChangedSession();
+                    return;
+                  }
+                  setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+                })}>
+                  상태 새로고침
+                </Button>
+              )}
+              <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
+            </>
           )}
-          {(paymentStatus.status === "REVIEW_REQUIRED"
-            || paymentStatus.status === "SUPPORT_REQUIRED") && (
-            <Button variant="primary" onClick={() => void checkStatus().catch((requestError) => {
-              if (requestError instanceof CustomerSessionChangedError) {
-                abandonChangedSession();
-                return;
-              }
-              setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-            })}>
-              상태 새로고침
-            </Button>
-          )}
-          <Button variant="outline-secondary" onClick={() => navigate("/")}>홈으로</Button>
-        </div>
+        >
+          <PaymentStatusNotice status={paymentStatus} />
+          {statusError && <Alert variant="warning" className="mb-0">{statusError}</Alert>}
+        </PaymentResultCard>
       </Container>
     );
   }

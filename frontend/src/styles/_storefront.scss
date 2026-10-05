@@ -2661,6 +2661,10 @@
   color: var(--hg-accent-deep);
 }
 
+.payment-result.is-notice .payment-result-icon {
+  color: var(--hg-brass);
+}
+
 .payment-result-lead {
   max-width: 28rem;
   margin: 0;
