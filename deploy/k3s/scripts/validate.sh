@@ -559,6 +559,11 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   sudoers = File.read(File.join(script_dir, "..", "examples", "cd-sudoers.example"))
   abort "백업 실패 journal 인수가 deploy.sh와 CD sudoers 예시에서 다릅니다." unless
     deploy_script.include?("sudo -n -- #{backup_journal}") && sudoers.include?("/usr/bin/#{backup_journal}")
+  verify_script = File.read(File.join(script_dir, "verify.sh"), encoding: "UTF-8")
+  root_h1 = verify_script[/grep -Eq '([^']*해피갤러리[^']*)'/, 1] or abort "verify.sh에서 홈 H1 점검 조건을 찾을 수 없습니다."
+  smoke_spec = File.read(File.join(script_dir, "../../../frontend/tests/e2e/ssr-root-document.spec.ts"), encoding: "UTF-8")
+  abort "홈 H1 점검 조건이 운영 verify.sh와 CI smoke(ssr-root-document.spec.ts)에서 다릅니다." unless
+    smoke_spec.include?(%(new RegExp("#{root_h1}")))
   abort "배포 스크립트가 백업 timer를 제어합니다." if
     deploy_script.match?(/happygallery-backup\.(timer|watchdog)|backup-watchdog/)
   %w[
