@@ -33,18 +33,16 @@ application 검사는 `ciTestGroup=core|commerce|migration` 세 실행기로 분
 
 2026-10-05 확인 결과 `main`·`codexReview`는 보호되지 않았고 기존 `jkrule` ruleset도 비활성 상태였다. `production` environment는 main만 허용했고 `CD_ENABLED=true`, Actions 기본 토큰은 읽기 권한이었다. 따라서 당시에는 CI 실패가 있어도 병합을 강제 차단하지 않았다. 저장소 파일 변경만으로 원격 보호 설정이 바뀌지는 않는다.
 
-[branch-protection.json](../../.github/branch-protection.json)은 두 브랜치에 적용할 설정이다. PR 경유, 최신 대상 브랜치와의 CI Gate 성공, 대화 해결, 관리자 포함 적용, 강제 푸시·삭제 금지를 요구한다. 1인 개발 흐름을 유지해 다른 사람의 승인은 필수로 두지 않는다. 검사는 GitHub Actions 앱 ID `15368`로 제한한다. 기존 ruleset은 생성·갱신 차단과 광범위 우회 항목이 있어 그대로 활성화하지 않는다.
+[branch-protection.json](../../.github/branch-protection.json)은 `main`에 적용할 설정이다. 검토 브랜치 `codexReview`는 2026-10-06에 폐지했다. PR 경유, 최신 대상 브랜치와의 CI Gate 성공, 대화 해결, 관리자 포함 적용, 강제 푸시·삭제 금지를 요구한다. 1인 개발 흐름을 유지해 다른 사람의 승인은 필수로 두지 않는다. 검사는 GitHub Actions 앱 ID `15368`로 제한한다. 기존 ruleset은 생성·갱신 차단과 광범위 우회 항목이 있어 그대로 활성화하지 않는다.
 
 새 workflow를 원격에 반영하고 해당 PR의 `CI Gate`가 실제 생성·성공한 뒤 적용한다. 아직 존재하지 않는 검사를 필수로 지정해 병합을 막지 않는다. 이 문서의 설정은 준비된 적용안이며 원격 적용 완료 기록이 아니다.
 
 ```bash
-for branch in main codexReview; do
-  gh api --method PUT "repos/ljkhyeong/happyGallery/branches/$branch/protection" \
-    --input .github/branch-protection.json
-done
+gh api --method PUT "repos/ljkhyeong/happyGallery/branches/main/protection" \
+  --input .github/branch-protection.json
 ```
 
-적용 후 두 브랜치의 protection API에서 필수 검사와 관리자 적용을 다시 읽어 확인한다. [GitHub 브랜치 보호 문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)의 필수 상태 검사는 `skipped`도 허용하므로, 개별 job 대신 생략 사유까지 확인하는 `CI Gate`를 필수로 사용한다. 봇 PR도 CI를 직접 수동 실행해 같은 검사 이름을 제공한다.
+적용 후 main의 protection API에서 필수 검사와 관리자 적용을 다시 읽어 확인한다. [GitHub 브랜치 보호 문서](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)의 필수 상태 검사는 `skipped`도 허용하므로, 개별 job 대신 생략 사유까지 확인하는 `CI Gate`를 필수로 사용한다. 봇 PR도 CI를 직접 수동 실행해 같은 검사 이름을 제공한다.
 
 ## 1. 최초 전환 확인
 
@@ -212,7 +210,7 @@ Browser Smoke는 Vite 공통 의존성을 시작 시 미리 최적화해 첫 화
 
 현재 자동 수정 범위는 `build.gradle`에서 관리하는 Jackson 2·3 BOM, Tomcat, Netty, HttpCore5다. Trivy의 설치 버전이 현재 선언과 같고 같은 major/minor 계열의 더 높은 패치 수정판이 있을 때만 올린다. 복수 취약점은 필요한 패치 중 높은 버전으로 맞춘다. OS·npm·미등록 라이브러리, 수정판 없음, 계열 전환, 버전 불일치는 실행 요약과 PR에 별도 처리 사유를 남긴다. 기존 Dependabot 주간 업데이트는 유지한다. 이 자동화는 모든 취약점의 해결을 보장하지 않는다.
 
-브랜치는 `codex/work-security-<실패 SHA 앞 12자리>`, PR 대상은 실패한 운영 소스와 같은 `main`이다. 같은 SHA 재실행은 기존 브랜치·PR을 재사용하고, main이 이미 바뀌었으면 오래된 보고서로 PR을 만들지 않는다. 자동 병합·재배포는 하지 않는다. 이는 운영 보안 패치용 경로이며 일반 기능 작업은 기존 codexReview 경로를 따른다.
+브랜치는 `codex/work-security-<실패 SHA 앞 12자리>`, PR 대상은 실패한 운영 소스와 같은 `main`이다. 같은 SHA 재실행은 기존 브랜치·PR을 재사용하고, main이 이미 바뀌었으면 오래된 보고서로 PR을 만들지 않는다. 자동 병합·재배포는 하지 않는다. 이는 운영 보안 패치용 경로이며 일반 기능 작업은 작업 브랜치 → `main` PR 경로를 따른다.
 
 봇 PR의 이벤트 실행 정책과 관계없이 `gh workflow run ci.yml --ref <보안 브랜치> -f production_candidate=true`로 CI를 직접 실행한다. 기존 테스트·smoke와 함께 같은 JAR로 두 운영 이미지를 한 번만 빌드·검사한다. 중복 실행하던 `security-update-validation.yml`은 제거했다. 이미지 게시나 서버 접속 권한은 없다. 검토자는 해당 브랜치 최신 commit의 `CI Gate` 성공을 확인하고 병합한다. 이후 기존 Production 흐름으로 다시 검증·배포한다.
 

@@ -1,5 +1,14 @@
 # HANDOFF
 
+## codexReview 폐지 (2026-10-06)
+
+- 시작 SHA `afc48c96`. 사용자가 main보다 157커밋 뒤처진 검토 브랜치 `codexReview`를 없애기로 했다. #161(vite 8)에서 main에 이미 있던 수정 3건(`81010197` Vite 의존성 미리 최적화, `16d4cb89` npm audit, `6ab9f275` spring-webmvc)을 다시 반영해야 했기 때문이다. codexReview에만 있는 18커밋 중 main에 없는 것은 #158 프론트 의존성 19건 묶음뿐이고, Dependabot이 main 대상으로 다시 제안한다.
+- 변경(`codex/work-retire-codexreview`): `.github/dependabot.yml`의 `target-branch` 제거(기본 브랜치 main), `ci.yml` PR 대상 main만, README·ADR-0037·`deploy/k3s/cicd.md` 문구.
+- 미반영: `AGENTS.md`(PR 순서), `happygallery-github-flows`(PR 흐름·병합 제목), `happygallery-code-review`(리뷰 기준 브랜치) 스킬은 자동 모드가 에이전트 지침 수정을 막아 사용자 반영이 필요하다. 제안 문구는 이 브랜치 PR 본문에 있다.
+- 남은 행동: ① 지침 3곳 반영 ② 이 PR을 main에 병합(운영 배포 실행) ③ 사용자 재확인 후 원격 `codexReview` 삭제. 열린 codexReview PR 9개(#120·#122·#127·#160~165)는 base가 사라져 닫히고, Dependabot은 다음 주간 실행(월 04:00~05:00 KST)부터 main으로 연다. vite 8은 main에 이미 `include`가 있어 `vite.config.ts`의 `import.meta.dirname`만 함께 바꾸면 된다.
+- #161 원인: dev 서버가 첫 화면에서 `@sentry/react`·`@tanstack/react-query`·`react-bootstrap`·`lucide-react`를 뒤늦게 발견해 전체 reload한다. Vite 7도 `include`가 없으면 P8-4가 의존성 캐시 없이 실패했고(#158·#159 CI는 재시도로 `3 flaky` 통과), Vite 8은 재시도까지 실패했다. main은 `81010197`로 이미 막혀 있다.
+- 운영 배포: `afc48c96` Production(37431081274)은 rollout 중 서버의 `happygallery-backup.service` 실패로 중단됐고 운영은 이전 release를 유지한다. 서버 journal 확인이 필요해 원인은 조사하지 않았다. 이 PR 병합 후 배포도 같은 지점에서 멈출 수 있다.
+
 ## 상점형 D안(핸드메이드 마켓) 적용과 시안 작품 등록 (2026-10-06)
 
 - 시작 SHA `af97a30b`. 사용자가 "레진 빛 + 초록" 디자인이 AI 티가 난다고 해 새 시안을 만들었다(Claude Design 캔버스 "해피갤러리 새 시안" https://claude.ai/artifact/Amcaw7vA88gQBi7HWv76WD — "1차 · 안내형" A·B·C, "2차 · 상점형" D·E·F). 사용자가 D(핸드메이드 마켓형)를 골라 화면 전체에 적용했다. 이전 디자인 시스템 "해피갤러리"(초록·노랑)는 더 이상 기준이 아니다.
@@ -7,7 +16,7 @@
 - 제거: 홈 바로 예약 패널(`QuickBookingPanel`)과 관련 스타일, 첫 화면 초록 띠·코스터. E2E `home-quick-booking`은 `home-class-cards`(다음 수업·남은 자리·상세 링크·상황 바로가기)로 바꿨다. 쓰지 않는 사진 `wreath-hands.jpg`·`group-tole-wreath.jpg`를 지우고 카테고리 사진 3장(`resin-sea-coaster`·`perfume-shelf`·`acrylic-pouring`)을 더했다(`SOURCES.md`).
 - 작품 등록: 로컬 DB(`hg-design-mysql`, 8081)에만 시안 작품 12개를 등록했다(10개는 D 시안 그리드, `맞춤 향수`·`톨페인팅 원목 인형`은 향·아로마·톨페인팅 카테고리를 채우려고 추가). 모두 주문 제작·30,000원·기본 조합 수량 10·제작 기간 7일(임시)·카테고리 가죽/레진/새활용/플루이드아트/향·아로마/톨페인팅. 스크립트 `output/playwright/redesign/d/register-products.mjs`(사진 `product-photos/`, 같은 이름 주문 제작 상품은 건너뜀). 운영 등록은 관리자 로그인(MFA)이 필요해 하지 않았다. 운영에 올리려면 `HG_API_BASE=https://happy-gallery.com/api/v1 HG_ADMIN_TOKEN=<관리자 토큰>`으로 같은 스크립트를 실행하거나 관리자 화면에서 등록한다.
 - 배포 상태: 운영 `main`은 `6e9cb5a5`(초록 디자인)이고 배포 후 점검(`deploy/k3s/scripts/verify.sh`, 홈 H1에 "해피갤러리")이 실패한 상태다. 이 브랜치의 홈은 숨긴 H1 "충주 공예 공방 해피갤러리"로 점검을 통과한다. 푸시는 사용자 승인이 필요하다(운영 배포가 함께 실행됨).
-- 2026-10-06 확인: 운영 롤아웃은 끝났고 공개 점검은 H1 외에 모두 통과한다(HTTPS 전환·SSR 200·canonical·CSP nonce·robots·sitemap·404·공개 API·401). #166(이 브랜치 → main)은 Frontend Build의 `npm audit`(compression·proxy-addr·source-map-js 신규 권고)만 실패해 lockfile을 갱신했다(`16d4cb89`, audit 0건·단위 81건·lint·api:check·build 통과). #166을 병합하면 운영 배포가 다시 실행된다. vite 8(#161)은 codexReview에서 통과하던 smoke 3건(P8-4·P8-2·ssr-loader-cache)이 실패해 미병합이다.
+- 2026-10-06 확인: 운영 롤아웃은 끝났고 공개 점검은 H1 외에 모두 통과한다(HTTPS 전환·SSR 200·canonical·CSP nonce·robots·sitemap·404·공개 API·401). #166(이 브랜치 → main)은 Frontend Build의 `npm audit`(compression·proxy-addr·source-map-js 신규 권고)만 실패해 lockfile을 갱신했다(`16d4cb89`, audit 0건·단위 81건·lint·api:check·build 통과). #166을 병합하면 운영 배포가 다시 실행된다. vite 8(#161)은 위 `codexReview 폐지` 절을 따른다.
 - 이전 세션에서 고친 주소 검색 재생성 문제(`RoadAddressSearchButton`의 `useEffectEvent`)는 `de072e30`으로 이미 `main`에 있다.
 
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
@@ -114,14 +123,11 @@
 - CI 이미지 빌드·Trivy 검사를 공통화하고 `security-update-validation.yml`을 제거했다. 보안 봇은 `ci.yml`을 `production_candidate=true`로 직접 실행한다. 실패·취소·예상 밖 생략을 차단하는 `CI Gate`, 작업별 시간 제한, actionlint, 외부 Action SHA 고정·Node 24 실행 환경, JAR 7일 보관을 반영했다. 배포 백업·서버 호환성·digest·배포 직렬화는 유지한다. 구성·적용 절차는 [CI/CD 운영](deploy/k3s/cicd.md)에 있다.
 - 실제 원격 조회: 최근 운영 성공 `36722337863`, SHA `b4edd17d`, 약 17분 52초. 과거 인계의 9월 말 변경들은 이 배포 이력을 기준으로 다시 판단한다. `CD_ENABLED=true`, production environment는 main만 허용하지만 main·codexReview 보호와 기존 ruleset은 꺼져 있다. `.github/branch-protection.json`은 적용안만 준비했으며 원격 설정을 바꾸지 않았다.
 - 검증: `bash deploy/k3s/scripts/validate.sh` 통과(`/tmp/hg-cicd-validate.log`, Ruby 153건 중 Linux 전용 1건은 macOS에서 생략 후 `ruby:3.3` root 컨테이너에서 개별 통과, `/tmp/hg-cicd-linux-backup.log`). actionlint 1.7.12·ShellCheck 통과, 실제 CI Gate 실행문에 성공·실패·생략·취소 7조건 확인. `ruby tools/agent-feedback-test.rb` 14건 통과(`/tmp/hg-cicd-agent-tests.log`). 최종 검사 `ruby tools/agent-feedback.rb final 23002b0ab4d6091743587147c9659f66622e50a8` 통과(`/tmp/hg-cicd-final.log`). CI/CD diff의 의존 순서·검사 누락·중복을 검토했다. 같은 코드·설정·환경이면 재사용한다.
-- 남은 행동: 사용자 원격 푸시 요청 후 PR의 새 CI Gate와 운영 후보 이미지 검사를 확인하고 두 브랜치 보호 적용안을 반영한다. 운영 배포·새 Actions 버전의 원격 실행·새 이미지 실빌드/Trivy는 이번 세션에서 실행하지 않았다. 화면 병행 변경은 해당 작업의 검증 기록을 따른다.
-- Dependabot(2026-10-05): `codexReview`에 checkout v7·dependency-review v5·@types/node 26.4.0·trivy-action v0.36.0·upload-artifact v7이 병합돼 이 브랜치와 `.github/workflows/ci.yml`이 충돌한다. 해소할 때 이 브랜치의 SHA 고정 구조를 유지하고, Trivy만 공식 `v0.36.0` 태그 `ed142fd0673e97e23eac54620cfb913e5ce36c25`로 올린다. 3월 태그 탈취 이후 Aqua가 `v` 접두 태그로 재발행해서 `0.36.0`이 아니라 `v0.36.0`이다.
+- 남은 행동: 사용자 원격 푸시 요청 후 PR의 새 CI Gate와 운영 후보 이미지 검사를 확인하고 main 보호 적용안을 반영한다. 운영 배포·새 Actions 버전의 원격 실행·새 이미지 실빌드/Trivy는 이번 세션에서 실행하지 않았다. 화면 병행 변경은 해당 작업의 검증 기록을 따른다.
+- Trivy Action은 공식 `v0.36.0` 태그 `ed142fd0673e97e23eac54620cfb913e5ce36c25`를 쓴다. 3월 태그 탈취 이후 Aqua가 `v` 접두 태그로 재발행해서 `0.36.0`이 아니라 `v0.36.0`이다.
 - Dependabot 후속: #126(gradle/actions v6)은 사용자 결정으로 v5 유지, `@dependabot ignore this major version`으로 닫았다. #156(Node 25)도 같은 명령으로 닫았고, 홀수 Node major 제외 규칙을 `.github/dependabot.yml`에 넣었다(`d314d7e7`, Dependabot은 기본 브랜치 설정을 읽으므로 main 반영 후 적용).
-- 병합 완료: #159 `Fix: Jackson 2·3과 brace-expansion 보안 패치`(jackson 2.21.7·3.1.7, brace-expansion 5.0.12) → codexReview `56bbbf96`. #158 프론트 의존성 19건(undici 패치용 @scalar/openapi-parser 0.29.10, orval 8.39 생성 클라이언트 재생성 포함) → codexReview `057eaaa9`. 두 PR은 서로의 보안 패치가 없으면 CI가 실패해서, #159 브랜치를 #158에 합쳐 전체 검사 통과 후 순서대로 병합했다. Jackson 3줄은 이 브랜치에도 같은 내용으로 커밋했다(`0796c4c5`).
-- #128 vite 8.3.2: `@dependabot rebase`로 최신 codexReview 위에 다시 만들었다(`5c2425e7`). 로컬에서 `npm ci`·audit(0건)·단위 67건·lint·api:check·build 통과. CI가 전체 통과하면 병합한다. `vite.config.ts`의 `__dirname`은 vite의 향후 native 설정 로더 경고가 나오므로 나중에 `import.meta.dirname`으로 바꾼다.
-- `main`(jackson 2.21.6·3.1.6)도 신규 CVE 4건에 해당한다. `codex/work-security-*` → main 보안 PR이 필요하며 병합 시 운영 배포가 진행되니 사용자 확인 후 진행한다.
-- #158 병합 후 이 브랜치를 codexReview와 합치면 `frontend/package-lock.json`과 `src/generated/api`가 충돌한다. 이 브랜치 쪽을 택한 뒤 `npm install`과 `npm run api:generate`를 orval 8.39로 다시 실행한다.
-- 미병합 유지: #120 Gradle 묶음(springdoc 3.1.1로 OpenAPI 산출물이 바뀌고, Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요), #122 logstash-logback-encoder 9(Jackson 3 전환 필요), #127 TypeScript 7(typescript-eslint 범위 밖).
+- codexReview에 병합했던 #158(프론트 의존성 19건, orval 8.39 생성 클라이언트 재생성)·#159(Jackson·brace-expansion)는 codexReview 폐지로 main에 들어가지 않는다. Jackson 2.21.7·3.1.7은 main에도 있고, 프론트 묶음은 Dependabot이 main 대상으로 다시 연다. orval이 바뀌면 `npm run api:generate`로 생성 클라이언트를 다시 만든다.
+- 보류 판단(Dependabot이 main으로 다시 열 때 적용): Gradle 묶음은 springdoc 3.1.1로 OpenAPI 산출물이 바뀌고 Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요, logstash-logback-encoder 9는 Jackson 3 전환 필요, TypeScript 7은 typescript-eslint 지원 범위 밖.
 
 ## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
 
