@@ -1,17 +1,17 @@
-// happyGallery — 핸드메이드 마켓: 흰 바탕·먹색 글자·가죽 갈색 강조, 각진 모서리
+// happyGallery — 전시 도록: 흰 벽·먹색 글자·명조 제목, 서두름·판매 완료만 빨강, 각진 모서리
 // Bootstrap overrides are declared before the framework import.
 
-$primary:   #222222;
-$secondary: #666666;
+$primary:   #111111;
+$secondary: #5E5E5A;
 $success:   #3D6B4F;
 $info:      #1F6E78;
 $warning:   #E3B23C;
-$danger:    #B23A1E;
-$light:     #F6F6F4;
-$dark:      #222222;
+$danger:    #C8102E;
+$light:     #F4F4F2;
+$dark:      #111111;
 
 $body-bg:    #FFFFFF;
-$body-color: #222222;
+$body-color: #111111;
 
 $font-family-sans-serif: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 $font-size-base: 0.9375rem;
@@ -33,10 +33,10 @@ $container-max-widths: (
 $border-radius:    2px;
 $border-radius-sm: 2px;
 $border-radius-lg: 4px;
-$border-color:     #EBEBEB;
+$border-color:     #DCDCD8;
 
 $card-bg: transparent;
-$card-border-color: #EBEBEB;
+$card-border-color: #DCDCD8;
 $card-cap-bg: transparent;
 $card-border-radius: 2px;
 

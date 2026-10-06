@@ -212,14 +212,25 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
   const signupHref = buildAuthPageHref("/signup", { redirectTo: memberRedirectPath });
 
   return (
-    <Container className="page-container">
-      <div className="store-detail-breadcrumb">
+    <Container className="page-container store-product-page">
+      <nav className="store-detail-breadcrumb" aria-label="경로">
         <Link to="/" className="store-detail-breadcrumb-link">홈</Link>
-        <span>/</span>
+        <span aria-hidden="true">/</span>
         <Link to="/products" className="store-detail-breadcrumb-link">작품</Link>
-        <span>/</span>
-        <span className="store-detail-breadcrumb-current">{product.name}</span>
-      </div>
+        {product.category && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link
+              to={`/products?${new URLSearchParams({ category: product.category })}`}
+              className="store-detail-breadcrumb-link"
+            >
+              {product.category}
+            </Link>
+          </>
+        )}
+        <span aria-hidden="true">/</span>
+        <span className="store-detail-breadcrumb-current" aria-current="page">{product.name}</span>
+      </nav>
 
       <div className="store-product-layout">
         <div className="store-product-gallery">

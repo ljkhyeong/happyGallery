@@ -90,10 +90,10 @@ function ProductQnaContent({ productId }: Props) {
   };
 
   return (
-    <Card className="mt-4">
+    <Card className="product-qna-card">
       <Card.Body>
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <h5 className="mb-0">상품 문의</h5>
+        <div className="product-qna-head">
+          <h2 className="product-qna-heading">상품 문의</h2>
           {isAuthenticated && <QnaCreateForm productId={productId} />}
         </div>
 

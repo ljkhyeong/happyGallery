@@ -29,17 +29,35 @@
 // ── Design tokens ──────────────────────────────────────
 :root {
   --hg-surface: #FFFFFF;
-  --hg-surface-alt: #F6F6F4;
-  --hg-surface-dim: #EFEFEC;
-  --hg-ink-soft: #666666;
+  --hg-surface-alt: #F4F4F2;
+  --hg-surface-dim: #EDEDEA;
+  --hg-ink-soft: #5E5E5A;
   --hg-shadow-soft: none;
-  --hg-accent: #8A4B2A;
-  --hg-dark: #222222;
-  --hg-border: #EBEBEB;
+  --hg-accent: #111111;
+  --hg-signal: #C8102E;
+  --hg-dark: #111111;
+  --hg-border: #DCDCD8;
   --hg-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 // ── Common utilities ───────────────────────────────────
+// 상세 화면 구역 번호(01·02…). 제목 위에 작은 명조 숫자로 붙이고, 화면 읽기에서는 번호를 읽지 않는다.
+// 번호를 셀 화면 바깥 틀에 `counter-reset: hg-detail-section`을 둔다.
+@mixin hg-section-number {
+  counter-increment: hg-detail-section;
+
+  &::before {
+    display: block;
+    margin-bottom: 0.4rem;
+    color: var(--hg-dark);
+    font-family: var(--hg-font-display);
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    content: counter(hg-detail-section, decimal-leading-zero) / "";
+  }
+}
+
 .page-container {
   max-width: 1100px;
   margin: 0 auto;

@@ -44,6 +44,13 @@ export function links() {
       rel: "stylesheet",
       href: "https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css",
     },
+    // 제목용 명조(Hahmlet). 한글은 Google Fonts가 글자 범위별로 나눠 필요한 조각만 받는다.
+    { rel: "preconnect", href: "https://fonts.googleapis.com" },
+    { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+    {
+      rel: "stylesheet",
+      href: "https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&display=swap",
+    },
   ];
 }
 

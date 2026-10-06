@@ -1,30 +1,32 @@
-// ── 핸드메이드 마켓 ─────────────────────────────────────
-// 흰 바탕에 먹색 글자, 강조는 가죽 갈색(accent) 하나만 쓴다. 모서리는 각지게(2px), 그림자는 쓰지 않는다.
-// 토큰 이름은 이전 방향과 같게 두고 값만 바꿨다: leaf=먹색(주 행동·선택), accent=가죽 갈색, clay-tint=갈색 옅은 면.
+// ── 전시 도록 ──────────────────────────────────────────
+// 흰 벽에 먹색 글자, 제목은 명조(Hahmlet). 색은 먹색 하나로 쓰고, 빨강(signal)은 남은 자리·수량이 적거나
+// 판매가 끝난 표시에만 쓴다(미술관의 판매 완료 빨간 점). 모서리는 각지게(2px), 그림자는 쓰지 않는다.
+// 토큰 이름은 이전 방향과 같게 두고 값만 바꿨다: leaf·accent=먹색(주 행동·선택), clay-tint=옅은 회색 면.
 :root {
   --hg-paper: #FFFFFF;
-  --hg-paper-deep: #F6F6F4;
+  --hg-paper-deep: #F4F4F2;
   --hg-surface: #FFFFFF;
-  --hg-surface-alt: #F6F6F4;
-  --hg-surface-dim: #EFEFEC;
-  --hg-ink-soft: #666666;
-  --hg-ink-soft-on-alt: #5C5C5C;
+  --hg-surface-alt: #F4F4F2;
+  --hg-surface-dim: #EDEDEA;
+  --hg-ink-soft: #5E5E5A;
+  --hg-ink-soft-on-alt: #55554F;
   --hg-shadow-soft: none;
-  --hg-accent: #8A4B2A;
-  --hg-accent-deep: #8A4B2A;
-  --hg-clay-tint: #F3EEE8;
-  --hg-dark: #222222;
-  --hg-leaf: #222222;
+  --hg-accent: #111111;
+  --hg-accent-deep: #111111;
+  --hg-signal: #C8102E;
+  --hg-clay-tint: #F4F4F2;
+  --hg-dark: #111111;
+  --hg-leaf: #111111;
   --hg-leaf-deep: #000000;
-  --hg-leaf-tint: #F6F6F4;
+  --hg-leaf-tint: #F4F4F2;
   --hg-brass: #E3B23C;
-  --hg-border: #EBEBEB;
+  --hg-border: #DCDCD8;
   --hg-radius: 2px;
   --hg-radius-media: 0;
   --hg-radius-card: 2px;
   --hg-container: 1180px;
   --hg-transition: 180ms ease;
-  --hg-font-display: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
+  --hg-font-display: "Hahmlet", "AppleMyungjo", "Nanum Myeongjo", serif;
 }
 
 body {
@@ -108,9 +110,10 @@ textarea {
   }
 }
 
+// 머리글 끝은 먹색 1px 선으로 닫아 본문과 나눈다.
 .app-navbar {
   background: #FFFFFF;
-  border-bottom: 1px solid var(--hg-border);
+  border-bottom: 1px solid var(--hg-dark);
 }
 
 .app-header-inner {
@@ -124,9 +127,10 @@ textarea {
 .app-brand {
   flex: 0 0 auto;
   color: var(--hg-dark);
+  font-family: var(--hg-font-display);
   font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   text-decoration: none;
 
   &:hover {
@@ -260,7 +264,6 @@ textarea {
     text-decoration: none;
 
     &.is-class {
-      color: var(--hg-accent);
       font-weight: 700;
     }
 
@@ -292,11 +295,11 @@ textarea {
 }
 
 // ── 바닥글: 고객센터 · 사업자 정보 ─────────────────────────
+// 먹색 바탕에 옅은 회색 글자(#C9C9C4, 11.0:1)를 쓰고 이름·전화·강조 링크만 흰색으로 둔다.
 .app-footer {
-  padding-block: 2rem;
-  color: var(--hg-ink-soft);
-  background: var(--hg-surface-alt);
-  border-top: 1px solid var(--hg-border);
+  padding-block: 2.5rem;
+  color: #C9C9C4;
+  background: var(--hg-dark);
   font-size: 0.82rem;
 
   a {
@@ -306,7 +309,11 @@ textarea {
 
   a:hover,
   a:focus-visible {
-    color: var(--hg-dark);
+    color: #FFFFFF;
+  }
+
+  a:focus-visible {
+    outline-color: #FFFFFF;
   }
 }
 
@@ -323,8 +330,18 @@ textarea {
   gap: 0.2rem;
 
   strong {
-    color: var(--hg-dark);
+    color: #FFFFFF;
   }
+}
+
+.app-footer-business > strong {
+  font-family: var(--hg-font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.app-footer-links .fw-bold {
+  color: #FFFFFF;
 }
 
 .app-footer-cs {
@@ -337,7 +354,7 @@ textarea {
 }
 
 .app-footer-phone {
-  color: var(--hg-dark) !important;
+  color: #FFFFFF !important;
   font-size: 1.4rem;
   font-weight: 800;
   text-decoration: none;
@@ -356,9 +373,9 @@ textarea {
 }
 
 .app-footer-copyright {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--hg-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 @media (max-width: 767.98px) {
@@ -464,18 +481,18 @@ textarea {
   --bs-btn-focus-shadow-rgb: 34, 34, 34;
 }
 
-// 클래스 예약처럼 작품 구매와 구분할 행동: 가죽 갈색 채움에 흰 글자(6.7:1).
+// 클래스 예약 버튼: 전시 도록 방향은 색을 늘리지 않으므로 주 행동과 같은 먹색 채움이다.
 .btn-accent {
   --bs-btn-color: #FFFFFF;
   --bs-btn-bg: var(--hg-accent);
   --bs-btn-border-color: var(--hg-accent);
   --bs-btn-hover-color: #FFFFFF;
-  --bs-btn-hover-bg: #6F3B20;
-  --bs-btn-hover-border-color: #6F3B20;
+  --bs-btn-hover-bg: #000000;
+  --bs-btn-hover-border-color: #000000;
   --bs-btn-active-color: #FFFFFF;
-  --bs-btn-active-bg: #6F3B20;
-  --bs-btn-active-border-color: #6F3B20;
-  --bs-btn-focus-shadow-rgb: 138, 75, 42;
+  --bs-btn-active-bg: #000000;
+  --bs-btn-active-border-color: #000000;
+  --bs-btn-focus-shadow-rgb: 17, 17, 17;
 }
 
 // 노랑 배지(승인 대기·지연·답변 대기)는 흰 글자가 1.96:1이라 먹색 글자(8.1:1)로 쓴다.
@@ -483,7 +500,7 @@ textarea {
   color: var(--hg-dark);
 }
 
-// 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 갈색(6.7:1)으로 쓴다.
+// 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 먹색(18.9:1)으로 쓴다.
 .btn-outline-warning {
   --bs-btn-color: var(--hg-accent-deep);
   --bs-btn-border-color: var(--hg-brass);
@@ -514,17 +531,11 @@ textarea {
   text-transform: uppercase;
 }
 
-.store-detail-price,
-.store-purchase-total-value {
-  font-family: inherit;
-  letter-spacing: 0;
-}
-
-// ── 작품 카드: 정사각 사진 · 카테고리 · 이름 · 가격 · 주문 제작 표시 ──────
+// ── 작품 카드: 액자 여백 사진 · 번호·카테고리 · 이름 · 판매 방식 · 가격 ──────
 .product-card {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   height: 100%;
   color: var(--hg-dark);
   text-decoration: none;
@@ -536,7 +547,8 @@ textarea {
 
   &:hover .product-card-name {
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1px;
   }
 
   &:focus-visible {
@@ -544,23 +556,22 @@ textarea {
   }
 }
 
+// 사진은 회색 여백(액자 매트) 안에 4:5로 건다. 회색 면 위 목록에서는 매트를 흰색으로 바꾼다.
 .product-card-media {
   position: relative;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
+  padding: clamp(0.5rem, 1.1vw, 0.85rem);
   background: var(--hg-surface-alt);
 
-  img {
+  > img,
+  > .product-media-empty {
+    display: flex;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 400ms ease;
+    aspect-ratio: 4 / 5;
   }
-}
 
-.product-card:hover .product-card-media img,
-.product-card:focus-visible .product-card-media img {
-  transform: scale(1.03);
+  img {
+    object-fit: cover;
+  }
 }
 
 // 사진 없는 작품은 카드·상세 모두 같은 준비 중 표시를 쓴다.
@@ -585,52 +596,51 @@ textarea {
   }
 }
 
-.product-card-status {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  padding: 0.15rem 0.5rem;
-  color: #FFFFFF;
-  background: var(--hg-dark);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
 .product-card-meta {
-  margin-top: 0.55rem;
+  margin-top: 0.75rem;
   color: var(--hg-ink-soft);
-  font-size: 0.78rem;
+  font-family: var(--hg-font-display);
+  font-size: 0.8rem;
 }
 
 .product-card-name {
   margin: 0;
-  font-family: inherit;
-  font-size: 0.93rem;
+  font-family: var(--hg-font-display);
+  font-size: 1.05rem;
   font-weight: 500;
-  line-height: 1.45;
+  line-height: 1.4;
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 
-.product-card-price {
-  font-size: 1rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+.product-card-type {
+  color: var(--hg-ink-soft);
+  font-size: 0.8rem;
 }
 
-.product-card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin-top: 0.15rem;
-}
-
-.product-card-badge {
-  padding: 0.05rem 0.4rem;
-  color: var(--hg-accent);
-  border: 1px solid var(--hg-accent);
-  font-size: 0.72rem;
+// 판매가 끝난 작품은 미술관의 판매 완료 표시처럼 빨간 점을 붙인다.
+.product-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--hg-signal);
+  font-size: 0.8rem;
   font-weight: 700;
+
+  &::before {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: currentColor;
+    content: "";
+  }
+}
+
+.product-card-price {
+  margin-top: 0.3rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .product-card.is-sold-out {
@@ -646,7 +656,7 @@ textarea {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1.75rem 1rem;
+  gap: 2.5rem 1.25rem;
 }
 
 @media (max-width: 991.98px) {
@@ -707,11 +717,11 @@ textarea {
   align-items: start;
 }
 
+// 예약·주문·상세 화면의 간단 방문 안내: 옅은 회색 면 하나로 묶는다(강조 선은 쓰지 않는다).
 .workshop-visit-info.is-compact {
   grid-template-columns: 1fr;
   gap: 0.75rem;
-  padding: 1rem;
-  border-left: 3px solid var(--hg-accent);
+  padding: 1.1rem 1.25rem;
   background: var(--hg-surface-alt);
 
   .workshop-visit-name {
@@ -881,7 +891,7 @@ textarea {
 .store-list-title,
 .store-detail-title {
   font-family: var(--hg-font-display);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .lookup-panel,

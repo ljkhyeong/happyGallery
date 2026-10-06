@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Form, Button } from "react-bootstrap";
 import { useSearchParams } from "react-router";
+import { splitBookingAmount } from "@/features/booking-create/bookingAmounts";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { formatSlotStart } from "@/features/booking-create/upcomingSlots";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
@@ -270,8 +271,7 @@ function BookingCreateContent({
     && !requestedPassIntentBlocked;
   const classPrice = selectedClass?.price ?? 0;
   const totalAmount = classPrice * participantCount;
-  const depositAmount = Math.floor(totalAmount / 10);
-  const balanceAmount = totalAmount - depositAmount;
+  const { depositAmount, balanceAmount } = splitBookingAmount(totalAmount);
 
   const startPayment = useMutation({
     mutationFn: async (actor?: PaymentActor) => {

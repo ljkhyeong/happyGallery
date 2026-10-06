@@ -108,10 +108,7 @@
   align-items: center;
   margin-bottom: 1.5rem;
   color: var(--hg-ink-soft);
-  font-size: 0.75rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  font-weight: 500;
+  font-size: 0.8rem;
 }
 
 .store-detail-breadcrumb-link {
@@ -141,6 +138,11 @@
   top: 6rem;
 }
 
+// 작품 상세 구역(작품 안내·후기·문의)에 01·02·03 번호를 붙인다.
+.store-product-page {
+  counter-reset: hg-detail-section;
+}
+
 .store-product-intro {
   margin-bottom: 1.5rem;
   padding-bottom: 1.5rem;
@@ -155,24 +157,18 @@
   margin-bottom: 1rem;
 }
 
-.store-detail-category {
-  color: var(--hg-accent-deep);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .store-detail-meta .store-detail-kicker {
   margin: 0;
+  color: var(--hg-dark);
+  font-size: 0.85rem;
+  letter-spacing: 0;
 }
 
 .store-detail-category {
   padding-left: 0.65rem;
   border-left: 1px solid var(--hg-border);
   color: var(--hg-ink-soft);
-  letter-spacing: 0.02em;
-  text-transform: none;
+  font-size: 0.85rem;
 }
 
 .store-detail-availability {
@@ -193,24 +189,26 @@
   }
 
   &.is-available {
-    color: var(--hg-leaf);
+    color: var(--hg-dark);
   }
 
+  // 판매가 끝난 작품은 카드와 같은 빨간 점으로 표시한다.
   &.is-sold-out {
-    color: var(--bs-secondary-color);
+    color: var(--hg-signal);
   }
 }
 
 .store-detail-title {
   margin: 0;
-  font-size: clamp(1.9rem, 3.4vw, 2.6rem);
-  line-height: 1.25;
+  font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.035em;
   color: var(--hg-dark);
 }
 
 .store-detail-description {
   margin: 1rem 0 1rem;
-  color: #5C5C5C;
+  color: #3A3A37;
   font-size: 0.95rem;
   line-height: 1.8;
   white-space: pre-line;
@@ -228,54 +226,54 @@
   }
 }
 
+// 작품 사진은 회색 벽 위 흰 매트 액자에 4:5로 건다.
 .store-detail-media {
   width: 100%;
   margin: 0;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
-  border-radius: var(--hg-radius-media);
-  background: var(--hg-surface-dim);
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+  background: var(--hg-surface-alt);
 
-  img {
+  > img,
+  > .product-media-empty {
+    display: flex;
     width: 100%;
-    height: 100%;
+    aspect-ratio: 4 / 5;
+    padding: clamp(0.6rem, 1.4vw, 1.1rem);
+    background: #FFFFFF;
+  }
+
+  > img {
     object-fit: cover;
   }
 }
 
 .store-detail-price {
+  font-family: var(--hg-font-display);
   font-size: clamp(1.6rem, 3vw, 2rem);
-  font-weight: 800;
+  font-weight: 500;
   letter-spacing: 0;
   color: var(--hg-dark);
 }
 
 .store-detail-facts {
-  margin-top: clamp(2.5rem, 6vw, 4rem);
-  padding: clamp(1.75rem, 4vw, 2.5rem);
-  background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
-  border-radius: var(--hg-radius-media);
+  margin-top: clamp(3rem, 6vw, 4.5rem);
+  padding: clamp(1.75rem, 4vw, 2.75rem);
+  background: var(--hg-surface-alt);
 }
 
+// 상세 구역 제목: 번호 · 명조 제목 · 먹색 1px 선.
 .store-detail-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-
-  span {
-    color: var(--hg-accent-deep);
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
+  margin-bottom: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--hg-dark);
 
   h2 {
+    @include hg-section-number;
     margin: 0;
-    font-size: 1.35rem;
+    font-family: var(--hg-font-display);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -302,6 +300,13 @@
   .btn {
     justify-self: start;
   }
+}
+
+// 고정 사양·주문 제작 안내는 정보 색 대신 흰 바탕 안내 줄로 둔다(회색 면 위).
+.store-detail-terms .alert {
+  color: var(--hg-dark);
+  background: #FFFFFF;
+  border-color: var(--hg-border);
 }
 
 // 작품 구매 안내: 수령·배송비·교환반품·적립을 같은 줄 구성으로 보여 준다.
@@ -333,7 +338,7 @@
   position: relative;
   overflow: hidden;
   background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
+  border: 1px solid var(--hg-dark);
   border-radius: var(--hg-radius-media);
   box-shadow: var(--hg-shadow-soft);
 }
@@ -348,7 +353,10 @@
 
   h2 {
     margin: 0.2rem 0 0.4rem;
-    font-size: 1.65rem;
+    font-family: var(--hg-font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
   }
 
   p {
@@ -379,13 +387,14 @@
   > span {
     display: inline-grid;
     place-items: center;
-    width: 1.5rem;
-    height: 1.5rem;
-    color: #FFFFFF;
-    background: var(--hg-leaf);
+    width: 1.6rem;
+    height: 1.6rem;
+    color: var(--hg-dark);
+    border: 1px solid var(--hg-dark);
     border-radius: 50%;
-    font-size: 0.6875rem;
-    font-weight: 700;
+    font-family: var(--hg-font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
   }
 
   h3 {
@@ -443,8 +452,8 @@
 
 .store-purchase-total-value {
   font-family: var(--hg-font-display);
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1.35rem;
+  font-weight: 500;
 }
 
 .store-purchase-helper {
@@ -823,6 +832,7 @@
   margin-top: clamp(2.5rem, 6vw, 4rem);
 }
 
+// 후기는 작품·클래스 상세에만 있어 상세 구역 번호를 이어서 붙인다.
 .review-section-header {
   display: flex;
   flex-wrap: wrap;
@@ -830,6 +840,19 @@
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--hg-dark);
+
+  > div:first-child {
+    @include hg-section-number;
+  }
+
+  h3 {
+    font-family: var(--hg-font-display);
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+  }
 }
 
 .review-summary {
@@ -840,13 +863,45 @@
 }
 
 .review-summary strong {
-  font-size: 1.75rem;
+  font-family: var(--hg-font-display);
+  font-size: 1.85rem;
+  font-weight: 500;
+}
+
+// ── 상품 문의 ──────────────────────────────────────────
+.product-qna-card {
+  margin-top: clamp(2.5rem, 6vw, 4rem);
+  border: 0;
+
+  > .card-body {
+    padding: 0;
+  }
+}
+
+.product-qna-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--hg-dark);
+}
+
+.product-qna-heading {
+  @include hg-section-number;
+  margin: 0;
+  font-family: var(--hg-font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
 }
 
 .review-summary > span,
 .review-stars,
 .review-star.selected {
-  color: #8A4B2A;
+  color: var(--hg-dark);
 }
 
 .review-overview,
@@ -900,13 +955,13 @@
 
 .review-histogram-track {
   height: 0.45rem;
-  background: #EBEBEB;
+  background: var(--hg-surface-dim);
 }
 
 .review-histogram-track > span {
   display: block;
   height: 100%;
-  background: #8A4B2A;
+  background: var(--hg-dark);
 }
 
 .review-filter-bar {
@@ -1217,8 +1272,10 @@
     position: static;
   }
 
-  .store-detail-media {
-    aspect-ratio: 4 / 3;
+  // 한 줄로 쌓이면 사진이 화면을 다 차지하지 않게 정사각으로 줄인다.
+  .store-detail-media > img,
+  .store-detail-media > .product-media-empty {
+    aspect-ratio: 1 / 1;
   }
 }
 

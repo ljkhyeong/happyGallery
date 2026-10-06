@@ -179,10 +179,11 @@ Wrapper 배포 ZIP은 저장소의 SHA-256으로 검증하고 CI는 wrapper JAR 
 
 ### 프론트엔드 디자인 기준
 
-- "핸드메이드 마켓" 방향이다. 작품을 파는 상점 첫 화면을 기준으로 흰 바탕(`--hg-paper` #FFFFFF)에 먹색 글자(`--hg-dark` #222222), 강조는 가죽 갈색(`--hg-accent` #8A4B2A) 하나만 쓴다. 옅은 회색 면(`--hg-surface-alt` #F6F6F4)은 안내 줄·클래스 상자·바닥글에, 갈색 옅은 면(`--hg-clay-tint` #F3EEE8)은 기획 배너에 쓴다. 모서리는 각지게(`--hg-radius` 2px, 사진은 0), 그림자는 쓰지 않는다. 시안 비교는 Claude Design 캔버스 `해피갤러리 새 시안`의 "2차 · 상점형" D안이다.
-- 주요·보조 행동 버튼(`btn-primary`·`btn-dark`·`btn-outline-*`)은 먹색, 클래스 예약처럼 작품 구매와 구분할 행동만 갈색(`btn-accent`)이다. 카테고리 줄의 클래스 메뉴와 작품 카드의 "주문 제작" 표시도 갈색이다. 선택된 칩·날짜는 먹색 채움, 노랑 배지·노랑 테두리 버튼은 먹색·갈색 글자로 쓴다. 남은 자리가 적으면 빨강(#B23A1E)이다.
-- 머리글은 안내 줄(1:1 문의·비회원 조회·고객센터), 로고·작품 검색창·찜·장바구니·알림·로그인, 카테고리 줄 세 줄이다. 카테고리 이름은 `features/product/shopCategories.ts`에 두고 상품 카테고리와 같은 이름을 쓴다. 바닥글은 고객센터와 사업자 정보다.
-- 본문과 제목은 모두 Pretendard다. 제목은 700~800 굵기로 쓰고, 영문 대문자 kicker는 쓰지 않는다(구역 이름이 필요하면 한글로 쓴다).
+- "전시 도록" 방향이다. 공방을 작은 상설전처럼 보여 주며 흰 벽(`--hg-paper` #FFFFFF)에 먹색 글자(`--hg-dark` #111111)를 쓰고, 색은 먹색 하나로 쓴다. 옅은 회색 면(`--hg-surface-alt` #F4F4F2)은 구역을 번갈아 나누거나 작품 사진의 액자 여백에 쓴다. 빨강(`--hg-signal` #C8102E)은 남은 자리·수량이 적거나 판매가 끝난 표시(빨간 점), 홈 첫 화면 "상설전" 이름표의 점, 오류 안내에만 쓴다. 모서리는 각지게(`--hg-radius` 2px, 사진은 0), 그림자와 강조용 왼쪽 굵은 선은 쓰지 않는다. 시안 비교는 Claude Design 캔버스 `해피갤러리 새 시안`의 "3차 · 어워드 참고형" G안과 "4차 · G 상세"다.
+- 주요·보조 행동 버튼(`btn-primary`·`btn-dark`·`btn-outline-*`·`btn-accent`)은 모두 먹색이다(`--hg-accent`도 먹색). 선택된 칩·탭·날짜는 먹색 채움이나 먹색 밑줄, 노랑 배지·노랑 테두리 버튼은 먹색 글자로 쓴다.
+- 구역은 번호(01·02…)와 명조 제목, 먹색 1px 선으로 시작한다. 홈은 마크업에 번호를 두고, 작품·클래스 상세는 `_foundation.scss`의 `hg-section-number` 믹스인(CSS counter, 화면 읽기에서는 읽지 않음)으로 붙인다.
+- 머리글은 안내 줄(1:1 문의·비회원 조회·고객센터), 로고·작품 검색창·찜·장바구니·알림·로그인, 카테고리 줄 세 줄이다. 카테고리 이름은 `features/product/shopCategories.ts`에 두고 상품 카테고리와 같은 이름을 쓴다. 바닥글은 먹색 바탕에 고객센터와 사업자 정보를 둔다.
+- 본문은 Pretendard, 로고·화면 제목·구역 제목·작품 이름·가격은 명조 Hahmlet(`--hg-font-display`, Google Fonts 500·600·700)이다. 명조 제목은 500 굵기를 기본으로 쓰고, 영문 대문자 kicker는 쓰지 않는다(구역 이름이 필요하면 한글로 쓴다).
 - 목록·체크아웃 화면 머리는 `PageHeader`, 예약·4회권·주문서는 `CheckoutLayout`·`CheckoutPanel`·`CheckoutSummary`로 입력과 고정 요약 2단을 만든다. 결제 버튼은 요약 안에 한 개만 두고 모바일에서는 CSS로 하단에 고정한다. 같은 이름의 버튼을 화면 크기별로 두 번 렌더링하지 않는다.
 - Bootstrap 변수는 `frontend/src/styles/_variables.scss`, 색·모서리 토큰과 헤더·푸터·작품 카드는 `_atelier.scss`, 홈·클래스·단체수업 화면은 `_brand.scss`, 상품 상세·주문·회원 화면과 예약·4회권·주문서·장바구니 체크아웃, 결제 결과는 `_storefront.scss`가 담당한다. 비회원 조회·공지 상세·상세 화면 공통 뒤로 가기 링크(`page-back-link`)는 `_atelier.scss`에 둔다. 빈 상태(`empty-state`) 같은 공용 유틸리티는 `_foundation.scss`, 404·오류 안내(`StatusPage`)는 `_atelier.scss`, 관리자 작업 화면은 `_admin.scss`가 담당한다. 새 스타일은 담당 partial에 두고, 다른 partial의 같은 선택자를 뒤에서 다시 덮어쓰지 않는다. `frontend/src/styles/global.scss`는 Bootstrap과 `_foundation.scss`, `_admin.scss`, `_storefront.scss`, `_atelier.scss`, `_brand.scss`를 불러오는 순서만 정의한다.
 - 홈과 클래스·단체수업 화면은 `frontend/src/assets/happygallery`의 실제 공방 사진을 사용한다. 관리자가 수업 사진을 등록하지 않은 클래스는 같은 공예 분야의 공방 사진을 보여 준다. 사진 없는 작품은 다른 작품 사진으로 대신하지 않고 `ProductMediaPlaceholder`의 사진 준비 중 표시를 쓴다. 사진 원문은 같은 디렉터리의 `SOURCES.md`에 기록하며, 외부 이미지 CDN에 런타임 의존하지 않는다.
