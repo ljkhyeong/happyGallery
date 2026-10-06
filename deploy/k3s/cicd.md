@@ -161,13 +161,15 @@ Mac에서 `pbcopy < ~/.ssh/id_ed25519_happygallery_cd`로 복사해 Secret 입�
 3. `deploy`: SSH 호스트 키, 최신 main, 배포 시 새로 만든 R2 백업, 이미지 OS·CPU·commit·source·digest를 확인한다. 최초 온라인 백업 전환에서만 현재 구버전 앱이 지원 표식을 제공하지 않으면 먼저 검증한 R2 복구 묶음을 1회 사용하고, 새 app 표식을 확인한다. containerd 반입 후 실제 digest로 release.env를 갱신한다.
 4. 기존 `deploy.sh`가 백업 성공과 복구 묶음 검증을 통과한 뒤 롤링 배포·공개 경로 확인을 수행한다. 준비되지 않은 새 앱으로 트래픽을 넘기지 않는다.
 
+롤아웃이 끝나면 공개 경로 확인(`verify.sh`) 전에 새 release를 `current`로 기록한다. 백업은 `current`와 실행 중인 이미지가 같아야 하므로, 예전처럼 확인 실패 뒤 `current`가 이전 release에 남으면 다음 배포의 백업이 모두 거부된다. 이미 그 상태라면 `deploy.sh`가 백업 전에 실행 중인 app·frontend 이미지와 digest가 같은 release로 `current`를 맞춘다. 백업이 실패하면 service 결과와 백업 스크립트의 `오류:`·`[happygallery]` 문구를 Actions 로그에 남긴다. 저장소가 공개라 rclone 같은 외부 도구 출력은 옮기지 않으며 서버에서 `journalctl -u happygallery-backup.service`로 본다.
+
 등록 정보가 틀리거나 서버·R2·GHCR에 연결할 수 없으면 Actions가 실패하며 원인을 로그에 남긴다. 배포 시작 전 실패는 기존 앱을 교체하지 않는다. 배포 도중 실패는 상태를 확인한 뒤 복구한다. DB를 되돌리는 자동 rollback은 실행하지 않는다. GitHub Actions 실패 알림을 켜 두며, 복구가 끝나면 **Production을 main 기준으로 새로 실행**한다. 예전 실행의 commit이 main 최신과 다르면 서버가 거부한다.
 
 운영 배포는 동시에 하나만 실행하며 진행 중인 배포를 다음 push가 취소하지 않는다. 수동 빌드·배포는 기존 `/opt/happygallery`에서 계속 가능하다. CD source는 `~/.local/state/happygallery/cd/source`, release 기록은 수동 배포와 같은 `~/.local/state/happygallery/releases`다.
 
-### `다른 CD가 실행 중입니다`로 중단된 경우
+### `다른 CD가 15분 넘게 실행 중`으로 중단된 경우
 
-잠금 파일이 존재하는 것과 잠금을 보유한 프로세스가 있는 것은 다르다. `.lock` 파일을 삭제하면 기존 잠금을 우회해 동시 배포가 실행될 수 있으므로 삭제하지 않는다. 서버에서 다음을 확인한다.
+SSH 진입점은 잠금이 잡혀 있으면 바로 실패하지 않고 최대 15분 기다린다. 그래도 풀리지 않으면 중단한다. 잠금 파일이 존재하는 것과 잠금을 보유한 프로세스가 있는 것은 다르다. `.lock` 파일을 삭제하면 기존 잠금을 우회해 동시 배포가 실행될 수 있으므로 삭제하지 않는다. 서버에서 다음을 확인한다.
 
 ```bash
 sudo lslocks --notruncate -o COMMAND,PID,TYPE,MODE,PATH
@@ -178,6 +180,8 @@ ps -eo pid,ppid,lstart,args | grep -E 'accept-cd|happygallery-cd-ssh|deploy-regi
 `verify.sh`는 포트 전달을 실제 명령 PID로 시작하고 종료 시 회수한다. 두 포트 전달 프로세스에는 CD·배포 잠금 FD 9·8을 전달하지 않는다. 이 수정은 앞으로 실행할 검증에 적용되며 이미 남은 프로세스를 자동 종료하지 않는다.
 
 이 파이프라인은 앱 배포를 자동화한다. root 소유 SSH 진입점·sudoers·systemd unit·k3s 업그레이드는 파일별 운영 절차로 갱신한다. 특히 `/opt/happygallery`의 백업 스크립트는 CI worktree가 갱신돼도 바뀌지 않으므로 해당 스크립트를 변경한 릴리스에서는 호스트 측 갱신도 수행한다.
+
+2026-10-06 변경(잠금 대기·백업 journal 읽기)은 `accept-cd-ssh.sh`와 `cd-sudoers.example`을 바꿨다. 서버의 `/opt/happygallery`를 이 커밋으로 갱신한 뒤 [2. 서버에 배포 진입점 설치](#2-서버에-배포-진입점-설치)의 `install` 명령을 다시 실행한다. 갱신 전에도 배포는 동작하며, 잠금은 기존처럼 바로 실패하고 백업 실패 로그에는 journal 권한 안내만 남는다.
 
 ## 로컬 검증
 
@@ -203,15 +207,19 @@ root는 백업 원본만 읽고 `runuser`로 배포 계정에 전달한다. 파�
 
 Browser Smoke는 Vite 공통 의존성을 시작 시 미리 최적화해 첫 화면 로딩 중 `504 Outdated Optimize Dep`로 hydration이 중단되는 일을 막는다. 진단은 재시도 성공을 포함해 항상 보관한다. 전체 테스트 통과 여부와 별개로 flaky 결과와 최초 실패 trace를 확인한다.
 
+`ssr-root-document.spec.ts`(@smoke)는 운영 `verify.sh`와 같은 홈 SSR 조건(H1의 "해피갤러리", 대표 canonical, CSP Report-Only nonce)을 PR에서 확인한다. 화면 개편이 이 조건을 깨면 롤아웃 뒤가 아니라 PR에서 실패한다. 두 곳의 H1 정규식이 같은지는 `validate.sh`가 검사한다.
+
 
 ## Trivy 실패 후 보안 업데이트 PR
 
 운영 이미지 검사 결과는 `production-security-reports` artifact에 JSON으로 7일 보관한다. 두 이미지 검사는 독립적으로 실행하되 어느 한쪽이라도 실패하거나 실행되지 않으면 게시와 rollout을 차단한다. 실패 후 별도 최소 권한 job이 수정 가능한 의존성을 판정한다.
 
-현재 자동 수정 범위는 `build.gradle`에서 관리하는 Jackson 2·3 BOM, Tomcat, Netty, HttpCore5다. Trivy의 설치 버전이 현재 선언과 같고 같은 major/minor 계열의 더 높은 패치 수정판이 있을 때만 올린다. 복수 취약점은 필요한 패치 중 높은 버전으로 맞춘다. OS·npm·미등록 라이브러리, 수정판 없음, 계열 전환, 버전 불일치는 실행 요약과 PR에 별도 처리 사유를 남긴다. 기존 Dependabot 주간 업데이트는 유지한다. 이 자동화는 모든 취약점의 해결을 보장하지 않는다.
+현재 자동 수정 범위는 `build.gradle`에서 관리하는 Jackson 2·3 BOM, Tomcat, Netty, HttpCore5, Spring Framework(`org.springframework:` 모듈만, Boot·Security 제외)다. Trivy의 설치 버전이 현재 선언과 같고 같은 major/minor 계열의 더 높은 패치 수정판이 있을 때만 올린다. 복수 취약점은 필요한 패치 중 높은 버전으로 맞춘다. OS·npm·미등록 라이브러리, 수정판 없음, 계열 전환, 버전 불일치는 실행 요약과 PR에 별도 처리 사유를 남긴다. 기존 Dependabot 주간 업데이트는 유지한다. 이 자동화는 모든 취약점의 해결을 보장하지 않는다.
 
 브랜치는 `codex/work-security-<실패 SHA 앞 12자리>`, PR 대상은 실패한 운영 소스와 같은 `main`이다. 같은 SHA 재실행은 기존 브랜치·PR을 재사용하고, main이 이미 바뀌었으면 오래된 보고서로 PR을 만들지 않는다. 자동 병합·재배포는 하지 않는다. 이는 운영 보안 패치용 경로이며 일반 기능 작업은 작업 브랜치 → `main` PR 경로를 따른다.
 
 봇 PR의 이벤트 실행 정책과 관계없이 `gh workflow run ci.yml --ref <보안 브랜치> -f production_candidate=true`로 CI를 직접 실행한다. 기존 테스트·smoke와 함께 같은 JAR로 두 운영 이미지를 한 번만 빌드·검사한다. 중복 실행하던 `security-update-validation.yml`은 제거했다. 이미지 게시나 서버 접속 권한은 없다. 검토자는 해당 브랜치 최신 commit의 `CI Gate` 성공을 확인하고 병합한다. 이후 기존 Production 흐름으로 다시 검증·배포한다.
+
+`security-scan.yml`은 매일 03:30(KST) main을 `ci.yml`(`production_candidate=true`)로 다시 검증한다. 코드가 그대로여도 새로 공개된 이미지 취약점·npm 권고·날짜에 따라 깨지는 테스트를 배포 전에 알 수 있다. 이미지 검사가 실패하면 `container-security-reports`로 위와 같은 보안 PR을 만들고, npm·테스트 실패는 실패한 실행과 GitHub 알림으로 확인한다. PR 생성은 운영 배포와 같은 `open-security-update-pr.sh`를 쓴다.
 
 저장소 Actions 설정에서 GitHub Actions의 PR 생성 허용이 필요하다. 별도 PAT는 사용하지 않으며 업데이트 job에만 contents/pull-requests/actions 쓰기 권한을 부여한다. PR 생성·검증 실행 API가 거절되면 해당 job을 실패로 남긴다. 최초 사용 전 `ci.yml`의 workflow_dispatch 지원이 main에 반영돼 있어야 한다.

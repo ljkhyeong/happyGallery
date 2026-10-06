@@ -50,6 +50,60 @@ systemctl_write() {
     fi
 }
 
+live_container_image() {
+    kube -n "$NAMESPACE" get deployment "$1" \
+        -o "jsonpath={.spec.template.spec.containers[?(@.name==\"$1\")].image}"
+}
+
+release_runs_images() {
+    local metadata=$1/metadata.env image digest
+    [ -f "$metadata" ] || return 1
+    image=$(env_value APP_IMAGE "$metadata") && digest=$(env_value APP_IMAGE_DIGEST "$metadata") || return 1
+    case "$2" in "$image@$digest"|"${image%:*}@$digest") ;; *) return 1 ;; esac
+    image=$(env_value FRONTEND_IMAGE "$metadata") && digest=$(env_value FRONTEND_IMAGE_DIGEST "$metadata") || return 1
+    case "$3" in "$image@$digest"|"${image%:*}@$digest") ;; *) return 1 ;; esac
+}
+
+# 롤아웃 뒤 공개 점검이 실패한 이전 배포는 새 release를 실행하면서 current를 갱신하지 못했다.
+# 백업은 current와 실행 이미지가 같아야 하므로, 실행 중인 이미지와 같은 release로 current를 맞춘다.
+align_current_release() {
+    local live_app live_frontend release
+    live_app=$(live_container_image app 2>/dev/null) || return 0
+    live_frontend=$(live_container_image frontend 2>/dev/null) || return 0
+    [ -n "$live_app" ] && [ -n "$live_frontend" ] || return 0
+    release_runs_images "$state_root/current" "$live_app" "$live_frontend" && return 0
+    while IFS= read -r release; do
+        if release_runs_images "$release" "$live_app" "$live_frontend"; then
+            ln -sfn "$release" "$state_root/current"
+            info "실행 중인 이미지에 맞춰 current release 기록을 바로잡았습니다: $release"
+            return 0
+        fi
+    done < <(find "$state_root" -mindepth 1 -maxdepth 1 -type d -name '20*' | sort -r)
+}
+
+# sudoers 예시(cd-sudoers.example)와 인수가 정확히 같아야 비대화형으로 읽을 수 있다.
+backup_journal() {
+    if [ "$(id -u)" -eq 0 ]; then
+        journalctl -u happygallery-backup.service --since -40min --no-pager -o cat
+    else
+        sudo -n -- journalctl -u happygallery-backup.service --since -40min --no-pager -o cat
+    fi
+}
+
+# 배포 로그는 공개 저장소의 Actions에 남는다. 백업 스크립트의 오류·진행 문구만 옮기고 외부 도구 출력은 서버에서 본다.
+report_backup_failure() {
+    local journal
+    "$systemctl_bin" show happygallery-backup.service \
+        --property=Result --property=ExecMainStatus --property=ExecMainExitTimestamp 2>/dev/null \
+        | sed 's/^/[백업 상태] /' >&2 || true
+    if journal=$(backup_journal 2>/dev/null); then
+        printf '%s\n' "$journal" | grep -E '^(오류: |\[happygallery\] )' | tail -n 20 \
+            | sed 's/^/[백업 기록] /' >&2 || true
+    else
+        printf '%s\n' '[백업 기록] journal을 읽을 권한이 없습니다. 서버에서 journalctl -u happygallery-backup.service로 확인하세요.' >&2
+    fi
+}
+
 online_backup_bootstrap=${HAPPYGALLERY_ONLINE_BACKUP_BOOTSTRAP:-false}
 case "$online_backup_bootstrap" in
     true|false) ;;
@@ -83,7 +137,11 @@ if [ "$online_backup_bootstrap" = true ]; then
         || die "온라인 백업 최초 전환에 사용할 R2 복구 묶음이 48시간보다 오래됐습니다."
     info "기존 앱이 온라인 백업을 지원하지 않아 검증된 R2 복구 묶음으로 최초 전환합니다: $recovery_bundle"
 else
-    systemctl_write start --wait happygallery-backup.service
+    align_current_release
+    if ! systemctl_write start --wait happygallery-backup.service; then
+        report_backup_failure
+        die "배포 전 백업이 실패해 rollout을 시작하지 않습니다. 위 백업 상태·기록을 확인하세요."
+    fi
     cd_backup_env=${CD_BACKUP_ENV:-/etc/happygallery/cd-backup.env}
     cd_backup_root=${HAPPYGALLERY_CD_BACKUP_DIR:-${HAPPYGALLERY_RELEASE_DIR:-$HOME/.local/state/happygallery/releases}/../cd/backups}
     [ -f "$cd_backup_env" ] || die "배포용 백업 검증 설정이 없습니다: $cd_backup_env"
