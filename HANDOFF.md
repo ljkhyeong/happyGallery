@@ -7,6 +7,7 @@
 - 제거: 홈 바로 예약 패널(`QuickBookingPanel`)과 관련 스타일, 첫 화면 초록 띠·코스터. E2E `home-quick-booking`은 `home-class-cards`(다음 수업·남은 자리·상세 링크·상황 바로가기)로 바꿨다. 쓰지 않는 사진 `wreath-hands.jpg`·`group-tole-wreath.jpg`를 지우고 카테고리 사진 3장(`resin-sea-coaster`·`perfume-shelf`·`acrylic-pouring`)을 더했다(`SOURCES.md`).
 - 작품 등록: 로컬 DB(`hg-design-mysql`, 8081)에만 시안 작품 12개를 등록했다(10개는 D 시안 그리드, `맞춤 향수`·`톨페인팅 원목 인형`은 향·아로마·톨페인팅 카테고리를 채우려고 추가). 모두 주문 제작·30,000원·기본 조합 수량 10·제작 기간 7일(임시)·카테고리 가죽/레진/새활용/플루이드아트/향·아로마/톨페인팅. 스크립트 `output/playwright/redesign/d/register-products.mjs`(사진 `product-photos/`, 같은 이름 주문 제작 상품은 건너뜀). 운영 등록은 관리자 로그인(MFA)이 필요해 하지 않았다. 운영에 올리려면 `HG_API_BASE=https://happy-gallery.com/api/v1 HG_ADMIN_TOKEN=<관리자 토큰>`으로 같은 스크립트를 실행하거나 관리자 화면에서 등록한다.
 - 배포 상태: 운영 `main`은 `6e9cb5a5`(초록 디자인)이고 배포 후 점검(`deploy/k3s/scripts/verify.sh`, 홈 H1에 "해피갤러리")이 실패한 상태다. 이 브랜치의 홈은 숨긴 H1 "충주 공예 공방 해피갤러리"로 점검을 통과한다. 푸시는 사용자 승인이 필요하다(운영 배포가 함께 실행됨).
+- 2026-10-06 확인: 운영 롤아웃은 끝났고 공개 점검은 H1 외에 모두 통과한다(HTTPS 전환·SSR 200·canonical·CSP nonce·robots·sitemap·404·공개 API·401). #166(이 브랜치 → main)은 Frontend Build의 `npm audit`(compression·proxy-addr·source-map-js 신규 권고)만 실패해 lockfile을 갱신했다(`16d4cb89`, audit 0건·단위 81건·lint·api:check·build 통과). #166을 병합하면 운영 배포가 다시 실행된다. vite 8(#161)은 codexReview에서 통과하던 smoke 3건(P8-4·P8-2·ssr-loader-cache)이 실패해 미병합이다.
 - 이전 세션에서 고친 주소 검색 재생성 문제(`RoadAddressSearchButton`의 `useEffectEvent`)는 `de072e30`으로 이미 `main`에 있다.
 
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
