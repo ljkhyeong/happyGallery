@@ -66,7 +66,6 @@ function MyInquiryCreateContent() {
     <>
       <Link to="/my/inquiries" className="my-back-link">&larr; {myNavLabel("/my/inquiries")} 목록</Link>
       <PageHeader
-        kicker="My page"
         title="1:1 문의 작성"
         description="답변은 알림과 1:1 문의 목록에서 확인할 수 있습니다."
       />

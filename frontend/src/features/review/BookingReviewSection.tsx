@@ -35,7 +35,7 @@ export function BookingReviewSection({ bookingId, className }: Props) {
     <section className="review-section member-source-reviews" aria-labelledby="booking-review-heading">
       <header className="review-section-header">
         <div>
-          <p className="my-section-kicker mb-1">Review</p>
+          <p className="my-section-kicker mb-1">후기</p>
           <h5 id="booking-review-heading" className="mb-1">클래스 후기</h5>
           {/* 상태별 안내는 아래 본문이 보여 주므로, 머리에는 작성 가능·대기 상태만 적어 문장이 겹치거나 어긋나지 않게 한다. */}
           {creationStateQuery.data?.status === "AVAILABLE" && (

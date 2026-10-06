@@ -46,7 +46,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       )}
       {!isLoading && !error && !featured && (
         <div className="home-event-copy home-event-empty">
-          <p className="store-section-kicker">Event</p>
+          <p className="store-section-kicker">이벤트</p>
           <h2 id="home-event-title">새로운 이벤트를 준비하고 있습니다</h2>
           <p>진행 예정인 공방 소식은 이벤트 목록에서 확인할 수 있습니다.</p>
           <Link to="/events" className="btn btn-outline-light">전체 이벤트</Link>
@@ -60,7 +60,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       {featured && (
         <div className="home-event-copy">
           <div className="home-event-labels">
-            <p className="store-section-kicker">Featured event</p>
+            <p className="store-section-kicker">추천 이벤트</p>
             <Badge bg={isEventOngoing(featured) ? "success" : "light"} text={isEventOngoing(featured) ? undefined : "dark"}>
               {isEventOngoing(featured) ? "지금 진행 중" : "곧 시작해요"}
             </Badge>

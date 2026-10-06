@@ -65,7 +65,6 @@ export function PassPurchasePage() {
   return (
     <Container className="page-container checkout-page">
       <PageHeader
-        kicker="Pass"
         title="4회권 구매"
         description="원데이 다음 단계로, 정규 공예 수업을 원하는 날짜에 네 번 예약할 수 있습니다."
       />

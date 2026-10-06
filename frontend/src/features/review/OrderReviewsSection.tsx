@@ -38,7 +38,7 @@ export function OrderReviewsSection({ orderId, items }: Props) {
     <section className="review-section member-source-reviews" aria-labelledby="order-reviews-heading">
       <header className="review-section-header">
         <div>
-          <p className="my-section-kicker mb-1">Review</p>
+          <p className="my-section-kicker mb-1">후기</p>
           <h5 id="order-reviews-heading" className="mb-1">상품 후기</h5>
           <p className="text-muted-soft small mb-0">
             배송·수령이 완료된 상품마다 후기를 한 번씩 남길 수 있습니다.

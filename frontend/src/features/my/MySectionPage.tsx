@@ -10,7 +10,7 @@ export function MySectionPage({ path, description, children }: {
 }) {
   return (
     <>
-      <PageHeader kicker="My page" title={myNavLabel(path)} description={description} />
+      <PageHeader title={myNavLabel(path)} description={description} />
       {children}
     </>
   );

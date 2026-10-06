@@ -81,7 +81,6 @@ function MyBenefitsContent() {
   return (
     <>
       <PageHeader
-        kicker="My page"
         title={myNavLabel("/my/benefits")}
         description="보유 쿠폰과 적립금 내역을 확인하세요."
       />

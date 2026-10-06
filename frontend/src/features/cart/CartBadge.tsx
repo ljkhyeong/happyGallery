@@ -12,15 +12,15 @@ export function CartBadge() {
       to="/cart"
       eventKey="/cart"
       aria-label="장바구니"
-      className="app-nav-link position-relative align-self-start d-inline-flex align-items-center gap-2"
+      className="app-nav-link position-relative"
     >
-      <ShoppingBag size={20} aria-hidden="true" />
-      <span className="d-lg-none">장바구니</span>
+      <ShoppingBag size={21} strokeWidth={1.8} aria-hidden="true" />
+      <span>장바구니</span>
       {itemCount > 0 && (
         <Badge
           bg="danger"
           pill
-          className="position-absolute top-0 start-100 translate-middle"
+          className="position-absolute top-0 start-50 ms-2 translate-middle-y"
           style={{ fontSize: "0.65rem" }}
         >
           {itemCount > 99 ? "99+" : itemCount}

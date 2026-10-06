@@ -119,7 +119,7 @@ function OrderDetailContent() {
       {Boolean(order) && (
         <header className="guest-detail-header">
           <div>
-            <p className="store-section-kicker mb-1">Guest order</p>
+            <p className="store-section-kicker mb-1">비회원 주문</p>
             <h1>비회원 주문 조회</h1>
             <p>주문 상태와 수령 정보를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요.</p>
           </div>

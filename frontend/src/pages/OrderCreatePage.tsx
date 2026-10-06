@@ -207,7 +207,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
   const header = (
     <>
       <PageHeader
-        kicker="Order"
         title={user ? "주문서" : "비회원 주문"}
         description={user
           ? "주문할 상품과 수령 방법을 확인한 뒤 결제해 주세요."

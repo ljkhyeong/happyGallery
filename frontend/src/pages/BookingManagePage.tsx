@@ -122,7 +122,7 @@ function BookingManageContent() {
       {Boolean(booking) && (
         <header className="guest-detail-header">
           <div>
-            <p className="store-section-kicker mb-1">Guest booking</p>
+            <p className="store-section-kicker mb-1">비회원 예약</p>
             <h1>비회원 예약 조회</h1>
             <p>예약 일정과 변경·취소 가능 여부를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요.</p>
           </div>

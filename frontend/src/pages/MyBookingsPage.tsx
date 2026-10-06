@@ -67,7 +67,6 @@ export function MyBookingsPage() {
   return (
     <>
       <PageHeader
-        kicker="My page"
         title={myNavLabel("/my/bookings")}
         description="예약 일정과 변경·취소 가능 여부를 확인하세요."
         actions={(

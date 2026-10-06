@@ -1,28 +1,29 @@
+import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
-import {
-  Baby, CalendarDays, Gift, Heart, School, Ticket, Users, Zap, type LucideIcon,
-} from "lucide-react";
 import { Container } from "react-bootstrap";
 import { Link } from "react-router";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
-import groupToleWreath from "@/assets/happygallery/group-tole-wreath.jpg";
+import groupResinClass from "@/assets/happygallery/group-resin-class.jpg";
 import leatherWorkshopHands from "@/assets/happygallery/leather-workshop-hands.jpg";
+import leatherClass from "@/assets/happygallery/leather-class.jpg";
+import resinSeaCoaster from "@/assets/happygallery/resin-sea-coaster.jpg";
+import perfumeShelf from "@/assets/happygallery/perfume-shelf.jpg";
+import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import toleMaterials from "@/assets/happygallery/tole-materials.jpg";
-import wreathHands from "@/assets/happygallery/wreath-hands.jpg";
+import acrylicPouring from "@/assets/happygallery/acrylic-pouring.jpg";
 import { fetchClasses } from "@/features/booking-create/api";
-import { QuickBookingPanel } from "@/features/booking-create/QuickBookingPanel";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
 import { upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
+import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
 import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
+import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCategories";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
-import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
-import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
@@ -30,50 +31,29 @@ import type { ProductDetailResponse } from "@/generated/api/product";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
-const CRAFT_SPECIALTIES = [
-  "빈티지 가죽공예",
-  "레진아트",
-  "플루이드아트",
-  "톨페인팅",
-  "냅킨아트",
-  "양말목공예",
-  "하바리움",
-  "위빙",
-  "POP",
+/** 클래스 상황 바로가기. 주말·오늘은 실제 일정, 나머지는 관리자가 지정한 클래스 상황 태그로 거른다. */
+const SITUATIONS = [
+  { to: "/classes?when=weekend", label: "이번 주말" },
+  { to: "/classes?when=today", label: "오늘 바로" },
+  { to: "/classes?tag=DATE", label: "데이트" },
+  { to: "/classes?tag=WITH_KIDS", label: "아이와 함께" },
+  { to: "/classes?tag=FRIENDS", label: "친구 모임" },
+  { to: "/classes?tag=GIFT", label: "선물 만들기" },
 ] as const;
 
-/** 솜씨당·프립처럼 상황으로 수업을 찾는다. 주말·오늘은 실제 일정, 나머지는 클래스 상황 태그로 거른다. */
-const SITUATIONS: ReadonlyArray<{ to: string; label: string; icon: LucideIcon }> = [
-  { to: "/classes?when=weekend", label: "이번 주말", icon: CalendarDays },
-  { to: "/classes?when=today", label: "오늘 바로", icon: Zap },
-  { to: "/classes?tag=DATE", label: "데이트", icon: Heart },
-  { to: "/classes?tag=WITH_KIDS", label: "아이와 함께", icon: Baby },
-  { to: "/classes?tag=FRIENDS", label: "친구 모임", icon: Users },
-  { to: "/classes?tag=GIFT", label: "선물 만들기", icon: Gift },
-  { to: "/passes/purchase", label: "정규 4회권", icon: Ticket },
-  { to: "/group-classes", label: "단체·기관", icon: School },
+/** 카테고리 사진 칸. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
+const CATEGORY_TILES: ReadonlyArray<{ category: ShopCategory; label: string; image: string }> = [
+  { category: "가죽", label: "가죽 소품", image: leatherClass },
+  { category: "레진", label: "레진 소품·가구", image: resinSeaCoaster },
+  { category: "향·아로마", label: "향수·디퓨저·핸드크림", image: perfumeShelf },
+  { category: "새활용", label: "양말목·새활용", image: upcyclingClass },
+  { category: "톨페인팅", label: "톨페인팅 원목 소품", image: toleMaterials },
+  { category: "플루이드아트", label: "플루이드아트", image: acrylicPouring },
 ];
 
-const BLOG_STORIES = [
-  {
-    title: "빈티지가죽 카드지갑 원데이클래스",
-    label: "공방 클래스",
-    href: "https://blog.naver.com/ssim1972/224351321964",
-  },
-  {
-    title: "예성초등학교 레진아트 키링 수업",
-    label: "학교 출강",
-    href: "https://blog.naver.com/ssim1972/224329992719",
-  },
-  {
-    title: "새활용 양말목 생활소품",
-    label: "공예 이야기",
-    href: "https://blog.naver.com/ssim1972/224241899556",
-  },
-] as const;
-
-const HOME_CLASS_LIMIT = 3;
-const HOME_PRODUCT_LIMIT = 8;
+const HOME_CLASS_LIMIT = 4;
+const HOME_PRODUCT_LIMIT = 10;
+const ALL_CATEGORIES = "전체";
 
 interface HomePageProps {
   initialProducts: ProductDetailResponse[];
@@ -109,161 +89,86 @@ export function HomePage({
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialClasses);
   const { data: workshop } = useWorkshopProfile(initialWorkshop);
+  const { data: pricePolicy } = useOrderPricePolicy();
+  const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
   const availableProducts = products?.filter((product) => product.available) ?? [];
-  // 4열 그리드의 마지막 줄이 비지 않도록 4개 이상이면 4의 배수만 보여 준다.
-  const featuredProducts = availableProducts.slice(0, availableProducts.length < 4
-    ? availableProducts.length
-    : Math.min(HOME_PRODUCT_LIMIT, availableProducts.length - (availableProducts.length % 4)));
+  // 이미 받은 목록을 화면에서만 나눠 보여 주므로 카테고리를 바꿔도 다시 조회하지 않는다.
+  const featuredProducts = availableProducts
+    .filter((product) => category === ALL_CATEGORIES || product.category === category)
+    .slice(0, HOME_PRODUCT_LIMIT);
+  const productCategories = SHOP_CATEGORIES.filter((name) =>
+    availableProducts.some((product) => product.category === name));
+  const productListHref = category === ALL_CATEGORIES
+    ? "/products"
+    : `/products?${new URLSearchParams({ category })}`;
   const featuredClasses = classes?.slice(0, HOME_CLASS_LIMIT) ?? [];
-  const blogUrl = workshop?.naverBlogUrl;
-  const consultHref = workshop?.naverTalkUrl
-    ?? (workshop?.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
   const classSlotResults = useQueries({
     queries: featuredClasses.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
+  const consultHref = workshop?.naverTalkUrl
+    ?? (workshop?.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
+  const shippingFee = pricePolicy?.shippingFee;
+  const shippingText = typeof shippingFee !== "number"
+    ? "매장 수령은 무료이며, 택배 배송비는 주문서에서 확인할 수 있습니다."
+    : shippingFee === 0
+      ? "매장 수령·택배 배송 모두 무료입니다."
+      : `매장 수령은 무료, 택배 배송은 주문당 ${formatKRW(shippingFee)}입니다.`;
 
   return (
     <>
-      <section className="home-hero">
-        <Container className="home-hero-inner">
-          <div className="home-hero-copy">
-            <p className="home-hero-eyebrow">충주 계명대로 공예공방 해피갤러리</p>
-            <h1 className="home-hero-title">재료를 만지고,<br />내 손으로 완성합니다</h1>
-            <p className="home-hero-text">
-              빈티지 가죽, 레진, 양말목, 톨페인팅까지. 원데이클래스부터 자격증반·창업반까지
-              처음이어도 집에 가져갈 작품을 완성합니다.
-            </p>
-            <div className="home-hero-actions">
-              <LinkButton to="/classes" variant="accent">클래스 둘러보기</LinkButton>
-              <LinkButton to="/products" variant="outline-light">공방 작품 보기</LinkButton>
-            </div>
-          </div>
-          {/* 레진 코스터처럼 둥글게 자른 공방 사진. 내용은 문구가 전하므로 장식으로 둔다. */}
-          <div className="home-hero-coasters" aria-hidden="true">
-            <img src={heroWorkshop} alt="" fetchPriority="high" />
-            <img src={toleMaterials} alt="" />
-            <img src={wreathHands} alt="" />
-          </div>
-        </Container>
-      </section>
+      {/* 검색 결과 제목에 공방 이름이 들어가도록 화면에는 숨긴 H1을 둔다(배포 점검도 이 H1을 확인한다). */}
+      <h1 className="visually-hidden">충주 공예 공방 해피갤러리</h1>
 
-      <section className="home-quick">
-        <Container>
-          <QuickBookingPanel classes={classes ?? []} />
-          <nav className="home-situations" aria-label="상황별로 수업 찾기">
-            <ul className="home-situation-grid">
-              {SITUATIONS.map(({ to, label, icon: Icon }) => (
-                <li key={to}>
-                  <Link to={to} className="home-situation">
-                    <span className="home-situation-icon" aria-hidden="true"><Icon size={24} strokeWidth={1.8} /></span>
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </Container>
-      </section>
-
-      <section className="home-section" aria-labelledby="home-class-title">
-        <Container>
-          <header className="home-section-head">
-            <div>
-              <p className="store-section-kicker">Class</p>
-              <h2 id="home-class-title" className="home-section-title">나만의 작품을 만드는 클래스</h2>
-              <p className="home-section-desc">
-                처음 만드는 분도 편안하게 시작할 수 있도록 수업별 시간과 준비물을 안내합니다.
-              </p>
-            </div>
-            <Link to="/classes" className="home-section-link">
-              전체 클래스 보기 <span aria-hidden="true">→</span>
-            </Link>
-          </header>
-
-          <ul className="home-craft-list" aria-label="해피갤러리 공예 분야">
-            {CRAFT_SPECIALTIES.map((craft) => <li key={craft}>{craft}</li>)}
-          </ul>
-
-          {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
-          <ErrorAlert error={classesError} />
-          {featuredClasses.length > 0 && (
-            <div className="home-class-grid">
-              {featuredClasses.map((bookingClass, index) => (
-                <Link key={bookingClass.id} to={`/classes/${bookingClass.id}`} className="home-class-card">
-                  <figure className="home-class-card-media">
-                    <img src={classImageSrc(bookingClass)} alt="" loading="lazy" />
-                  </figure>
-                  <div className="home-class-card-body">
-                    <span className="home-class-card-meta">
-                      {getClassCategoryLabel(bookingClass.category)}
-                      {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && " · 4회권 사용 가능"}
-                    </span>
-                    <h3>{bookingClass.name}</h3>
-                    <p>{bookingClass.durationMin}분 · {formatKRW(bookingClass.price)}</p>
-                    <ClassNextSlot result={classSlotResults[index]} className="home-class-card-next" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-          {!classesLoading && !classesError && featuredClasses.length === 0 && (
-            <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
-          )}
-        </Container>
-      </section>
-
-      <section className="home-steps" aria-labelledby="home-steps-title">
-        <Container>
-          <header className="home-steps-head">
-            <h2 id="home-steps-title">원데이 다음, 더 깊게</h2>
-            <p>재미를 붙였다면 다음 단계로 이어 가세요.</p>
-          </header>
-          <ol className="home-step-list">
-            <li>
-              <Link to="/classes" className="home-step">
-                <span>STEP 1</span>
+      <section className="market-banners" aria-label="기획 안내">
+        <Container className="market-banners-inner">
+          <Link to="/products?type=MADE_TO_ORDER" className="market-banner-main">
+            <img src={leatherWorkshopHands} alt="빈티지 가죽에 각인 도장을 찍는 손" fetchPriority="high" />
+            <span className="market-banner-copy">
+              <span className="market-banner-kicker">주문 제작</span>
+              <strong>원하는 문구와 색으로<br />만드는 빈티지 가죽 소품</strong>
+              <span>카드지갑, 러기지 택, 다이어리를 주문받아 공방에서 직접 만듭니다.</span>
+              <span className="market-banner-link">주문 제작 작품 보기</span>
+            </span>
+          </Link>
+          <div className="market-banner-side">
+            <Link to="/classes" className="market-banner-tile">
+              <img src={heroWorkshop} alt="" loading="lazy" />
+              <span>
                 <strong>원데이 클래스</strong>
-                <small>한 번의 수업으로 작품 하나를 완성해 가져가요</small>
-              </Link>
-            </li>
-            <li>
-              <Link to="/passes/purchase" className="home-step">
-                <span>STEP 2</span>
-                <strong>정규 4회권</strong>
-                <small>결제일 포함 90일 동안 4회, 원하는 정규 수업으로 예약해요</small>
-              </Link>
-            </li>
-            <li>
-              {consultHref ? (
-                <a href={consultHref} className="home-step" target={workshop?.naverTalkUrl ? "_blank" : undefined} rel="noreferrer">
-                  <span>STEP 3</span>
-                  <strong>자격증·창업반</strong>
-                  <small>강사 과정과 창업 준비를 공방장과 상담해요</small>
-                </a>
-              ) : (
-                <div className="home-step">
-                  <span>STEP 3</span>
-                  <strong>자격증·창업반</strong>
-                  <small>강사 과정과 창업 준비는 공방으로 문의해 주세요</small>
-                </div>
-              )}
-            </li>
-          </ol>
+                <span>공방에서 하루 만에 작품을 완성합니다</span>
+              </span>
+            </Link>
+            <Link to="/group-classes" className="market-banner-tile">
+              <img src={groupResinClass} alt="" loading="lazy" />
+              <span>
+                <strong>학교·기관·동아리 단체수업</strong>
+                <span>재료를 챙겨 찾아갑니다</span>
+              </span>
+            </Link>
+          </div>
         </Container>
       </section>
 
-      <section className="home-section home-section-raised" aria-labelledby="home-product-title">
+      <section className="market-section" aria-labelledby="home-product-title">
         <Container>
-          <header className="home-section-head">
-            <div>
-              <p className="store-section-kicker">Shop</p>
-              <h2 id="home-product-title" className="home-section-title">공방에서 만든 핸드메이드 작품</h2>
-              <p className="home-section-desc">바로 구매할 수 있는 작품과 주문 제작 작품을 함께 소개합니다.</p>
-            </div>
-            <Link to="/products" className="home-section-link">
-              모든 작품 보기 <span aria-hidden="true">→</span>
-            </Link>
+          <header className="market-section-head">
+            <h2 id="home-product-title">새로 올라온 작품</h2>
+            {productCategories.length > 0 && (
+              <div className="market-chips" role="group" aria-label="작품 카테고리">
+                {[ALL_CATEGORIES, ...productCategories].map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    aria-pressed={category === name}
+                    onClick={() => setCategory(name)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Link to={productListHref} className="market-section-more">전체 작품 보기</Link>
           </header>
           {productsLoading && <LoadingSpinner />}
           <ErrorAlert error={productsError} />
@@ -278,60 +183,112 @@ export function HomePage({
         </Container>
       </section>
 
-      <section className="home-group-band" aria-labelledby="home-group-title">
-        <Container className="home-editorial-layout">
-          <figure className="home-editorial-media">
-            <img src={groupToleWreath} alt="직장인 동아리 단체수업에서 원목 인형을 리스에 다는 모습" loading="lazy" />
-          </figure>
-          <div className="home-editorial-copy">
-            <p className="store-section-kicker">단체·기관 수업</p>
-            <h2 id="home-group-title">함께 만드는 시간이 필요한 곳으로 찾아갑니다</h2>
-            <p>
-              참여 인원과 장소, 원하는 공예를 알려주시면 수업에 맞는 재료와 진행 방법을 함께 정합니다.
-            </p>
-            <LinkButton to="/group-classes" variant="light">단체수업 알아보기</LinkButton>
+      <section className="market-section" aria-labelledby="home-class-title">
+        <Container>
+          <div className="market-class-box">
+            <header className="market-section-head">
+              <h2 id="home-class-title">공방에서 직접 만들어 보기</h2>
+              <nav className="market-chips" aria-label="상황별로 수업 찾기">
+                {SITUATIONS.map(({ to, label }) => <Link key={to} to={to}>{label}</Link>)}
+              </nav>
+              <Link to="/passes/purchase" className="market-section-more">정규반·4회권 보기</Link>
+            </header>
+            {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
+            <ErrorAlert error={classesError} />
+            {featuredClasses.length > 0 && (
+              <div className="market-class-grid">
+                {featuredClasses.map((bookingClass, index) => (
+                  <Link key={bookingClass.id} to={`/classes/${bookingClass.id}`} className="market-class-card">
+                    <img src={classImageSrc(bookingClass)} alt="" loading="lazy" />
+                    <span className="market-class-body">
+                      <span className="market-class-meta">
+                        {getClassCategoryLabel(bookingClass.category)} · {bookingClass.durationMin}분
+                        {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && " · 4회권 사용 가능"}
+                      </span>
+                      <h3>{bookingClass.name}</h3>
+                      <strong className="market-class-price">{formatKRW(bookingClass.price)}</strong>
+                      <ClassNextSlot result={classSlotResults[index]} className="market-class-next" />
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+            {!classesLoading && !classesError && featuredClasses.length === 0 && (
+              <p className="text-muted-soft mb-0">예약 가능한 클래스를 준비하고 있습니다.</p>
+            )}
           </div>
         </Container>
       </section>
 
-      <section className="home-section home-updates-section">
+      <section className="market-section" aria-labelledby="home-category-title">
+        <Container>
+          <header className="market-section-head">
+            <h2 id="home-category-title">카테고리별로 보기</h2>
+          </header>
+          <ul className="market-category-grid">
+            {CATEGORY_TILES.map(({ category: name, label, image }) => (
+              <li key={name}>
+                <Link to={`/products?${new URLSearchParams({ category: name })}`}>
+                  <img src={image} alt="" loading="lazy" />
+                  <span>{label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Container>
+      </section>
+
+      <section className="market-section home-updates-section">
         <Container className="home-updates-grid">
           <NoticeListWidget initialNotices={initialNotices} />
           <FeaturedEventWidget initialEvents={initialEvents} />
         </Container>
       </section>
 
-      <section className="home-section home-story-section" aria-labelledby="home-story-title">
-        <Container className="home-story-layout">
-          <figure className="home-story-media">
-            <img src={leatherWorkshopHands} alt="빈티지가죽 카드지갑 원데이클래스에서 가죽에 각인하는 모습" loading="lazy" />
-          </figure>
-          <div className="home-story-copy">
-            <p className="store-section-kicker">공방 기록</p>
-            <h2 id="home-story-title">수업과 작품이 쌓여 온 해피갤러리의 시간</h2>
-            <p>
-              수강생과 함께 만든 작품, 새로운 재료를 만나는 과정, 공방의 일상을 네이버 블로그에 기록합니다.
-            </p>
-            <div className="home-story-links">
-              {BLOG_STORIES.map((story) => (
-                <a key={story.href} href={story.href} target="_blank" rel="noreferrer">
-                  <span>{story.label}</span>
-                  <strong>{story.title}</strong>
-                  <span aria-hidden="true">↗</span>
-                </a>
-              ))}
+      <section className="market-section" aria-labelledby="home-shop-title">
+        <Container>
+          <div className="market-shop-profile">
+            <div>
+              <h2 id="home-shop-title">{workshop?.name ?? "해피갤러리"}</h2>
+              {workshop?.introduction && <p>{workshop.introduction}</p>}
+              {workshop?.addressLine1 && (
+                <p className="market-shop-address">
+                  {[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}
+                </p>
+              )}
             </div>
-            {blogUrl && (
-              <a className="home-section-link" href={blogUrl} target="_blank" rel="noreferrer">
-                모든 공방 기록 보기 <span aria-hidden="true">↗</span>
-              </a>
-            )}
+            <div className="market-shop-actions">
+              {workshop?.mapUrl && (
+                <a href={workshop.mapUrl} target="_blank" rel="noreferrer" className="btn btn-outline-dark">오시는 길</a>
+              )}
+              {consultHref && (
+                <a
+                  href={consultHref}
+                  target={workshop?.naverTalkUrl ? "_blank" : undefined}
+                  rel="noreferrer"
+                  className="btn btn-dark"
+                >
+                  {workshop?.naverTalkUrl ? "톡톡 문의" : "전화 문의"}
+                </a>
+              )}
+            </div>
           </div>
-        </Container>
-      </section>
 
-      <section className="home-section home-workshop-section">
-        <Container><WorkshopVisitInfo /></Container>
+          <dl className="market-shop-info">
+            <div>
+              <dt>배송</dt>
+              <dd>{shippingText}</dd>
+            </div>
+            <div>
+              <dt>교환·반품</dt>
+              <dd>주문 제작 작품은 결제 전 동의한 제작 조건에 따라 단순 변심 반품이 제한될 수 있습니다.</dd>
+            </div>
+            <div>
+              <dt>회원 혜택</dt>
+              <dd>회원은 쿠폰과 결제한 상품 금액 1% 적립을 받습니다. 비회원 주문도 됩니다.</dd>
+            </div>
+          </dl>
+        </Container>
       </section>
     </>
   );

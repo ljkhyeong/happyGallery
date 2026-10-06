@@ -7,10 +7,11 @@
 | `hero-workshop.jpg` | 공방 내부와 빈티지 가죽 작품 | [충주공방 해피갤러리 소개](https://blog.naver.com/ssim1972/224086905616) |
 | `leather-class.jpg` | 빈티지가죽 카드지갑 완성품 두 개(사람 없음) | [빈티지가죽 카드지갑 만들기 원데이 클래스](https://blog.naver.com/ssim1972/224351321964). 2026-10-05에 AI 생성 예시 이미지를 실제 수업 결과물 사진으로 교체. |
 | `leather-workshop-hands.jpg` | 가죽 카드지갑에 각인하는 손(얼굴 없음), 16:11로 자름 | [빈티지가죽 카드지갑 만들기 원데이 클래스](https://blog.naver.com/ssim1972/224351321964) |
-| `group-tole-wreath.jpg` | 직장인 동아리 단체수업에서 원목 인형을 리스에 다는 손(얼굴 없음) | [직장인 동아리 단체수업 톨페인팅 원목 리스 만들기](https://blog.naver.com/ssim1972/224431509766) |
 | `group-resin-class.jpg` | 예성초등학교 레진아트 단체수업 결과물 | [자아존중감 향상 레진 아트 키링 만들기](https://blog.naver.com/ssim1972/224329992719) |
 | `upcycling-class.jpg` | 새활용 양말목 공예 생활소품 | [새활용 양말목 공예로 제작 가능한 생활소품 소개](https://blog.naver.com/ssim1972/224241899556) |
-| `tole-materials.jpg` | 커팅매트 위 톨페인팅 원목 인형 재료(사람 없음), 1:1로 자름. 홈 첫 화면 둥근 사진 | [직장인 동아리 취미클래스 톨페인팅 리스 만들기](https://blog.naver.com/ssim1972/224402943133) |
-| `wreath-hands.jpg` | 리스에 끈을 감는 손(얼굴 없음), 1:1로 자름. 홈 첫 화면 둥근 사진 | [직장인 동아리 단체수업 톨페인팅 원목 리스 만들기](https://blog.naver.com/ssim1972/224431509766) |
+| `tole-materials.jpg` | 커팅매트 위 톨페인팅 원목 인형 재료(사람 없음), 1:1로 자름. 홈 카테고리 칸 | [직장인 동아리 취미클래스 톨페인팅 리스 만들기](https://blog.naver.com/ssim1972/224402943133) |
+| `resin-sea-coaster.jpg` | 모래와 불가사리를 넣은 레진 바다 코스터 두 개(사람 없음). 홈 카테고리 칸 | [충주공방 해피갤러리 소개](https://blog.naver.com/ssim1972/224086905616) |
+| `perfume-shelf.jpg` | 향료 병과 향수 병이 놓인 선반(사람 없음). 홈 카테고리 칸 | [충주공방 해피갤러리 소개](https://blog.naver.com/ssim1972/224086905616) |
+| `acrylic-pouring.jpg` | 파란 아크릴 푸어링 캔버스를 든 손 끝(얼굴 없음). 홈 카테고리 칸 | [아크릴물감과 레진의 만남 아크릴푸어링 작업](https://blog.naver.com/ssim1972/224265968686) |
 
 사진은 공방 블로그 원본(가로 900px)에서 얼굴이 보이지 않는 장면만 골랐고, 촬영 위치 등 EXIF 정보는 지운 뒤 품질 82 JPEG로 저장했다.

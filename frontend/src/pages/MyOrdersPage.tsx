@@ -69,7 +69,6 @@ export function MyOrdersPage() {
   return (
     <>
       <PageHeader
-        kicker="My page"
         title={myNavLabel("/my/orders")}
         description="주문 상태와 결제 금액을 확인하고 주문을 검색하세요."
         actions={(

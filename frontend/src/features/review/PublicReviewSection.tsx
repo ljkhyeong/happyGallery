@@ -87,7 +87,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     <section className="review-section" aria-labelledby={`${targetType}-${targetId}-reviews`}>
       <header className="review-section-header">
         <div>
-          <p className="store-section-kicker mb-1">Reviews</p>
+          <p className="store-section-kicker mb-1">구매·수강 후기</p>
           <h3 id={`${targetType}-${targetId}-reviews`} className="mb-1">이용 후기</h3>
         </div>
         {summary && (

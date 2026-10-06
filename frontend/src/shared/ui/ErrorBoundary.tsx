@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <StatusPage
           standalone
-          kicker="ERROR"
+          kicker="오류"
           title="예기치 않은 오류가 발생했습니다"
           description="페이지를 새로고침해 주세요. 오류가 계속되면 공방에 문의해 주세요."
           actions={<Button onClick={() => window.location.reload()}>새로고침</Button>}
