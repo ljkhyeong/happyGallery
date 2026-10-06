@@ -6,6 +6,12 @@ const apiTarget = process.env.VITE_API_TARGET ?? "http://localhost:8080";
 
 export default defineConfig({
   plugins: [reactRouter()],
+  optimizeDeps: {
+    // 첫 라우트 로딩 중 재최적화로 브라우저 모듈 URL이 바뀌지 않도록 미리 준비한다.
+    include: [
+      "@tanstack/react-query", "react-bootstrap", "@sentry/react", "lucide-react", "ical.js",
+    ],
+  },
   css: {
     preprocessorOptions: {
       scss: {
@@ -15,7 +21,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
   server: {
