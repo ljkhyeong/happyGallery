@@ -7,11 +7,11 @@ description: happyGallery의 원격 푸시·PR 작성·CI 실패 분석·PR 리�
 
 ## PR 흐름
 
-- 순서는 `AGENTS.md`의 작업 브랜치 → `codexReview` → `main`을 따른다. Dependabot 일반 갱신은 `codexReview`, GitHub 보안 갱신은 `main`을 대상으로 한다.
+- 순서는 `AGENTS.md`의 작업 브랜치 → `main`을 따른다. Dependabot 일반·보안 갱신도 `main`을 대상으로 한다. 병합마다 운영 배포가 실행되므로 서로 의존하거나 함께 검증할 갱신은 작업 브랜치에 모아 한 PR로 병합한다.
 - `main` push는 `production.yml`을 실행하고, `CD_ENABLED`가 켜져 있으면 이미지 게시와 운영 rollout까지 진행한다. `main` PR 병합 전 migration 호환성과 롤백 조건을 본문에서 확인한다.
 - 본문은 `.github/pull_request_template.md` 구조에 문제·핵심 설계 판단·실행한 검증·문서 반영을 채운다. 호환성 검토는 세션 형식·데이터 의미·전환 절차가 바뀔 때만 쓰고 파일 목록은 적지 않는다.
-- 본문은 임시 파일에 실제 줄바꿈으로 작성해 `gh pr create --body-file`·`gh pr edit --body-file`로 전달한다. `codexReview` → `main` PR에는 포함한 작업 PR과 CI 실행 링크를 적는다.
-- 병합 commit 제목은 `<유형>: <내용>을 검토 브랜치에 병합`·`<유형>: <내용>을 main에 병합`, 본문은 PR 제목으로 한다.
+- 본문은 임시 파일에 실제 줄바꿈으로 작성해 `gh pr create --body-file`·`gh pr edit --body-file`로 전달한다. 여러 PR을 모은 PR에는 포함한 PR과 CI 실행 링크를 적는다.
+- 병합 commit 제목은 `<유형>: <내용>을 main에 병합`, 본문은 PR 제목으로 한다.
 
 ## CI 실패 분석
 

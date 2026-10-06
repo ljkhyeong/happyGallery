@@ -3,9 +3,8 @@
 ## codexReview 폐지 (2026-10-06)
 
 - 시작 SHA `afc48c96`. 사용자가 main보다 157커밋 뒤처진 검토 브랜치 `codexReview`를 없애기로 했다. #161(vite 8)에서 main에 이미 있던 수정 3건(`81010197` Vite 의존성 미리 최적화, `16d4cb89` npm audit, `6ab9f275` spring-webmvc)을 다시 반영해야 했기 때문이다. codexReview에만 있는 18커밋 중 main에 없는 것은 #158 프론트 의존성 19건 묶음뿐이고, Dependabot이 main 대상으로 다시 제안한다.
-- 변경(`codex/work-retire-codexreview`): `.github/dependabot.yml`의 `target-branch` 제거(기본 브랜치 main), `ci.yml` PR 대상 main만, README·ADR-0037·`deploy/k3s/cicd.md` 문구.
-- 미반영: `AGENTS.md`(PR 순서), `happygallery-github-flows`(PR 흐름·병합 제목), `happygallery-code-review`(리뷰 기준 브랜치) 스킬은 자동 모드가 에이전트 지침 수정을 막아 사용자 반영이 필요하다. 제안 문구는 이 브랜치 PR 본문에 있다.
-- 남은 행동: ① 지침 3곳 반영 ② 이 PR을 main에 병합(운영 배포 실행) ③ 사용자 재확인 후 원격 `codexReview` 삭제. 열린 codexReview PR 9개(#120·#122·#127·#160~165)는 base가 사라져 닫히고, Dependabot은 다음 주간 실행(월 04:00~05:00 KST)부터 main으로 연다. vite 8은 main에 이미 `include`가 있어 `vite.config.ts`의 `import.meta.dirname`만 함께 바꾸면 된다.
+- 변경(#167, `codex/work-retire-codexreview`): `.github/dependabot.yml`의 `target-branch` 제거(기본 브랜치 main), `ci.yml` PR 대상 main만, README·ADR-0037·`deploy/k3s/cicd.md` 문구, `AGENTS.md` PR 순서, `happygallery-github-flows`(PR 흐름·Dependabot 묶음 병합·병합 제목)·`happygallery-code-review`(리뷰 기준 `main`) 스킬.
+- 남은 행동: ① #167을 main에 병합(운영 배포 실행) ② 사용자 재확인 후 원격 `codexReview` 삭제. 열린 codexReview PR 9개(#120·#122·#127·#160~165)는 base가 사라져 닫히고, Dependabot은 다음 주간 실행(월 04:00~05:00 KST)부터 main으로 연다. vite 8은 main에 이미 `include`가 있어 `vite.config.ts`의 `import.meta.dirname`만 함께 바꾸면 된다.
 - #161 원인: dev 서버가 첫 화면에서 `@sentry/react`·`@tanstack/react-query`·`react-bootstrap`·`lucide-react`를 뒤늦게 발견해 전체 reload한다. Vite 7도 `include`가 없으면 P8-4가 의존성 캐시 없이 실패했고(#158·#159 CI는 재시도로 `3 flaky` 통과), Vite 8은 재시도까지 실패했다. main은 `81010197`로 이미 막혀 있다.
 - 운영 배포: `afc48c96` Production(37431081274)은 rollout 중 서버의 `happygallery-backup.service` 실패로 중단됐고 운영은 이전 release를 유지한다. 서버 journal 확인이 필요해 원인은 조사하지 않았다. 이 PR 병합 후 배포도 같은 지점에서 멈출 수 있다.
 
