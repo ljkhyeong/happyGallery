@@ -27,7 +27,10 @@ class CdTest < Minitest::Test
              'CD_HOST' => 'example.test', 'CD_PORT' => '22222', 'CD_USER' => 'ronaldo',
              'APP_REGISTRY_DIGEST' => DIGEST, 'FRONTEND_REGISTRY_DIGEST' => DIGEST,
              'CD_SSH_PRIVATE_KEY' => 'private fixture', 'CD_SSH_KNOWN_HOSTS' => 'pinned host fixture' }
-    executable(@bin, 'flock', 'exit 0')
+    executable(@bin, 'flock', <<~'RUBY')
+      File.open(ENV['HG_FLOCK_LOG'], 'a') { |f| f.puts ARGV.join(' ') } if ENV['HG_FLOCK_LOG']
+      exit Integer(ENV.fetch(ARGV.first == '-n' ? 'HG_FLOCK_TRY_EXIT' : 'HG_FLOCK_WAIT_EXIT', '0'))
+    RUBY
     executable(@bin, 'git', <<~'RUBY')
       case ARGV.join(' ')
       when /remote get-url/ then puts 'https://github.com/ljkhyeong/happyGallery.git'
@@ -119,6 +122,27 @@ class CdTest < Minitest::Test
     out, error, status = run_script('accept-cd-ssh.sh')
     assert status.success?, error
     assert_equal ['/etc/happygallery/release.env', SHA, DIGEST, DIGEST], out.lines.map(&:strip)
+  end
+
+  def test_gateway_waits_for_running_cd_instead_of_failing_immediately
+    checkout = File.join(@dir, '.local/state/happygallery/cd/source/deploy/k3s/scripts')
+    FileUtils.mkdir_p(checkout)
+    File.write(File.join(checkout, 'deploy-registry-images.sh'), 'echo deployed')
+    @env['SSH_ORIGINAL_COMMAND'] = "deploy #{SHA} #{DIGEST} #{DIGEST}"
+    @env['HG_FLOCK_TRY_EXIT'] = '1'
+    @env['HG_FLOCK_LOG'] = File.join(@dir, 'flock.log')
+
+    out, error, status = run_script('accept-cd-ssh.sh')
+    assert status.success?, error
+    assert_includes error, '끝나기를 기다립니다'
+    assert_equal "deployed\n", out
+    assert_equal ["-n 9\n", "-w 900 9\n"], File.readlines(@env['HG_FLOCK_LOG'])
+
+    @env['HG_FLOCK_WAIT_EXIT'] = '1'
+    out, error, status = run_script('accept-cd-ssh.sh')
+    refute status.success?
+    assert_includes error, '15분 넘게 실행 중'
+    assert_empty out
   end
 
   def test_publish_emits_registry_digest_outputs_after_both_pushes

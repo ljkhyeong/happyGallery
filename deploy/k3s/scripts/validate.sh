@@ -551,6 +551,14 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   rollout_script = File.read(File.join(script_dir, "rollout.sh"))
   abort "롤아웃 후 app의 온라인 백업 지원 표식을 확인하지 않습니다." unless
     rollout_script.include?('exec deployment/app -- test -f /app/media-backup-guard-v1')
+  abort "공개 점검이 실패하면 실행 중인 release가 current로 기록되지 않아 다음 배포의 백업이 막힙니다." unless
+    rollout_script.match?(%r{ln -sfn "\$release_dir" "\$state_root/current"\n"\$SCRIPT_DIR/verify\.sh"})
+  abort "배포 전 백업 전에 current와 실행 이미지를 맞추지 않습니다." unless
+    deploy_script.match?(/align_current_release\n\s+if ! systemctl_write start --wait happygallery-backup\.service/)
+  backup_journal = "journalctl -u happygallery-backup.service --since -40min --no-pager -o cat"
+  sudoers = File.read(File.join(script_dir, "..", "examples", "cd-sudoers.example"))
+  abort "백업 실패 journal 인수가 deploy.sh와 CD sudoers 예시에서 다릅니다." unless
+    deploy_script.include?("sudo -n -- #{backup_journal}") && sudoers.include?("/usr/bin/#{backup_journal}")
   abort "배포 스크립트가 백업 timer를 제어합니다." if
     deploy_script.match?(/happygallery-backup\.(timer|watchdog)|backup-watchdog/)
   %w[
