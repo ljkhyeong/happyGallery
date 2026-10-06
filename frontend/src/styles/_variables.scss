@@ -1,24 +1,23 @@
-// happyGallery — 레진 빛 + 작업대 초록: 커팅매트 초록(주색)·실 노랑(강조)·세이지 흰 바탕
+// happyGallery — 핸드메이드 마켓: 흰 바탕·먹색 글자·가죽 갈색 강조, 각진 모서리
 // Bootstrap overrides are declared before the framework import.
 
-$primary:   #2F4A3D;
-$secondary: #6B7570;
-$success:   #52634F;
+$primary:   #222222;
+$secondary: #666666;
+$success:   #3D6B4F;
 $info:      #1F6E78;
 $warning:   #E3B23C;
-$danger:    #A84B42;
-$light:     #F4F6F1;
-$dark:      #18211C;
+$danger:    #B23A1E;
+$light:     #F6F6F4;
+$dark:      #222222;
 
-$body-bg:    #F4F6F1;
-$body-color: #18211C;
+$body-bg:    #FFFFFF;
+$body-color: #222222;
 
 $font-family-sans-serif: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 $font-size-base: 0.9375rem;
-$line-height-base: 1.68;
-$headings-font-family: "Gowun Dodum", "Pretendard Variable", Pretendard, -apple-system, sans-serif;
-// 고운돋움은 한 굵기(400)만 있어 굵게 쓰지 않는다(가짜 굵기 방지).
-$headings-font-weight: 400;
+$line-height-base: 1.6;
+$headings-font-family: $font-family-sans-serif;
+$headings-font-weight: 700;
 $headings-line-height: 1.32;
 
 $spacer: 1rem;
@@ -31,29 +30,30 @@ $container-max-widths: (
   xl: 1180px,
 );
 
-$border-radius:    0.375rem;
-$border-radius-sm: 0.25rem;
-$border-radius-lg: 0.75rem;
-$border-color:     #D9DFD6;
+$border-radius:    2px;
+$border-radius-sm: 2px;
+$border-radius-lg: 4px;
+$border-color:     #EBEBEB;
 
 $card-bg: transparent;
-$card-border-color: #D9DFD6;
+$card-border-color: #EBEBEB;
 $card-cap-bg: transparent;
-$card-border-radius: 1rem;
+$card-border-radius: 2px;
 
-$btn-border-radius:    999px;
-$btn-border-radius-sm: 999px;
-$btn-border-radius-lg: 999px;
-$btn-font-weight:      650;
+$btn-border-radius:    2px;
+$btn-border-radius-sm: 2px;
+$btn-border-radius-lg: 2px;
+$btn-font-weight:      700;
 $btn-padding-x:        1.25rem;
 $btn-padding-x-lg:     1.6rem;
 
 $input-bg: #FFFFFF;
-$input-border-radius:    0.75rem;
-$input-border-radius-sm: 0.5rem;
-$input-border-radius-lg: 1rem;
-$input-border-color: #C3CCC0;
-// 입력 포커스·체크 상태는 주색 초록을 쓴다.
+$input-border-radius:    2px;
+$input-border-radius-sm: 2px;
+$input-border-radius-lg: 2px;
+// 입력 칸 테두리는 흰 바탕 위 3:1(컨트롤 경계 기준)을 맞춘다.
+$input-border-color: #949494;
+// 입력 포커스·체크 상태는 먹색을 쓴다.
 $focus-ring-color: rgba($primary, 0.2);
 $input-focus-border-color: $primary;
 $input-focus-box-shadow: 0 0 0 0.2rem rgba($primary, 0.14);

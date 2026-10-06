@@ -36,7 +36,7 @@ test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
 
-test("홈에서 수업·날짜·시간을 고르면 같은 일정이 선택된 예약 화면으로 이동한다", async ({ page }) => {
+test("홈 클래스 카드는 마감 일정을 건너뛴 다음 수업과 남은 자리를 보여 주고 클래스 상세로 연결한다", async ({ page }) => {
   await replaceSsrUpstreamFixtures(...homeSsrFixtures({
     workshop: { name: "해피갤러리" },
     classes: [leather, resin],
@@ -48,7 +48,7 @@ test("홈에서 수업·날짜·시간을 고르면 같은 일정이 선택된 �
       status: 200, contentType: "application/json", body: JSON.stringify(body),
     });
     if (request.method() !== "GET") {
-      throw new Error(`홈 빠른 예약 테스트에서 예상하지 않은 변경 요청: ${request.method()} ${url.pathname}`);
+      throw new Error(`홈 클래스 카드 테스트에서 예상하지 않은 변경 요청: ${request.method()} ${url.pathname}`);
     }
     switch (url.pathname) {
       case "/api/v1/me": return json({
@@ -69,34 +69,24 @@ test("홈에서 수업·날짜·시간을 고르면 같은 일정이 선택된 �
       case "/api/v1/events":
       case "/api/v1/notices":
         return json([]);
+      case "/api/v1/orders/policy": return json({ shippingFee: 3000 });
       case "/api/v1/slots/upcoming":
         return json(slotsByClass[Number(url.searchParams.get("classId"))] ?? []);
       default:
-        throw new Error(`홈 빠른 예약 테스트에서 정의하지 않은 요청: ${url.pathname}`);
+        throw new Error(`홈 클래스 카드 테스트에서 정의하지 않은 요청: ${url.pathname}`);
     }
   });
 
   await page.goto("/");
-  const panel = page.getByRole("complementary", { name: "바로 예약하기" });
+  const section = page.getByRole("region", { name: "공방에서 직접 만들어 보기" });
 
-  // 첫 수업의 가장 이른 빈 일정이 기본으로 선택된다.
-  await expect(panel.getByRole("link", { name: "1/4(일) 오전 10:00 예약하기" }))
-    .toHaveAttribute("href", "/bookings/new?classId=41&slotId=911&selectSlot=1");
+  // 마감된 오전 수업은 건너뛰고, 남은 자리가 적은 오후 수업을 다음 수업으로 보여 준다.
+  const resinCard = section.getByRole("link", { name: /레진아트 원데이.*다음 수업 1\/2\(금\) 오후 01:00.*마감 임박 · 2자리/ });
+  await expect(resinCard).toHaveAttribute("href", "/classes/42");
+  await expect(section.getByRole("link", { name: /4회권 사용 가능.*가죽 카드지갑 정규.*다음 수업 1\/4\(일\) 오전 10:00/ }))
+    .toHaveAttribute("href", "/classes/41");
 
-  // 마감 시간은 고를 수 없고, 같은 날 남은 시간이 기본 선택된다. 카드도 마감을 건너뛴 다음 수업을 보여 준다.
-  await panel.getByRole("button", { name: /레진아트 원데이/ }).click();
-  await expect(panel.getByRole("button", { name: /오전 10:00/ })).toBeDisabled();
-  await expect(panel.getByRole("link", { name: "1/2(금) 오후 01:00 예약하기" }))
-    .toHaveAttribute("href", "/bookings/new?classId=42&slotId=902&selectSlot=1");
-  await expect(page.getByRole("link", { name: /레진아트 원데이.*다음 수업 1\/2\(금\) 오후 01:00.*마감 임박 · 2자리/ }))
-    .toBeVisible();
-
-  await panel.getByRole("button", { name: "1월 3일 토요일" }).click();
-  await panel.getByRole("link", { name: "1/3(토) 오전 10:00 예약하기" }).click();
-
-  // 홈에서 고른 시간은 예약 화면에서 다시 고르지 않아도 선택되어 있다.
-  await expect(page).toHaveURL(/\/bookings\/new\?classId=42&slotId=903&selectSlot=1$/);
-  await expect(page.locator('[data-booking-date="2099-01-03"]')).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator('[data-slot-id="903"]')).toHaveClass(/active/);
-  await expect(page.getByLabel("예약 인원", { exact: true })).toHaveValue("1");
+  // 상황별 바로가기는 클래스 목록의 상황 조건으로 연결된다.
+  await expect(section.getByRole("navigation", { name: "상황별로 수업 찾기" }).getByRole("link", { name: "이번 주말" }))
+    .toHaveAttribute("href", "/classes?when=weekend");
 });

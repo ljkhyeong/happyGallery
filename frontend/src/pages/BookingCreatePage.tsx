@@ -365,7 +365,6 @@ function BookingCreateContent({
   return (
     <Container className="page-container checkout-page">
       <PageHeader
-        kicker="Booking"
         title="체험 예약"
         description="수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."
       />

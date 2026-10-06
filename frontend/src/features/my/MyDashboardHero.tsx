@@ -15,7 +15,7 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
   return (
     <section className="my-dashboard-hero" aria-labelledby="my-dashboard-title">
       <div className="my-dashboard-hello">
-        <p className="store-section-kicker">My page</p>
+        <p className="store-section-kicker">내 정보</p>
         <h1 id="my-dashboard-title">{user.name}님, 다시 오셨네요</h1>
         <div className="my-dashboard-meta">
           <Badge bg={user.phoneVerified ? "success" : "secondary"}>

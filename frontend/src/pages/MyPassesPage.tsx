@@ -130,7 +130,6 @@ function MyPassesContent() {
   return (
     <>
       <PageHeader
-        kicker="My page"
         title={myNavLabel("/my/passes")}
         description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
         actions={(

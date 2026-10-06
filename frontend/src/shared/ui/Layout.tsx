@@ -1,22 +1,23 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useMatches } from "react-router";
-import { Container, Navbar, Nav } from "react-bootstrap";
-import { CalendarDays, ClipboardList, House, Palette, UserRound } from "lucide-react";
+import { Container, Nav } from "react-bootstrap";
+import { CalendarDays, ClipboardList, Heart, House, Palette, UserRound } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { CartBadge } from "@/features/cart/CartBadge";
 import { NotificationBell } from "@/features/notification/NotificationBell";
+import { ProductSearchForm } from "@/features/product/ProductSearchForm";
+import { SHOP_CATEGORIES } from "@/features/product/shopCategories";
 import { useToast } from "./ToastContainer";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
 import { ErrorAlert } from "./ErrorAlert";
 import type { WorkshopProfile } from "@/shared/types";
 
-const NAV_ITEMS = [
-  { path: "/classes", label: "클래스" },
-  { path: "/group-classes", label: "단체수업" },
-  { path: "/products", label: "작품" },
+const CLASS_NAV_ITEMS = [
+  { path: "/classes", label: "원데이 클래스" },
+  { path: "/passes/purchase", label: "정규반·4회권" },
+  { path: "/group-classes", label: "단체·출강" },
   { path: "/events", label: "이벤트" },
-  { path: "/passes/purchase", label: "4회권" },
 ] as const;
 
 /** 둘러보기 화면에서만 모바일 하단 탭바를 보여 주고, 상세·결제 화면의 하단 버튼과 겹치지 않게 한다. */
@@ -43,7 +44,11 @@ function initialWorkshopFromMatches(
 }
 
 export function Layout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const searchParams = new URLSearchParams(search);
+  const onProducts = pathname === "/products";
+  const activeCategory = onProducts ? searchParams.get("category")?.toUpperCase() : undefined;
+  const madeToOrderOnly = onProducts && searchParams.get("type") === "MADE_TO_ORDER";
   const matches = useMatches();
   const {
     user,
@@ -110,8 +115,8 @@ export function Layout() {
         본문 바로가기
       </a>
       <div className="app-utility-bar">
-        <Container className="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2">
-          <div className="app-utility-copy">충주 해피갤러리 · 공예 클래스와 핸드메이드 작품</div>
+        <Container className="app-utility-inner">
+          <div className="app-utility-copy">충주 계명대로 공예 공방 · 작품 판매와 공예 클래스</div>
           <div className="app-utility-links">
             {!isLoading && isAuthenticated && (
               <Link to="/my/benefits" className="app-utility-link">쿠폰·적립금</Link>
@@ -124,6 +129,11 @@ export function Layout() {
             >
               비회원 조회
             </Link>
+            {workshop?.phone && (
+              <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-utility-link">
+                고객센터 {workshop.phone}
+              </a>
+            )}
           </div>
         </Container>
       </div>
@@ -138,88 +148,97 @@ export function Layout() {
         </Container>
       )}
 
-      <Navbar expand="lg" collapseOnSelect className="app-navbar" data-bs-theme="light">
-        <Container>
-          <Navbar.Brand as={Link} to="/" className="app-brand d-flex">
-            <span className="app-brand-dots" aria-hidden="true" />
-            <span className="app-brand-text">
-              <span className="app-brand-mark">해피갤러리</span>
-              <span className="app-brand-subtitle">CHUNGJU CRAFT ATELIER</span>
-            </span>
-          </Navbar.Brand>
-          <Navbar.Toggle aria-controls="main-nav" label="메뉴 열기/닫기" />
-          <Navbar.Collapse id="main-nav">
-            <Nav className="ms-auto align-items-lg-center gap-lg-1">
-              {NAV_ITEMS.map(({ path, label }) => (
-                <Nav.Link
-                  key={path}
-                  eventKey={path}
-                  as={Link}
-                  to={path}
-                  active={isMainNavActive(pathname, path)}
-                  className="app-nav-link"
-                >
-                  {label}
-                </Nav.Link>
-              ))}
-            </Nav>
-            <Nav className="ms-lg-4 border-lg-start ps-lg-4 align-items-lg-center gap-lg-2">
-              <CartBadge />
-              <NotificationBell />
-              {!isLoading && (
-                isAuthenticated ? (
-                  <>
-                    <Nav.Link
-                      as={Link}
-                      to="/my"
-                      eventKey="/my"
-                      active={isActive(pathname, "/my")}
-                      className="app-nav-link app-member-link"
-                    >
-                      {user!.name}
-                    </Nav.Link>
-                    <Nav.Link
-                      as="button"
-                      className="app-nav-link text-muted-soft btn btn-link p-0 border-0"
-                      onClick={handleLogout}
-                      disabled={loggingOut}
-                    >
-                      {loggingOut ? "로그아웃 중..." : "로그아웃"}
-                    </Nav.Link>
-                  </>
-                ) : (
-                  <>
-                    <Nav.Link
-                      as={Link}
-                      to="/login"
-                      eventKey="/login"
-                      active={isActive(pathname, "/login")}
-                      className="app-nav-link"
-                    >
-                      로그인
-                    </Nav.Link>
-                    <Nav.Link
-                      as={Link}
-                      to="/signup"
-                      eventKey="/signup"
-                      active={isActive(pathname, "/signup")}
-                      className="app-signup-link"
-                    >
-                      회원가입
-                    </Nav.Link>
-                  </>
-                )
-              )}
-            </Nav>
-          </Navbar.Collapse>
+      <header className="app-navbar">
+        <Container className="app-header-inner">
+          <Link to="/" className="app-brand">해피갤러리</Link>
+          <ProductSearchForm />
+          <Nav as="nav" className="app-account" aria-label="내 메뉴">
+            <Link to="/my/favorites" className="app-icon-link">
+              <Heart size={21} strokeWidth={1.8} aria-hidden="true" />
+              <span>찜</span>
+            </Link>
+            <CartBadge />
+            <NotificationBell />
+            {!isLoading && (
+              isAuthenticated ? (
+                <>
+                  <Link
+                    to="/my"
+                    className={`app-icon-link${isActive(pathname, "/my") ? " active" : ""}`}
+                  >
+                    <UserRound size={21} strokeWidth={1.8} aria-hidden="true" />
+                    <span>{user!.name}</span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="app-logout-button"
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                  >
+                    {loggingOut ? "로그아웃 중..." : "로그아웃"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className={`app-icon-link${isActive(pathname, "/login") ? " active" : ""}`}
+                  >
+                    <UserRound size={21} strokeWidth={1.8} aria-hidden="true" />
+                    <span>로그인</span>
+                  </Link>
+                  <Link to="/signup" className="app-signup-link">회원가입</Link>
+                </>
+              )
+            )}
+          </Nav>
         </Container>
-      </Navbar>
+        <nav className="app-category-nav" aria-label="카테고리 메뉴">
+          <Container className="app-category-inner">
+            <Link
+              to="/products"
+              className={onProducts && !activeCategory && !madeToOrderOnly ? "active" : undefined}
+              aria-current={onProducts && !activeCategory && !madeToOrderOnly ? "page" : undefined}
+            >
+              전체 작품
+            </Link>
+            {SHOP_CATEGORIES.map((category) => (
+              <Link
+                key={category}
+                to={`/products?${new URLSearchParams({ category })}`}
+                className={activeCategory === category ? "active" : undefined}
+                aria-current={activeCategory === category ? "page" : undefined}
+              >
+                {category}
+              </Link>
+            ))}
+            <Link
+              to="/products?type=MADE_TO_ORDER"
+              className={madeToOrderOnly ? "active" : undefined}
+              aria-current={madeToOrderOnly ? "page" : undefined}
+            >
+              주문 제작
+            </Link>
+            <span className="app-category-divider" aria-hidden="true" />
+            {CLASS_NAV_ITEMS.map(({ path, label }) => (
+              <Link
+                key={path}
+                to={path}
+                className={`is-class${isMainNavActive(pathname, path) ? " active" : ""}`}
+                aria-current={isMainNavActive(pathname, path) ? "page" : undefined}
+              >
+                {label}
+              </Link>
+            ))}
+          </Container>
+        </nav>
+      </header>
 
       <main id="main-content" tabIndex={-1} className="flex-grow-1">
         <Outlet />
       </main>
 
-      <footer className="app-footer py-4 small">
+      <footer className="app-footer">
         <Container>
           {workshopError && !workshop && (
             <ErrorAlert
@@ -229,49 +248,48 @@ export function Layout() {
             />
           )}
           <div className="app-footer-grid">
-            <div>
-              <div className="app-footer-brand">{workshop?.name ?? "해피갤러리"}</div>
-              {workshop?.introduction && (
-                <p className="app-footer-introduction">{workshop.introduction}</p>
-              )}
-            </div>
-            <div className="app-footer-business">
-              <strong>{workshop?.name ?? "해피갤러리"}</strong>
-              {workshop?.businessRegistrationNumber && (
-                <span>사업자등록번호 {workshop.businessRegistrationNumber}</span>
-              )}
-              {workshop?.representativeName && <span>대표자 {workshop.representativeName}</span>}
-              {workshop?.mailOrderRegistrationNumber && (
-                <span>통신판매업 신고번호 {workshop.mailOrderRegistrationNumber}</span>
-              )}
-              {workshop?.addressLine1 && (
-                <span>{[workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ")}</span>
+            <div className="app-footer-cs">
+              <strong>고객센터</strong>
+              {workshop?.phone && (
+                <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-footer-phone">{workshop.phone}</a>
               )}
               <div className="app-footer-contact">
-                {workshop?.phone && (
-                  <a href={`tel:${workshop.phone.replace(/\D/g, "")}`}>{workshop.phone}</a>
-                )}
-                {workshop?.email && <a href={`mailto:${workshop.email}`}>{workshop.email}</a>}
                 {workshop?.kakaoTalkId && <span>카카오톡 {workshop.kakaoTalkId}</span>}
+                {workshop?.email && <a href={`mailto:${workshop.email}`}>{workshop.email}</a>}
                 {workshop?.naverTalkUrl ? (
                   <a href={workshop.naverTalkUrl} target="_blank" rel="noreferrer">네이버톡톡 문의</a>
                 ) : null}
               </div>
             </div>
-            <nav className="app-footer-links" aria-label="정책 및 사업자 정보">
-              {workshop?.naverBlogUrl && (
-                <a href={workshop.naverBlogUrl} target="_blank" rel="noreferrer">네이버 블로그</a>
-              )}
-              {workshop?.instagramUrl && (
-                <a href={workshop.instagramUrl} target="_blank" rel="noreferrer">인스타그램</a>
-              )}
-              {workshop?.smartStoreUrl && (
-                <a href={workshop.smartStoreUrl} target="_blank" rel="noreferrer">스마트스토어</a>
-              )}
-              <Link to="/terms">이용약관</Link>
-              <Link to="/privacy">개인정보처리방침</Link>
-              <Link to="/business-info">사업자 정보</Link>
-            </nav>
+            <div className="app-footer-business">
+              <strong>{workshop?.name ?? "해피갤러리"}</strong>
+              <span>
+                {[
+                  workshop?.representativeName && `대표자 ${workshop.representativeName}`,
+                  workshop?.addressLine1 && [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" "),
+                ].filter(Boolean).join(" · ")}
+              </span>
+              <span>
+                {[
+                  workshop?.businessRegistrationNumber && `사업자등록번호 ${workshop.businessRegistrationNumber}`,
+                  workshop?.mailOrderRegistrationNumber && `통신판매업 신고번호 ${workshop.mailOrderRegistrationNumber}`,
+                ].filter(Boolean).join(" · ")}
+              </span>
+              <nav className="app-footer-links" aria-label="정책 및 사업자 정보">
+                <Link to="/terms">이용약관</Link>
+                <Link to="/privacy" className="fw-bold">개인정보처리방침</Link>
+                <Link to="/business-info">사업자 정보</Link>
+                {workshop?.naverBlogUrl && (
+                  <a href={workshop.naverBlogUrl} target="_blank" rel="noreferrer">네이버 블로그</a>
+                )}
+                {workshop?.instagramUrl && (
+                  <a href={workshop.instagramUrl} target="_blank" rel="noreferrer">인스타그램</a>
+                )}
+                {workshop?.smartStoreUrl && (
+                  <a href={workshop.smartStoreUrl} target="_blank" rel="noreferrer">스마트스토어</a>
+                )}
+              </nav>
+            </div>
           </div>
           <div className="app-footer-copyright">
             &copy; {new Date().getFullYear()} {workshop?.name ?? "해피갤러리"}

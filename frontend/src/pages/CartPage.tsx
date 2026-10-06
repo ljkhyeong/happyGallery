@@ -40,7 +40,7 @@ export function CartPage() {
   if (status === "error") {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         <LoadingSpinner text="로그인 상태 확인을 기다리고 있습니다." />
       </Container>
     );
@@ -208,7 +208,7 @@ function CartContent() {
   if (cartError && isAuthenticated) {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         {mergeRecovery}
         {discardConfirmModal}
         <ErrorAlert
@@ -223,7 +223,7 @@ function CartContent() {
   if (items.length === 0) {
     return (
       <Container className="page-container checkout-page">
-        <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+        <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
         {mergeRecovery}
         {discardConfirmModal}
         <section className="cart-empty">
@@ -279,7 +279,7 @@ function CartContent() {
 
   return (
     <Container className="page-container checkout-page">
-      <PageHeader kicker="Cart" title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
+      <PageHeader title="장바구니" description="담은 작품을 확인하고 원하는 작품만 골라 한 번에 결제하세요." />
       {mergeRecovery}
       {discardConfirmModal}
       {!isAuthenticated && cartError != null && (

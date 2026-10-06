@@ -54,7 +54,7 @@ export function ReviewOpportunityList() {
       <section className="review-opportunity-section" aria-labelledby="review-opportunity-heading">
         <div className="review-opportunity-heading">
           <div>
-            <p className="my-section-kicker mb-1">Ready to review</p>
+            <p className="my-section-kicker mb-1">후기 쓸 수 있는 내역</p>
             <h3 id="review-opportunity-heading" className="h5 mb-1">후기를 기다리는 이용 내역</h3>
             <p className="text-muted-soft small mb-0">완료된 이용 경험을 다른 고객과 나눠주세요.</p>
           </div>

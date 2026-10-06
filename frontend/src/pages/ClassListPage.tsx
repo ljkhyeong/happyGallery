@@ -98,7 +98,6 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
     <Container className="page-container class-catalog-page">
       <header className="class-catalog-header">
         <div>
-          <p className="store-section-kicker">Class</p>
           <h1>공예 클래스</h1>
           <p>수업별 소요시간과 가격을 확인하고 원하는 날짜를 예약하세요.</p>
         </div>

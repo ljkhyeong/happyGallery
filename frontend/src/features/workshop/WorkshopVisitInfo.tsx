@@ -45,7 +45,7 @@ export function WorkshopVisitInfo({ compact = false }: Props) {
       />
       <div className={compact ? "workshop-visit-info is-compact" : "workshop-visit-info"}>
         <div>
-          <p className="store-section-kicker mb-2">VISIT</p>
+          <p className="store-section-kicker mb-2">방문 안내</p>
           <h2 className="workshop-visit-name">{profile.name}</h2>
           {/* 예약·상세 화면의 간단 안내에서는 소개 문단을 빼고 찾아오는 정보만 보여 준다. */}
           {!compact && profile.introduction && <p className="workshop-visit-introduction">{profile.introduction}</p>}

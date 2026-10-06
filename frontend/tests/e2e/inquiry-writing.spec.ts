@@ -95,7 +95,7 @@ test("등록 중 입력·중복 제출·이동을 막고 실패 뒤 재제출 �
   state.hold = true;
   state.fail = true;
   await writeInquiry(page);
-  await page.locator("form").evaluate((form: HTMLFormElement) => { form.requestSubmit(); form.requestSubmit(); });
+  await page.getByRole("main").locator("form").evaluate((form: HTMLFormElement) => { form.requestSubmit(); form.requestSubmit(); });
   await expect.poll(() => state.requests.length).toBe(1);
   await expect(page.getByLabel("제목", { exact: true })).toBeDisabled();
   await expect(page.getByLabel("내용", { exact: true })).toBeDisabled();

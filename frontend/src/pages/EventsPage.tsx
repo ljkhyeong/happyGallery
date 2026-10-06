@@ -24,7 +24,6 @@ export function EventsPage({ initialEvents }: { initialEvents: EventResponse[] }
   return (
     <Container className="page-container" style={{ maxWidth: 1100 }}>
       <PageHeader
-        kicker="Events"
         title="이벤트"
         description="지금 참여할 수 있는 행사와 앞으로 열릴 소식을 확인하세요."
       />

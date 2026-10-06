@@ -56,7 +56,6 @@ export function MyOrderDetailPage() {
         &larr; {myNavLabel("/my/orders")}
       </Link>
       <PageHeader
-        kicker="My page"
         title="주문 상세"
         description="주문 상태와 배송·수령 정보를 확인하세요."
         actions={<LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>}

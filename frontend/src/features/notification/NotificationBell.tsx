@@ -70,12 +70,13 @@ function NotificationBellContent() {
         aria-controls={POPOVER_ID}
         aria-haspopup="dialog"
       >
-        <Bell size={20} aria-hidden="true" />
+        <Bell size={21} strokeWidth={1.8} aria-hidden="true" />
+        <span aria-hidden="true">알림</span>
         {unreadCount !== undefined && unreadCount > 0 && (
           <Badge
             bg="danger"
             pill
-            className="position-absolute top-0 start-100 translate-middle"
+            className="position-absolute top-0 start-50 ms-2 translate-middle-y"
             style={{ fontSize: "0.65rem" }}
           >
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -86,7 +87,7 @@ function NotificationBellContent() {
             bg="warning"
             text="dark"
             pill
-            className="position-absolute top-0 start-100 translate-middle"
+            className="position-absolute top-0 start-50 ms-2 translate-middle-y"
             aria-hidden="true"
           >
             !

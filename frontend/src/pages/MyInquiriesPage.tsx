@@ -34,7 +34,6 @@ export function MyInquiriesPage() {
   return (
     <>
       <PageHeader
-        kicker="My page"
         title={myNavLabel("/my/inquiries")}
         description="상품·예약·이용 관련 문의를 남기고 공방의 답변을 확인하세요."
         actions={(
