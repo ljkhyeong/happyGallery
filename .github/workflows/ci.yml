@@ -17,6 +17,10 @@ on:
       production_candidate:
         type: boolean
         default: false
+    outputs:
+      security_failed:
+        description: 이미지 보안 검사가 취약점으로 실패해 패치 검토가 필요한지 여부
+        value: ${{ jobs.container-security.outputs.security_failed }}
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -341,6 +345,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [backend-package, frontend]
+    outputs:
+      security_failed: ${{ steps.scan.outputs.security-failed }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

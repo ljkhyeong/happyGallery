@@ -1,0 +1,51 @@
+name: Security Scan
+
+# 매일 main을 운영 후보 설정으로 다시 검증한다. 코드가 그대로여도 새로 공개된 취약점·npm 권고·날짜 의존 실패를
+# 배포 때가 아니라 미리 발견하고, 자동 수정 가능한 Java 의존성은 운영 배포와 같은 보안 PR로 올린다.
+on:
+  schedule:
+    - cron: '30 18 * * *' # 매일 03:30 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: security-scan-main
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    with:
+      production_candidate: true
+
+  security-update:
+    name: Prepare security update PR
+    needs: validate
+    if: ${{ !cancelled() && needs.validate.outputs.security_failed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
+        with:
+          ruby-version: '3.3'
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: container-security-reports
+          path: /tmp/security-reports
+      - name: Propose supported patch updates
+        id: update
+        run: ruby deploy/k3s/scripts/security-update.rb /tmp/security-reports/*.json
+      - name: Create PR and start validation
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash deploy/k3s/scripts/open-security-update-pr.sh

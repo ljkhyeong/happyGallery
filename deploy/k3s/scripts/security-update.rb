@@ -9,7 +9,9 @@ module SecurityUpdate
     'tools.jackson.' => 'jackson-bom.version',
     'org.apache.tomcat.' => 'tomcat.version',
     'io.netty:' => 'netty.version',
-    'org.apache.httpcomponents.core5:' => 'httpcore5.version'
+    'org.apache.httpcomponents.core5:' => 'httpcore5.version',
+    # Spring Boot·Security 등 하위 group은 BOM이 달라 콜론까지 맞춰 Spring Framework 모듈만 고른다.
+    'org.springframework:' => 'spring-framework.version'
   }.freeze
 
   def self.plan(source, reports)
