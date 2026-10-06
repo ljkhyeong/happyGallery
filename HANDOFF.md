@@ -1,15 +1,13 @@
 # HANDOFF
 
-## 디자인 재설정 적용: 레진 빛 + 작업대 초록 (2026-10-05)
+## 상점형 D안(핸드메이드 마켓) 적용과 시안 작품 등록 (2026-10-06)
 
-- 시작 SHA `d7d3507f`. 사용자가 방향 시안 3번(B 레진 빛)을 고르고, 메인 문구는 "재료를 만지고, 내 손으로 완성합니다", 상단 배경은 2번(A 작업대)의 초록, 전체 배경도 어울리게 바꾸라고 했다. 푸시 미실행.
-- 색·글꼴: 커팅매트 초록 `--hg-leaf` #2F4A3D(주색·버튼·포커스), `--hg-leaf-deep` #233A2F(선택 칩·단체수업 띠·푸터), 실 노랑 `--hg-accent` #E3B23C(채움·테두리 전용, 글자는 `--hg-accent-deep` #9A4B0C), 바탕 #F4F6F1. 토큰 이름은 그대로 두고 값만 바꿨다(`--hg-clay-tint`는 노랑 옅은 면). 제목·브랜드는 고운돋움(한 굵기라 `font-synthesis-weight: none`), 본문 Pretendard. 대비는 글자 조합 모두 4.75:1 이상으로 계산했다.
-- 화면: 홈 첫 화면은 초록 격자 띠·문구·코스터 사진 3장(`tole-materials.jpg`·`wreath-hands.jpg` 새로 받음, `SOURCES.md`)과 띠에 걸친 바로 예약 패널이다. 작품 카드는 옅은 초록 타일에 둥근 사진(품절 알약은 원 아래에 걸침), 홈 클래스 카드는 초록·노랑 옅은 면을 번갈아 쓴다. 헤더 표식(초록·노랑 겹친 원), 날짜 칩 알약, 체크아웃 패널·내 정보 카드 1.5rem 모서리, 선택 칩·단계 번호 초록으로 맞췄다. 노랑 배지·노랑 테두리 버튼은 짙은 글자로 바꿨다.
-- 주소 검색: `RoadAddressSearchButton`이 `onSelect` 변경마다 Kakao 스크립트를 다시 불러오고 검색창을 다시 심던 문제를 `useEffectEvent`로 고쳤다. `shipping-address` 비회원 E2E가 변경 전 HEAD에서도 같은 원인으로 실패했다(스크립트 요청 2회 예상, 3회).
-- Claude Design: 디자인 시스템 "해피갤러리"(https://claude.ai/artifact/B5oN2mN457iEcFXctURTuY)를 새 방향으로 개정했다(토큰 40개, 글자 스타일 17개, 컴포넌트 9종(HomeHero·ClassCard 추가), 표지, 사진 8장). 방향 시안 캔버스 https://claude.ai/artifact/DDHozVRb6PEFs2G5q7giSY 의 "확정" 보드가 기준 시안이다. 계산값 측정 `output/playwright/redesign/computed.mjs`.
-- 검증: typecheck·lint·build, 단위 81건, E2E 전체 253건 중 252건 통과(실패 1건은 위 주소 검색, 수정 후 주소 관련 2개 파일 3회 반복 21건·`admin-content-recovery` 3건 통과), @smoke 20건. 캡처 `output/playwright/redesign/`(홈·목록·상세·예약·로그인 1280/390px, 회원 흐름 `member/`, 관리자 `admin/`, 사진 있는 작품 타일은 `mock-products.mjs`).
-- 배포: 사용자 요청으로 `main`에 직접 푸시했다(`6e9cb5a5`, CD 켜짐). Production 실행 `37329975290`에서 검증·이미지 게시·파드 교체는 성공했지만 배포 후 점검 `deploy/k3s/scripts/verify.sh`가 실패했다. 이 점검은 홈 SSR H1에 태그 없이 "해피갤러리"가 있는지 확인하는데, 새 H1에 공방 이름이 없고 `<br>`가 있었다. H1을 eyebrow 줄 "충주 계명대로 공예공방 해피갤러리"로 옮기고 큰 문구는 문단으로 바꿨다. 로컬 SSR에서 같은 정규식 통과, 홈 관련 E2E 5개 파일 20건·@smoke 20건 통과. 다시 푸시한 뒤의 배포 결과는 GitHub Actions Production 실행에서 확인한다.
-- 남은 후보: 관리자 화면은 같은 글꼴·버튼만 따르고 자체 색(청록·회색 상태 칩)은 유지했다. 원하면 관리자 상태 칩·답변 상자(`#f0f4ff` 인라인)도 초록 계열로 맞춘다.
+- 시작 SHA `af97a30b`. 사용자가 "레진 빛 + 초록" 디자인이 AI 티가 난다고 해 새 시안을 만들었다(Claude Design 캔버스 "해피갤러리 새 시안" https://claude.ai/artifact/Amcaw7vA88gQBi7HWv76WD — "1차 · 안내형" A·B·C, "2차 · 상점형" D·E·F). 사용자가 D(핸드메이드 마켓형)를 골라 화면 전체에 적용했다. 이전 디자인 시스템 "해피갤러리"(초록·노랑)는 더 이상 기준이 아니다.
+- 디자인: 흰 바탕·먹색 글자·가죽 갈색 강조, 모서리 2px, 그림자 없음, Pretendard만 사용(고운돋움 제거). 머리글은 안내 줄·로고·작품 검색(`ProductSearchForm`, `keyword`로 작품 목록 이동)·찜·장바구니·알림·로그인·카테고리 줄(`features/product/shopCategories.ts`). 홈은 기획 배너 → 새로 올라온 작품(카테고리 칩, 데스크톱 10·모바일 6) → 공방에서 직접 만들어 보기(상황별 바로가기·클래스 카드) → 카테고리 사진 → 공지·이벤트 → 공방 정보·쇼핑 안내. 영문 kicker는 지우거나 한글로 바꿨다(약관·개인정보 버전 문서는 그대로).
+- 제거: 홈 바로 예약 패널(`QuickBookingPanel`)과 관련 스타일, 첫 화면 초록 띠·코스터. E2E `home-quick-booking`은 `home-class-cards`(다음 수업·남은 자리·상세 링크·상황 바로가기)로 바꿨다. 쓰지 않는 사진 `wreath-hands.jpg`·`group-tole-wreath.jpg`를 지우고 카테고리 사진 3장(`resin-sea-coaster`·`perfume-shelf`·`acrylic-pouring`)을 더했다(`SOURCES.md`).
+- 작품 등록: 로컬 DB(`hg-design-mysql`, 8081)에만 시안 작품 12개를 등록했다(10개는 D 시안 그리드, `맞춤 향수`·`톨페인팅 원목 인형`은 향·아로마·톨페인팅 카테고리를 채우려고 추가). 모두 주문 제작·30,000원·기본 조합 수량 10·제작 기간 7일(임시)·카테고리 가죽/레진/새활용/플루이드아트/향·아로마/톨페인팅. 스크립트 `output/playwright/redesign/d/register-products.mjs`(사진 `product-photos/`, 같은 이름 주문 제작 상품은 건너뜀). 운영 등록은 관리자 로그인(MFA)이 필요해 하지 않았다. 운영에 올리려면 `HG_API_BASE=https://happy-gallery.com/api/v1 HG_ADMIN_TOKEN=<관리자 토큰>`으로 같은 스크립트를 실행하거나 관리자 화면에서 등록한다.
+- 배포 상태: 운영 `main`은 `6e9cb5a5`(초록 디자인)이고 배포 후 점검(`deploy/k3s/scripts/verify.sh`, 홈 H1에 "해피갤러리")이 실패한 상태다. 이 브랜치의 홈은 숨긴 H1 "충주 공예 공방 해피갤러리"로 점검을 통과한다. 푸시는 사용자 승인이 필요하다(운영 배포가 함께 실행됨).
+- 이전 세션에서 고친 주소 검색 재생성 문제(`RoadAddressSearchButton`의 `useEffectEvent`)는 `de072e30`으로 이미 `main`에 있다.
 
 ## 남은 후보 처리·기존 실패 E2E 해결·추가 편의 점검 (2026-10-05)
 
