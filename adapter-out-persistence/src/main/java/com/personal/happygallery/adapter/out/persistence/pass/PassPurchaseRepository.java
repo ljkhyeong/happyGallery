@@ -42,20 +42,19 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
     @Query("""
             SELECT p FROM PassPurchase p
             WHERE p.expiresAt <= :now
-              AND p.remainingCredits > :credits
+              AND p.remainingCredits > 0
               AND p.id > :afterId
             ORDER BY p.id ASC
             """)
     List<PassPurchase> findExpiredWithRemainingCreditsAfterIdPage(
             @Param("now") LocalDateTime now,
-            @Param("credits") int credits,
             @Param("afterId") Long afterId,
             Pageable pageable);
 
     @Override
     default List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
-            LocalDateTime now, int credits, Long afterId, int limit) {
+            LocalDateTime now, Long afterId, int limit) {
         return findExpiredWithRemainingCreditsAfterIdPage(
-                now, credits, afterId, PageRequest.ofSize(limit));
+                now, afterId, PageRequest.ofSize(limit));
     }
 }

@@ -22,7 +22,6 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
     public List<PassExpiryReminderTarget> findUnnotifiedExpiringAfterId(
             LocalDateTime now,
             LocalDateTime latestExpiry,
-            int minimumCredits,
             Long afterId,
             int limit) {
         return jdbc.sql("""
@@ -30,8 +29,7 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
                         FROM pass_purchases p
                         WHERE p.expires_at > :now
                           AND p.expires_at <= :latestExpiry
-                          AND p.remaining_credits > :minimumCredits
-                          AND p.user_id IS NOT NULL
+                          AND p.remaining_credits > 0
                           AND p.id > :afterId
                           AND NOT EXISTS (
                               SELECT 1
@@ -46,7 +44,6 @@ class JdbcPassExpiryReminderCandidateAdapter implements PassExpiryReminderCandid
                         """)
                 .param("now", now)
                 .param("latestExpiry", latestExpiry)
-                .param("minimumCredits", minimumCredits)
                 .param("afterId", afterId)
                 .param("eventType", NotificationEventType.PASS_EXPIRY_SOON.name())
                 .param("aggregateType", AGGREGATE_TYPE)
