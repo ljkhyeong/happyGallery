@@ -67,35 +67,6 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             """)
     OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
 
-    /** 회원 — 자기 주문 조회 (최신순) */
-    List<Order> findByUserIdOrderByCreatedAtDescIdDesc(Long userId, Pageable pageable);
-
-    @Query("""
-            SELECT o FROM Order o
-            WHERE o.userId = :userId
-              AND (o.createdAt < :cursorCreatedAt
-                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
-            ORDER BY o.createdAt DESC, o.id DESC
-            """)
-    List<Order> findByUserIdOrderByCreatedAtDescAfterCursorPage(
-            @Param("userId") Long userId,
-            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
-            @Param("cursorId") Long cursorId,
-            Pageable pageable);
-
-    @Override
-    default List<Order> findByUserIdOrderByCreatedAtDesc(Long userId, int limit) {
-        return findByUserIdOrderByCreatedAtDescIdDesc(
-                userId, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<Order> findByUserIdOrderByCreatedAtDescAfterCursor(
-            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
-        return findByUserIdOrderByCreatedAtDescAfterCursorPage(
-                userId, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
-    }
-
     @Query("""
             SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END
             FROM Order o

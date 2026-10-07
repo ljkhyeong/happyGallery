@@ -13,7 +13,6 @@ import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
-import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -76,32 +75,13 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 회원 — 자기 주문 목록 조회 */
     @Override
     public List<OrderSummary> listMyOrders(Long userId) {
-        return listMyOrders(userId, null, PageParams.MAX_SIZE).content();
+        return withItems(memberHistoryReader.findOrders(
+                userId, new OrderHistoryQuery(null, null, null), null, PageParams.MAX_SIZE)).content();
     }
 
     @Override
     public CursorPage<OrderSummary> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        if (query.isDefault()) return listMyOrders(userId, cursor, pageSize);
-        return withItems(memberHistoryReader.findOrders(userId, query, cursor, pageSize));
-    }
-
-    @Override
-    public CursorPage<OrderSummary> listMyOrders(Long userId, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Order> orders;
-        if (cursor == null) {
-            orders = orderReader.findByUserIdOrderByCreatedAtDesc(userId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            orders = orderReader.findByUserIdOrderByCreatedAtDescAfterCursor(
-                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
-        return withItems(CursorPage.of(
-                orders,
-                pageSize,
-                order -> CursorUtils.encode(order.getCreatedAt(), order.getId())));
+        return withItems(memberHistoryReader.findOrders(userId, query, cursor, PageParams.requireSize(size)));
     }
 
     private CursorPage<OrderSummary> withItems(CursorPage<Order> page) {

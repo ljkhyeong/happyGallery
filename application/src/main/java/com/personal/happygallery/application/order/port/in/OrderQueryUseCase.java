@@ -40,8 +40,6 @@ public interface OrderQueryUseCase {
 
     List<OrderSummary> listMyOrders(Long userId);
 
-    CursorPage<OrderSummary> listMyOrders(Long userId, String cursor, int size);
-
     CursorPage<OrderSummary> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size);
 
     OrderDetail findMyOrder(Long id, Long userId);
