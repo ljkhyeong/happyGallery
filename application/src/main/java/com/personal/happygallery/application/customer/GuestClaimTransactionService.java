@@ -7,7 +7,7 @@ import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase.
 import com.personal.happygallery.application.customer.port.out.GuestClaimTargetPort;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
+import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingStatus;
@@ -44,7 +44,7 @@ class GuestClaimTransactionService {
     private final GuestReaderPort guestReader;
     private final PhoneVerificationConsumptionService phoneVerification;
     private final GuestClaimTargetPort claimTargets;
-    private final ClientMonitoringUseCase clientMonitoringService;
+    private final AppMetrics appMetrics;
     private final GuestPersonalDataProtector guestPersonalDataProtector;
     private final ReviewNotificationPublisher reviewNotificationPublisher;
 
@@ -53,7 +53,7 @@ class GuestClaimTransactionService {
             GuestReaderPort guestReader,
             PhoneVerificationConsumptionService phoneVerification,
             GuestClaimTargetPort claimTargets,
-            ClientMonitoringUseCase clientMonitoringService,
+            AppMetrics appMetrics,
             GuestPersonalDataProtector guestPersonalDataProtector,
             ReviewNotificationPublisher reviewNotificationPublisher
     ) {
@@ -61,7 +61,7 @@ class GuestClaimTransactionService {
         this.guestReader = guestReader;
         this.phoneVerification = phoneVerification;
         this.claimTargets = claimTargets;
-        this.clientMonitoringService = clientMonitoringService;
+        this.appMetrics = appMetrics;
         this.guestPersonalDataProtector = guestPersonalDataProtector;
         this.reviewNotificationPublisher = reviewNotificationPublisher;
     }
@@ -113,8 +113,9 @@ class GuestClaimTransactionService {
         Set<Long> bookingIdSet = new LinkedHashSet<>(bookingIds);
         claimBookings(bookingIdSet, guest.getId(), userId);
 
-        clientMonitoringService.logGuestClaimCompleted(
+        log.info("[guest-claim] completed userId={} guestId={} orders={} bookings={}",
                 userId, guest.getId(), orderIdSet.size(), bookingIdSet.size());
+        appMetrics.incrementGuestClaimCompleted();
         return new ClaimResult(orderIdSet.size(), bookingIdSet.size());
     }
 

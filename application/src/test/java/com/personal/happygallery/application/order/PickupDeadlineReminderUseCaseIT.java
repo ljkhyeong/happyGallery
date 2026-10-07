@@ -180,9 +180,7 @@ class PickupDeadlineReminderUseCaseIT {
                 .filter(candidate -> candidate.getGuestId() == null)
                 .toList();
         var currentOwnerInbox = notificationQueryUseCase.listNotifications(
-                currentOwner.getId(), null, 0, 20, false);
-        var previousOwnerInbox = notificationQueryUseCase.listNotifications(
-                null, previousOwner.getId(), 0, 20, false);
+                currentOwner.getId(), 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(sent.getStatus()).isEqualTo(NotificationOutboxStatus.SENT);
@@ -198,9 +196,7 @@ class PickupDeadlineReminderUseCaseIT {
                     });
             softly.assertThat(currentOwnerInbox).singleElement()
                     .satisfies(item -> softly.assertThat(item.id()).isEqualTo(outbox.getId()));
-            softly.assertThat(previousOwnerInbox).isEmpty();
-            softly.assertThat(notificationQueryUseCase.countUnread(currentOwner.getId(), null)).isOne();
-            softly.assertThat(notificationQueryUseCase.countUnread(null, previousOwner.getId())).isZero();
+            softly.assertThat(notificationQueryUseCase.countUnread(currentOwner.getId())).isOne();
         });
     }
 }

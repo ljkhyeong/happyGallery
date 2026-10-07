@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -114,7 +115,7 @@ class NotificationSenderContractTest {
                 .andRespond(withSuccess(alimtalkSuccessResponse(), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
@@ -151,7 +152,7 @@ class NotificationSenderContractTest {
                         """, MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
@@ -209,7 +210,7 @@ class NotificationSenderContractTest {
                 .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
@@ -302,7 +303,7 @@ class NotificationSenderContractTest {
                         """, MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
@@ -328,7 +329,7 @@ class NotificationSenderContractTest {
                         """.formatted(resultCode), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
@@ -345,7 +346,7 @@ class NotificationSenderContractTest {
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
@@ -402,11 +403,11 @@ class NotificationSenderContractTest {
                 "secret-key",
                 "sender-key",
                 "https://kakaotalk-bizmessage.api.nhncloudservice.com",
-                Duration.ofSeconds(5),
+                new HttpPool(Duration.ofSeconds(5),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(1),
                 20,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30)));
     }
 
     private static SmsNotificationProperties smsProperties() {
@@ -415,10 +416,10 @@ class NotificationSenderContractTest {
                 "api-secret",
                 "0212345678",
                 "https://sms.api.nhncloudservice.com",
-                Duration.ofSeconds(5),
+                new HttpPool(Duration.ofSeconds(5),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(1),
                 20,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30)));
     }
 }

@@ -1,9 +1,9 @@
 package com.personal.happygallery.adapter.out.persistence.review;
 
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewOpportunity;
 import com.personal.happygallery.application.review.port.out.ReviewEligibilityPort;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
 import com.personal.happygallery.application.review.port.out.ReviewInteractionStateView;
-import com.personal.happygallery.application.review.port.out.ReviewOpportunityView;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
 import com.personal.happygallery.application.review.port.out.ReviewSourceReservationView;
 import com.personal.happygallery.application.review.port.out.ReviewSummaryView;
@@ -307,21 +307,17 @@ public interface ReviewRepository
     @Query(BASE_VIEW + """
             WHERE r.userId = :userId
               AND r.deletedAt IS NULL
+              AND (
+                    :cursorId IS NULL
+                    OR r.createdAt < :cursorCreatedAt
+                    OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)
+              )
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<ReviewListView> findUserRows(@Param("userId") Long userId, Pageable pageable);
-
-    @Query(BASE_VIEW + """
-            WHERE r.userId = :userId
-              AND r.deletedAt IS NULL
-              AND (r.createdAt < :createdAt
-                   OR (r.createdAt = :createdAt AND r.id < :id))
-            ORDER BY r.createdAt DESC, r.id DESC
-            """)
-    List<ReviewListView> findUserRowsAfter(
+    List<ReviewListView> findUserRows(
             @Param("userId") Long userId,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     @Query(BASE_VIEW + """
@@ -354,29 +350,19 @@ public interface ReviewRepository
               AND (:status IS NULL OR r.status = :status)
               AND (:productOnly = false OR r.productId IS NOT NULL)
               AND (:classOnly = false OR r.bookingClassId IS NOT NULL)
+              AND (
+                    :cursorId IS NULL
+                    OR r.createdAt < :cursorCreatedAt
+                    OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId)
+              )
             ORDER BY r.createdAt DESC, r.id DESC
             """)
     List<ReviewListView> findAdminRows(
             @Param("status") ReviewStatus status,
             @Param("productOnly") boolean productOnly,
             @Param("classOnly") boolean classOnly,
-            Pageable pageable);
-
-    @Query(BASE_VIEW + """
-            WHERE r.deletedAt IS NULL
-              AND (:status IS NULL OR r.status = :status)
-              AND (:productOnly = false OR r.productId IS NOT NULL)
-              AND (:classOnly = false OR r.bookingClassId IS NOT NULL)
-              AND (r.createdAt < :createdAt
-                   OR (r.createdAt = :createdAt AND r.id < :id))
-            ORDER BY r.createdAt DESC, r.id DESC
-            """)
-    List<ReviewListView> findAdminRowsAfter(
-            @Param("status") ReviewStatus status,
-            @Param("productOnly") boolean productOnly,
-            @Param("classOnly") boolean classOnly,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     @Query("""
@@ -583,39 +569,24 @@ public interface ReviewRepository
     }
 
     @Override
-    default List<ReviewListView> findByUserId(Long userId, int limit) {
-        return findUserRows(userId, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<ReviewListView> findByUserIdAfter(
-            Long userId, LocalDateTime createdAt, Long id, int limit) {
-        return findUserRowsAfter(userId, createdAt, id, PageRequest.ofSize(limit));
+    default List<ReviewListView> findByUserId(
+            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return findUserRows(userId, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override
     default List<ReviewListView> findForAdmin(
-            ReviewTargetType targetType, ReviewStatus status, int limit) {
+            ReviewTargetType targetType,
+            ReviewStatus status,
+            LocalDateTime cursorCreatedAt,
+            Long cursorId,
+            int limit) {
         return findAdminRows(
                 status,
                 targetType == ReviewTargetType.PRODUCT,
                 targetType == ReviewTargetType.CLASS,
-                PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<ReviewListView> findForAdminAfter(
-            ReviewTargetType targetType,
-            ReviewStatus status,
-            LocalDateTime createdAt,
-            Long id,
-            int limit) {
-        return findAdminRowsAfter(
-                status,
-                targetType == ReviewTargetType.PRODUCT,
-                targetType == ReviewTargetType.CLASS,
-                createdAt,
-                id,
+                cursorCreatedAt,
+                cursorId,
                 PageRequest.ofSize(limit));
     }
 
@@ -634,20 +605,20 @@ public interface ReviewRepository
     }
 
     @Override
-    default List<ReviewOpportunityView> findReviewOpportunities(
+    default List<ReviewOpportunity> findReviewOpportunities(
             Long userId,
             LocalDateTime cursorCompletedAt,
             ReviewTargetType cursorTargetType,
             Long cursorSourceId,
             int limit) {
         boolean cursorTargetsProduct = cursorTargetType == ReviewTargetType.PRODUCT;
-        Stream<ReviewOpportunityView> products = findProductOpportunityRows(
+        Stream<ReviewOpportunity> products = findProductOpportunityRows(
                         userId,
                         cursorCompletedAt,
                         cursorTargetsProduct,
                         cursorSourceId,
                         PageRequest.ofSize(limit)).stream()
-                .map(row -> new ReviewOpportunityView(
+                .map(row -> new ReviewOpportunity(
                         ReviewTargetType.PRODUCT,
                         row.getSourceId(),
                         row.getTargetId(),
@@ -655,13 +626,13 @@ public interface ReviewRepository
                         row.getOrderId(),
                         null,
                         row.getCompletedAt()));
-        Stream<ReviewOpportunityView> classes = findClassOpportunityRows(
+        Stream<ReviewOpportunity> classes = findClassOpportunityRows(
                         userId,
                         cursorCompletedAt,
                         cursorTargetsProduct,
                         cursorSourceId,
                         PageRequest.ofSize(limit)).stream()
-                .map(row -> new ReviewOpportunityView(
+                .map(row -> new ReviewOpportunity(
                         ReviewTargetType.CLASS,
                         row.getSourceId(),
                         row.getTargetId(),
@@ -672,11 +643,11 @@ public interface ReviewRepository
         return Stream.concat(products, classes)
                 .sorted(Comparator
                         .comparing(
-                                ReviewOpportunityView::completedAt,
+                                ReviewOpportunity::completedAt,
                                 Comparator.reverseOrder())
                         .thenComparingInt(row -> opportunityTargetOrder(row.targetType()))
                         .thenComparing(
-                                ReviewOpportunityView::sourceId,
+                                ReviewOpportunity::sourceId,
                                 Comparator.reverseOrder()))
                 .limit(limit)
                 .toList();

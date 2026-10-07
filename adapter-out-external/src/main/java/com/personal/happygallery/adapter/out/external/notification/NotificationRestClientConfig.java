@@ -33,7 +33,7 @@ class NotificationRestClientConfig {
         Assert.hasText(props.appKey(), "prod 프로필에는 ALIMTALK_APP_KEY가 필요합니다.");
         Assert.hasText(props.secretKey(), "prod 프로필에는 ALIMTALK_SECRET_KEY가 필요합니다.");
         Assert.hasText(props.senderKey(), "prod 프로필에는 ALIMTALK_SENDER_KEY가 필요합니다.");
-        return pooledHttpClientFactory.create(props);
+        return pooledHttpClientFactory.create(props.http());
     }
 
     @Bean
@@ -52,7 +52,7 @@ class NotificationRestClientConfig {
         Assert.hasText(props.apiKey(), "prod 프로필에는 SMS_API_KEY가 필요합니다.");
         Assert.hasText(props.apiSecret(), "prod 프로필에는 SMS_API_SECRET가 필요합니다.");
         Assert.hasText(props.senderNumber(), "prod 프로필에는 SMS_SENDER_NUMBER가 필요합니다.");
-        return pooledHttpClientFactory.create(props);
+        return pooledHttpClientFactory.create(props.http());
     }
 
     @Bean

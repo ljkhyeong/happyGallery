@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.in.web.review.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -20,8 +19,6 @@ class ReviewEvidenceResponseTest {
                 5,
                 "증거 본문",
                 null,
-                ReviewEvidenceProvenance.LIVE,
-                true,
                 List.of(
                         "/api/v1/media/images/first.jpg",
                         "/api/v1/media/images/second.png"),

@@ -22,17 +22,11 @@ public interface NotificationOutboxPort {
 
     List<NotificationOutbox> findFailed(int limit);
 
-    List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int limit, int offset);
-
-    List<NotificationOutbox> findSentByGuestId(Long guestId, boolean unreadOnly, int limit, int offset);
+    List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int page, int size);
 
     long countUnreadSentByUserId(Long userId);
 
-    long countUnreadSentByGuestId(Long guestId);
-
     void markAllSentReadByUserId(Long userId, LocalDateTime readAt);
-
-    void markAllSentReadByGuestId(Long guestId, LocalDateTime readAt);
 
     List<NotificationOutboxBacklogSummary> summarizeUnresolvedBacklog();
 }

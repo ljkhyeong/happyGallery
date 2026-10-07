@@ -2,7 +2,6 @@ package com.personal.happygallery.application.review.port.in;
 
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -64,31 +63,19 @@ public interface ReviewUseCase {
             long rating3,
             long rating4,
             long rating5
-    ) {
-        public static RatingHistogram empty() {
-            return new RatingHistogram(0L, 0L, 0L, 0L, 0L);
-        }
-    }
+    ) {}
 
     record ReviewSummary(
             long reviewCount,
             double averageRating,
             RatingHistogram histogram
-    ) {
-        public ReviewSummary(long reviewCount, double averageRating) {
-            this(reviewCount, averageRating, RatingHistogram.empty());
-        }
-    }
+    ) {}
 
     record PublicReviewPage(
             ReviewSummary summary,
             long filteredCount,
             CursorPage<ReviewItem> reviews
-    ) {
-        public PublicReviewPage(ReviewSummary summary, CursorPage<ReviewItem> reviews) {
-            this(summary, summary.reviewCount(), reviews);
-        }
-    }
+    ) {}
 
     record ReviewOpportunity(
             ReviewTargetType targetType,
@@ -124,8 +111,6 @@ public interface ReviewUseCase {
             int rating,
             String content,
             LocalDateTime editedAt,
-            ReviewEvidenceProvenance provenance,
-            boolean imagesComplete,
             List<String> imageUrls,
             LocalDateTime capturedAt
     ) {

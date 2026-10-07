@@ -20,7 +20,7 @@
 
 ### 1. 운영(`prod`) 로그는 JSON 포맷으로 출력한다
 
-- `logback-spring.xml`에서 `prod` 프로필 시 `LogstashEncoder` 사용
+- `logback-spring.xml`에서 `prod` 프로필 시 Spring Boot 구조화 로그 `StructuredLogEncoder`(logstash 형식) 사용
 - MDC 포함(`requestId` 포함)하여 필드 기반 검색 가능
 - 서비스 식별 필드(`service`)를 공통 필드로 추가
 - 클라이언트 `X-Request-Id`는 UUID 또는 `[A-Za-z0-9._:-]` 문자로 이루어진 최대 64자 토큰만
@@ -67,7 +67,7 @@
 ## 구현 반영
 
 - `bootstrap/src/main/resources/logback-spring.xml` 추가
-- `bootstrap/build.gradle`에 `logstash-logback-encoder` 런타임 의존성 추가
+- 별도 encoder 의존성 없이 Spring Boot 구조화 로그를 사용한다. `service` 필드와 제외 필드(`@version`, `level_value`, `tags`)는 `application-prod.yml`의 `logging.structured.json`에서 정한다.
 - `domain/error/HappyGalleryException` 생성자 변경
 - `AppMetrics`의 `happygallery.payment.confirm.reconciliation_required` 카운터와
   `PaymentConfirmReconciliationRequired` Prometheus critical 알림으로 결제 수동 대사 필요 상태를 즉시 노출한다.

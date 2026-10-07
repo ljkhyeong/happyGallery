@@ -177,7 +177,7 @@ function OrderDetailContent() {
           )}
         </>
       )}
-      <GuestMemberGuide source="guest_order_lookup" />
+      <GuestMemberGuide />
     </Container>
   );
 }

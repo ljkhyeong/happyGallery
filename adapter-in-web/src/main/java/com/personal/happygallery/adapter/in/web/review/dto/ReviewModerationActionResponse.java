@@ -17,8 +17,7 @@ public record ReviewModerationActionResponse(
         ReviewStatus newStatus,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String reason,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long adminUserId,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
-        ReviewEvidenceResponse evidence,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED) ReviewEvidenceResponse evidence,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime createdAt
 ) {
     public static ReviewModerationActionResponse from(ModerationActionItem action) {

@@ -4,14 +4,5 @@ import com.personal.happygallery.application.monitoring.ClientMonitoringEventTyp
 
 public interface ClientMonitoringUseCase {
 
-    void captureFrontendEvent(ClientMonitoringEventType eventType,
-                              String path,
-                              String source,
-                              String target,
-                              Long userId);
-
-    void logGuestClaimCompleted(Long userId,
-                                Long guestId,
-                                int claimedOrderCount,
-                                int claimedBookingCount);
+    void captureFrontendEvent(ClientMonitoringEventType eventType, Long userId);
 }

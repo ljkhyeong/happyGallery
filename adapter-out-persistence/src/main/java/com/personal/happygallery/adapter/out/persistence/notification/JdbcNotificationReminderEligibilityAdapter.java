@@ -27,8 +27,6 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                           AND b.status = 'BOOKED'
                           AND s.start_at >= :startInclusive
                           AND s.start_at < :endExclusive
-                          AND ((b.user_id IS NOT NULL AND b.guest_id IS NULL)
-                               OR (b.user_id IS NULL AND b.guest_id IS NOT NULL))
                         """)
                 .param("bookingId", bookingId)
                 .param("startInclusive", startInclusive)
@@ -49,8 +47,6 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                           AND b.status = 'BOOKED'
                           AND s.start_at > :startExclusive
                           AND s.start_at < :endExclusive
-                          AND ((b.user_id IS NOT NULL AND b.guest_id IS NULL)
-                               OR (b.user_id IS NULL AND b.guest_id IS NOT NULL))
                         """)
                 .param("bookingId", bookingId)
                 .param("startExclusive", startExclusive)
@@ -91,8 +87,6 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                           AND o.status = 'PICKUP_READY'
                           AND f.pickup_deadline_at > :nowExclusive
                           AND f.pickup_deadline_at <= :latestDeadlineInclusive
-                          AND ((o.user_id IS NOT NULL AND o.guest_id IS NULL)
-                               OR (o.user_id IS NULL AND o.guest_id IS NOT NULL))
                         """)
                 .param("orderId", orderId)
                 .param("nowExclusive", nowExclusive)

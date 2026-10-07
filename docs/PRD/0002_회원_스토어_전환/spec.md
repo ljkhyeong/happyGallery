@@ -351,7 +351,7 @@
 - 공개 비회원 진입점은 `/guest` 시작 화면을 사용한다.
 - 비회원 조회 화면은 `/guest/orders`, `/guest/bookings` 표준 경로만 사용한다.
 - `/orders/new` 직접 진입은 상품 상세에서 상품/수량을 미리 채워 들어오는 경로와 분리된 보조 경로로 유지한다. 사용자는 안내 문구를 본 뒤 명시적으로 계속해야 한다.
-- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 본다. 현재 지표는 `/guest` 시작 화면 유입, `/orders/new` 직접 계속, 비회원 -> 회원 전환 CTA, 이력 가져오기 모달 오픈, 이력 가져오기 완료다.
+- 운영 모니터링은 `/api/v1/monitoring/client-events` 와 `[client-monitoring]` 로그를 기준으로 본다. 현재 지표는 `/guest` 시작 화면 유입, `/orders/new` 직접 계속, 비회원 -> 회원 전환 CTA, 이력 가져오기 모달 오픈이다. 이력 가져오기 완료는 서버가 `[guest-claim] completed` 로그와 `happygallery.funnel.guest_claim_completed` 메트릭으로 기록한다.
 - 회원 경로를 안정화한 뒤 2~4주 동안 위 지표를 보고 비회원 보조 경로를 줄일지 다시 판단한다.
 - 비회원 표준 경로 변경은 별도 배포 단위로 분리한다.
 

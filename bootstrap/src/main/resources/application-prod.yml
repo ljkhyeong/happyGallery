@@ -43,6 +43,13 @@ logging:
     com.personal.happygallery: INFO
     org.hibernate.SQL: WARN
     org.hibernate.orm.jdbc.bind: WARN
+  structured:
+    json:
+      # logback-spring.xml의 운영 JSON(logstash 형식)에 서비스 이름을 붙이고 기존에 없던 필드는 뺀다.
+      add:
+        service: ${spring.application.name:happygallery}
+      exclude: "@version,level_value,tags"
+      customizer: com.personal.happygallery.bootstrap.logging.SensitiveLogJsonMembersCustomizer
 
 management:
   endpoint:

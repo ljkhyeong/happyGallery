@@ -2,6 +2,7 @@ package com.personal.happygallery.bootstrap;
 
 import com.personal.happygallery.adapter.out.external.notification.EmailVerificationProperties;
 import com.personal.happygallery.adapter.out.external.payment.ExternalPaymentProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.token.GuestTokenProperties;
 import jakarta.validation.Validation;
@@ -59,7 +60,7 @@ class ConfigurationDurationValidationTest {
     @DisplayName("CircuitBreaker Duration은 기존 초 최소 단위를 유지한다")
     @Test
     void circuitBreaker_preservesSecondMinimum() {
-        var threadPool = new ExternalPaymentProperties.ThreadPool(1, 1);
+        var threadPool = new ExecutorPoolProperties(1, 1);
         var belowMinimum = new ExternalPaymentProperties(
                 Duration.ofMillis(1),
                 threadPool,
@@ -82,7 +83,7 @@ class ConfigurationDurationValidationTest {
     void circuitBreaker_minimumCallsAboveWindow_rejected() {
         var invalid = new ExternalPaymentProperties(
                 Duration.ofMillis(1),
-                new ExternalPaymentProperties.ThreadPool(1, 1),
+                new ExecutorPoolProperties(1, 1),
                 new ExternalCircuitBreakerProperties(
                         50, 9, 10, Duration.ofSeconds(30), 3));
 

@@ -5,6 +5,5 @@ public enum NotificationChannel {
     SYSTEM,
     KAKAO,
     SMS,
-    EMAIL,
-    PUSH
+    EMAIL
 }

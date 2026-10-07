@@ -6,12 +6,10 @@ import io.micrometer.context.integration.Slf4jThreadLocalAccessor;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.sentry.spring7.SentryTaskDecorator;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.task.ThreadPoolTaskExecutorBuilder;
 import org.springframework.context.annotation.Bean;
@@ -19,13 +17,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskDecorator;
 import org.springframework.core.task.support.CompositeTaskDecorator;
 import org.springframework.core.task.support.ContextPropagatingTaskDecorator;
-import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
 @EnableAsync
-public class AsyncConfig implements AsyncConfigurer {
+public class AsyncConfig {
 
     private static final Logger log = LoggerFactory.getLogger(AsyncConfig.class);
 
@@ -87,13 +84,5 @@ public class AsyncConfig implements AsyncConfigurer {
                     executor.getQueue().size(),
                     executor.isShutdown());
         };
-    }
-
-    @Override
-    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
-        return (Throwable ex, Method method, Object... params) ->
-                log.error("[Async] 비동기 작업 실패 — {}.{}() [type={}]",
-                        method.getDeclaringClass().getSimpleName(), method.getName(),
-                        ex.getClass().getSimpleName(), ex);
     }
 }

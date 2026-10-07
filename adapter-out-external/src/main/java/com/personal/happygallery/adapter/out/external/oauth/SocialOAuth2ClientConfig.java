@@ -45,18 +45,18 @@ class SocialOAuth2ClientConfig {
     }
 
     @Bean
-    CloseableHttpClient googleOAuthHttpClient(GoogleOAuthProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+    CloseableHttpClient googleOAuthHttpClient(SocialOAuthHttpProperties properties) {
+        return pooledHttpClientFactory.create(properties.googleOauth());
     }
 
     @Bean
-    CloseableHttpClient naverOAuthHttpClient(NaverOAuthProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+    CloseableHttpClient naverOAuthHttpClient(SocialOAuthHttpProperties properties) {
+        return pooledHttpClientFactory.create(properties.naverOauth());
     }
 
     @Bean
-    CloseableHttpClient kakaoOAuthHttpClient(KakaoOAuthProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+    CloseableHttpClient kakaoOAuthHttpClient(SocialOAuthHttpProperties properties) {
+        return pooledHttpClientFactory.create(properties.kakaoOauth());
     }
 
     @Bean

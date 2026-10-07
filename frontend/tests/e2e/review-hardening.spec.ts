@@ -65,8 +65,6 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       rating: id === 91 ? 1 : 3,
       content: id === 91 ? "신고 판단 확인 대상 후기" : "신고 반려 확인 대상 후기",
       editedAt: null,
-      provenance: "LIVE",
-      imagesComplete: true,
       imageUrls: [`/api/v1/admin/review-evidence/${id + 100}/images/0`],
       capturedAt: "2026-08-09T10:00:00",
     },

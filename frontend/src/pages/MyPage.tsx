@@ -41,7 +41,6 @@ function MyPageContent() {
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [showWithdrawal, setShowWithdrawal] = useState(false);
   const [phoneOnboardingHandled, setPhoneOnboardingHandled] = useState(false);
-  const [claimModalSource, setClaimModalSource] = useState<string | null>(null);
   const [showClaimEntryHint, setShowClaimEntryHint] = useState(false);
   const { user, isAuthenticated, withdraw, refresh } = useCustomerAuth();
   const toast = useToast();
@@ -193,20 +192,18 @@ function MyPageContent() {
       return;
     }
     setShowClaimEntryHint(true);
-    setClaimModalSource("claim_query_auto_open");
     setShowClaimModal(true);
     const nextSearchParams = new URLSearchParams(searchParams);
     nextSearchParams.delete("claim");
     setSearchParams(nextSearchParams, { replace: true });
   }, [isAuthenticated, searchParams, setSearchParams]);
 
-  const handleOpenClaim = (source: string) => {
+  const handleOpenClaim = () => {
     if (!user?.phone) {
       setPhoneOnboardingHandled(false);
       setShowPhoneRegistration(true);
       return;
     }
-    setClaimModalSource(source);
     setShowClaimModal(true);
   };
 
@@ -288,7 +285,6 @@ function MyPageContent() {
           onPhoneVerified={async () => {
             await refresh();
           }}
-          monitoringSource={claimModalSource}
         />
       )}
 

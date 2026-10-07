@@ -283,7 +283,7 @@ groups:
 
       - alert: BatchExecutionFailed
         expr: >-
-          (increase(happygallery_batch_runs_total{application="happygallery",status=~"partial|failed"}[10m]) > 0)
+          (increase(happygallery_batch_duration_seconds_count{application="happygallery",status=~"partial|failed"}[10m]) > 0)
           unless on (application, exported_job)
           happygallery_batch_last_failure_seconds{application="happygallery",exported_job="personal_data_retention"}
         for: 1m

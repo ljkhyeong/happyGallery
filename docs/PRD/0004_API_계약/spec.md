@@ -3036,7 +3036,7 @@ Content-Type: application/json
   - 이메일은 앞뒤 공백을 제거하고 소문자로 통일한다. 6자리 코드는 5분 유효하며 회원 ID·자격 버전·정규화 이메일에 결합한다.
   - 두 경로는 하나의 IP 버킷으로 합산해 5회/1분으로 제한한다. 발송은 회원 ID와 정규화 이메일별 각각 3회/10분, 등록 시도는 각각 5회/10분으로 제한하며 Redis 장애 시 fail-closed한다.
   - 서버는 인증 행을 먼저 커밋하고 DB 트랜잭션 밖에서 전용 SMTP를 호출한다. 발송 성공이 기록된 같은 회원의 가장 최근 코드만 사용할 수 있고, 실패한 새 발송은 이전 정상 코드를 무효화하지 않는다. 일반 알림 outbox와 이메일 fallback은 사용하지 않으며 자동 재발송 대신 사용자가 다시 요청한다.
-  - DB에는 이메일·코드 HMAC과 보호된 행 복원 및 local/dev 조회에 필요한 코드 AES-GCM 암호문만 저장한다. 검증에 성공한 코드는 한 번 소비한다.
+  - DB에는 이메일·코드 HMAC과 보호된 행 복원 및 local 조회에 필요한 코드 AES-GCM 암호문만 저장한다. 검증에 성공한 코드는 한 번 소비한다.
   - 등록은 회원 행을 잠근 뒤 이메일 유일 제약을 `saveAndFlush`로 최종 확인한다. 성공하면 `credential_version`을 증가시키고 현재 요청 세션을 포함한 기존 회원 세션을 폐기해 새 이메일로 다시 로그인하게 한다.
   - 이메일 등록만으로 로컬 비밀번호를 자동 생성하지 않는다. 검증된 휴대폰도 등록한 회원은 2.12.0.7의 SMS 비밀번호 재설정으로 최초 로컬 비밀번호를 설정할 수 있다.
 
@@ -3592,7 +3592,7 @@ GET /api/v1/products/{productId}/qna/{id}
 - `expectedVersion`도 잠긴 후기의 JPA `version`과 비교해 다른 관리자의 상태 왕복 전환(ABA)과 공식 답글 덮어쓰기·삭제를 `409 CONFLICT`로 차단한다.
 - `contentRevision`은 본문·평점·사진의 의미 변경만 추적하고 JPA `version`은 상태·답글을 포함한 후기 행의 모든 쓰기를 추적한다. 상태 변경에는 두 토큰이 필요하고 답글 변경에는 `expectedVersion`이 필요하다.
 - 공식 답글은 후기당 하나를 작성·수정·삭제하며 첫 작성에만 회원 알림을 요청한다. 본문은 공백이 아닌 16,000자 이하다.
-- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각·정렬된 사진 URL을 공통 불변 evidence로 포함한다. 과거 신고 이관본은 사진을 복원할 수 없어 `LEGACY_REPORT`, `imagesComplete=false`로 구분한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다. 미결 evidence는 결정까지 보존하고 종결 신고·운영 조치와 evidence는 결정 또는 조치 뒤 3년간 보존한다. 신고·운영 조치·evidence의 후기 FK는 `ON DELETE RESTRICT`로 두어 자식 보존기간보다 부모가 먼저 파기되지 않게 한다.
+- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각·정렬된 사진 URL을 공통 불변 evidence로 포함한다. 신고 단건과 운영 조치 감사 이력의 `evidence`는 항상 존재한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다. 미결 evidence는 결정까지 보존하고 종결 신고·운영 조치와 evidence는 결정 또는 조치 뒤 3년간 보존한다. 신고·운영 조치·evidence의 후기 FK는 `ON DELETE RESTRICT`로 두어 자식 보존기간보다 부모가 먼저 파기되지 않게 한다.
 - 증거 전용이거나 숨김·삭제 후기에서만 참조되는 사진은 공개 미디어 조회에서 `404`로 숨긴다. 숨김 후기 현재 사진은 작성자 `CustomerSession` 또는 Bearer 관리자 보호 경로, 판단 증거 사진은 Bearer 관리자 전용 경로에서만 `Cache-Control: no-store`로 제공한다. evidence 만료 시 DB 참조 삭제 후 물리 파일도 커밋 이후 즉시 참조를 재확인해 파기한다.
 - 상태·답글·신고 변경 후 관리자, 같은 공개 대상과 회원 후기 cache를 함께 무효화한다.
 
@@ -3955,24 +3955,21 @@ POST /api/v1/monitoring/client-events
 Content-Type: application/json
 
 {
-  "event": "GUEST_LOOKUP_ENTRY",
-  "path": "/guest",
-  "source": "home_lookup_panel",
-  "target": "guest_orders"
+  "event": "GUEST_LOOKUP_HUB_VIEWED"
 }
 ```
 
 - 성공: `204 No Content`
 - 정책:
   - 인증은 선택이다. `HG_SESSION`이 있으면 `userId`를 함께 기록한다.
-  - `path`는 필수이며 최대 120자다.
-  - `source`, `target`은 선택이며 최대 80자다.
-  - 클라이언트가 보내는 `path`, `source`, `target` 원문은 로그에 남기지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
+  - `event`는 필수이며 `GUEST_LOOKUP_HUB_VIEWED`, `GUEST_ORDER_DIRECT_ENTRY_CONTINUED`, `GUEST_MEMBER_CTA_CLICKED`, `GUEST_CLAIM_MODAL_OPENED` 중 하나다.
+  - 클라이언트 임의 문자열은 받지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
+  - 이력 가져오기 완료는 클라이언트 이벤트가 아니라 서버가 가져오기 완료 시 `[guest-claim] completed` 로그와 `happygallery.funnel.guest_claim_completed` 메트릭으로 기록한다.
   - 모니터링 실패는 사용자 핵심 플로우를 막지 않는 best-effort 성격으로 다룬다.
 
-### 2.17 local/dev 전용 Dev API
+### 2.17 local 전용 Dev API
 
-인증 코드 조회는 `local`, `dev`, 환불 실패 재현은 `local` 프로필에서만 등록되는 관리자 dev API다. 운영 프로필에서는 빈이 등록되지 않는다.
+인증 코드 조회와 환불 실패 재현은 `local` 프로필에서만 등록되는 관리자 dev API다. 운영 프로필에서는 빈이 등록되지 않는다.
 
 #### 2.17.1 환불 실패 재현 훅
 
@@ -4000,7 +3997,7 @@ Authorization: Bearer {token}
 - 성공: `200 OK`
 - 발송 성공이 기록된 미소모 코드가 없음: `404 Not Found`
 - 정책:
-  - `local`, `dev` 프로필에서만 등록되며 운영에는 노출하지 않는다. 관리자 Bearer 또는 해당 환경에서 명시적으로 활성화한 local API key 인증을 요구한다.
+  - `local` 프로필에서만 등록되며 운영에는 노출하지 않는다. 관리자 Bearer 또는 해당 환경에서 명시적으로 활성화한 local API key 인증을 요구한다.
   - 회원 ID와 정규화 이메일이 모두 일치하는 가장 최근 코드를 반환한다.
   - 가짜 발송기는 이메일·코드 원문을 로그에 남기지 않는다.
 

@@ -19,8 +19,6 @@ import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class PooledHttpClientFactoryTest {
 
@@ -28,12 +26,8 @@ class PooledHttpClientFactoryTest {
     @CsvSource({"GET,429", "GET,503", "POST,429", "POST,503"})
     @DisplayName("호출 제한과 장애 응답을 자동 재전송 없이 호출부에 전달한다")
     void create_doesNotRetryErrorResponses(HttpMethod method, int status) throws Exception {
-        HttpPoolProperties properties = mock(HttpPoolProperties.class);
-        when(properties.connectTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.timeout()).thenReturn(Duration.ofSeconds(3));
-        when(properties.acquireTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.maxConnections()).thenReturn(1);
-        when(properties.keepAlive()).thenReturn(Duration.ofSeconds(30));
+        HttpPool properties = new HttpPool(
+                Duration.ofSeconds(3), Duration.ofSeconds(1), Duration.ofSeconds(1), 1, Duration.ofSeconds(30));
         AtomicInteger requests = new AtomicInteger();
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
@@ -67,12 +61,8 @@ class PooledHttpClientFactoryTest {
     @CsvSource({"GET,302", "POST,307", "POST,308"})
     @DisplayName("리다이렉트 주소에 인증 헤더와 본문을 보내지 않고 원래 응답을 전달한다")
     void create_doesNotFollowRedirects(HttpMethod method, int status) throws Exception {
-        HttpPoolProperties properties = mock(HttpPoolProperties.class);
-        when(properties.connectTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.timeout()).thenReturn(Duration.ofSeconds(3));
-        when(properties.acquireTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.maxConnections()).thenReturn(1);
-        when(properties.keepAlive()).thenReturn(Duration.ofSeconds(30));
+        HttpPool properties = new HttpPool(
+                Duration.ofSeconds(3), Duration.ofSeconds(1), Duration.ofSeconds(1), 1, Duration.ofSeconds(30));
         AtomicInteger redirectedRequests = new AtomicInteger();
         AtomicReference<String> forwardedSecret = new AtomicReference<>();
         AtomicReference<String> forwardedBody = new AtomicReference<>();
@@ -120,12 +110,8 @@ class PooledHttpClientFactoryTest {
     @Test
     @DisplayName("생성한 HTTP 클라이언트는 요청에 설정된 연결 유지 시간을 적용한다")
     void create_appliesConfiguredKeepAlive() throws Exception {
-        HttpPoolProperties properties = mock(HttpPoolProperties.class);
-        when(properties.connectTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.timeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.acquireTimeout()).thenReturn(Duration.ofSeconds(1));
-        when(properties.maxConnections()).thenReturn(1);
-        when(properties.keepAlive()).thenReturn(Duration.ofSeconds(37));
+        HttpPool properties = new HttpPool(
+                Duration.ofSeconds(1), Duration.ofSeconds(1), Duration.ofSeconds(1), 1, Duration.ofSeconds(37));
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", exchange -> {
             exchange.sendResponseHeaders(200, -1);

@@ -61,7 +61,6 @@ import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -215,7 +214,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 4, 300000L, 901L, RefundStatus.REQUESTED));
-        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
+        when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), eq(0), eq(20), eq(false)))
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
                         NotificationEventType.ORDER_PAID,
@@ -223,7 +222,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
                         null, "주문 #200 · 가죽 지갑", null)));
-        when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID, null)).thenReturn(3L);
+        when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
         when(guestClaimUseCase.claim(eq(CUSTOMER_USER_ID), any(), any()))
@@ -302,8 +301,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 classReview.rating(),
                                 classReview.content(),
                                 classReview.editedAt(),
-                                ReviewEvidenceProvenance.LIVE,
-                                true,
                                 List.of(),
                                 LocalDateTime.of(2026, 5, 1, 21, 0)),
                         ReviewReportStatus.PENDING,
@@ -863,7 +860,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/me/notifications").with(customerUser())
                         .param("page", "1").param("size", "20").param("unreadOnly", "true"))
                 .andExpect(status().isOk());
-        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, null, 1, 20, true);
+        verify(notificationQueryUseCase).listNotifications(CUSTOMER_USER_ID, 1, 20, true);
     }
 
     @Test

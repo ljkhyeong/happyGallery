@@ -55,10 +55,7 @@ class ClientMonitoringUseCaseIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "event": "GUEST_LOOKUP_HUB_VIEWED",
-                                  "path": "/guest",
-                                  "source": "home_lookup_panel",
-                                  "target": "hub"
+                                  "event": "GUEST_LOOKUP_HUB_VIEWED"
                                 }
                                 """))
                 .andExpect(status().isNoContent());
@@ -76,10 +73,7 @@ class ClientMonitoringUseCaseIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "event": "GUEST_CLAIM_MODAL_OPENED",
-                                  "path": "/my",
-                                  "source": "claim_query_auto_open",
-                                  "target": "phone_verification"
+                                  "event": "GUEST_CLAIM_MODAL_OPENED"
                                 }
                                 """))
                 .andExpect(status().isNoContent());

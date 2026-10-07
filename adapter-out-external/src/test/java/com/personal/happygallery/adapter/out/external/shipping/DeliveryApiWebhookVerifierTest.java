@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.shipping;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
@@ -67,11 +68,11 @@ class DeliveryApiWebhookVerifierTest {
                         "endpoint-id",
                         SECRET,
                         "https://api.deliveryapi.co.kr",
-                        Duration.ofSeconds(3),
+                        new HttpPool(Duration.ofSeconds(3),
                         Duration.ofSeconds(1),
                         Duration.ofMillis(500),
                         10,
-                        Duration.ofSeconds(30)),
+                        Duration.ofSeconds(30))),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

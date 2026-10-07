@@ -12,6 +12,7 @@ import com.personal.happygallery.adapter.out.persistence.review.ReviewRepository
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
 import com.personal.happygallery.application.notification.port.out.ReviewNotificationEligibilityPort;
+import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.application.review.port.out.ReviewModerationPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
@@ -27,12 +28,14 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.review.Review;
+import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewModerationAction;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     @Autowired BookingRepository bookingRepository;
     @Autowired ReviewRepository reviewRepository;
     @Autowired ReviewModerationPort reviewModerationPort;
+    @Autowired ReviewEvidencePort reviewEvidencePort;
     @Autowired AdminUserRepository adminUserRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired JdbcTemplate jdbcTemplate;
@@ -160,8 +164,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction firstHide = reviewModerationPort.save(
-                ReviewModerationAction.legacyHideWithoutEvidence(
-                review.getId(), "첫 번째 숨김", admin.getId(), now()));
+                ReviewModerationAction.hide(
+                review.getId(), "첫 번째 숨김", admin.getId(), evidenceId(review), now()));
         hide(review.getId(), admin.getId(), "첫 번째 숨김");
 
         assertSoftly(softly -> {
@@ -171,8 +175,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction republish = reviewModerationPort.save(
-                ReviewModerationAction.legacyRepublishWithoutEvidence(
-                review.getId(), admin.getId(), now()));
+                ReviewModerationAction.republish(
+                review.getId(), admin.getId(), evidenceId(review), now()));
         republish(review.getId());
 
         assertSoftly(softly -> {
@@ -182,8 +186,8 @@ class ReviewNotificationEligibilityUseCaseIT {
         });
 
         ReviewModerationAction latestHide = reviewModerationPort.save(
-                ReviewModerationAction.legacyHideWithoutEvidence(
-                review.getId(), "두 번째 숨김", admin.getId(), now()));
+                ReviewModerationAction.hide(
+                review.getId(), "두 번째 숨김", admin.getId(), evidenceId(review), now()));
         hide(review.getId(), admin.getId(), "두 번째 숨김");
         addReply(review.getId(), admin.getId());
 
@@ -266,6 +270,19 @@ class ReviewNotificationEligibilityUseCaseIT {
                         WHERE id = ?
                         """,
                 adminId, now(), reviewId);
+    }
+
+    /** 운영 조치가 참조할 현재 후기 증거를 저장한다. */
+    private Long evidenceId(Review review) {
+        return reviewEvidencePort.save(new ReviewEvidenceSnapshot(
+                review.getId(),
+                review.getContentRevision(),
+                review.getRating(),
+                review.getContent(),
+                review.getEditedAt(),
+                List.of(),
+                now(),
+                null)).getId();
     }
 
     private LocalDateTime now() {

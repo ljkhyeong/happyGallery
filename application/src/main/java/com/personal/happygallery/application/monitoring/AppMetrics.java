@@ -177,12 +177,7 @@ public class AppMetrics {
     }
 
     private void recordBatchRun(String job, String status, long durationNanos) {
-        Counter.builder("happygallery.batch.runs")
-                .description("배치 실행 결과")
-                .tag("job", job)
-                .tag("status", status)
-                .register(registry)
-                .increment();
+        // 실행 횟수는 Timer의 _count 시계열(happygallery_batch_duration_seconds_count)로 집계한다.
         Timer.builder("happygallery.batch.duration")
                 .description("배치 실행 시간")
                 .tag("job", job)

@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.OptionStock;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
@@ -36,11 +37,11 @@ class NaverCommerceInventoryProviderTest {
             "SELF",
             "",
             "https://api.commerce.naver.com",
-            Duration.ofSeconds(5),
+            new HttpPool(Duration.ofSeconds(5),
             Duration.ofSeconds(1),
             Duration.ofMillis(500),
             5,
-            Duration.ofSeconds(30));
+            Duration.ofSeconds(30)));
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-29T03:00:00Z"), ZoneOffset.UTC);
 

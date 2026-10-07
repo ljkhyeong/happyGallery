@@ -3,7 +3,6 @@ package com.personal.happygallery.application.review;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ModerationActionItem;
-import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewEvidenceItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportSummaryItem;
@@ -11,11 +10,11 @@ import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
 import com.personal.happygallery.application.review.port.out.ReviewModerationPort;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
-import com.personal.happygallery.application.review.port.out.ReviewReportListView;
 import com.personal.happygallery.application.review.port.out.ReviewReportPort;
 import com.personal.happygallery.application.review.port.out.ReviewStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.review.Review;
@@ -29,7 +28,6 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -73,18 +71,13 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewItem> listAdminReviews(
             ReviewTargetType targetType, ReviewStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewListView> fetched;
-        if (cursor == null) {
-            fetched = reviewReader.findForAdmin(targetType, status, pageSize + 1);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            fetched = reviewReader.findForAdminAfter(
-                    targetType,
-                    status,
-                    cursorParam.timestamp(),
-                    cursorParam.id(),
-                    pageSize + 1);
-        }
+        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        List<ReviewListView> fetched = reviewReader.findForAdmin(
+                targetType,
+                status,
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.id(),
+                pageSize + 1);
         return viewAssembler.standardPage(fetched, pageSize, true);
     }
 
@@ -151,7 +144,8 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
                         action.getNewStatus(),
                         action.getReason(),
                         action.getAdminUserId(),
-                        toEvidenceItem(evidenceById.get(action.getEvidenceSnapshotId())),
+                        ReviewViewAssembler.toEvidenceItem(
+                                requireEvidence(evidenceById, action.getEvidenceSnapshotId())),
                         action.getCreatedAt()))
                 .toList();
     }
@@ -188,19 +182,14 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewReportSummaryItem> listAdminReports(
             ReviewReportStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewReportListView> fetched;
-        if (cursor == null) {
-            fetched = reportPort.findForAdmin(status, pageSize + 1);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            fetched = reportPort.findForAdminAfter(
-                    status, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
-        }
-        List<ReviewReportSummaryItem> items = fetched.stream()
-                .map(DefaultAdminReviewService::toReportSummaryItem)
-                .toList();
+        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        List<ReviewReportSummaryItem> fetched = reportPort.findForAdmin(
+                status,
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.id(),
+                pageSize + 1);
         return CursorPage.of(
-                items,
+                fetched,
                 pageSize,
                 item -> CursorUtils.encode(item.createdAt(), item.id()));
     }
@@ -212,7 +201,7 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
                 .orElseThrow(NotFoundException.supplier("후기 신고"));
         ReviewEvidenceSnapshot evidence = evidencePort.findById(report.getEvidenceSnapshotId())
                 .orElseThrow(NotFoundException.supplier("후기 증거"));
-        return toReportItem(report, evidence);
+        return ReviewViewAssembler.toReportItem(report, evidence);
     }
 
     @Override
@@ -230,58 +219,21 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
         ReviewReport saved = reportPort.save(report);
         ReviewEvidenceSnapshot evidence = evidencePort.findById(saved.getEvidenceSnapshotId())
                 .orElseThrow(NotFoundException.supplier("후기 증거"));
-        return toReportItem(saved, evidence);
+        return ReviewViewAssembler.toReportItem(saved, evidence);
     }
 
     private Map<Long, ReviewEvidenceSnapshot> evidenceById(List<Long> snapshotIds) {
-        List<Long> normalized = snapshotIds.stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-        return evidencePort.findByIds(normalized).stream()
+        return evidencePort.findByIds(snapshotIds.stream().distinct().toList()).stream()
                 .collect(Collectors.toMap(ReviewEvidenceSnapshot::getId, Function.identity()));
     }
 
-    private static ReviewReportItem toReportItem(
-            ReviewReport report, ReviewEvidenceSnapshot evidence) {
-        return new ReviewReportItem(
-                report.getId(),
-                report.getReviewId(),
-                report.getReporterUserId(),
-                report.getReason(),
-                report.getDetail(),
-                report.getSnapshotStatus(),
-                toEvidenceItem(evidence),
-                report.getStatus(),
-                report.getDecisionNote(),
-                report.getDecidedByAdminId(),
-                report.getDecidedAt(),
-                report.getCreatedAt());
-    }
-
-    private static ReviewReportSummaryItem toReportSummaryItem(ReviewReportListView report) {
-        return new ReviewReportSummaryItem(
-                report.id(),
-                report.reviewId(),
-                report.reason(),
-                report.snapshotStatus(),
-                report.status(),
-                report.createdAt());
-    }
-
-    private static ReviewEvidenceItem toEvidenceItem(ReviewEvidenceSnapshot evidence) {
+    /** 운영 조치는 증거를 FK로 참조하므로 조회되지 않으면 데이터 정합성 오류다. */
+    private static ReviewEvidenceSnapshot requireEvidence(
+            Map<Long, ReviewEvidenceSnapshot> evidenceById, Long snapshotId) {
+        ReviewEvidenceSnapshot evidence = evidenceById.get(snapshotId);
         if (evidence == null) {
-            return null;
+            throw new IllegalStateException("운영 조치의 후기 증거가 없습니다. evidenceSnapshotId=" + snapshotId);
         }
-        return new ReviewEvidenceItem(
-                evidence.getId(),
-                evidence.getContentRevision(),
-                evidence.getRating(),
-                evidence.getContent(),
-                evidence.getEditedAt(),
-                evidence.getProvenance(),
-                evidence.isImagesComplete(),
-                evidence.getImageUrls(),
-                evidence.getCapturedAt());
+        return evidence;
     }
 }

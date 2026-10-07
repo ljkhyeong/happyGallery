@@ -50,7 +50,7 @@ public class ReviewModerationAction {
     @Column(name = "admin_user_id", nullable = false)
     private Long adminUserId;
 
-    @Column(name = "evidence_snapshot_id")
+    @Column(name = "evidence_snapshot_id", nullable = false)
     private Long evidenceSnapshotId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -72,7 +72,7 @@ public class ReviewModerationAction {
         this.newStatus = Objects.requireNonNull(newStatus, "변경 상태는 필수입니다.");
         this.reason = reason;
         this.adminUserId = requirePositive(adminUserId, "관리자 ID");
-        this.evidenceSnapshotId = evidenceSnapshotId;
+        this.evidenceSnapshotId = requirePositive(evidenceSnapshotId, "후기 증거 ID");
         this.createdAt = Objects.requireNonNull(createdAt, "운영 조치 시각은 필수입니다.");
     }
 
@@ -89,7 +89,7 @@ public class ReviewModerationAction {
                 ReviewStatus.HIDDEN,
                 Objects.requireNonNull(reason, "숨김 사유는 필수입니다."),
                 adminUserId,
-                requirePositive(evidenceSnapshotId, "후기 증거 ID"),
+                evidenceSnapshotId,
                 createdAt);
     }
 
@@ -105,35 +105,7 @@ public class ReviewModerationAction {
                 ReviewStatus.PUBLISHED,
                 null,
                 adminUserId,
-                requirePositive(evidenceSnapshotId, "후기 증거 ID"),
-                createdAt);
-    }
-
-    /** V124 이전 감사 레코드 호환용이며 신규 운영 흐름에서는 사용하지 않는다. */
-    public static ReviewModerationAction legacyHideWithoutEvidence(
-            Long reviewId, String reason, Long adminUserId, LocalDateTime createdAt) {
-        return new ReviewModerationAction(
-                reviewId,
-                ReviewModerationActionType.HIDE,
-                ReviewStatus.PUBLISHED,
-                ReviewStatus.HIDDEN,
-                Objects.requireNonNull(reason, "숨김 사유는 필수입니다."),
-                adminUserId,
-                null,
-                createdAt);
-    }
-
-    /** V124 이전 감사 레코드 호환용이며 신규 운영 흐름에서는 사용하지 않는다. */
-    public static ReviewModerationAction legacyRepublishWithoutEvidence(
-            Long reviewId, Long adminUserId, LocalDateTime createdAt) {
-        return new ReviewModerationAction(
-                reviewId,
-                ReviewModerationActionType.REPUBLISH,
-                ReviewStatus.HIDDEN,
-                ReviewStatus.PUBLISHED,
-                null,
-                adminUserId,
-                null,
+                evidenceSnapshotId,
                 createdAt);
     }
 

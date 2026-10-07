@@ -21,7 +21,7 @@
           "values": "_ _ _ _ _ _ _ _ _ _ _ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2000 2000 2000 2000 2000 2000"
         },
         {
-          "series": "happygallery_batch_runs_total{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",status=\"partial\",instance=\"old\"}",
+          "series": "happygallery_batch_duration_seconds_count{application=\"happygallery\",exported_job=\"personal_data_retention\",job=\"happygallery\",status=\"partial\",instance=\"old\"}",
           "values": "0 1 1 1 1 1 1 1 1 1 1 stale"
         }
       ],
@@ -89,7 +89,7 @@
       "interval": "1m",
       "input_series": [
         {
-          "series": "happygallery_batch_runs_total{application=\"happygallery\",job=\"happygallery\",exported_job=\"personal_data_retention\",status=\"partial\"}",
+          "series": "happygallery_batch_duration_seconds_count{application=\"happygallery\",job=\"happygallery\",exported_job=\"personal_data_retention\",status=\"partial\"}",
           "values": "0 1+0x10"
         }
       ],

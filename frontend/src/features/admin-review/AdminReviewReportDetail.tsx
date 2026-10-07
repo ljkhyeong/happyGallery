@@ -61,7 +61,6 @@ export function AdminReviewReportDetail({
         evidence={report.evidence}
         adminKey={adminKey}
         onAuthError={onAuthError}
-        unavailableMessage="이전 신고라 당시 후기 내용을 확인할 수 없습니다."
       />
       <Button
         type="button"

@@ -25,10 +25,6 @@ final class NhnSmsClient {
         this.restClient = restClient;
     }
 
-    NotificationSendResult send(String idempotencyKey, String phone, String message, String purpose) {
-        return sendTracked(idempotencyKey, phone, message, purpose).result();
-    }
-
     NotificationSendOutcome sendTracked(
             String idempotencyKey, String phone, String message, String purpose) {
         return send(idempotencyKey, phone, message, purpose, "/sender/sms", true);

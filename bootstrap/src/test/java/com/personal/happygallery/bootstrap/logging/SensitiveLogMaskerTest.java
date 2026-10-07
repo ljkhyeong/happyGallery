@@ -2,15 +2,22 @@ package com.personal.happygallery.bootstrap.logging;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.LoggingEvent;
-import ch.qos.logback.classic.spi.ThrowableProxy;
-import com.fasterxml.jackson.core.JsonFactory;
-import java.io.StringWriter;
+import com.jayway.jsonpath.JsonPath;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.boot.logging.logback.StructuredLogEncoder;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.io.ClassPathResource;
 
 class SensitiveLogMaskerTest {
 
@@ -48,34 +55,47 @@ class SensitiveLogMaskerTest {
                 .contains("trace.id=value.with.dot");
     }
 
-    @DisplayName("운영 JSON stack trace는 throwable 메시지의 접근 토큰을 마스킹한다")
+    @DisplayName("운영 JSON 로그는 message와 stack_trace의 토큰을 마스킹하고 기존 필드를 유지한다")
     @Test
-    void stackTraceProvider_masksThrowableMessage() throws Exception {
+    void productionJsonEncoder_masksMessageAndStackTrace() throws Exception {
+        StandardEnvironment environment = new StandardEnvironment();
+        new YamlPropertySourceLoader()
+                .load("application-prod", new ClassPathResource("application-prod.yml"))
+                .forEach(environment.getPropertySources()::addLast);
         LoggerContext context = new LoggerContext();
-        LoggingEvent event = new LoggingEvent();
-        event.setThrowableProxy(new ThrowableProxy(
-                new IllegalStateException("invalid X-Access-Token=" + SIGNED_ACCESS_TOKEN
-                        + " X-Bot-Token=" + BOT_TOKEN)));
-        MaskingStackTraceJsonProvider provider = new MaskingStackTraceJsonProvider();
-        provider.setContext(context);
-        provider.start();
+        context.putObject(Environment.class.getName(), environment);
+        StructuredLogEncoder encoder = new StructuredLogEncoder();
+        encoder.setContext(context);
+        encoder.setFormat("logstash");
+        encoder.start();
+        LoggingEvent event = new LoggingEvent(
+                Logger.class.getName(),
+                context.getLogger("com.personal.happygallery.payment"),
+                Level.ERROR,
+                "결제 확인 실패 X-Access-Token=" + SIGNED_ACCESS_TOKEN,
+                new IllegalStateException("invalid X-Bot-Token=" + BOT_TOKEN),
+                null);
+        event.setMDCPropertyMap(Map.of("requestId", "req-1"));
 
-        StringWriter output = new StringWriter();
-        try (var generator = new JsonFactory().createGenerator(output)) {
-            generator.writeStartObject();
-            provider.writeTo(generator, event);
-            generator.writeEndObject();
+        String json;
+        try {
+            json = new String(encoder.encode(event), StandardCharsets.UTF_8);
         } finally {
-            provider.stop();
+            encoder.stop();
             context.stop();
         }
 
-        assertThat(output.toString())
-                .doesNotContain(SIGNED_ACCESS_TOKEN)
-                .doesNotContain(BOT_TOKEN)
-                .contains("X-Access-Token=***")
-                .contains("X-Bot-Token=***")
-                .contains("IllegalStateException")
-                .contains("stack_trace");
+        assertThat(json).doesNotContain(SIGNED_ACCESS_TOKEN).doesNotContain(BOT_TOKEN);
+        assertThat((String) JsonPath.read(json, "$.message")).isEqualTo("결제 확인 실패 X-Access-Token=***");
+        assertThat((String) JsonPath.read(json, "$.stack_trace"))
+                .contains("IllegalStateException", "X-Bot-Token=***");
+        assertThat((String) JsonPath.read(json, "$.level")).isEqualTo("ERROR");
+        assertThat((String) JsonPath.read(json, "$.logger_name")).isEqualTo("com.personal.happygallery.payment");
+        assertThat((String) JsonPath.read(json, "$.requestId")).isEqualTo("req-1");
+        assertThat((String) JsonPath.read(json, "$.service")).isEqualTo("happygallery");
+        assertThat((String) JsonPath.read(json, "$['@timestamp']")).endsWith("+09:00");
+        assertThat(JsonPath.<Map<String, Object>>read(json, "$"))
+                .containsKey("thread_name")
+                .doesNotContainKeys("@version", "level_value");
     }
 }

@@ -28,7 +28,7 @@
 - `users`: 검증된 기준 이메일이 있을 때만 채우는 nullable `email_enc/email_hmac`, `name_enc/name_hmac`, 소셜 회원은 nullable인 `phone_enc/phone_hmac`
 - `guests`: `name_enc/name_hmac`, `phone_enc/phone_hmac`
 - `phone_verifications`: `phone_hmac`, `code_hmac`, `code_enc`
-- `email_verifications`: `email_hmac`, 회원 ID·정규화 이메일과 코드를 결합한 `code_hmac`, 보호된 행 복원과 local/dev 조회에 필요한 `code_enc`. 이메일 원문이나 이메일 암호문은 저장하지 않는다.
+- `email_verifications`: `email_hmac`, 회원 ID·정규화 이메일과 코드를 결합한 `code_hmac`, 보호된 행 복원과 local 조회에 필요한 `code_enc`. 이메일 원문이나 이메일 암호문은 저장하지 않는다.
 - `payment_attempt`: 내부 결제 payload 전체를 `payload_enc`에 저장하고, confirm 재응답에 필요한 비회원 원문 접근 토큰은 `fulfilled_access_token_enc`에 저장한다. 비회원 공개 입력의 인증 코드는 prepare에서 소비한 뒤 저장하지 않고, 결제 context·orderId·정규화 전화번호에 귀속된 HMAC 증거만 암호화 payload에 넣는다. 비회원 결제 상태 복구를 위해 정규화 휴대폰의 HMAC과 비식별 키 버전을 `owner_phone_hmac/owner_phone_hmac_key_id`에 추가 저장한다.
 - `bookings`: `BOOKED` 예약 소유자의 현재 정규화 휴대폰 HMAC을 `owner_phone_hmac`에 저장한다.
   `active_owner_phone_hmac`과 `(slot_id, active_owner_phone_hmac)` 유일 인덱스로 회원·비회원 테이블을
@@ -55,7 +55,7 @@
 - 관리자 세션은 토큰 HMAC을 Redis 키로, 세션 JSON의 AES-GCM 암호문을 값으로 저장한다.
 - 관리자 MFA 로그인 challenge는 원문 대신 HMAC만 저장한다. 관리자 인증 감사 이력의 사용자명·유효하지 않은 challenge도 원문 대신 HMAC과 당시 키 ID만 저장한다.
 - 관리자 username은 개인 이메일·실명이 아닌 영문·숫자 기반 운영 식별자로 제한하고 로그에는 남기지 않는다.
-- 공개 클라이언트 모니터링 요청의 `path/source/target`은 임의 문자열이므로 로그에 남기지 않고, 서버가 정한 이벤트 종류와 내부 ID만 기록한다.
+- 공개 클라이언트 모니터링 요청은 서버가 정한 이벤트 종류만 받는다. 임의 문자열 필드를 받지 않고, 이벤트 종류와 내부 ID만 기록한다.
 - 로그에는 전화번호, 이름, 인증 코드, 결제 키와 외부 예외 원문을 남기지 않는다. 필요한 경우 내부 ID, 상태 코드와 예외 타입만 기록한다.
 - 영속 실패 사유에는 외부 응답 원문 대신 통제된 오류 문구를 저장한다.
 

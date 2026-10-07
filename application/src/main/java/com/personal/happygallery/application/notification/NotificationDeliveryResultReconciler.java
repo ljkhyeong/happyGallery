@@ -102,18 +102,13 @@ public class NotificationDeliveryResultReconciler {
 
         NotificationDeliveryAttempt fallback;
         try {
-            fallback = switch (reservation.recipientType()) {
-                case GUEST -> notificationService.sendByGuestIdWithOutcome(
-                        reservation.guestId(),
-                        reservation.eventType(),
-                        reservation.idempotencyKey(),
-                        NotificationChannel.KAKAO);
-                case USER -> notificationService.sendByUserIdWithOutcome(
-                        reservation.userId(),
-                        reservation.eventType(),
-                        reservation.idempotencyKey(),
-                        NotificationChannel.KAKAO);
-            };
+            fallback = notificationService.deliver(
+                    reservation.recipientType(),
+                    reservation.guestId(),
+                    reservation.userId(),
+                    reservation.eventType(),
+                    reservation.idempotencyKey(),
+                    NotificationChannel.KAKAO);
         } catch (NotificationAuditPersistenceException exception) {
             if (exception.deliveryResult() == NotificationSendResult.SUCCESS) {
                 return transactionService.markSentWithAuditFailure(
@@ -136,8 +131,7 @@ public class NotificationDeliveryResultReconciler {
                     reservation.processingToken(),
                     fallback.channel(),
                     fallback.providerRequestId(),
-                    fallback.providerRecipientSeq(),
-                    null)
+                    fallback.providerRecipientSeq())
                     ? ReconcileOutcome.PENDING
                     : ReconcileOutcome.STALE;
         }

@@ -1,19 +1,17 @@
 package com.personal.happygallery.adapter.out.external.shipping;
 
+import com.personal.happygallery.adapter.out.external.http.SecureXml;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingEvent;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingUpdate;
 import com.personal.happygallery.application.order.port.out.KoreaPostTrackingLookup;
 import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
 import com.personal.happygallery.domain.order.ShippingCarrier;
-import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,7 +19,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-import org.xml.sax.helpers.DefaultHandler;
 
 @Component
 class KoreaPostShipmentTrackingLookup implements KoreaPostTrackingLookup {
@@ -68,15 +65,7 @@ class KoreaPostShipmentTrackingLookup implements KoreaPostTrackingLookup {
         if (body == null) {
             throw new IllegalArgumentException("빈 배송조회 응답");
         }
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newDefaultInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-        var builder = factory.newDocumentBuilder();
-        builder.setErrorHandler(new DefaultHandler());
-        Element root = builder.parse(new ByteArrayInputStream(body)).getDocumentElement();
+        Element root = SecureXml.parse(body);
         if (!"LongitudinalDomesticListResponse".equals(root.getTagName())
                 || !"Y".equals(text(root, "successYN")) || !"00".equals(text(root, "returnCode"))) {
             throw new IllegalArgumentException("실패한 배송조회 응답");

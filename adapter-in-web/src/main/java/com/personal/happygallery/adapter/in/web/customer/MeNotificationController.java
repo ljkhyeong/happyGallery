@@ -30,7 +30,7 @@ public class MeNotificationController {
                                            @RequestParam(defaultValue = "20") int size,
                                            @RequestParam(defaultValue = "false") boolean unreadOnly,
                                            @AuthenticationPrincipal CustomerPrincipal customer) {
-        return notificationQuery.listNotifications(customer.userId(), null, page, size, unreadOnly).stream()
+        return notificationQuery.listNotifications(customer.userId(), page, size, unreadOnly).stream()
                 .map(NotificationResponse::from)
                 .toList();
     }
@@ -38,7 +38,7 @@ public class MeNotificationController {
     @GetMapping("/unread-count")
     @Operation(operationId = "getMyUnreadNotificationCount")
     public UnreadCountResponse unreadCount(@AuthenticationPrincipal CustomerPrincipal customer) {
-        long count = notificationQuery.countUnread(customer.userId(), null);
+        long count = notificationQuery.countUnread(customer.userId());
         return new UnreadCountResponse(count);
     }
 
@@ -46,12 +46,12 @@ public class MeNotificationController {
     @Operation(operationId = "markMyNotificationAsRead")
     public void markAsRead(@PathVariable Long id,
                            @AuthenticationPrincipal CustomerPrincipal customer) {
-        notificationQuery.markAsRead(id, customer.userId(), null);
+        notificationQuery.markAsRead(id, customer.userId());
     }
 
     @PatchMapping("/read-all")
     @Operation(operationId = "markAllMyNotificationsAsRead")
     public void markAllAsRead(@AuthenticationPrincipal CustomerPrincipal customer) {
-        notificationQuery.markAllAsRead(customer.userId(), null);
+        notificationQuery.markAllAsRead(customer.userId());
     }
 }

@@ -13,7 +13,7 @@ import org.springframework.web.client.RestClientException;
 class TurnstileRestClientConfig {
     @Bean
     CloseableHttpClient turnstileHttpClient(TurnstileProperties properties, PooledHttpClientFactory factory) {
-        return factory.create(properties);
+        return factory.create(properties.http());
     }
 
     @Bean

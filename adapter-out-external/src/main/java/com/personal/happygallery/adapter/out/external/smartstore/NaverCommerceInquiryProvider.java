@@ -178,15 +178,7 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
         return value == null ? null : toLocalDateTime(value);
     }
 
-    private record InquiryResponse(
-            List<InquiryContent> contents,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages,
-            boolean first,
-            boolean last
-    ) {}
+    private record InquiryResponse(List<InquiryContent> contents, long totalElements, int totalPages) {}
 
     private record InquiryContent(
             OffsetDateTime createDate,

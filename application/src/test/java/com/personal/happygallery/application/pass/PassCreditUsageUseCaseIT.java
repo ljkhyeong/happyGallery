@@ -20,6 +20,7 @@ import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.notification.NotificationLogStatus;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -445,7 +446,7 @@ class PassCreditUsageUseCaseIT {
                         .anySatisfy(log -> {
                             assertThat(log.getUserId()).isEqualTo(pass.getUserId());
                             assertThat(log.getEventType()).isEqualTo(NotificationEventType.PASS_REFUNDED);
-                            assertThat(log.getStatus()).isEqualTo("SUCCESS");
+                            assertThat(log.getStatus()).isEqualTo(NotificationLogStatus.SUCCESS);
                         }));
         mockMvc.perform(get("/api/v1/me/passes")
                         .cookie(sessionCookie))

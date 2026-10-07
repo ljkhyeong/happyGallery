@@ -120,7 +120,7 @@ class ReviewUseCaseIT {
 
         assertSoftly(softly -> {
             ReviewUseCase.PublicReviewPage productPage = publicReviewUseCase.listProductReviews(
-                    productSource.product().getId(), null, 20);
+                    productSource.product().getId(), null, ReviewSort.LATEST, null, 20);
             softly.assertThat(productPage.summary().reviewCount()).isEqualTo(1L);
             softly.assertThat(productPage.summary().averageRating()).isEqualTo(5.0);
             softly.assertThat(productPage.summary().histogram().rating5()).isEqualTo(1L);
@@ -129,7 +129,7 @@ class ReviewUseCaseIT {
                     .satisfies(item -> softly.assertThat(item.authorName())
                             .isEqualTo("후기 회원"));
             ReviewUseCase.ReviewSummary classSummary = publicReviewUseCase.listClassReviews(
-                    classSource.bookingClass().getId(), null, 20).summary();
+                    classSource.bookingClass().getId(), null, ReviewSort.LATEST, null, 20).summary();
             softly.assertThat(classSummary.reviewCount()).isEqualTo(1L);
             softly.assertThat(classSummary.averageRating()).isEqualTo(3.0);
             softly.assertThat(adminReviewUseCase.listAdminReviews(
@@ -158,7 +158,7 @@ class ReviewUseCaseIT {
                 productReview.version(),
                 admin.getId());
         ReviewUseCase.PublicReviewPage hiddenPage = publicReviewUseCase.listProductReviews(
-                productSource.product().getId(), null, 20);
+                productSource.product().getId(), null, ReviewSort.LATEST, null, 20);
 
         assertSoftly(softly -> {
             softly.assertThat(hidden.status()).isEqualTo(ReviewStatus.HIDDEN);
@@ -199,7 +199,7 @@ class ReviewUseCaseIT {
             softly.assertThat(republished.hiddenAt()).isNull();
             softly.assertThat(republished.hiddenByAdminId()).isNull();
             softly.assertThat(publicReviewUseCase.listProductReviews(
-                            productSource.product().getId(), null, 20).summary().reviewCount())
+                            productSource.product().getId(), null, ReviewSort.LATEST, null, 20).summary().reviewCount())
                     .isEqualTo(1L);
             softly.assertThat(memberReviewUseCase.listMyOrderReviews(
                             user.getId(), productSource.order().getId()))
@@ -342,7 +342,7 @@ class ReviewUseCaseIT {
             softly.assertThat(tombstone.getContent()).isNull();
             softly.assertThat(tombstone.isRecreationBlocked()).isFalse();
             softly.assertThat(publicReviewUseCase.listProductReviews(
-                            source.product().getId(), null, 20).summary().reviewCount())
+                            source.product().getId(), null, ReviewSort.LATEST, null, 20).summary().reviewCount())
                     .isZero();
             softly.assertThat(memberReviewUseCase.getProductReviewCreationState(
                             owner.getId(), source.orderItem().getId()).status())
@@ -874,7 +874,6 @@ class ReviewUseCaseIT {
             softly.assertThat(duplicateHelpful.helpfulCount()).isEqualTo(1L);
             softly.assertThat(report.evidence().rating()).isEqualTo(2);
             softly.assertThat(report.evidence().content()).isEqualTo("신고 시점 원문");
-            softly.assertThat(report.evidence().imagesComplete()).isTrue();
             softly.assertThat(reviewInteractionUseCase.listMyReviewReactions(
                             actor.getId(), List.of(review.id())))
                     .singleElement()
@@ -1010,7 +1009,6 @@ class ReviewUseCaseIT {
                     .containsExactly(
                             "/images/evidence-replacement.webp",
                             "/images/evidence-second.webp");
-            softly.assertThat(moderation.evidence().imagesComplete()).isTrue();
         });
     }
 

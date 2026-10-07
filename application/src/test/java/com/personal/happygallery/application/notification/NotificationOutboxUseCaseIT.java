@@ -107,7 +107,7 @@ class NotificationOutboxUseCaseIT {
                 null, user.getId(), NotificationChannel.SMS,
                 NotificationEventType.ORDER_PAID, now));
 
-        var notifications = notificationQueryUseCase.listNotifications(user.getId(), null, 0, 20, false);
+        var notifications = notificationQueryUseCase.listNotifications(user.getId(), 0, 20, false);
 
         assertSoftly(softly -> {
             softly.assertThat(notifications)
@@ -119,12 +119,12 @@ class NotificationOutboxUseCaseIT {
                         softly.assertThat(notification.aggregateId()).isEqualTo(10L);
                         softly.assertThat(notification.isRead()).isFalse();
                     });
-            softly.assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isOne();
+            softly.assertThat(notificationQueryUseCase.countUnread(user.getId())).isOne();
         });
 
-        notificationQueryUseCase.markAsRead(outbox.getId(), user.getId(), null);
+        notificationQueryUseCase.markAsRead(outbox.getId(), user.getId());
 
-        assertThat(notificationQueryUseCase.countUnread(user.getId(), null)).isZero();
+        assertThat(notificationQueryUseCase.countUnread(user.getId())).isZero();
     }
 
     @Test
@@ -142,13 +142,13 @@ class NotificationOutboxUseCaseIT {
                 if (index == 2) row.markRead(at);
             }
         });
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 1, true))
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 1, true))
                 .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(1L);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 1, 1, true))
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 1, 1, true))
                 .extracting(NotificationQueryUseCase.NotificationView::aggregateId).containsExactly(0L);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, false)).hasSize(3);
-        notificationQueryUseCase.markAllAsRead(owner.getId(), null);
-        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), null, 0, 20, true)).isEmpty();
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 20, false)).hasSize(3);
+        notificationQueryUseCase.markAllAsRead(owner.getId());
+        assertThat(notificationQueryUseCase.listNotifications(owner.getId(), 0, 20, true)).isEmpty();
     }
 
     @DisplayName("알림 이벤트가 발행된 트랜잭션이 롤백되면 outbox도 생성되지 않는다")
@@ -268,7 +268,7 @@ class NotificationOutboxUseCaseIT {
                             user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 5L),
                     now.minusMinutes(10)));
             older.markDeliveryPending(older.markProcessing(now.minusMinutes(10)),
-                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9), null);
+                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9));
             String token = older.markDeliveryChecking(now.minusMinutes(2));
             if (!interrupted) {
                 older.rescheduleDeliveryCheck(token, now.minusMinutes(1), "UNAVAILABLE");
@@ -279,7 +279,7 @@ class NotificationOutboxUseCaseIT {
                             user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 6L),
                     now.minusMinutes(8)));
             waiting.markDeliveryPending(waiting.markProcessing(now.minusMinutes(8)),
-                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7), null);
+                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7));
             return List.of(older.getId(), waiting.getId());
         });
 

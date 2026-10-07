@@ -4,8 +4,10 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.OfficialReplyItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.PublicReviewPage;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.RatingHistogram;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewEvidenceItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewImageItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewItem;
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportItem;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewSummary;
 import com.personal.happygallery.application.review.port.out.ReviewHelpfulPort;
 import com.personal.happygallery.application.review.port.out.ReviewImagePort;
@@ -16,7 +18,9 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.review.Review;
+import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewImage;
+import com.personal.happygallery.domain.review.ReviewReport;
 import com.personal.happygallery.domain.review.ReviewSort;
 import com.personal.happygallery.domain.user.User;
 import java.util.List;
@@ -103,6 +107,33 @@ class ReviewViewAssembler {
     static ReviewImageItem toImageItem(ReviewImage image) {
         return new ReviewImageItem(
                 image.getId(), image.getImageUrl(), image.getSortOrder(), image.getCreatedAt());
+    }
+
+    static ReviewReportItem toReportItem(ReviewReport report, ReviewEvidenceSnapshot evidence) {
+        return new ReviewReportItem(
+                report.getId(),
+                report.getReviewId(),
+                report.getReporterUserId(),
+                report.getReason(),
+                report.getDetail(),
+                report.getSnapshotStatus(),
+                toEvidenceItem(evidence),
+                report.getStatus(),
+                report.getDecisionNote(),
+                report.getDecidedByAdminId(),
+                report.getDecidedAt(),
+                report.getCreatedAt());
+    }
+
+    static ReviewEvidenceItem toEvidenceItem(ReviewEvidenceSnapshot evidence) {
+        return new ReviewEvidenceItem(
+                evidence.getId(),
+                evidence.getContentRevision(),
+                evidence.getRating(),
+                evidence.getContent(),
+                evidence.getEditedAt(),
+                evidence.getImageUrls(),
+                evidence.getCapturedAt());
     }
 
     private static ReviewItem toItem(

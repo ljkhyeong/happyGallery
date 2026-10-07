@@ -63,7 +63,7 @@ PAID_APPROVAL_PENDING  (approval_deadline_at = paidAt + 24h)
 
 - 수동 승인/거절과 배치 자동환불이 같은 주문을 동시에 수정하면 `ObjectOptimisticLockingFailureException`으로 감지한다.
 - 자동환불/픽업 만료 배치는 건별 `REQUIRES_NEW` 트랜잭션으로 처리한다.
-- 충돌은 `@Retryable(maxAttempts=3)`로 최대 3회 재시도하고, 모두 실패하면 해당 건만 스킵한다.
+- 충돌은 Spring Framework `@Retryable(maxRetries=2)`로 첫 시도 포함 최대 3회 실행하고, 모두 실패하면 해당 건만 스킵한다.
 
 이 결정은 재고처럼 경쟁이 빈번한 row에는 비관적 락을 유지하면서,
 운영성 상태 전이만 가볍게 충돌 감지하려는 목적이다.
