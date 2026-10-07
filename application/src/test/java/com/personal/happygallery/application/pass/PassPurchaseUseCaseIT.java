@@ -1,11 +1,11 @@
 package com.personal.happygallery.application.pass;
 
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
+import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase;
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.domain.pass.PassLedgerType;
@@ -33,7 +33,7 @@ class PassPurchaseUseCaseIT {
     @Autowired UserStorePort userStorePort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
-    @Autowired PassLedgerReaderPort passLedgerReaderPort;
+    @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired PassExpiryBatchUseCase passExpiryBatchService;
     @Autowired PassPurchaseUseCase passPurchaseUseCase;
@@ -58,7 +58,7 @@ class PassPurchaseUseCaseIT {
         Long passId = purchased.getId();
 
         // Proof: EARN ledger 1건, amount=4
-        var ledgers = passLedgerReaderPort.findByPassPurchaseId(passId);
+        var ledgers = passLedgerRepository.findByPassPurchaseId(passId);
         assertSoftly(softly -> {
             softly.assertThat(purchased.getUserId()).isEqualTo(user.getId());
             softly.assertThat(purchased.getExpiresAt())
@@ -98,7 +98,7 @@ class PassPurchaseUseCaseIT {
         PassPurchase reloaded = passPurchaseReaderPort.findById(expiredPass.getId()).orElseThrow();
 
         // Proof: EARN(구매 직접 저장 시 없음) + EXPIRE ledger 1건
-        var ledgers = passLedgerReaderPort.findByPassPurchaseId(expiredPass.getId());
+        var ledgers = passLedgerRepository.findByPassPurchaseId(expiredPass.getId());
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(1);
             softly.assertThat(result.failureCount()).isZero();
@@ -127,7 +127,7 @@ class PassPurchaseUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(result.successCount()).isEqualTo(0);
             softly.assertThat(result.failureCount()).isZero();
-            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(activePass.getId())).isEmpty();
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(activePass.getId())).isEmpty();
         });
     }
 

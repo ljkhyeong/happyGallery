@@ -2,12 +2,12 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
-import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BalanceStatus;
@@ -51,7 +51,7 @@ class BookingSettlementUseCaseIT {
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired ClassStorePort classStorePort;
-    @Autowired SlotReaderPort slotReaderPort;
+    @Autowired SlotRepository slotRepository;
     @Autowired SlotStorePort slotStorePort;
     @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
@@ -94,7 +94,7 @@ class BookingSettlementUseCaseIT {
         settlementUseCase.updateArrears(booking.getId(), false, ADMIN_ID);
 
         Booking settled = bookingReaderPort.findById(booking.getId()).orElseThrow();
-        Slot occupiedSlot = slotReaderPort.findById(slot.getId()).orElseThrow();
+        Slot occupiedSlot = slotRepository.findById(slot.getId()).orElseThrow();
         List<BookingHistory> histories = bookingHistoryRepository.findAll().stream()
                 .sorted(comparing(BookingHistory::getId))
                 .toList();

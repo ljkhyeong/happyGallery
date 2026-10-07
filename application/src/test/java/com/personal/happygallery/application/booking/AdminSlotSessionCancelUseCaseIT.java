@@ -2,6 +2,7 @@ package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.pass.PassLedgerRepository;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
@@ -15,7 +16,6 @@ import com.personal.happygallery.application.customer.port.in.CustomerAccountLif
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
@@ -89,7 +89,7 @@ class AdminSlotSessionCancelUseCaseIT {
     @Autowired UserReaderPort userReaderPort;
     @Autowired PassPurchaseStorePort passPurchaseStorePort;
     @Autowired PassPurchaseReaderPort passPurchaseReaderPort;
-    @Autowired PassLedgerReaderPort passLedgerReaderPort;
+    @Autowired PassLedgerRepository passLedgerRepository;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired BookingStateProbe bookingStateProbe;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -206,10 +206,10 @@ class AdminSlotSessionCancelUseCaseIT {
             softly.assertThat(passPurchaseReaderPort.findById(expiredPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())
                     .isZero();
-            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(validPass.pass().getId()))
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(validPass.pass().getId()))
                     .extracting(ledger -> ledger.getType())
                     .containsExactly(PassLedgerType.REFUND);
-            softly.assertThat(passLedgerReaderPort.findByPassPurchaseId(expiredPass.pass().getId()))
+            softly.assertThat(passLedgerRepository.findByPassPurchaseId(expiredPass.pass().getId()))
                     .extracting(ledger -> ledger.getType())
                     .containsExactly(PassLedgerType.EXPIRE);
             softly.assertThat(histories).hasSize(4)
