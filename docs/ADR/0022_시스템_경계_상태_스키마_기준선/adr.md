@@ -160,8 +160,7 @@
 - `smartstore_product_orders`
   - 네이버 상품 주문 번호를 기본 키로 주문·원상품·옵션 아이템, 현재 상태·클레임, 최초/잔여 수량과 내부 재고에 적용한 수량을 저장한다. 발주·배송·결제·수수료·정산 예정 정보를 보존하고 수령인·연락처·배송지 JSON은 `delivery_info_enc` TEXT 암호문으로만 저장한다.
   - `attention_reason`은 `MAPPING_REQUIRED | STOCK_SHORTAGE | RETURN_REVIEW | STATUS_REVIEW`이며, 같은 변경 주문 재수집은 `inventory_applied_quantity`와 목표 차감 수량의 차이만 재고에 반영한다. 목표는 잔여 주문 수량과 아직 복원하지 않은 완료 반품 수량의 합이다.
-  - V168의 `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다.
-  - 기존 행의 `completed_return_quantity`는 NULL, 나머지 새 수량은 0으로 시작한다. NULL은 기존 기록 전환 전을 뜻하며, 다음 주문 수집에서 완료 클레임 이력과 기존 차감·잔여 수량·확인 사유로 초기화한다. V167의 `return_reviewed_remain_quantity`는 전환 전 검수 기록을 읽기 위해 유지하고 해당 주문 전환 후에는 NULL로 비운다. 전환 절차와 과거 부분반품 재고 확인은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
+  - `completed_return_quantity`, `reviewed_return_quantity`, `restored_return_quantity`는 각각 누적 완료 반품·검수 완료·재고 복원 수량이며 모두 `NOT NULL DEFAULT 0`이다. 검수 대기와 판매 불가 반품을 차감 수량에 유지해 부분반품 뒤 취소가 발생해도 자동 복원하지 않는다. 검수 규칙은 [ADR 0047](../0047_스마트스토어_재고_동기화/adr.md)을 따른다.
 - `smartstore_order_action_history`
   - V173은 상품 주문 번호, 처리 종류, `REQUESTED | SUCCEEDED | REJECTED | RESULT_UNKNOWN` 상태, 요청 요약, 결과 코드·메시지, 관리자 ID·이름과 요청·완료 시각을 저장한다.
   - V174는 외부 호출 전 실패를 `NOT_SENT`로 구분하고, 결과 미확정 요청의 수동 확인 결과·근거·관리자·시각을 nullable 열로 추가한다. 대사 정보는 전부 비어 있거나 결과·근거·관리자 이름·시각이 함께 존재하도록 `CHECK` 제약으로 강제한다.

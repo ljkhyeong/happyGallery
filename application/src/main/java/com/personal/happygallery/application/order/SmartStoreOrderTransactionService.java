@@ -99,8 +99,7 @@ class SmartStoreOrderTransactionService {
                 detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
                 detail.trackingNumber(), detail.unitPrice(), detail.paymentAmount(),
                 detail.paymentCommission(), detail.saleCommission(), detail.channelCommission(),
-                detail.expectedSettlementAmount(), detail.completedReturnQuantity(),
-                detail.completedReturnQuantityAt(order.getLastChangedAt()))) {
+                detail.expectedSettlementAmount(), detail.completedReturnQuantity())) {
             return order;
         }
         reconcile(order);

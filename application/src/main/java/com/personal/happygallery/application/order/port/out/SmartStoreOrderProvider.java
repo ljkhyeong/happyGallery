@@ -98,12 +98,6 @@ public interface SmartStoreOrderProvider {
         public int completedReturnQuantity() {
             return completedReturns.stream().mapToInt(CompletedReturn::quantity).sum();
         }
-
-        public int completedReturnQuantityAt(LocalDateTime changedAt) {
-            return completedReturns.stream()
-                    .filter(returned -> !returned.completedAt().isAfter(changedAt))
-                    .mapToInt(CompletedReturn::quantity).sum();
-        }
     }
 
     record CompletedReturn(String claimId, int quantity, LocalDateTime completedAt) {}

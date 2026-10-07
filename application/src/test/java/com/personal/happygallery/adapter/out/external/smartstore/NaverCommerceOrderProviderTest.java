@@ -91,8 +91,6 @@ class NaverCommerceOrderProviderTest {
         var detail = provider.fetchDetails(List.of("po-1")).getFirst();
 
         assertThat(detail.completedReturnQuantity()).isEqualTo(hasHistory ? 3 : 2);
-        assertThat(detail.completedReturnQuantityAt(LocalDateTime.of(2026, 8, 29, 10, 30)))
-                .isEqualTo(hasHistory ? 1 : 0);
         assertThat(detail.completedReturns()).extracting(returned -> returned.claimId())
                 .doesNotHaveDuplicates();
         assertThat(detail.deliveryCompany()).isNull();

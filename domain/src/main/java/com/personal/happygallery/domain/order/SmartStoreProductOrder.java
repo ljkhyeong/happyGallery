@@ -94,11 +94,8 @@ public class SmartStoreProductOrder {
     @Column(name = "inventory_applied_quantity", nullable = false)
     private int inventoryAppliedQuantity;
 
-    @Column(name = "return_reviewed_remain_quantity")
-    private Integer returnReviewedRemainQuantity;
-
-    @Column(name = "completed_return_quantity")
-    private Integer completedReturnQuantity;
+    @Column(name = "completed_return_quantity", nullable = false)
+    private int completedReturnQuantity;
 
     @Column(name = "reviewed_return_quantity", nullable = false)
     private int reviewedReturnQuantity;
@@ -177,14 +174,12 @@ public class SmartStoreProductOrder {
             Long expectedSettlementAmount,
             int completedReturnQuantity) {
         this.productOrderId = requireText(productOrderId, "상품 주문 번호");
-        this.inventoryAppliedQuantity = 0;
-        this.completedReturnQuantity = 0;
         refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
                 productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
                 remainQuantity, lastChangedType, paymentDate, lastChangedAt, shippingDueDate,
                 expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
                 paymentCommission, saleCommission, channelCommission, expectedSettlementAmount,
-                completedReturnQuantity, 0);
+                completedReturnQuantity);
     }
 
     public boolean refresh(
@@ -213,8 +208,7 @@ public class SmartStoreProductOrder {
             Long saleCommission,
             Long channelCommission,
             Long expectedSettlementAmount,
-            int completedReturnQuantity,
-            int previouslyCompletedReturnQuantity) {
+            int completedReturnQuantity) {
         if (lastChangedAt != null
                 && (changedAt.isBefore(lastChangedAt)
                 || changedAt.equals(lastChangedAt) && Objects.equals(this.lastChangedType, lastChangedType))) {
@@ -223,8 +217,6 @@ public class SmartStoreProductOrder {
         if (originProductNo == null || initialQuantity < 0 || remainQuantity < 0) {
             throw new IllegalArgumentException("스마트스토어 상품과 주문 수량이 올바르지 않습니다.");
         }
-        initializeReturnTracking(this.remainQuantity == remainQuantity
-                ? completedReturnQuantity : previouslyCompletedReturnQuantity);
         this.completedReturnQuantity = Math.max(this.completedReturnQuantity, completedReturnQuantity);
         this.orderId = requireText(orderId, "주문 번호");
         this.originProductNo = originProductNo;
@@ -275,19 +267,11 @@ public class SmartStoreProductOrder {
     }
 
     public int pendingReturnQuantity() {
-        if (completedReturnQuantity != null) {
-            return completedReturnQuantity - reviewedReturnQuantity;
-        }
-        int unreviewedQuantity = returnReviewedRemainQuantity == null
-                ? inventoryAppliedQuantity
-                : Math.min(inventoryAppliedQuantity, returnReviewedRemainQuantity);
-        return Math.max(unreviewedQuantity - remainQuantity, 0);
+        return completedReturnQuantity - reviewedReturnQuantity;
     }
 
     public String returnReviewVersion() {
-        return completedReturnQuantity == null
-                ? "L%d:%d:%s".formatted(inventoryAppliedQuantity, remainQuantity, returnReviewedRemainQuantity)
-                : "R%d:%d".formatted(completedReturnQuantity, reviewedReturnQuantity);
+        return "R%d:%d".formatted(completedReturnQuantity, reviewedReturnQuantity);
     }
 
     public int resolveReturn(boolean restoreStock, String reviewVersion) {
@@ -300,34 +284,14 @@ public class SmartStoreProductOrder {
         }
         int restoreQuantity = restoreStock ? pendingReturnQuantity() : 0;
         inventoryAppliedQuantity -= restoreQuantity;
-        if (completedReturnQuantity == null) {
-            returnReviewedRemainQuantity = remainQuantity;
-        } else {
-            reviewedReturnQuantity = completedReturnQuantity;
-            restoredReturnQuantity += restoreQuantity;
-        }
+        reviewedReturnQuantity = completedReturnQuantity;
+        restoredReturnQuantity += restoreQuantity;
         attentionReason = null;
         return restoreQuantity;
     }
 
     public int targetInventoryQuantity(int activeQuantity) {
-        if (completedReturnQuantity == null) {
-            return "RETURNED".equals(productOrderStatus) ? inventoryAppliedQuantity : activeQuantity;
-        }
         return activeQuantity + completedReturnQuantity - restoredReturnQuantity;
-    }
-
-    private void initializeReturnTracking(int previouslyCompletedReturnQuantity) {
-        if (completedReturnQuantity != null) {
-            return;
-        }
-        int pending = attentionReason == SmartStoreOrderAttentionReason.RETURN_REVIEW
-                ? Math.min(previouslyCompletedReturnQuantity, pendingReturnQuantity()) : 0;
-        int retained = Math.max(inventoryAppliedQuantity - remainQuantity, 0);
-        restoredReturnQuantity = Math.max(previouslyCompletedReturnQuantity - retained, 0);
-        reviewedReturnQuantity = previouslyCompletedReturnQuantity - pending;
-        completedReturnQuantity = previouslyCompletedReturnQuantity;
-        returnReviewedRemainQuantity = null;
     }
 
     public void requireAttention(SmartStoreOrderAttentionReason reason) {
