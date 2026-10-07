@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.store;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -99,7 +100,7 @@ public class WorkshopProfile {
 
     public WorkshopProfile(String name) {
         this.id = SINGLETON_ID;
-        this.name = required(name, "공방명", MAX_NAME_LENGTH);
+        this.name = DomainText.required(name, "공방명은", MAX_NAME_LENGTH);
     }
 
     public void update(String name, String phone, String postalCode,
@@ -110,34 +111,34 @@ public class WorkshopProfile {
                        String naverTalkUrl, String naverBlogUrl,
                        String instagramUrl, String smartStoreUrl,
                        LocalDateTime updatedAt) {
-        this.name = required(name, "공방명", MAX_NAME_LENGTH);
-        this.phone = optional(phone, "연락처", MAX_PHONE_LENGTH);
-        this.postalCode = optional(postalCode, "우편번호", MAX_POSTAL_CODE_LENGTH);
-        this.addressLine1 = optional(addressLine1, "기본 주소", MAX_ADDRESS_LENGTH);
-        this.addressLine2 = optional(addressLine2, "상세 주소", MAX_ADDRESS_LENGTH);
-        this.businessHours = optional(businessHours, "운영시간", MAX_BUSINESS_HOURS_LENGTH);
-        this.mapUrl = optionalHttpUrl(mapUrl, "지도 URL");
-        this.parkingInfo = optional(parkingInfo, "주차 안내", MAX_PARKING_INFO_LENGTH);
+        this.name = DomainText.required(name, "공방명은", MAX_NAME_LENGTH);
+        this.phone = DomainText.optional(phone, "연락처는", MAX_PHONE_LENGTH);
+        this.postalCode = DomainText.optional(postalCode, "우편번호는", MAX_POSTAL_CODE_LENGTH);
+        this.addressLine1 = DomainText.optional(addressLine1, "기본 주소는", MAX_ADDRESS_LENGTH);
+        this.addressLine2 = DomainText.optional(addressLine2, "상세 주소는", MAX_ADDRESS_LENGTH);
+        this.businessHours = DomainText.optional(businessHours, "운영시간은", MAX_BUSINESS_HOURS_LENGTH);
+        this.mapUrl = optionalHttpUrl(mapUrl, "지도 URL은");
+        this.parkingInfo = DomainText.optional(parkingInfo, "주차 안내는", MAX_PARKING_INFO_LENGTH);
         this.businessRegistrationNumber = optionalBusinessRegistrationNumber(businessRegistrationNumber);
-        this.representativeName = optional(
-                representativeName, "대표자명", MAX_REPRESENTATIVE_NAME_LENGTH);
+        this.representativeName = DomainText.optional(
+                representativeName, "대표자명은", MAX_REPRESENTATIVE_NAME_LENGTH);
         this.email = optionalEmail(email);
-        this.mailOrderRegistrationNumber = optional(
+        this.mailOrderRegistrationNumber = DomainText.optional(
                 mailOrderRegistrationNumber,
-                "통신판매업 신고번호",
+                "통신판매업 신고번호는",
                 MAX_MAIL_ORDER_REGISTRATION_NUMBER_LENGTH);
-        this.introduction = optional(introduction, "공방 소개", MAX_INTRODUCTION_LENGTH);
-        this.kakaoTalkId = optional(kakaoTalkId, "카카오톡 ID", MAX_KAKAO_TALK_ID_LENGTH);
-        this.naverTalkUrl = optionalHttpUrl(naverTalkUrl, "네이버톡톡 URL");
-        this.naverBlogUrl = optionalHttpUrl(naverBlogUrl, "네이버 블로그 URL");
-        this.instagramUrl = optionalHttpUrl(instagramUrl, "인스타그램 URL");
-        this.smartStoreUrl = optionalHttpUrl(smartStoreUrl, "스마트스토어 URL");
+        this.introduction = DomainText.optional(introduction, "공방 소개는", MAX_INTRODUCTION_LENGTH);
+        this.kakaoTalkId = DomainText.optional(kakaoTalkId, "카카오톡 ID는", MAX_KAKAO_TALK_ID_LENGTH);
+        this.naverTalkUrl = optionalHttpUrl(naverTalkUrl, "네이버톡톡 URL은");
+        this.naverBlogUrl = optionalHttpUrl(naverBlogUrl, "네이버 블로그 URL은");
+        this.instagramUrl = optionalHttpUrl(instagramUrl, "인스타그램 URL은");
+        this.smartStoreUrl = optionalHttpUrl(smartStoreUrl, "스마트스토어 URL은");
         this.updatedAt = updatedAt;
     }
 
     private static String optionalBusinessRegistrationNumber(String value) {
-        String normalized = optional(
-                value, "사업자등록번호", MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH);
+        String normalized = DomainText.optional(
+                value, "사업자등록번호는", MAX_BUSINESS_REGISTRATION_NUMBER_LENGTH);
         if (normalized == null || normalized.matches(BUSINESS_REGISTRATION_NUMBER_PATTERN)) {
             return normalized;
         }
@@ -146,32 +147,12 @@ public class WorkshopProfile {
     }
 
     private static String optionalEmail(String value) {
-        String normalized = optional(value, "전자우편주소", MAX_EMAIL_LENGTH);
+        String normalized = DomainText.optional(value, "전자우편주소는", MAX_EMAIL_LENGTH);
         return normalized == null ? null : normalized.toLowerCase(Locale.ROOT);
     }
 
-    private static String required(String value, String fieldName, int maxLength) {
-        String normalized = optional(value, fieldName, maxLength);
-        if (normalized == null) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "은 필수입니다.");
-        }
-        return normalized;
-    }
-
-    private static String optional(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, fieldName + "은 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
-    }
-
-    private static String optionalHttpUrl(String value, String fieldName) {
-        String normalized = optional(value, fieldName, MAX_URL_LENGTH);
+    private static String optionalHttpUrl(String value, String subject) {
+        String normalized = DomainText.optional(value, subject, MAX_URL_LENGTH);
         if (normalized == null) {
             return null;
         }
@@ -185,7 +166,7 @@ public class WorkshopProfile {
             // 아래의 일관된 도메인 오류로 변환한다.
         }
         throw new HappyGalleryException(
-                ErrorCode.INVALID_INPUT, fieldName + "은 http(s) 주소여야 합니다.");
+                ErrorCode.INVALID_INPUT, subject + " http(s) 주소여야 합니다.");
     }
 
     public Long getId() { return id; }

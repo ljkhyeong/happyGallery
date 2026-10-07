@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.booking;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -48,20 +49,11 @@ public class BookingTimeBlock {
         this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.reason = optionalReason(reason);
+        this.reason = DomainText.optional(reason, "예약 제한 사유는", MAX_REASON_LENGTH);
     }
 
     public boolean overlaps(LocalTime candidateStart, LocalTime candidateEnd) {
         return candidateStart.isBefore(endTime) && startTime.isBefore(candidateEnd);
-    }
-
-    private static String optionalReason(String reason) {
-        if (reason == null || reason.isBlank()) return null;
-        String normalized = reason.strip();
-        if (normalized.length() > MAX_REASON_LENGTH) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "예약 제한 사유는 200자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     public Long getId() { return id; }

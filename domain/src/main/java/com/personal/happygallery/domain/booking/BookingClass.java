@@ -5,6 +5,7 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
@@ -141,39 +142,16 @@ public class BookingClass {
                     ErrorCode.INVALID_INPUT,
                     "클래스 가격은 %d원 이상 허용 범위 이하여야 합니다.".formatted(MIN_PRICE));
         }
-        this.name = requireName(name);
+        this.name = DomainText.required(name, "클래스명은", MAX_NAME_LENGTH);
         this.category = CategoryName.required(category);
         this.price = price;
         this.passEligible = passEligible;
-        this.description = optionalText(description, "클래스 설명", MAX_DESCRIPTION_LENGTH);
+        this.description = DomainText.optional(description, "클래스 설명은", MAX_DESCRIPTION_LENGTH);
         this.imageUrl = ImageReferencePolicy.optional(imageUrl);
-        this.preparationInfo = optionalText(
-                preparationInfo, "준비물 안내", MAX_PREPARATION_INFO_LENGTH);
-        this.targetAudience = optionalText(
-                targetAudience, "대상 안내", MAX_TARGET_AUDIENCE_LENGTH);
-    }
-
-    private static String requireName(String name) {
-        if (name == null || name.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스명은 필수입니다.");
-        }
-        String normalized = name.strip();
-        if (normalized.length() > MAX_NAME_LENGTH) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "클래스명은 100자 이하여야 합니다.");
-        }
-        return normalized;
-    }
-
-    private static String optionalText(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, fieldName + "은 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
+        this.preparationInfo = DomainText.optional(
+                preparationInfo, "준비물 안내는", MAX_PREPARATION_INFO_LENGTH);
+        this.targetAudience = DomainText.optional(
+                targetAudience, "대상 안내는", MAX_TARGET_AUDIENCE_LENGTH);
     }
 
     /** 상황 태그 전체를 바꾼다. 중복은 하나로 합치고 enum 순서로 보관한다. */

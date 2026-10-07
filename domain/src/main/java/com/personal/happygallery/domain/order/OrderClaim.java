@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.order;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -90,7 +91,7 @@ public class OrderClaim {
         this.orderId = orderId;
         this.type = type;
         this.requestedResolution = requestedResolution;
-        this.customerReason = requireText(customerReason, MAX_REASON_LENGTH, "클레임 사유");
+        this.customerReason = DomainText.required(customerReason, "클레임 사유는", MAX_REASON_LENGTH);
         this.requestedAt = requestedAt;
         this.status = OrderClaimStatus.REQUESTED;
     }
@@ -108,7 +109,7 @@ public class OrderClaim {
         if (requestedResolution != OrderClaimResolution.REFUND) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "환불을 요청한 클레임만 환불 승인할 수 있습니다.");
         }
-        this.adminNote = optionalText(adminNote, MAX_ADMIN_NOTE_LENGTH, "관리자 메모");
+        this.adminNote = DomainText.optional(adminNote, "관리자 메모는", MAX_ADMIN_NOTE_LENGTH);
         this.resolvedByAdminId = requireAdminId(adminId);
         this.resolvedAt = resolvedAt;
         this.status = OrderClaimStatus.REFUND_REQUESTED;
@@ -119,7 +120,7 @@ public class OrderClaim {
         if (requestedResolution != OrderClaimResolution.EXCHANGE) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "교환을 요청한 클레임만 교환 승인할 수 있습니다.");
         }
-        this.adminNote = optionalText(adminNote, MAX_ADMIN_NOTE_LENGTH, "관리자 메모");
+        this.adminNote = DomainText.optional(adminNote, "관리자 메모는", MAX_ADMIN_NOTE_LENGTH);
         this.resolvedByAdminId = requireAdminId(adminId);
         this.resolvedAt = resolvedAt;
         this.status = OrderClaimStatus.EXCHANGE_APPROVED;
@@ -127,7 +128,7 @@ public class OrderClaim {
 
     public void reject(Long adminId, String adminNote, LocalDateTime resolvedAt) {
         requireRequested();
-        this.adminNote = requireText(adminNote, MAX_ADMIN_NOTE_LENGTH, "거절 사유");
+        this.adminNote = DomainText.required(adminNote, "거절 사유는", MAX_ADMIN_NOTE_LENGTH);
         this.resolvedByAdminId = requireAdminId(adminId);
         this.completedByAdminId = this.resolvedByAdminId;
         this.resolvedAt = resolvedAt;
@@ -151,11 +152,11 @@ public class OrderClaim {
         if (status != OrderClaimStatus.EXCHANGE_APPROVED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "교환 승인 상태의 클레임만 완료할 수 있습니다.");
         }
-        this.replacementCarrier = requireText(carrier, MAX_DELIVERY_VALUE_LENGTH, "택배사");
+        this.replacementCarrier = DomainText.required(carrier, "택배사는", MAX_DELIVERY_VALUE_LENGTH);
         this.replacementTrackingNumber =
-                requireText(trackingNumber, MAX_DELIVERY_VALUE_LENGTH, "운송장 번호");
+                DomainText.required(trackingNumber, "운송장 번호는", MAX_DELIVERY_VALUE_LENGTH);
         if (adminNote != null && !adminNote.isBlank()) {
-            this.adminNote = optionalText(adminNote, MAX_ADMIN_NOTE_LENGTH, "관리자 메모");
+            this.adminNote = DomainText.optional(adminNote, "관리자 메모는", MAX_ADMIN_NOTE_LENGTH);
         }
         this.completedByAdminId = requireAdminId(adminId);
         this.completedAt = completedAt;
@@ -166,26 +167,6 @@ public class OrderClaim {
         if (status != OrderClaimStatus.REQUESTED) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "접수 상태의 클레임만 처리할 수 있습니다.");
         }
-    }
-
-    private static String requireText(String value, int maxLength, String fieldName) {
-        if (value == null || value.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "은 필수입니다.");
-        }
-        return validatedText(value, maxLength, fieldName);
-    }
-
-    private static String optionalText(String value, int maxLength, String fieldName) {
-        return value != null && !value.isBlank() ? validatedText(value, maxLength, fieldName) : null;
-    }
-
-    private static String validatedText(String value, int maxLength, String fieldName) {
-        String trimmed = value.trim();
-        if (trimmed.length() > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, fieldName + "은 " + maxLength + "자 이하여야 합니다.");
-        }
-        return trimmed;
     }
 
     private static Long requireAdminId(Long adminId) {

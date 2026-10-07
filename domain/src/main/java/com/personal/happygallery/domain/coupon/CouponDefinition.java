@@ -3,6 +3,7 @@ package com.personal.happygallery.domain.coupon;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.payment.PaymentAmountPolicy;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -112,7 +113,7 @@ public class CouponDefinition {
                                  LocalDateTime validUntil,
                                  boolean active,
                                  boolean publiclyClaimable) {
-        this.name = requireName(name);
+        this.name = DomainText.required(name, "쿠폰 이름은", MAX_NAME_LENGTH);
         this.discountType = requireDiscountType(discountType);
         requireAmountRange(minOrderAmount, "최소 주문 금액");
         validateDiscount(discountType, discountValue, maxDiscountAmount);
@@ -200,17 +201,6 @@ public class CouponDefinition {
             throw invalid("쿠폰 할인 방식은 필수입니다.");
         }
         return discountType;
-    }
-
-    private static String requireName(String name) {
-        if (name == null || name.isBlank()) {
-            throw invalid("쿠폰 이름은 필수입니다.");
-        }
-        String normalized = name.strip();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_NAME_LENGTH) {
-            throw invalid("쿠폰 이름은 " + MAX_NAME_LENGTH + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     private static void requirePositiveAmount(long amount, String fieldName) {

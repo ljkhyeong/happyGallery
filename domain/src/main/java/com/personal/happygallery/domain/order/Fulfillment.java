@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.order;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -147,8 +148,8 @@ public class Fulfillment {
     public void recordShipment(ShippingCarrier carrier, String trackingNumber, LocalDateTime now) {
         requireShippingType();
         this.carrier = Objects.requireNonNull(carrier, "carrier must not be null").displayName();
-        this.trackingNumber = requireTrackingText(
-                trackingNumber, "운송장 번호", MAX_TRACKING_NUMBER_LENGTH);
+        this.trackingNumber = DomainText.required(
+                trackingNumber, "운송장 번호는", MAX_TRACKING_NUMBER_LENGTH);
         setTrackingRegistrationPending(carrier);
         this.trackingNextAttemptAt = Objects.requireNonNull(now, "now must not be null");
     }
@@ -264,18 +265,6 @@ public class Fulfillment {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "픽업 마감 시각은 필수입니다.");
         }
         return pickupDeadlineAt;
-    }
-
-    private static String requireTrackingText(String value, String fieldName, int maxLength) {
-        if (value == null || value.isBlank()) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, fieldName + "는 필수입니다.");
-        }
-        String normalized = value.strip();
-        if (normalized.length() > maxLength) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, fieldName + "는 " + maxLength + "자 이하여야 합니다.");
-        }
-        return normalized;
     }
 
     public Long getId() { return id; }
