@@ -51,6 +51,5 @@ public class DefaultOrderShippingAddressService implements OrderShippingAddressU
         String after = protector.encrypt(address);
         fulfillment.changeShippingAddress(after, version);
         changes.save(new ShippingAddressChange(order, before, after, LocalDateTime.now(clock)));
-        fulfillments.save(fulfillment);
     }
 }

@@ -4,7 +4,6 @@ import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.application.notification.ReviewNotificationPublisher;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -32,7 +31,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultOrderShippingService implements OrderShippingUseCase {
 
     private final OrderReaderPort orderReader;
-    private final OrderStorePort orderStore;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderNotificationSupport orderNotificationSupport;
@@ -41,7 +39,6 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     private final Clock clock;
 
     public DefaultOrderShippingService(OrderReaderPort orderReader,
-                                       OrderStorePort orderStore,
                                        FulfillmentPort fulfillmentPort,
                                        OrderHistoryPort orderHistoryPort,
                                        OrderNotificationSupport orderNotificationSupport,
@@ -49,7 +46,6 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
                                        OrderRewardAccrualService rewardAccrualService,
                                        Clock clock) {
         this.orderReader = orderReader;
-        this.orderStore = orderStore;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderNotificationSupport = orderNotificationSupport;
@@ -73,7 +69,6 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PREPARE_SHIPPING, adminId, null));
-        orderStore.save(order);
 
         return ShippingResult.of(order, fulfillment);
     }
@@ -96,8 +91,6 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));
-        fulfillmentPort.save(fulfillment);
-        orderStore.save(order);
         orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_SHIPPED);
 
         return ShippingResult.of(order, fulfillment);
@@ -116,7 +109,6 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELIVER, adminId, null));
-        orderStore.save(order);
         rewardAccrualService.accrueForCompletion(order);
         reviewNotificationPublisher.requestForOrder(order.getUserId(), order.getId());
 

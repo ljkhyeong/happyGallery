@@ -41,7 +41,6 @@ public class DefaultShipmentTrackingWebhookService implements ShipmentTrackingWe
                 continue;
             }
             fulfillment.applyTrackingUpdate(update.status(), update.statusText(), receivedAt);
-            fulfillmentPort.save(fulfillment);
             replaceEvents(update);
         }
     }
