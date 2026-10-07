@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Slot;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -65,7 +66,7 @@ class DefaultBookingCancellationService implements BookingCancellationService {
                 booking.getSlot().getId(), booking.getParticipantCount());
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.CANCELED,
-                slot, null, "SYSTEM", null, "이용권 전체 환불 연동 취소");
+                slot, null, BookingHistoryActor.SYSTEM, null, "이용권 전체 환불 연동 취소");
 
         bookingStore.save(booking);
         log.info("Pass환불 연동 취소 [passId={}, bookingId={}]", passId, booking.getId());

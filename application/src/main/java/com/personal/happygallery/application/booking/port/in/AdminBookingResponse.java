@@ -41,7 +41,7 @@ public record AdminBookingResponse(
     ) {
         return new AdminBookingResponse(
                 booking.getId(),
-                "BK-%08d".formatted(booking.getId()),
+                booking.bookingNumber(),
                 customerSummary,
                 booking.getBookingClass().getName(),
                 booking.getSlot().getStartAt(),

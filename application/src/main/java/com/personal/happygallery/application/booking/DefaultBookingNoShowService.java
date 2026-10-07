@@ -5,6 +5,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -45,7 +46,7 @@ class DefaultBookingNoShowService implements BookingNoShowUseCase {
 
         booking.markNoShow(LocalDateTime.now(clock));
         bookingSupport.recordHistory(booking, BookingHistoryAction.NO_SHOW,
-                booking.getSlot(), null, "ADMIN", adminId, null);
+                booking.getSlot(), null, BookingHistoryActor.ADMIN, adminId, null);
         return bookingStore.save(booking);
     }
 }

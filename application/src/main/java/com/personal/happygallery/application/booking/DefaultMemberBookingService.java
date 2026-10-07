@@ -40,14 +40,6 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     @Override
     public Booking createMemberDepositBooking(Long userId, Long slotId,
                                                DepositPaymentMethod paymentMethod,
-                                               long depositAmount, long balanceAmount) {
-        return createMemberDepositBooking(
-                userId, slotId, paymentMethod, depositAmount, balanceAmount, 1);
-    }
-
-    @Override
-    public Booking createMemberDepositBooking(Long userId, Long slotId,
-                                               DepositPaymentMethod paymentMethod,
                                                long depositAmount, long balanceAmount,
                                                int participantCount) {
         User user = requireBookableMember(userId);
@@ -59,11 +51,6 @@ public class DefaultMemberBookingService implements MemberBookingUseCase {
     }
 
     /** 회원이 소유한 이용권 크레딧으로 예약을 생성한다. */
-    @Override
-    public Booking createMemberPassBooking(Long userId, Long slotId, Long passId) {
-        return createMemberPassBooking(userId, slotId, passId, 1);
-    }
-
     @Override
     public Booking createMemberPassBooking(
             Long userId, Long slotId, Long passId, int participantCount) {

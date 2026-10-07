@@ -7,6 +7,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreInventor
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.StockCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncPort;
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
@@ -17,12 +18,8 @@ import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.SmartStoreStockMapping;
 import com.personal.happygallery.domain.product.SmartStoreStockSync;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -228,12 +225,7 @@ class SmartStoreStockSyncTransactionService {
                     .collect(Collectors.joining(","));
             String state = productId + "|" + productVersion + "|" + originProductNo
                     + "|" + salePrice + "|" + targetStatus + "|" + mappingIds + "|" + optionState;
-            try {
-                return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                        .digest(state.getBytes(StandardCharsets.UTF_8)));
-            } catch (NoSuchAlgorithmException exception) {
-                throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
-            }
+            return Sha256.hex(state);
         }
     }
 

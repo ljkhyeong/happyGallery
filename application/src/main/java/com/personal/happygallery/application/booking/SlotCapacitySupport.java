@@ -80,13 +80,10 @@ class SlotCapacitySupport {
         }
     }
 
-    /** 슬롯을 잠근 뒤 활성 상태를 재확인하고 정원을 확보한다. 첫 예약이면 충돌 회차를 차단한다. */
-    @Transactional(propagation = Propagation.MANDATORY)
-    Slot reserveCapacity(Long slotId) {
-        return reserveCapacity(slotId, 1);
-    }
-
-    /** 슬롯을 잠근 뒤 예약 인원 전체의 정원을 확보한다. */
+    /**
+     * 슬롯을 잠근 뒤 활성 상태를 재확인하고 예약 인원 전체의 정원을 확보한다.
+     * 첫 예약이면 충돌 회차를 차단한다.
+     */
     @Transactional(propagation = Propagation.MANDATORY)
     Slot reserveCapacity(Long slotId, int participantCount) {
         LockedSlotScope locked = lockCapacityScope(slotId);
@@ -113,11 +110,6 @@ class SlotCapacitySupport {
 
     /** 슬롯을 잠근 뒤 정원을 반납한다. 마지막 예약이면 뒤쪽 버퍼 차단을 해제한다. */
     @Transactional(propagation = Propagation.MANDATORY)
-    Slot releaseCapacity(Long slotId) {
-        return releaseCapacity(slotId, 1);
-    }
-
-    @Transactional(propagation = Propagation.MANDATORY)
     Slot releaseCapacity(Long slotId, int participantCount) {
         return releaseCapacity(lockCapacityScope(slotId), participantCount);
     }
@@ -132,12 +124,6 @@ class SlotCapacitySupport {
                     "신규 접수를 중단한 비활성 슬롯만 수업을 취소할 수 있습니다.");
         }
         return locked;
-    }
-
-    /** 이미 잠근 수업 슬롯에서 예약 한 건의 정원을 반납한다. */
-    @Transactional(propagation = Propagation.MANDATORY)
-    Slot releaseCapacity(LockedSlotScope locked) {
-        return releaseCapacity(locked, 1);
     }
 
     /** 이미 잠근 슬롯에서 예약 인원 전체의 정원을 반납한다. */

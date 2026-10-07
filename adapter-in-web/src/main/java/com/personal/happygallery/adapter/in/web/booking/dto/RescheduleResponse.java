@@ -19,7 +19,7 @@ public record RescheduleResponse(
     public static RescheduleResponse from(Booking booking) {
         return new RescheduleResponse(
                 booking.getId(),
-                "BK-%08d".formatted(booking.getId()),
+                booking.bookingNumber(),
                 booking.getSlot().getId(),
                 booking.getSlot().getStartAt(),
                 booking.getSlot().getEndAt(),

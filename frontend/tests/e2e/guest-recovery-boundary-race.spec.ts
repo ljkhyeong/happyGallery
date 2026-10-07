@@ -88,8 +88,6 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
       await fulfillJson(route, {
         accessToken: "must-be-rolled-back",
         expiresAt: "2099-08-08T12:00:00",
-        orders: [],
-        bookings: [],
       });
       return;
     }

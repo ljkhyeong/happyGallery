@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.Duration;
@@ -29,7 +30,7 @@ class GuestTokenServiceTest {
                 issued.rawToken(), ACTIVE_SECRET, NOW);
 
         assertSoftly(softly -> {
-            softly.assertThat(issued.tokenHash()).isEqualTo(AccessTokenHasher.hash(issued.rawToken()));
+            softly.assertThat(issued.tokenHash()).isEqualTo(Sha256.hex(issued.rawToken()));
             softly.assertThat(claims.expiry()).isEqualTo(NOW.plus(Duration.ofDays(30)));
         });
         assertThatThrownBy(() -> AccessTokenSigner.verify(issued.rawToken(), PREVIOUS_SECRET, NOW))
@@ -102,6 +103,23 @@ class GuestTokenServiceTest {
 
         assertThatThrownBy(() -> service.resolveTokenHash(legacyToken))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @DisplayName("저장 해시 대조는 서명·만료가 유효하고 전체 토큰 해시가 같을 때만 성공한다")
+    @Test
+    void matches_requiresValidSignatureAndSameHash() {
+        GuestTokenService service = service(ACTIVE_SECRET, PREVIOUS_SECRET);
+        GuestTokenService.IssuedToken issued = service.issue();
+        AccessTokenSigner.SignedToken unknownToken = AccessTokenSigner.sign(
+                NOW.plus(Duration.ofHours(1)), UNKNOWN_SECRET);
+
+        assertSoftly(softly -> {
+            softly.assertThat(service.matches(issued.rawToken(), issued.tokenHash())).isTrue();
+            softly.assertThat(service.matches(issued.rawToken(), Sha256.hex("other"))).isFalse();
+            softly.assertThat(service.matches(unknownToken.rawToken(), unknownToken.tokenHash())).isFalse();
+            softly.assertThat(service.matches(null, issued.tokenHash())).isFalse();
+            softly.assertThat(service.matches(issued.rawToken(), null)).isFalse();
+        });
     }
 
     private GuestTokenService service(String activeSecret, String previousSecret) {

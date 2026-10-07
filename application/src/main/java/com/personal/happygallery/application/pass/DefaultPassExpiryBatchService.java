@@ -53,7 +53,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> passPurchaseReader.findExpiredWithRemainingCreditsAfterId(
-                        now, 0, afterId, PAGE_SIZE),
+                        now, afterId, PAGE_SIZE),
                 PassPurchase::getId,
                 pass -> passExpireProcessor.process(pass.getId()),
                 "이용권 만료");
@@ -70,7 +70,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
 
         return BatchExecutor.executeByIdCursor(
                 afterId -> reminderCandidatePort.findUnnotifiedExpiringAfterId(
-                        now, now.plusDays(7), 0, afterId, PAGE_SIZE),
+                        now, now.plusDays(7), afterId, PAGE_SIZE),
                 PassExpiryReminderTarget::passId,
                 this::requestExpiryNotification,
                 "이용권 만료 알림");

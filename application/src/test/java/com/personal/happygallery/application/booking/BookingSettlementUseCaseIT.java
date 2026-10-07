@@ -1,20 +1,21 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.booking.port.in.BookingSettlementUseCase;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
-import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
@@ -50,9 +51,9 @@ class BookingSettlementUseCaseIT {
     @Autowired BookingReaderPort bookingReaderPort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired ClassStorePort classStorePort;
-    @Autowired SlotReaderPort slotReaderPort;
+    @Autowired SlotRepository slotRepository;
     @Autowired SlotStorePort slotStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired BookingHistoryRepository bookingHistoryRepository;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
@@ -75,7 +76,7 @@ class BookingSettlementUseCaseIT {
                 LocalDateTime.now(clock).minusHours(1)));
         slot.incrementBookedCount();
         slotStorePort.save(slot);
-        Guest guest = guestStorePort.save(guest("미수 고객", "01011112222"));
+        Guest guest = guestRepository.save(guest("미수 고객", "01011112222"));
         Booking booking = bookingStorePort.save(booking(
                 guest, slot, 5_000L, 45_000L, DepositPaymentMethod.CARD, accessToken()));
 
@@ -93,7 +94,7 @@ class BookingSettlementUseCaseIT {
         settlementUseCase.updateArrears(booking.getId(), false, ADMIN_ID);
 
         Booking settled = bookingReaderPort.findById(booking.getId()).orElseThrow();
-        Slot occupiedSlot = slotReaderPort.findById(slot.getId()).orElseThrow();
+        Slot occupiedSlot = slotRepository.findById(slot.getId()).orElseThrow();
         List<BookingHistory> histories = bookingHistoryRepository.findAll().stream()
                 .sorted(comparing(BookingHistory::getId))
                 .toList();
@@ -113,7 +114,8 @@ class BookingSettlementUseCaseIT {
                             BookingHistoryAction.BALANCE_PAID,
                             BookingHistoryAction.ARREARS_CLEARED);
             softly.assertThat(histories)
-                    .allSatisfy(history -> softly.assertThat(history.getActor()).isEqualTo("ADMIN"));
+                    .allSatisfy(history -> softly.assertThat(history.getActor())
+                            .isEqualTo(BookingHistoryActor.ADMIN));
             softly.assertThat(histories)
                     .allSatisfy(history -> softly.assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID));
         });

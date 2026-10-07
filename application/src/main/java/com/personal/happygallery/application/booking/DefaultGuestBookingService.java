@@ -72,16 +72,7 @@ public class DefaultGuestBookingService implements GuestBookingUseCase {
         return pv;
     }
 
-    /** 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */
-    @Override
-    public GuestBookingResult createGuestBooking(CreateGuestBookingCommand command) {
-        Guest guest = verifiedGuestResolver.resolveWithVerificationCode(
-                command.phone(), command.code(), command.name());
-        return createBooking(
-                guest, command.slotId(), command.paymentMethod(),
-                command.depositAmount(), command.balanceAmount(), 1);
-    }
-
+    /** 결제 확정 후 게스트 예약을 생성한다. 비회원은 예약금 결제만 허용한다. */
     @Override
     public GuestBookingResult createPaymentGuestBooking(CreatePaymentGuestBookingCommand command) {
         Guest guest = verifiedGuestResolver.resolveWithPaymentProof(

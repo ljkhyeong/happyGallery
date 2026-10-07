@@ -1,6 +1,6 @@
 package com.personal.happygallery.support;
 
-import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
+import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.Booking;
@@ -21,6 +21,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -33,7 +34,7 @@ public final class TestFixtures {
     private static final String TEST_HMAC_KEY =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
     private static final FieldEncryptor TEST_FIELD_ENCRYPTOR =
-            new SpringSecurityFieldEncryptor(HexFormat.of().parseHex(TEST_ENCRYPT_KEY));
+            new VersionedFieldEncryptor("v1", Map.of("v1", HexFormat.of().parseHex(TEST_ENCRYPT_KEY)));
     private static final BlindIndexer TEST_BLIND_INDEXER =
             new BlindIndexer(HexFormat.of().parseHex(TEST_HMAC_KEY));
 

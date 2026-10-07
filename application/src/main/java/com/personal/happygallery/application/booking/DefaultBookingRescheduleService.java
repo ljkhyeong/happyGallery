@@ -11,6 +11,7 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.time.TimeBoundary;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.Clock;
@@ -104,7 +105,7 @@ public class DefaultBookingRescheduleService implements BookingRescheduleUseCase
         booking.reschedule(newSlot);
 
         bookingSupport.recordHistory(booking, BookingHistoryAction.RESCHEDULED,
-                oldSlot, newSlot, "CUSTOMER", null, null);
+                oldSlot, newSlot, BookingHistoryActor.CUSTOMER, null, null);
 
         Booking saved = bookingStorePort.save(booking);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_RESCHEDULED);

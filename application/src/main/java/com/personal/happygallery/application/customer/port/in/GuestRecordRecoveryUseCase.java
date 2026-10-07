@@ -7,7 +7,6 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
 
 /** 휴대폰 번호 인증을 거쳐 만료된 비회원 주문·예약 접근 권한을 복구한다. */
 public interface GuestRecordRecoveryUseCase {
@@ -20,15 +19,8 @@ public interface GuestRecordRecoveryUseCase {
     CursorPage<RecoveredBooking> listRecoveredBookings(
             String accessToken, String cursor, int size);
 
-    record RecoveryResult(String accessToken,
-                          Instant expiresAt,
-                          List<RecoveredOrder> orders,
-                          List<RecoveredBooking> bookings) {
-        public RecoveryResult {
-            orders = List.copyOf(orders);
-            bookings = List.copyOf(bookings);
-        }
-    }
+    /** 새 복구 토큰. 복구한 주문·예약은 커서 페이지 조회로 읽는다. */
+    record RecoveryResult(String accessToken, Instant expiresAt) {}
 
     record RecoveredOrder(Long orderId, String status, long totalAmount, OffsetDateTime createdAt) {
         public static RecoveredOrder from(Order order) {

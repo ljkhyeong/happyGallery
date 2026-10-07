@@ -54,7 +54,7 @@ public class DefaultBookingCancellationTaskService implements BookingCancellatio
         return new TaskView(
                 task.getId(),
                 booking.getId(),
-                "BK-%08d".formatted(booking.getId()),
+                booking.bookingNumber(),
                 task.getType(),
                 task.getStatus(),
                 booking.getBookingClass().getName(),

@@ -97,13 +97,12 @@
 2. [`rotate-data-keys.sh`](../../../deploy/k3s/scripts/rotate-data-keys.sh)가 app을 0 replica로 축소하고 Pod 종료를 확인한 뒤 fresh off-device 암호화 백업을 생성하고 checksum을 검증한다.
 3. 스크립트는 현재 app digest와 같은 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하는 임시 유지보수 Job에만 새 active·구 previous 키를 주입한다. Job은 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 ingress를 받지 않는다. 회전 runner는 `data_key_rotation_lock` 단일 행을 트랜잭션 잠금으로 선점하고 600초 제한의 단일 트랜잭션에서 AES 재암호화, HMAC 재생성과 `phone_verifications`·`email_verifications` 전량 삭제를 수행한 뒤 context를 닫는다.
 4. Job이 성공한 뒤에만 runtime Secret을 새 active·구 previous 키로 전환하고 백업명·키 ID·비회원 토큰 제거 가능 시각을 annotation으로 기록한다. 이어 Redis를 비워 관리자·회원 세션과 처리율 제한 상태를 초기화하고 app을 새 keyring으로 기동한다. 진행 중이던 휴대폰·이메일 인증과 전체 로그인 세션이 무효화되는 점을 유지보수 공지에 포함한다.
-5. `provider_id_enc IS NULL`인 기존 소셜 계정은 previous HMAC 후보로 로그인할 때 active AES/HMAC으로 lazy backfill한다. 이 건수가 0이 되기 전에는 previous HMAC 키를 유지한다.
-6. 비회원 토큰 previous 키는 runtime 전환 시각부터 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값에 1시간의 운영 여유를 더한 시각까지 유지한다. 기본 결제 상태 조회 TTL 720시간에서는 최소 721시간이다. 이 키는 결제 prepare의 비회원 인증 증거도 서명하므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제 시도가 남아 있으면 기간이 지나도 제거하지 않는다.
-7. 운영자는 새 키 기준 백업과 복원 가능성을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)를 실행한다. finalizer는 비회원 토큰 유예, `provider_id_enc IS NULL` 0건, 회전 경계 전 fulfillment 가능 비회원 결제 0건을 확인하고 app을 다시 0 replica로 축소한 뒤 같은 조건을 재검사해 runtime previous 키를 제거한다. 보존 중인 과거 백업에 필요한 키는 분리 복구 저장소에서 해당 백업과 같은 기간 유지한다.
+5. 비회원 토큰 previous 키는 runtime 전환 시각부터 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값에 1시간의 운영 여유를 더한 시각까지 유지한다. 기본 결제 상태 조회 TTL 720시간에서는 최소 721시간이다. 이 키는 결제 prepare의 비회원 인증 증거도 서명하므로, 회전 경계 전에 준비되어 아직 fulfillment 가능한 결제 시도가 남아 있으면 기간이 지나도 제거하지 않는다.
+6. 운영자는 새 키 기준 백업과 복원 가능성을 확인한 뒤 [`finalize-data-key-rotation.sh`](../../../deploy/k3s/scripts/finalize-data-key-rotation.sh)를 실행한다. finalizer는 비회원 토큰 유예, 회전 경계 전 fulfillment 가능 비회원 결제 0건을 확인하고 app을 다시 0 replica로 축소한 뒤 같은 조건을 재검사해 runtime previous 키를 제거한다. 보존 중인 과거 백업에 필요한 키는 분리 복구 저장소에서 해당 백업과 같은 기간 유지한다.
 
 스크립트는 runtime Secret의 `runtime-transitioned`, `completed`, `finalized` phase annotation으로 같은 target 키에 대한 재실행과 finalization 조건을 구분한다. 회전 또는 검증이 실패하면 새·구 키를 모두 보존하고 app을 0 replica로 유지한다. 트랜잭션 롤백 여부, MySQL 상태와 백업 복원 필요성을 확인하기 전에는 정상 app을 다시 기동하거나 previous 키를 제거하지 않는다.
 
-현재 서비스는 운영 미개시이므로 version-aware reader를 포함한 이 release를 최초 운영 기준선으로 사용한다. 접두사 없는 암호문만 지원하는 binary가 실제 운영 중인 환경에 같은 변경을 적용한다면 version-aware reader 선배포와 versioned write 전환을 분리해야 한다. `hg:<keyId>:` 쓰기 이후 구 binary 단독 rollback은 허용하지 않고 forward fix 또는 호환 키와 회전 전 DB 백업 복원을 사용한다.
+현재 서비스는 운영 미개시이고 보존할 데이터가 없으므로 `hg:<keyId>:` 암호문만 읽는 release를 최초 운영 기준선으로 사용한다. 접두사 없는 암호문은 읽지 않는다. 구 binary 단독 rollback은 허용하지 않고 forward fix 또는 호환 키와 회전 전 DB 백업 복원을 사용한다.
 
 ### 6. 이미지는 불변 식별자로 배포하고 이전 버전을 보존한다
 

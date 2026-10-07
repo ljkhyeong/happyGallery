@@ -135,9 +135,8 @@ Kubernetes Secret은 base64 인코딩이며 자체 암호화가 아니다. k3s �
 
 데이터 암호화 키는 다음 순서로 교체한다.
 
-1. 키링과 `provider_id_enc`를 지원하는 app 이미지를 먼저 배포한다. 아직 운영을 시작하지 않았으므로 이 버전부터 운영에 사용한다.
-2. 별도 환경에서 접두사 없는 암호문만 읽는 구버전을 운영 중이라면, 트래픽을 받기 전에 키 버전을 읽을 수 있는 애플리케이션을 배포한다.
-3. 새 키 파일과 기존 `backup.env`를 모두 600 권한으로 준비한다. 이전 키와 새 키의 복구 사본이 DB 백업과 분리돼 있는지 확인한 뒤 유지보수 시간에 교체한다.
+1. 키링을 지원하는 app 이미지를 먼저 배포한다. 아직 운영을 시작하지 않았으므로 이 버전부터 운영에 사용한다.
+2. 새 키 파일과 기존 `backup.env`를 모두 600 권한으로 준비한다. 이전 키와 새 키의 복구 사본이 DB 백업과 분리돼 있는지 확인한 뒤 유지보수 시간에 교체한다.
 
 `hg:<keyId>:` 형식으로 저장하기 시작한 뒤에는 구버전 이미지로만 되돌릴 수 없다. 수정 버전을 배포하거나 키 교체 전 백업을 복원한다. key ID는 보관 중인 백업의 키를 식별하므로 다른 키에 재사용하지 않는다.
 
@@ -164,7 +163,7 @@ CONFIRM_DATA_KEY_ROTATION=rotate-happygallery-data-keys \
 
 기존 데이터와 이전 키는 다음과 같이 처리한다.
 
-- 소셜 계정의 `provider_id_enc`와 새 HMAC은 다음 OAuth 로그인 때 채운다.
+- 소셜 계정의 `provider_id_enc`와 HMAC은 Job이 새 키로 다시 만든다.
 - 비회원 결제 휴대폰 HMAC은 암호화 payload가 남아 있으면 Job이 새 키로 생성한다. payload가 삭제된 행은 이전 HMAC과 키 ID를 30일 보존 후 정리할 때까지 유지한다.
 - 이전 비회원 토큰 검증 키는 일반·복구·결제 상태 조회 토큰 TTL 중 최댓값(기본 720시간)에 1시간을 더한 시각까지 유지한다.
 - 키 교체 전에 준비된 비회원 결제 중 아직 주문·예약을 생성할 수 있는 결제가 있다면, 모두 완료되거나 보상 환불·대사가 끝날 때까지 기다린다. 토큰 보존기한과 결제 처리 조건을 모두 충족한 뒤 previous AES/HMAC/guest 키를 함께 제거한다.
@@ -176,7 +175,6 @@ CONFIRM_DATA_KEY_FINALIZATION=finalize-happygallery-data-keys \
 
 finalize는 다음 항목이 모두 0건이고 이전 비회원 토큰의 보존기한이 지났는지 확인한다.
 
-- `user_social_accounts.provider_id_enc IS NULL`인 소셜 계정
 - active 키 ID를 사용하지 않는 `payment_attempt.owner_phone_hmac`과 `admin_user.totp_secret_enc`
 - 키 교체 전에 준비됐으며 아직 주문·예약을 생성할 수 있는 비회원 결제
 

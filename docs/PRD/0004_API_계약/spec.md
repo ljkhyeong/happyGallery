@@ -3060,7 +3060,7 @@ Cookie: HG_SESSION={sessionToken}
   - `409 LOCAL_PASSWORD_NOT_SET` — 소셜 로그인만 사용하는 회원
   - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
 - 정책:
-  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 롤백 호환 기간에는 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽고 식별자 없는 형식으로 쓴다.
+  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 해시는 식별자 없는 BCrypt 형식 하나로 저장·검증한다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
   - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 회원은 먼저 2.12.0.5.2에서 이메일을 등록한다.
 
@@ -4013,23 +4013,17 @@ Content-Type: application/json
 ```json
 {
   "accessToken": "signed-token",
-  "expiresAt": "2026-07-22T10:00:00Z",
-  "orders": [
-    { "orderId": 12, "status": "PAID_APPROVAL_PENDING", "totalAmount": 39000, "createdAt": "2026-07-20T01:00:00Z" }
-  ],
-  "bookings": [
-    { "bookingId": 21, "status": "BOOKED", "className": "도자기 정규반", "startAt": "2026-07-25T10:00:00", "endAt": "2026-07-25T12:00:00" }
-  ]
+  "expiresAt": "2026-07-22T10:00:00Z"
 }
 ```
 
 - 기존 인증 코드 발송 API로 SMS 인증을 시작한다. 성공 시 인증 코드를 한 번 소비하고 같은 비회원의 모든 주문·예약에 새 복구 토큰 해시를 저장한다.
-- 복구 토큰 기본 수명은 24시간이다. 응답에 포함된 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
-- 응답의 `accessToken`, `expiresAt`, `orders`, `bookings`와 각 주문·예약 요약 필드는 항상 존재한다. 대상이 없으면 목록을 생략하지 않고 빈 배열로 반환하며, 기존 응답 배열은 유형별 최신 100건으로 제한한다.
-- 전체 복구 이력은 같은 토큰을 `X-Access-Token`으로 보내 `GET /api/v1/guest-records/recovery/orders?cursor={cursor}&size=20`와 `GET /api/v1/guest-records/recovery/bookings?cursor={cursor}&size=20`에서 `{content,nextCursor,hasMore}`로 조회한다. `size`는 1~100이고 `(createdAt,id)` 내림차순 커서를 사용한다.
+- 복구 토큰 기본 수명은 24시간이다. 복구한 모든 대상에 같은 `X-Access-Token`을 사용하며 교체 직후 이전 토큰은 무효다.
+- 응답의 `accessToken`, `expiresAt`은 항상 존재한다. 응답에는 주문·예약 목록을 넣지 않는다.
+- 복구 이력은 같은 토큰을 `X-Access-Token`으로 보내 `GET /api/v1/guest-records/recovery/orders?cursor={cursor}&size=20`와 `GET /api/v1/guest-records/recovery/bookings?cursor={cursor}&size=20`에서 `{content,nextCursor,hasMore}`로 조회한다. `size`는 1~100이고 `(createdAt,id)` 내림차순 커서를 사용한다.
 - 토큰 교체는 주문·예약 엔티티를 전부 로드하지 않고 guest ID 기준 bulk update로 수행하며 낙관적 락 버전도 함께 증가시킨다. 하나의 복구 토큰은 같은 비회원의 여러 이력에 공유되므로 DB는 토큰을 UNIQUE로 제한하지 않고 `(access_token,created_at,id)` 조회 인덱스를 둔다.
 - 프론트는 복구 결과와 토큰을 만료 시각까지만 현재 브라우저 탭의 `sessionStorage`에 보관하고 현재 고객 세션 경계에 결합한다. 저장 도중 로그인·로그아웃·계정 전환으로 경계가 바뀌면 방금 저장한 값과 일치할 때만 compare-and-delete로 제거하며 메모리의 복구 화면도 폐기한다. 주문·예약 ID는 URL 쿼리로 전달하고 토큰은 URL에 넣지 않아, 같은 고객 세션의 목록 이동과 새로고침 뒤에만 복구 세션을 이어간다.
-- 같은 전화번호의 비회원이 없어도 존재 여부 오류 대신 새 토큰과 빈 목록을 반환한다.
+- 같은 전화번호의 비회원이 없어도 존재 여부 오류 대신 새 토큰을 반환하고, 커서 API는 빈 목록을 반환한다.
 - IP와 전화번호별 처리율 제한은 Redis 장애 시 fail-closed로 동작한다.
 
 ### 2.19 공방 프로필·이미지 미디어

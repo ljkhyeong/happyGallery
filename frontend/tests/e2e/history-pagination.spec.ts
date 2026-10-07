@@ -274,13 +274,6 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
       await fulfillJson(route, {
         accessToken: "canonical-recovery-token",
         expiresAt: "2099-08-08T12:00:00",
-        orders: [{
-          orderId: 999,
-          status: "DELIVERED",
-          totalAmount: 99900,
-          createdAt: "2026-08-08T12:00:00",
-        }],
-        bookings: [],
       });
       return;
     }
@@ -331,7 +324,6 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
   await recoveryCard.getByRole("button", { name: "조회 코드 재발급" }).click();
 
   await expect(recoveryCard.getByText("주문 #701")).toBeVisible();
-  await expect(recoveryCard.getByText("주문 #999")).toHaveCount(0);
   await recoveryCard.getByRole("button", { name: "비회원 주문 더 보기" }).click();
   await expect(recoveryCard.getByText("주문 #702")).toBeVisible();
   await expect(recoveryCard.getByText("비회원 주문 · 불러온 2건")).toBeVisible();

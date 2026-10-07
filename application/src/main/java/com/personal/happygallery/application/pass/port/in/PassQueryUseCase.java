@@ -15,8 +15,6 @@ public interface PassQueryUseCase {
 
     List<PassView> listMyPasses(Long userId);
 
-    CursorPage<PassView> listMyPasses(Long userId, String cursor, int size);
-
     CursorPage<PassView> listMyPasses(Long userId, PassHistoryQuery query, String cursor, int size);
 
     PassView findMyPass(Long id, Long userId);

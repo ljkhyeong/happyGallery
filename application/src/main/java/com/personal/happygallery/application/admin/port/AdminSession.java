@@ -13,8 +13,6 @@ public record AdminSession(
         Instant createdAt
 ) {
     public AdminSession {
-        // 배포 전 생성된 Redis 세션 payload에는 인증 수단이 없으므로 최소 권한으로 해석한다.
-        authenticationMethod = Objects.requireNonNullElse(
-                authenticationMethod, AdminAuthenticationMethod.PASSWORD);
+        Objects.requireNonNull(authenticationMethod, "관리자 인증 수단은 필수입니다.");
     }
 }

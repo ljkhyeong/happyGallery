@@ -109,6 +109,7 @@ final class RestDocsFixtures {
 
         Booking booking = mock(Booking.class);
         when(booking.getId()).thenReturn(100L);
+        when(booking.bookingNumber()).thenReturn("BK-00000100");
         when(booking.getSlot()).thenReturn(slot);
         when(booking.getBookingClass()).thenReturn(bookingClass);
         when(booking.getStatus()).thenReturn(BookingStatus.BOOKED);

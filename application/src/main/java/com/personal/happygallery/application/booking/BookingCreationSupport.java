@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
@@ -14,7 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 회원·비회원 예약 생성의 공통 처리.
+ * 회원·비회원 예약과 관리자 예약 등록의 공통 처리.
  *
  * <p>슬롯 확보, 예약금 결제 수단 검증, 예약 저장과 완료 후 처리를 담당한다.
  */
@@ -56,7 +57,9 @@ class BookingCreationSupport {
     /** BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Booking complete(Booking booking, Slot slot) {
-        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null, null);
+        bookingSupport.recordHistory(
+                booking, BookingHistoryAction.BOOKED, null, slot,
+                BookingHistoryActor.CUSTOMER, null, null);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
         return booking;
     }

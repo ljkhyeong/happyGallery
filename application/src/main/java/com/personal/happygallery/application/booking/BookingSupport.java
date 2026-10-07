@@ -6,6 +6,7 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -65,7 +66,7 @@ class BookingSupport {
 
     @Transactional(propagation = Propagation.MANDATORY)
     void recordHistory(Booking booking, BookingHistoryAction action,
-                       Slot oldSlot, Slot newSlot, String actor, Long adminUserId, String reason) {
+                       Slot oldSlot, Slot newSlot, BookingHistoryActor actor, Long adminUserId, String reason) {
         bookingHistoryPort.save(
                 new BookingHistory(booking, action, oldSlot, newSlot, actor, adminUserId, reason));
     }

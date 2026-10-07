@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** AES 암호문에 키 ID를 기록하고 이전 키로 만든 암호문도 읽는 필드 암호화기. */
+/** AES 암호문에 키 ID를 기록하고, 키링의 이전 키 ID로 기록된 암호문도 읽는 필드 암호화기. */
 public final class VersionedFieldEncryptor implements FieldEncryptor {
 
     private static final String PREFIX = "hg:";
@@ -37,10 +37,10 @@ public final class VersionedFieldEncryptor implements FieldEncryptor {
         if (encrypted == null) {
             throw new IllegalArgumentException("암호문은 필수입니다.");
         }
-        if (encrypted.startsWith(PREFIX)) {
-            return decryptVersioned(encrypted);
+        if (!encrypted.startsWith(PREFIX)) {
+            throw new IllegalStateException("암호문 키 버전 형식이 올바르지 않습니다.");
         }
-        return decryptLegacy(encrypted);
+        return decryptVersioned(encrypted);
     }
 
     public String reencrypt(String encrypted) {
@@ -74,18 +74,6 @@ public final class VersionedFieldEncryptor implements FieldEncryptor {
             throw new IllegalStateException("암호문에 필요한 키를 찾을 수 없습니다: " + keyId);
         }
         return encryptor.decrypt(encrypted.substring(keyIdEnd + 1));
-    }
-
-    private String decryptLegacy(String encrypted) {
-        IllegalStateException lastFailure = null;
-        for (FieldEncryptor encryptor : encryptors.values()) {
-            try {
-                return encryptor.decrypt(encrypted);
-            } catch (IllegalStateException e) {
-                lastFailure = e;
-            }
-        }
-        throw new IllegalStateException("등록된 키로 레거시 암호문을 복호화할 수 없습니다.", lastFailure);
     }
 
     private static String prefix(String keyId) {

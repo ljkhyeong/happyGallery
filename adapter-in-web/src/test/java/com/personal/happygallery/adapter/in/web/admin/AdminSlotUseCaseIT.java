@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
-import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
@@ -35,7 +35,7 @@ class AdminSlotUseCaseIT {
 
     @Autowired WebApplicationContext context;
     @Autowired ClassStorePort classStorePort;
-    @Autowired SlotReaderPort slotReaderPort;
+    @Autowired SlotRepository slotRepository;
     @Autowired SlotStorePort slotStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -153,7 +153,7 @@ class AdminSlotUseCaseIT {
                 .andExpect(jsonPath("$.isActive").value(false));
 
         // then — DB 상태 확인
-        assertThat(slotReaderPort.findById(slotId))
+        assertThat(slotRepository.findById(slotId))
                 .hasValueSatisfying(slot -> assertThat(slot.isActive()).isFalse());
 
         mockMvc.perform(patch("/api/v1/admin/slots/{id}/activate", slotId)

@@ -240,7 +240,7 @@ class PassCreditUsageUseCaseIT {
                     ready.countDown();
                     start.await();
                     return memberBookingUseCase.createMemberPassBooking(
-                            pass.getUserId(), slotId, pass.getId());
+                            pass.getUserId(), slotId, pass.getId(), 1);
                 }));
             }
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();

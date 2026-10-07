@@ -69,44 +69,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
     Optional<Booking> findDetailByIdAndAccessToken(@Param("id") Long id,
                                                    @Param("accessToken") String accessToken);
 
-    /** 회원 — 자기 예약 조회 (생성 시각 내림차순) */
-    @Query("""
-            SELECT b FROM Booking b
-            JOIN FETCH b.bookingClass
-            JOIN FETCH b.slot
-            WHERE b.userId = :userId
-            ORDER BY b.createdAt DESC, b.id DESC
-            """)
-    List<Booking> findByUserIdWithDetailsPage(
-            @Param("userId") Long userId, Pageable pageable);
-
-    @Query("""
-            SELECT b FROM Booking b
-            JOIN FETCH b.bookingClass
-            JOIN FETCH b.slot
-            WHERE b.userId = :userId
-              AND (b.createdAt < :createdAt
-                   OR (b.createdAt = :createdAt AND b.id < :id))
-            ORDER BY b.createdAt DESC, b.id DESC
-            """)
-    List<Booking> findByUserIdWithDetailsAfterPage(
-            @Param("userId") Long userId,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
-            Pageable pageable);
-
-    @Override
-    default List<Booking> findByUserIdWithDetails(Long userId, int limit) {
-        return findByUserIdWithDetailsPage(userId, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<Booking> findByUserIdWithDetailsAfter(
-            Long userId, LocalDateTime createdAt, Long id, int limit) {
-        return findByUserIdWithDetailsAfterPage(
-                userId, createdAt, id, PageRequest.ofSize(limit));
-    }
-
     @Query("""
             SELECT CASE WHEN COUNT(b) > 0 THEN true ELSE false END
             FROM Booking b

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.ErrorCode;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,7 @@ class AccessTokenSignerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(claims.expiry()).isEqualTo(expiry);
-            softly.assertThat(signed.tokenHash()).isEqualTo(AccessTokenHasher.hash(signed.rawToken()));
+            softly.assertThat(signed.tokenHash()).isEqualTo(Sha256.hex(signed.rawToken()));
         });
     }
 

@@ -1,9 +1,9 @@
 package com.personal.happygallery.application.customer;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.domain.booking.Booking;
@@ -36,7 +36,7 @@ class OwnerConstraintUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired OrderStorePort orderStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired TestCleanupSupport cleanupSupport;
 
@@ -56,7 +56,7 @@ class OwnerConstraintUseCaseIT {
     void ownerConstraints_rejectMissingOrDuplicateOwners() {
         User member = userStorePort.save(
                 new User("owner-constraint@test.local", "password-hash", "소유자 테스트 회원", "01011110000"));
-        Guest guestOwner = guestStorePort.save(guest("소유자 테스트 비회원", "01022220000"));
+        Guest guestOwner = guestRepository.save(guest("소유자 테스트 비회원", "01022220000"));
 
         LocalDateTime startAt = LocalDateTime.of(2030, 1, 2, 10, 0);
         BookingClass bookingClass = classStorePort.save(

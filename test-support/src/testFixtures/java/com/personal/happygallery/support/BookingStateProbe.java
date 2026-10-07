@@ -3,11 +3,11 @@ package com.personal.happygallery.support;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.application.booking.port.out.BookingHistoryPort;
 import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
-import com.personal.happygallery.application.booking.port.out.SlotReaderPort;
+import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.BookingRepository;
 import com.personal.happygallery.adapter.out.persistence.booking.RefundRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.SlotRepository;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -16,20 +16,20 @@ public class BookingStateProbe {
 
     private final BookingReaderPort bookingReaderPort;
     private final BookingRepository bookingRepository;
-    private final BookingHistoryPort bookingHistoryPort;
+    private final BookingHistoryRepository bookingHistoryRepository;
     private final RefundRepository refundRepository;
-    private final SlotReaderPort slotReaderPort;
+    private final SlotRepository slotRepository;
 
     public BookingStateProbe(BookingReaderPort bookingReaderPort,
                              BookingRepository bookingRepository,
-                             BookingHistoryPort bookingHistoryPort,
+                             BookingHistoryRepository bookingHistoryRepository,
                              RefundRepository refundRepository,
-                             SlotReaderPort slotReaderPort) {
+                             SlotRepository slotRepository) {
         this.bookingReaderPort = bookingReaderPort;
         this.bookingRepository = bookingRepository;
-        this.bookingHistoryPort = bookingHistoryPort;
+        this.bookingHistoryRepository = bookingHistoryRepository;
         this.refundRepository = refundRepository;
-        this.slotReaderPort = slotReaderPort;
+        this.slotRepository = slotRepository;
     }
 
     public Booking getBooking(Long bookingId) {
@@ -37,7 +37,7 @@ public class BookingStateProbe {
     }
 
     public Slot getSlot(Long slotId) {
-        return slotReaderPort.findById(slotId).orElseThrow();
+        return slotRepository.findById(slotId).orElseThrow();
     }
 
     public long bookingCount() {
@@ -45,7 +45,7 @@ public class BookingStateProbe {
     }
 
     public long bookingHistoryCountByBookingId(Long bookingId) {
-        return bookingHistoryPort.countByBookingId(bookingId);
+        return bookingHistoryRepository.countByBookingId(bookingId);
     }
 
     public List<Refund> refunds() {

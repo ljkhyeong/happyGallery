@@ -8,7 +8,5 @@ public interface KeyRotationUseCase {
                           int fulfillments, int shippingAddressChanges, int groupInquiries, int groupInquiryActivities,
                           int smartStoreOrders,
                           int socialAccounts, int adminMfaSecrets,
-                          int deletedPhoneVerifications, int deletedEmailVerifications,
-                          long pendingSocialAccounts,
-                          long pendingAdminMfaSecrets) {}
+                          int deletedPhoneVerifications, int deletedEmailVerifications) {}
 }

@@ -28,36 +28,6 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
     @Query("SELECT p FROM PassPurchase p WHERE p.id = :id")
     Optional<PassPurchase> findByIdForUpdate(@Param("id") Long id);
 
-    /** 회원 — 자기 이용권 조회 (구매일 내림차순) */
-    List<PassPurchase> findByUserIdOrderByPurchasedAtDescIdDesc(
-            Long userId, Pageable pageable);
-
-    @Query("""
-            SELECT p FROM PassPurchase p
-            WHERE p.userId = :userId
-              AND (p.purchasedAt < :purchasedAt
-                   OR (p.purchasedAt = :purchasedAt AND p.id < :id))
-            ORDER BY p.purchasedAt DESC, p.id DESC
-            """)
-    List<PassPurchase> findByUserIdOrderByPurchasedAtDescAfterPage(
-            @Param("userId") Long userId,
-            @Param("purchasedAt") LocalDateTime purchasedAt,
-            @Param("id") Long id,
-            Pageable pageable);
-
-    @Override
-    default List<PassPurchase> findByUserIdOrderByPurchasedAtDesc(Long userId, int limit) {
-        return findByUserIdOrderByPurchasedAtDescIdDesc(
-                userId, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<PassPurchase> findByUserIdOrderByPurchasedAtDescAfter(
-            Long userId, LocalDateTime purchasedAt, Long id, int limit) {
-        return findByUserIdOrderByPurchasedAtDescAfterPage(
-                userId, purchasedAt, id, PageRequest.ofSize(limit));
-    }
-
     @Query("""
             SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
             FROM PassPurchase p
@@ -72,20 +42,19 @@ public interface PassPurchaseRepository extends JpaRepository<PassPurchase, Long
     @Query("""
             SELECT p FROM PassPurchase p
             WHERE p.expiresAt <= :now
-              AND p.remainingCredits > :credits
+              AND p.remainingCredits > 0
               AND p.id > :afterId
             ORDER BY p.id ASC
             """)
     List<PassPurchase> findExpiredWithRemainingCreditsAfterIdPage(
             @Param("now") LocalDateTime now,
-            @Param("credits") int credits,
             @Param("afterId") Long afterId,
             Pageable pageable);
 
     @Override
     default List<PassPurchase> findExpiredWithRemainingCreditsAfterId(
-            LocalDateTime now, int credits, Long afterId, int limit) {
+            LocalDateTime now, Long afterId, int limit) {
         return findExpiredWithRemainingCreditsAfterIdPage(
-                now, credits, afterId, PageRequest.ofSize(limit));
+                now, afterId, PageRequest.ofSize(limit));
     }
 }

@@ -897,13 +897,6 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
       await fulfillJson(route, {
         accessToken: "guest-token-A",
         expiresAt: "2099-07-29T12:00:00",
-        orders: [{
-          orderId: 701,
-          status: "PAID_APPROVAL_PENDING",
-          totalAmount: 30000,
-          createdAt: "2026-07-29T12:00:00",
-        }],
-        bookings: [],
       });
       return;
     }

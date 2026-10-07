@@ -11,7 +11,6 @@ import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptR
 import com.personal.happygallery.adapter.out.persistence.user.EmailVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
-import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
 import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.admin.AdminUser;
@@ -36,6 +35,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,8 +63,8 @@ class KeyRotationUseCaseIT {
     private static final String OLD_HMAC_HEX =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
-    private final SpringSecurityFieldEncryptor oldEncryptor = new SpringSecurityFieldEncryptor(
-            HexFormat.of().parseHex(OLD_AES_HEX));
+    private final VersionedFieldEncryptor oldEncryptor = new VersionedFieldEncryptor(
+            "v1", Map.of("v1", HexFormat.of().parseHex(OLD_AES_HEX)));
     private final BlindIndexer oldIndexer = new BlindIndexer(HexFormat.of().parseHex(OLD_HMAC_HEX));
 
     @Autowired KeyRotationUseCase keyRotationUseCase;
@@ -90,9 +90,9 @@ class KeyRotationUseCaseIT {
         cleanup();
     }
 
-    @DisplayName("구키 개인정보를 전환하고 이메일 없는 회원과 원문 없는 소셜 계정을 안전하게 처리한다")
+    @DisplayName("구키 개인정보를 전환하고 이메일 없는 회원을 안전하게 처리한다")
     @Test
-    void rotate_reencryptsProtectedDataAndReportsLegacySocialAccount() {
+    void rotate_reencryptsProtectedData() {
         User user = seedLegacyUser("rotation@test.local", "회전 회원", "01012345678");
         User naverUser = userStorePort.save(User.fromSocialProfile(null, "네이버 회원"));
         Guest guest = guestRepository.save(new Guest(
@@ -158,9 +158,7 @@ class KeyRotationUseCaseIT {
                 oldEncryptor.encrypt("654321"));
         emailVerificationRepository.save(emailVerification);
         SocialAccount encryptedSocial = socialAccount(user.getId(), SocialProvider.NAVER,
-                "naver-rotation-id", true);
-        SocialAccount hmacOnlySocial = socialAccount(user.getId(), SocialProvider.GOOGLE,
-                "google-legacy-id", false);
+                "naver-rotation-id");
         AdminUser pendingAdmin = new AdminUser("rotation-admin", "password-hash");
         pendingAdmin.beginMfaEnrollment(oldEncryptor.encrypt("JBSWY3DPEHPK3PXP"));
         AdminUser admin = adminUserPort.save(pendingAdmin);
@@ -197,8 +195,6 @@ class KeyRotationUseCaseIT {
             softly.assertThat(result.adminMfaSecrets()).isEqualTo(1);
             softly.assertThat(result.deletedPhoneVerifications()).isEqualTo(1);
             softly.assertThat(result.deletedEmailVerifications()).isEqualTo(1);
-            softly.assertThat(result.pendingSocialAccounts()).isEqualTo(1);
-            softly.assertThat(result.pendingAdminMfaSecrets()).isZero();
             softly.assertThat(value("users", "email_enc", user.getId())).startsWith("hg:v2:");
             softly.assertThat(value("guests", "phone_enc", guest.getId())).startsWith("hg:v2:");
             softly.assertThat(value("bookings", "owner_phone_hmac", booking.getId()))
@@ -218,8 +214,6 @@ class KeyRotationUseCaseIT {
                     .startsWith("hg:v2:");
             softly.assertThat(value("user_social_accounts", "provider_id_enc", encryptedSocial.getId()))
                     .startsWith("hg:v2:");
-            softly.assertThat(value("user_social_accounts", "provider_id_enc", hmacOnlySocial.getId()))
-                    .isNull();
             softly.assertThat(value("admin_user", "totp_secret_enc", admin.getId()))
                     .startsWith("hg:v2:");
             softly.assertThat(value("users", "email_hmac", user.getId()))
@@ -228,8 +222,6 @@ class KeyRotationUseCaseIT {
             softly.assertThat(value("users", "email_hmac", naverUser.getId())).isNull();
             softly.assertThat(value("user_social_accounts", "provider_id_hmac", encryptedSocial.getId()))
                     .isEqualTo(activeIndexKeyRing.index("naver-rotation-id"));
-            softly.assertThat(value("user_social_accounts", "provider_id_hmac", hmacOnlySocial.getId()))
-                    .isEqualTo(oldIndexer.index("google-legacy-id"));
             softly.assertThat(phoneVerificationRepository.count()).isZero();
             softly.assertThat(emailVerificationRepository.count()).isZero();
         });
@@ -243,7 +235,7 @@ class KeyRotationUseCaseIT {
         User first = seedLegacyUser("rotation-first@test.local", "첫 회원", "01011112222");
         User second = seedLegacyUser("rotation-second@test.local", "둘째 회원", "01033334444");
         String originalFirstCiphertext = value("users", "email_enc", first.getId());
-        jdbcTemplate.update("UPDATE users SET email_enc = ? WHERE id = ?", "corrupt-ciphertext", second.getId());
+        jdbcTemplate.update("UPDATE users SET email_enc = ? WHERE id = ?", "hg:v1:corrupt-ciphertext", second.getId());
         PhoneVerification verification = new PhoneVerification(
                 "01011112222", "654321", PhoneVerificationPurpose.GUEST_BOOKING,
                 LocalDateTime.of(2030, 1, 1, 10, 5));
@@ -278,12 +270,9 @@ class KeyRotationUseCaseIT {
         return user;
     }
 
-    private SocialAccount socialAccount(Long userId, SocialProvider provider,
-                                        String providerId, boolean encryptProviderId) {
+    private SocialAccount socialAccount(Long userId, SocialProvider provider, String providerId) {
         SocialAccount account = new SocialAccount(userId, provider, providerId);
-        account.protect(
-                encryptProviderId ? oldEncryptor.encrypt(providerId) : null,
-                oldIndexer.index(providerId));
+        account.protect(oldEncryptor.encrypt(providerId), oldIndexer.index(providerId));
         return socialAccountRepository.save(account);
     }
 

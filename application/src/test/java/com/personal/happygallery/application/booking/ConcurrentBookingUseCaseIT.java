@@ -238,7 +238,7 @@ class ConcurrentBookingUseCaseIT {
         startLatch.await();
         try {
             new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-                Slot reserved = slotCapacitySupport.reserveCapacity(slotId);
+                Slot reserved = slotCapacitySupport.reserveCapacity(slotId, 1);
                 bookingRepository.saveAndFlush(Booking.forMemberDeposit(
                         user, reserved, 5_000L, 45_000L, DepositPaymentMethod.CARD));
             });
@@ -253,7 +253,7 @@ class ConcurrentBookingUseCaseIT {
         startLatch.await();
         try {
             new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-                Slot reserved = slotCapacitySupport.reserveCapacity(slotId);
+                Slot reserved = slotCapacitySupport.reserveCapacity(slotId, 1);
                 bookingRepository.saveAndFlush(Booking.forGuestDeposit(
                         guest, reserved, 5_000L, 45_000L,
                         DepositPaymentMethod.CARD, "concurrent-guest-access-token"));
@@ -276,6 +276,6 @@ class ConcurrentBookingUseCaseIT {
 
     private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId, 1));
     }
 }

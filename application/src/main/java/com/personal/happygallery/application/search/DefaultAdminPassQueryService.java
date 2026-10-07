@@ -9,7 +9,6 @@ import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.payment.RefundStatus;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -60,11 +59,8 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
     }
 
     private AdminPassView toView(AdminPassQueryResult result, LocalDateTime now) {
-        RefundStatus refundStatus = result.refundStatus() == null
-                ? null
-                : RefundStatus.valueOf(result.refundStatus());
         AdminPassStatus status = AdminPassStatus.from(
-                refundStatus, result.expiresAt(), result.remainingCredits(), now);
+                result.refundStatus(), result.expiresAt(), result.remainingCredits(), now);
         int refundableCredits = Math.clamp(
                 result.remainingCredits() + result.futureBookingCount(), 0, result.totalCredits());
         long expectedRefundAmount = result.refundAmount() != null
@@ -82,7 +78,7 @@ class DefaultAdminPassQueryService implements AdminPassQueryUseCase {
                 result.expiresAt(),
                 result.futureBookingCount(),
                 expectedRefundAmount,
-                refundStatus);
+                result.refundStatus());
     }
 
     private long calculateExpectedRefundAmount(AdminPassQueryResult result,

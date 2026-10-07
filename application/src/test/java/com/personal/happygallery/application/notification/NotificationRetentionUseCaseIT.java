@@ -5,6 +5,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationLogRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.notification.port.out.NotificationRetentionPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -20,11 +21,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @UseCaseIT
 class NotificationRetentionUseCaseIT {
 
-    @Autowired NotificationRetentionService retentionService;
+    @Autowired NotificationRetentionPort retentionPort;
+    @Autowired PlatformTransactionManager transactionManager;
     @Autowired NotificationOutboxRepository outboxRepository;
     @Autowired NotificationLogRepository logRepository;
     @Autowired UserStorePort userStore;
@@ -92,8 +96,11 @@ class NotificationRetentionUseCaseIT {
                 null, user.getId(), NotificationChannel.SMS,
                 NotificationEventType.ORDER_PAID, cutoff.plusSeconds(1)));
 
-        int deletedLogs = retentionService.deleteChannelLogsBefore(cutoff, 100);
-        int deletedOutboxes = retentionService.deleteTerminalOutboxesBefore(cutoff, 100);
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        int deletedLogs = transaction.execute(
+                status -> retentionPort.deleteChannelLogsBefore(cutoff, 100));
+        int deletedOutboxes = transaction.execute(
+                status -> retentionPort.deleteTerminalOutboxesBefore(cutoff, 100));
 
         Long expiredSentId = expiredSent.getId();
         Long retainedSentId = retainedSent.getId();

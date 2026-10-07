@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.NotificationOutboxDispatcher;
 import com.personal.happygallery.application.notification.port.in.NotificationQueryUseCase;
@@ -44,7 +44,7 @@ class PickupDeadlineReminderUseCaseIT {
     @Autowired NotificationOutboxDispatcher notificationOutboxDispatcher;
     @Autowired OrderStorePort orderStorePort;
     @Autowired FulfillmentPort fulfillmentPort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired NotificationQueryUseCase notificationQueryUseCase;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
@@ -140,7 +140,7 @@ class PickupDeadlineReminderUseCaseIT {
     @Test
     void dispatchPickupReminder_afterOrderClaim_refreshesLogAndInboxOwner() {
         LocalDateTime now = LocalDateTime.now(clock);
-        Guest previousOwner = guestStorePort.save(guest("비회원 주문자", "01089898989"));
+        Guest previousOwner = guestRepository.save(guest("비회원 주문자", "01089898989"));
         User currentOwner = userStorePort.save(new User(
                 "claimed-pickup@example.com", "hashed-password", "귀속 회원", "01089898989"));
         Order order = Order.forGuest(

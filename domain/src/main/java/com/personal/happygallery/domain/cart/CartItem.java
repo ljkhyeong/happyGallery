@@ -1,5 +1,6 @@
 package com.personal.happygallery.domain.cart;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import jakarta.persistence.Column;
 import jakarta.persistence.CollectionTable;
@@ -14,11 +15,8 @@ import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 
 /** 회원 장바구니 항목 — cart_items 테이블. */
@@ -113,11 +111,6 @@ public class CartItem {
                         .append(input.getOptionKey()).append('=')
                         .append(Base64.getEncoder().encodeToString(
                                 input.getValue().getBytes(StandardCharsets.UTF_8))).append(';'));
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(canonical.toString().getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
-        }
+        return Sha256.hex(canonical.toString());
     }
 }

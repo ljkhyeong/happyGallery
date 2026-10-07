@@ -66,7 +66,6 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
         int adminMfaSecrets = rotateAdminMfaSecrets();
         int deletedPhoneVerifications = dataPort.deletePhoneVerifications();
         int deletedEmailVerifications = dataPort.deleteEmailVerifications();
-        long pendingSocialAccounts = dataPort.countSocialAccountsWithoutProviderIdEnc();
         long pendingAdminMfaSecrets =
                 dataPort.countAdminTotpSecretsNotWithKeyId(fieldEncryptor.activeKeyId());
         if (pendingAdminMfaSecrets != 0) {
@@ -77,8 +76,7 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
                 groupInquiries, groupInquiryActivities,
                 smartStoreOrders,
                 socialAccounts, adminMfaSecrets,
-                deletedPhoneVerifications, deletedEmailVerifications,
-                pendingSocialAccounts, pendingAdminMfaSecrets);
+                deletedPhoneVerifications, deletedEmailVerifications);
     }
 
     private int rotateUsers() {
@@ -184,9 +182,6 @@ public class DefaultKeyRotationService implements KeyRotationUseCase {
 
     private int rotateSocialAccounts() {
         return rotatePages((afterId, limit) -> dataPort.findSocialAccountsAfterId(afterId, limit), row -> {
-            if (row.providerIdEnc() == null) {
-                return false;
-            }
             String providerId = fieldEncryptor.decrypt(row.providerIdEnc());
             dataPort.updateSocialAccount(new SocialAccountRotatedRow(
                     row.id(), fieldEncryptor.encrypt(providerId),

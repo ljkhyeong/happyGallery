@@ -19,8 +19,6 @@ public interface BookingQueryUseCase {
 
     List<Booking> listMyBookings(Long userId);
 
-    CursorPage<Booking> listMyBookings(Long userId, String cursor, int size);
-
     CursorPage<Booking> listMyBookings(Long userId, BookingHistoryQuery query, String cursor, int size);
 
     BookingDetail findMyBooking(Long id, Long userId);

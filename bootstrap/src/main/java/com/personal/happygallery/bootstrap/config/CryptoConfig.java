@@ -17,7 +17,7 @@ public class CryptoConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new LegacyCompatiblePasswordEncoder(new BCryptPasswordEncoder());
+        return new BCryptPasswordEncoder();
     }
 
     @Bean

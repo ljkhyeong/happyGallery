@@ -7,7 +7,6 @@ import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
-import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.booking.Booking;
@@ -49,33 +48,15 @@ public class DefaultBookingQueryService implements BookingQueryUseCase {
     /** 회원 — 자기 예약 목록 조회 */
     @Override
     public List<Booking> listMyBookings(Long userId) {
-        return listMyBookings(userId, null, PageParams.MAX_SIZE).content();
+        return listMyBookings(
+                userId, new BookingHistoryQuery(null, null, null), null, PageParams.MAX_SIZE)
+                .content();
     }
 
     @Override
     public CursorPage<Booking> listMyBookings(Long userId, BookingHistoryQuery query, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        if (query.isDefault()) return listMyBookings(userId, cursor, pageSize);
-        return memberHistoryReader.findBookings(userId, query, cursor, pageSize);
-    }
-
-    @Override
-    public CursorPage<Booking> listMyBookings(Long userId, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Booking> bookings;
-        if (cursor == null) {
-            bookings = bookingReaderPort.findByUserIdWithDetails(userId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            bookings = bookingReaderPort.findByUserIdWithDetailsAfter(
-                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
-        return CursorPage.of(
-                bookings,
-                pageSize,
-                booking -> CursorUtils.encode(
-                        booking.getCreatedAt(), booking.getId()));
+        return memberHistoryReader.findBookings(
+                userId, query, cursor, PageParams.requireSize(size));
     }
 
     /** 회원 — 자기 예약 상세 조회 */

@@ -30,7 +30,7 @@
 
 **이유**: 감사 로그(ADR-0001 §12 비기능 요구사항) 충족. 이력 삭제/수정 불가.
 
-**초기 예약 이력**: `GuestBookingService.createGuestBooking()`에도 `BOOKED` 이력 추가. §5.2 미완 항목 해소.
+**초기 예약 이력**: 회원·비회원 예약은 `BookingCreationSupport.complete()`에서, 관리자 예약 등록은 등록 서비스에서 `BOOKED` 이력을 남긴다. §5.2 미완 항목 해소.
 
 ---
 

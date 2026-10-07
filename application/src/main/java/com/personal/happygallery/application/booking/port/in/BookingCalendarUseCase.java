@@ -59,8 +59,6 @@ public interface BookingCalendarUseCase {
         }
     }
 
-    BookingCalendarSettings getSettings();
-
     BookingCalendarSettings updateSettings(UpdateSettingsCommand command);
 
     CalendarView getCalendar(LocalDate dateFrom, LocalDate dateTo);
