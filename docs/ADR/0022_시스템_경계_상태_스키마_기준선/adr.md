@@ -557,4 +557,4 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - 이 문서와 다른 ADR에 나오는 `V41`·`V98`·`V105` 같은 번호는 재작성 전 이력이다. 원본은 commit `a1d13803`에서 볼 수 있다. 기존 데이터를 옮기던 단계(백필·임시 테이블 검증·V46 평문 전환)는 더 이상 실행하지 않는다.
 - 일부 테이블만 `utf8mb4_0900_ai_ci`로 만들어지던 차이를 없애고, 모든 테이블이 DB 기본 문자셋·정렬 규칙을 따르게 했다.
 - 같은 정리에서 과거 행만을 위한 nullable 컬럼과 분기를 없앴다. `order_items.product_type`, `user_social_accounts.provider_id_enc`, `review_moderation_actions.evidence_snapshot_id`, `smartstore_product_orders.completed_return_quantity`는 필수이고, `review_evidence_snapshots.provenance`·`images_complete`와 `smartstore_product_orders.return_reviewed_remain_quantity`는 제거했다.
-- 운영 배포는 `deploy/k3s/schema-reset.json` 표식으로 1회 초기화 release임을 알리고, 빈 DB에서만 진행한다. 절차는 `deploy/k3s/rolling-deployments.md`를 따른다. 이후 스키마 변경은 다시 새 migration으로 추가한다.
+- 운영 배포는 `deploy/k3s/schema-reset.json` 표식으로 1회 초기화 release임을 알리고, 기존 앱을 멈추고 DB와 Redis를 비운 상태에서만 진행한다. 절차는 `deploy/k3s/rolling-deployments.md`를 따른다. 이후 스키마 변경은 다시 새 migration으로 추가한다.

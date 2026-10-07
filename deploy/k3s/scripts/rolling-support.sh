@@ -20,18 +20,31 @@ rolling_preflight() {
             kube -n "$NAMESPACE" rollout status "deployment/$rolling_name" --timeout=30s
         done
     fi
-    # 남아 있는 확인 변수로 다른 release에서 DB를 비우지 않도록 감지한 표식과 정확히 같을 때만 진행한다.
+    # 남아 있는 확인 변수로 다른 release를 초기화 배포로 오인하지 않도록 감지한 표식과 정확히 같을 때만 진행한다.
+    if [ -n "${HAPPYGALLERY_SCHEMA_RESET:-}" ] && [ "$rolling_existing" = false ]; then
+        die "기존 앱이 없는 첫 배포에는 HAPPYGALLERY_SCHEMA_RESET이 필요 없습니다. 변수를 지우고 실행하세요."
+    fi
     if [ -n "${HAPPYGALLERY_SCHEMA_RESET:-}" ] && [ "$rolling_schema_reset" != "$HAPPYGALLERY_SCHEMA_RESET" ]; then
         die "HAPPYGALLERY_SCHEMA_RESET=$HAPPYGALLERY_SCHEMA_RESET 와 일치하는 스키마 초기화 release가 아닙니다."
     fi
-    # 기준선 migration은 빈 DB에서만 성공한다. 기존 테이블이 남아 있으면 앱을 교체하기 전에 멈춘다.
+    # 기준선 migration은 빈 DB에서만 성공한다. 빈 DB에서는 회원·관리자 ID와 자격 버전이 처음부터 다시 발급되므로
+    # 남은 Redis 세션이 새 계정으로 인증되지 않게 Redis도 비어 있어야 한다. 구 앱이 다시 채우지 않도록 멈춘 상태여야 한다.
     if [ -n "$rolling_schema_reset" ]; then
+        rolling_app_pods=$(kube -n "$NAMESPACE" get pods -l app.kubernetes.io/name=app -o name) \
+            || die "스키마 초기화 전 앱 Pod를 확인할 수 없습니다."
+        [ -z "$rolling_app_pods" ] \
+            || die "스키마 초기화 release는 기존 앱을 멈춘 뒤 배포합니다. 남은 앱 Pod: $(printf '%s' "$rolling_app_pods" | tr '\n' ' ')"
         rolling_tables=$(kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
             exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse \
               "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''happygallery'\''"
         ') || die "스키마 초기화 대상 DB를 확인할 수 없습니다."
         [ "$rolling_tables" = 0 ] \
             || die "스키마 초기화 release는 빈 happygallery DB에만 배포합니다. 현재 테이블 수: $rolling_tables"
+        rolling_redis_keys=$(kube -n "$NAMESPACE" exec deployment/redis -- sh -ec \
+            'REDISCLI_AUTH="$REDIS_PASSWORD" exec redis-cli DBSIZE') \
+            || die "스키마 초기화 전 Redis 상태를 확인할 수 없습니다."
+        [ "$rolling_redis_keys" = 0 ] \
+            || die "스키마 초기화 release는 세션·처리율 상태가 없는 Redis에만 배포합니다. 현재 키 수: $rolling_redis_keys"
     fi
     # local-path RWO 공유와 파일 잠금은 한 노드에서만 보장한다.
     rolling_nodes=$(kube get nodes -o 'jsonpath={range .items[*]}{.metadata.name}{"\n"}{end}')
