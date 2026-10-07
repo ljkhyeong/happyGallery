@@ -2,7 +2,7 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderChange;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ProductOrderDetail;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.InventoryResolutionCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderActionHistoryPort;
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;

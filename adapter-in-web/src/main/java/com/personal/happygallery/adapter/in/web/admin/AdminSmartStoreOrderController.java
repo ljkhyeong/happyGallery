@@ -23,7 +23,7 @@ import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCurrentOrder
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreReturnDeliveryCompanyResponse;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.AdminActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;

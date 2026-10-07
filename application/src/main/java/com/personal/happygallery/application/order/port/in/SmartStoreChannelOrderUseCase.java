@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
 import com.personal.happygallery.domain.order.SmartStoreOrderAction;
@@ -70,16 +71,6 @@ public interface SmartStoreChannelOrderUseCase {
     void releaseExchangeHold(String productOrderId, AdminActor actor);
 
     void requestSellerCancel(SellerCancelCommand command, AdminActor actor);
-
-    record AdminActor(Long adminUserId, String name) {
-        public AdminActor {
-            name = name == null || name.isBlank() ? "시스템" : name.strip();
-        }
-
-        public static AdminActor system() {
-            return new AdminActor(null, "시스템");
-        }
-    }
 
     record InventoryResolutionCommand(
             String productOrderId,

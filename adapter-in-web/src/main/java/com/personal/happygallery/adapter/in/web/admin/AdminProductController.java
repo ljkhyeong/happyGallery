@@ -20,7 +20,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.error.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -115,7 +115,7 @@ public class AdminProductController {
             @AuthenticationPrincipal AdminPrincipal admin) {
         return SmartStoreInventoryMappingResponse.from(
                 smartStoreInventoryUseCase.saveMapping(
-                        id, request.toCommand(), new MappingActor(admin.auditActorId(), admin.getName())));
+                        id, request.toCommand(), new AdminActor(admin.auditActorId(), admin.getName())));
     }
 
     @GetMapping("/{id}/smartstore-inventory")
@@ -137,7 +137,7 @@ public class AdminProductController {
         smartStoreInventoryUseCase.deleteMapping(
                 id,
                 new DeleteMappingCommand(expectedMappingVersion, previousOriginConfirmed),
-                new MappingActor(admin.auditActorId(), admin.getName()));
+                new AdminActor(admin.auditActorId(), admin.getName()));
     }
 
     @GetMapping("/{id}/smartstore-inventory/history")

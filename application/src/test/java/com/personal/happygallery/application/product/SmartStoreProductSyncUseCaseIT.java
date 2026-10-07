@@ -28,7 +28,7 @@ import com.personal.happygallery.application.product.port.in.ProductAdminUseCase
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.SaveProductCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreStockSyncBatchUseCase;
@@ -376,7 +376,7 @@ class SmartStoreProductSyncUseCaseIT {
         var product = productRepository.save(readyStockProduct("연동 이력 상품", 35000L));
         inventoryRepository.save(inventory(product, 5));
         Long productId = product.getId();
-        MappingActor actor = new MappingActor(7L, "운영 관리자");
+        AdminActor actor = new AdminActor(7L, "운영 관리자");
 
         var created = smartStoreInventoryUseCase.saveMapping(
                 productId, new SaveMappingCommand(123L, true, List.of()), actor);

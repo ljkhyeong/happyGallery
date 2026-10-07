@@ -27,7 +27,7 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
@@ -525,7 +525,7 @@ class ProductInventoryUseCaseIT {
         smartStoreInventoryMappingService.deleteMapping(
                 productId,
                 new DeleteMappingCommand(current.mappingVersion(), true),
-                MappingActor.system());
+                AdminActor.system());
     }
 
     private static SaveProductCommand madeToOrderCommand(

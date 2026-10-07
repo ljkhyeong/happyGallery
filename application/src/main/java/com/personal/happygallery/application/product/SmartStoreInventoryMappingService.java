@@ -1,7 +1,7 @@
 package com.personal.happygallery.application.product;
 
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingHistoryResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
@@ -82,7 +82,7 @@ class SmartStoreInventoryMappingService {
     }
 
     @Transactional
-    public MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor) {
+    public MappingResult saveMapping(Long productId, SaveMappingCommand command, AdminActor actor) {
         Product product = productReaderPort.findByIdWithLock(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         List<SmartStoreStockMapping> previous = mappings(productId);
@@ -149,7 +149,7 @@ class SmartStoreInventoryMappingService {
     }
 
     @Transactional
-    public void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor) {
+    public void deleteMapping(Long productId, DeleteMappingCommand command, AdminActor actor) {
         productReaderPort.findByIdWithLock(productId)
                 .orElseThrow(NotFoundException.supplier("상품"));
         List<SmartStoreStockMapping> current = mappings(productId);
@@ -303,7 +303,7 @@ class SmartStoreInventoryMappingService {
             List<SmartStoreStockMapping> previous,
             List<SmartStoreStockMapping> next,
             boolean previousOriginConfirmed,
-            MappingActor actor,
+            AdminActor actor,
             LocalDateTime changedAt) {
         SmartStoreInventoryMappingAction action;
         if (previous.isEmpty()) {

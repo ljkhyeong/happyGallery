@@ -7,6 +7,7 @@ import com.personal.happygallery.application.product.port.out.SmartStoreInventor
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductCommand;
 import com.personal.happygallery.application.product.port.out.SmartStoreInventoryProvider.ProductOption;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockSyncQueuePort;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
@@ -48,7 +49,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor) {
+    public MappingResult saveMapping(Long productId, SaveMappingCommand command, AdminActor actor) {
         var plan = mappingService.planChange(productId, command);
         if (plan.originChanged()) {
             synchronizePreviousOriginOrders();
@@ -64,7 +65,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor) {
+    public void deleteMapping(Long productId, DeleteMappingCommand command, AdminActor actor) {
         mappingService.planDelete(productId, command);
         synchronizePreviousOriginOrders();
         mappingService.deleteMapping(productId, command, actor);
