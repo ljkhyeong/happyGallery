@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.order.port.in.OrderShippingAddressUseCase;
 import com.personal.happygallery.application.order.port.in.OrderShippingUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
@@ -13,7 +14,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
@@ -61,7 +61,7 @@ class OrderCustomerActionUseCaseIT {
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
     @Autowired UserStorePort userStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired OrderService orderService;
     @Autowired OrderApprovalUseCase orderApprovalUseCase;
     @Autowired OrderProductionUseCase orderProductionUseCase;
@@ -286,7 +286,7 @@ class OrderCustomerActionUseCaseIT {
                 "물에 젖지 않게 보관하세요.",
                 14));
         inventoryStorePort.save(new Inventory(product, 1));
-        Guest guest = guestStorePort.save(TestFixtures.guest("비회원 주문자", "01055556666"));
+        Guest guest = guestRepository.save(TestFixtures.guest("비회원 주문자", "01055556666"));
         OrderService.OrderCreationResult result = orderService.createPaidOrder(
                 guest.getId(),
                 List.of(new OrderService.OrderItemRequest(

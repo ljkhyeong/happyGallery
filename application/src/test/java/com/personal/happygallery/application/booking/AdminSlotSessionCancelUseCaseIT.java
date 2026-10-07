@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.out.persistence.booking.BookingHistoryRepository;
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionCommand;
 import com.personal.happygallery.application.booking.port.in.AdminBookingCancelUseCase.CancelSessionResult;
@@ -13,7 +14,6 @@ import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.pass.port.out.PassLedgerReaderPort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
@@ -82,7 +82,7 @@ class AdminSlotSessionCancelUseCaseIT {
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
     @Autowired BookingStorePort bookingStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired CustomerAccountLifecycleUseCase accountLifecycleUseCase;
     @Autowired UserReaderPort userReaderPort;
@@ -251,7 +251,7 @@ class AdminSlotSessionCancelUseCaseIT {
     }
 
     private Booking saveGuestDepositBooking(Slot slot, String suffix, boolean balancePaid) {
-        Guest guest = guestStorePort.save(guest("예약자" + suffix, "010100000" + suffix));
+        Guest guest = guestRepository.save(guest("예약자" + suffix, "010100000" + suffix));
         Booking booking = booking(
                 guest,
                 slot,

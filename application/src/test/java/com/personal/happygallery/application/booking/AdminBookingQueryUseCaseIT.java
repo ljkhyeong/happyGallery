@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.booking;
 
+import com.personal.happygallery.adapter.out.persistence.booking.GuestRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.booking.port.in.AdminBookingQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.BookingReminderBatchUseCase;
@@ -8,7 +9,6 @@ import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.application.booking.port.out.SlotStorePort;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
-import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.AdminBookingResponse;
@@ -60,7 +60,7 @@ class AdminBookingQueryUseCaseIT {
     @Autowired CustomerAccountLifecycleUseCase customerAccountLifecycleUseCase;
     @Autowired ClassStorePort classStorePort;
     @Autowired SlotStorePort slotStorePort;
-    @Autowired GuestStorePort guestStorePort;
+    @Autowired GuestRepository guestRepository;
     @Autowired UserStorePort userStorePort;
     @Autowired BookingStorePort bookingStorePort;
     @Autowired NotificationLogProbe notificationLogProbe;
@@ -114,7 +114,7 @@ class AdminBookingQueryUseCaseIT {
 
         saveGuestBooking(slotStart, "게스트전용 클래스", "GUEST_ONLY", "게스트", "01012121212");
         Slot canceledSlot = saveSlot(slotStart.plusHours(1), "취소 클래스", "CANCELED_ONLY");
-        Guest canceledGuest = guestStorePort.save(guest("취소자", "01034343434"));
+        Guest canceledGuest = guestRepository.save(guest("취소자", "01034343434"));
         Booking canceled = booking(
                 canceledGuest, canceledSlot, 10_000L, 20_000L,
                 DepositPaymentMethod.CARD, accessToken());
@@ -181,7 +181,7 @@ class AdminBookingQueryUseCaseIT {
     void searchBookings_formattedBookingNumber_matchesExactId() {
         LocalDateTime slotStart = LocalDate.now(clock).plusDays(3).atTime(10, 0);
         Slot targetSlot = saveSlot(slotStart, "검색 대상 클래스", "SEARCH_TARGET");
-        Guest targetGuest = guestStorePort.save(guest("검색대상", "01056565656"));
+        Guest targetGuest = guestRepository.save(guest("검색대상", "01056565656"));
         Booking target = bookingStorePort.save(booking(
                 targetGuest, targetSlot, 10_000L, 20_000L,
                 DepositPaymentMethod.CARD, accessToken()));
@@ -275,7 +275,7 @@ class AdminBookingQueryUseCaseIT {
     private Guest saveGuestBooking(LocalDateTime slotStart, String className, String category,
                                    String guestName, String phone) {
         Slot s = saveSlot(slotStart, className, category);
-        Guest g = guestStorePort.save(guest(guestName, phone));
+        Guest g = guestRepository.save(guest(guestName, phone));
         bookingStorePort.save(booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
         return g;
     }
@@ -292,7 +292,7 @@ class AdminBookingQueryUseCaseIT {
     private User saveClaimedBooking(LocalDateTime slotStart, String className, String category,
                                     String guestName, String phone, String claimerEmail, String claimerName) {
         Slot s = saveSlot(slotStart, className, category);
-        Guest g = guestStorePort.save(guest(guestName, phone));
+        Guest g = guestRepository.save(guest(guestName, phone));
         User claimer = userStorePort.save(new User(claimerEmail, "hash", claimerName, phone));
         Booking claimed = bookingStorePort.save(
                 booking(g, s, 10_000L, 20_000L, DepositPaymentMethod.CARD, accessToken()));
