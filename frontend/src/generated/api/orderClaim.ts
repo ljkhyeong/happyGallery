@@ -56,8 +56,6 @@ export interface OrderClaimResponse {
   adminNote: string | null;
   /** @nullable */
   completedAt: string | null;
-  /** @nullable */
-  completedByAdminId: number | null;
   customerReason: string;
   id: number;
   items: ClaimedItemResponse[];
@@ -75,8 +73,6 @@ export interface OrderClaimResponse {
   requestedResolution: OrderClaimResponseRequestedResolution;
   /** @nullable */
   resolvedAt: string | null;
-  /** @nullable */
-  resolvedByAdminId: number | null;
   status: OrderClaimResponseStatus;
   type: OrderClaimResponseType;
 }
