@@ -36,10 +36,6 @@ public class PassFulfiller implements PaymentFulfiller {
         if (pp.userId() == null || pp.totalPrice() != attempt.getAmount() || pp.totalPrice() <= 0L) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "저장된 이용권 금액이 결제 금액과 일치하지 않습니다.");
         }
-        if (pp.plan() == null) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "이용권 종류 정보가 없습니다. 결제를 다시 준비해 주세요.");
-        }
     }
 
     @Override

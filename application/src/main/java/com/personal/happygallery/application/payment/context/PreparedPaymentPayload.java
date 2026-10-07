@@ -54,6 +54,10 @@ public sealed interface PreparedPaymentPayload {
     ) implements PreparedPaymentPayload {
 
         public PreparedOrderPayload {
+            if (pricing == null) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "저장된 주문 혜택 금액이 없습니다. 결제를 다시 준비해 주세요.");
+            }
             FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
             if (shippingFee < 0L || (fulfillmentType == FulfillmentType.PICKUP && shippingFee != 0L)) {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법과 배송비가 일치하지 않습니다.");
@@ -80,6 +84,11 @@ public sealed interface PreparedPaymentPayload {
     ) {
 
         public PreparedOrderItem {
+            // pricing은 혜택 배분 전 준비 단계에서 비어 있을 수 있어 이행 검증에서 확인한다.
+            if (productType == null) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "저장된 주문 상품 정보가 없습니다. 결제를 다시 준비해 주세요.");
+            }
             optionSnapshots = optionSnapshots == null ? List.of() : List.copyOf(optionSnapshots);
         }
     }
@@ -105,5 +114,13 @@ public sealed interface PreparedPaymentPayload {
             int participantCount
     ) implements PreparedPaymentPayload {}
 
-    record PreparedPassPayload(Long userId, long totalPrice, PassPlan plan) implements PreparedPaymentPayload {}
+    record PreparedPassPayload(Long userId, long totalPrice, PassPlan plan) implements PreparedPaymentPayload {
+
+        public PreparedPassPayload {
+            if (plan == null) {
+                throw new HappyGalleryException(
+                        ErrorCode.INVALID_INPUT, "이용권 종류 정보가 없습니다. 결제를 다시 준비해 주세요.");
+            }
+        }
+    }
 }

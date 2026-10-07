@@ -73,10 +73,6 @@ public class OrderFulfiller implements PaymentFulfiller {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "주문 단가 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
-        if (op.pricing() == null) {
-            throw new HappyGalleryException(
-                    ErrorCode.INVALID_INPUT, "저장된 주문 혜택 금액이 없습니다. 결제를 다시 준비해 주세요.");
-        }
         long preparedAmount = 0L;
         long couponDiscountAmount = 0L;
         long rewardUsedAmount = 0L;
@@ -87,7 +83,7 @@ public class OrderFulfiller implements PaymentFulfiller {
                 throw new HappyGalleryException(
                         ErrorCode.INVALID_INPUT, "주문 상품명 정보가 없습니다. 결제를 다시 준비해 주세요.");
             }
-            if (item.productType() == null || item.pricing() == null) {
+            if (item.pricing() == null) {
                 throw new HappyGalleryException(
                         ErrorCode.INVALID_INPUT, "저장된 주문 상품 정보가 없습니다. 결제를 다시 준비해 주세요.");
             }

@@ -69,22 +69,15 @@ class OrderFulfillerTest {
 
     @Test
     @DisplayName("상품 유형이 빠진 저장 payload는 기성품으로 보정하지 않고 새 prepare를 요구한다")
-    void validateStoredPayload_missingProductType_isRejected() {
+    void storedItem_missingProductType_isRejected() {
         PreparedOrderItem prepared = preparedReadyStockItem(1L, "상품", 1, 10_000L);
-        PreparedOrderItem withoutType = new PreparedOrderItem(
+
+        assertThatThrownBy(() -> new PreparedOrderItem(
                 prepared.cartItemId(), prepared.productId(), prepared.productVariantId(),
                 prepared.productName(), prepared.qty(), prepared.unitPrice(), prepared.basePrice(),
                 prepared.variantPriceAdjustment(), prepared.textOptionPriceAdjustment(),
                 prepared.optionSnapshots(), prepared.specification(), prepared.careInstructions(),
-                prepared.productionLeadDays(), null, prepared.pricing());
-        PreparedOrderPayload payload = new PreparedOrderPayload(
-                1L, null, null, null, List.of(withoutType), false,
-                FulfillmentType.PICKUP, null, 0L, null,
-                OrderPricingSnapshot.fullPrice(10_000L, 0L));
-        PaymentAttempt attempt = PaymentAttempt.startForMember(
-                "stored-payload-without-type", PaymentContext.ORDER, 10_000L, "encrypted-payload", 1L);
-
-        assertThatThrownBy(() -> fulfiller.validateStoredPayload(attempt, payload))
+                prepared.productionLeadDays(), null, prepared.pricing()))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT));
     }
