@@ -32,21 +32,6 @@ public final class AdminPrincipal implements Principal {
         this.authenticationMethod = authenticationMethod;
     }
 
-    public static AdminPrincipal bearerSession(Long adminUserId, String username) {
-        return bearerSession(adminUserId, username, false);
-    }
-
-    public static AdminPrincipal bearerSession(
-            Long adminUserId,
-            String username,
-            boolean mfaEnrollmentRequired) {
-        return bearerSession(
-                adminUserId,
-                username,
-                mfaEnrollmentRequired,
-                AdminAuthenticationMethod.PASSWORD);
-    }
-
     public static AdminPrincipal bearerSession(
             Long adminUserId,
             String username,

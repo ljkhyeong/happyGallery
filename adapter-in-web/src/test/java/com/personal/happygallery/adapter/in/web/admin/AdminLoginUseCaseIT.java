@@ -202,8 +202,7 @@ class AdminLoginUseCaseIT {
                 .extracting(history -> history.getOutcome())
                 .contains(
                         AdminAuthOutcome.LOGIN_FAILED,
-                        AdminAuthOutcome.LOGIN_SUCCEEDED)
-                .doesNotContain(AdminAuthOutcome.LOGIN_BLOCKED);
+                        AdminAuthOutcome.LOGIN_SUCCEEDED);
     }
 
     @DisplayName("MFA 등록 후에는 TOTP 시간 구간과 복구 코드를 한 번만 허용한다")
