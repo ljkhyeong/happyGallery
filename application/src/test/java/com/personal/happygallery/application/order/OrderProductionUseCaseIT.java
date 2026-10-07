@@ -2,7 +2,6 @@ package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderCustomerActionUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
@@ -15,12 +14,9 @@ import com.personal.happygallery.application.order.port.in.ShipmentTrackingRefre
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingEvent;
 import com.personal.happygallery.application.order.port.in.ShipmentTrackingWebhookUseCase.TrackingUpdate;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.KoreaPostTrackingLookup;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.ShipmentTrackingEventPort;
 import com.personal.happygallery.application.order.port.out.ShipmentTrackingProvider;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.ProductionRefundNotAllowedException;
@@ -87,10 +83,6 @@ class OrderProductionUseCaseIT {
     @Autowired MockMvc mockMvc;
     @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired OrderApprovalUseCase orderApprovalService;
@@ -103,19 +95,15 @@ class OrderProductionUseCaseIT {
     @Autowired ShipmentTrackingWebhookUseCase shipmentTrackingWebhookUseCase;
     @Autowired ShipmentTrackingEventPort shipmentTrackingEventPort;
     @Autowired NotificationOutboxRepository notificationOutboxRepository;
-    @Autowired OrderService orderService;
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ShipmentTrackingProvider shipmentTrackingProvider;
     @Autowired KoreaPostTrackingLookup koreaPostTrackingLookup;
-    OrderTestHelper orderHelper;
+    @Autowired OrderTestHelper orderHelper;
 
     @BeforeEach
     void setUp() {
         SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
                 AdminPrincipal.apiKey(), null, "ROLE_ADMIN"));
-        orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
-                userStorePort, orderService);
     }
 
     @AfterEach
@@ -273,9 +261,11 @@ class OrderProductionUseCaseIT {
                 "직사광선을 피해 보관하세요.",
                 14));
         inventoryStorePort.save(new Inventory(madeToOrder, 1));
-        Order order = orderService.createMemberOrder(
+        Order order = orderHelper.createMemberOrder(
                 orderHelper.createMemberOwner().getId(),
-                List.of(orderItemRequest(readyStock), orderItemRequest(madeToOrder)),
+                List.of(
+                        OrderTestHelper.item(readyStock, 1, readyStock.getPrice()),
+                        OrderTestHelper.item(madeToOrder, 1, madeToOrder.getPrice())),
                 FulfillmentType.PICKUP,
                 null,
                 0L,
@@ -796,17 +786,5 @@ class OrderProductionUseCaseIT {
 
         Fulfillment fulfillment = orderStateProbe.findFulfillmentByOrderId(order.getId()).orElseThrow();
         assertThat(fulfillment.getExpectedShipDate()).isEqualTo(shipDate);
-    }
-
-    private static OrderService.OrderItemRequest orderItemRequest(Product product) {
-        return new OrderService.OrderItemRequest(
-                product.getId(),
-                product.getName(),
-                product.getType(),
-                1,
-                product.getPrice(),
-                product.getSpecification(),
-                product.getCareInstructions(),
-                product.getProductionLeadDays());
     }
 }

@@ -82,20 +82,6 @@ public class OrderService {
      */
     public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
                                                FulfillmentType fulfillmentType,
-                                               ShippingAddress shippingAddress) {
-        return createPaidOrder(guestId, items, fulfillmentType, shippingAddress, 0L);
-    }
-
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
-                                               FulfillmentType fulfillmentType,
-                                               ShippingAddress shippingAddress,
-                                               long shippingFee) {
-        return createPaidOrder(
-                guestId, items, fulfillmentType, shippingAddress, shippingFee, null);
-    }
-
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items,
-                                               FulfillmentType fulfillmentType,
                                                ShippingAddress shippingAddress,
                                                long shippingFee,
                                                MadeToOrderConsent madeToOrderConsent) {
@@ -129,30 +115,6 @@ public class OrderService {
      */
     public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
                                    FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress) {
-        return createMemberOrder(userId, items, fulfillmentType, shippingAddress, 0L);
-    }
-
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress,
-                                   long shippingFee) {
-        return createMemberOrder(
-                userId, items, fulfillmentType, shippingAddress, shippingFee, null);
-    }
-
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
-                                   ShippingAddress shippingAddress,
-                                   long shippingFee,
-                                   MadeToOrderConsent madeToOrderConsent) {
-        return createMemberOrder(
-                userId, items, fulfillmentType, shippingAddress, madeToOrderConsent,
-                OrderPricingSnapshot.fullPrice(productAmount(items), shippingFee));
-    }
-
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items,
-                                   FulfillmentType fulfillmentType,
                                    ShippingAddress shippingAddress,
                                    MadeToOrderConsent madeToOrderConsent,
                                    OrderPricingSnapshot pricing) {
@@ -176,16 +138,6 @@ public class OrderService {
                 order.getId()));
 
         return order;
-    }
-
-    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
-    public OrderCreationResult createPaidOrder(Long guestId, List<OrderItemRequest> items) {
-        return createPaidOrder(guestId, items, FulfillmentType.PICKUP, null);
-    }
-
-    /** 테스트·내부 fixture용 기본 픽업 주문 생성 경로. 운영 결제는 수령 방법을 명시한다. */
-    public Order createMemberOrder(Long userId, List<OrderItemRequest> items) {
-        return createMemberOrder(userId, items, FulfillmentType.PICKUP, null);
     }
 
     private void saveItemsAndDeductInventory(Order order, List<OrderItemRequest> items) {
@@ -275,60 +227,6 @@ public class OrderService {
             Integer productionLeadDays,
             OrderItemPricing pricing
     ) {
-        public OrderItemRequest(Long productId, String productName, int qty, long unitPrice) {
-            this(productId, null, productName, ProductType.READY_STOCK,
-                    qty, unitPrice, unitPrice, 0L, 0L, List.of(), null, null, null,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays
-        ) {
-            this(productId, null, productName,
-                    productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
-                    qty, unitPrice, unitPrice, 0L, 0L, List.of(),
-                    specification, careInstructions, productionLeadDays,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                ProductType productType,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays
-        ) {
-            this(productId, null, productName, productType, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(),
-                    specification, careInstructions, productionLeadDays,
-                    OrderItemPricing.fullPrice(qty, unitPrice));
-        }
-
-        public OrderItemRequest(
-                Long productId,
-                String productName,
-                ProductType productType,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays,
-                OrderItemPricing pricing
-        ) {
-            this(productId, null, productName, productType, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
-                    productionLeadDays, pricing);
-        }
-
         public OrderItemRequest {
             if (productType == null) {
                 throw new IllegalArgumentException("신규 주문 상품의 상품 유형은 필수입니다.");

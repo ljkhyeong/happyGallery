@@ -1,17 +1,12 @@
 package com.personal.happygallery.application.order;
 
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
 import com.personal.happygallery.application.order.port.in.OrderProductionUseCase;
 import com.personal.happygallery.application.order.port.in.PickupExpireBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -29,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -53,25 +47,12 @@ class PickupExpireBatchUseCaseIT {
     @Autowired OrderPickupUseCase orderPickupService;
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderProductionUseCase orderProductionService;
-    @Autowired OrderService orderService;
-    @Autowired ProductStorePort productStorePort;
     @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
     @Autowired FulfillmentPort fulfillmentPort;
-    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
     @Autowired Clock clock;
-    OrderTestHelper orderHelper;
-
-    @BeforeEach
-    void setUp() {
-        orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
-                userStorePort, orderService, clock);
-    }
+    @Autowired OrderTestHelper orderHelper;
 
     @AfterEach
     void tearDown() {

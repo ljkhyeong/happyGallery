@@ -28,6 +28,7 @@ import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.notification.NotificationEventType;
+import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
@@ -35,6 +36,7 @@ import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.CustomerTestHelper;
+import com.personal.happygallery.support.OrderTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
@@ -135,8 +137,11 @@ class CustomerGuestClaimUseCaseIT {
         inventoryStorePort.save(new Inventory(product, 5));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L))).order();
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null).order();
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -203,8 +208,11 @@ class CustomerGuestClaimUseCaseIT {
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, product.getPrice())))
+                List.of(OrderTestHelper.item(product, 1, product.getPrice())),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null)
                 .order();
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -244,12 +252,18 @@ class CustomerGuestClaimUseCaseIT {
         inventoryStorePort.save(new Inventory(product, 5));
         OrderService.OrderCreationResult createdOrder = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L)));
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null);
         OrderService.OrderCreationResult secondCreatedOrder = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, 29_000L)));
+                List.of(OrderTestHelper.item(product, 1, 29_000L)),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null);
 
         BookingClass bookingClass = classStorePort.save(TestFixtures.defaultBookingClass());
         Slot slot = slotStorePort.save(TestFixtures.slot(
@@ -422,8 +436,11 @@ class CustomerGuestClaimUseCaseIT {
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 1, product.getPrice())))
+                List.of(OrderTestHelper.item(product, 1, product.getPrice())),
+                FulfillmentType.PICKUP,
+                null,
+                0L,
+                null)
                 .order();
 
         CountDownLatch withdrawalApplied = new CountDownLatch(1);

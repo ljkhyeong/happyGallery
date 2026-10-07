@@ -8,7 +8,6 @@ import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptR
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase.WithdrawCommand;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.dashboard.dto.TopProductSort;
 import com.personal.happygallery.application.dashboard.port.out.SalesAnalyticsPort;
 import com.personal.happygallery.application.order.port.in.AdminOrderClaimUseCase;
@@ -21,9 +20,6 @@ import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.coupon.CouponDefinition;
 import com.personal.happygallery.domain.coupon.CouponDiscountType;
 import com.personal.happygallery.domain.coupon.IssuedCoupon;
@@ -57,7 +53,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -82,13 +77,8 @@ import static org.mockito.Mockito.mockingDetails;
 @SpiedUseCaseIT
 class OrderClaimUseCaseIT {
 
-    @Autowired ProductStorePort productStorePort;
-    @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
     @Autowired OrderStorePort orderStorePort;
     @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
-    @Autowired OrderService orderService;
     @Autowired OrderApprovalUseCase orderApprovalUseCase;
     @Autowired OrderShippingUseCase orderShippingUseCase;
     @Autowired OrderClaimUseCase orderClaimUseCase;
@@ -109,19 +99,7 @@ class OrderClaimUseCaseIT {
     @Autowired OrderRepository orderRepository;
     @Autowired @Qualifier("paymentProviderDelegate") FakePaymentProvider paymentProvider;
 
-    OrderTestHelper orderHelper;
-
-    @BeforeEach
-    void setUp() {
-        orderHelper = new OrderTestHelper(
-                productStorePort,
-                inventoryStorePort,
-                inventoryReaderPort,
-                orderStorePort,
-                orderItemPort,
-                userStorePort,
-                orderService);
-    }
+    @Autowired OrderTestHelper orderHelper;
 
     @AfterEach
     void tearDown() {
@@ -192,17 +170,16 @@ class OrderClaimUseCaseIT {
         Product firstProduct = orderHelper.createReadyStockProduct("부분 환불 상품 1", 10_000L, 1);
         Product secondProduct = orderHelper.createReadyStockProduct("부분 환불 상품 2", 20_000L, 1);
         var member = orderHelper.createMemberOwner();
-        Order order = orderService.createMemberOrder(
+        Order order = orderHelper.createMemberOrder(
                 member.getId(),
                 List.of(
-                        new OrderService.OrderItemRequest(
-                                firstProduct.getId(), firstProduct.getName(), 1, firstProduct.getPrice()),
-                        new OrderService.OrderItemRequest(
-                                secondProduct.getId(), secondProduct.getName(), 1, secondProduct.getPrice())),
+                        OrderTestHelper.item(firstProduct, 1, firstProduct.getPrice()),
+                        OrderTestHelper.item(secondProduct, 1, secondProduct.getPrice())),
                 FulfillmentType.SHIPPING,
                 new ShippingAddress(
                         "주문 테스트 회원", "01012345678", "06236", "서울시 강남구 테헤란로 1", null),
-                3_000L);
+                3_000L,
+                null);
         order.recordPaymentKey("partial-claim-payment-key");
         orderStorePort.save(order);
         orderApprovalUseCase.approve(order.getId(), 1L);
@@ -471,14 +448,14 @@ class OrderClaimUseCaseIT {
     void refundCompletion_concurrentMemberClaim_preservesClaimInvariants() throws Exception {
         Product product = orderHelper.createReadyStockProduct("환불 완료 경합 상품", 20_000L, 2);
         User member = orderHelper.createMemberOwner();
-        Order order = orderService.createMemberOrder(
+        Order order = orderHelper.createMemberOrder(
                 member.getId(),
-                List.of(new OrderService.OrderItemRequest(
-                        product.getId(), product.getName(), 2, product.getPrice())),
+                List.of(OrderTestHelper.item(product, 2, product.getPrice())),
                 FulfillmentType.SHIPPING,
                 new ShippingAddress(
                         "주문 테스트 회원", "01012345678", "06236", "서울시 강남구 테헤란로 1", null),
-                3_000L);
+                3_000L,
+                null);
         order.recordPaymentKey("claim-race-payment-key");
         orderStorePort.save(order);
         orderApprovalUseCase.approve(order.getId(), 1L);

@@ -1,11 +1,5 @@
 package com.personal.happygallery.application.order;
 
-import com.personal.happygallery.application.customer.port.out.UserStorePort;
-import com.personal.happygallery.application.order.port.out.OrderItemPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
-import com.personal.happygallery.application.product.port.out.InventoryReaderPort;
-import com.personal.happygallery.application.product.port.out.InventoryStorePort;
-import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
@@ -21,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -37,23 +30,9 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 @UseCaseIT
 class ConcurrentOrderUseCaseIT {
 
-    @Autowired OrderService orderService;
-    @Autowired ProductStorePort productStorePort;
-    @Autowired InventoryStorePort inventoryStorePort;
-    @Autowired InventoryReaderPort inventoryReaderPort;
-    @Autowired OrderStorePort orderStorePort;
-    @Autowired OrderItemPort orderItemPort;
-    @Autowired UserStorePort userStorePort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
-    OrderTestHelper orderHelper;
-
-    @BeforeEach
-    void setUp() {
-        orderHelper = new OrderTestHelper(
-                productStorePort, inventoryStorePort, inventoryReaderPort, orderStorePort, orderItemPort,
-                userStorePort, orderService);
-    }
+    @Autowired OrderTestHelper orderHelper;
 
     @AfterEach
     void tearDown() {
@@ -85,9 +64,8 @@ class ConcurrentOrderUseCaseIT {
             exec.submit(() -> {
                 try {
                     startLatch.await();
-                    orderService.createMemberOrder(member.getId(),
-                            List.of(new OrderService.OrderItemRequest(
-                                    product.getId(), product.getName(), 1, 50000L)));
+                    orderHelper.createMemberPickupOrder(member.getId(),
+                            List.of(OrderTestHelper.item(product, 1, 50000L)));
                     successes.incrementAndGet();
                 } catch (InventoryNotEnoughException e) {
                     failures.incrementAndGet();
