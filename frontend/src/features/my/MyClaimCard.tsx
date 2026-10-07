@@ -5,7 +5,7 @@ interface Props {
   user: CustomerUser;
   showClaimEntryHint: boolean;
   onDismissHint: () => void;
-  onOpenClaim: (source: string) => void;
+  onOpenClaim: () => void;
 }
 
 export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenClaim }: Props) {
@@ -21,7 +21,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
               </div>
             </div>
             <div className="d-flex flex-wrap gap-2">
-              <Button size="sm" variant="dark" onClick={() => onOpenClaim("claim_entry_hint")}>
+              <Button size="sm" variant="dark" onClick={onOpenClaim}>
                 가져올 내역 확인
               </Button>
               <Button size="sm" variant="outline-secondary" onClick={onDismissHint}>
@@ -44,7 +44,7 @@ export function MyClaimCard({ user, showClaimEntryHint, onDismissHint, onOpenCla
           <Button
             variant={user.phoneVerified && user.phone ? "outline-primary" : "primary"}
             size="sm"
-            onClick={() => onOpenClaim("claim_dashboard_card")}
+            onClick={onOpenClaim}
           >
             {!user.phone
               ? "휴대폰 등록"

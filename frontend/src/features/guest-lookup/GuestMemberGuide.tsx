@@ -1,8 +1,8 @@
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { trackGuestMemberCta } from "@/features/monitoring/api";
+import { trackClientEvent } from "@/features/monitoring/api";
 
-export function GuestMemberGuide({ source }: { source: string }) {
+export function GuestMemberGuide() {
   const options = { redirectTo: "/my?claim=1", claim: true };
   return (
     <aside className="guest-member-guide" aria-label="회원 이용 안내">
@@ -11,11 +11,11 @@ export function GuestMemberGuide({ source }: { source: string }) {
         비회원 내역도 같은 휴대폰 번호로 가져올 수 있어요.</p>
       <div className="d-flex flex-wrap gap-2">
         <LinkButton to={buildAuthPageHref("/login", options)} variant="outline-dark" size="sm"
-          onClick={() => trackGuestMemberCta(source, "login")}>
+          onClick={() => trackClientEvent("GUEST_MEMBER_CTA_CLICKED")}>
           로그인하고 가져오기
         </LinkButton>
         <LinkButton to={buildAuthPageHref("/signup", options)} variant="link" size="sm"
-          onClick={() => trackGuestMemberCta(source, "signup")}>
+          onClick={() => trackClientEvent("GUEST_MEMBER_CTA_CLICKED")}>
           회원가입
         </LinkButton>
       </div>

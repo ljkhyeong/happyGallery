@@ -3954,19 +3954,16 @@ POST /api/v1/monitoring/client-events
 Content-Type: application/json
 
 {
-  "event": "GUEST_LOOKUP_ENTRY",
-  "path": "/guest",
-  "source": "home_lookup_panel",
-  "target": "guest_orders"
+  "event": "GUEST_LOOKUP_HUB_VIEWED"
 }
 ```
 
 - 성공: `204 No Content`
 - 정책:
   - 인증은 선택이다. `HG_SESSION`이 있으면 `userId`를 함께 기록한다.
-  - `path`는 필수이며 최대 120자다.
-  - `source`, `target`은 선택이며 최대 80자다.
-  - 클라이언트가 보내는 `path`, `source`, `target` 원문은 로그에 남기지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
+  - `event`는 필수이며 `GUEST_LOOKUP_HUB_VIEWED`, `GUEST_ORDER_DIRECT_ENTRY_CONTINUED`, `GUEST_MEMBER_CTA_CLICKED`, `GUEST_CLAIM_MODAL_OPENED` 중 하나다.
+  - 클라이언트 임의 문자열은 받지 않는다. 로그와 메트릭에는 서버가 정의한 `event`, 인증 여부와 내부 ID만 사용한다.
+  - 이력 가져오기 완료는 클라이언트 이벤트가 아니라 서버가 가져오기 완료 시 `[guest-claim] completed` 로그와 `happygallery.funnel.guest_claim_completed` 메트릭으로 기록한다.
   - 모니터링 실패는 사용자 핵심 플로우를 막지 않는 best-effort 성격으로 다룬다.
 
 ### 2.17 local/dev 전용 Dev API

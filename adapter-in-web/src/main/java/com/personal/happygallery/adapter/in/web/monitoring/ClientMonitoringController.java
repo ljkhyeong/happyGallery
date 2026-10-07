@@ -30,9 +30,6 @@ public class ClientMonitoringController {
                         @AuthenticationPrincipal CustomerPrincipal customer) {
         clientMonitoringUseCase.captureFrontendEvent(
                 request.event(),
-                request.path(),
-                request.source(),
-                request.target(),
                 customer != null ? customer.userId() : null);
     }
 }

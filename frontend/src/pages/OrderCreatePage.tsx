@@ -250,7 +250,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
               </LinkButton>
               <LinkButton
                 to="/guest"
-                state={{ monitoringSource: "order_manual_entry_gate" }}
                 variant="outline-secondary"
                 size="sm"
               >
@@ -260,12 +259,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 variant="outline-primary"
                 size="sm"
                 onClick={() => {
-                  trackClientEvent({
-                    event: "GUEST_ORDER_DIRECT_ENTRY_CONTINUED",
-                    path: "/orders/new",
-                    source: "manual_entry_gate",
-                    target: "order_items_step",
-                  });
+                  trackClientEvent("GUEST_ORDER_DIRECT_ENTRY_CONTINUED");
                   setManualEntryConfirmed(true);
                 }}
               >

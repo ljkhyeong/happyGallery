@@ -15,7 +15,6 @@ interface Props {
   phone: string;
   phoneVerified: boolean;
   onPhoneVerified: () => Promise<void>;
-  monitoringSource?: string | null;
 }
 
 export function GuestClaimModal({
@@ -24,7 +23,6 @@ export function GuestClaimModal({
   phone,
   phoneVerified,
   onPhoneVerified,
-  monitoringSource,
 }: Props) {
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -111,13 +109,8 @@ export function GuestClaimModal({
     if (openTrackedRef.current) return;
 
     openTrackedRef.current = true;
-    trackClientEvent({
-      event: "GUEST_CLAIM_MODAL_OPENED",
-      path: "/my",
-      source: monitoringSource ?? "unknown",
-      target: needsPhoneVerification ? "phone_verification" : "preview",
-    });
-  }, [monitoringSource, needsPhoneVerification, show]);
+    trackClientEvent("GUEST_CLAIM_MODAL_OPENED");
+  }, [show]);
 
   return (
     <Modal

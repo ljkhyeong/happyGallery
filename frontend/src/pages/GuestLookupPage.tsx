@@ -22,11 +22,10 @@ function GuestLookupContent() {
     location.hash === "#lookup-help" ? "records" : null,
   );
   const [kind, setKind] = useState<GuestLookupKind>("orders");
-  const monitoringSource = (location.state as { monitoringSource?: string } | null)?.monitoringSource ?? "direct";
 
   useEffect(() => {
-    trackClientEvent({ event: "GUEST_LOOKUP_HUB_VIEWED", path: "/guest", source: monitoringSource, target: "hub" });
-  }, [monitoringSource]);
+    trackClientEvent("GUEST_LOOKUP_HUB_VIEWED");
+  }, []);
 
   return (
     <Container className="page-container guest-lookup-page">
@@ -54,7 +53,7 @@ function GuestLookupContent() {
           </Accordion.Item>
         </Accordion>
       </section>
-      <GuestMemberGuide source="guest_lookup_hub" />
+      <GuestMemberGuide />
     </Container>
   );
 }

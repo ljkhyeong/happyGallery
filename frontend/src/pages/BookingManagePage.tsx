@@ -224,7 +224,7 @@ function BookingManageContent() {
           )}
         </>
       )}
-      <GuestMemberGuide source="guest_booking_lookup" />
+      <GuestMemberGuide />
     </Container>
   );
 }

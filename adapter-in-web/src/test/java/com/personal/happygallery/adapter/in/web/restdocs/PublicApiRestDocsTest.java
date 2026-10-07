@@ -814,10 +814,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
-                                  "event": "GUEST_LOOKUP_HUB_VIEWED",
-                                  "path": "/guest",
-                                  "source": "GuestLookupPage",
-                                  "target": "primary-cta"
+                                  "event": "GUEST_LOOKUP_HUB_VIEWED"
                                 }
                                 """))
                 .andExpect(status().isNoContent());
