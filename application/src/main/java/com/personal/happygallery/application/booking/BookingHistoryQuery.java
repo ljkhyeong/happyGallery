@@ -10,9 +10,5 @@ public record BookingHistoryQuery(String keyword, BookingStatus status, BookingH
         sort = sort == null ? BookingHistorySort.CREATED_DESC : sort;
     }
 
-    public boolean isDefault() {
-        return keyword == null && status == null && sort == BookingHistorySort.CREATED_DESC;
-    }
-
     public enum BookingHistorySort { CREATED_DESC, SOONEST, LATEST, DEPOSIT_DESC }
 }
