@@ -11,7 +11,6 @@ import com.personal.happygallery.adapter.out.persistence.payment.PaymentAttemptR
 import com.personal.happygallery.adapter.out.persistence.user.EmailVerificationRepository;
 import com.personal.happygallery.adapter.out.persistence.user.SocialAccountRepository;
 import com.personal.happygallery.application.admin.port.out.AdminUserPort;
-import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
 import com.personal.happygallery.application.crypto.VersionedFieldEncryptor;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.admin.AdminUser;
@@ -36,6 +35,7 @@ import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -63,8 +63,8 @@ class KeyRotationUseCaseIT {
     private static final String OLD_HMAC_HEX =
             "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
 
-    private final SpringSecurityFieldEncryptor oldEncryptor = new SpringSecurityFieldEncryptor(
-            HexFormat.of().parseHex(OLD_AES_HEX));
+    private final VersionedFieldEncryptor oldEncryptor = new VersionedFieldEncryptor(
+            "v1", Map.of("v1", HexFormat.of().parseHex(OLD_AES_HEX)));
     private final BlindIndexer oldIndexer = new BlindIndexer(HexFormat.of().parseHex(OLD_HMAC_HEX));
 
     @Autowired KeyRotationUseCase keyRotationUseCase;
@@ -243,7 +243,7 @@ class KeyRotationUseCaseIT {
         User first = seedLegacyUser("rotation-first@test.local", "첫 회원", "01011112222");
         User second = seedLegacyUser("rotation-second@test.local", "둘째 회원", "01033334444");
         String originalFirstCiphertext = value("users", "email_enc", first.getId());
-        jdbcTemplate.update("UPDATE users SET email_enc = ? WHERE id = ?", "corrupt-ciphertext", second.getId());
+        jdbcTemplate.update("UPDATE users SET email_enc = ? WHERE id = ?", "hg:v1:corrupt-ciphertext", second.getId());
         PhoneVerification verification = new PhoneVerification(
                 "01011112222", "654321", PhoneVerificationPurpose.GUEST_BOOKING,
                 LocalDateTime.of(2030, 1, 1, 10, 5));

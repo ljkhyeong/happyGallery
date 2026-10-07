@@ -78,7 +78,7 @@ V104는 기준 이메일이 없는 회원의 자체 소유 확인을 위해 평�
 
 ### 6. 필드 AES/HMAC 키는 유지보수 창에서 함께 회전한다
 
-- 신규 AES-GCM 암호문은 `hg:<keyId>:<base64>` 형식으로 저장한다. 접두사가 없는 기존 암호문은 active/previous AES 키링으로만 복호화하고, 새 쓰기는 active 키만 사용한다.
+- AES-GCM 암호문은 `hg:<keyId>:<base64>` 형식으로만 저장·복호화한다. 키 ID 접두사가 없는 암호문은 거부하며, 기록된 키 ID의 active/previous 키로 복호화하고 새 쓰기는 active 키만 사용한다.
 - 필드 설정은 하나의 `active-key-id`, active `ENCRYPT_KEY`/`HMAC_KEY`, 선택적인 `PREVIOUS_ENCRYPT_KEYS`/`PREVIOUS_HMAC_KEYS`로 구성한다. 이전 키 목록은 `keyId=64자리hex` 형식이며 AES와 HMAC의 active 키 ID는 같아야 한다.
 - HMAC 컬럼은 기존 `CHAR(64)`를 유지해 키 ID를 저장하지 않는다. 일반 쓰기는 active HMAC만 생성하고, 키 전환기의 소셜 로그인만 active와 previous HMAC 후보를 모두 조회한다.
 - 회전은 일반 app Pod를 모두 중지한 유지보수 창에 `KEY_ROTATION_ENABLED=true`인 임시 유지보수 Job으로 한 번 수행한다. Job은 web adapter bean을 구성하기 위해 동일한 servlet 이미지를 `SERVER_PORT=0`, `MANAGEMENT_PORT=0`으로 기동하지만 Service가 없고 기본 deny NetworkPolicy가 적용되어 외부 트래픽을 받지 않는다. 실행기는 source 키 ID가 AES/HMAC previous 키링에 모두 있고 active 키 ID와 다른지 검사하고 회전 runner 완료 후 context를 닫는다.

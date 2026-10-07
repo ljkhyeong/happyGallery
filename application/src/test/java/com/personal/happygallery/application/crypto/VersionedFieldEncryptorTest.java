@@ -15,14 +15,15 @@ class VersionedFieldEncryptorTest {
     private static final byte[] ACTIVE_KEY = filledKey((byte) 1);
     private static final byte[] PREVIOUS_KEY = filledKey((byte) 2);
 
-    @DisplayName("신규 암호문은 활성 키 ID를 기록하고 이전 키의 암호문을 활성 키로 재암호화한다")
+    @DisplayName("신규 암호문은 활성 키 ID를 기록하고 이전 키 ID의 암호문을 활성 키로 재암호화한다")
     @Test
     void encryptAndReencrypt_useActiveKeyVersion() {
         VersionedFieldEncryptor encryptor = new VersionedFieldEncryptor("v2", keyRing());
-        String legacyCiphertext = new SpringSecurityFieldEncryptor(PREVIOUS_KEY).encrypt("개인정보");
+        String previousCiphertext = new VersionedFieldEncryptor("v1", Map.of("v1", PREVIOUS_KEY))
+                .encrypt("개인정보");
 
         String activeCiphertext = encryptor.encrypt("신규 개인정보");
-        String reencrypted = encryptor.reencrypt(legacyCiphertext);
+        String reencrypted = encryptor.reencrypt(previousCiphertext);
 
         assertSoftly(softly -> {
             softly.assertThat(activeCiphertext).startsWith("hg:v2:");
@@ -32,14 +33,18 @@ class VersionedFieldEncryptorTest {
         });
     }
 
-    @DisplayName("키링에 없는 키 ID가 기록된 암호문은 복호화를 거부한다")
+    @DisplayName("키 ID가 없거나 키링에 없는 키 ID가 기록된 암호문은 복호화를 거부한다")
     @Test
     void decrypt_unknownKeyVersion_rejected() {
         VersionedFieldEncryptor encryptor = new VersionedFieldEncryptor("v2", keyRing());
+        String unversionedCiphertext = new SpringSecurityFieldEncryptor(ACTIVE_KEY).encrypt("개인정보");
 
         assertThatThrownBy(() -> encryptor.decrypt("hg:v3:ciphertext"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("키를 찾을 수 없습니다");
+        assertThatThrownBy(() -> encryptor.decrypt(unversionedCiphertext))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("키 버전 형식");
         assertThat(encryptor.keyIds()).containsExactly("v2", "v1");
     }
 

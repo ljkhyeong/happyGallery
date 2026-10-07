@@ -103,7 +103,7 @@
 
 스크립트는 runtime Secret의 `runtime-transitioned`, `completed`, `finalized` phase annotation으로 같은 target 키에 대한 재실행과 finalization 조건을 구분한다. 회전 또는 검증이 실패하면 새·구 키를 모두 보존하고 app을 0 replica로 유지한다. 트랜잭션 롤백 여부, MySQL 상태와 백업 복원 필요성을 확인하기 전에는 정상 app을 다시 기동하거나 previous 키를 제거하지 않는다.
 
-현재 서비스는 운영 미개시이므로 version-aware reader를 포함한 이 release를 최초 운영 기준선으로 사용한다. 접두사 없는 암호문만 지원하는 binary가 실제 운영 중인 환경에 같은 변경을 적용한다면 version-aware reader 선배포와 versioned write 전환을 분리해야 한다. `hg:<keyId>:` 쓰기 이후 구 binary 단독 rollback은 허용하지 않고 forward fix 또는 호환 키와 회전 전 DB 백업 복원을 사용한다.
+현재 서비스는 운영 미개시이고 보존할 데이터가 없으므로 `hg:<keyId>:` 암호문만 읽는 release를 최초 운영 기준선으로 사용한다. 접두사 없는 암호문은 읽지 않는다. 구 binary 단독 rollback은 허용하지 않고 forward fix 또는 호환 키와 회전 전 DB 백업 복원을 사용한다.
 
 ### 6. 이미지는 불변 식별자로 배포하고 이전 버전을 보존한다
 
