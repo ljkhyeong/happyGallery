@@ -8,10 +8,6 @@ import java.util.List;
 /** 비회원 접근 권한을 재발급할 주문·예약을 조회한다. */
 public interface GuestRecordRecoveryTargetPort {
 
-    List<Order> findOrdersByGuestId(Long guestId, int limit);
-
-    List<Booking> findBookingsByGuestId(Long guestId, int limit);
-
     int replaceOrderAccessTokens(Long guestId, String accessTokenHash);
 
     int replaceBookingAccessTokens(Long guestId, String accessTokenHash);

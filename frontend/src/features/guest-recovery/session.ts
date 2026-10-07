@@ -24,8 +24,6 @@ function readGuestRecordRecovery(
     || typeof result.accessToken !== "string"
     || result.accessToken.length === 0
     || typeof result.expiresAt !== "string"
-    || !Array.isArray(result.orders)
-    || !Array.isArray(result.bookings)
   ) {
     return null;
   }

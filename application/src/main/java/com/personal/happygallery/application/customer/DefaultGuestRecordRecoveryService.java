@@ -19,8 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUseCase {
 
-    private static final int LEGACY_RECOVERY_SUMMARY_LIMIT = PageParams.MAX_SIZE;
-
     private final PhoneOwnershipVerificationUseCase phoneOwnershipVerification;
     private final GuestReaderPort guestReader;
     private final GuestRecordRecoveryTargetPort recoveryTargets;
@@ -47,26 +45,12 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
                 phone, verificationCode, PhoneVerificationPurpose.GUEST_RECORD_RECOVERY);
 
         IssuedToken token = guestTokenService.issueRecoveryToken();
-        return guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone))
-                .map(guest -> recoverRecords(guest.getId(), token))
-                .orElseGet(() -> new RecoveryResult(
-                        token.rawToken(), token.expiresAt(), List.of(), List.of()));
-    }
-
-    private RecoveryResult recoverRecords(Long guestId, IssuedToken token) {
-        recoveryTargets.replaceOrderAccessTokens(guestId, token.tokenHash());
-        recoveryTargets.replaceBookingAccessTokens(guestId, token.tokenHash());
-
-        List<Order> orders = recoveryTargets.findOrdersByGuestId(
-                guestId, LEGACY_RECOVERY_SUMMARY_LIMIT);
-        List<Booking> bookings = recoveryTargets.findBookingsByGuestId(
-                guestId, LEGACY_RECOVERY_SUMMARY_LIMIT);
-
-        return new RecoveryResult(
-                token.rawToken(),
-                token.expiresAt(),
-                orders.stream().map(RecoveredOrder::from).toList(),
-                bookings.stream().map(RecoveredBooking::from).toList());
+        guestReader.findByPhoneHmac(guestPersonalDataProtector.indexPhone(phone))
+                .ifPresent(guest -> {
+                    recoveryTargets.replaceOrderAccessTokens(guest.getId(), token.tokenHash());
+                    recoveryTargets.replaceBookingAccessTokens(guest.getId(), token.tokenHash());
+                });
+        return new RecoveryResult(token.rawToken(), token.expiresAt());
     }
 
     @Override

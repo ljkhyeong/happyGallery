@@ -292,13 +292,6 @@ class CustomerGuestClaimUseCaseIT {
         assertSoftly(softly -> {
             softly.assertThat(recovered.accessToken()).isNotBlank();
             softly.assertThat(recovered.expiresAt()).isNotNull();
-            softly.assertThat(recovered.orders())
-                    .extracting(GuestRecordRecoveryResponse.OrderSummary::orderId)
-                    .containsExactly(
-                            secondCreatedOrder.order().getId(), createdOrder.order().getId());
-            softly.assertThat(recovered.bookings())
-                    .extracting(GuestRecordRecoveryResponse.BookingSummary::bookingId)
-                    .containsExactly(secondBooking.getId(), booking.getId());
         });
 
         String firstOrderPage = mockMvc.perform(get("/api/v1/guest-records/recovery/orders")
@@ -307,6 +300,7 @@ class CustomerGuestClaimUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, "no-store"))
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(secondCreatedOrder.order().getId()))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andReturn().getResponse().getContentAsString();
         String orderCursor = objectMapper.readTree(firstOrderPage).get("nextCursor").asText();
@@ -316,6 +310,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("cursor", orderCursor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(createdOrder.order().getId()))
                 .andExpect(jsonPath("$.hasMore").value(false));
 
         String firstBookingPage = mockMvc.perform(get("/api/v1/guest-records/recovery/bookings")
@@ -323,6 +318,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("size", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].bookingId").value(secondBooking.getId()))
                 .andExpect(jsonPath("$.hasMore").value(true))
                 .andReturn().getResponse().getContentAsString();
         String bookingCursor = objectMapper.readTree(firstBookingPage).get("nextCursor").asText();
@@ -332,6 +328,7 @@ class CustomerGuestClaimUseCaseIT {
                         .param("cursor", bookingCursor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].bookingId").value(booking.getId()))
                 .andExpect(jsonPath("$.hasMore").value(false));
 
         mockMvc.perform(get("/api/v1/orders/{id}", createdOrder.order().getId())

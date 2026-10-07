@@ -236,14 +236,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(guestRecordRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
                 .thenReturn(new GuestRecordRecoveryUseCase.RecoveryResult(
                         "guest-recovery-token",
-                        Instant.parse("2026-05-02T00:00:00Z"),
-                        List.of(new GuestRecordRecoveryUseCase.RecoveredOrder(
-                                200L, "PAID_APPROVAL_PENDING", 39_000L,
-                                OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
-                        List.of(new GuestRecordRecoveryUseCase.RecoveredBooking(
-                                100L, "BOOKED", "향수 클래스",
-                                LocalDateTime.parse("2026-05-07T10:00:00"),
-                                LocalDateTime.parse("2026-05-07T12:00:00")))));
+                        Instant.parse("2026-05-02T00:00:00Z")));
         when(guestRecordRecoveryUseCase.listRecoveredOrders(
                 eq("guest-recovery-token"), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(
@@ -598,7 +591,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                                   "verificationCode": "123456"
                                 }
                                 """))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("guest-recovery-token"))
+                .andExpect(jsonPath("$.orders").doesNotExist())
+                .andExpect(jsonPath("$.bookings").doesNotExist());
     }
 
     @Test
