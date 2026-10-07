@@ -27,7 +27,6 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.review.Review;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
 import com.personal.happygallery.domain.review.ReviewReportReason;
@@ -37,6 +36,7 @@ import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -183,7 +183,7 @@ class ReviewUseCaseIT {
         });
 
         productSource.product().updateDetails(
-                "도자기 화병 새 이름", null, 30_000L, null, null);
+                "도자기 화병 새 이름", null, 30_000L, null, null, null, null, null);
         productRepository.saveAndFlush(productSource.product());
         ReviewUseCase.ReviewItem republished = adminReviewUseCase.updateStatus(
                 productReview.id(),
@@ -274,7 +274,7 @@ class ReviewUseCaseIT {
         User user = createUser("review-source-pair@example.com", "01074000005", "원천 검증 회원");
         ProductOrderSource productSource = createProductOrderSource(user, true, "구매한 상품");
         Product unrelatedProduct = productRepository.saveAndFlush(
-                new Product("다른 상품", ProductType.READY_STOCK, 20_000L));
+                TestFixtures.readyStockProduct("다른 상품", 20_000L));
         ClassBookingSource classSource = createClassBookingSource(user, "수강한 클래스");
         BookingClass unrelatedClass = classRepository.saveAndFlush(
                 new BookingClass("다른 클래스", "CRAFT", 90, 40_000L, 20));
@@ -751,7 +751,7 @@ class ReviewUseCaseIT {
     @DisplayName("공개 후기 집계는 전체 별점 분포를 유지하고 필터와 정렬 커서를 안정적으로 적용한다")
     void publicReviewHistogramFilterAndRatingSortUseStableCursor() {
         Product product = productRepository.saveAndFlush(
-                new Product("별점 정렬 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("별점 정렬 상품", 30_000L));
         User lowUser = createUser("review-rating-low@example.com", "01074000009", "낮은 별점 회원");
         User highUser = createUser("review-rating-high@example.com", "01074000010", "높은 별점 회원");
         User middleUser = createUser("review-rating-middle@example.com", "01074000011", "중간 별점 회원");
@@ -796,7 +796,7 @@ class ReviewUseCaseIT {
     @DisplayName("상품과 클래스 공개 후기는 정렬별 커서 순서를 끝까지 유지한다")
     void publicReviewSortQueriesPreserveProductAndClassCursorOrder() {
         Product product = productRepository.saveAndFlush(
-                new Product("공개 정렬 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("공개 정렬 상품", 30_000L));
         BookingClass bookingClass = classRepository.saveAndFlush(
                 new BookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
         User lowUser = createUser("review-sort-low@example.com", "01074000024", "낮은 별점 회원");
@@ -1193,7 +1193,7 @@ class ReviewUseCaseIT {
     private ProductOrderSource createProductOrderSource(
             User user, boolean completed, String productName) {
         Product product = productRepository.saveAndFlush(
-                new Product(productName, ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct(productName, 30_000L));
         return createProductOrderSource(user, completed, product);
     }
 

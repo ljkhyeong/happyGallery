@@ -7,11 +7,10 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.error.NotFoundException;
-import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.domain.user.FavoriteTargetType;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +39,7 @@ class FavoriteUseCaseIT {
     void savesDistinctOwnedTargetsAndPaginates() {
         var user = users.save(new User("favorite@example.com", "hash", "회원", "01012345678"));
         var other = users.save(new User("other-favorite@example.com", "hash", "다른회원", "01012345679"));
-        var product = products.save(new Product("찜 상품", ProductType.READY_STOCK, 12000));
+        var product = products.save(TestFixtures.readyStockProduct("찜 상품", 12000));
         var bookingClass = classes.save(new BookingClass("찜 클래스", "WOOD", 60, 30000, 30));
         favorites.save(user.getId(), FavoriteTargetType.PRODUCT, product.getId());
         favorites.save(user.getId(), FavoriteTargetType.PRODUCT, product.getId());
@@ -63,7 +62,7 @@ class FavoriteUseCaseIT {
     @DisplayName("중지한 상품은 기존 찜에서 상태를 표시하며 탈퇴하면 찜을 삭제하고 재등록을 막는다")
     void inactiveTargetsAndWithdrawal() {
         var user = users.save(new User("withdraw-favorite@example.com", "hash", "회원", "01012345678"));
-        var product = products.save(new Product("중지할 상품", ProductType.READY_STOCK, 12000));
+        var product = products.save(TestFixtures.readyStockProduct("중지할 상품", 12000));
         favorites.save(user.getId(), FavoriteTargetType.PRODUCT, product.getId());
         jdbc.update("UPDATE products SET status = 'INACTIVE' WHERE id = ?", product.getId());
         assertThat(favorites.list(user.getId(), null, null, 20).content()).singleElement().satisfies(row -> assertThat(row.active()).isFalse());

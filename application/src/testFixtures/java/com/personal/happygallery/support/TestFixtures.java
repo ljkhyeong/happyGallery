@@ -72,7 +72,7 @@ public final class TestFixtures {
     }
 
     public static Product readyStockProduct(String name, long price) {
-        return new Product(name, ProductType.READY_STOCK, price);
+        return new Product(name, ProductType.READY_STOCK, null, price, null, null, null, null, null);
     }
 
     public static Inventory inventory(Product product, int quantity) {

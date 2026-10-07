@@ -75,34 +75,7 @@ public class Product {
 
     protected Product() {}
 
-    /**
-     * 상품 생성. 초기 상태는 {@link ProductStatus#ACTIVE}.
-     *
-     * @param name  상품명
-     * @param type  상품 유형 (READY_STOCK | MADE_TO_ORDER)
-     * @param price 가격 (원)
-     */
-    public Product(String name, ProductType type, long price) {
-        this(name, type, null, price);
-    }
-
-    /**
-     * 카테고리를 포함한 상품 생성.
-     *
-     * @param name     상품명
-     * @param type     상품 유형
-     * @param category 카테고리 (nullable)
-     * @param price    가격 (원)
-     */
-    public Product(String name, ProductType type, String category, long price) {
-        this(name, type, category, price, null, null);
-    }
-
-    public Product(String name, ProductType type, String category, long price,
-                   String description, String imageUrl) {
-        this(name, type, category, price, description, imageUrl, null, null, null);
-    }
-
+    /** 상품 생성. 초기 상태는 {@link ProductStatus#ACTIVE}. */
     public Product(String name, ProductType type, String category, long price,
                    String description, String imageUrl, String specification,
                    String careInstructions, Integer productionLeadDays) {
@@ -114,13 +87,6 @@ public class Product {
                 name, category, price, description, imageUrl,
                 specification, careInstructions, productionLeadDays);
         this.status = ProductStatus.ACTIVE;
-    }
-
-    public void updateDetails(String name, String category, long price,
-                              String description, String imageUrl) {
-        applyDetails(
-                name, category, price, description, imageUrl,
-                specification, careInstructions, productionLeadDays);
     }
 
     public void updateDetails(String name, String category, long price,

@@ -256,7 +256,7 @@ class ProductInventoryUseCaseIT {
                 variantsFrom(optionConfigurationService.get(productId, true))));
         assertSoftly(softly -> {
             softly.assertThat(removed.options().variants()).extracting(ProductOptions.Variant::id).containsExactly(defaultId);
-            softly.assertThat(variantRepository.findWithSelectionsByProductId(productId)).hasSize(3);
+            softly.assertThat(variantRepository.findWithSelectionsByProductIdIn(List.of(productId))).hasSize(3);
         });
     }
 
@@ -720,7 +720,7 @@ class ProductInventoryUseCaseIT {
                         "먼저 반영된 이름", ProductType.READY_STOCK, null,
                         50_000L, null, null, null, null, null, null,
                         List.of(), List.of()));
-        staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null);
+        staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null, null, null, null);
 
         assertThatThrownBy(() -> productRepository.saveAndFlush(staleProduct))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);

@@ -192,7 +192,7 @@ class CartQueryUseCaseIT {
         String repeatedVersion = cartUseCase.getCart(user.getId()).cartVersion();
         cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
         CartUseCase.CartView quantityChanged = cartUseCase.getCart(user.getId());
-        product.updateDetails("버전 상품", null, 20_000L, null, null);
+        product.updateDetails("버전 상품", null, 20_000L, null, null, null, null, null);
         productStore.save(product);
         CartUseCase.CartView priceChanged = cartUseCase.getCart(user.getId());
         inventory.deduct(4);

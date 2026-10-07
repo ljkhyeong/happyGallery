@@ -135,13 +135,6 @@ public class ProductOptionConfigurationService {
     }
 
     @Transactional(readOnly = true)
-    public ResolvedPurchase resolvePurchase(Product product, Long variantId,
-                                            List<TextInput> requestedInputs) {
-        return resolvePurchases(List.of(new PurchaseRequest(
-                0, product.getId(), variantId, requestedInputs))).getFirst().purchase();
-    }
-
-    @Transactional(readOnly = true)
     public List<ResolvedLine> resolvePurchases(List<PurchaseRequest> requests) {
         return resolvePurchases(requests, false);
     }

@@ -86,7 +86,7 @@ class ImagePublicReferenceUseCaseIT {
 
     private static Product product(String name, String imageUrl, boolean active) {
         Product product = new Product(
-                name, ProductType.READY_STOCK, "WOOD", 30_000L, null, imageUrl);
+                name, ProductType.READY_STOCK, "WOOD", 30_000L, null, imageUrl, null, null, null);
         if (!active) {
             product.deactivate();
         }

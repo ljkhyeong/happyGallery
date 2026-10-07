@@ -11,10 +11,10 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.util.Arrays;
 import java.util.Objects;
@@ -76,7 +76,7 @@ class AnswerConcurrencyUseCaseIT {
     void concurrentProductQnaReplies_registerOnlyOneAnswer() throws Exception {
         User user = createUser();
         Product product = productRepository.save(
-                new Product("도자기 화병", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("도자기 화병", 30_000L));
         ProductQna qna = productQnaRepository.save(new ProductQna(
                 product.getId(), user.getId(), "크기 문의", "높이가 몇 cm인가요?", false));
 
