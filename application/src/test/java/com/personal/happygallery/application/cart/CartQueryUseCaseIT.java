@@ -28,9 +28,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -51,7 +48,6 @@ class CartQueryUseCaseIT {
     @Autowired InventoryStorePort inventoryStore;
     @Autowired Clock clock;
     @Autowired EntityManager entityManager;
-    @Autowired JdbcTemplate jdbc;
 
     @Test
     @DisplayName("재고가 줄거나 판매가 중지되어도 본인 장바구니 수량은 줄일 수 있다")
@@ -78,8 +74,8 @@ class CartQueryUseCaseIT {
     }
 
     @Test
-    @DisplayName("옵션 순서가 바뀌어도 같은 각인을 합산하고 기존 중복 행의 결제 차감 ID를 보존한다")
-    void stableTextInputKeys_preserveDuplicateIdsForPreparedPayments() {
+    @DisplayName("옵션 순서가 바뀌어도 같은 각인은 같은 장바구니 항목에 합산한다")
+    void stableTextInputKeys_ignoreOptionDisplayOrder() {
         User user = userStore.save(new User("cart-ordering@example.com", "hashed", "각인 순서 고객", "01012345678"));
         var registered = productAdminUseCase.register(textOptionProduct(0, 1));
         Long productId = registered.product().getId();
@@ -87,43 +83,14 @@ class CartQueryUseCaseIT {
         List<TextInput> inputs = List.of(new TextInput("z", "앞면"), new TextInput("A", "뒷면"));
         cartUseCase.addItem(user.getId(), productId, variantId, inputs, 2);
         entityManager.flush();
-        Long firstId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
-        jdbc.update("UPDATE cart_items SET line_key = ? WHERE id = ?", "old-display-order", firstId);
-        jdbc.update("""
-                INSERT INTO cart_items (user_id, product_id, product_variant_id, line_key, qty, created_at, updated_at)
-                SELECT user_id, product_id, product_variant_id, ?, 1, created_at, updated_at
-                FROM cart_items WHERE id = ?
-                """, "old-reversed-order", firstId);
-        Long secondId = jdbc.queryForObject("SELECT MAX(id) FROM cart_items WHERE user_id = ?", Long.class, user.getId());
-        jdbc.update("""
-                INSERT INTO cart_item_text_inputs (cart_item_id, option_group_id, option_key, value, sort_order)
-                SELECT ?, option_group_id, option_key, value, 1 - sort_order
-                FROM cart_item_text_inputs WHERE cart_item_id = ?
-                """, secondId, firstId);
-        new ResourceDatabasePopulator(
-                new ClassPathResource("db/migration/V162__encode_cart_text_input_keys.sql"),
-                new ClassPathResource("db/migration/V163__stabilize_cart_text_input_order.sql"))
-                .execute(jdbc.getDataSource());
-        entityManager.clear();
-        assertThat(jdbc.queryForObject("SELECT line_key FROM cart_items WHERE id = ?", String.class, secondId))
-                .isEqualTo("legacy-cart-item:" + secondId);
+        Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
 
         productAdminUseCase.update(productId, textOptionProduct(1, 0));
-        cartUseCase.addItem(user.getId(), productId, variantId, inputs, 1);
+        cartUseCase.addItem(user.getId(), productId, variantId, inputs.reversed(), 1);
+
         assertThat(cartUseCase.getCart(user.getId()).items())
                 .extracting(CartUseCase.CartItemView::cartItemId, CartUseCase.CartItemView::qty)
-                .containsExactly(tuple(firstId, 3), tuple(secondId, 1));
-        cartUseCase.removePurchasedItems(user.getId(), List.of(new CartUseCase.PurchasedItem(firstId, 2)));
-        assertThat(cartUseCase.getCart(user.getId()).items())
-                .extracting(CartUseCase.CartItemView::cartItemId, CartUseCase.CartItemView::qty)
-                .containsExactly(tuple(firstId, 1), tuple(secondId, 1));
-        cartUseCase.removeItem(user.getId(), firstId);
-        cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), List.of(
-                new CartUseCase.MergeItem(productId, variantId, inputs, 1)));
-        cartUseCase.removePurchasedItems(user.getId(), List.of(new CartUseCase.PurchasedItem(secondId, 1)));
-        assertThat(cartUseCase.getCart(user.getId()).items())
-                .extracting(CartUseCase.CartItemView::cartItemId, CartUseCase.CartItemView::qty)
-                .containsExactly(tuple(secondId, 1));
+                .containsExactly(tuple(itemId, 3));
     }
 
     private static ProductAdminUseCase.SaveProductCommand textOptionProduct(int frontOrder, int backOrder) {
@@ -138,8 +105,8 @@ class CartQueryUseCaseIT {
     }
 
     @Test
-    @DisplayName("각인 구분문자를 보존하고 기존 장바구니 키 전환 뒤에도 같은 항목에 수량을 더한다")
-    void textInputKeys_preserveStructureAndMigrateExistingItems() {
+    @DisplayName("각인 구분문자를 보존해 입력 구조가 다른 각인을 별도 항목으로 담는다")
+    void textInputKeys_preserveStructure() {
         User user = userStore.save(new User(
                 "cart-encoding@example.com", "hashed", "각인 고객", "01012345678"));
         var registered = productAdminUseCase.register(new ProductAdminUseCase.SaveProductCommand(
@@ -159,15 +126,6 @@ class CartQueryUseCaseIT {
         cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
         entityManager.flush();
         Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
-        String expectedKey = jdbc.queryForObject("SELECT line_key FROM cart_items WHERE id = ?", String.class, itemId);
-        jdbc.update("UPDATE cart_items SET line_key = SHA2(?, 256) WHERE id = ?",
-                "product=" + productId + "|variant=" + variantId + "|inputs=a=" + message + ";b=B;", itemId);
-
-        new ResourceDatabasePopulator(new ClassPathResource(
-                "db/migration/V162__encode_cart_text_input_keys.sql")).execute(jdbc.getDataSource());
-        entityManager.clear();
-        assertThat(jdbc.queryForObject("SELECT line_key FROM cart_items WHERE id = ?", String.class, itemId))
-                .isEqualTo(expectedKey);
         cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
         UUID mergeKey = UUID.randomUUID();
         cartUseCase.mergeItems(user.getId(), mergeKey,

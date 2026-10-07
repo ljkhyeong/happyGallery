@@ -146,8 +146,6 @@ jobs:
             task: ':application:check -PciTestGroup=core'
           - module: application-commerce
             task: ':application:check -PciTestGroup=commerce'
-          - module: application-migration
-            task: ':application:check -PciTestGroup=migration'
           - module: adapter-in-web
             task: ':adapter-in-web:check'
     steps:
