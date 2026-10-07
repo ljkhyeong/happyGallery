@@ -372,6 +372,11 @@ public class Order {
         this.paymentKey = paymentKey;
     }
 
+    /** 고객·관리자에게 노출하는 주문 번호. 영속 필드가 아니라 ID에서 파생한다. */
+    public String orderNumber() {
+        return "ORD-%08d".formatted(id);
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getGuestId() { return guestId; }
