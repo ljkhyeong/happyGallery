@@ -104,20 +104,15 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView requestGuestClaim(Long orderId, String accessToken, RequestCommand command) {
-        Order order = requireOrderForUpdate(orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
-        return request(order, command);
+        return request(
+                OrderLookups.requireGuestOrderForUpdate(orderReader, guestTokenService, orderId, accessToken),
+                command);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listMemberClaims(Long orderId, Long userId) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getUserId(), userId)) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireMemberOrder(orderReader, orderId, userId);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
@@ -125,10 +120,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listGuestClaims(Long orderId, String accessToken) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireGuestOrder(orderReader, guestTokenService, orderId, accessToken);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }

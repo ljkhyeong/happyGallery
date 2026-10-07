@@ -24,7 +24,6 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -97,9 +96,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 회원 — 자기 주문 상세 조회 (소유권 검증 포함) */
     @Override
     public OrderDetail findMyOrder(Long id, Long userId) {
-        Order order = orderReader.findById(id)
-                .filter(o -> Objects.equals(o.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireMemberOrder(orderReader, id, userId);
         List<OrderItem> items = orderItemPort.findByOrder(order);
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(id).orElse(null);
         return detail(order, items, fulfillment);
@@ -108,11 +105,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 토큰 기반 주문 상세 조회 — 입력 토큰을 SHA-256 해시 후 비교 */
     @Override
     public OrderDetail getOrderByToken(Long orderId, String rawToken) {
-        String tokenHash = guestTokenService.resolveTokenHash(rawToken);
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getAccessToken(), tokenHash)) {
-            throw new NotFoundException("주문");
-        }
+        Order order = OrderLookups.requireGuestOrder(orderReader, guestTokenService, orderId, rawToken);
         List<OrderItem> items = orderItemPort.findByOrder(order);
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId).orElse(null);
         return detail(order, items, fulfillment);

@@ -5,13 +5,11 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.ShippingAddressChangePort;
 import com.personal.happygallery.application.token.GuestTokenService;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.order.ShippingAddressChange;
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,19 +36,12 @@ public class DefaultOrderShippingAddressService implements OrderShippingAddressU
 
     @Override
     public void updateMember(Long orderId, Long userId, long version, ShippingAddress address) {
-        Order order = orders.findByIdForUpdate(orderId)
-                .filter(value -> Objects.equals(value.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("주문"));
-        update(order, version, address);
+        update(OrderLookups.requireMemberOrderForUpdate(orders, orderId, userId), version, address);
     }
 
     @Override
     public void updateGuest(Long orderId, String accessToken, long version, ShippingAddress address) {
-        String hash = tokens.resolveTokenHash(accessToken);
-        Order order = orders.findByIdForUpdate(orderId)
-                .filter(value -> value.getGuestId() != null && Objects.equals(value.getAccessToken(), hash))
-                .orElseThrow(NotFoundException.supplier("주문"));
-        update(order, version, address);
+        update(OrderLookups.requireGuestOrderForUpdate(orders, tokens, orderId, accessToken), version, address);
     }
 
     private void update(Order order, long version, ShippingAddress address) {
