@@ -8,6 +8,8 @@ import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvi
 import com.personal.happygallery.application.order.port.out.SmartStoreProductOrderPort;
 import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.CursorUtils.KeyCursor;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -57,16 +59,15 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             String cursor,
             int size) {
         int pageSize = PageParams.requireSize(size);
-        SmartStoreOrderCursor.CursorParam cursorParam = cursor == null
-                ? null : SmartStoreOrderCursor.decode(cursor);
+        KeyCursor cursorParam = cursor == null ? null : CursorUtils.decodeKey(cursor);
         List<SmartStoreProductOrder> orders = orderPort.findRecentPage(
                 attentionOnly,
                 attentionReason,
-                cursorParam == null ? null : cursorParam.changedAt(),
-                cursorParam == null ? null : cursorParam.productOrderId(),
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.key(),
                 pageSize + 1);
         List<ChannelOrderResult> results = orders.stream().map(this::result).toList();
-        return CursorPage.of(results, pageSize, item -> SmartStoreOrderCursor.encode(
+        return CursorPage.of(results, pageSize, item -> CursorUtils.encode(
                 item.lastChangedAt(), item.productOrderId()));
     }
 

@@ -11,8 +11,8 @@ import java.util.Base64;
 /**
  * 커서 인코딩/디코딩 유틸리티.
  *
- * <p>커서 형식: Base64("{ISO_LOCAL_DATE_TIME}|{id}")
- * <br>동점 방지를 위해 (timestamp, id) 복합 키를 사용한다.
+ * <p>커서 형식: Base64("{ISO_LOCAL_DATE_TIME}|{key}")
+ * <br>동점 방지를 위해 (timestamp, key) 복합 키를 사용한다. key는 숫자 ID 또는 문자열 키다.
  */
 public final class CursorUtils {
 
@@ -22,26 +22,45 @@ public final class CursorUtils {
     private CursorUtils() {}
 
     public static String encode(LocalDateTime timestamp, Long id) {
-        String raw = FMT.format(timestamp) + SEPARATOR + id;
+        return encode(timestamp, String.valueOf(id));
+    }
+
+    /** 문자열 키(예: 스마트스토어 상품 주문 번호)로 동점을 가르는 커서를 만든다. */
+    public static String encode(LocalDateTime timestamp, String key) {
+        String raw = FMT.format(timestamp) + SEPARATOR + key;
         return Base64.getUrlEncoder().withoutPadding()
                 .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     public static CursorParam decode(String cursor) {
+        KeyCursor keyCursor = decodeKey(cursor);
         try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            int sep = raw.lastIndexOf(SEPARATOR);
-            if (sep < 0) {
-                throw new IllegalArgumentException("Invalid cursor format");
-            }
-            LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
-            Long id = Long.valueOf(raw.substring(sep + 1));
-            return new CursorParam(timestamp, id);
-        } catch (DateTimeException | IllegalArgumentException exception) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
+            return new CursorParam(keyCursor.timestamp(), Long.valueOf(keyCursor.key()));
+        } catch (NumberFormatException exception) {
+            throw invalidCursor();
         }
     }
 
+    public static KeyCursor decodeKey(String cursor) {
+        try {
+            String raw = new String(
+                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+            int sep = raw.indexOf(SEPARATOR);
+            if (sep < 1 || sep == raw.length() - 1) {
+                throw new IllegalArgumentException("Invalid cursor format");
+            }
+            LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
+            return new KeyCursor(timestamp, raw.substring(sep + 1));
+        } catch (DateTimeException | IllegalArgumentException exception) {
+            throw invalidCursor();
+        }
+    }
+
+    private static HappyGalleryException invalidCursor() {
+        return new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
+    }
+
     public record CursorParam(LocalDateTime timestamp, Long id) {}
+
+    public record KeyCursor(LocalDateTime timestamp, String key) {}
 }
