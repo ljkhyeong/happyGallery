@@ -239,10 +239,10 @@ class NotificationSenderContractTest {
                         """))
                 .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
-        boolean sent = sender.send("01012345678", "123456");
+        NotificationSendResult result = sender.sendResult("01012345678", "123456");
 
         server.verify();
-        assertThat(sent).isTrue();
+        assertThat(result).isEqualTo(NotificationSendResult.SUCCESS);
     }
 
     @ParameterizedTest
