@@ -3,12 +3,14 @@
 # rollout.sh에서 source한다. 실패 시에도 기존 HTTP pod는 삭제하거나 축소하지 않는다.
 rolling_preflight() {
     rolling_existing=false
+    rolling_schema_reset=
     rolling_current=$(kube -n "$NAMESPACE" get deployment app --ignore-not-found -o name) \
         || die "현재 앱 조회에 실패했습니다. 첫 배포로 간주하지 않습니다."
     if [ -n "$rolling_current" ]; then
         rolling_existing=true
         [ -f "$state_root/current/manifests.yaml" ] || die "현재 release manifest가 없어 롤링 호환성을 비교할 수 없습니다."
-        ruby "$SCRIPT_DIR/rolling-release.rb" check "$REPO_ROOT" "$state_root/current/manifests.yaml" "$manifest"
+        rolling_check=$(ruby "$SCRIPT_DIR/rolling-release.rb" check "$REPO_ROOT" "$state_root/current/manifests.yaml" "$manifest")
+        rolling_schema_reset=$(printf '%s\n' "$rolling_check" | sed -n 's/^SCHEMA_RESET=//p')
         for rolling_name in app frontend; do
             rolling_expected=$(ruby -r "$SCRIPT_DIR/rolling-release.rb" -e \
                 'puts RollingRelease.workload(RollingRelease.documents(ARGV[0]), ARGV[1]).dig("spec", "template", "spec", "containers", 0, "image")' \
@@ -17,6 +19,19 @@ rolling_preflight() {
             [ "$rolling_expected" = "$rolling_live" ] || die "$rolling_name 실제 이미지가 현재 release 기록과 다릅니다."
             kube -n "$NAMESPACE" rollout status "deployment/$rolling_name" --timeout=30s
         done
+    fi
+    # 남아 있는 확인 변수로 다른 release에서 DB를 비우지 않도록 감지한 표식과 정확히 같을 때만 진행한다.
+    if [ -n "${HAPPYGALLERY_SCHEMA_RESET:-}" ] && [ "$rolling_schema_reset" != "$HAPPYGALLERY_SCHEMA_RESET" ]; then
+        die "HAPPYGALLERY_SCHEMA_RESET=$HAPPYGALLERY_SCHEMA_RESET 와 일치하는 스키마 초기화 release가 아닙니다."
+    fi
+    # 기준선 migration은 빈 DB에서만 성공한다. 기존 테이블이 남아 있으면 앱을 교체하기 전에 멈춘다.
+    if [ -n "$rolling_schema_reset" ]; then
+        rolling_tables=$(kube -n "$NAMESPACE" exec mysql-0 -- sh -ec '
+            exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -Nse \
+              "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '\''happygallery'\''"
+        ') || die "스키마 초기화 대상 DB를 확인할 수 없습니다."
+        [ "$rolling_tables" = 0 ] \
+            || die "스키마 초기화 release는 빈 happygallery DB에만 배포합니다. 현재 테이블 수: $rolling_tables"
     fi
     # local-path RWO 공유와 파일 잠금은 한 노드에서만 보장한다.
     rolling_nodes=$(kube get nodes -o 'jsonpath={range .items[*]}{.metadata.name}{"\n"}{end}')

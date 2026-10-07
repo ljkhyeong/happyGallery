@@ -9,8 +9,11 @@ require 'digest'
 require_relative 'openapi-compatibility'
 
 module RollingRelease
+  # 보존할 데이터가 없을 때만 쓰는 1회 스키마 초기화 표식이다.
+  SCHEMA_RESET_PATH = 'deploy/k3s/schema-reset.json'
   # Git diff로 계약·데이터·보호 설정 변경을 찾고 구조로 판정한다.
-  COMPATIBILITY_PATHS = %w[
+  COMPATIBILITY_PATHS = %W[
+    #{SCHEMA_RESET_PATH}
     deploy/k3s/migration-reviews
     bootstrap/src/main/resources/db/migration
     bootstrap/src/main/java/com/personal/happygallery/bootstrap/migration
@@ -45,6 +48,36 @@ module RollingRelease
     raise "Git 파일을 읽을 수 없습니다: #{revision}:#{path}" unless status.success?
 
     content
+  end
+
+  def self.git_blob_if_present(repository, revision, path)
+    _, status = Open3.capture2e('git', '-C', repository, 'cat-file', '-e', "#{revision}:#{path}")
+    status.success? ? git_blob(repository, revision, path) : nil
+  end
+
+  # 새 초기화 id가 들어온 release는 빈 DB에 기준선부터 적용한다. 기존 migration·OpenAPI와의 호환을 따지지 않는 대신
+  # 서버 배포에서 같은 id를 HAPPYGALLERY_SCHEMA_RESET으로 명시하고 대상 DB가 비어 있어야 진행한다.
+  def self.schema_reset_id(repository, old_revision, new_revision, paths)
+    return nil unless paths.include?(SCHEMA_RESET_PATH)
+
+    fresh = git_blob_if_present(repository, new_revision, SCHEMA_RESET_PATH)
+    return nil unless fresh
+
+    marker = JSON.parse(fresh)
+    id = marker.fetch('id').to_s
+    raise "스키마 초기화 id 형식 오류: #{id}" unless id.match?(/\A\d{8}-[a-z0-9-]{1,40}\z/)
+
+    baseline = marker.fetch('baseline').to_s
+    unless baseline.match?(%r{\Abootstrap/src/main/resources/db/migration/V1__[^/]+\.sql\z}) &&
+           git_blob_if_present(repository, new_revision, baseline)
+      raise "스키마 초기화 기준선이 없습니다: #{baseline}"
+    end
+    previous = git_blob_if_present(repository, old_revision, SCHEMA_RESET_PATH)
+    raise "이미 배포한 스키마 초기화 표식은 수정할 수 없습니다: #{id}" if previous && JSON.parse(previous)['id'] == id
+
+    id
+  rescue JSON::ParserError, KeyError => error
+    raise "스키마 초기화 표식을 읽을 수 없습니다: #{error.message}"
   end
 
   def self.git_diff_paths(repository, old_revision, new_revision)
@@ -165,6 +198,7 @@ module RollingRelease
 
   def self.validate_source_compatibility(repository, old_revision, new_revision, paths)
     errors = []
+    reset_id = schema_reset_id(repository, old_revision, new_revision, paths)
     paths.grep(/\.yml\z/).each do |path|
       left, right = [old_revision, new_revision].map do |revision|
         YAML.safe_load(git_blob(repository, revision, path), permitted_classes: [], aliases: false)
@@ -179,7 +213,7 @@ module RollingRelease
       end
     end
 
-    paths.grep(%r{\Adeploy/k3s/migration-reviews/}).each do |review_path|
+    paths.grep(%r{\Adeploy/k3s/migration-reviews/}).reject { reset_id }.each do |review_path|
       begin
         review = JSON.parse(git_blob(repository, new_revision, review_path))
         path = review.fetch('migration')
@@ -196,16 +230,20 @@ module RollingRelease
       end
     end
 
-    statuses = git_diff_statuses(repository, old_revision, new_revision)
-    [-> { validate_expand_migrations(repository, new_revision, paths, statuses) },
-     -> { validate_additive_openapi(repository, old_revision, new_revision, paths) }].each do |validation|
-      begin
-        validation.call
-      rescue RuntimeError => error
-        errors << error.message
+    unless reset_id
+      statuses = git_diff_statuses(repository, old_revision, new_revision)
+      [-> { validate_expand_migrations(repository, new_revision, paths, statuses) },
+       -> { validate_additive_openapi(repository, old_revision, new_revision, paths) }].each do |validation|
+        begin
+          validation.call
+        rescue RuntimeError => error
+          errors << error.message
+        end
       end
     end
     raise errors.join("\n") unless errors.empty?
+
+    reset_id
   end
 
   def self.changed_fields(old, fresh, path = '')
@@ -271,7 +309,7 @@ module RollingRelease
   def self.check(repository, previous, candidate)
     old = documents(previous)
     fresh = documents(candidate)
-    errors, checked = [], []
+    errors, checked, reset_ids = [], [], []
     %w[app frontend].each do |name|
       refs = [old, fresh].map { |docs| workload(docs, name).dig('spec', 'template', 'spec', 'containers', 0, 'image') }
       revisions = refs.map do |ref|
@@ -282,10 +320,15 @@ module RollingRelease
       next if checked.include?(revisions)
       checked << revisions
       begin
-        check_source(repository, *revisions)
+        reset_ids << check_source(repository, *revisions)
       rescue RuntimeError => error
         errors << error.message
       end
+    end
+    reset_id = reset_ids.compact.first
+    if reset_id && ENV['HAPPYGALLERY_SCHEMA_RESET'] != reset_id
+      errors << "스키마 초기화 release입니다(#{reset_id}). 기준선은 빈 DB에만 적용됩니다. " \
+                "운영자가 확인한 뒤 HAPPYGALLERY_SCHEMA_RESET=#{reset_id}를 지정해 다시 실행하세요."
     end
     %w[mysql redis prometheus alertmanager grafana].each do |name|
       changed = changed_fields(workload_contract(workload(old, name)), workload_contract(workload(fresh, name)))
@@ -302,6 +345,9 @@ module RollingRelease
       errors << error.message
     end
     raise errors.join("\n") unless errors.empty?
+
+    # rolling-support.sh는 이 줄로 초기화 release를 알아보고 대상 DB가 비어 있는지 확인한다.
+    puts "SCHEMA_RESET=#{reset_id}" if reset_id
   end
 
   def self.extract_assets(manifest, phase)

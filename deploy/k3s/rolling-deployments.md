@@ -56,6 +56,8 @@ sudo k3s kubectl -n happygallery exec deployment/app -- \
 
 DB 구조가 바뀌는 release는 호환 컬럼 추가 → 새 코드 전환 → 구 코드 제거 후 제약/컬럼 정리처럼 expand/contract를 설계한다. 차단 검사를 끄거나 `Recreate`로 자동 전환해서 진행하지 않는다.
 
+예외는 보존할 운영 데이터가 없어 migration 이력을 기준선 하나로 합친 1회 초기화 release뿐이다. `deploy/k3s/schema-reset.json`에 새 `id`와 `V1__` 기준선 경로를 기록하면 그 release에 한해 migration·OpenAPI 호환 검사를 생략한다. 배포한 표식은 수정하지 않고, 다음 초기화가 필요하면 새 `id`를 쓴다. 서버 배포는 같은 값을 `HAPPYGALLERY_SCHEMA_RESET`으로 지정하고 `happygallery` DB에 테이블이 하나도 없을 때만 진행한다. 값이 다르거나 초기화 release가 아닌데 변수가 남아 있으면 앱을 교체하기 전에 멈춘다. 운영 데이터를 지우는 작업은 배포 스크립트가 하지 않으며, 운영자가 백업을 확인한 뒤 결정한다.
+
 ## 변경 종류별 호환성 검사
 
 | 대상 | 자동 허용 | 차단 또는 별도 검토 |

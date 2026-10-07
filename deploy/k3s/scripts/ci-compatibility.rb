@@ -34,8 +34,9 @@ if $PROGRAM_NAME == __FILE__
     base = CiCompatibility.baseline(event, production: ENV['PRODUCTION_RELEASE'] == 'true',
                                    repository: ENV.fetch('GITHUB_REPOSITORY'))
     head = ENV.fetch('GITHUB_SHA')
-    RollingRelease.check_source(Dir.pwd, base, head)
+    reset_id = RollingRelease.check_source(Dir.pwd, base, head)
     puts "배포 소스 호환성 통과: #{base} → #{head}"
+    puts "스키마 초기화 release(#{reset_id}): 서버 배포에 HAPPYGALLERY_SCHEMA_RESET 확인이 필요합니다." if reset_id
   rescue StandardError => error
     abort "오류: #{error.message}"
   end

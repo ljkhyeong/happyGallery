@@ -24,7 +24,7 @@ description: happyGallery의 원격 푸시·PR 작성·CI 실패 분석·PR 리�
 | Rolling Compatibility | `ruby deploy/k3s/scripts/ci-compatibility.rb` |
 | Agent Feedback Checks | `actionlint`, `ruby tools/agent-feedback-test.rb`, `ruby tools/check-agent-skills.rb` |
 | Backend Package & Module Checks | `./gradlew --no-daemon build -x :application:check -x :adapter-in-web:check` |
-| Backend Tests (application-*) | 실패 클래스만 `--tests`로 실행한다. 그룹 전체는 `:application:check -PciTestGroup=<core\|commerce\|migration>` |
+| Backend Tests (application-*) | 실패 클래스만 `--tests`로 실행한다. 그룹 전체는 `:application:check -PciTestGroup=<core\|commerce>` |
 | Backend Tests (adapter-in-web) | 실패 클래스를 `:adapter-in-web:test` 또는 `restDocsTest`로 실행한다 |
 | Frontend Build | `frontend`에서 실패한 단계만 `test:unit`·`lint`·`api:check`·`build`로 실행한다 |
 | Browser Smoke E2E | 실패 spec만 `npx playwright test <spec>`로 실행한다. CI는 local 프로필 jar와 `RATE_LIMIT_ENABLED=false`를 사용한다 |

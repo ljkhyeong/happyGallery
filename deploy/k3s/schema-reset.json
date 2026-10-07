@@ -1,0 +1,5 @@
+{
+  "id": "20261007-baseline",
+  "baseline": "bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql",
+  "reason": "보존할 운영 데이터가 없어 migration 이력 186개를 현재 스키마 기준선 하나로 합쳤다."
+}
