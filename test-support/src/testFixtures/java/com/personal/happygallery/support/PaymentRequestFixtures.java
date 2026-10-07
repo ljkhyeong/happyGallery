@@ -3,6 +3,7 @@ package com.personal.happygallery.support;
 import com.personal.happygallery.adapter.in.web.payment.dto.BookingPaymentPayloadRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.OrderItemRefRequest;
+import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.OrderTextInputRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.OrderPaymentPayloadRequest.ShippingAddressRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PassPaymentPayloadRequest;
 import com.personal.happygallery.adapter.in.web.payment.dto.PaymentPayloadRequest;
@@ -44,7 +45,10 @@ public final class PaymentRequestFixtures {
                     order.madeToOrderConsentVersion(),
                     order.madeToOrderConsent(),
                     policyAcceptance(order.policyAcceptance()),
-                    order.expectedCartVersion());
+                    order.expectedCartVersion(),
+                    order.issuedCouponId(),
+                    order.rewardAmount(),
+                    order.selectedCartItemIds());
             case BookingPayload booking -> new BookingPaymentPayloadRequest(
                     "BOOKING",
                     booking.userId(),
@@ -67,7 +71,13 @@ public final class PaymentRequestFixtures {
             return null;
         }
         return items.stream()
-                .map(item -> new OrderItemRefRequest(item.productId(), item.qty()))
+                .map(item -> new OrderItemRefRequest(
+                        item.productId(),
+                        item.productVariantId(),
+                        item.textInputs().stream()
+                                .map(input -> new OrderTextInputRequest(input.groupKey(), input.value()))
+                                .toList(),
+                        item.qty()))
                 .toList();
     }
 

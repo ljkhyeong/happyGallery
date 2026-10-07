@@ -54,37 +54,6 @@ public record OrderPaymentPayloadRequest(
         List<@NotNull @Positive Long> selectedCartItemIds
 ) implements PaymentPayloadRequest {
 
-    public OrderPaymentPayloadRequest(String type, Long userId, String phone, String verificationCode,
-            String name, List<OrderItemRefRequest> items, boolean cartCheckout,
-            FulfillmentType fulfillmentType, ShippingAddressRequest shippingAddress,
-            String madeToOrderConsentVersion, boolean madeToOrderConsent,
-            PolicyAcceptanceRequest policyAcceptance, String expectedCartVersion,
-            Long issuedCouponId, Long rewardAmount) {
-        this(type, userId, phone, verificationCode, name, items, cartCheckout, fulfillmentType,
-                shippingAddress, madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance,
-                expectedCartVersion, issuedCouponId, rewardAmount, null);
-    }
-
-    /** 혜택 요청 필드 도입 전 호출부 호환 생성자. */
-    public OrderPaymentPayloadRequest(
-            String type,
-            Long userId,
-            String phone,
-            String verificationCode,
-            String name,
-            List<OrderItemRefRequest> items,
-            boolean cartCheckout,
-            FulfillmentType fulfillmentType,
-            ShippingAddressRequest shippingAddress,
-            String madeToOrderConsentVersion,
-            boolean madeToOrderConsent,
-            PolicyAcceptanceRequest policyAcceptance,
-            String expectedCartVersion) {
-        this(type, userId, phone, verificationCode, name, items, cartCheckout,
-                fulfillmentType, shippingAddress, madeToOrderConsentVersion,
-                madeToOrderConsent, policyAcceptance, expectedCartVersion, null, null);
-    }
-
     @Override
     public PaymentPayload.OrderPayload toCommand() {
         return new PaymentPayload.OrderPayload(
@@ -117,10 +86,6 @@ public record OrderPaymentPayloadRequest(
     ) {
         public OrderItemRefRequest {
             textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
-        }
-
-        public OrderItemRefRequest(Long productId, int qty) {
-            this(productId, null, List.of(), qty);
         }
 
         private PaymentPayload.OrderItemRef toCommand() {
