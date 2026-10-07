@@ -14,7 +14,4 @@ public record AdjustInventoryRequest(
         @Positive int quantity,
         @NotBlank @Size(max = 500) String reason
 ) {
-    public AdjustInventoryRequest(InventoryAdjustmentType type, int quantity, String reason) {
-        this(null, type, quantity, reason);
-    }
 }

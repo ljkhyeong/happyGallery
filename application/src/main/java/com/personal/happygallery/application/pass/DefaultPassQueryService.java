@@ -9,13 +9,11 @@ import com.personal.happygallery.application.customer.port.out.MemberHistoryRead
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.booking.Refund;
-import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,15 +70,5 @@ public class DefaultPassQueryService implements PassQueryUseCase {
         return passes.stream()
                 .map(pass -> new PassView(pass, refundsByPassId.get(pass.getId()), receiptsByPassId.get(pass.getId())))
                 .toList();
-    }
-
-    /** 회원 — 자기 이용권 상세 조회 (소유권 검증 포함) */
-    @Override
-    public PassView findMyPass(Long id, Long userId) {
-        PassPurchase pass = passPurchaseReader.findById(id)
-                .filter(p -> Objects.equals(p.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("이용권"));
-        return new PassView(pass, refundPort.findByPassPurchaseId(id).orElse(null),
-                receiptQuery.findReceipt(PaymentContext.PASS, id));
     }
 }

@@ -4,6 +4,7 @@ import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -55,7 +56,7 @@ class CartQueryUseCaseIT {
         User user = userStore.save(new User("cart-decrease@example.com", "hashed", "수량 고객", "01012345678"));
         Product product = productStore.save(readyStockProduct("수량 감소 상품", 10_000L));
         Inventory inventory = inventoryStore.save(inventory(product, 5));
-        cartUseCase.addItem(user.getId(), product.getId(), 5);
+        cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 5);
         Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
         inventory.deduct(3);
         cartUseCase.updateItemQty(user.getId(), itemId, 4);
@@ -164,12 +165,8 @@ class CartQueryUseCaseIT {
             softly.assertThat(cart.items())
                     .usingRecursiveFieldByFieldElementComparatorIgnoringFields("cartItemId")
                     .containsExactly(
-                    new CartUseCase.CartItemView(
-                            availableProduct.getId(), "재고 상품", availableProduct.getType(),
-                            39_000L, 2, true, 3),
-                    new CartUseCase.CartItemView(
-                            unavailableProduct.getId(), "재고 없는 상품", unavailableProduct.getType(),
-                            15_000L, 1, false, 0));
+                    readyStockView(availableProduct.getId(), "재고 상품", 39_000L, 2, true, 3),
+                    readyStockView(unavailableProduct.getId(), "재고 없는 상품", 15_000L, 1, false, 0));
             softly.assertThat(cart.items())
                     .extracting(CartUseCase.CartItemView::cartItemId)
                     .containsExactly(availableItem.getId(), unavailableItem.getId());
@@ -192,7 +189,7 @@ class CartQueryUseCaseIT {
         String repeatedVersion = cartUseCase.getCart(user.getId()).cartVersion();
         cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
         CartUseCase.CartView quantityChanged = cartUseCase.getCart(user.getId());
-        product.updateDetails("버전 상품", null, 20_000L, null, null);
+        product.updateDetails("버전 상품", null, 20_000L, null, null, null, null, null);
         productStore.save(product);
         CartUseCase.CartView priceChanged = cartUseCase.getCart(user.getId());
         inventory.deduct(4);
@@ -228,8 +225,8 @@ class CartQueryUseCaseIT {
                 user.getId(), existingProduct.getId(), 1, LocalDateTime.now(clock)));
         UUID idempotencyKey = UUID.randomUUID();
         List<CartUseCase.MergeItem> items = List.of(
-                new CartUseCase.MergeItem(existingProduct.getId(), 2),
-                new CartUseCase.MergeItem(newProduct.getId(), 1));
+                new CartUseCase.MergeItem(existingProduct.getId(), null, List.of(), 2),
+                new CartUseCase.MergeItem(newProduct.getId(), null, List.of(), 1));
 
         cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
         cartUseCase.mergeItems(user.getId(), idempotencyKey, items);
@@ -241,7 +238,7 @@ class CartQueryUseCaseIT {
                         tuple(newProduct.getId(), 1));
         assertThatThrownBy(() -> cartUseCase.mergeItems(
                 user.getId(), idempotencyKey,
-                List.of(new CartUseCase.MergeItem(existingProduct.getId(), 3))))
+                List.of(new CartUseCase.MergeItem(existingProduct.getId(), null, List.of(), 3))))
                 .isInstanceOfSatisfying(
                         HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode())
@@ -257,8 +254,8 @@ class CartQueryUseCaseIT {
         Product product = productStore.save(readyStockProduct("수량 제한 상품", 10_000L));
         inventoryStore.save(inventory(product, 200));
         List<CartUseCase.MergeItem> items = List.of(
-                new CartUseCase.MergeItem(product.getId(), 50),
-                new CartUseCase.MergeItem(product.getId(), additionalQuantity));
+                new CartUseCase.MergeItem(product.getId(), null, List.of(), 50),
+                new CartUseCase.MergeItem(product.getId(), null, List.of(), additionalQuantity));
 
         if (accepted) {
             cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), items);
@@ -279,16 +276,16 @@ class CartQueryUseCaseIT {
                 "cart-stock@example.com", "hashed", "재고 장바구니", "01022223333"));
         Product product = productStore.save(readyStockProduct("재고 제한 상품", 12_000L));
         inventoryStore.save(inventory(product, 2));
-        cartUseCase.addItem(user.getId(), product.getId(), 1);
+        cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 1);
         Long cartItemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
 
-        assertThatThrownBy(() -> cartUseCase.addItem(user.getId(), product.getId(), 2))
+        assertThatThrownBy(() -> cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 2))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
         assertThatThrownBy(() -> cartUseCase.mergeItems(
                 user.getId(), UUID.randomUUID(),
-                List.of(new CartUseCase.MergeItem(product.getId(), 2))))
+                List.of(new CartUseCase.MergeItem(product.getId(), null, List.of(), 2))))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
@@ -307,7 +304,7 @@ class CartQueryUseCaseIT {
     void getCart_separatesTextOptionLinesAndCalculatesPrice() {
         User user = userStore.save(new User(
                 "cart-options@example.com", "hashed", "옵션 장바구니", "01087654321"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 키링", ProductType.MADE_TO_ORDER, null,
                         20_000L, 2, null, null, "소가죽 키링", null, 5,
@@ -371,5 +368,12 @@ class CartQueryUseCaseIT {
             assertThat(item.availableQuantity()).isZero();
         });
         assertThat(soldOut.cartVersion()).isNotEqualTo(stockChanged.cartVersion());
+    }
+
+    private static CartUseCase.CartItemView readyStockView(Long productId, String productName, long price,
+                                                           int qty, boolean available, int availableQuantity) {
+        return new CartUseCase.CartItemView(
+                null, productId, null, productName, ProductType.READY_STOCK, price, 0L, 0L, price,
+                null, null, null, List.of(), qty, available, availableQuantity);
     }
 }

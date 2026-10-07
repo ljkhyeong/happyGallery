@@ -2,12 +2,10 @@ package com.personal.happygallery.adapter.in.web.product;
 
 import com.personal.happygallery.application.qna.port.in.ProductQnaUseCase;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaDetail;
-import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaListItem;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductQnaPageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,14 +20,6 @@ public class ProductQnaController {
 
     public ProductQnaController(ProductQnaUseCase qnaUseCase) {
         this.qnaUseCase = qnaUseCase;
-    }
-
-    @GetMapping
-    @Operation(operationId = "listProductQna")
-    public List<ProductQnaListItem> list(@PathVariable Long productId) {
-        return qnaUseCase.listByProduct(productId).stream()
-                .map(ProductQnaListItem::from)
-                .toList();
     }
 
     @GetMapping("/page")

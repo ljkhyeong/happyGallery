@@ -23,6 +23,7 @@ import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCa
 import com.personal.happygallery.application.payment.port.in.PaymentStatusQueryUseCase;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
 import com.personal.happygallery.application.policy.PolicyConsentService;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
@@ -163,7 +164,7 @@ class PaymentPrepareUseCaseTest {
     void prepare_madeToOrderOptionsUsesServerPriceAndVariantStock() {
         User user = userStorePort.save(new User(
                 "option-payment@example.com", "hashed", "옵션 회원", "01023456789"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 가죽 지갑",
                         ProductType.MADE_TO_ORDER,

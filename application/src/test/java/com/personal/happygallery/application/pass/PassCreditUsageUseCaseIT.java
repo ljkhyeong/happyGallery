@@ -453,11 +453,6 @@ class PassCreditUsageUseCaseIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].refund.amount").value(320_000))
                 .andExpect(jsonPath("$[0].refund.status").value("SUCCEEDED"));
-        Cookie otherSession = customerHelper.signupAndGetSessionCookie(
-                "pass-other@example.com", "01099990002");
-        mockMvc.perform(get("/api/v1/me/passes/{passId}", pass.getId())
-                        .cookie(otherSession))
-                .andExpect(status().isNotFound());
         PassPurchase reloaded = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         Slot reloadedSlot1 = slotRepository.findById(slot1.getId()).orElseThrow();
         Slot reloadedSlot2 = slotRepository.findById(slot2.getId()).orElseThrow();

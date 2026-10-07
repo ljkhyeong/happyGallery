@@ -74,19 +74,6 @@ public class InventoryAdjustment {
         this.adjustedAt = adjustedAt;
     }
 
-    public InventoryAdjustment(Long productId,
-                               InventoryAdjustmentType type,
-                               int quantity,
-                               int quantityBefore,
-                               int quantityAfter,
-                               String reason,
-                               Long adjustedByAdminId,
-                               String adjustedBy,
-                               LocalDateTime adjustedAt) {
-        this(productId, null, type, quantity, quantityBefore, quantityAfter,
-                reason, adjustedByAdminId, adjustedBy, adjustedAt);
-    }
-
     public Long getId() { return id; }
     public Long getProductId() { return productId; }
     public Long getProductVariantId() { return productVariantId; }

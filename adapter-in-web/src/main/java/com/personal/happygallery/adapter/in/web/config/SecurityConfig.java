@@ -76,7 +76,6 @@ public class SecurityConfig {
             "/api/v1/products",
             "/api/v1/products/categories",
             "/api/v1/products/{id}",
-            "/api/v1/products/{productId}/qna",
             "/api/v1/products/{productId}/qna/page",
             "/api/v1/products/{productId}/qna/{id}",
             "/api/v1/products/{productId}/reviews",

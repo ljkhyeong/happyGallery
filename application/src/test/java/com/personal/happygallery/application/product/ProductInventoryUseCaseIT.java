@@ -27,7 +27,7 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.adapter.out.persistence.product.ProductVariantRepository;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingActor;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.SaveMappingCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.out.SmartStoreStockMappingPort;
@@ -256,7 +256,7 @@ class ProductInventoryUseCaseIT {
                 variantsFrom(optionConfigurationService.get(productId, true))));
         assertSoftly(softly -> {
             softly.assertThat(removed.options().variants()).extracting(ProductOptions.Variant::id).containsExactly(defaultId);
-            softly.assertThat(variantRepository.findWithSelectionsByProductId(productId)).hasSize(3);
+            softly.assertThat(variantRepository.findWithSelectionsByProductIdIn(List.of(productId))).hasSize(3);
         });
     }
 
@@ -525,7 +525,7 @@ class ProductInventoryUseCaseIT {
         smartStoreInventoryMappingService.deleteMapping(
                 productId,
                 new DeleteMappingCommand(current.mappingVersion(), true),
-                MappingActor.system());
+                AdminActor.system());
     }
 
     private static SaveProductCommand madeToOrderCommand(
@@ -720,7 +720,7 @@ class ProductInventoryUseCaseIT {
                         "먼저 반영된 이름", ProductType.READY_STOCK, null,
                         50_000L, null, null, null, null, null, null,
                         List.of(), List.of()));
-        staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null);
+        staleProduct.updateDetails("뒤늦게 저장한 이름", null, 52_000L, null, null, null, null, null);
 
         assertThatThrownBy(() -> productRepository.saveAndFlush(staleProduct))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);

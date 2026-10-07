@@ -26,12 +26,12 @@ import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.review.Review;
 import com.personal.happygallery.domain.review.ReviewEvidenceSnapshot;
 import com.personal.happygallery.domain.review.ReviewModerationAction;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
+import com.personal.happygallery.support.TestFixtures;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -81,7 +81,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findOrderRequestRecipient_checksLiveAndBlockedReviewTombstones() {
         User user = createUser("order-review-notice@example.com", "01071000001");
         Product product = productRepository.saveAndFlush(
-                new Product("후기 알림 상품", ProductType.READY_STOCK, 30_000L));
+                TestFixtures.readyStockProduct("후기 알림 상품", 30_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
                 readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
@@ -147,7 +147,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findReviewRecipients_checksCurrentStatusReplyAndDeletion() {
         User user = createUser("state-review-notice@example.com", "01071000003");
         Product product = productRepository.saveAndFlush(
-                new Product("상태 알림 상품", ProductType.READY_STOCK, 40_000L));
+                TestFixtures.readyStockProduct("상태 알림 상품", 40_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
                 readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));

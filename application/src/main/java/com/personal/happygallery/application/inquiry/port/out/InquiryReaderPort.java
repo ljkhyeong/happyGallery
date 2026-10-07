@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface InquiryReaderPort {
 
-    Optional<Inquiry> findById(Long id);
-
     Optional<Inquiry> findByIdForUpdate(Long id);
 
     List<Inquiry> findByUserId(Long userId, int limit);

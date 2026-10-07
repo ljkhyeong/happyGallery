@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.adapter.out.persistence.product.InventoryRepository;
 import com.personal.happygallery.application.batch.BatchResult;
 import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.in.OrderPickupUseCase;
@@ -48,6 +49,7 @@ class PickupExpireBatchUseCaseIT {
     @Autowired OrderApprovalUseCase orderApprovalService;
     @Autowired OrderProductionUseCase orderProductionService;
     @Autowired InventoryStorePort inventoryStorePort;
+    @Autowired InventoryRepository inventoryRepository;
     @Autowired FulfillmentPort fulfillmentPort;
     @Autowired OrderStateProbe orderStateProbe;
     @Autowired TestCleanupSupport cleanupSupport;
@@ -224,7 +226,7 @@ class PickupExpireBatchUseCaseIT {
         markPickupReadyWithExpiredDeadline(successOrder.getId());
 
         // 실패 케이스 유도: 재고 레코드가 사라진 상태에서 복구 시도하면 NotFoundException 발생
-        inventoryStorePort.deleteById(failedFixture.product().getId());
+        inventoryRepository.deleteById(failedFixture.product().getId());
 
         BatchResult result = pickupExpireBatchService.expirePickups();
 

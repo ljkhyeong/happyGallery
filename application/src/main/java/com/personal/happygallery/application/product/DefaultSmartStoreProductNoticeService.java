@@ -1,5 +1,8 @@
 package com.personal.happygallery.application.product;
 
+import com.personal.happygallery.application.product.dto.SmartStoreNotice;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticePage;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSaveCommand;
 import com.personal.happygallery.application.product.port.in.SmartStoreProductNoticeUseCase;
 import com.personal.happygallery.application.product.port.out.SmartStoreProductNoticeProvider;
 import com.personal.happygallery.domain.error.ErrorCode;
@@ -20,44 +23,27 @@ public class DefaultSmartStoreProductNoticeService implements SmartStoreProductN
     }
 
     @Override
-    public NoticePage list(int page, int size) {
+    public SmartStoreNoticePage list(int page, int size) {
         requireEnabled();
-        var pageResult = provider.list(page, size);
-        return new NoticePage(
-                pageResult.notices().stream()
-                        .map(notice -> new NoticeSummary(
-                                notice.sellerNoticeId(), notice.postCategoryType(), notice.title(),
-                                notice.importantNotice(), notice.importantNoticeStartDate(),
-                                notice.importantNoticeEndDate(), notice.wholeNotice(),
-                                notice.displayStartDate(), notice.displayEndDate()))
-                        .toList(),
-                pageResult.page(), pageResult.size(),
-                pageResult.totalElements(), pageResult.totalPages());
+        return provider.list(page, size);
     }
 
     @Override
-    public Notice get(Long sellerNoticeId) {
+    public SmartStoreNotice get(Long sellerNoticeId) {
         requireEnabled();
-        var notice = provider.get(sellerNoticeId);
-        return new Notice(
-                notice.sellerNoticeId(), notice.postCategoryType(), notice.title(),
-                notice.importantNotice(), notice.importantNoticeStartDate(),
-                notice.importantNoticeEndDate(), notice.wholeNotice(),
-                notice.displayStartDate(), notice.displayEndDate(), notice.popup(),
-                notice.popupStartDate(), notice.popupEndDate(), notice.detailContents());
+        return provider.get(sellerNoticeId);
     }
 
     @Override
-    public Long create(SaveCommand command) {
+    public Long create(SmartStoreNoticeSaveCommand command) {
         requireEnabled();
-        return provider.create(toProviderCommand(command));
+        return provider.create(command);
     }
 
     @Override
-    public Long update(
-            Long sellerNoticeId, SaveCommand command) {
+    public Long update(Long sellerNoticeId, SmartStoreNoticeSaveCommand command) {
         requireEnabled();
-        return provider.update(sellerNoticeId, toProviderCommand(command));
+        return provider.update(sellerNoticeId, command);
     }
 
     @Override
@@ -77,15 +63,5 @@ public class DefaultSmartStoreProductNoticeService implements SmartStoreProductN
             throw new HappyGalleryException(
                     ErrorCode.CONFLICT, "스마트스토어 연동이 비활성화되어 있습니다.");
         }
-    }
-
-    private static SmartStoreProductNoticeProvider.SaveCommand toProviderCommand(
-            SaveCommand command) {
-        return new SmartStoreProductNoticeProvider.SaveCommand(
-                command.postCategoryType(), command.title(), command.importantNotice(),
-                command.importantNoticeStartDate(), command.importantNoticeEndDate(),
-                command.wholeNotice(), command.displayStartDate(), command.displayEndDate(),
-                command.popup(), command.popupStartDate(), command.popupEndDate(),
-                command.detailContents());
     }
 }

@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminInquiryPageResponse;
 import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase;
-import com.personal.happygallery.application.inquiry.port.in.InquiryUseCase.InquiryWithUser;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.InquiryReplyRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
@@ -33,13 +32,6 @@ public class AdminInquiryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
         return AdminInquiryPageResponse.from(inquiryUseCase.listAll(cursor, size));
-    }
-
-    @GetMapping("/{id}")
-    @Operation(operationId = "getAdminInquiry")
-    public AdminInquiryResponse detail(@PathVariable Long id) {
-        InquiryWithUser inquiry = inquiryUseCase.findByIdForAdmin(id);
-        return AdminInquiryResponse.from(inquiry);
     }
 
     @PostMapping("/{id}/reply")

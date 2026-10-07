@@ -37,7 +37,7 @@ class ImageReferencePolicyTest {
     void catalogAggregates_rejectInvalidExternalImageReferences() {
         assertInvalidInput(() -> new Product(
                 "상품", ProductType.READY_STOCK, "소품", 10_000L,
-                null, "javascript:alert(1)"));
+                null, "javascript:alert(1)", null, null, null));
         assertInvalidInput(() -> new BookingClass(
                 "클래스", "CRAFT", 60, 30_000L, 30,
                 true, null, "https:/missing-host/image.jpg", null, null));
@@ -50,7 +50,7 @@ class ImageReferencePolicyTest {
     void catalogAggregates_shareImageReferencePolicy() {
         Product product = new Product(
                 "상품", ProductType.READY_STOCK, "소품", 10_000L,
-                null, "/api/v1/media/images/product.jpg");
+                null, "/api/v1/media/images/product.jpg", null, null, null);
         BookingClass bookingClass = new BookingClass(
                 "클래스", "CRAFT", 60, 30_000L, 30,
                 true, null, "/api/v1/media/images/class.jpg", null, null);

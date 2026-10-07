@@ -144,7 +144,7 @@
 결제 진입점 도입으로 회원 이용권 구매 생성 경로를 다시 일원화했다.
 
 - 구매 생성: `POST /api/v1/payments/prepare` (`context=PASS`) → `POST /api/v1/payments/confirm`
-- `GET /api/v1/me/passes`, `GET /api/v1/me/passes/{id}`는 회원 이용권 조회 전용으로 유지한다.
+- `GET /api/v1/me/passes`와 `/page`는 회원 이용권 조회 전용으로 유지한다. 화면이 쓰지 않던 단건 `GET /api/v1/me/passes/{id}`는 2026-10-07에 제거했다.
 - 가격은 클라이언트가 보내지 않고 서버 설정 `app.pass.total-price` (`PASS_TOTAL_PRICE`, 기본 240000)으로 확정한다.
 
 ## Update (2026-07-21)

@@ -600,7 +600,6 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
       pathname === "/api/v1/me/orders"
       || pathname === "/api/v1/me/bookings"
       || pathname === "/api/v1/me/passes"
-      || pathname === "/api/v1/me/inquiries"
     ) {
       await fulfillJson(route, []);
       return;

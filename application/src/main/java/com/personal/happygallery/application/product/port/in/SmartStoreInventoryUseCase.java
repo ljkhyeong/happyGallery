@@ -1,5 +1,9 @@
 package com.personal.happygallery.application.product.port.in;
 
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogPage;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
+import com.personal.happygallery.application.product.dto.SmartStoreInspectionPage;
+import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.product.SmartStoreStockSyncStatus;
 import com.personal.happygallery.domain.product.SmartStoreInventoryMappingAction;
 import java.time.LocalDateTime;
@@ -8,27 +12,27 @@ import java.util.Optional;
 
 public interface SmartStoreInventoryUseCase {
 
-    MappingResult saveMapping(Long productId, SaveMappingCommand command, MappingActor actor);
+    MappingResult saveMapping(Long productId, SaveMappingCommand command, AdminActor actor);
 
     default MappingResult saveMapping(Long productId, SaveMappingCommand command) {
-        return saveMapping(productId, command, MappingActor.system());
+        return saveMapping(productId, command, AdminActor.system());
     }
 
     Optional<MappingResult> getMapping(Long productId);
 
-    void deleteMapping(Long productId, DeleteMappingCommand command, MappingActor actor);
+    void deleteMapping(Long productId, DeleteMappingCommand command, AdminActor actor);
 
     default void deleteMapping(Long productId, DeleteMappingCommand command) {
-        deleteMapping(productId, command, MappingActor.system());
+        deleteMapping(productId, command, AdminActor.system());
     }
 
     List<MappingHistoryResult> listMappingHistory(Long productId);
 
     MappingResult retry(Long productId);
 
-    CatalogPageResult listChannelProducts(int page, int size);
+    SmartStoreCatalogPage listChannelProducts(int page, int size);
 
-    InspectionPageResult listInspectionProducts(int page, int size);
+    SmartStoreInspectionPage listInspectionProducts(int page, int size);
 
     void restoreInspectionProduct(Long channelProductNo);
 
@@ -64,62 +68,11 @@ public interface SmartStoreInventoryUseCase {
             boolean previousOriginConfirmed
     ) {}
 
-    record MappingActor(Long adminUserId, String name) {
-        public MappingActor {
-            name = name == null || name.isBlank() ? "시스템" : name.strip();
-        }
-
-        public static MappingActor system() {
-            return new MappingActor(null, "시스템");
-        }
-    }
-
-    record CatalogPageResult(
-            List<CatalogProductResult> products,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages
-    ) {}
-
-    record CatalogProductResult(
-            Long originProductNo,
-            Long channelProductNo,
-            String name,
-            String status,
-            long salePrice,
-            Integer stockQuantity,
-            String imageUrl
-    ) {}
-
-    record InspectionPageResult(
-            List<InspectionProductResult> products,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages
-    ) {}
-
-    record InspectionProductResult(
-            Long channelProductNo,
-            String reason,
-            String action,
-            boolean restorationRequestAvailable
-    ) {}
-
     record ChannelProductResult(
             Long originProductNo,
             long salePrice,
             String status,
-            List<ChannelOptionResult> options
-    ) {}
-
-    record ChannelOptionResult(
-            Long optionId,
-            String name,
-            int stockQuantity,
-            long price,
-            boolean usable
+            List<SmartStoreChannelOption> options
     ) {}
 
     record MappingResult(

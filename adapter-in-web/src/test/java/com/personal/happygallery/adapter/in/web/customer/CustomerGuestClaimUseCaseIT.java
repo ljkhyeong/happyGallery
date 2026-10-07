@@ -32,7 +32,6 @@ import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
-import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.CustomerTestHelper;
@@ -133,7 +132,7 @@ class CustomerGuestClaimUseCaseIT {
         String email = "member@example.com";
         Guest guest = guestRepository.save(TestFixtures.guest("비회원", "01012345678"));
 
-        Product product = productStorePort.save(new Product("테스트 상품", ProductType.READY_STOCK, 29_000L));
+        Product product = productStorePort.save(TestFixtures.readyStockProduct("테스트 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 5));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
@@ -204,7 +203,7 @@ class CustomerGuestClaimUseCaseIT {
         String phone = "01012345678";
         Guest guest = guestRepository.save(TestFixtures.guest("완료 비회원", phone));
         Product product = productStorePort.save(
-                new Product("완료 이력 상품", ProductType.READY_STOCK, 39_000L));
+                TestFixtures.readyStockProduct("완료 이력 상품", 39_000L));
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),
@@ -248,7 +247,7 @@ class CustomerGuestClaimUseCaseIT {
         String phone = "01012345678";
         Guest guest = guestRepository.save(TestFixtures.guest("비회원", phone));
 
-        Product product = productStorePort.save(new Product("복구 상품", ProductType.READY_STOCK, 29_000L));
+        Product product = productStorePort.save(TestFixtures.readyStockProduct("복구 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 5));
         OrderService.OrderCreationResult createdOrder = orderService.createPaidOrder(
                 guest.getId(),
@@ -429,7 +428,7 @@ class CustomerGuestClaimUseCaseIT {
         User user = userReaderPort.findByEmail(email).orElseThrow();
 
         Product product = productStorePort.save(
-                new Product("탈퇴 경합 상품", ProductType.READY_STOCK, 29_000L));
+                TestFixtures.readyStockProduct("탈퇴 경합 상품", 29_000L));
         inventoryStorePort.save(new Inventory(product, 1));
         Order order = orderService.createPaidOrder(
                 guest.getId(),

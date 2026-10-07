@@ -118,7 +118,6 @@ class OpenApiSpecGenerator {
 
     private void assertPaymentAndCartRequestContracts(Map<?, ?> document) {
         assertRequiredProperties(document, "ConfirmPaymentRequest", "orderId", "amount");
-        assertRequiredProperties(document, "AddCartItemRequest", "productId", "qty");
         assertRequiredProperties(document, "UpdateCartItemRequest", "qty");
         assertRequiredProperties(
                 document,

@@ -7,7 +7,5 @@ public interface NoticeQueryUseCase {
 
     List<Notice> listAll();
 
-    List<Notice> listRecent(int limit);
-
     Notice getDetail(Long id);
 }

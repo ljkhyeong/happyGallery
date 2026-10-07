@@ -135,7 +135,7 @@ public class OrderTestHelper {
                         "재료: 테스트 재료\n크기: 테스트 규격\n사양: 고정 사양",
                         "직사광선을 피해 보관하세요.",
                         14)
-                : new Product(name, type, price));
+                : TestFixtures.readyStockProduct(name, price));
         inventoryStorePort.save(new Inventory(product, quantity));
         return product;
     }

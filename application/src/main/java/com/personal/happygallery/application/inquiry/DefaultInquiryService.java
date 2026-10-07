@@ -52,12 +52,6 @@ public class DefaultInquiryService implements InquiryUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Inquiry> listByUser(Long userId) {
-        return listByUser(userId, null, PageParams.MAX_SIZE).content();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<Inquiry> listByUser(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
@@ -73,17 +67,6 @@ public class DefaultInquiryService implements InquiryUseCase {
                 inquiries,
                 pageSize,
                 inquiry -> CursorUtils.encode(inquiry.getCreatedAt(), inquiry.getId()));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Inquiry findByIdAndUser(Long inquiryId, Long userId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(NotFoundException.supplier("문의"));
-        if (!inquiry.getUserId().equals(userId)) {
-            throw new NotFoundException("문의");
-        }
-        return inquiry;
     }
 
     @Override
@@ -105,16 +88,6 @@ public class DefaultInquiryService implements InquiryUseCase {
                 .toList();
         return CursorPage.of(items, pageSize, item -> CursorUtils.encode(
                 item.inquiry().getCreatedAt(), item.inquiry().getId()));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public InquiryWithUser findByIdForAdmin(Long inquiryId) {
-        Inquiry inquiry = inquiryReader.findById(inquiryId)
-                .orElseThrow(NotFoundException.supplier("문의"));
-        String name = userReader.findById(inquiry.getUserId())
-                .map(User::getName).orElse("탈퇴회원");
-        return new InquiryWithUser(inquiry, name);
     }
 
     @Override

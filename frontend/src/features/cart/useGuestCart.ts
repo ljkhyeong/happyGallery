@@ -56,8 +56,8 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     || !Number.isSafeInteger(item.qty)
     || item.qty <= 0
     || item.qty > MAX_PRODUCT_QUANTITY
-    || (item.lineageId !== undefined
-      && (typeof item.lineageId !== "string" || item.lineageId.length === 0))
+    || typeof item.lineageId !== "string"
+    || item.lineageId.length === 0
   ) {
     return undefined;
   }
@@ -75,7 +75,7 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     textInputs,
     lineKey: productOptionLineKey(item.productId, productVariantId, textInputs),
     qty: item.qty,
-    lineageId: item.lineageId ?? `legacy:${item.productId}`,
+    lineageId: item.lineageId,
   };
 }
 

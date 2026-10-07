@@ -31,6 +31,7 @@ import com.personal.happygallery.adapter.out.persistence.booking.RefundRepositor
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.adapter.out.persistence.order.OrderRepository;
 import com.personal.happygallery.adapter.out.persistence.policy.PolicyConsentRepository;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
@@ -266,7 +267,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_selectedCartCheckout_checksOnlySelectedSkuQuantity() {
         User user = userStorePort.save(new User(
                 "selected-stock@example.com", "hashed", "선택 구매 회원", "01033335556"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 키링", ProductType.MADE_TO_ORDER, null,
                         20_000L, 2, null, null, "소가죽 키링", null, 5,
@@ -329,7 +330,7 @@ class PaymentConfirmUseCaseIT {
     void confirm_madeToOrder_requiresAndSnapshotsConsent() {
         User user = userStorePort.save(new User(
                 "made-to-order-consent@example.com", "hashed", "제작 동의 회원", "01033335555"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "주문제작 가죽 소품", ProductType.MADE_TO_ORDER, null,
                         120_000L, 1, null, null,

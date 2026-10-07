@@ -54,7 +54,6 @@ function MyPassesContent() {
     resetFilters,
   } = useMyListFilters({
     defaultSort: DEFAULT_SORT,
-    legacyStatusParam: "filter",
     statusValues: Object.values(ListMyPassesPageStatus),
     sortValues: PASS_SORT_OPTIONS.map((option) => option.value),
   });

@@ -1,8 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerRequest;
-import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryAnswerTemplateResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreInquiryPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.SmartStoreCustomerInquiryPageResponse;
@@ -11,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import java.util.List;
 import java.time.LocalDate;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -32,16 +29,6 @@ public class AdminSmartStoreInquiryController {
 
     public AdminSmartStoreInquiryController(SmartStoreInquiryUseCase useCase) {
         this.useCase = useCase;
-    }
-
-    @GetMapping
-    @Operation(operationId = "listSmartStoreInquiries")
-    public List<SmartStoreInquiryResponse> list(
-            @RequestParam(defaultValue = "true") boolean unansweredOnly,
-            @RequestParam(defaultValue = "100") @Min(1) @Max(200) int limit) {
-        return useCase.list(unansweredOnly, limit).stream()
-                .map(SmartStoreInquiryResponse::from)
-                .toList();
     }
 
     @GetMapping("/template")
@@ -80,16 +67,6 @@ public class AdminSmartStoreInquiryController {
             @PathVariable long questionId,
             @Valid @RequestBody SmartStoreInquiryAnswerRequest request) {
         useCase.answer(questionId, request.content());
-    }
-
-    @GetMapping("/customers")
-    @Operation(operationId = "listSmartStoreCustomerInquiries")
-    public List<SmartStoreCustomerInquiryResponse> listCustomerInquiries(
-            @RequestParam(defaultValue = "true") boolean unansweredOnly,
-            @RequestParam(defaultValue = "100") @Min(1) @Max(200) int limit) {
-        return useCase.listCustomerInquiries(unansweredOnly, limit).stream()
-                .map(SmartStoreCustomerInquiryResponse::from)
-                .toList();
     }
 
     @PutMapping("/customers/{inquiryNo}/answer")

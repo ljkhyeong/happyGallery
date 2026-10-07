@@ -172,11 +172,6 @@ public class DefaultCartService implements CartUseCase {
     }
 
     @Override
-    public void addItem(Long userId, Long productId, int qty) {
-        addItem(userId, productId, null, List.of(), qty);
-    }
-
-    @Override
     public void addItem(Long userId, Long productId, Long productVariantId,
                         List<TextInput> textInputs, int qty) {
         OrderAmountCalculator.requireQuantity(qty);

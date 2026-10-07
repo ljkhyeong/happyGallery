@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
-import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.ProductOptions;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductOptionGroupResponse;
 import com.personal.happygallery.adapter.in.web.product.dto.ProductVariantResponse;
 import com.personal.happygallery.domain.product.Product;
@@ -30,16 +30,9 @@ public record ProductResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductOptionGroupResponse> optionGroups,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductVariantResponse> variants
 ) {
-    public static ProductResponse from(ProductQueryUseCase.ProductView result) {
-        return from(result.product(), result.quantity(), result.available(), result.options());
-    }
-
-    public static ProductResponse from(ProductAdminUseCase.ProductResult result) {
-        return from(result.product(), result.quantity(), result.available(), result.options());
-    }
-
-    private static ProductResponse from(Product product, long quantity, boolean stockAvailable,
-                                        com.personal.happygallery.application.product.ProductOptions options) {
+    public static ProductResponse from(ProductView view) {
+        Product product = view.product();
+        ProductOptions options = view.options();
         return new ProductResponse(
                 product.getId(),
                 product.getName(),
@@ -52,8 +45,8 @@ public record ProductResponse(
                 product.getCareInstructions(),
                 product.getProductionLeadDays(),
                 product.getStatus(),
-                product.getStatus() == ProductStatus.ACTIVE && stockAvailable,
-                quantity,
+                product.getStatus() == ProductStatus.ACTIVE && view.available(),
+                view.quantity(),
                 options.groups().stream().map(ProductOptionGroupResponse::from).toList(),
                 options.variants().stream().map(ProductVariantResponse::from).toList()
         );

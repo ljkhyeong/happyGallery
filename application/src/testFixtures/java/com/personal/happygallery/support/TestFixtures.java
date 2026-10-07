@@ -78,7 +78,7 @@ public final class TestFixtures {
     }
 
     public static Product readyStockProduct(String name, long price) {
-        return new Product(name, ProductType.READY_STOCK, price);
+        return new Product(name, ProductType.READY_STOCK, null, price, null, null, null, null, null);
     }
 
     /** 할인 없는 기성품 주문 상품 라인. */
