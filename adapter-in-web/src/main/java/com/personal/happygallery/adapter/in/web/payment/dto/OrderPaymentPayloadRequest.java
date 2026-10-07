@@ -115,7 +115,7 @@ public record OrderPaymentPayloadRequest(
             @NotBlank String addressLine1,
             @Schema(nullable = true) String addressLine2
     ) {
-        private ShippingAddress toCommand() {
+        public ShippingAddress toCommand() {
             return new ShippingAddress(
                     recipientName, phone, postalCode, addressLine1, addressLine2);
         }

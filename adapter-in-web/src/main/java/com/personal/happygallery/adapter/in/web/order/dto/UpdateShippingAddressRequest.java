@@ -10,7 +10,6 @@ public record UpdateShippingAddressRequest(
         @NotNull @PositiveOrZero Long version,
         @NotNull @Valid ShippingAddressRequest shippingAddress) {
     public ShippingAddress toAddress() {
-        return new ShippingAddress(shippingAddress.recipientName(), shippingAddress.phone(),
-                shippingAddress.postalCode(), shippingAddress.addressLine1(), shippingAddress.addressLine2());
+        return shippingAddress.toCommand();
     }
 }
