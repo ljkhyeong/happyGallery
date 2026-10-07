@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.GuestPersonalDataProtector
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.application.monitoring.AppMetrics;
@@ -56,7 +57,7 @@ class NotificationServiceTest {
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
         when(kakaoSender.send(
                 IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenReturn(NotificationSendResult.SUCCESS);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.SUCCESS));
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
 
         NotificationSendResult result = service.sendToUser(
@@ -95,10 +96,10 @@ class NotificationServiceTest {
         UserReaderPort userReader = mock(UserReaderPort.class);
         NotificationService service = service(List.of(kakaoSender, smsSender), logStore, guestReader, userReader);
         when(kakaoSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
-                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.PERMANENT_FAILURE));
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
         when(smsSender.send(IDEMPOTENCY_KEY, "01087654321", "게스트", NotificationEventType.REMINDER_D1))
-                .thenReturn(NotificationSendResult.SUCCESS);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.SUCCESS));
         when(smsSender.channel()).thenReturn(NotificationChannel.SMS);
 
         NotificationSendResult result = service.sendToGuest(
@@ -154,7 +155,7 @@ class NotificationServiceTest {
         if (throwsException) {
             response.thenThrow(new IllegalStateException("phone=01012345678 recipient=회원"));
         } else {
-            response.thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+            response.thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN));
         }
 
         NotificationSendResult result = service.sendToUser(
@@ -353,7 +354,7 @@ class NotificationServiceTest {
         when(userReader.findById(10L)).thenReturn(Optional.of(user));
         when(kakaoSender.channel()).thenReturn(NotificationChannel.KAKAO);
         when(kakaoSender.send(IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenReturn(NotificationSendResult.SUCCESS);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.SUCCESS));
         when(transactionService.markSentWithAuditFailure(
                 99L, "processing-token", "AUDIT_LOG_PERSISTENCE_FAILED"))
                 .thenReturn(true);
@@ -410,7 +411,7 @@ class NotificationServiceTest {
         when(sender.channel()).thenReturn(NotificationChannel.SMS);
         when(sender.send(
                 IDEMPOTENCY_KEY, "01012345678", "회원", NotificationEventType.BOOKING_CONFIRMED))
-                .thenReturn(NotificationSendResult.DELIVERY_UNKNOWN);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN));
         when(logStore.save(any(NotificationLog.class)))
                 .thenThrow(new IllegalStateException("database unavailable"));
         when(transactionService.markPermanentFailure(

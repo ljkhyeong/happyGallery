@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
 import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
@@ -58,7 +59,7 @@ class ResilientNotificationSenderTest {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    return NotificationSendResult.SUCCESS;
+                    return NotificationSendOutcome.immediate(NotificationSendResult.SUCCESS);
                 });
         NotificationResilienceProperties properties = properties(
                 Duration.ofMillis(30), 2, 2, 1, 1);
@@ -70,7 +71,7 @@ class ResilientNotificationSenderTest {
                 properties);
 
         NotificationSendResult result = resilientSender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
     }
@@ -81,7 +82,7 @@ class ResilientNotificationSenderTest {
         NotificationSenderPort delegate = mock(NotificationSenderPort.class);
         when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
         when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
-                .thenReturn(NotificationSendResult.TRANSIENT_FAILURE);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.TRANSIENT_FAILURE));
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -91,7 +92,7 @@ class ResilientNotificationSenderTest {
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         NotificationSendResult result = resilientSender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
@@ -108,7 +109,7 @@ class ResilientNotificationSenderTest {
         NotificationSenderPort delegate = mock(NotificationSenderPort.class);
         when(delegate.channel()).thenReturn(NotificationChannel.KAKAO);
         when(delegate.send(anyString(), anyString(), anyString(), any(NotificationEventType.class)))
-                .thenReturn(NotificationSendResult.PERMANENT_FAILURE);
+                .thenReturn(NotificationSendOutcome.immediate(NotificationSendResult.PERMANENT_FAILURE));
         NotificationResilienceProperties properties = properties(2, 2, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
         CircuitBreaker circuitBreaker = config.alimtalkNotificationCircuitBreaker(
@@ -118,7 +119,7 @@ class ResilientNotificationSenderTest {
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         resilientSender.send(IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
         NotificationSendResult result = resilientSender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
@@ -144,7 +145,7 @@ class ResilientNotificationSenderTest {
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                     }
-                    return NotificationSendResult.SUCCESS;
+                    return NotificationSendOutcome.immediate(NotificationSendResult.SUCCESS);
                 });
         NotificationResilienceProperties properties = properties(20, 20, 1, 1);
         NotificationResilienceConfig config = new NotificationResilienceConfig();
@@ -154,9 +155,9 @@ class ResilientNotificationSenderTest {
                 config,
                 properties);
 
-        CompletableFuture<NotificationSendResult> running = CompletableFuture.supplyAsync(() -> resilientSender.send(
+        CompletableFuture<NotificationSendOutcome> running = CompletableFuture.supplyAsync(() -> resilientSender.send(
                 IDEMPOTENCY_KEY, "01011111111", "첫 번째", NotificationEventType.BOOKING_CONFIRMED));
-        CompletableFuture<NotificationSendResult> queued = null;
+        CompletableFuture<NotificationSendOutcome> queued = null;
         try {
             assertThat(callStarted.await(1, TimeUnit.SECONDS)).isTrue();
             queued = CompletableFuture.supplyAsync(() -> resilientSender.send(
@@ -165,7 +166,7 @@ class ResilientNotificationSenderTest {
                     assertThat(timeoutExecutors.getFirst().getThreadPoolExecutor().getQueue()).hasSize(1));
 
             NotificationSendResult result = resilientSender.send(
-                    IDEMPOTENCY_KEY, "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED);
+                    IDEMPOTENCY_KEY, "01033333333", "세 번째", NotificationEventType.BOOKING_CONFIRMED).result();
 
             assertSoftly(softly -> {
                 softly.assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);

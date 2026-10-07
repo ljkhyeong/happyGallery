@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.out.external.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
-import com.personal.happygallery.application.notification.port.out.TrackedNotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -21,7 +20,7 @@ import java.util.concurrent.Executor;
  * <p>호출 전 차단과 대기열 거절은 재시도 가능한 실패로, 호출 시작 뒤 타임아웃과
  * 예상하지 못한 예외는 실제 발송 여부를 알 수 없는 결과로 구분한다.
  */
-public class ResilientNotificationSender implements TrackedNotificationSenderPort {
+public class ResilientNotificationSender implements NotificationSenderPort {
 
     private final NotificationSenderPort delegate;
     private final ResilientNotificationCall resilientCall;
@@ -42,15 +41,7 @@ public class ResilientNotificationSender implements TrackedNotificationSenderPor
     }
 
     @Override
-    public NotificationSendResult send(String idempotencyKey,
-                                       String phone,
-                                       String recipientName,
-                                       NotificationEventType eventType) {
-        return sendTracked(idempotencyKey, phone, recipientName, eventType).result();
-    }
-
-    @Override
-    public NotificationSendOutcome sendTracked(
+    public NotificationSendOutcome send(
             String idempotencyKey,
             String phone,
             String recipientName,
@@ -58,10 +49,7 @@ public class ResilientNotificationSender implements TrackedNotificationSenderPor
         return resilientCall.execute(
                 channel(),
                 eventType.name(),
-                () -> delegate instanceof TrackedNotificationSenderPort tracked
-                        ? tracked.sendTracked(idempotencyKey, phone, recipientName, eventType)
-                        : NotificationSendOutcome.immediate(
-                                delegate.send(idempotencyKey, phone, recipientName, eventType)),
+                () -> delegate.send(idempotencyKey, phone, recipientName, eventType),
                 NotificationSendOutcome.immediate(NotificationSendResult.TRANSIENT_FAILURE),
                 NotificationSendOutcome.immediate(NotificationSendResult.DELIVERY_UNKNOWN));
     }

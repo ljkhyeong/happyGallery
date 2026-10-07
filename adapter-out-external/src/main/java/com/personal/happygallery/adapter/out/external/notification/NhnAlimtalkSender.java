@@ -3,7 +3,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 import com.personal.happygallery.adapter.out.external.notification.dto.AlimtalkRequest;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
-import com.personal.happygallery.application.notification.port.out.TrackedNotificationSenderPort;
+import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.util.List;
@@ -16,7 +16,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.ResourceAccessException;
 
 /** NHN Cloud Alimtalk v2.2 실제 발송 어댑터. */
-public class NhnAlimtalkSender implements TrackedNotificationSenderPort {
+public class NhnAlimtalkSender implements NotificationSenderPort {
 
     private static final Logger log = LoggerFactory.getLogger(NhnAlimtalkSender.class);
 
@@ -35,18 +35,10 @@ public class NhnAlimtalkSender implements TrackedNotificationSenderPort {
     }
 
     @Override
-    public NotificationSendResult send(String idempotencyKey,
-                                       String phone,
-                                       String recipientName,
-                                       NotificationEventType eventType) {
-        return sendTracked(idempotencyKey, phone, recipientName, eventType).result();
-    }
-
-    @Override
-    public NotificationSendOutcome sendTracked(String idempotencyKey,
-                                               String phone,
-                                               String recipientName,
-                                               NotificationEventType eventType) {
+    public NotificationSendOutcome send(String idempotencyKey,
+                                        String phone,
+                                        String recipientName,
+                                        NotificationEventType eventType) {
         try {
             AlimtalkRequest request = new AlimtalkRequest(
                     properties.senderKey(),

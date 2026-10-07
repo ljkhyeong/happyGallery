@@ -7,7 +7,6 @@ import com.personal.happygallery.application.notification.port.out.NotificationL
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
-import com.personal.happygallery.application.notification.port.out.TrackedNotificationSenderPort;
 import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -173,10 +172,7 @@ public class NotificationService {
             }
             NotificationSendOutcome outcome;
             try {
-                outcome = sender instanceof TrackedNotificationSenderPort tracked
-                        ? tracked.sendTracked(idempotencyKey, phone, name, eventType)
-                        : NotificationSendOutcome.immediate(
-                                sender.send(idempotencyKey, phone, name, eventType));
+                outcome = sender.send(idempotencyKey, phone, name, eventType);
             } catch (Exception e) {
                 log.warn("[알림] {} 발송 예외 [{}={} event={} type={}]",
                         sender.channel(), recipientLabel, recipientId, eventType, e.getClass().getSimpleName());

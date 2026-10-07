@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
+import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import com.personal.happygallery.domain.notification.NotificationChannel;
@@ -51,9 +52,9 @@ class NotificationDeliveryConfig {
 
     private record DisabledNotificationSender(NotificationChannel channel) implements NotificationSenderPort {
         @Override
-        public NotificationSendResult send(String idempotencyKey, String phone,
-                                            String recipientName, NotificationEventType eventType) {
-            return NotificationSendResult.PERMANENT_FAILURE;
+        public NotificationSendOutcome send(String idempotencyKey, String phone,
+                                             String recipientName, NotificationEventType eventType) {
+            return NotificationSendOutcome.immediate(NotificationSendResult.PERMANENT_FAILURE);
         }
     }
 }

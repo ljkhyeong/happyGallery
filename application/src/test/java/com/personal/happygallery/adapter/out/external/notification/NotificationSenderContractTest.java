@@ -114,7 +114,7 @@ class NotificationSenderContractTest {
                 .andRespond(withSuccess(alimtalkSuccessResponse(), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
@@ -151,7 +151,7 @@ class NotificationSenderContractTest {
                         """, MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.BOOKING_CONFIRMED).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
@@ -209,7 +209,7 @@ class NotificationSenderContractTest {
                 .andRespond(withSuccess(successResponse(), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.ACCEPTED);
@@ -302,7 +302,7 @@ class NotificationSenderContractTest {
                         """, MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
@@ -328,7 +328,7 @@ class NotificationSenderContractTest {
                         """.formatted(resultCode), MediaType.APPLICATION_JSON));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.TRANSIENT_FAILURE);
@@ -345,7 +345,7 @@ class NotificationSenderContractTest {
                 .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
 
         NotificationSendResult result = sender.send(
-                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY);
+                IDEMPOTENCY_KEY, "01012345678", "홍길동", NotificationEventType.REMINDER_SAME_DAY).result();
 
         server.verify();
         assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);

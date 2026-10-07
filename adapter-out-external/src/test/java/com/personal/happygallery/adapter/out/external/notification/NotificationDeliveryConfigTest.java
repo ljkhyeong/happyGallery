@@ -71,7 +71,7 @@ class NotificationDeliveryConfigTest {
             assertThat(senders).extracting(NotificationSenderPort::channel)
                     .containsExactlyInAnyOrder(NotificationChannel.KAKAO, NotificationChannel.SMS);
             for (var sender : senders) {
-                assertThat(sender.send("test", "01012345678", "테스트", NotificationEventType.BOOKING_CONFIRMED))
+                assertThat(sender.send("test", "01012345678", "테스트", NotificationEventType.BOOKING_CONFIRMED).result())
                         .isEqualTo(NotificationSendResult.PERMANENT_FAILURE);
             }
             assertThat(context.getBean(PhoneVerificationSender.class).send("01012345678", "123456")).isFalse();
