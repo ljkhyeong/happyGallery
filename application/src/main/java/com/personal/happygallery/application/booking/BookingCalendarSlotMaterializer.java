@@ -55,9 +55,13 @@ class BookingCalendarSlotMaterializer {
         LocalDate dateFrom = rangeStart.toLocalDate();
         LocalDate dateTo = rangeEnd.minusNanos(1).toLocalDate();
         BookingCalendarPolicy.CalendarRules rules = calendarPolicy.rules(dateFrom, dateTo);
-        List<Slot> existing = slotReaderPort
+        // 전날 슬롯의 뒤쪽 버퍼도 판단해야 하므로 하루 앞부터 한 번에 조회한다.
+        List<Slot> nearbySlots = slotReaderPort
                 .findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(
-                        bookingClass.getId(), rangeStart, rangeEnd);
+                        bookingClass.getId(), rangeStart.minusDays(1), rangeEnd);
+        List<Slot> existing = nearbySlots.stream()
+                .filter(slot -> !slot.getStartAt().isBefore(rangeStart))
+                .toList();
         List<Slot> changed = refresh(existing, rules);
 
         Map<LocalDateTime, Slot> slotsByStart = new HashMap<>();
@@ -65,13 +69,10 @@ class BookingCalendarSlotMaterializer {
         Set<LocalDateTime> starts = new HashSet<>(calendarPolicy.availableStarts(
                 bookingClass, dateFrom, dateTo, LocalDateTime.now(clock), rules));
 
-        List<Slot> bookedSlots = slotReaderPort
-                .findByBookingClassIdAndStartAtGreaterThanEqualAndStartAtLessThanOrderByStartAt(
-                        bookingClass.getId(), rangeStart.minusDays(1), rangeEnd);
         for (LocalDateTime startAt : starts) {
             if (slotsByStart.containsKey(startAt)) continue;
             Slot slot = new Slot(bookingClass, startAt);
-            for (Slot bookedSlot : bookedSlots) {
+            for (Slot bookedSlot : nearbySlots) {
                 if (bookedSlot.hasBookings() && SlotBufferPolicy.conflicts(
                         slot.getStartAt(), slot.getEndAt(),
                         bookedSlot.getStartAt(), bookedSlot.getEndAt(),
