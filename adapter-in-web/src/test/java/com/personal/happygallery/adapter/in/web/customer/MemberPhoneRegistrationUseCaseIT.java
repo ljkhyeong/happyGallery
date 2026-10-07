@@ -18,6 +18,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.user.SocialProvider;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -270,10 +271,8 @@ class MemberPhoneRegistrationUseCaseIT {
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L);
         String guestCode = guestBookingUseCase.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.GUEST_BOOKING).getCode();
-        guestBookingUseCase.createGuestBooking(
-                new GuestBookingUseCase.CreateGuestBookingCommand(
-                        CHANGED_PHONE, guestCode, "비회원 예약자", slot.getId(),
-                        DepositPaymentMethod.CARD, 5_000L, 45_000L));
+        new PaymentTestHelper(mockMvc, objectMapper).createGuestBooking(
+                CHANGED_PHONE, guestCode, "비회원 예약자", slot.getId(), 1);
 
         markStepUp(session, userReader.findById(member.getId()).orElseThrow());
         String changeCode = guestBookingUseCase.sendVerificationCode(
