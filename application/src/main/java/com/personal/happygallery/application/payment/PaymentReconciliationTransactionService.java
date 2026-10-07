@@ -36,13 +36,8 @@ class PaymentReconciliationTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    LookupRequest prepareLookup(Long attemptId) {
-        PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
-        return new LookupRequest(
-                attempt.getId(),
-                attempt.getOrderIdExternal(),
-                attempt.getPaymentKey(),
-                attempt.getAmount());
+    String prepareLookup(Long attemptId) {
+        return requireReconciliationAttempt(attemptId).getOrderIdExternal();
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -85,5 +80,4 @@ class PaymentReconciliationTransactionService {
         return attempt;
     }
 
-    record LookupRequest(Long attemptId, String orderId, String paymentKey, long amount) {}
 }

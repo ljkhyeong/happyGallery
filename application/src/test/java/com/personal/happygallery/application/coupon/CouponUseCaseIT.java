@@ -461,7 +461,7 @@ class CouponUseCaseIT {
         IssuedCoupon restored = issuedCouponRepository.findById(issued.getId()).orElseThrow();
 
         assertSoftly(softly -> {
-            softly.assertThat(none.applied()).isFalse();
+            softly.assertThat(none.issuedCouponId()).isNull();
             softly.assertThat(none.discountAmount()).isZero();
             softly.assertThat(quote.discountAmount()).isEqualTo(30_000L);
             softly.assertThat(quote.discountedProductAmount()).isEqualTo(70_000L);

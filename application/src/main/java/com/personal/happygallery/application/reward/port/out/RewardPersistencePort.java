@@ -13,8 +13,6 @@ import java.util.Optional;
 
 public interface RewardPersistencePort {
 
-    Optional<RewardAccount> findAccount(Long userId);
-
     Optional<RewardAccount> findAccountForUpdate(Long userId);
 
     RewardAccount saveAccount(RewardAccount account);

@@ -14,8 +14,6 @@ import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -78,10 +76,7 @@ class PaymentStatusRecoveryTransactionService {
         LocalDateTime terminalCutoff = LocalDateTime.ofInstant(
                 clock.instant().minus(guestTokenProperties.accessExpiry()), ZoneOffset.UTC);
         List<PaymentAttempt> attempts = attemptReader.findGuestRecoveryCandidatesForUpdate(
-                        phoneHmacCandidates, TERMINAL_STATUSES, terminalCutoff)
-                .stream()
-                .filter(attempt -> matchesAnyHmac(attempt.getOwnerPhoneHmac(), phoneHmacCandidates))
-                .toList();
+                phoneHmacCandidates, TERMINAL_STATUSES, terminalCutoff);
         if (attempts.isEmpty()) {
             throw new NotFoundException("결제");
         }
@@ -113,16 +108,5 @@ class PaymentStatusRecoveryTransactionService {
                 token.rawToken(),
                 token.expiresAt(),
                 recoveredPayments);
-    }
-
-    private boolean matchesAnyHmac(String storedHmac, List<String> candidates) {
-        byte[] stored = storedHmac == null
-                ? new byte[0]
-                : storedHmac.getBytes(StandardCharsets.UTF_8);
-        boolean matched = false;
-        for (String candidate : candidates) {
-            matched |= MessageDigest.isEqual(stored, candidate.getBytes(StandardCharsets.UTF_8));
-        }
-        return matched;
     }
 }
