@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 회원·비회원 예약 생성의 공통 처리.
+ * 회원·비회원 예약과 관리자 예약 등록의 공통 처리.
  *
  * <p>슬롯 확보, 예약금 결제 수단 검증, 예약 저장과 완료 후 처리를 담당한다.
  */
