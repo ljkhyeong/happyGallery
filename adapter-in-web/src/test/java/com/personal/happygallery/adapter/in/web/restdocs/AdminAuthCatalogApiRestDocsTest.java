@@ -95,6 +95,7 @@ import org.springframework.restdocs.RestDocumentationContextProvider;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -800,7 +801,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
 
     @ParameterizedTest
     @ValueSource(strings = {"/api/v1/admin/smartstore-orders?size=0",
-            "/api/v1/admin/smartstore-inquiries/page?size=5"})
+            "/api/v1/admin/smartstore-inquiries/page?from=2026-10-01&to=2026-10-07&size=5"})
     @DisplayName("스마트스토어 주문·문의 목록의 페이지 크기가 범위를 벗어나면 잘못된 입력으로 거절한다")
     void admin_smartstore_list_rejects_out_of_range_size(String url) throws Exception {
         mockMvc.perform(get(url)
@@ -907,6 +908,21 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         && command.note().equals("네이버 주문 상세에서 발송 완료와 운송장 번호를 확인")),
                 argThat(actor -> actor.adminUserId().equals(ADMIN_USER_ID)
                         && actor.name().equals("admin")));
+    }
+
+    @Test
+    @DisplayName("경로 제약이 있는 스마트스토어 주문 대사 API도 본문 검증 오류를 필드별 문구로 거절한다")
+    void admin_reconcile_smartstore_order_action_rejects_blank_note_with_field_message() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation", 72L)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {"outcome":"APPLIED","note":"   "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.message").value(startsWith("note: ")));
     }
 
     @Test

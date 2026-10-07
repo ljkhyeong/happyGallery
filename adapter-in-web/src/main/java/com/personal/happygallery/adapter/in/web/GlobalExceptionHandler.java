@@ -7,6 +7,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.sentry.Sentry;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -86,10 +88,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request
     ) {
-        String message = e.getBindingResult().getFieldErrors().stream()
-                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
-                .collect(joining(", "));
-        return mvcErrorResponse(ErrorCode.INVALID_INPUT, message, headers, status);
+        return mvcErrorResponse(
+                ErrorCode.INVALID_INPUT, fieldErrorMessage(e.getBindingResult().getFieldErrors()), headers, status);
     }
 
     @Override
@@ -147,7 +147,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request
     ) {
-        return invalidRequestParameter(headers, status);
+        // 경로·쿼리 제약이 있는 메서드는 @Valid 본문 오류도 이 예외로 온다. 본문 오류는 필드별 문구를 유지한다.
+        List<FieldError> fieldErrors = e.getBeanResults().stream()
+                .flatMap(result -> result.getFieldErrors().stream())
+                .toList();
+        if (fieldErrors.isEmpty()) {
+            return invalidRequestParameter(headers, status);
+        }
+        return mvcErrorResponse(ErrorCode.INVALID_INPUT, fieldErrorMessage(fieldErrors), headers, status);
     }
 
     @Override
@@ -239,6 +246,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 && Booking.class.getName().equals(failure.getPersistentClassName())
                 ? ErrorCode.BOOKING_CONFLICT
                 : ErrorCode.CONFLICT;
+    }
+
+    private static String fieldErrorMessage(List<FieldError> fieldErrors) {
+        return fieldErrors.stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(joining(", "));
     }
 
     private ResponseEntity<Object> invalidRequestParameter(
