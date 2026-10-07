@@ -419,8 +419,6 @@ class OpenApiSpecGenerator {
                 "rating",
                 "content",
                 "editedAt",
-                "provenance",
-                "imagesComplete",
                 "imageUrls",
                 "capturedAt");
 

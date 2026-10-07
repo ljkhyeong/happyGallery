@@ -3591,7 +3591,7 @@ GET /api/v1/products/{productId}/qna/{id}
 - `expectedVersion`도 잠긴 후기의 JPA `version`과 비교해 다른 관리자의 상태 왕복 전환(ABA)과 공식 답글 덮어쓰기·삭제를 `409 CONFLICT`로 차단한다.
 - `contentRevision`은 본문·평점·사진의 의미 변경만 추적하고 JPA `version`은 상태·답글을 포함한 후기 행의 모든 쓰기를 추적한다. 상태 변경에는 두 토큰이 필요하고 답글 변경에는 `expectedVersion`이 필요하다.
 - 공식 답글은 후기당 하나를 작성·수정·삭제하며 첫 작성에만 회원 알림을 요청한다. 본문은 공백이 아닌 16,000자 이하다.
-- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각·정렬된 사진 URL을 공통 불변 evidence로 포함한다. 과거 신고 이관본은 사진을 복원할 수 없어 `LEGACY_REPORT`, `imagesComplete=false`로 구분한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다. 미결 evidence는 결정까지 보존하고 종결 신고·운영 조치와 evidence는 결정 또는 조치 뒤 3년간 보존한다. 신고·운영 조치·evidence의 후기 FK는 `ON DELETE RESTRICT`로 두어 자식 보존기간보다 부모가 먼저 파기되지 않게 한다.
+- 신고는 신고 시점의 별점·본문·공개 상태·본문 수정 시각·정렬된 사진 URL을 공통 불변 evidence로 포함한다. 신고 단건과 운영 조치 감사 이력의 `evidence`는 항상 존재한다. 관리자는 `PENDING`을 `ACCEPTED` 또는 `REJECTED`로 한 번만 판단하며, 신고 수만으로 후기를 자동 숨김하지 않는다. 미결 evidence는 결정까지 보존하고 종결 신고·운영 조치와 evidence는 결정 또는 조치 뒤 3년간 보존한다. 신고·운영 조치·evidence의 후기 FK는 `ON DELETE RESTRICT`로 두어 자식 보존기간보다 부모가 먼저 파기되지 않게 한다.
 - 증거 전용이거나 숨김·삭제 후기에서만 참조되는 사진은 공개 미디어 조회에서 `404`로 숨긴다. 숨김 후기 현재 사진은 작성자 `CustomerSession` 또는 Bearer 관리자 보호 경로, 판단 증거 사진은 Bearer 관리자 전용 경로에서만 `Cache-Control: no-store`로 제공한다. evidence 만료 시 DB 참조 삭제 후 물리 파일도 커밋 이후 즉시 참조를 재확인해 파기한다.
 - 상태·답글·신고 변경 후 관리자, 같은 공개 대상과 회원 후기 cache를 함께 무효화한다.
 

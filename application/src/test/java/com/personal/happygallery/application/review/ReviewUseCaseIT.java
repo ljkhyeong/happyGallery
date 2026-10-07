@@ -873,7 +873,6 @@ class ReviewUseCaseIT {
             softly.assertThat(duplicateHelpful.helpfulCount()).isEqualTo(1L);
             softly.assertThat(report.evidence().rating()).isEqualTo(2);
             softly.assertThat(report.evidence().content()).isEqualTo("신고 시점 원문");
-            softly.assertThat(report.evidence().imagesComplete()).isTrue();
             softly.assertThat(reviewInteractionUseCase.listMyReviewReactions(
                             actor.getId(), List.of(review.id())))
                     .singleElement()
@@ -1009,7 +1008,6 @@ class ReviewUseCaseIT {
                     .containsExactly(
                             "/images/evidence-replacement.webp",
                             "/images/evidence-second.webp");
-            softly.assertThat(moderation.evidence().imagesComplete()).isTrue();
         });
     }
 

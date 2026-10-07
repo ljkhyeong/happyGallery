@@ -61,7 +61,6 @@ import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.qna.ProductQna;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import com.personal.happygallery.domain.review.ReviewStatus;
@@ -302,8 +301,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 classReview.rating(),
                                 classReview.content(),
                                 classReview.editedAt(),
-                                ReviewEvidenceProvenance.LIVE,
-                                true,
                                 List.of(),
                                 LocalDateTime.of(2026, 5, 1, 21, 0)),
                         ReviewReportStatus.PENDING,

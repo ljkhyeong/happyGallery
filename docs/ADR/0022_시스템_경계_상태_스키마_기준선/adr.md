@@ -389,7 +389,7 @@ HAVING COUNT(*) > 1;
   - `edited_at`은 회원 본문 수정만 나타내며 moderation·답글 변경 시각과 분리한다. `content_revision`은 본문·평점·사진 변경에서만 증가하며 회원 수정과 관리자 심사의 콘텐츠 동시성을 보호한다. JPA `version`은 상태·답글을 포함한 모든 후기 행 쓰기 충돌을 보호하므로 관리자 상태 변경은 두 토큰을 함께, 답글 변경은 `version`을 비교한다. 공식 답글은 `reply_content`, `reply_admin_id`, `reply_created_at`, `reply_edited_at`을 한 묶음으로 저장한다.
   - 공개 목록과 평균은 삭제되지 않은 `PUBLISHED`만 대상으로 하고, 회원 소유 목록과 관리자 목록은 삭제되지 않은 숨김 상태도 반환한다.
 - `review_moderation_actions`
-  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자, 시각과 `evidence_snapshot_id`를 보존한다.
+  - 실제 `PUBLISHED <-> HIDDEN` 전이마다 동작, 이전·새 상태, 사유, 관리자, 시각과 필수 `evidence_snapshot_id`를 보존한다.
   - 후기 부모 FK는 `ON DELETE RESTRICT`로 두어 보존기간보다 먼저 부모가 파기되지 않게 한다.
 - `review_reports`
   - 후기·신고자별 한 건이며 `PENDING | ACCEPTED | REJECTED` 상태, 신고 사유·상세, 판단 관리자·시각을 저장한다.
@@ -397,7 +397,7 @@ HAVING COUNT(*) > 1;
   - 후기 부모 FK는 `ON DELETE RESTRICT`로 둔다.
 - `review_evidence_snapshots`, `review_evidence_snapshot_images`
   - 신고·moderation 시점의 콘텐츠 revision, 별점, 본문, 수정 시각과 정렬된 사진 URL을 공통 불변 증거로 보존한다.
-  - 미결 신고 증거는 만료 시각 없이 유지하고, 종결 신고·moderation 증거는 3년 뒤 사건 메타데이터와 함께 보존 배치에서 삭제한다. V124 이전 신고는 당시 사진을 복원할 수 없어 `LEGACY_REPORT`, `images_complete=false`다.
+  - 미결 신고 증거는 만료 시각 없이 유지하고, 종결 신고·moderation 증거는 3년 뒤 사건 메타데이터와 함께 보존 배치에서 삭제한다.
   - 증거 전용 또는 숨김·삭제 후기에서만 참조되는 파일은 공개 미디어 조회에서 제외하고 Bearer 관리자 증거 경로로만 제공한다. 참조 삭제는 커밋 뒤 다시 참조 여부를 확인한 다음 물리 파일을 지운다.
   - 증거 snapshot의 후기 부모 FK도 `ON DELETE RESTRICT`로 둔다.
 - `review_helpful_votes`

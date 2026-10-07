@@ -29,7 +29,6 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.notice.Notice;
 import com.personal.happygallery.domain.review.ReviewStatus;
 import com.personal.happygallery.domain.review.ReviewTargetType;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -119,8 +118,6 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 productReview.rating(),
                 productReview.content(),
                 productReview.editedAt(),
-                ReviewEvidenceProvenance.LIVE,
-                true,
                 productReview.images().stream()
                         .map(ReviewUseCase.ReviewImageItem::imageUrl)
                         .toList(),
@@ -557,7 +554,7 @@ class AdminDashboardContentApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].newStatus").value("HIDDEN"))
                 .andExpect(jsonPath("$[0].adminUserId").value(ADMIN_USER_ID))
                 .andExpect(jsonPath("$[0].evidence.contentRevision").value(1))
-                .andExpect(jsonPath("$[0].evidence.imagesComplete").value(true));
+                .andExpect(jsonPath("$[0].evidence.id").value(81));
     }
 
     @Test

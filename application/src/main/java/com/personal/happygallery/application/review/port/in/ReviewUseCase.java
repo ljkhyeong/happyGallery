@@ -2,7 +2,6 @@ package com.personal.happygallery.application.review.port.in;
 
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.review.ReviewCreationStatus;
-import com.personal.happygallery.domain.review.ReviewEvidenceProvenance;
 import com.personal.happygallery.domain.review.ReviewModerationActionType;
 import com.personal.happygallery.domain.review.ReviewReportReason;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
@@ -124,8 +123,6 @@ public interface ReviewUseCase {
             int rating,
             String content,
             LocalDateTime editedAt,
-            ReviewEvidenceProvenance provenance,
-            boolean imagesComplete,
             List<String> imageUrls,
             LocalDateTime capturedAt
     ) {
