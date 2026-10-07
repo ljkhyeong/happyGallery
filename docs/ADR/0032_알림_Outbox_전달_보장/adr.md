@@ -42,7 +42,7 @@
 - NHN이 발송 요청을 접수한 응답은 전달 성공과 구분한다. `requestId`·`recipientSeq`를 outbox와 요청 감사 로그에 저장하고 `DELIVERY_PENDING`으로 전이한 뒤, 별도 scheduler가 단건 결과 API를 조회한다. 결과 조회 lease는 `DELIVERY_CHECKING`과 새 processing token으로 보호하고 1분 넘게 멈춘 실행만 재선점한다.
 - 결과 조회는 대기 상태의 `next_attempt_at`, 중단된 조회의 `locked_at`이 오래된 순서로 선점하고 동률이면 ID를 따른다. 최근 조회한 알림이 생성일이 빠르다는 이유로 대기 알림보다 계속 먼저 선택되지 않게 한다. 재조회 간격과 실행당 50건 제한은 유지한다.
 - Alimtalk `COMPLETED` 또는 SMS `msgStatus=3`·`resultCode=1000`을 확인한 뒤에만 감사 로그를 `SUCCESS`, outbox를 `SENT`로 확정한다. Alimtalk `FAILED/CANCEL`을 확인하면 기존 KAKAO 감사 로그를 실패로 끝내고 그때 SMS를 요청한다. SMS도 같은 최종 결과 확인을 거치며 최종 실패는 outbox를 `FAILED`로 종결한다.
-- 예약 D-1·당일, 8회권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
+- 예약 D-1·당일, 이용권 만료 임박, 픽업 마감 리마인드는 outbox 선점 뒤 `prepareDelivery(outboxId, processingToken)`의
   짧은 `REQUIRES_NEW` 트랜잭션에서 outbox 행을 `FOR UPDATE`로 잠근다. 현재 token을 확인한 뒤 aggregate별 SQL 한 번으로
   상태·시간 구간·현재 회원/비회원 소유자를 같은 DB snapshot에서 읽는다. 부적격이면 `OBSOLETE`로 종결하고, 적격이면 outbox의
   수신자와 `locked_at` lease를 갱신한 delivery request를 반환한다. dispatcher는 이 트랜잭션이 커밋된 뒤 그 request로 외부 채널을 호출한다.
@@ -52,11 +52,11 @@
 - 발송 로그와 `SENT` outbox 기반 알림함은 `prepareDelivery`가 갱신한 현재 소유자에게 귀속한다. 비회원 예약·주문이 발송 대기 중
   회원에게 귀속됐으면 과거 Guest 전화번호나 Guest 알림함으로 보내지 않는다.
 - 현재 적격성 판단에는 `event_type + aggregate_type + aggregate_id`와 주입된 `Clock`을 사용한다.
-  예약이 취소·완료·변경됐거나, 8회권이 만료·소진·환불됐거나, 주문이 픽업 완료·만료 상태가 된 경우처럼
+  예약이 취소·완료·변경됐거나, 이용권이 만료·소진·환불됐거나, 주문이 픽업 완료·만료 상태가 된 경우처럼
   발송 조건을 충족하지 않는 요청은 sender와 `notification_log`를 호출하지 않고 `OBSOLETE`로 종결한다.
 - `REMINDER_D1`은 발송 시점 기준 내일 `[tomorrowStart, dayAfterStart)`의 `BOOKED` 예약에만,
   `REMINDER_SAME_DAY`는 07:00 이후 `(now, tomorrowStart)`의 아직 시작하지 않은 오늘 `BOOKED` 예약에만 유효하다.
-  즉 D-1의 날짜 시작 경계는 포함(`>=`)하고 당일의 현재 시각 경계는 제외(`>`)한다. 8회권은 `(now, now+7d]`에 만료되고 잔여 횟수가 있을 때,
+  즉 D-1의 날짜 시작 경계는 포함(`>=`)하고 당일의 현재 시각 경계는 제외(`>`)한다. 이용권은 `(now, now+7d]`에 만료되고 잔여 횟수가 있을 때,
   픽업은 `PICKUP_READY`이며 마감이 `(now, now+2h]`에 있을 때만 유효하다.
 - `OBSOLETE` 전이도 `PROCESSING` 상태와 현재 `processing_token`을 확인하고 `processed_at`을 기록한다.
   관리자는 `FAILED`만 다시 열 수 있으므로, 발송 조건을 충족하지 않는 알림을 수동 재처리해 뒤늦게 발송할 수 없다.
@@ -92,9 +92,9 @@
 - 외부 Alimtalk 운영 전 `HG_REVIEW_REQUEST`, `HG_REVIEW_HIDDEN`, `HG_REVIEW_REOPENED`, `HG_REVIEW_REPLY` 템플릿을 공급자에 사전 등록해야 한다. 템플릿이 없으면 기존 채널 fallback 정책에 따라 SMS로 전환한다.
 - 픽업 마감 임박 알림은 수신자 단위 최근 발송 이력으로 후보를 제거하지 않고 `ORDER + orderId` 단위로 멱등 처리한다.
   같은 고객의 여러 픽업 주문은 각각 알리고 동일 주문의 반복 배치만 하나의 outbox로 합친다.
-- 8회권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 8회권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.
-- 예약·8회권·픽업 정기 리마인드 후보 조회는 `event_type + aggregate_type + aggregate_id`가 같은 outbox가 이미 존재하는 대상을 제외한다. 멱등키 문자열 형식에 의존하지 않으므로, 특히 예약·픽업은 구형 `USER:`/`GUEST:` 키와 현재 `AGGREGATE:` 키를 동일한 접수 이력으로 인식해 배포 전후 중복 알림을 막는다. 예약·8회권 후보는 ID 키셋으로 100건씩 끝까지 순회하며, 현재 멱등키의 UNIQUE 제약은 조회와 insert 사이 동시 실행을 막는 최종 방어선으로 유지한다.
-- 픽업·8회권 알림 배치는 원자적 outbox insert 결과를 성공 건수로 사용한다. 중복 키로 저장되지 않은 요청을 성공으로 집계하지 않는다.
+- 이용권 만료 임박 알림은 사용자 단위가 아니라 `PASS_PURCHASE + passId` 단위로 멱등 처리한다. 같은 회원의 여러 이용권은 각각 알리고, 같은 구매 건의 수동·정기 배치 중복 실행은 하나의 outbox로 합친다.
+- 예약·이용권·픽업 정기 리마인드 후보 조회는 `event_type + aggregate_type + aggregate_id`가 같은 outbox가 이미 존재하는 대상을 제외한다. 멱등키 문자열 형식에 의존하지 않으므로, 특히 예약·픽업은 구형 `USER:`/`GUEST:` 키와 현재 `AGGREGATE:` 키를 동일한 접수 이력으로 인식해 배포 전후 중복 알림을 막는다. 예약·이용권 후보는 ID 키셋으로 100건씩 끝까지 순회하며, 현재 멱등키의 UNIQUE 제약은 조회와 insert 사이 동시 실행을 막는 최종 방어선으로 유지한다.
+- 픽업·이용권 알림 배치는 원자적 outbox insert 결과를 성공 건수로 사용한다. 중복 키로 저장되지 않은 요청을 성공으로 집계하지 않는다.
 - 같은 outbox idempotency key를 NHN Alimtalk의 `X-NC-API-IDEMPOTENCY-KEY`로 전달해 공식 10분 중복 요청 차단을 사용한다. 처리 토큰 재발급과 무관하게 외부 멱등키는 유지한다.
 - NHN SMS v3 계약에는 클라이언트 멱등키 필드나 헤더가 없다. 일반 SMS 요청에는 outbox 멱등키에서 만든
   불투명 상관관계 ID를 제공자 `userId`에 전달해 운영 대사에 사용하되, 이를 중복 차단 계약으로 해석하지 않는다.
@@ -103,8 +103,8 @@
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
 - `PENDING`·`PROCESSING`·`DELIVERY_PENDING`·`DELIVERY_CHECKING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. 실행 상태는 현재 선점의 `locked_at`, 대기 상태는 `next_attempt_at`, `FAILED`는 `processed_at`부터 경과 시간을 계산한다. 실행 상태가 2분, 예정 시각이 지난 대기 상태가 1분을 넘으면 경보를 울린다. 미래 예정 시각의 age는 0으로 유지한다.
 - 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.
-- 주문 결제와 8회권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
-- 예약금·주문·8회권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
+- 주문 결제와 이용권 구매도 주문/구매 트랜잭션 안에서 각각 `ORDER_PAID`, `PASS_PURCHASED` outbox를 저장한다.
+- 예약금·주문·이용권의 PG 환불 성공 처리도 `DEPOSIT_REFUNDED`, `ORDER_REFUNDED`, `PASS_REFUNDED` outbox 저장과 같은 `REQUIRES_NEW` 트랜잭션에 묶는다. 동기 outbox listener 예외를 삼키지 않으므로 저장 실패 시 로컬 환불 성공 반영이 롤백되고, 기존 PG 멱등키 복구가 다시 상태를 확정한다.
 - 외부 채널 성공 뒤 `notification_log` 저장만 실패하면 성공한 메시지를 다시 보내지 않는다. outbox를 `SENT`로 끝내되 `last_error=AUDIT_LOG_PERSISTENCE_FAILED`와 `happygallery.notification.log.persistence_failed` 메트릭을 남긴다. 전송 결과 불명과 감사 로그 실패가 겹치면 `FAILED + DELIVERY_RESULT_UNKNOWN:AUDIT_LOG_PERSISTENCE_FAILED`로 종결해 재발송하지 않고 두 원인을 함께 보존한다. 외부 성공 전 감사 로그 실패는 기존 전송 실패와 함께 outbox 재시도 대상으로 둔다.
 - 이력 저장 실패 처리 원칙은 알림톡 최종 실패 후 SMS로 전환하는 경로에도 적용한다. SMS 발송 성공·결과 불명 뒤 이력 오류를 알림톡 재조회로 돌려 같은 문자를 다시 보내지 않는다. 결과 저장은 현재 processing token이 유효할 때만 반영한다.
 

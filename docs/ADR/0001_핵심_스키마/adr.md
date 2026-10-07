@@ -23,7 +23,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 | 상품/재고 | `products`, `inventory` |
 | 체험 | `classes`, `slots` |
 | 예약 | `bookings`, `booking_history` |
-| 8회권 | `pass_purchases`, `pass_ledger` |
+| 이용권 | `pass_purchases`, `pass_ledger` |
 | 주문 | `orders`, `order_items`, `order_approvals`, `fulfillments`, `refunds` |
 | 알림 | `notification_log` |
 

@@ -12,7 +12,7 @@
 주문 거절/자동환불/예약 취소 흐름에서 환불 호출이 실패하거나 결과를 알 수 없더라도
 `refunds`에 상태를 남겨 자동 복구하거나 운영자가 재처리할 수 있어야 한다.
 
-외부 PG 환불 호출은 네트워크 지연과 타임아웃 가능성이 있으므로 예약/주문/8회권 상태 변경을 수행하는
+외부 PG 환불 호출은 네트워크 지연과 타임아웃 가능성이 있으므로 예약/주문/이용권 상태 변경을 수행하는
 부모 트랜잭션 안에서 실행하면 안 된다. `NOT_SUPPORTED`로 트랜잭션을 suspend하는 방식도 부모
 트랜잭션의 DB 커넥션을 계속 점유한 상태에서 PG 응답을 기다릴 수 있다.
 
@@ -45,20 +45,20 @@
   - 해당 멱등키의 취소가 없고 결제 상태가 미취소로 명확하면 `NOT_REFUNDED`로 판단해 `RETRYABLE`로 돌린다. 다음 실행부터 최초 멱등키로 취소 API를 호출한다.
   - 식별자·금액·상태가 모순되거나 취소 거래 식별자가 없으면 `REVIEW_REQUIRED`, 조회 통신 실패는 `UNAVAILABLE`로 보고 `RECONCILIATION_REQUIRED`를 유지한다.
   - 조회 응답의 `paymentKey`, 취소 사유 멱등키, 취소 금액, `transactionKey`를 다시 검증한 뒤에만 성공 결과를 저장한다.
-- 취소·거절·8회권 환불과 관리자 미수령 예외 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
-- 고객은 기존 소유권 검증을 통과한 예약·주문 목록·상세에서 환불 `amount`, `status`만 확인하며 실패 사유·시도 횟수를 노출하지 않는다. 회원 8회권 환불 접수 응답은 후속 상태 조회를 위해 `refundId`를 반환한다.
+- 취소·거절·이용권 환불과 관리자 미수령 예외 환불 시작 API는 부모 트랜잭션에 저장된 `REQUESTED` 상태를 반환한다. 이 응답을 PG 환불 완료로 표현하지 않는다.
+- 고객은 기존 소유권 검증을 통과한 예약·주문 목록·상세에서 환불 `amount`, `status`만 확인하며 실패 사유·시도 횟수를 노출하지 않는다. 회원 이용권 환불 접수 응답은 후속 상태 조회를 위해 `refundId`를 반환한다.
 - 운영자는 시작 응답의 `refundId`와 `GET /api/v1/admin/refunds/{refundId}`로 전체 상태를 조회한다. 수동 재시도 응답도 PG 호출 후 실제 저장 상태를 반환한다.
 - 프론트 고객 상세는 `REQUESTED`, `PROCESSING`을 짧게 폴링하고 자동 복구 대상인 `RETRYABLE`, `RECONCILIATION_REQUIRED`는 간격을 늘려 추적한다. 관리자 시작 화면은 `REQUESTED`, `PROCESSING`만 추적하고 조치 필요 상태는 결과 기반 알림과 실패 목록으로 전환한다.
 - `REQUESTED`, 재시도 시각이 지난 `RETRYABLE`·`RECONCILIATION_REQUIRED`, 1분 이상 멈춘 `PROCESSING`은 매분 최대 10건씩 복구한다. 복구 호출도 최초 멱등키를 재사용한다.
 - 복구 선점 시 `last_recovery_at`을 갱신하고 이 값이 없거나 가장 오래된 후보부터 조회한다. 반복 실패하는 앞 10건도 다음 주기에는 뒤로 이동하므로 신규·후순위 환불이 영구히 굶지 않는다.
 - 복구 배치의 항목 성공은 dispatcher 호출 완료가 아니라 저장된 환불 상태가 `SUCCEEDED`에 도달한 경우만 뜻한다. 다른 실행이 이미 선점한 `PROCESSING`은 스킵하고, PG 시도 뒤 `FAILED`·`RETRYABLE`·`RECONCILIATION_REQUIRED`로 끝난 항목은 부분 실패로 집계한다.
 - 운영자 재시도는 `Propagation.NEVER` 경계에서 즉시 실행해 HTTP 응답 전에 성공 또는 재실패 상태를 확정한다.
-- `Refund`는 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나를 id-only 참조로 저장한다. 주문 클레임은 원주문과 클레임 ID를 함께 보존한다. 환불 이력은 재시도·운영 추적용 레코드이며,
-  예약, 주문, 8회권 객체를 탐색하거나 상태를 변경하지 않는다.
+- `Refund`는 예약, 직접 주문, 주문 클레임, 이용권, 결제 시도 보상 중 하나를 id-only 참조로 저장한다. 주문 클레임은 원주문과 클레임 ID를 함께 보존한다. 환불 이력은 재시도·운영 추적용 레코드이며,
+  예약, 주문, 이용권 객체를 탐색하거나 상태를 변경하지 않는다.
 - 환불 생성 시 UUID 멱등키를 저장하고 최초 PG 호출과 모든 재시도에서 동일하게 사용한다.
 - 환불 거래 식별자 `refund_transaction_key`와 요청 식별자 `idempotency_key`는 각각 DB UNIQUE로 보장한다.
 - `PaymentPort` 성공 결과와 `Refund.markSucceeded`는 공백이 아닌 `refund_transaction_key`를 각각 입구와 최종 상태 전이에서 검증한다. 외부 구현이 잘못된 성공 결과를 반환하면 성공 저장 대신 `RECONCILIATION_REQUIRED`로 격리한다.
-- 예약·직접 주문·주문 클레임·8회권·결제 시도 보상 source는 각각 한 환불 요청만 가진다. 직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 보장한다. 재시도는 새 행이 아니라 기존 환불 행과 멱등키를 사용한다.
+- 예약·직접 주문·주문 클레임·이용권·결제 시도 보상 source는 각각 한 환불 요청만 가진다. 직접 주문은 generated `direct_order_id`, 주문 클레임은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 보장한다. 재시도는 새 행이 아니라 기존 환불 행과 멱등키를 사용한다.
 - 부분·분할 환불을 도입할 때는 source UNIQUE와 환불 금액 모델을 함께 재설계한다.
 
 ---
@@ -94,7 +94,7 @@
 - 기준선 `V1__baseline_schema.sql`(재작성 전 V89)은 환불 거래 식별자 UNIQUE와 복구 후보 순환 시각·인덱스를 추가
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
-- `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임
+- `PassRefundService` 이용권 환불 경로 → `RefundExecutionService` 위임
 - PG 승인 후 도메인 생성 실패 보상 → `RefundExecutionService` 위임
 - 부모 롤백 시 PG 호출/환불 이력 미생성 보장 테스트 추가:
   - `RefundExecutionServiceUseCaseIT`

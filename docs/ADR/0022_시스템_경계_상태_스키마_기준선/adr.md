@@ -45,7 +45,7 @@
 - 재입고 알림: `product_restock_alerts`에 회원·상품·옵션별 신청과 WAITING/QUEUED/NOTIFIED/CANCELED 상태를 저장한다. 대기 중 키는 UNIQUE이고 상품·회원·옵션 삭제 시 신청도 삭제한다.
 - 재고 부족 안내 기준: `inventory.minimum_stock`, `product_variants.minimum_stock`에 null 또는 0 이상 정수를 저장한다.
 - 단일 작품 재고: row lock 또는 version 기반 낙관적 락
-- 주문 승인, 자동 환불, 픽업 만료, 8회권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
+- 주문 승인, 자동 환불, 픽업 만료, 이용권 만료/환불: version 기반 낙관적 락 + 제한된 재시도
 - 공지 관리자 수정·삭제와 공방 프로필 수정: 조회 응답 `version`과 변경 요청 `expectedVersion`의
   명시적 비교 + version 기반 낙관적 락
 - 공지 조회수: `view_count = view_count + 1` 원자 갱신. 조회수는 관리자 편집 충돌을
@@ -83,7 +83,7 @@
 - 주문 승인: `ADR-0013`
 - 예약 제작 주문: `ADR-0014`
 - 예약 변경/취소: `ADR-0006`, `ADR-0007`
-- 8회권 구매/만료/사용/환불: `ADR-0010`, `ADR-0011`
+- 이용권 구매/만료/사용/환불: `ADR-0010`, `ADR-0011`
 
 ### 4. 현재 데이터 모델은 아래를 기준으로 본다
 
@@ -114,7 +114,7 @@
   - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 인증 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
-  - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 8회권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
+  - 탈퇴는 미종결 결제 시도·주문·주문 클레임, `BOOKED` 예약, 미완료 예약 취소 후속 작업, 사용 가능한 미만료 이용권, 미완료 환불이 없을 때만 허용한다. 이메일·이름을 탈퇴 식별값으로 바꾸고 전화번호·비밀번호·소셜 연결을 제거한 뒤 `withdrawn_at`과 자격 버전을 갱신한다. 이후 일반 회원 조회와 로그인에서 제외하고 기존 세션을 폐기한다.
   - 종결 주문·예약의 `user_id`와 운영 이력은 유지한다. 관리자 과거 이력은 활성 회원 조회와 분리된 명시적 조회를 사용해 탈퇴 회원도 `MEMBER`로 반환하되, 익명화된 이름과 제거된 전화번호만 노출한다.
 - `user_social_accounts`
   - `id`, `user_id`, `provider(GOOGLE|NAVER|KAKAO)`, `provider_id_enc`, `provider_id_hmac`, `created_at`
@@ -213,7 +213,7 @@
   - 서명된 외부 웹훅이 전달한 최신 진행 목록으로 주문별 이력을 교체한다. 주문 삭제 시 함께 삭제한다.
 - `refunds`
   - `id`, `order_id nullable`, `order_claim_id nullable`, `direct_order_id generated`, `booking_id nullable`, `pass_purchase_id nullable`, `payment_attempt_id nullable`
-  - 예약, 직접 주문, 주문 클레임, 8회권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
+  - 예약, 직접 주문, 주문 클레임, 이용권, 결제 시도 보상 중 하나의 source와 고객 반환 총액 `amount > 0`, `customer_refund_amount`, `pg_refund_amount`, `reward_restore_amount`, `reward_revoke_amount`, `restore_coupon`, `payment_key`, `refund_transaction_key UNIQUE`, `idempotency_key UNIQUE`, `fail_reason`
   - 고객 반환 총액은 도메인 생성과 `chk_refunds_amount_positive`에서 이중 강제한다. PG 반환액이 0원인 적립금 전액 결제 주문도 환불 행과 후처리를 유지하되 외부 결제사 호출만 건너뛴다.
   - `V106`은 기존 0원 이하 환불 행을 자동 보정하지 않고 atomic `ALTER TABLE`을 실패시킨다. 배포 전 `refunds.amount <= 0` 데이터를 확인하고 근거에 따라 정리해야 한다.
   - 직접 주문 환불은 `direct_order_id`, 주문 클레임 환불은 `order_claim_id`, 나머지는 각 source FK의 UNIQUE로 원본당 한 건을 보장한다. 같은 주문 결제를 공유하는 여러 클레임 환불은 같은 `payment_key`를 가질 수 있다.
@@ -263,7 +263,7 @@
 
 - `classes`
   - `id`, `name`, `category`, `duration_min`, `price`, `buffer_min`, `capacity`, `description nullable`, `image_url nullable`, `preparation_info nullable`, `target_audience nullable`, `pass_eligible`, `status(ACTIVE|INACTIVE)`
-  - 공개 목록·상세와 자동 회차 조회·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 회차·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 8회권 사용 가능 여부를 결정한다.
+  - 공개 목록·상세와 자동 회차 조회·결제는 `ACTIVE` 클래스만 대상으로 한다. 없거나 비활성인 공개 상세는 동일하게 404로 응답하지만, 회차·예약·결제 내부 흐름은 비활성 상태를 422로 구분한다. `pass_eligible`은 구매한 `PassPlan`의 카테고리 정책과 함께 이용권 사용 가능 여부를 결정한다.
   - `price`는 10원 이상이고 브라우저가 원 단위 정수를 정확히 표현하는 상한 이하여야 하며 `V99` CHECK로도 강제한다.
 - `slots`
   - `id`, `class_id`, `start_at`, `end_at`, `capacity`, `booked_count`, `admin_active`, `calendar_active`, `buffer_block_count`
@@ -287,7 +287,7 @@
   - `class_id`, `slot_id`, `status`, `source(WEB|PHONE|NAVER_TALK|KAKAO|VISIT)`, `participant_count`
   - `deposit_amount`, `deposit_paid_at`, `payment_key nullable`
   - `deposit_amount`, `deposit_paid_at`, `balance_amount`, `balance_status`, `balance_paid_at`, `arrears_flag`, `version`
-  - `participant_count`는 1명 이상이면서 선택한 슬롯의 남은 정원 이하이며 `slots.booked_count`에 인원 단위로 반영한다. 8회권 예약은 1명만 허용한다.
+  - `participant_count`는 1명 이상이면서 선택한 슬롯의 남은 정원 이하이며 `slots.booked_count`에 인원 단위로 반영한다. 이용권 예약은 1명만 허용한다.
   - V145 적용 뒤 8명을 초과한 예약이 생성되면 V145 이전 애플리케이션은 해당 예약을 정상 처리할 수 없으므로 이전 버전으로 롤백하지 않고 수정 버전으로 전진 배포한다.
 - `booking_history`
   - `id`, `booking_id`, `action`, `from_slot_id`, `to_slot_id`, `actor`, `reason`, `created_at`
@@ -425,7 +425,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
   - 리마인드 후보는 `(event_type, aggregate_type, aggregate_id)`로 이미 접수된 도메인 이벤트를 제외한다. 멱등키 문자열 형식이 달라도 같은 이력으로 인식한다.
   - `V108`은 영속 enum 확장에 맞춰 `status` 컬럼 comment에 `OBSOLETE`를 반영한다.
 
-#### 8회권
+#### 이용권
 
 - `pass_purchases`
   - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
@@ -442,7 +442,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `orders(access_token, created_at DESC, id DESC)` 비회원 복구 주문 커서 조회
 - `bookings(user_id, created_at DESC, id DESC)` 회원 예약 커서 조회
 - `bookings(access_token, created_at DESC, id DESC)` 비회원 복구 예약 커서 조회
-- `pass_purchases(user_id, purchased_at DESC, id DESC)` 회원 8회권 커서 조회
+- `pass_purchases(user_id, purchased_at DESC, id DESC)` 회원 이용권 커서 조회
 - `inquiry(user_id, created_at DESC, id DESC)` 회원 문의 커서 조회
 - `inquiry(created_at DESC, id DESC)` 관리자 문의 커서 조회
 - `product_qna(product_id, created_at DESC, id DESC)` 공개·관리자 상품 Q&A 커서 조회
@@ -466,7 +466,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `review_evidence_snapshots(retention_until, id)` 종결 후기 분쟁 증거 보존 만료 조회
 - `review_evidence_snapshot_images(snapshot_id, sort_order)`, `review_evidence_snapshot_images(image_url)` 후기 분쟁 증거 사진 순서와 미디어 참조 조회
 - `payment_attempt(order_id_external)` UNIQUE
-- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·8회권 목록의 영수증 조회 (`V161`)
+- `payment_attempt(context, fulfilled_domain_id, status)` 거래 상세·이용권 목록의 영수증 조회 (`V161`)
 - `payment_attempt(status, created_at)` 미완료 결제 시도 정리 후보 조회
 - `payment_attempt(status, id, created_at)` 결제 준비 만료 배치의 ID 키셋 순회
 - `payment_attempt(status, confirm_recovery_attempted_at, created_at)` confirm 자동 복구 backoff·후보 조회
@@ -491,7 +491,7 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - `notification_outbox(user_id, status, processed_at DESC, id DESC)` 회원 알림함 조회
 - `notification_outbox(guest_id, status, processed_at DESC, id DESC)` 수신자별 발송 완료 조회
 - `notification_outbox(status, processed_at, id)` `SENT|OBSOLETE|FAILED` terminal outbox 보존 정리
-- `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·8회권·픽업 리마인드 접수 이력 조회
+- `notification_outbox(event_type, aggregate_type, aggregate_id)` 예약·이용권·픽업 리마인드 접수 이력 조회
 - `notification_outbox(status, next_attempt_at, locked_at, id)` NHN 최종 수신 결과 확인 대상 선점
 - `notification_log(sent_at, id)` 채널 감사 로그 보존 정리
 - `notification_log(user_id, event_type, status, sent_at)` 회원 알림 중복 확인

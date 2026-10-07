@@ -48,7 +48,7 @@ Spring Data repository 또는 persistence adapter가 이 값을 `PageRequest`로
 
 - 2026-06-22: `java-library`를 적용하고, 공개 API에 드러나는 의존성은 `api`, 구현 전용 의존성은 `implementation`으로 정리했다.
 - 2026-07-30: 고정 의도 조회 port를 `limit`·커서 기반으로 바꾸고 Spring Data pagination 타입을 persistence adapter 내부로 이동했다.
-- 2026-08-08: 회원 주문·예약·8회권·문의, 공개/작성자 Q&A, 관리자 상품별 Q&A와 비회원 복구 이력도 같은 `CursorPage`·`CursorUtils` 경계를 사용한다. 기존 `/api/v1` 배열 응답은 최신 100건으로 제한해 호환을 유지하고, 신규 `/page` 응답이 `content`·`nextCursor`·`hasMore`를 제공한다. repository만 `PageRequest.ofSize(limit)`를 사용한다.
+- 2026-08-08: 회원 주문·예약·이용권·문의, 공개/작성자 Q&A, 관리자 상품별 Q&A와 비회원 복구 이력도 같은 `CursorPage`·`CursorUtils` 경계를 사용한다. 기존 `/api/v1` 배열 응답은 최신 100건으로 제한해 호환을 유지하고, 신규 `/page` 응답이 `content`·`nextCursor`·`hasMore`를 제공한다. repository만 `PageRequest.ofSize(limit)`를 사용한다.
 - 2026-10-07: 회원 예약·이용권 목록은 기본 정렬에서도 별도 keyset 쿼리 없이 `MemberHistoryReaderPort` 검색 경로를 사용한다. 다음 페이지 커서는 조회 조건 범위를 담은 `MemberHistoryCursor` 형식이다.
 
 ---
@@ -158,13 +158,13 @@ DB에서 직접 수정해야 한다.
 
 ### 배경
 
-운영자 사정으로 수업 한 회차를 취소할 때 예약만 순차 취소하면 처리 중 새 예약이 들어올 수 있다. 반대로 슬롯 비활성화만으로는 기존 예약의 예약금 환불, 8회권 복구와 고객 알림이 실행되지 않는다.
+운영자 사정으로 수업 한 회차를 취소할 때 예약만 순차 취소하면 처리 중 새 예약이 들어올 수 있다. 반대로 슬롯 비활성화만으로는 기존 예약의 예약금 환불, 이용권 복구와 고객 알림이 실행되지 않는다.
 
 ### 결정
 
 - 운영자는 슬롯을 먼저 관리자 비활성화해 신규 예약을 차단한다.
 - 회차 일괄 취소 API는 `admin_active=false`인 슬롯만 받으며, 그 슬롯의 `BOOKED` 예약을 개별 관리자 취소 정책과 같은 경계로 처리한다.
-- 대상 8회권 ID만 먼저 조회해 ID 오름차순으로 이용권 행을 잠그고, 클래스와 슬롯을 잠근 뒤 `BOOKED` 예약 행을 현재 읽기(`FOR UPDATE`)로 다시 조회한다. 기존 `pass_purchases -> classes -> slots -> bookings` 순서를 유지하면서 잠금 전 예약 스냅샷을 처리하지 않는다.
+- 대상 이용권 ID만 먼저 조회해 ID 오름차순으로 이용권 행을 잠그고, 클래스와 슬롯을 잠근 뒤 `BOOKED` 예약 행을 현재 읽기(`FOR UPDATE`)로 다시 조회한다. 기존 `pass_purchases -> classes -> slots -> bookings` 순서를 유지하면서 잠금 전 예약 스냅샷을 처리하지 않는다.
 - 응답은 취소 건수, 크레딧 복구 건수, 예약금 환불 요청 건수와 수동 정산 필요 건수를 구분한다. PG 환불 완료 건수로 해석하지 않는다.
 
 ### 결과
