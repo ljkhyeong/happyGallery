@@ -205,7 +205,7 @@ class SlotBookingCapacityUseCaseIT {
                 slot(bookingClass, now.toLocalDate().plusDays(14).atStartOfDay(),
                         now.toLocalDate().plusDays(14).atTime(2, 0)));
 
-        List<Long> availableSlotIds = slotQueryUseCase.listUpcoming(bookingClass.getId(), 14).stream()
+        List<Long> availableSlotIds = slotQueryUseCase.listUpcoming(bookingClass.getId(), 14, false).stream()
                 .map(Slot::getId)
                 .toList();
 

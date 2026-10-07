@@ -261,7 +261,7 @@ class BookingRescheduleUseCaseIT {
         member = userStorePort.save(member);
         memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), targetSlot.getId(), DepositPaymentMethod.CARD,
-                5_000L, 45_000L);
+                5_000L, 45_000L, 1);
 
         mockMvc.perform(patch("/api/v1/bookings/{id}/reschedule", guestBooking.bookingId())
                         .header("X-Access-Token", guestBooking.accessToken())
@@ -298,7 +298,7 @@ class BookingRescheduleUseCaseIT {
 
     private void reserveCapacityInTx(Long slotId) {
         new TransactionTemplate(transactionManager)
-                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId));
+                .executeWithoutResult(status -> slotCapacitySupport.reserveCapacity(slotId, 1));
     }
 
     private String rescheduleRequest(Long newSlotId) throws Exception {

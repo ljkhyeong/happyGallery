@@ -117,7 +117,7 @@ class AdminBookingCreateUseCaseIT {
         member = userStorePort.save(member);
         memberBookingUseCase.createMemberDepositBooking(
                 member.getId(), slot.getId(), DepositPaymentMethod.CARD,
-                5_000L, 45_000L);
+                5_000L, 45_000L, 1);
 
         CreateAdminBookingCommand command = new CreateAdminBookingCommand(
                 slot.getId(),

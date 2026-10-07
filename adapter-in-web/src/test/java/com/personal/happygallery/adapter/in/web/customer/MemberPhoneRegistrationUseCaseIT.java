@@ -136,7 +136,7 @@ class MemberPhoneRegistrationUseCaseIT {
         Slot slot = slotStore.save(
                 slot(bookingClass, startAt, startAt.plusHours(2)));
         Booking booking = memberBookingUseCase.createMemberDepositBooking(
-                registered.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L);
+                registered.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L, 1);
         long originalBookingVersion = booking.getVersion();
 
         markStepUp(session, registered);
@@ -268,7 +268,7 @@ class MemberPhoneRegistrationUseCaseIT {
         Slot slot = slotStore.save(
                 slot(bookingClass, startAt, startAt.plusHours(2)));
         Booking memberBooking = memberBookingUseCase.createMemberDepositBooking(
-                member.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L);
+                member.getId(), slot.getId(), DepositPaymentMethod.CARD, 5_000L, 45_000L, 1);
         String guestCode = guestBookingUseCase.sendVerificationCode(
                 CHANGED_PHONE, PhoneVerificationPurpose.GUEST_BOOKING).getCode();
         new PaymentTestHelper(mockMvc, objectMapper).createGuestBooking(
