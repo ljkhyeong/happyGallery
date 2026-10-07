@@ -8,13 +8,13 @@ import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.GroupInquiry;
 import com.personal.happygallery.domain.inquiry.GroupInquiryDetails;
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
+import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import org.springframework.test.context.bean.override.convention.TestBean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class GroupInquiryUseCaseIT {
     @TestBean(name = "fixedClock", methodName = "inquiryClock") Clock clock;
     static Clock inquiryClock() {
-        return Clock.fixed(Instant.parse("2026-09-05T15:00:00Z"), ZoneOffset.UTC);
+        return Clock.fixed(Instant.parse("2026-09-05T15:00:00Z"), Clocks.SEOUL);
     }
     @Autowired GroupInquiryUseCase inquiries;
     @Autowired UserStorePort users;
