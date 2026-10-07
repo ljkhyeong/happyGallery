@@ -1,5 +1,33 @@
 # HANDOFF
 
+## 백엔드 직접 구현·불필요 코드 정리 (2026-10-07)
+
+- 시작 SHA `a1d13803`, 브랜치 `codex/work-20261007-backend-cleanup`(원격 푸시 안 함). 18개 영역을 감사하고 반박 검증해 남긴 후보 173건을 적용했다. 후보 목록은 `output/backend-audit-20261007.json`이다(git 제외, 로컬 전용). 보류한 항목은 범위 밖이거나 남겨야 할 방어 코드였다.
+- 결정: 보존할 운영 데이터가 없어 V1~V186과 V46을 `V1__baseline_schema.sql` 하나로 합쳤다. 경위는 ADR-0022 마지막 절에 있다. 이번 release에 한해 HTTP 계약의 비호환 변경을 허용했다. 1회 초기화 표식은 `deploy/k3s/schema-reset.json`(id `20261007-baseline`)이다.
+- 주요 교체:
+  - spring-retry → Spring 7 `@Retryable`·`@EnableResilientMethods`
+  - jbcrypt → Spring Security `BCrypt`
+  - logstash-logback-encoder → Boot 구조화 로그
+  - SHA-256 복제 → `domain/crypto/Sha256`
+  - REQUIRES_NEW 래퍼 → `TransactionTemplate`
+  - `@DateTimeFormat` 29곳 → `spring.mvc.format.date=iso`
+  - 외부 HTTP 풀 → `HttpPool`(`app.external.<연동>.http.*`, 환경 변수 이름은 그대로)
+  - 결제·알림 보호 → `ResilientExternalCall`
+  - 커서 → `CursorCodec`·nullable 커서 쿼리
+  - 문자열 검증 → `DomainText`
+- 검증:
+  - `./gradlew check` 896건 통과. 리뷰 수정 뒤 해당 REST Docs·예외 처리 테스트도 다시 통과했다.
+  - Hibernate `validate` 모드로 엔티티와 기준선이 일치함을 확인했다.
+  - frontend typecheck·lint·unit 81건·build 통과.
+  - E2E: smoke 20건과 변경 영역 9개 spec 86건 통과(local jar, 빈 DB).
+  - `deploy/k3s/scripts/validate.sh` 통과, `agent-feedback final a1d13803` 통과. 영역별 리뷰 4건의 지적(초기화 시 Redis 세션, 본문 검증 문구, 회귀 테스트, PRD 커서 문구)은 모두 수정했다.
+- 운영 배포: main에 병합하면 CD는 preflight에서 멈춘다(의도한 동작). 절차는 `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계를 따른다. DB·Redis 비우기는 권한 검사에서 자동화가 거부돼 운영자 판단으로 남겼다.
+- 로컬 개발 DB(`hg-design-mysql`의 `happygallery`)는 옛 Flyway 이력이라 새 백엔드가 시작 검증에서 실패한다. 다시 만든 뒤 사용한다.
+- 후속 후보:
+  - PRD-0002의 '8회권' 표기
+  - `OrderPaymentBenefitReservationService.reservation`의 `pricing() == null` 분기(정상 payload에서는 도달하지 않음)
+  - 관리자 주문 상태 필터 커서가 상태 인덱스 대신 생성일 인덱스를 고를 수 있음(OR 범위 스캔 자체는 EXPLAIN으로 확인)
+
 ## G 전시 도록형 화면 적용 (2026-10-07)
 
 - 시작 SHA `85d4b49f`. 사용자가 3차 G안과 "4차 · G 상세" 시안(캔버스 https://claude.ai/artifact/Amcaw7vA88gQBi7HWv76WD)을 승인해 홈·작품 상세·클래스 상세와 공통 토큰·머리글·바닥글·작품 카드에 적용했다. 디자인 기준은 README `프론트엔드 디자인 기준`, 홈·상세 동작은 PRD 0001 68행을 따른다.
@@ -139,7 +167,7 @@
 - #128 vite 8.3.2: `@dependabot rebase`로 최신 codexReview 위에 다시 만들었다(`5c2425e7`). 로컬에서 `npm ci`·audit(0건)·단위 67건·lint·api:check·build 통과. CI가 전체 통과하면 병합한다. `vite.config.ts`의 `__dirname`은 vite의 향후 native 설정 로더 경고가 나오므로 나중에 `import.meta.dirname`으로 바꾼다.
 - `main`(jackson 2.21.6·3.1.6)도 신규 CVE 4건에 해당한다. `codex/work-security-*` → main 보안 PR이 필요하며 병합 시 운영 배포가 진행되니 사용자 확인 후 진행한다.
 - #158 병합 후 이 브랜치를 codexReview와 합치면 `frontend/package-lock.json`과 `src/generated/api`가 충돌한다. 이 브랜치 쪽을 택한 뒤 `npm install`과 `npm run api:generate`를 orval 8.39로 다시 실행한다.
-- 미병합 유지: #120 Gradle 묶음(springdoc 3.1.1로 OpenAPI 산출물이 바뀌고, Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요), #122 logstash-logback-encoder 9(Jackson 3 전환 필요), #127 TypeScript 7(typescript-eslint 범위 밖).
+- 미병합 유지(#122 logstash-logback-encoder는 2026-10-07 의존성 제거로 닫아도 된다): #120 Gradle 묶음(springdoc 3.1.1로 OpenAPI 산출물이 바뀌고, Sentry 8.56은 `SentryEventSanitizerTest` 재확인 필요), #127 TypeScript 7(typescript-eslint 범위 밖).
 
 ## Codex 스킬 이식·도메인 스킬 추가 (2026-10-04)
 
