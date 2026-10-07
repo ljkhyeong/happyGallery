@@ -174,11 +174,11 @@ class PaymentConfirmUseCaseIT {
                 customerCommand("cart-payment-key", prepared, auth));
 
         var order = orderReader.findById(result.domainId()).orElseThrow();
-        var remainingCartItem = cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId());
+        var remainingCartItems = cartItemRepository.findAllWithTextInputsByUserId(user.getId());
         assertSoftly(softly -> {
             softly.assertThat(prepared.amount()).isEqualTo(62_000L);
             softly.assertThat(order.getTotalAmount()).isEqualTo(62_000L);
-            softly.assertThat(remainingCartItem).hasValueSatisfying(item ->
+            softly.assertThat(remainingCartItems).singleElement().satisfies(item ->
                     softly.assertThat(item.getQty()).isEqualTo(1));
         });
     }
@@ -208,8 +208,9 @@ class PaymentConfirmUseCaseIT {
 
         assertSoftly(softly -> {
             softly.assertThat(orderReader.findById(result.domainId())).isPresent();
-            softly.assertThat(cartItemRepository.findByUserIdAndProductId(user.getId(), product.getId()))
-                    .hasValueSatisfying(item -> {
+            softly.assertThat(cartItemRepository.findAllWithTextInputsByUserId(user.getId()))
+                    .singleElement()
+                    .satisfies(item -> {
                         softly.assertThat(item.getId()).isEqualTo(recreatedCartItem.getId());
                         softly.assertThat(item.getQty()).isEqualTo(1);
                     });

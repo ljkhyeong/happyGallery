@@ -3,7 +3,6 @@ package com.personal.happygallery.adapter.out.persistence.admin;
 import com.personal.happygallery.application.admin.port.out.AdminAuthHistoryPort;
 import com.personal.happygallery.domain.admin.AdminAuthHistory;
 import java.time.LocalDateTime;
-import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,6 +25,4 @@ public interface AdminAuthHistoryRepository extends JpaRepository<AdminAuthHisto
     int deleteCreatedBefore(
             @Param("cutoff") LocalDateTime cutoff,
             @Param("limit") int limit);
-
-    List<AdminAuthHistory> findAllByOrderByIdAsc();
 }

@@ -294,7 +294,7 @@ class SmartStoreOrderInventoryUseCaseIT {
         inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true,
                 madeToOrder ? List.of(new VariantMapping(variantId, optionId)) : List.of()));
         orderService.synchronize(detail("returned", optionId, 5), change("returned"));
-        var firstReturns = List.of(new CompletedReturn("return-1", 2, CHANGED_AT.plusMinutes(1)));
+        var firstReturns = List.of(new CompletedReturn("return-1", 2));
         ProductOrderDetail returned = claimDetail(optionId, "DELIVERING", "RETURN", 3, firstReturns);
         ProductOrderChange returnChange = new ProductOrderChange(
                 "returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1));
@@ -322,7 +322,7 @@ class SmartStoreOrderInventoryUseCaseIT {
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason()).isNull();
 
         var allReturns = List.of(firstReturns.getFirst(),
-                new CompletedReturn("return-2", 2, CHANGED_AT.plusMinutes(4)));
+                new CompletedReturn("return-2", 2));
         orderService.synchronize(claimDetail(optionId, "RETURNED", "RETURN", 0, allReturns), new ProductOrderChange(
                 "returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(4)));
         assertThat(orderRepository.findById("returned").orElseThrow().getAttentionReason())
@@ -355,14 +355,14 @@ class SmartStoreOrderInventoryUseCaseIT {
         Long productId = registered.product().getId();
         inventoryUseCase.saveMapping(productId, new SaveMappingCommand(123L, true, List.of()));
         orderService.synchronize(detail("returned", null, 5), change("returned"));
-        var first = new CompletedReturn("return-1", 2, CHANGED_AT.plusMinutes(1));
+        var first = new CompletedReturn("return-1", 2);
         orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 3, List.of(first)),
                 new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(1)));
         String previousVersion = orderRepository.findById("returned").orElseThrow().returnReviewVersion();
         if (previousReviewed) {
             orderService.resolveReturn("returned", false, previousVersion);
         }
-        var second = new CompletedReturn("return-2", 2, CHANGED_AT.plusMinutes(2));
+        var second = new CompletedReturn("return-2", 2);
         orderService.synchronize(claimDetail(null, "DELIVERING", "RETURN", 1, List.of(first, second)),
                 new ProductOrderChange("returned", "CLAIM_COMPLETED", CHANGED_AT.plusMinutes(2)));
 

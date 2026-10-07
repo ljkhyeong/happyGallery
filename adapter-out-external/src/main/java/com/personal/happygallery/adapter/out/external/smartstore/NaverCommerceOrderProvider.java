@@ -462,7 +462,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         if (!StringUtils.hasText(claimId) || quantity == null || quantity <= 0 || completedAt == null) {
             throw new IllegalStateException("스마트스토어 완료 반품의 번호·수량·완료일이 필요합니다.");
         }
-        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity, toLocalDateTime(completedAt)));
+        returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity));
     }
 
     private static SmartStoreClaimDetail claimDetail(CurrentClaim currentClaim) {
