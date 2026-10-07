@@ -138,7 +138,7 @@ class AdminPassQueryUseCaseIT {
         Slot savedSlot = slotStorePort.save(slot(bookingClass, startAt, startAt.plusHours(2)));
         pass.useCredit(LocalDateTime.now(clock));
         passPurchaseStorePort.save(pass);
-        bookingStorePort.save(Booking.forMemberPass(user, savedSlot, pass));
+        bookingStorePort.save(Booking.forMemberPass(user, savedSlot, pass, 1));
     }
 
     private void cleanup() {

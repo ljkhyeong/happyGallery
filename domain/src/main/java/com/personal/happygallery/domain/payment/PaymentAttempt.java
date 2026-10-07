@@ -453,7 +453,6 @@ public class PaymentAttempt {
     public Long getFulfilledDomainId() { return fulfilledDomainId; }
     public Long getOwnerUserId() { return ownerUserId; }
     public String getOwnerPhoneHmac() { return ownerPhoneHmac; }
-    public String getOwnerPhoneHmacKeyId() { return ownerPhoneHmacKeyId; }
     public String getStatusAccessTokenHash() { return statusAccessTokenHash; }
     public String getFulfilledAccessTokenEnc() { return fulfilledAccessTokenEnc; }
     public LocalDateTime getCreatedAt() { return createdAt; }

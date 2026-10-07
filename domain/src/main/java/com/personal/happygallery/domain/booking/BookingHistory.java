@@ -67,8 +67,6 @@ public class BookingHistory {
     public Long getId() { return id; }
     public Booking getBooking() { return booking; }
     public BookingHistoryAction getAction() { return action; }
-    public Slot getFromSlot() { return fromSlot; }
-    public Slot getToSlot() { return toSlot; }
     public BookingHistoryActor getActor() { return actor; }
     public Long getAdminUserId() { return adminUserId; }
     public String getReason() { return reason; }

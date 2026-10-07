@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.support.TestFixtures.smartStoreProductOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -76,9 +77,8 @@ class SmartStoreOrderTransactionServiceTest {
     @Test
     @DisplayName("결제 완료 주문이 취소되면 차감했던 수량만 한 번 복원한다")
     void synchronize_canceledOrder_restoresAppliedQuantityOnce() {
-        SmartStoreProductOrder order = new SmartStoreProductOrder(
-                "po-1", "order-1", 123L, null, "가죽 지갑", null, "PAYED",
-                null, null, 2, 2, "PAYED", CHANGED_AT.minusMinutes(1), CHANGED_AT);
+        SmartStoreProductOrder order = smartStoreProductOrder(
+                "po-1", "order-1", "가죽 지갑", "PAYED", 2, CHANGED_AT.minusMinutes(1), CHANGED_AT);
         order.mapTo(7L, null);
         order.applyInventoryQuantity(2);
         when(orderPort.findByProductOrderIdWithLock("po-1")).thenReturn(Optional.of(order));

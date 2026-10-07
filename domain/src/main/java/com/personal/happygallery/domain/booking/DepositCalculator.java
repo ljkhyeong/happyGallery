@@ -14,11 +14,6 @@ public final class DepositCalculator {
 
     private DepositCalculator() {}
 
-    /** 슬롯의 클래스 가격 기준 10% 예약금. */
-    public static long of(Slot slot) {
-        return calculate(slot, 1).depositAmount();
-    }
-
     /** 예약 인원 전체의 예약금과 잔금을 overflow 검출 산술로 계산한다. */
     public static BookingAmounts calculate(Slot slot, int participantCount) {
         return calculate(slot.getBookingClass().getPrice(), participantCount);

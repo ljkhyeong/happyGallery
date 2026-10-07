@@ -180,11 +180,6 @@ public class Booking {
 
     /** 회원 이용권 예약 생성. depositAmount/balanceAmount=0, paymentMethod=null. */
     public static Booking forMemberPass(
-            User member, Slot slot, PassPurchase passPurchase) {
-        return forMemberPass(member, slot, passPurchase, 1);
-    }
-
-    public static Booking forMemberPass(
             User member, Slot slot, PassPurchase passPurchase, int participantCount) {
         passPurchase.requireApplicableToClass(
                 slot.getBookingClass().getCategory(), slot.getBookingClass().isPassEligible());
@@ -372,14 +367,6 @@ public class Booking {
         this.userId = userId;
         this.guest = null;
         this.accessToken = null;
-    }
-
-    /** 휴대폰 번호 인증 후 비회원 예약의 관리 토큰을 교체한다. */
-    public void replaceGuestAccessToken(String accessToken) {
-        if (guest == null) {
-            throw new IllegalStateException("회원 예약에는 비회원 접근 토큰을 발급할 수 없습니다.");
-        }
-        this.accessToken = accessToken;
     }
 
     /** 결제 confirm 성공 후 원결제 식별자와 예약금 결제 시각을 저장한다. */

@@ -137,21 +137,16 @@ public class CouponDefinition {
         if (!publiclyClaimable) {
             throw unavailable("공개 발급 대상이 아닌 쿠폰입니다.");
         }
-        if (!isWithinValidityUnchecked(now)) {
+        if (!isWithinValidity(now)) {
             throw unavailable("쿠폰 발급 기간이 아닙니다.");
         }
-    }
-
-    public boolean isPubliclyClaimableAt(LocalDateTime now) {
-        requireTime(now);
-        return active && publiclyClaimable && isWithinValidityUnchecked(now);
     }
 
     /** 배송비를 제외한 주문 상품 금액만으로 할인액을 계산한다. */
     public long calculateDiscount(long productAmount, LocalDateTime now) {
         PaymentAmountPolicy.requireValid(productAmount);
         requireTime(now);
-        if (!active || !isWithinValidityUnchecked(now)) {
+        if (!active || !isWithinValidity(now)) {
             throw unavailable("사용할 수 없는 쿠폰입니다.");
         }
         if (productAmount < minOrderAmount) {
@@ -171,12 +166,7 @@ public class CouponDefinition {
         return discount;
     }
 
-    public boolean isWithinValidity(LocalDateTime now) {
-        requireTime(now);
-        return isWithinValidityUnchecked(now);
-    }
-
-    private boolean isWithinValidityUnchecked(LocalDateTime now) {
+    private boolean isWithinValidity(LocalDateTime now) {
         return !now.isBefore(validFrom) && now.isBefore(validUntil);
     }
 

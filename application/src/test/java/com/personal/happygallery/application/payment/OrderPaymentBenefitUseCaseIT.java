@@ -62,6 +62,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -451,9 +452,9 @@ class OrderPaymentBenefitUseCaseIT {
         User user = createUser("selected-cart@example.com", "01081001090");
         Product selected = createProduct("이번에 구매할 상품", 10_000L, 10);
         Product unselected = createProduct("다음에 구매할 상품", 30_000L, 10);
-        CartItem selectedItem = cartItemStorePort.save(new CartItem(
+        CartItem selectedItem = cartItemStorePort.save(cartItem(
                 user.getId(), selected.getId(), 2, LocalDateTime.now(clock)));
-        cartItemStorePort.save(new CartItem(user.getId(), unselected.getId(), 1, LocalDateTime.now(clock)));
+        cartItemStorePort.save(cartItem(user.getId(), unselected.getId(), 1, LocalDateTime.now(clock)));
         IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
         creditReward(user, 4_000L);
         String version = cartUseCase.getCart(user.getId()).cartVersion();

@@ -35,6 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.awaitility.Awaitility.await;
@@ -75,7 +76,7 @@ class MixedOrderRefundUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         User user = userStorePort.save(new User(
                 "mixed-refund@example.com", "password-hash", "혼합 환불 회원", "01077779999"));
-        Order rewardSourceOrder = orderRepository.saveAndFlush(Order.forMember(
+        Order rewardSourceOrder = orderRepository.saveAndFlush(memberOrder(
                 user.getId(), 100_000L, now, now.plusHours(24)));
         rewardBenefitService.accrue(user.getId(), rewardSourceOrder.getId(), 5_000L, now);
 
@@ -158,7 +159,7 @@ class MixedOrderRefundUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         User user = userStorePort.save(new User(
                 "local-refund@example.com", "password-hash", "로컬 환불 회원", "01077778888"));
-        Order earningOrder = orderRepository.saveAndFlush(Order.forMember(
+        Order earningOrder = orderRepository.saveAndFlush(memberOrder(
                 user.getId(), 10_000L, now, now.plusHours(24)));
         rewardBenefitService.accrue(user.getId(), earningOrder.getId(), 5_000L, now);
 

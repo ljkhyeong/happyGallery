@@ -1,6 +1,7 @@
 package com.personal.happygallery.policy;
 
 import com.personal.happygallery.domain.booking.BookingClass;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.media.ImageReferencePolicy;
@@ -39,7 +40,7 @@ class ImageReferencePolicyTest {
                 "상품", ProductType.READY_STOCK, "소품", 10_000L,
                 null, "javascript:alert(1)", null, null, null));
         assertInvalidInput(() -> new BookingClass(
-                "클래스", "CRAFT", 60, 30_000L, 30,
+                "클래스", "CRAFT", 60, 30_000L, 30, SlotCapacity.DEFAULT,
                 true, null, "https:/missing-host/image.jpg", null, null));
         assertInvalidInput(() -> ImageReferencePolicy.optional("//images.example.com/image.jpg"));
         assertInvalidInput(() -> ImageReferencePolicy.optional("///images.example.com/image.jpg"));
@@ -52,7 +53,7 @@ class ImageReferencePolicyTest {
                 "상품", ProductType.READY_STOCK, "소품", 10_000L,
                 null, "/api/v1/media/images/product.jpg", null, null, null);
         BookingClass bookingClass = new BookingClass(
-                "클래스", "CRAFT", 60, 30_000L, 30,
+                "클래스", "CRAFT", 60, 30_000L, 30, SlotCapacity.DEFAULT,
                 true, null, "/api/v1/media/images/class.jpg", null, null);
 
         assertThat(product.getImageUrl()).isEqualTo("/api/v1/media/images/product.jpg");

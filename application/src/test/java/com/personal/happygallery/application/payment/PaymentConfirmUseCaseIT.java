@@ -54,7 +54,6 @@ import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.pass.PassPlan;
-import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.policy.PolicyConsentPurpose;
 import com.personal.happygallery.domain.product.Product;
@@ -68,6 +67,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -88,6 +88,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
@@ -158,7 +159,7 @@ class PaymentConfirmUseCaseIT {
         User user = userStorePort.save(new User("cart-payment@example.com", "hashed", "회원", "01067896789"));
         Product product = productStorePort.save(readyStockProduct("장바구니 결제 상품", 31_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem cartItem = cartItemStorePort.save(new CartItem(
+        CartItem cartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 2, LocalDateTime.of(2026, 7, 19, 10, 0)));
         AuthContext auth = AuthContext.member(user.getId());
 
@@ -189,7 +190,7 @@ class PaymentConfirmUseCaseIT {
                 "cart-recreated@example.com", "hashed", "장바구니 회원", "01078907890"));
         Product product = productStorePort.save(readyStockProduct("다시 담은 상품", 28_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem preparedCartItem = cartItemStorePort.save(new CartItem(
+        CartItem preparedCartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 0)));
         AuthContext auth = AuthContext.member(user.getId());
 
@@ -199,7 +200,7 @@ class PaymentConfirmUseCaseIT {
                 auth));
         cartItemRepository.deleteById(preparedCartItem.getId());
         cartItemRepository.flush();
-        CartItem recreatedCartItem = cartItemStorePort.save(new CartItem(
+        CartItem recreatedCartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.of(2026, 7, 19, 11, 1)));
 
         PaymentConfirmUseCase.ConfirmResult result = confirmUseCase.confirm(
@@ -277,10 +278,9 @@ class PaymentConfirmUseCaseIT {
                         List.of()));
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
-        cartUseCase.addItem(user.getId(), productId, variantId,
-                List.of(new TextInput("engraving", "HAPPY")), 1);
-        cartUseCase.addItem(user.getId(), productId, variantId,
-                List.of(new TextInput("engraving", "GALLERY")), 1);
+        cartUseCase.mergeItems(user.getId(), UUID.randomUUID(), List.of(
+                new CartUseCase.MergeItem(productId, variantId, List.of(new TextInput("engraving", "HAPPY")), 1),
+                new CartUseCase.MergeItem(productId, variantId, List.of(new TextInput("engraving", "GALLERY")), 1)));
         productAdminUseCase.adjustInventory(new ProductAdminUseCase.AdjustInventoryCommand(
                 productId, variantId, InventoryAdjustmentType.DECREASE, 1,
                 "오프라인 판매", null, "local-api-key"));

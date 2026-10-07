@@ -101,8 +101,7 @@ class CouponPolicyTest {
     void validity_usesExclusiveEndBoundary() {
         CouponDefinition definition = fixedCoupon(5_000L, 0L, NOW.plusHours(1));
 
-        assertThat(definition.isWithinValidity(NOW.minusDays(1))).isTrue();
-        assertThat(definition.isWithinValidity(NOW.plusHours(1))).isFalse();
+        assertThat(definition.calculateDiscount(10_000L, NOW.minusDays(1))).isEqualTo(5_000L);
         assertThatThrownBy(() -> definition.calculateDiscount(10_000L, NOW.plusHours(1)))
                 .isInstanceOf(HappyGalleryException.class)
                 .hasMessage("사용할 수 없는 쿠폰입니다.");

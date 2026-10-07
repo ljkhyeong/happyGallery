@@ -74,6 +74,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.acceptedPolicies;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
@@ -422,7 +423,7 @@ class PaymentPrepareUseCaseTest {
                 "cart-snapshot@example.com", "hashed", "장바구니 회원", "01012123434"));
         Product product = productStorePort.save(readyStockProduct("스냅샷 상품", 29_000L));
         inventoryStorePort.save(inventory(product, 5));
-        CartItem cartItem = cartItemStorePort.save(new CartItem(
+        CartItem cartItem = cartItemStorePort.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
         String staleVersion = cartUseCase.getCart(user.getId()).cartVersion();
         cartUseCase.updateItemQty(user.getId(), cartItem.getId(), 2);
@@ -649,7 +650,7 @@ class PaymentPrepareUseCaseTest {
         Slot conflictingSource = slotStorePort.save(
                 slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot bookedAtWindowStart = slot(cls, FUTURE.plusHours(2), FUTURE.plusHours(4));
-        bookedAtWindowStart.incrementBookedCount();
+        bookedAtWindowStart.incrementBookedCount(1);
         slotStorePort.save(bookedAtWindowStart);
 
         LocalDateTime nextDayStart = FUTURE.plusDays(1);
@@ -659,7 +660,7 @@ class PaymentPrepareUseCaseTest {
                 cls,
                 nextDayStart.plusHours(2).plusMinutes(30),
                 nextDayStart.plusHours(4).plusMinutes(30));
-        bookedAtWindowEnd.incrementBookedCount();
+        bookedAtWindowEnd.incrementBookedCount(1);
         slotStorePort.save(bookedAtWindowEnd);
         AuthContext auth = AuthContext.member(user.getId());
 
@@ -725,11 +726,11 @@ class PaymentPrepareUseCaseTest {
         User other = userStorePort.save(new User("cart-other@example.com", "hashed", "다른 회원", "01012120002"));
         Product product = productStorePort.save(readyStockProduct("선택 상품", 10_000L));
         inventoryStorePort.save(inventory(product, 1));
-        CartItem own = cartItemStorePort.save(new CartItem(user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
-        CartItem foreign = cartItemStorePort.save(new CartItem(other.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        CartItem own = cartItemStorePort.save(cartItem(user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
+        CartItem foreign = cartItemStorePort.save(cartItem(other.getId(), product.getId(), 1, LocalDateTime.now(clock)));
         Product soldOut = productStorePort.save(readyStockProduct("품절 상품", 20_000L));
         inventoryStorePort.save(inventory(soldOut, 0));
-        CartItem unavailable = cartItemStorePort.save(new CartItem(user.getId(), soldOut.getId(), 1, LocalDateTime.now(clock)));
+        CartItem unavailable = cartItemStorePort.save(cartItem(user.getId(), soldOut.getId(), 1, LocalDateTime.now(clock)));
         String version = cartUseCase.getCart(user.getId()).cartVersion();
         for (List<Long> selection : List.of(List.<Long>of(), List.of(own.getId(), own.getId()),
                 List.of(own.getId(), foreign.getId()), List.of(unavailable.getId()))) {

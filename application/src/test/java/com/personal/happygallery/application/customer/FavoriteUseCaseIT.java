@@ -5,7 +5,6 @@ import com.personal.happygallery.application.customer.port.in.CustomerAccountLif
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.adapter.out.persistence.booking.ClassRepository;
-import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.domain.user.FavoriteTargetType;
@@ -18,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -40,7 +40,7 @@ class FavoriteUseCaseIT {
         var user = users.save(new User("favorite@example.com", "hash", "회원", "01012345678"));
         var other = users.save(new User("other-favorite@example.com", "hash", "다른회원", "01012345679"));
         var product = products.save(TestFixtures.readyStockProduct("찜 상품", 12000));
-        var bookingClass = classes.save(new BookingClass("찜 클래스", "WOOD", 60, 30000, 30));
+        var bookingClass = classes.save(bookingClass("찜 클래스", "WOOD", 60, 30000, 30));
         favorites.save(user.getId(), FavoriteTargetType.PRODUCT, product.getId());
         favorites.save(user.getId(), FavoriteTargetType.PRODUCT, product.getId());
         favorites.save(user.getId(), FavoriteTargetType.CLASS, bookingClass.getId());

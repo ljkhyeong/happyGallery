@@ -288,11 +288,8 @@ public class Fulfillment {
     public String getTrackingNumber() { return trackingNumber; }
     public ShippingCarrier getCarrierCode() { return carrierCode; }
     public TrackingRegistrationStatus getTrackingRegistrationStatus() { return trackingRegistrationStatus; }
-    public String getTrackingRequestId() { return trackingRequestId; }
     public int getTrackingRegistrationAttempts() { return trackingRegistrationAttempts; }
     public LocalDateTime getTrackingNextAttemptAt() { return trackingNextAttemptAt; }
-    public LocalDateTime getTrackingRegistrationStartedAt() { return trackingRegistrationStartedAt; }
-    public String getTrackingLastError() { return trackingLastError; }
     public ShipmentTrackingStatus getTrackingStatus() { return trackingStatus; }
     public String getTrackingStatusText() { return trackingStatusText; }
     public LocalDateTime getTrackingUpdatedAt() { return trackingUpdatedAt; }

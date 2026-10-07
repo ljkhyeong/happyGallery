@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.ClassReaderPort;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.ClassSituationTag;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -64,7 +65,7 @@ public class LocalBookingClassSeedService {
                                            String targetAudience,
                                            Set<ClassSituationTag> situationTags) {
         BookingClass bookingClass = new BookingClass(
-                name, category, durationMin, price, 30, passEligible,
+                name, category, durationMin, price, 30, SlotCapacity.DEFAULT, passEligible,
                 description, null, "재료와 도구는 공방에서 준비합니다.", targetAudience);
         bookingClass.replaceSituationTags(situationTags);
         return bookingClass;

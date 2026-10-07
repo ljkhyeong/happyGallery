@@ -42,8 +42,6 @@ public class ProductVariant {
     @Column(name = "minimum_stock")
     private Integer minimumStock;
 
-
-
     @Column(nullable = false)
     private boolean active;
 
@@ -70,8 +68,6 @@ public class ProductVariant {
         StockThresholdPolicy.requireWritable(minimumStock, expectedVersion, version);
         this.minimumStock = minimumStock;
     }
-
-    public Integer getMinimumStock() { return minimumStock; }
 
     public ProductVariant(Long productId, String combinationKey, long basePrice,
                           long priceAdjustment, int quantity, boolean active,

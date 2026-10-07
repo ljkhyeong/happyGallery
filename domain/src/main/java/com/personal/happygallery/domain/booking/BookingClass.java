@@ -88,26 +88,6 @@ public class BookingClass {
 
     protected BookingClass() {}
 
-    public BookingClass(String name, String category, int durationMin, long price, int bufferMin) {
-        this(name, category, durationMin, price, bufferMin, SlotCapacity.DEFAULT,
-                !"PERFUME".equals(CategoryName.required(category)),
-                null, null, null, null);
-    }
-
-    public BookingClass(String name,
-                        String category,
-                        int durationMin,
-                        long price,
-                        int bufferMin,
-                        boolean passEligible,
-                        String description,
-                        String imageUrl,
-                        String preparationInfo,
-                        String targetAudience) {
-        this(name, category, durationMin, price, bufferMin, SlotCapacity.DEFAULT,
-                passEligible, description, imageUrl, preparationInfo, targetAudience);
-    }
-
     public BookingClass(String name,
                         String category,
                         int durationMin,

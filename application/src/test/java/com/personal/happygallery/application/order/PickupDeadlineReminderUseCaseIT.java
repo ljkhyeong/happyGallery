@@ -31,9 +31,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import static com.personal.happygallery.support.NotificationLogTestHelper.awaitLogCount;
 import static com.personal.happygallery.support.TestFixtures.accessToken;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.awaitility.Awaitility.await;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -66,7 +66,7 @@ class PickupDeadlineReminderUseCaseIT {
         User user = userStorePort.save(new User(
                 "pickup-reminder-legacy@example.com", "hashed-password", "회원", "01067676767"));
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), 35_000L, now, now.plusDays(1));
         order.approve();
         order.markPickupReady();
@@ -107,7 +107,7 @@ class PickupDeadlineReminderUseCaseIT {
         User user = userStorePort.save(new User(
                 "pickup-reminder-obsolete@example.com", "hashed-password", "회원", "01078787878"));
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(user.getId(), 35_000L, now, now.plusDays(1));
+        Order order = memberOrder(user.getId(), 35_000L, now, now.plusDays(1));
         order.approve();
         order.markPickupReady();
         order = orderStorePort.saveAndFlush(order);
@@ -144,7 +144,7 @@ class PickupDeadlineReminderUseCaseIT {
         User currentOwner = userStorePort.save(new User(
                 "claimed-pickup@example.com", "hashed-password", "귀속 회원", "01089898989"));
         Order order = Order.forGuest(
-                previousOwner.getId(), accessToken(), 35_000L, now, now.plusDays(1));
+                previousOwner.getId(), accessToken(), 35_000L, 0L, now, now.plusDays(1), null);
         order.approve();
         order.markPickupReady();
         order = orderStorePort.saveAndFlush(order);

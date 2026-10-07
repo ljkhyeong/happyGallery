@@ -91,29 +91,20 @@ public class Slot {
     }
 
     /**
-     * 예약을 1건 추가한다. 정원 초과 시 {@link com.personal.happygallery.domain.error.CapacityExceededException}을 던진다.
+     * 예약 인원만큼 점유 인원을 추가한다. 정원 초과 시
+     * {@link com.personal.happygallery.domain.error.CapacityExceededException}을 던진다.
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
-    public void incrementBookedCount() {
-        incrementBookedCount(1);
-    }
-
-    /** 예약 인원만큼 점유 인원을 추가한다. */
     public void incrementBookedCount(int participantCount) {
         SlotCapacity.checkAvailable(this.capacity, this.bookedCount, participantCount);
         this.bookedCount += participantCount;
     }
 
     /**
-     * 예약을 1건 반납한다(변경/취소 시).
-     * booked_count가 0이면 IllegalStateException을 던진다.
+     * 취소·변경하는 예약의 인원만큼 점유 인원을 반납한다.
+     * booked_count가 반납 인원보다 작으면 IllegalStateException을 던진다.
      * 호출 전 반드시 비관적 락(SELECT FOR UPDATE)으로 row를 잠가야 한다.
      */
-    public void decrementBookedCount() {
-        decrementBookedCount(1);
-    }
-
-    /** 취소·변경하는 예약의 인원만큼 점유 인원을 반납한다. */
     public void decrementBookedCount(int participantCount) {
         SlotCapacity.requireValidParticipantCount(participantCount);
         if (this.bookedCount < participantCount) {

@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLogStatus;
 import com.personal.happygallery.domain.pass.PassLedger;
@@ -174,7 +175,7 @@ class PassCreditUsageUseCaseIT {
                 "WOOD",
                 120,
                 50_000L,
-                30,
+                30, SlotCapacity.DEFAULT,
                 true,
                 null,
                 null,

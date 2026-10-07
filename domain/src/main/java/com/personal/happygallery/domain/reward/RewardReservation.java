@@ -101,7 +101,6 @@ public class RewardReservation {
     public Long getUserId() { return userId; }
     public Long getOrderId() { return orderId; }
     public long getAmount() { return amount; }
-    public long getRestoredAmount() { return restoredAmount; }
     public RewardReservationStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getResolvedAt() { return resolvedAt; }

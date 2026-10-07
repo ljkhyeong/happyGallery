@@ -8,11 +8,15 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.SlotCapacity;
+import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderItemPricing;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
+import com.personal.happygallery.domain.order.SmartStoreProductOrder;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
@@ -42,11 +46,14 @@ public final class TestFixtures {
     }
 
     public static BookingClass defaultBookingClass() {
-        return new BookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30);
+        return bookingClass("향수 클래스", "PERFUME", 120, 50_000L, 30);
     }
 
+    /** 기본 정원·설명 없는 클래스. 향수 클래스만 이용권 사용 대상에서 뺀다. */
     public static BookingClass bookingClass(String name, String category, int durationMin, long price, int bufferMin) {
-        return new BookingClass(name, category, durationMin, price, bufferMin);
+        return new BookingClass(
+                name, category, durationMin, price, bufferMin, SlotCapacity.DEFAULT,
+                !"PERFUME".equals(category), null, null, null, null);
     }
 
     public static Slot slot(BookingClass bookingClass, LocalDateTime startAt, LocalDateTime endAt) {
@@ -81,6 +88,23 @@ public final class TestFixtures {
         return new Product(name, ProductType.READY_STOCK, null, price, null, null, null, null, null);
     }
 
+    /** 쿠폰·적립금·배송비 없는 회원 주문. */
+    public static Order memberOrder(
+            Long userId, long totalAmount, LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
+        return Order.forMember(
+                userId, OrderPricingSnapshot.fullPrice(totalAmount, 0L), paidAt, approvalDeadlineAt, null);
+    }
+
+    /** 클레임·배송 정보가 없는 스마트스토어 상품 주문. 상태값을 최근 변경 유형으로도 쓴다. */
+    public static SmartStoreProductOrder smartStoreProductOrder(
+            String productOrderId, String orderId, String productName, String productOrderStatus,
+            int quantity, LocalDateTime paymentDate, LocalDateTime lastChangedAt) {
+        return new SmartStoreProductOrder(
+                productOrderId, orderId, 123L, null, productName, null, null,
+                productOrderStatus, null, null, null, quantity, quantity, productOrderStatus,
+                paymentDate, lastChangedAt, null, null, null, null, null, null, null, null, null, null, 0);
+    }
+
     /** 할인 없는 기성품 주문 상품 라인. */
     public static OrderItem readyStockOrderItem(
             Order order, Long productId, String productName, int qty, long unitPrice) {
@@ -96,6 +120,11 @@ public final class TestFixtures {
                 null, productId, null, productName, qty, unitPrice, unitPrice, 0L, 0L,
                 List.of(), null, null, null, ProductType.READY_STOCK,
                 OrderItemPricing.fullPrice(qty, unitPrice));
+    }
+
+    /** 옵션·각인 없는 장바구니 항목. */
+    public static CartItem cartItem(Long userId, Long productId, int qty, LocalDateTime createdAt) {
+        return new CartItem(userId, productId, null, List.of(), qty, createdAt);
     }
 
     public static Inventory inventory(Product product, int quantity) {

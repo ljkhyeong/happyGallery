@@ -133,10 +133,8 @@ public class BookingVacancyAlert {
     public Slot getSlot() { return slot; }
     public Long getGuestId() { return guestId; }
     public Long getUserId() { return userId; }
-    public String getAccessTokenHash() { return accessTokenHash; }
     public VacancyAlertStatus getStatus() { return status; }
     public LocalDateTime getNotifiedAt() { return notifiedAt; }
-    public LocalDateTime getCanceledAt() { return canceledAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public long getVersion() { return version; }

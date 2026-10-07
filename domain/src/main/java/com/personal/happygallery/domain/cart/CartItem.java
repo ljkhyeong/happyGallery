@@ -58,10 +58,6 @@ public class CartItem {
 
     protected CartItem() {}
 
-    public CartItem(Long userId, Long productId, int qty, LocalDateTime createdAt) {
-        this(userId, productId, null, List.of(), qty, createdAt);
-    }
-
     public CartItem(Long userId, Long productId, Long productVariantId,
                     List<CartItemTextInput> textInputs, int qty, LocalDateTime createdAt) {
         OrderAmountCalculator.requireQuantity(qty);

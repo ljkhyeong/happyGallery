@@ -131,27 +131,6 @@ public class SmartStoreProductOrder {
             Long itemNo,
             String productName,
             String productOption,
-            String productOrderStatus,
-            String claimType,
-            String claimStatus,
-            int initialQuantity,
-            int remainQuantity,
-            String lastChangedType,
-            LocalDateTime paymentDate,
-            LocalDateTime lastChangedAt) {
-        this(productOrderId, orderId, originProductNo, itemNo, productName, productOption,
-                null, productOrderStatus, null, claimType, claimStatus, initialQuantity,
-                remainQuantity, lastChangedType, paymentDate, lastChangedAt, null, null,
-                null, null, null, null, null, null, null, null, 0);
-    }
-
-    public SmartStoreProductOrder(
-            String productOrderId,
-            String orderId,
-            Long originProductNo,
-            Long itemNo,
-            String productName,
-            String productOption,
             String deliveryInfoEnc,
             String productOrderStatus,
             String placeOrderStatus,
@@ -349,7 +328,6 @@ public class SmartStoreProductOrder {
     public int getRemainQuantity() { return remainQuantity; }
     public int getInventoryAppliedQuantity() { return inventoryAppliedQuantity; }
     public SmartStoreOrderAttentionReason getAttentionReason() { return attentionReason; }
-    public String getLastChangedType() { return lastChangedType; }
     public LocalDateTime getPaymentDate() { return paymentDate; }
     public LocalDateTime getLastChangedAt() { return lastChangedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }

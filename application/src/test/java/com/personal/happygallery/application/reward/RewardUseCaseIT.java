@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.reward;
 
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -439,7 +440,7 @@ class RewardUseCaseIT {
     }
 
     private Order saveOrder(Long userId, long amount, LocalDateTime paidAt) {
-        return orderRepository.saveAndFlush(Order.forMember(
+        return orderRepository.saveAndFlush(memberOrder(
                 userId, amount, paidAt, paidAt.plusHours(24)));
     }
 

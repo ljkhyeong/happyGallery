@@ -29,6 +29,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -172,7 +173,7 @@ class BookingRescheduleUseCaseIT {
     void reschedule_differentClass_returns400WithoutChangingBooking() throws Exception {
         Slot fromSlot = slotStorePort.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         BookingClass otherClass = classStorePort.save(
-                new BookingClass("레진 클래스", "RESIN", 90, 80_000L, 20));
+                bookingClass("레진 클래스", "RESIN", 90, 80_000L, 20));
         Slot otherClassSlot = slotStorePort.save(
                 slot(otherClass, FUTURE.plusHours(4), FUTURE.plusMinutes(330)));
         for (int i = 0; i < 8; i++) {

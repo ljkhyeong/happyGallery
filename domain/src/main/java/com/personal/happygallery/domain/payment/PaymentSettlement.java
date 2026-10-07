@@ -121,13 +121,8 @@ public class PaymentSettlement {
     public String getOrderIdExternal() { return orderIdExternal; }
     public String getPaymentMethod() { return paymentMethod; }
     public long getAmount() { return amount; }
-    public long getFeeAmount() { return feeAmount; }
-    public long getSupplyAmount() { return supplyAmount; }
-    public long getVat() { return vat; }
     public long getPayOutAmount() { return payOutAmount; }
-    public String getApprovedAt() { return approvedAt; }
     public LocalDate getSoldDate() { return soldDate; }
-    public LocalDate getPaidOutDate() { return paidOutDate; }
     public boolean isCancelTransaction() { return cancelTransaction; }
     public PaymentSettlementStatus getReconciliationStatus() { return reconciliationStatus; }
     public String getReconciliationReason() { return reconciliationReason; }

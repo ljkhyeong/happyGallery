@@ -38,8 +38,6 @@ public class Inventory {
     @Column(name = "minimum_stock")
     private Integer minimumStock;
 
-
-
     @Version
     @Column(nullable = false)
     private long version;
@@ -53,8 +51,6 @@ public class Inventory {
         StockThresholdPolicy.requireWritable(minimumStock, expectedVersion, version);
         this.minimumStock = minimumStock;
     }
-
-    public Integer getMinimumStock() { return minimumStock; }
 
     /**
      * 재고 생성. 단일 작품은 quantity=1로 생성한다.
@@ -111,7 +107,6 @@ public class Inventory {
     }
 
     public Long getProductId() { return productId; }
-    public Product getProduct() { return product; }
     public int getQuantity() { return quantity; }
     public long getVersion() { return version; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
