@@ -798,6 +798,18 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$.hasMore").value(true));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/v1/admin/smartstore-orders?size=0",
+            "/api/v1/admin/smartstore-inquiries/page?size=5"})
+    @DisplayName("스마트스토어 주문·문의 목록의 페이지 크기가 범위를 벗어나면 잘못된 입력으로 거절한다")
+    void admin_smartstore_list_rejects_out_of_range_size(String url) throws Exception {
+        mockMvc.perform(get(url)
+                        .with(adminUser())
+                        .header("Authorization", "Bearer admin-session-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
     @Test
     @DisplayName("관리자 스마트스토어 확인 대상 주문의 사유 필터와 커서 API를 문서화한다")
     void admin_list_smartstore_attention_orders_with_reason_and_cursor() throws Exception {
