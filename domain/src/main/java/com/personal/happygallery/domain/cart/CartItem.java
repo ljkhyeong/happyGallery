@@ -89,7 +89,6 @@ public class CartItem {
     public Long getUserId() { return userId; }
     public Long getProductId() { return productId; }
     public Long getProductVariantId() { return productVariantId; }
-    public String getLineKey() { return lineKey; }
     public List<CartItemTextInput> getTextInputs() { return List.copyOf(textInputs); }
     public int getQty() { return qty; }
     public LocalDateTime getCreatedAt() { return createdAt; }
