@@ -28,9 +28,7 @@ public interface PaymentAttemptReaderPort {
             LocalDateTime terminalCutoff);
 
     /** confirm 도중 중단된 PROCESSING/RETRYABLE/APPROVED 시도 ID를 오래된 순서로 조회한다. */
-    List<Long> findConfirmRecoveryCandidateIds(LocalDateTime activityStaleBefore,
-                                                LocalDateTime createdAtStaleBeforeUtc,
-                                                int limit);
+    List<Long> findConfirmRecoveryCandidateIds(LocalDateTime activityStaleBefore, int limit);
 
     /** 아직 confirm을 시작하지 않은 채 유효시간이 지난 결제 준비 ID를 ID 키셋 순서로 조회한다. */
     List<Long> findExpiredPendingIdsAfterId(
