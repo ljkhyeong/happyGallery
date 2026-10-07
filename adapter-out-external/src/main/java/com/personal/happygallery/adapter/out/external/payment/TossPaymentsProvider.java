@@ -281,5 +281,5 @@ public class TossPaymentsProvider implements PaymentPort {
             String cancelReason,
             String cancelStatus) {}
 
-    private record TossErrorResponse(String code, String message) {}
+    private record TossErrorResponse(String code) {}
 }

@@ -108,7 +108,7 @@ public class TossPaymentSettlementProvider implements PaymentSettlementProvider 
         }
     }
 
-    private record Fee(String type, long fee) {}
+    private record Fee(long fee) {}
 
     private record Cancel(long cancelAmount, String transactionKey) {}
 }

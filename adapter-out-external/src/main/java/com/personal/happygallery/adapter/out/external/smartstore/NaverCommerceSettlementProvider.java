@@ -218,7 +218,7 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
 
     private record Page<T>(List<T> elements, Pagination pagination) {}
 
-    private record Pagination(int page, int size, int totalPages, long totalElements) {}
+    private record Pagination(int totalPages) {}
 
     private record SettlementContent(
             LocalDate settleBasisDate,
