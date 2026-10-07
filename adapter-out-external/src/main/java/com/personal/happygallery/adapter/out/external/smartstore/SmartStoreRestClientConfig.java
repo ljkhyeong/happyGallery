@@ -21,7 +21,7 @@ class SmartStoreRestClientConfig {
 
     @Bean
     CloseableHttpClient smartStoreHttpClient(SmartStoreProperties properties) {
-        return pooledHttpClientFactory.create(properties);
+        return pooledHttpClientFactory.create(properties.http());
     }
 
     @Bean

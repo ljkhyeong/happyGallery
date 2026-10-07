@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.holiday;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import java.time.Duration;
 import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
@@ -101,10 +102,10 @@ class DataPortalPublicHolidayProviderTest {
                 true,
                 "test+key/=",
                 "https://apis.data.go.kr",
-                Duration.ofSeconds(5),
+                new HttpPool(Duration.ofSeconds(5),
                 Duration.ofSeconds(1),
                 Duration.ofMillis(500),
                 5,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30)));
     }
 }

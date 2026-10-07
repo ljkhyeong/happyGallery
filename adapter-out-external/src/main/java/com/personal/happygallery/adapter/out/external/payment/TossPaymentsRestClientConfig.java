@@ -22,7 +22,7 @@ class TossPaymentsRestClientConfig {
 
     @Bean
     CloseableHttpClient tossPaymentsHttpClient(TossPaymentsProperties props) {
-        return pooledHttpClientFactory.create(props);
+        return pooledHttpClientFactory.create(props.http());
     }
 
     @Bean
@@ -36,7 +36,7 @@ class TossPaymentsRestClientConfig {
 
     @Bean
     CloseableHttpClient tossSettlementHttpClient(TossSettlementHttpProperties props) {
-        return pooledHttpClientFactory.create(props);
+        return pooledHttpClientFactory.create(props.http());
     }
 
     @Bean

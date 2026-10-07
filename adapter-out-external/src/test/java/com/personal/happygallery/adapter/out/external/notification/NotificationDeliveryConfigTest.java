@@ -121,7 +121,9 @@ class NotificationDeliveryConfigTest {
         return runner.withPropertyValues("app.external.alimtalk.app-key=test",
                 "app.external.alimtalk.secret-key=test", "app.external.alimtalk.sender-key=test",
                 "app.external.sms.api-key=test", "app.external.sms.api-secret=test",
-                "app.external.sms.sender-number=01012345678");
+                "app.external.sms.sender-number=01012345678",
+                // application.yml의 NHN 응답 timeout 기본값. 바깥 TimeLimiter 5초 안에 들어와야 한다.
+                "app.external.alimtalk.http.timeout=2s", "app.external.sms.http.timeout=2s");
     }
 
     @Configuration(proxyBeanMethods = false)

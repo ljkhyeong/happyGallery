@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.net.SocketTimeoutException;
 import java.time.Clock;
@@ -88,8 +89,8 @@ class NcpEmailVerificationSenderTest {
     }
 
     static NcpMailProperties credentials() {
-        return new NcpMailProperties("test-access-key", "test-secret-key", Duration.ofSeconds(2),
-                Duration.ofSeconds(1), Duration.ofMillis(500), 2, Duration.ofSeconds(30));
+        return new NcpMailProperties("test-access-key", "test-secret-key", new HttpPool(Duration.ofSeconds(2),
+                Duration.ofSeconds(1), Duration.ofMillis(500), 2, Duration.ofSeconds(30)));
     }
 
     static EmailVerificationProperties emailProperties() {

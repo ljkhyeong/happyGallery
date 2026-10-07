@@ -1,10 +1,9 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
-import com.personal.happygallery.adapter.out.external.http.HttpPoolProperties;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import java.time.Duration;
-import org.hibernate.validator.constraints.time.DurationMin;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
@@ -12,9 +11,13 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.external.payment.toss-settlement")
 public record TossSettlementHttpProperties(
-        @NotNull @DurationMin(seconds = 60) @DefaultValue("60s") Duration timeout,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("1s") Duration connectTimeout,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("500ms") Duration acquireTimeout,
-        @Min(1) @DefaultValue("2") int maxConnections,
-        @NotNull @DurationMin(millis = 1) @DefaultValue("30s") Duration keepAlive
-) implements HttpPoolProperties {}
+        @Valid @DefaultValue HttpPool http
+) {
+    private static final Duration MIN_RESPONSE_TIMEOUT = Duration.ofSeconds(60);
+
+    /** 정산 조회는 응답이 느리므로 응답 timeout을 60초 이상으로 둔다. */
+    @AssertTrue(message = "토스 정산 조회 응답 timeout은 60초 이상이어야 합니다.")
+    public boolean isResponseTimeoutAtLeastOneMinute() {
+        return http.timeout().compareTo(MIN_RESPONSE_TIMEOUT) >= 0;
+    }
+}

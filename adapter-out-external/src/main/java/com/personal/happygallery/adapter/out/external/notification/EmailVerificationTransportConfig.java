@@ -52,11 +52,9 @@ class EmailVerificationTransportConfig {
                                               EmailVerificationProperties email) {
             Assert.hasText(properties.accessKey(), "네이버 메일 NCP_MAIL_ACCESS_KEY는 필수입니다.");
             Assert.hasText(properties.secretKey(), "네이버 메일 NCP_MAIL_SECRET_KEY는 필수입니다.");
-            Duration budget = properties.acquireTimeout().plus(properties.connectTimeout())
-                    .plus(properties.timeout());
-            Assert.isTrue(email.timeout().compareTo(budget) > 0,
+            Assert.isTrue(email.timeout().compareTo(properties.http().requestBudget()) > 0,
                     "이메일 인증 외부 timeout은 네이버 HTTP timeout 합보다 커야 합니다.");
-            return factory.create(properties);
+            return factory.create(properties.http());
         }
 
         @Bean

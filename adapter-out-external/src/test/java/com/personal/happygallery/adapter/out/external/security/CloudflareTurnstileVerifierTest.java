@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.security;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Duration;
@@ -75,7 +76,7 @@ class CloudflareTurnstileVerifierTest {
     void configuration() {
         assertThat(new CloudflareTurnstileVerifier(properties(false), builder.build()).siteKey()).isNull();
         assertThatThrownBy(() -> new TurnstileProperties(true, "", "", "happy-gallery.com",
-                Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30)))
+                new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30))))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -89,6 +90,6 @@ class CloudflareTurnstileVerifierTest {
 
     private static TurnstileProperties properties(boolean enabled) {
         return new TurnstileProperties(enabled, "site-key", "secret-key", "happy-gallery.com",
-                Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30));
+                new HttpPool(Duration.ofSeconds(5), Duration.ofSeconds(1), Duration.ofMillis(500), 5, Duration.ofSeconds(30)));
     }
 }

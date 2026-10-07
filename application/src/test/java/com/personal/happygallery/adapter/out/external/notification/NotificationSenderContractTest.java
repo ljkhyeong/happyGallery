@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
+import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
@@ -402,11 +403,11 @@ class NotificationSenderContractTest {
                 "secret-key",
                 "sender-key",
                 "https://kakaotalk-bizmessage.api.nhncloudservice.com",
-                Duration.ofSeconds(5),
+                new HttpPool(Duration.ofSeconds(5),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(1),
                 20,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30)));
     }
 
     private static SmsNotificationProperties smsProperties() {
@@ -415,10 +416,10 @@ class NotificationSenderContractTest {
                 "api-secret",
                 "0212345678",
                 "https://sms.api.nhncloudservice.com",
-                Duration.ofSeconds(5),
+                new HttpPool(Duration.ofSeconds(5),
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(1),
                 20,
-                Duration.ofSeconds(30));
+                Duration.ofSeconds(30)));
     }
 }

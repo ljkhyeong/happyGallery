@@ -12,7 +12,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
-import java.time.Duration;
 import java.util.concurrent.Executor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -43,7 +42,8 @@ class PaymentResilienceConfig {
     @Bean
     TimeLimiter paymentTimeLimiter(ExternalPaymentProperties properties,
                                    TossPaymentsProperties tossProperties) {
-        validateTimeoutHierarchy(properties, tossProperties);
+        Assert.isTrue(properties.timeout().compareTo(tossProperties.http().requestBudget()) > 0,
+                "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
         return TimeLimiter.of(TimeLimiterConfig.custom()
                 .timeoutDuration(properties.timeout())
                 .cancelRunningFuture(true)
@@ -93,14 +93,5 @@ class PaymentResilienceConfig {
             return lookupResult.status() == RefundLookupResult.Status.UNAVAILABLE;
         }
         return false;
-    }
-
-    private static void validateTimeoutHierarchy(ExternalPaymentProperties resilience,
-                                                 TossPaymentsProperties transport) {
-        Duration transportBudget = transport.acquireTimeout()
-                .plus(transport.connectTimeout())
-                .plus(transport.timeout());
-        Assert.isTrue(resilience.timeout().compareTo(transportBudget) > 0,
-                "결제 TimeLimiter는 Toss acquire + connect + response timeout 합보다 커야 합니다.");
     }
 }
