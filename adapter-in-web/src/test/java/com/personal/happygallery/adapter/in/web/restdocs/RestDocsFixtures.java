@@ -139,6 +139,7 @@ final class RestDocsFixtures {
     static Order order() {
         Order order = mock(Order.class);
         when(order.getId()).thenReturn(200L);
+        when(order.orderNumber()).thenReturn("ORD-00000200");
         when(order.getStatus()).thenReturn(OrderStatus.PAID_APPROVAL_PENDING);
         when(order.getTotalAmount()).thenReturn(39000L);
         when(order.getPaidAt()).thenReturn(NOW.minusMinutes(5));
