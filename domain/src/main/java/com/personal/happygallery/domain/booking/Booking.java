@@ -403,6 +403,15 @@ public class Booking {
                 && paymentKey == null;
     }
 
+    /**
+     * 고객·관리자에게 보이는 예약 번호.
+     * 형식을 바꾸면 AdminBookingSearchMapper.xml의 bookingNumber와
+     * MyBatisAdminBookingSearchAdapter의 BK 패턴도 함께 바꾼다.
+     */
+    public String bookingNumber() {
+        return "BK-%08d".formatted(id);
+    }
+
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Guest getGuest() { return guest; }
