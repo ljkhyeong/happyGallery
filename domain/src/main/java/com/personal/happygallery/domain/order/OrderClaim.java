@@ -183,8 +183,6 @@ public class OrderClaim {
     public OrderClaimStatus getStatus() { return status; }
     public String getCustomerReason() { return customerReason; }
     public String getAdminNote() { return adminNote; }
-    public Long getResolvedByAdminId() { return resolvedByAdminId; }
-    public Long getCompletedByAdminId() { return completedByAdminId; }
     public String getReplacementCarrier() { return replacementCarrier; }
     public String getReplacementTrackingNumber() { return replacementTrackingNumber; }
     public LocalDateTime getRequestedAt() { return requestedAt; }

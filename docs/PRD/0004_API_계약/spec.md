@@ -2026,8 +2026,6 @@ Authorization: Bearer {token}
       "status": "REQUESTED",
       "customerReason": "수령한 작품에 흠집이 있습니다.",
       "adminNote": null,
-      "resolvedByAdminId": null,
-      "completedByAdminId": null,
       "replacementCarrier": null,
       "replacementTrackingNumber": null,
       "maximumRefundAmount": 43000,

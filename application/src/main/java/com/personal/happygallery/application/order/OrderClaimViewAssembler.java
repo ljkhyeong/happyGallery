@@ -87,8 +87,6 @@ class OrderClaimViewAssembler {
                 claim.getStatus(),
                 claim.getCustomerReason(),
                 claim.getAdminNote(),
-                claim.getResolvedByAdminId(),
-                claim.getCompletedByAdminId(),
                 claim.getReplacementCarrier(),
                 claim.getReplacementTrackingNumber(),
                 OrderClaimRefundCalculator.maximumRefundAmount(order, lines, allOrderItems),

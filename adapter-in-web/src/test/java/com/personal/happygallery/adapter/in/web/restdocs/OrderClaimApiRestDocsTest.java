@@ -214,8 +214,6 @@ class OrderClaimApiRestDocsTest extends RestDocsTestSupport {
                 null,
                 null,
                 null,
-                null,
-                null,
                 43_000L,
                 null,
                 null,
