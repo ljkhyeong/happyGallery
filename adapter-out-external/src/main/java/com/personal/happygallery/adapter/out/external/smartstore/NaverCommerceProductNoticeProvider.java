@@ -1,5 +1,9 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.application.product.dto.SmartStoreNotice;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticePage;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSaveCommand;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSummary;
 import com.personal.happygallery.application.product.port.out.SmartStoreProductNoticeProvider;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -30,7 +34,7 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
     }
 
     @Override
-    public NoticePage list(int page, int size) {
+    public SmartStoreNoticePage list(int page, int size) {
         NoticeListResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri(builder -> builder.path("/external/v1/contents/seller-notices")
                         .queryParam("page", page)
@@ -42,16 +46,16 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
         if (response == null) {
             throw new IllegalStateException("스마트스토어 상품 공지 목록 응답이 비어 있습니다.");
         }
-        List<NoticeSummary> notices = response.contents() == null
+        List<SmartStoreNoticeSummary> notices = response.contents() == null
                 ? List.of()
                 : response.contents().stream().map(RemoteNoticeSummary::toNotice).toList();
-        return new NoticePage(
+        return new SmartStoreNoticePage(
                 notices, response.page(), response.size(),
                 response.totalElements(), response.totalPages());
     }
 
     @Override
-    public Notice get(Long sellerNoticeId) {
+    public SmartStoreNotice get(Long sellerNoticeId) {
         RemoteNotice response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri("/external/v1/contents/seller-notices/{sellerNoticeId}", sellerNoticeId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -64,7 +68,7 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
     }
 
     @Override
-    public Long create(SaveCommand command) {
+    public Long create(SmartStoreNoticeSaveCommand command) {
         NoticeIdResponse response = accessTokenProvider.authorized(token -> restClient.post()
                 .uri("/external/v1/contents/seller-notices")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -76,7 +80,7 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
     }
 
     @Override
-    public Long update(Long sellerNoticeId, SaveCommand command) {
+    public Long update(Long sellerNoticeId, SmartStoreNoticeSaveCommand command) {
         NoticeIdResponse response = accessTokenProvider.authorized(token -> restClient.put()
                 .uri("/external/v1/contents/seller-notices/{sellerNoticeId}", sellerNoticeId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -144,8 +148,8 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
             OffsetDateTime displayStartDate,
             OffsetDateTime displayEndDate
     ) {
-        private NoticeSummary toNotice() {
-            return new NoticeSummary(
+        private SmartStoreNoticeSummary toNotice() {
+            return new SmartStoreNoticeSummary(
                     sellerNoticeId, postCategoryType, title, importantNotice,
                     importantNoticeStartDate, importantNoticeEndDate, wholeNotice,
                     displayStartDate, displayEndDate);
@@ -167,8 +171,8 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
             OffsetDateTime popupEndDate,
             String detailContents
     ) {
-        private Notice toNotice() {
-            return new Notice(
+        private SmartStoreNotice toNotice() {
+            return new SmartStoreNotice(
                     sellerNoticeId, postCategoryType, title, importantNotice,
                     importantNoticeStartDate, importantNoticeEndDate, wholeNotice,
                     displayStartDate, displayEndDate, popup, popupStartDate, popupEndDate,
@@ -190,7 +194,7 @@ public class NaverCommerceProductNoticeProvider implements SmartStoreProductNoti
             OffsetDateTime popupEndDate,
             String detailContents
     ) {
-        private static NoticeRequest from(SaveCommand command) {
+        private static NoticeRequest from(SmartStoreNoticeSaveCommand command) {
             return new NoticeRequest(
                     command.postCategoryType(), command.title(), command.importantNotice(),
                     command.importantNoticeStartDate(), command.importantNoticeEndDate(),

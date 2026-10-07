@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelOptionResult;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelProductResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
@@ -24,7 +24,7 @@ public record SmartStoreChannelProductResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long price,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean usable
     ) {
-        private static Option from(ChannelOptionResult result) {
+        private static Option from(SmartStoreChannelOption result) {
             return new Option(
                     result.optionId(), result.name(), result.stockQuantity(),
                     result.price(), result.usable());

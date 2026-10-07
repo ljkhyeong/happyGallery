@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.application.qna.dto.SmartStoreAnswerTemplate;
+import com.personal.happygallery.application.qna.dto.SmartStoreCustomerInquiry;
+import com.personal.happygallery.application.qna.dto.SmartStoreProductInquiry;
 import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.time.Clocks;
@@ -35,11 +38,11 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
-    public OffsetPage<InquiryItem> findProductInquiries(
+    public OffsetPage<SmartStoreProductInquiry> findProductInquiries(
             LocalDateTime from, LocalDateTime to, boolean unansweredOnly, int page, int size) {
         InquiryResponse response = fetch(from, to, unansweredOnly, page + 1, size);
-        List<InquiryItem> items = response.contents() == null ? List.of() : response.contents().stream()
-                .map(item -> new InquiryItem(
+        List<SmartStoreProductInquiry> items = response.contents() == null ? List.of() : response.contents().stream()
+                .map(item -> new SmartStoreProductInquiry(
                         item.questionId(), item.productId(), item.productName(),
                         item.maskedWriterId(), item.question(), item.answer(), item.answered(),
                         toLocalDateTime(item.createDate())))
@@ -70,11 +73,11 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
-    public OffsetPage<CustomerInquiryItem> findCustomerInquiries(
+    public OffsetPage<SmartStoreCustomerInquiry> findCustomerInquiries(
             LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size) {
         CustomerInquiryResponse response = fetchCustomerInquiries(from, to, unansweredOnly, page + 1, size);
-        List<CustomerInquiryItem> items = response.content() == null ? List.of() : response.content().stream()
-                .map(item -> new CustomerInquiryItem(
+        List<SmartStoreCustomerInquiry> items = response.content() == null ? List.of() : response.content().stream()
+                .map(item -> new SmartStoreCustomerInquiry(
                         item.inquiryNo(), item.answerContentId(), item.category(), item.title(),
                         item.inquiryContent(), item.answerContent(), item.answered(),
                         item.orderId(), item.productNo(), item.productOrderIdList(),
@@ -123,7 +126,7 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
     }
 
     @Override
-    public AnswerTemplate findProductInquiryAnswerTemplate() {
+    public SmartStoreAnswerTemplate findProductInquiryAnswerTemplate() {
         AnswerTemplateResponse response = accessTokenProvider.authorized(token -> restClient.get()
                 .uri("/external/v1/contents/qnas/templates")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
@@ -132,7 +135,7 @@ public class NaverCommerceInquiryProvider implements SmartStoreInquiryProvider {
         if (response == null) {
             throw new IllegalStateException("스마트스토어 문의 답변 템플릿 응답이 비어 있습니다.");
         }
-        return new AnswerTemplate(
+        return new SmartStoreAnswerTemplate(
                 response.questionType(), response.subject(), response.content());
     }
 

@@ -5,6 +5,9 @@ import com.personal.happygallery.adapter.in.web.admin.AdminRestockDemandControll
 import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
 import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
 import com.personal.happygallery.application.product.ProductView;
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogPage;
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogProduct;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
 import com.personal.happygallery.application.product.port.in.RestockDemandUseCase;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
@@ -42,12 +45,12 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.CurrentOrderStatusResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
+import com.personal.happygallery.application.qna.dto.SmartStoreAnswerTemplate;
+import com.personal.happygallery.application.qna.dto.SmartStoreCustomerInquiry;
+import com.personal.happygallery.application.qna.dto.SmartStoreProductInquiry;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import com.personal.happygallery.application.shared.page.OffsetPage;
-import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.CustomerInquiryResult;
-import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.InquiryResult;
-import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase.AnswerTemplateResult;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.ProductOptions;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
@@ -55,9 +58,6 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingHistoryResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ProductPreviewResult;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogPageResult;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogProductResult;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelOptionResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelProductResult;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -219,15 +219,15 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                 1L, "preview-v1", 123456789L, 35000L, 33000L,
                 "SALE", "SALE", true, List.of()));
         when(smartStoreInventoryUseCase.listChannelProducts(1, 100))
-                .thenReturn(new CatalogPageResult(
-                        List.of(new CatalogProductResult(
+                .thenReturn(new SmartStoreCatalogPage(
+                        List.of(new SmartStoreCatalogProduct(
                                 123456789L, 987654321L, "각인 카드지갑", "SALE", 33000L, 7,
                                 "https://images.example.com/wallet.jpg")),
                         1, 100, 1, 1));
         when(smartStoreInventoryUseCase.getChannelProduct(123456789L))
                 .thenReturn(new ChannelProductResult(
                         123456789L, 33000L, "SALE",
-                        List.of(new ChannelOptionResult(
+                        List.of(new SmartStoreChannelOption(
                                 11L, "브라운 / 금박", 3, 1000L, true))));
         ChannelOrderResult smartStoreOrder = new ChannelOrderResult(
                 "2026082912345678", "2026082911111111", 123456789L, 90001L,
@@ -315,7 +315,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                 "COLLECT_DONE", "CJ대한통운", "9876543210", 3000L,
                                 null, List.of())));
         when(smartStoreInquiryUseCase.getProductInquiryAnswerTemplate())
-                .thenReturn(new AnswerTemplateResult(
+                .thenReturn(new SmartStoreAnswerTemplate(
                         "PRODUCT", "상품 문의 기본 답변", "문의해 주셔서 감사합니다."));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
         when(workshopProfileUseCase.update(any())).thenReturn(workshop);
@@ -1010,7 +1010,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     @DisplayName("관리자 스마트스토어 상품 문의 조회와 답변 API를 문서화한다")
     void admin_manage_smartstore_inquiry() throws Exception {
         when(smartStoreInquiryUseCase.listPage(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), true, 1, 50))
-                .thenReturn(new OffsetPage<>(List.of(new InquiryResult(
+                .thenReturn(new OffsetPage<>(List.of(new SmartStoreProductInquiry(
                         456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
                         false, LocalDateTime.of(2026, 7, 29, 10, 0))), 1, 50, 101, 3));
         mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/page")
@@ -1064,7 +1064,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     void admin_update_smartstore_customer_inquiry_answer() throws Exception {
         when(smartStoreInquiryUseCase.listCustomerPage(
                 LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), false, 0, 50))
-                .thenReturn(new OffsetPage<>(List.of(new CustomerInquiryResult(
+                .thenReturn(new OffsetPage<>(List.of(new SmartStoreCustomerInquiry(
                         789L, 456L, "DELIVERY", "배송 문의", "언제 도착하나요?", "오늘 출고 예정입니다.",
                         true, "order-1", "123", "po-1", "가죽 지갑", "브라운",
                         "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)), 0, 50, 1, 1));

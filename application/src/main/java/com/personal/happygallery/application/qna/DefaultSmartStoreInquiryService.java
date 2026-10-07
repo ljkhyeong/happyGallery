@@ -1,9 +1,10 @@
 package com.personal.happygallery.application.qna;
 
+import com.personal.happygallery.application.qna.dto.SmartStoreAnswerTemplate;
+import com.personal.happygallery.application.qna.dto.SmartStoreCustomerInquiry;
+import com.personal.happygallery.application.qna.dto.SmartStoreProductInquiry;
 import com.personal.happygallery.application.qna.port.in.SmartStoreInquiryUseCase;
 import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider;
-import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider.InquiryItem;
-import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider.CustomerInquiryItem;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -20,14 +21,12 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
     }
 
     @Override
-    public OffsetPage<InquiryResult> listPage(
+    public OffsetPage<SmartStoreProductInquiry> listPage(
             LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size) {
         requireEnabled();
         requireDateRange(from, to);
-        var result = provider.findProductInquiries(
+        return provider.findProductInquiries(
                 from.atStartOfDay(), to.atTime(23, 59, 59, 999_000_000), unansweredOnly, page, size);
-        return new OffsetPage<>(result.content().stream().map(DefaultSmartStoreInquiryService::toResult).toList(),
-                result.page(), result.size(), result.totalCount(), result.totalPages());
     }
 
     @Override
@@ -37,34 +36,17 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
     }
 
     @Override
-    public AnswerTemplateResult getProductInquiryAnswerTemplate() {
+    public SmartStoreAnswerTemplate getProductInquiryAnswerTemplate() {
         requireEnabled();
-        var template = provider.findProductInquiryAnswerTemplate();
-        return new AnswerTemplateResult(
-                template.questionType(), template.subject(), template.content());
+        return provider.findProductInquiryAnswerTemplate();
     }
 
     @Override
-    public OffsetPage<CustomerInquiryResult> listCustomerPage(
+    public OffsetPage<SmartStoreCustomerInquiry> listCustomerPage(
             LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size) {
         requireEnabled();
         requireDateRange(from, to);
-        var result = provider.findCustomerInquiries(from, to, unansweredOnly, page, size);
-        return new OffsetPage<>(result.content().stream().map(DefaultSmartStoreInquiryService::toResult).toList(),
-                result.page(), result.size(), result.totalCount(), result.totalPages());
-    }
-
-    private static InquiryResult toResult(InquiryItem item) {
-        return new InquiryResult(item.questionId(), item.channelProductId(), item.productName(),
-                item.maskedWriterId(), item.question(), item.answer(), item.answered(), item.createdAt());
-    }
-
-    private static CustomerInquiryResult toResult(CustomerInquiryItem item) {
-        return new CustomerInquiryResult(
-                item.inquiryNo(), item.answerContentId(), item.category(), item.title(), item.inquiryContent(),
-                item.answerContent(), item.answered(), item.orderId(), item.channelProductId(), item.productOrderIds(),
-                item.productName(), item.productOrderOption(), item.maskedCustomerId(), item.customerName(),
-                item.createdAt(), item.answeredAt());
+        return provider.findCustomerInquiries(from, to, unansweredOnly, page, size);
     }
 
     private static void requireDateRange(LocalDate from, LocalDate to) {

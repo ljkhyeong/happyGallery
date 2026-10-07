@@ -1,7 +1,7 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.product.port.in.SmartStoreProductNoticeUseCase.NoticePage;
-import com.personal.happygallery.application.product.port.in.SmartStoreProductNoticeUseCase.NoticeSummary;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticePage;
+import com.personal.happygallery.application.product.dto.SmartStoreNoticeSummary;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -13,7 +13,7 @@ public record SmartStoreNoticePageResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long totalElements,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) int totalPages
 ) {
-    public static SmartStoreNoticePageResponse from(NoticePage page) {
+    public static SmartStoreNoticePageResponse from(SmartStoreNoticePage page) {
         return new SmartStoreNoticePageResponse(
                 page.notices().stream().map(NoticeSummaryResponse::from).toList(),
                 page.page(), page.size(), page.totalElements(), page.totalPages());
@@ -30,7 +30,7 @@ public record SmartStoreNoticePageResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) OffsetDateTime displayStartDate,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) OffsetDateTime displayEndDate
     ) {
-        private static NoticeSummaryResponse from(NoticeSummary notice) {
+        private static NoticeSummaryResponse from(SmartStoreNoticeSummary notice) {
             return new NoticeSummaryResponse(
                     notice.sellerNoticeId(), notice.postCategoryType(), notice.title(),
                     notice.importantNotice(), notice.importantNoticeStartDate(),

@@ -1,5 +1,8 @@
 package com.personal.happygallery.application.product.port.out;
 
+import com.personal.happygallery.application.product.dto.SmartStoreCatalogPage;
+import com.personal.happygallery.application.product.dto.SmartStoreChannelOption;
+import com.personal.happygallery.application.product.dto.SmartStoreInspectionPage;
 import java.util.List;
 
 public interface SmartStoreInventoryProvider {
@@ -8,9 +11,9 @@ public interface SmartStoreInventoryProvider {
 
     SyncResult sync(StockCommand command);
 
-    CatalogPage listProducts(int page, int size);
+    SmartStoreCatalogPage listProducts(int page, int size);
 
-    InspectionPage listInspectionProducts(int page, int size);
+    SmartStoreInspectionPage listInspectionProducts(int page, int size);
 
     void restoreInspectionProduct(Long channelProductNo);
 
@@ -34,60 +37,11 @@ public interface SmartStoreInventoryProvider {
 
     record OptionStock(Long optionId, int stockQuantity) {}
 
-    record ChannelProduct(long salePrice, String status, List<ChannelOption> options) {
+    record ChannelProduct(long salePrice, String status, List<SmartStoreChannelOption> options) {
         public ChannelProduct {
             options = options == null ? List.of() : List.copyOf(options);
         }
     }
-
-    record CatalogPage(
-            List<CatalogProduct> products,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages
-    ) {
-        public CatalogPage {
-            products = products == null ? List.of() : List.copyOf(products);
-        }
-    }
-
-    record CatalogProduct(
-            Long originProductNo,
-            Long channelProductNo,
-            String name,
-            String status,
-            long salePrice,
-            Integer stockQuantity,
-            String imageUrl
-    ) {}
-
-    record InspectionPage(
-            List<InspectionProduct> products,
-            int page,
-            int size,
-            long totalElements,
-            int totalPages
-    ) {
-        public InspectionPage {
-            products = products == null ? List.of() : List.copyOf(products);
-        }
-    }
-
-    record InspectionProduct(
-            Long channelProductNo,
-            String reason,
-            String action,
-            boolean restorationRequestAvailable
-    ) {}
-
-    record ChannelOption(
-            Long optionId,
-            String name,
-            int stockQuantity,
-            long price,
-            boolean usable
-    ) {}
 
     record ProductCommand(
             Long originProductNo,
