@@ -129,13 +129,10 @@ class NotificationOutboxTransactionService {
             return NotificationOutboxDeliveryPreparation.stale();
         }
         return NotificationOutboxDeliveryPreparation.ready(new NotificationOutboxDeliveryRequest(
-                outbox.getId(),
                 outbox.getRecipientType(),
                 outbox.getGuestId(),
                 outbox.getUserId(),
                 outbox.getEventType(),
-                outbox.getAggregateType(),
-                outbox.getAggregateId(),
                 outbox.getIdempotencyKey()));
     }
 
@@ -157,16 +154,14 @@ class NotificationOutboxTransactionService {
             String processingToken,
             NotificationChannel channel,
             String providerRequestId,
-            Long providerRecipientSeq,
-            String auditError) {
+            Long providerRecipientSeq) {
         NotificationOutbox outbox = findOutboxForUpdate(outboxId);
         return outbox.markDeliveryPending(
                 processingToken,
                 channel,
                 providerRequestId,
                 providerRecipientSeq,
-                LocalDateTime.now(clock).plusSeconds(30),
-                auditError);
+                LocalDateTime.now(clock).plusSeconds(30));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -274,13 +269,10 @@ record NotificationDeliveryResultReservation(
         Long providerRecipientSeq
 ) {}
 
-record NotificationOutboxDeliveryRequest(Long outboxId,
-                                         NotificationRecipientType recipientType,
+record NotificationOutboxDeliveryRequest(NotificationRecipientType recipientType,
                                          Long guestId,
                                          Long userId,
                                          NotificationEventType eventType,
-                                         String aggregateType,
-                                         Long aggregateId,
                                          String idempotencyKey) {}
 
 record NotificationOutboxDeliveryPreparation(NotificationOutboxPreparationStatus status,

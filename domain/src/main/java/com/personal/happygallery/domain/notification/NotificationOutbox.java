@@ -229,8 +229,7 @@ public class NotificationOutbox {
             NotificationChannel channel,
             String requestId,
             Long recipientSeq,
-            LocalDateTime nextCheckAt,
-            String auditError) {
+            LocalDateTime nextCheckAt) {
         if (!isProcessingOwnedBy(token)) {
             return false;
         }
@@ -242,7 +241,7 @@ public class NotificationOutbox {
         providerRequestId = requestId;
         providerRecipientSeq = recipientSeq;
         nextAttemptAt = nextCheckAt;
-        lastError = truncate(auditError);
+        lastError = null;
         clearProcessing();
         return true;
     }

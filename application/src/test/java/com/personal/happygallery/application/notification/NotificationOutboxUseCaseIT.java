@@ -268,7 +268,7 @@ class NotificationOutboxUseCaseIT {
                             user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 5L),
                     now.minusMinutes(10)));
             older.markDeliveryPending(older.markProcessing(now.minusMinutes(10)),
-                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9), null);
+                    NotificationChannel.KAKAO, "older-request", 1L, now.minusMinutes(9));
             String token = older.markDeliveryChecking(now.minusMinutes(2));
             if (!interrupted) {
                 older.rescheduleDeliveryCheck(token, now.minusMinutes(1), "UNAVAILABLE");
@@ -279,7 +279,7 @@ class NotificationOutboxUseCaseIT {
                             user.getId(), NotificationEventType.ORDER_PAID, "ORDER", 6L),
                     now.minusMinutes(8)));
             waiting.markDeliveryPending(waiting.markProcessing(now.minusMinutes(8)),
-                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7), null);
+                    NotificationChannel.SMS, "waiting-request", 1L, now.minusMinutes(7));
             return List.of(older.getId(), waiting.getId());
         });
 

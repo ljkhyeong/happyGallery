@@ -11,6 +11,7 @@ import com.personal.happygallery.application.monitoring.AppMetrics;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -62,93 +63,44 @@ public class NotificationService {
         this.clock = clock;
     }
 
-    // -- outbox dispatcher 용 package-private 메서드 --
-
-    NotificationSendResult sendToGuest(Long guestId, String idempotencyKey, String phone, String name,
-                                       NotificationEventType eventType) {
-        return sendNotification(guestId, null, idempotencyKey, phone, name, eventType, null).result();
-    }
-
-    NotificationSendResult sendByGuestId(Long guestId,
-                                         NotificationEventType eventType,
-                                         String idempotencyKey) {
-        if (guestId == null) {
-            return NotificationSendResult.SUCCESS;
-        }
-        return guestReader.findById(guestId)
-                .map(guest -> sendToGuest(
-                        guest.getId(),
-                        idempotencyKey,
-                        guestPersonalDataProtector.decryptPhone(guest),
-                        guestPersonalDataProtector.decryptName(guest),
-                        eventType))
-                .orElseGet(() -> {
-                    if (!logRecipientNotFound(guestId, null, eventType)) {
-                        throw NotificationAuditPersistenceException.afterCompletedDelivery();
-                    }
-                    return NotificationSendResult.PERMANENT_FAILURE;
-                });
-    }
-
-    NotificationSendResult sendByUserId(Long userId,
-                                        NotificationEventType eventType,
-                                        String idempotencyKey) {
-        if (userId == null) {
-            return NotificationSendResult.SUCCESS;
-        }
-        return userReader.findById(userId)
-                .map(user -> sendToUser(userId, idempotencyKey, user.getPhone(), user.getName(), eventType))
-                .orElseGet(() -> {
-                    if (!logRecipientNotFound(null, userId, eventType)) {
-                        throw NotificationAuditPersistenceException.afterCompletedDelivery();
-                    }
-                    return NotificationSendResult.PERMANENT_FAILURE;
-                });
-    }
-
-    NotificationSendResult sendToUser(Long userId, String idempotencyKey, String phone, String name,
-                                      NotificationEventType eventType) {
-        return sendNotification(null, userId, idempotencyKey, phone, name, eventType, null).result();
-    }
-
-    NotificationDeliveryAttempt sendByGuestIdWithOutcome(
+    /**
+     * outbox 수신자 ID로 연락처를 조회해 발송한다.
+     *
+     * @param startAfterChannel null이면 첫 채널부터, 값이 있으면 그 다음 채널부터 시도한다.
+     */
+    NotificationDeliveryAttempt deliver(
+            NotificationRecipientType recipientType,
             Long guestId,
-            NotificationEventType eventType,
-            String idempotencyKey,
-            NotificationChannel startAfterChannel) {
-        if (guestId == null) {
-            return NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS);
-        }
-        return guestReader.findById(guestId)
-                .map(guest -> sendNotification(
-                        guest.getId(),
-                        null,
-                        idempotencyKey,
-                        guestPersonalDataProtector.decryptPhone(guest),
-                        guestPersonalDataProtector.decryptName(guest),
-                        eventType,
-                        startAfterChannel))
-                .orElseGet(() -> recipientNotFoundAttempt(guestId, null, eventType));
-    }
-
-    NotificationDeliveryAttempt sendByUserIdWithOutcome(
             Long userId,
             NotificationEventType eventType,
             String idempotencyKey,
             NotificationChannel startAfterChannel) {
-        if (userId == null) {
-            return NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS);
-        }
-        return userReader.findById(userId)
-                .map(user -> sendNotification(
-                        null,
-                        userId,
-                        idempotencyKey,
-                        user.getPhone(),
-                        user.getName(),
-                        eventType,
-                        startAfterChannel))
-                .orElseGet(() -> recipientNotFoundAttempt(null, userId, eventType));
+        return switch (recipientType) {
+            case GUEST -> guestId == null
+                    ? NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS)
+                    : guestReader.findById(guestId)
+                            .map(guest -> sendNotification(
+                                    guestId,
+                                    null,
+                                    idempotencyKey,
+                                    guestPersonalDataProtector.decryptPhone(guest),
+                                    guestPersonalDataProtector.decryptName(guest),
+                                    eventType,
+                                    startAfterChannel))
+                            .orElseGet(() -> recipientNotFoundAttempt(guestId, null, eventType));
+            case USER -> userId == null
+                    ? NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS)
+                    : userReader.findById(userId)
+                            .map(user -> sendNotification(
+                                    null,
+                                    userId,
+                                    idempotencyKey,
+                                    user.getPhone(),
+                                    user.getName(),
+                                    eventType,
+                                    startAfterChannel))
+                            .orElseGet(() -> recipientNotFoundAttempt(null, userId, eventType));
+        };
     }
 
     private NotificationDeliveryAttempt sendNotification(Long guestId,
