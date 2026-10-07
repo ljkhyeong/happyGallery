@@ -8,6 +8,7 @@ import com.personal.happygallery.application.customer.GuestPersonalDataProtector
 import com.personal.happygallery.application.customer.port.out.GuestStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.DepositCalculator;
 import com.personal.happygallery.domain.booking.DepositCalculator.BookingAmounts;
 import com.personal.happygallery.domain.booking.Guest;
@@ -89,7 +90,7 @@ public class DefaultAdminBookingCreateService implements AdminBookingCreateUseCa
                 BookingHistoryAction.BOOKED,
                 null,
                 slot,
-                "ADMIN",
+                BookingHistoryActor.ADMIN,
                 command.adminId(),
                 "접수 경로: " + command.source().name());
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);

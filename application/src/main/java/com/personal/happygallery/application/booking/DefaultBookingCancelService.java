@@ -16,6 +16,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTask;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.BookingConflictException;
@@ -188,7 +189,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 BookingHistoryAction.CANCELED,
                 slot,
                 null,
-                "ADMIN",
+                BookingHistoryActor.ADMIN,
                 adminId,
                 cancellationReason);
 
@@ -246,7 +247,8 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
 
         // 2. CANCELED 이력 저장 (append-only)
         bookingSupport.recordHistory(
-                booking, BookingHistoryAction.CANCELED, slot, null, "CUSTOMER", null, null);
+                booking, BookingHistoryAction.CANCELED, slot, null,
+                BookingHistoryActor.CUSTOMER, null, null);
 
         // 3. 예약금 환불 또는 이용권 횟수 복원
         CancellationCompensation compensation =
@@ -305,7 +307,7 @@ public class DefaultBookingCancelService implements BookingCancelUseCase, AdminB
                 BookingHistoryAction.PARTICIPANTS_REDUCED,
                 null,
                 null,
-                "CUSTOMER",
+                BookingHistoryActor.CUSTOMER,
                 null,
                 "예약 인원 " + previousParticipantCount + "명 → " + participantCount + "명");
 

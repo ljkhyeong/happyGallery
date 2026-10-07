@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
@@ -113,7 +114,8 @@ class BookingSettlementUseCaseIT {
                             BookingHistoryAction.BALANCE_PAID,
                             BookingHistoryAction.ARREARS_CLEARED);
             softly.assertThat(histories)
-                    .allSatisfy(history -> softly.assertThat(history.getActor()).isEqualTo("ADMIN"));
+                    .allSatisfy(history -> softly.assertThat(history.getActor())
+                            .isEqualTo(BookingHistoryActor.ADMIN));
             softly.assertThat(histories)
                     .allSatisfy(history -> softly.assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID));
         });

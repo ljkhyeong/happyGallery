@@ -248,7 +248,7 @@ CREATE TABLE `booking_history` (
   `action` varchar(30) NOT NULL,
   `from_slot_id` bigint DEFAULT NULL,
   `to_slot_id` bigint DEFAULT NULL,
-  `actor` varchar(10) NOT NULL COMMENT 'CUSTOMER | ADMIN',
+  `actor` varchar(10) NOT NULL COMMENT 'CUSTOMER | ADMIN | SYSTEM',
   `admin_user_id` bigint DEFAULT NULL,
   `reason` varchar(500) DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),

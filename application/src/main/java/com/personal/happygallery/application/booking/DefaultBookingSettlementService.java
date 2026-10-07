@@ -7,6 +7,7 @@ import com.personal.happygallery.application.notification.ReviewNotificationPubl
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -43,11 +44,13 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
         booking.markBalancePaid(LocalDateTime.now(clock));
         if (previousBalanceStatus != booking.getBalanceStatus()) {
             bookingSupport.recordHistory(
-                    booking, BookingHistoryAction.BALANCE_PAID, null, null, "ADMIN", adminId, null);
+                    booking, BookingHistoryAction.BALANCE_PAID, null, null,
+                    BookingHistoryActor.ADMIN, adminId, null);
         }
         if (wasArrears && !booking.isArrearsFlag()) {
             bookingSupport.recordHistory(
-                    booking, BookingHistoryAction.ARREARS_CLEARED, null, null, "ADMIN", adminId, null);
+                    booking, BookingHistoryAction.ARREARS_CLEARED, null, null,
+                    BookingHistoryActor.ADMIN, adminId, null);
         }
         return bookingStorePort.save(booking);
     }
@@ -61,7 +64,8 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
             BookingHistoryAction action = booking.isArrearsFlag()
                     ? BookingHistoryAction.ARREARS_MARKED
                     : BookingHistoryAction.ARREARS_CLEARED;
-            bookingSupport.recordHistory(booking, action, null, null, "ADMIN", adminId, null);
+            bookingSupport.recordHistory(
+                    booking, action, null, null, BookingHistoryActor.ADMIN, adminId, null);
         }
         return bookingStorePort.save(booking);
     }
@@ -71,7 +75,8 @@ class DefaultBookingSettlementService implements BookingSettlementUseCase {
         Booking booking = findBooking(bookingId);
         booking.complete(LocalDateTime.now(clock));
         bookingSupport.recordHistory(
-                booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null, "ADMIN", adminId, null);
+                booking, BookingHistoryAction.COMPLETED, booking.getSlot(), null,
+                BookingHistoryActor.ADMIN, adminId, null);
         Booking completed = bookingStorePort.save(booking);
         reviewNotificationPublisher.requestForBooking(completed.getUserId(), completed.getId());
         return completed;

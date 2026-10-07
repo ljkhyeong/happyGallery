@@ -4,6 +4,7 @@ import com.personal.happygallery.application.booking.port.out.BookingReaderPort;
 import com.personal.happygallery.application.booking.port.out.BookingStorePort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.DuplicateBookingException;
@@ -56,7 +57,9 @@ class BookingCreationSupport {
     /** BOOKED 이력을 기록하고 예약 완료 알림을 요청한다. */
     @Transactional(propagation = Propagation.MANDATORY)
     Booking complete(Booking booking, Slot slot) {
-        bookingSupport.recordHistory(booking, BookingHistoryAction.BOOKED, null, slot, "CUSTOMER", null, null);
+        bookingSupport.recordHistory(
+                booking, BookingHistoryAction.BOOKED, null, slot,
+                BookingHistoryActor.CUSTOMER, null, null);
         bookingSupport.notifyBooker(booking, NotificationEventType.BOOKING_CONFIRMED);
         return booking;
     }

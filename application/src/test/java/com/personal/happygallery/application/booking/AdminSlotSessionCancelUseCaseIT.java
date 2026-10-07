@@ -26,6 +26,7 @@ import com.personal.happygallery.domain.booking.BookingCancellationTaskStatus;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingHistory;
 import com.personal.happygallery.domain.booking.BookingHistoryAction;
+import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
@@ -214,7 +215,7 @@ class AdminSlotSessionCancelUseCaseIT {
             softly.assertThat(histories).hasSize(4)
                     .allSatisfy(history -> {
                         assertThat(history.getAction()).isEqualTo(BookingHistoryAction.CANCELED);
-                        assertThat(history.getActor()).isEqualTo("ADMIN");
+                        assertThat(history.getActor()).isEqualTo(BookingHistoryActor.ADMIN);
                         assertThat(history.getAdminUserId()).isEqualTo(ADMIN_ID);
                         assertThat(history.getReason()).isEqualTo(REASON);
                     });
