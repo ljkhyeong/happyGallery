@@ -1,5 +1,15 @@
 package com.personal.happygallery.application.order.port.in;
 
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.domain.order.SmartStoreOrderAttentionReason;
 import com.personal.happygallery.domain.order.SmartStoreInventoryResolutionAction;
@@ -42,11 +52,11 @@ public interface SmartStoreChannelOrderUseCase {
 
     BulkOperationResult confirmAll(List<String> productOrderIds, AdminActor actor);
 
-    void dispatch(DispatchCommand command, AdminActor actor);
+    void dispatch(SmartStoreDispatchCommand command, AdminActor actor);
 
-    BulkOperationResult dispatchAll(List<DispatchCommand> commands, AdminActor actor);
+    BulkOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor);
 
-    void delay(DelayCommand command, AdminActor actor);
+    void delay(SmartStoreDelayCommand command, AdminActor actor);
 
     void approveCancel(String productOrderId, AdminActor actor);
 
@@ -54,23 +64,23 @@ public interface SmartStoreChannelOrderUseCase {
 
     void rejectReturn(String productOrderId, AdminActor actor);
 
-    void holdReturn(ReturnHoldCommand command, AdminActor actor);
+    void holdReturn(SmartStoreReturnHoldCommand command, AdminActor actor);
 
     void releaseReturnHold(String productOrderId, AdminActor actor);
 
-    void requestSellerReturn(SellerReturnCommand command, AdminActor actor);
+    void requestSellerReturn(SmartStoreSellerReturnCommand command, AdminActor actor);
 
-    void dispatchExchange(ExchangeDispatchCommand command, AdminActor actor);
+    void dispatchExchange(SmartStoreExchangeDispatchCommand command, AdminActor actor);
 
     void completeExchangeCollect(String productOrderId, AdminActor actor);
 
-    void rejectExchange(ExchangeRejectCommand command, AdminActor actor);
+    void rejectExchange(SmartStoreExchangeRejectCommand command, AdminActor actor);
 
-    void holdExchange(ExchangeHoldCommand command, AdminActor actor);
+    void holdExchange(SmartStoreExchangeHoldCommand command, AdminActor actor);
 
     void releaseExchangeHold(String productOrderId, AdminActor actor);
 
-    void requestSellerCancel(SellerCancelCommand command, AdminActor actor);
+    void requestSellerCancel(SmartStoreSellerCancelCommand command, AdminActor actor);
 
     record InventoryResolutionCommand(
             String productOrderId,
@@ -139,12 +149,12 @@ public interface SmartStoreChannelOrderUseCase {
             String expectedDeliveryMethod,
             String deliveryCompany,
             String trackingNumber,
-            ClaimDetail claimDetail
+            SmartStoreClaimDetail claimDetail
     ) {}
 
     record ChannelOrderDetailResult(
             ChannelOrderResult order,
-            DeliveryInfo deliveryInfo,
+            SmartStoreDeliveryInfo deliveryInfo,
             String placeOrderStatus,
             LocalDateTime shippingDueDate,
             String expectedDeliveryMethod,
@@ -156,86 +166,7 @@ public interface SmartStoreChannelOrderUseCase {
             Long saleCommission,
             Long channelCommission,
             Long expectedSettlementAmount,
-            ClaimDetail claimDetail
-    ) {}
-
-    record ClaimDetail(
-            String claimId,
-            String claimType,
-            String claimStatus,
-            String reason,
-            String detailedReason,
-            Integer requestQuantity,
-            LocalDateTime requestedAt,
-            String collectStatus,
-            String collectDeliveryCompany,
-            String collectTrackingNumber,
-            Long claimDeliveryFeeDemandAmount,
-            String holdbackStatus,
-            List<String> imageUrls
-    ) {}
-
-    record DeliveryInfo(
-            String recipientName,
-            String phone,
-            String postalCode,
-            String addressLine1,
-            String addressLine2,
-            String shippingMemo
-    ) {}
-
-    record DispatchCommand(
-            String productOrderId,
-            String deliveryMethod,
-            String deliveryCompanyCode,
-            String trackingNumber,
-            LocalDateTime dispatchDate
-    ) {}
-
-    record DelayCommand(
-            String productOrderId,
-            LocalDateTime dispatchDueDate,
-            String reasonCode,
-            String detailedReason
-    ) {}
-
-    record ExchangeDispatchCommand(
-            String productOrderId,
-            String deliveryMethod,
-            String deliveryCompanyCode,
-            String trackingNumber
-    ) {}
-
-    record ExchangeRejectCommand(String productOrderId, String reason) {}
-
-    record ExchangeHoldCommand(
-            String productOrderId,
-            String holdbackClassType,
-            String detailedReason,
-            Long extraExchangeFeeAmount
-    ) {}
-
-    record ReturnHoldCommand(
-            String productOrderId,
-            String holdbackClassType,
-            String detailedReason,
-            Long extraReturnFeeAmount
-    ) {}
-
-    record SellerReturnCommand(
-            String productOrderId,
-            String returnReason,
-            String collectDeliveryMethod,
-            String collectDeliveryCompany,
-            String collectTrackingNumber,
-            Integer returnQuantity
-    ) {}
-
-    record SellerCancelCommand(
-            String productOrderId,
-            String reason,
-            String detailedReason,
-            Integer quantity
+            SmartStoreClaimDetail claimDetail
     ) {}
 
     record BulkOperationResult(

@@ -1,5 +1,8 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.application.order.dto.SmartStoreCommissionDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDailySettlement;
+import com.personal.happygallery.application.order.dto.SmartStoreDailyVat;
 import com.personal.happygallery.application.order.port.out.SmartStoreSettlementProvider;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -43,14 +46,14 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
     }
 
     @Override
-    public List<DailySettlement> findDailySettlements(LocalDate from, LocalDate to) {
+    public List<SmartStoreDailySettlement> findDailySettlements(LocalDate from, LocalDate to) {
         return readPages(page -> fetchDailySettlements(from, to, page),
                 NaverCommerceSettlementProvider::toDailySettlement);
     }
 
     @Override
-    public List<CommissionDetail> findCommissionDetails(LocalDate from, LocalDate to) {
-        List<CommissionDetail> results = new ArrayList<>();
+    public List<SmartStoreCommissionDetail> findCommissionDetails(LocalDate from, LocalDate to) {
+        List<SmartStoreCommissionDetail> results = new ArrayList<>();
         for (LocalDate date = from; !date.isAfter(to); date = date.plusDays(1)) {
             LocalDate payDate = date;
             results.addAll(readPages(page -> fetchCommissions(payDate, page),
@@ -60,7 +63,7 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
     }
 
     @Override
-    public List<DailyVat> findDailyVat(LocalDate from, LocalDate to) {
+    public List<SmartStoreDailyVat> findDailyVat(LocalDate from, LocalDate to) {
         return readPages(page -> fetchVat(from, to, page),
                 NaverCommerceSettlementProvider::toDailyVat);
     }
@@ -167,8 +170,8 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                 content.settleCompleteDate(), content.payDate());
     }
 
-    private static DailySettlement toDailySettlement(DailySettlementContent content) {
-        return new DailySettlement(
+    private static SmartStoreDailySettlement toDailySettlement(DailySettlementContent content) {
+        return new SmartStoreDailySettlement(
                 content.settleBasisStartDate(), content.settleBasisEndDate(),
                 content.settleExpectDate(), content.settleCompleteDate(),
                 amount(content.settleAmount()), amount(content.paySettleAmount()),
@@ -182,8 +185,8 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                 content.merchantId(), content.merchantName());
     }
 
-    private static CommissionDetail toCommissionDetail(CommissionContent content) {
-        return new CommissionDetail(
+    private static SmartStoreCommissionDetail toCommissionDetail(CommissionContent content) {
+        return new SmartStoreCommissionDetail(
                 content.orderNo(), content.productOrderId(), content.productOrderType(),
                 content.productId(), content.productName(), content.merchantId(),
                 content.merchantName(), content.settleType(), content.settleBasisDate(),
@@ -193,8 +196,8 @@ public class NaverCommerceSettlementProvider implements SmartStoreSettlementProv
                 nullableAmount(content.maximumSellingInterlockCommissionAmount()));
     }
 
-    private static DailyVat toDailyVat(VatContent content) {
-        return new DailyVat(
+    private static SmartStoreDailyVat toDailyVat(VatContent content) {
+        return new SmartStoreDailyVat(
                 content.settleBasisDate(), amount(content.totalSalesAmount()),
                 amount(content.taxationSalesAmount()), amount(content.taxExemptionSalesAmount()),
                 amount(content.creditCardAmount()), amount(content.cashInComeDeductionAmount()),

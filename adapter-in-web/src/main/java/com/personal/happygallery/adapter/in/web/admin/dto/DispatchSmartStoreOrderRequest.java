@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -14,8 +14,8 @@ public record DispatchSmartStoreOrderRequest(
         @Size(max = 100) String trackingNumber,
         @NotNull @Schema(requiredMode = Schema.RequiredMode.REQUIRED) LocalDateTime dispatchDate
 ) {
-    public DispatchCommand toCommand(String productOrderId) {
-        return new DispatchCommand(
+    public SmartStoreDispatchCommand toCommand(String productOrderId) {
+        return new SmartStoreDispatchCommand(
                 productOrderId, deliveryMethod, deliveryCompanyCode, trackingNumber, dispatchDate);
     }
 }

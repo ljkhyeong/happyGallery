@@ -2,6 +2,8 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRestockDemandController;
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
 import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.in.RestockDemandUseCase;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
@@ -38,8 +40,6 @@ import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrde
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ActionHistoryResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ChannelOrderDetailResult;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DeliveryInfo;
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ClaimDetail;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.CurrentOrderStatusResult;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.ReturnDeliveryCompanyResult;
 import com.personal.happygallery.application.shared.page.CursorPage;
@@ -303,13 +303,13 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         when(smartStoreChannelOrderUseCase.detail("2026082912345678"))
                 .thenReturn(new ChannelOrderDetailResult(
                         smartStoreOrder,
-                        new DeliveryInfo(
+                        new SmartStoreDeliveryInfo(
                                 "홍길동", "01012345678", "04524",
                                 "서울 중구 세종대로 110", "2층", "문 앞에 놓아주세요"),
                         "OK", LocalDateTime.of(2026, 8, 30, 18, 0), "DELIVERY",
                         "CJ대한통운", "1234567890", 35000L, 70000L, 1000L,
                         2000L, 300L, 66700L,
-                        new ClaimDetail(
+                        new SmartStoreClaimDetail(
                                 "claim-1", "RETURN", "RETURN_DONE", "PRODUCT_UNSATISFIED",
                                 "색상이 달라요", 1, LocalDateTime.of(2026, 8, 29, 12, 30),
                                 "COLLECT_DONE", "CJ대한통운", "9876543210", 3000L,

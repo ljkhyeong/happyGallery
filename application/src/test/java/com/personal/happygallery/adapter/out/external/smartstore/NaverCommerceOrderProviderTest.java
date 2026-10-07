@@ -1,17 +1,17 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ChangeCursor;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DelayCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.DispatchCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeDispatchCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeRejectCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ExchangeHoldCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ReturnHoldCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerReturnCommand;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.SellerCancelCommand;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -437,25 +437,25 @@ class NaverCommerceOrderProviderTest {
                         """))
                 .andRespond(operationSuccess());
 
-        provider.dispatch(new DispatchCommand(
+        provider.dispatch(new SmartStoreDispatchCommand(
                 "po-1", "DELIVERY", "CJGLS", "1234",
                 LocalDateTime.of(2026, 8, 29, 15, 0)));
-        provider.delay(new DelayCommand(
+        provider.delay(new SmartStoreDelayCommand(
                 "po-1", LocalDateTime.of(2026, 8, 31, 18, 0),
                 "CUSTOM_BUILD", "각인 제작 중"));
-        provider.dispatchExchange(new ExchangeDispatchCommand(
+        provider.dispatchExchange(new SmartStoreExchangeDispatchCommand(
                 "po-1", "DELIVERY", "CJGLS", "5678"));
         provider.completeExchangeCollect("po-1");
-        provider.rejectExchange(new ExchangeRejectCommand("po-1", "교환 대상이 아닙니다."));
-        provider.holdExchange(new ExchangeHoldCommand(
+        provider.rejectExchange(new SmartStoreExchangeRejectCommand("po-1", "교환 대상이 아닙니다."));
+        provider.holdExchange(new SmartStoreExchangeHoldCommand(
                 "po-1", "EXCHANGE_DELIVERYFEE", "배송비 입금 대기", 3000L));
         provider.releaseExchangeHold("po-1");
-        provider.requestSellerCancel(new SellerCancelCommand(
+        provider.requestSellerCancel(new SmartStoreSellerCancelCommand(
                 "po-1", "SOLD_OUT", "부자재 품절", 1));
-        provider.holdReturn(new ReturnHoldCommand(
+        provider.holdReturn(new SmartStoreReturnHoldCommand(
                 "po-1", "RETURN_DELIVERYFEE", "반품 배송비 입금 대기", 3000L));
         provider.releaseReturnHold("po-1");
-        provider.requestSellerReturn(new SellerReturnCommand(
+        provider.requestSellerReturn(new SmartStoreSellerReturnCommand(
                 "po-1", "PRODUCT_UNSATISFIED", "RETURN_DESIGNATED", "CJGLS", "9876", 1));
 
         server.verify();
@@ -508,9 +508,9 @@ class NaverCommerceOrderProviderTest {
 
         var confirm = provider.confirmAll(List.of("po-1", "po-2"));
         var dispatch = provider.dispatchAll(List.of(
-                new DispatchCommand("po-1", "DELIVERY", "CJGLS", "1111",
+                new SmartStoreDispatchCommand("po-1", "DELIVERY", "CJGLS", "1111",
                         LocalDateTime.of(2026, 8, 29, 15, 0)),
-                new DispatchCommand("po-2", "DELIVERY", "CJGLS", "2222",
+                new SmartStoreDispatchCommand("po-2", "DELIVERY", "CJGLS", "2222",
                         LocalDateTime.of(2026, 8, 29, 15, 0))));
 
         server.verify();
@@ -543,7 +543,7 @@ class NaverCommerceOrderProviderTest {
         assertThatThrownBy(() -> provider.confirm("po-1"))
                 .isInstanceOfSatisfying(OperationRejectedException.class,
                         exception -> assertThat(exception.code()).isEqualTo("INVALID_STATUS"));
-        assertThatThrownBy(() -> provider.delay(new DelayCommand(
+        assertThatThrownBy(() -> provider.delay(new SmartStoreDelayCommand(
                 "po-1", LocalDateTime.of(2026, 8, 31, 18, 0), "CUSTOM_BUILD", "각인 제작 중")))
                 .isInstanceOf(OperationResultUnknownException.class);
         server.verify();

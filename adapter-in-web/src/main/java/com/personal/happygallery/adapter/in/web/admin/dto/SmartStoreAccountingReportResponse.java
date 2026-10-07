@@ -1,9 +1,9 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.application.order.dto.SmartStoreCommissionDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDailySettlement;
+import com.personal.happygallery.application.order.dto.SmartStoreDailyVat;
 import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase.AccountingReport;
-import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase.CommissionDetail;
-import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase.DailySettlement;
-import com.personal.happygallery.application.order.port.in.SmartStoreSettlementUseCase.DailyVat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.util.List;
@@ -46,7 +46,7 @@ public record SmartStoreAccountingReportResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String merchantId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String merchantName
     ) {
-        private static DailySettlementResponse from(DailySettlement settlement) {
+        private static DailySettlementResponse from(SmartStoreDailySettlement settlement) {
             return new DailySettlementResponse(
                     settlement.settleBasisStartDate(), settlement.settleBasisEndDate(),
                     settlement.settleExpectDate(), settlement.settleCompleteDate(),
@@ -80,7 +80,7 @@ public record SmartStoreAccountingReportResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED) long commissionAmount,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long maximumSellingInterlockCommissionAmount
     ) {
-        private static CommissionDetailResponse from(CommissionDetail detail) {
+        private static CommissionDetailResponse from(SmartStoreCommissionDetail detail) {
             return new CommissionDetailResponse(
                     detail.orderNo(), detail.productOrderId(), detail.productOrderType(),
                     detail.productId(), detail.productName(), detail.merchantId(),
@@ -104,7 +104,7 @@ public record SmartStoreAccountingReportResponse(
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String merchantId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String merchantName
     ) {
-        private static DailyVatResponse from(DailyVat vat) {
+        private static DailyVatResponse from(SmartStoreDailyVat vat) {
             return new DailyVatResponse(
                     vat.settleBasisDate(), vat.totalSalesAmount(), vat.taxationSalesAmount(),
                     vat.taxExemptionSalesAmount(), vat.creditCardAmount(),

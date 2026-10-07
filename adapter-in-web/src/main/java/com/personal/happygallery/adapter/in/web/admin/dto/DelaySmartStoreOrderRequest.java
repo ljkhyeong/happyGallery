@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
-import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase.DelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +15,7 @@ public record DelaySmartStoreOrderRequest(
         String reasonCode,
         @NotBlank @Size(max = 4000) String detailedReason
 ) {
-    public DelayCommand toCommand(String productOrderId) {
-        return new DelayCommand(productOrderId, dispatchDueDate, reasonCode, detailedReason);
+    public SmartStoreDelayCommand toCommand(String productOrderId) {
+        return new SmartStoreDelayCommand(productOrderId, dispatchDueDate, reasonCode, detailedReason);
     }
 }

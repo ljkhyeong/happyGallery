@@ -1,8 +1,8 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
 import com.personal.happygallery.application.shared.AdminActor;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
-import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.ClaimDetail;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationResultUnknownException;
@@ -43,7 +43,7 @@ class DefaultSmartStoreChannelOrderServiceTest {
         SmartStoreProductOrder order = new SmartStoreProductOrder(
                 "po-1", "order-1", 123L, null, "가죽 지갑", null, "PAYED",
                 null, null, 1, 1, "PAYED", changedAt, changedAt);
-        ClaimDetail claim = hasClaim ? new ClaimDetail(
+        SmartStoreClaimDetail claim = hasClaim ? new SmartStoreClaimDetail(
                 "claim-1", "RETURN", "RETURN_REQUEST", "PRODUCT_UNSATISFIED", null,
                 1, changedAt, null, null, null, null, null, List.of()) : null;
         ProductOrderDetail detail = detail("po-1", claim, changedAt);
@@ -190,7 +190,7 @@ class DefaultSmartStoreChannelOrderServiceTest {
 
     private static ProductOrderDetail detail(
             String productOrderId,
-            ClaimDetail claim,
+            SmartStoreClaimDetail claim,
             LocalDateTime changedAt) {
         return new ProductOrderDetail(
                 productOrderId, "order-1", 123L, null, "가죽 지갑", null, null, "PAYED",

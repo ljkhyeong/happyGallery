@@ -1,6 +1,16 @@
 package com.personal.happygallery.adapter.out.external.smartstore;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationRejectedException;
@@ -120,7 +130,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 throw new IllegalStateException("스마트스토어 상품 주문 상세 항목이 비어 있습니다.");
             }
             ShippingAddressInfo address = productOrder.shippingAddress();
-            DeliveryInfo deliveryInfo = address == null ? null : new DeliveryInfo(
+            SmartStoreDeliveryInfo deliveryInfo = address == null ? null : new SmartStoreDeliveryInfo(
                     address.name(), address.tel1(), address.zipCode(), address.baseAddress(),
                     address.detailedAddress(), productOrder.shippingMemo());
             DeliveryResponse delivery = item.delivery();
@@ -163,7 +173,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public OperationResult dispatchAll(List<DispatchCommand> commands) {
+    public OperationResult dispatchAll(List<SmartStoreDispatchCommand> commands) {
         OperationResponse response = executeBulk(
                 "/external/v1/pay-order/seller/product-orders/dispatch",
                 new DispatchRequest(commands.stream()
@@ -173,12 +183,12 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                                 format(command.dispatchDate())))
                         .toList()));
         return operationResult(response, commands.stream()
-                .map(DispatchCommand::productOrderId)
+                .map(SmartStoreDispatchCommand::productOrderId)
                 .toList());
     }
 
     @Override
-    public void delay(DelayCommand command) {
+    public void delay(SmartStoreDelayCommand command) {
         execute(PRODUCT_ORDER_PATH + "/delay", command.productOrderId(),
                 new DelayRequest(
                         format(command.dispatchDueDate()), command.reasonCode(),
@@ -201,7 +211,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void holdReturn(ReturnHoldCommand command) {
+    public void holdReturn(SmartStoreReturnHoldCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/return/holdback", command.productOrderId(),
                 new ReturnHoldRequest(command.holdbackClassType(), command.detailedReason(),
                         command.extraReturnFeeAmount()));
@@ -213,7 +223,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void requestSellerReturn(SellerReturnCommand command) {
+    public void requestSellerReturn(SmartStoreSellerReturnCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/return/request", command.productOrderId(),
                 new SellerReturnRequest(
                         command.returnReason(), command.collectDeliveryMethod(),
@@ -222,7 +232,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void dispatchExchange(ExchangeDispatchCommand command) {
+    public void dispatchExchange(SmartStoreExchangeDispatchCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/exchange/dispatch", command.productOrderId(),
                 new ExchangeDispatchRequest(
                         command.deliveryMethod(), command.deliveryCompanyCode(),
@@ -235,13 +245,13 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void rejectExchange(ExchangeRejectCommand command) {
+    public void rejectExchange(SmartStoreExchangeRejectCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/exchange/reject", command.productOrderId(),
                 new ExchangeRejectRequest(command.reason()));
     }
 
     @Override
-    public void holdExchange(ExchangeHoldCommand command) {
+    public void holdExchange(SmartStoreExchangeHoldCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/exchange/holdback", command.productOrderId(),
                 new ExchangeHoldRequest(command.holdbackClassType(), command.detailedReason(),
                         command.extraExchangeFeeAmount()));
@@ -253,7 +263,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public void requestSellerCancel(SellerCancelCommand command) {
+    public void requestSellerCancel(SmartStoreSellerCancelCommand command) {
         execute(PRODUCT_ORDER_PATH + "/claim/cancel/request", command.productOrderId(),
                 new SellerCancelRequest(command.reason(), command.detailedReason(),
                         command.quantity()));
@@ -455,13 +465,13 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         returns.putIfAbsent(claimId, new CompletedReturn(claimId, quantity, toLocalDateTime(completedAt)));
     }
 
-    private static ClaimDetail claimDetail(CurrentClaim currentClaim) {
+    private static SmartStoreClaimDetail claimDetail(CurrentClaim currentClaim) {
         if (currentClaim == null) {
             return null;
         }
         if (currentClaim.cancel() != null) {
             CancelClaim claim = currentClaim.cancel();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "CANCEL", claim.claimStatus(), claim.cancelReason(),
                     claim.cancelDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), null, null, null,
@@ -469,7 +479,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         }
         if (currentClaim.returned() != null) {
             ReturnClaim claim = currentClaim.returned();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "RETURN", claim.claimStatus(), claim.returnReason(),
                     claim.returnDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),
@@ -479,7 +489,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         }
         if (currentClaim.exchange() != null) {
             ExchangeClaim claim = currentClaim.exchange();
-            return new ClaimDetail(
+            return new SmartStoreClaimDetail(
                     claim.claimId(), "EXCHANGE", claim.claimStatus(), claim.exchangeReason(),
                     claim.exchangeDetailedReason(), claim.requestQuantity(),
                     toNullableLocalDateTime(claim.claimRequestDate()), claim.collectStatus(),

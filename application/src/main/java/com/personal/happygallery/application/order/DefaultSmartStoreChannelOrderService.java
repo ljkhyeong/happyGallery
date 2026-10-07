@@ -1,5 +1,15 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.application.order.dto.SmartStoreClaimDetail;
+import com.personal.happygallery.application.order.dto.SmartStoreDelayCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreDeliveryInfo;
+import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
 import com.personal.happygallery.application.order.port.in.SmartStoreChannelOrderUseCase;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreOrderProvider.OperationNotSentException;
@@ -85,13 +95,8 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
     @Transactional(propagation = Propagation.NEVER)
     public ChannelOrderDetailResult detail(String productOrderId) {
         SmartStoreProductOrder order = order(productOrderId);
-        SmartStoreOrderProvider.DeliveryInfo protectedInfo =
-                deliveryInfoProtector.decrypt(order.getDeliveryInfoEnc());
-        DeliveryInfo deliveryInfo = protectedInfo == null ? null : new DeliveryInfo(
-                protectedInfo.recipientName(), protectedInfo.phone(), protectedInfo.postalCode(),
-                protectedInfo.addressLine1(), protectedInfo.addressLine2(),
-                protectedInfo.shippingMemo());
-        ClaimDetail claimDetail = currentClaimDetail(productOrderId);
+        SmartStoreDeliveryInfo deliveryInfo = deliveryInfoProtector.decrypt(order.getDeliveryInfoEnc());
+        SmartStoreClaimDetail claimDetail = currentClaimDetail(productOrderId);
         return new ChannelOrderDetailResult(
                 result(order), deliveryInfo, order.getPlaceOrderStatus(), order.getShippingDueDate(),
                 order.getExpectedDeliveryMethod(), order.getDeliveryCompany(),
@@ -147,7 +152,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 detail.productOrderId(), detail.productOrderStatus(), detail.placeOrderStatus(),
                 detail.claimType(), detail.claimStatus(), detail.remainQuantity(),
                 detail.shippingDueDate(), detail.expectedDeliveryMethod(), detail.deliveryCompany(),
-                detail.trackingNumber(), claimDetail(detail.claimDetail()));
+                detail.trackingNumber(), detail.claimDetail());
     }
 
     @Override
@@ -173,47 +178,43 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void dispatch(DispatchCommand command, AdminActor actor) {
+    public void dispatch(SmartStoreDispatchCommand command, AdminActor actor) {
         requireEnabled();
         executeAudited(
                 command.productOrderId(),
                 SmartStoreOrderAction.ORDER_DISPATCHED,
                 dispatchSummary(command),
                 actor,
-                () -> orderProvider.dispatch(providerCommand(command)));
+                () -> orderProvider.dispatch(command));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public BulkOperationResult dispatchAll(List<DispatchCommand> commands, AdminActor actor) {
+    public BulkOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor) {
         requireEnabled();
-        Map<String, DispatchCommand> commandsById = commands.stream()
+        Map<String, SmartStoreDispatchCommand> commandsById = commands.stream()
                 .collect(Collectors.toMap(
-                        DispatchCommand::productOrderId,
+                        SmartStoreDispatchCommand::productOrderId,
                         Function.identity(),
                         (first, ignored) -> first));
         return executeBulkAudited(
-                commands.stream().map(DispatchCommand::productOrderId).toList(),
+                commands.stream().map(SmartStoreDispatchCommand::productOrderId).toList(),
                 SmartStoreOrderAction.ORDER_DISPATCHED,
                 productOrderId -> dispatchSummary(commandsById.get(productOrderId)),
                 actor,
-                () -> orderProvider.dispatchAll(commands.stream()
-                        .map(DefaultSmartStoreChannelOrderService::providerCommand)
-                        .toList()));
+                () -> orderProvider.dispatchAll(commands));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void delay(DelayCommand command, AdminActor actor) {
+    public void delay(SmartStoreDelayCommand command, AdminActor actor) {
         requireEnabled();
         executeAudited(
                 command.productOrderId(), SmartStoreOrderAction.ORDER_DELAYED,
                 "발송 기한 %s, 사유 코드 %s, 상세 사유 %s".formatted(
                         command.dispatchDueDate(), command.reasonCode(), command.detailedReason()),
                 actor,
-                () -> orderProvider.delay(new SmartStoreOrderProvider.DelayCommand(
-                        command.productOrderId(), command.dispatchDueDate(), command.reasonCode(),
-                        command.detailedReason())));
+                () -> orderProvider.delay(command));
     }
 
     @Override
@@ -242,16 +243,14 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void holdReturn(ReturnHoldCommand command, AdminActor actor) {
+    public void holdReturn(SmartStoreReturnHoldCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.RETURN_HELD,
                 "보류 사유 %s, 상세 사유 %s, 추가 반품비 %s".formatted(
                         command.holdbackClassType(), command.detailedReason(),
                         command.extraReturnFeeAmount()),
                 actor,
-                () -> orderProvider.holdReturn(new SmartStoreOrderProvider.ReturnHoldCommand(
-                        command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
-                        command.extraReturnFeeAmount())));
+                () -> orderProvider.holdReturn(command));
     }
 
     @Override
@@ -264,7 +263,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void requestSellerReturn(SellerReturnCommand command, AdminActor actor) {
+    public void requestSellerReturn(SmartStoreSellerReturnCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.RETURN_REQUESTED,
                 "반품 사유 %s, 수거 방법 %s, 수거 택배사 %s, 운송장 %s, 수량 %s".formatted(
@@ -272,23 +271,18 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                         command.collectDeliveryCompany(), command.collectTrackingNumber(),
                         command.returnQuantity()),
                 actor,
-                () -> orderProvider.requestSellerReturn(new SmartStoreOrderProvider.SellerReturnCommand(
-                        command.productOrderId(), command.returnReason(), command.collectDeliveryMethod(),
-                        command.collectDeliveryCompany(), command.collectTrackingNumber(),
-                        command.returnQuantity())));
+                () -> orderProvider.requestSellerReturn(command));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void dispatchExchange(ExchangeDispatchCommand command, AdminActor actor) {
+    public void dispatchExchange(SmartStoreExchangeDispatchCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.EXCHANGE_DISPATCHED,
                 "배송 방법 %s, 택배사 %s, 운송장 %s".formatted(
                         command.deliveryMethod(), command.deliveryCompanyCode(), command.trackingNumber()),
                 actor,
-                () -> orderProvider.dispatchExchange(new SmartStoreOrderProvider.ExchangeDispatchCommand(
-                        command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
-                        command.trackingNumber())));
+                () -> orderProvider.dispatchExchange(command));
     }
 
     @Override
@@ -301,26 +295,23 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void rejectExchange(ExchangeRejectCommand command, AdminActor actor) {
+    public void rejectExchange(SmartStoreExchangeRejectCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.EXCHANGE_REJECTED,
                 "거절 사유 %s".formatted(command.reason()), actor,
-                () -> orderProvider.rejectExchange(new SmartStoreOrderProvider.ExchangeRejectCommand(
-                        command.productOrderId(), command.reason())));
+                () -> orderProvider.rejectExchange(command));
     }
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void holdExchange(ExchangeHoldCommand command, AdminActor actor) {
+    public void holdExchange(SmartStoreExchangeHoldCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.EXCHANGE_HELD,
                 "보류 사유 %s, 상세 사유 %s, 추가 교환비 %s".formatted(
                         command.holdbackClassType(), command.detailedReason(),
                         command.extraExchangeFeeAmount()),
                 actor,
-                () -> orderProvider.holdExchange(new SmartStoreOrderProvider.ExchangeHoldCommand(
-                        command.productOrderId(), command.holdbackClassType(), command.detailedReason(),
-                        command.extraExchangeFeeAmount())));
+                () -> orderProvider.holdExchange(command));
     }
 
     @Override
@@ -333,15 +324,13 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public void requestSellerCancel(SellerCancelCommand command, AdminActor actor) {
+    public void requestSellerCancel(SmartStoreSellerCancelCommand command, AdminActor actor) {
         executeEnabledAction(
                 command.productOrderId(), SmartStoreOrderAction.CANCEL_REQUESTED,
                 "취소 사유 %s, 상세 사유 %s, 수량 %s".formatted(
                         command.reason(), command.detailedReason(), command.quantity()),
                 actor,
-                () -> orderProvider.requestSellerCancel(new SmartStoreOrderProvider.SellerCancelCommand(
-                        command.productOrderId(), command.reason(), command.detailedReason(),
-                        command.quantity())));
+                () -> orderProvider.requestSellerCancel(command));
     }
 
     private void executeEnabledAction(
@@ -453,13 +442,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                 || exception instanceof OperationResultUnknownException;
     }
 
-    private static SmartStoreOrderProvider.DispatchCommand providerCommand(DispatchCommand command) {
-        return new SmartStoreOrderProvider.DispatchCommand(
-                command.productOrderId(), command.deliveryMethod(), command.deliveryCompanyCode(),
-                command.trackingNumber(), command.dispatchDate());
-    }
-
-    private static String dispatchSummary(DispatchCommand command) {
+    private static String dispatchSummary(SmartStoreDispatchCommand command) {
         return "배송 방법 %s, 택배사 %s, 운송장 %s, 발송일 %s".formatted(
                 command.deliveryMethod(), command.deliveryCompanyCode(),
                 command.trackingNumber(), command.dispatchDate());
@@ -473,26 +456,16 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         }
     }
 
-    private ClaimDetail currentClaimDetail(String productOrderId) {
+    private SmartStoreClaimDetail currentClaimDetail(String productOrderId) {
         if (!orderProvider.isEnabled()) {
             return null;
         }
-        SmartStoreOrderProvider.ClaimDetail claim = orderProvider.fetchDetails(List.of(productOrderId))
+        return orderProvider.fetchDetails(List.of(productOrderId))
                 .stream()
                 .filter(detail -> productOrderId.equals(detail.productOrderId()))
                 .findFirst()
                 .map(SmartStoreOrderProvider.ProductOrderDetail::claimDetail)
                 .orElse(null);
-        return claimDetail(claim);
-    }
-
-    private static ClaimDetail claimDetail(SmartStoreOrderProvider.ClaimDetail claim) {
-        return claim == null ? null : new ClaimDetail(
-                claim.claimId(), claim.claimType(), claim.claimStatus(), claim.reason(),
-                claim.detailedReason(), claim.requestQuantity(), claim.requestedAt(),
-                claim.collectStatus(), claim.collectDeliveryCompany(),
-                claim.collectTrackingNumber(), claim.claimDeliveryFeeDemandAmount(),
-                claim.holdbackStatus(), claim.imageUrls());
     }
 
     private SmartStoreProductOrder order(String productOrderId) {
