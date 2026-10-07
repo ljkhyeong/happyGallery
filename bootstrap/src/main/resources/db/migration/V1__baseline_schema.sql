@@ -1586,7 +1586,7 @@ CREATE TABLE `user_social_accounts` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `user_id` bigint NOT NULL,
   `provider` varchar(20) NOT NULL,
-  `provider_id_enc` varchar(1024) DEFAULT NULL COMMENT '소셜 provider ID AES-GCM 암호문; 기존 행은 다음 로그인에서 채움',
+  `provider_id_enc` varchar(1024) NOT NULL COMMENT '소셜 provider ID AES-GCM 암호문',
   `provider_id_hmac` char(64) NOT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),

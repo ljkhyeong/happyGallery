@@ -478,13 +478,12 @@ ruby - "$SCRIPT_DIR" <<'RUBY'
   abort "runtime app에서 key rotation 실행을 차단하지 않습니다." unless data_rotation.match?(/current_rotation_enabled.*?''\|false/m)
 
   data_finalization = File.read(File.join(script_dir, "finalize-data-key-rotation.sh"))
-  abort "previous 키 finalize가 소셜 provider ID 백필을 검사하지 않습니다." unless data_finalization.include?("provider_id_enc IS NULL")
   abort "previous 키 finalize가 비회원 결제 휴대폰 HMAC 키 전환을 검사하지 않습니다." unless data_finalization.include?("owner_phone_hmac_key_id")
   abort "previous 키 finalize가 관리자 TOTP 암호문 키 전환을 검사하지 않습니다." unless data_finalization.include?("pending_admin_totp_secrets") && data_finalization.include?("totp_secret_enc")
   abort "previous guest 키 finalize가 회전 전 비회원 결제 인증 증거를 검사하지 않습니다." unless data_finalization.include?("pending_guest_payment_proofs")
   abort "guest 결제 인증 증거 회전 경계 annotation이 없습니다." unless data_finalization.include?("guest-proof-previous-issued-before-epoch")
-  finalization_flow = /guest_previous_valid_until.*?now_epoch.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?pending=\$\(pending_social_accounts\).*?PREVIOUS_ENCRYPT_KEYS.*?PREVIOUS_HMAC_KEYS.*?GUEST_TOKEN_PREVIOUS_HMAC_SECRET.*?scale deployment\/app --replicas=1/m
-  abort "previous 키 finalize의 guest 유예/social 백필/drain/Secret/app 순서가 깨졌습니다." unless data_finalization.match?(finalization_flow)
+  finalization_flow = /guest_previous_valid_until.*?now_epoch.*?scale deployment\/app --replicas=0.*?wait_for_no_pods.*?pending_payment_hmacs=\$\(pending_payment_owner_hmacs.*?PREVIOUS_ENCRYPT_KEYS.*?PREVIOUS_HMAC_KEYS.*?GUEST_TOKEN_PREVIOUS_HMAC_SECRET.*?scale deployment\/app --replicas=1/m
+  abort "previous 키 finalize의 guest 유예/drain/잔여 키 검사/Secret/app 순서가 깨졌습니다." unless data_finalization.match?(finalization_flow)
   abort "previous 키 finalize 실패 시 app drain 보장이 없습니다." unless data_finalization.match?(/on_finalization_error\(\).*?scale deployment\/app --replicas=0.*?wait_for_no_pods/m)
   abort "previous 키 finalize 재개 상태가 없습니다." unless data_finalization.match?(/key-rotation-phase.*?finalizing.*?key-finalization-original-replicas/m)
 

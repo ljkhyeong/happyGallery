@@ -28,12 +28,6 @@ annotation() {
         -o "jsonpath={.metadata.annotations.$path}"
 }
 
-pending_social_accounts() {
-    kube -n "$NAMESPACE" exec mysql-0 -- sh -ec \
-        'exec mysql -N -s -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE" -e \
-          "SELECT COUNT(*) FROM user_social_accounts WHERE provider_id_enc IS NULL"'
-}
-
 pending_payment_owner_hmacs() {
     target_key_id=$1
     query="SELECT COUNT(*) FROM payment_attempt
@@ -123,10 +117,6 @@ guest_proof_cutover=$(annotation guest-proof-cutover)
 printf '%s' "$guest_proof_cutover" | grep -Eq '^[1-9][0-9]*$' \
     || die "비회원 결제 인증 증거 회전 경계 annotation이 올바르지 않습니다."
 
-pending=$(pending_social_accounts)
-printf '%s' "$pending" | grep -Eq '^[0-9]+$' || die "소셜 provider ID 백필 건수를 확인할 수 없습니다."
-[ "$pending" -eq 0 ] \
-    || die "provider_id_enc가 없는 소셜 계정이 $pending 건 남아 previous HMAC 키를 제거할 수 없습니다."
 pending_payment_hmacs=$(pending_payment_owner_hmacs "$target_key_id")
 printf '%s' "$pending_payment_hmacs" | grep -Eq '^[0-9]+$' \
     || die "이전 키 비회원 결제 휴대폰 HMAC 건수를 확인할 수 없습니다."
@@ -177,9 +167,6 @@ info "previous 키 제거 중 쓰기를 막기 위해 app을 0 replica로 축소
 kube -n "$NAMESPACE" scale deployment/app --replicas=0 >/dev/null
 wait_for_no_pods "$NAMESPACE" 'app.kubernetes.io/name=app' 120
 
-pending=$(pending_social_accounts)
-[ "$pending" -eq 0 ] \
-    || die "app 중지 후 provider_id_enc NULL 행이 발견되어 previous 키 제거를 중단합니다: $pending"
 pending_payment_hmacs=$(pending_payment_owner_hmacs "$target_key_id")
 [ "$pending_payment_hmacs" -eq 0 ] \
     || die "app 중지 후 이전 키 비회원 결제 휴대폰 HMAC이 발견되어 previous 키 제거를 중단합니다: $pending_payment_hmacs"
