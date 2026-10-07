@@ -143,16 +143,7 @@ public class Fulfillment {
         }
     }
 
-    /** 배송 출발 시 고객에게 노출할 택배사와 운송장 번호를 함께 기록한다. */
-    public void recordShipment(String carrier, String trackingNumber) {
-        requireShippingType();
-        this.carrier = requireTrackingText(carrier, "택배사", MAX_CARRIER_LENGTH);
-        this.trackingNumber = requireTrackingText(
-                trackingNumber, "운송장 번호", MAX_TRACKING_NUMBER_LENGTH);
-        ShippingCarrier.fromDisplayName(this.carrier).ifPresent(this::setTrackingRegistrationPending);
-    }
-
-    /** 지원 택배사의 운송장을 기록하고 배송조회 등록 대기 상태로 전환한다. */
+    /** 지원 택배사와 운송장을 기록하고 배송조회 등록 대기 상태로 전환한다. 표시명은 택배사 코드에서 파생한다. */
     public void recordShipment(ShippingCarrier carrier, String trackingNumber, LocalDateTime now) {
         requireShippingType();
         this.carrier = Objects.requireNonNull(carrier, "carrier must not be null").displayName();

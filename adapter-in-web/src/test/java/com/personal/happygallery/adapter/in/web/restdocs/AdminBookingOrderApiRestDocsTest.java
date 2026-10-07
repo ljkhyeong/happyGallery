@@ -166,7 +166,6 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
         when(orderShippingUseCase.markShipped(
                 200L,
                 ShippingCarrier.CJ_LOGISTICS,
-                "CJ대한통운",
                 "1234567890",
                 ADMIN_USER_ID))
                 .thenReturn(shipping(OrderStatus.SHIPPED));
@@ -477,8 +476,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                         .header("Authorization", "Bearer admin-session-token")
                         .contentType(APPLICATION_JSON)
                         .content("""
-                                {"carrier":"CJ대한통운","carrierCode":"CJ_LOGISTICS",
-                                 "trackingNumber":"1234567890"}
+                                {"carrierCode":"CJ_LOGISTICS","trackingNumber":"1234567890"}
                                 """))
                 .andExpect(status().isOk());
     }

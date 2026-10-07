@@ -34,6 +34,7 @@ import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderClaimType;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.ShippingAddress;
+import com.personal.happygallery.domain.order.ShippingCarrier;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
@@ -142,7 +143,7 @@ class OrderClaimUseCaseIT {
         orderStorePort.save(order);
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "TRACK-1", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "TRACK-1", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
 
@@ -206,7 +207,7 @@ class OrderClaimUseCaseIT {
         orderStorePort.save(order);
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "TRACK-4", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "TRACK-4", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         var orderItemsByProductId = orderItemPort.findByOrder(order).stream()
                 .collect(Collectors.toMap(item -> item.getProductId(), Function.identity()));
@@ -343,7 +344,7 @@ class OrderClaimUseCaseIT {
                 .order();
         orderApprovalUseCase.approve(firstOrder.getId(), 1L);
         orderShippingUseCase.prepareShipping(firstOrder.getId(), 1L);
-        orderShippingUseCase.markShipped(firstOrder.getId(), "테스트택배", "TRACK-5", 1L);
+        orderShippingUseCase.markShipped(firstOrder.getId(), ShippingCarrier.CJ_LOGISTICS, "TRACK-5", 1L);
         orderShippingUseCase.markDelivered(firstOrder.getId(), 1L);
         Long firstOrderItemId = orderItemPort.findByOrder(firstOrder).getFirst().getId();
         Long secondOrderItemId = orderItemPort.findByOrder(secondOrder).getFirst().getId();
@@ -383,7 +384,7 @@ class OrderClaimUseCaseIT {
         Order order = fixture.order();
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "TRACK-2", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "TRACK-2", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
 
@@ -417,7 +418,7 @@ class OrderClaimUseCaseIT {
         Order order = fixture.order();
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "TRACK-3", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "TRACK-3", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
         CountDownLatch start = new CountDownLatch(1);
@@ -482,7 +483,7 @@ class OrderClaimUseCaseIT {
         orderStorePort.save(order);
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "CLAIM-RACE-TRACK", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "CLAIM-RACE-TRACK", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
 
@@ -614,7 +615,7 @@ class OrderClaimUseCaseIT {
                 .order();
         orderApprovalUseCase.approve(order.getId(), 1L);
         orderShippingUseCase.prepareShipping(order.getId(), 1L);
-        orderShippingUseCase.markShipped(order.getId(), "테스트택배", "CURSOR-TRACK", 1L);
+        orderShippingUseCase.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "CURSOR-TRACK", 1L);
         orderShippingUseCase.markDelivered(order.getId(), 1L);
         Long orderItemId = orderItemPort.findByOrder(order).getFirst().getId();
         return orderClaimUseCase.requestMemberClaim(

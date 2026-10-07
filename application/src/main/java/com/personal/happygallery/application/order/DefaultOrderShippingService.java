@@ -84,32 +84,15 @@ public class DefaultOrderShippingService implements OrderShippingUseCase {
     @Override
     @OptimisticLockRetryable
     public ShippingResult markShipped(
-            Long orderId, String carrier, String trackingNumber, Long adminId) {
-        return markShipped(
-                orderId,
-                ShippingCarrier.fromDisplayName(carrier).orElse(null),
-                carrier,
-                trackingNumber,
-                adminId);
-    }
-
-    @Override
-    @OptimisticLockRetryable
-    public ShippingResult markShipped(
             Long orderId,
             ShippingCarrier carrierCode,
-            String carrier,
             String trackingNumber,
             Long adminId) {
         Order order = OrderLookups.requireOrder(orderReader, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         fulfillment.requireShippingType();
         order.markShipped();
-        if (carrierCode != null) {
-            fulfillment.recordShipment(carrierCode, trackingNumber, LocalDateTime.now(clock));
-        } else {
-            fulfillment.recordShipment(carrier, trackingNumber);
-        }
+        fulfillment.recordShipment(carrierCode, trackingNumber, LocalDateTime.now(clock));
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.SHIP, adminId, null));

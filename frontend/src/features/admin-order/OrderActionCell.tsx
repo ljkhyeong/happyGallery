@@ -243,15 +243,10 @@ export function OrderActionCell({ orderId, status, fulfillmentType, mutations }:
           <Button size="sm" variant="primary"
             disabled={disabled || !carrierCode || !trackingNumber.trim()}
             onClick={() => {
-              const selectedCarrier = SHIPPING_CARRIERS.find((item) => item.code === carrierCode);
-              if (!selectedCarrier || !carrierCode) return;
+              if (!carrierCode) return;
               mutations.shipped.mutate({
                 id: orderId,
-                body: {
-                  carrier: selectedCarrier.name,
-                  carrierCode,
-                  trackingNumber: trackingNumber.trim(),
-                },
+                body: { carrierCode, trackingNumber: trackingNumber.trim() },
               });
             }}>
             {pending ? "처리 중..." : "배송 출발"}

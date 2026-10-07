@@ -1937,14 +1937,14 @@ POST /api/v1/admin/orders/{id}/mark-delivered
 Authorization: Bearer {token}
 ```
 
-배송 출발은 택배사와 운송장 번호를 함께 받는다.
+배송 출발은 지원 택배사 코드와 운송장 번호를 함께 받는다.
 
 ```http
 POST /api/v1/admin/orders/{id}/mark-shipped
 Authorization: Bearer {token}
 Content-Type: application/json
 
-{ "carrier": "CJ대한통운", "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012" }
+{ "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012" }
 ```
 
 ```json
@@ -1962,8 +1962,8 @@ Content-Type: application/json
 - 정책:
   - `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서만 허용한다.
   - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
-  - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. `carrierCode`는 선택값으로 기존 클라이언트와 호환하며 새 관리자 화면은 지원 택배사 enum을 반드시 선택한다.
-  - `carrierCode`가 있는 신규 출고는 배송조회 등록 대기 상태가 된다. 매분 25초 배치가 외부 서비스에 등록하고 일시 실패는 최대 10회 재시도한다. 연동 설정이 꺼져 있으면 출고 자체는 정상 처리하고 등록 대기를 유지한다.
+  - `mark-shipped`의 `carrierCode`는 지원 택배사 enum 필수값이고 `trackingNumber`는 공백일 수 없으며 최대 100자다. 응답의 `carrier` 표시명은 `carrierCode`에서 파생하며 자유 문자열 택배사는 받지 않는다.
+  - 출고는 배송조회 등록 대기 상태가 된다. 매분 25초 배치가 외부 서비스에 등록하고 일시 실패는 최대 10회 재시도한다. 연동 설정이 꺼져 있으면 출고 자체는 정상 처리하고 등록 대기를 유지한다.
   - 택배사 배송 완료 웹훅은 배송조회 상태와 이력만 갱신한다. 주문 `DELIVERED` 전이는 적립금과 후기 요청을 발생시키므로 관리자가 별도 API로 확정한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.

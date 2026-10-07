@@ -544,7 +544,7 @@ class OrderProductionUseCaseIT {
                 .isEqualTo(OrderStatus.SHIPPING_PREPARING);
 
         // SHIPPING_PREPARING → SHIPPED
-        orderShippingService.markShipped(order.getId(), "CJ대한통운", "1234567890", 1L);
+        orderShippingService.markShipped(order.getId(), ShippingCarrier.CJ_LOGISTICS, "1234567890", 1L);
         assertThat(orderStateProbe.getOrder(order.getId()).getStatus())
                 .isEqualTo(OrderStatus.SHIPPED);
 
@@ -610,9 +610,9 @@ class OrderProductionUseCaseIT {
     @Test
     @DisplayName("우체국만 조회하고 배달 완료 이력을 저장한 뒤 조회를 중단하며 주문 완료는 수동으로 남긴다")
     void koreaPostRefresh_preservesManualCompletion() {
-        Order post = shipOrder("우체국택배", "1111111111111");
-        shipOrder("CJ대한통운", "2222222222222");
-        Order completed = shipOrder("우체국택배", "3333333333333");
+        Order post = shipOrder(ShippingCarrier.KOREA_POST, "1111111111111");
+        shipOrder(ShippingCarrier.CJ_LOGISTICS, "2222222222222");
+        Order completed = shipOrder(ShippingCarrier.KOREA_POST, "3333333333333");
         orderShippingService.markDelivered(completed.getId(), ADMIN_ID);
         when(koreaPostTrackingLookup.isEnabled()).thenReturn(true);
         when(koreaPostTrackingLookup.lookup(post.getId(), "1111111111111")).thenAnswer(invocation -> {
@@ -635,8 +635,8 @@ class OrderProductionUseCaseIT {
     @Test
     @DisplayName("우체국 조회 실패는 이전 이력을 보존하고 다른 배송을 갱신하며 다음 간격에 재시도한다")
     void koreaPostRefresh_isolatesFailuresAndRetries() {
-        Order failing = shipOrder("우체국택배", "1111111111111");
-        Order succeeding = shipOrder("우체국택배", "2222222222222");
+        Order failing = shipOrder(ShippingCarrier.KOREA_POST, "1111111111111");
+        Order succeeding = shipOrder(ShippingCarrier.KOREA_POST, "2222222222222");
         shipmentTrackingWebhookUseCase.apply(List.of(postTracking(failing.getId(), ShipmentTrackingStatus.IN_TRANSIT)));
         LocalDateTime previousUpdate = orderStateProbe.findFulfillmentByOrderId(failing.getId())
                 .orElseThrow().getTrackingUpdatedAt();
@@ -668,7 +668,7 @@ class OrderProductionUseCaseIT {
     @Test
     @DisplayName("조회 도중 운송장이 바뀌면 이전 운송장 응답을 저장하지 않는다")
     void koreaPostRefresh_discardsReplacedTrackingNumber() {
-        Order order = shipOrder("우체국택배", "1111111111111");
+        Order order = shipOrder(ShippingCarrier.KOREA_POST, "1111111111111");
         when(koreaPostTrackingLookup.isEnabled()).thenReturn(true);
         when(koreaPostTrackingLookup.lookup(order.getId(), "1111111111111")).thenAnswer(invocation -> {
             jdbcTemplate.update("UPDATE fulfillments SET tracking_number = ? WHERE order_id = ?",
@@ -686,7 +686,7 @@ class OrderProductionUseCaseIT {
     @Test
     @DisplayName("오래된 배송 이력이 늦게 도착해도 최신 배송 상태와 이력을 유지한다")
     void trackingUpdate_ignoresOlderHistory() {
-        Order order = shipOrder("우체국택배", "1111111111111");
+        Order order = shipOrder(ShippingCarrier.KOREA_POST, "1111111111111");
         TrackingUpdate latest = postTracking(order.getId(), ShipmentTrackingStatus.DELIVERED);
         TrackingUpdate delayed = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
                 "1111111111111", ShipmentTrackingStatus.IN_TRANSIT, "발송",
@@ -711,7 +711,7 @@ class OrderProductionUseCaseIT {
     @Test
     @DisplayName("배송 응답에 이력이 없으면 상태만 갱신하고 저장된 이력은 지우지 않는다")
     void trackingUpdate_preservesHistoryWhenMissing() {
-        Order order = shipOrder("우체국택배", "1111111111111");
+        Order order = shipOrder(ShippingCarrier.KOREA_POST, "1111111111111");
         shipmentTrackingWebhookUseCase.apply(List.of(postTracking(order.getId(), ShipmentTrackingStatus.IN_TRANSIT)));
         TrackingUpdate withoutHistory = new TrackingUpdate(order.getId(), ShippingCarrier.KOREA_POST,
                 "1111111111111", ShipmentTrackingStatus.DELIVERED, "배달완료", List.of());
@@ -725,7 +725,7 @@ class OrderProductionUseCaseIT {
                 .singleElement().extracting("status").isEqualTo(ShipmentTrackingStatus.IN_TRANSIT);
     }
 
-    private Order shipOrder(String carrier, String trackingNumber) {
+    private Order shipOrder(ShippingCarrier carrier, String trackingNumber) {
         Order order = orderHelper.createMadeToOrderPaidShippingOrder("배송조회 상품", 100000L).order();
         orderApprovalService.approve(order.getId(), ADMIN_ID);
         orderProductionService.completeProduction(order.getId(), ADMIN_ID);
