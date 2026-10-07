@@ -1,20 +1,13 @@
 package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.customer.PhoneVerificationConsumptionService;
-import com.personal.happygallery.application.token.GuestTokenProperties;
-import com.personal.happygallery.application.token.TokenSigningException;
+import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.user.KoreanPhoneNumber;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Base64;
-import java.util.Objects;
 import java.util.UUID;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import org.springframework.stereotype.Component;
 
 /** 비회원 결제 준비에서 소비한 휴대폰 인증을 결제 시도에 귀속시키는 서명 증거를 관리한다. */
@@ -22,17 +15,15 @@ import org.springframework.stereotype.Component;
 public class GuestPaymentVerificationService {
 
     private static final String VERSION = "v1";
-    private static final String HMAC_ALGORITHM = "HmacSHA256";
-    private static final Base64.Encoder URL_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
     private final PhoneVerificationConsumptionService phoneVerificationConsumption;
-    private final GuestTokenProperties tokenProperties;
+    private final GuestTokenService guestTokenService;
 
     public GuestPaymentVerificationService(
             PhoneVerificationConsumptionService phoneVerificationConsumption,
-            GuestTokenProperties tokenProperties) {
+            GuestTokenService guestTokenService) {
         this.phoneVerificationConsumption = phoneVerificationConsumption;
-        this.tokenProperties = tokenProperties;
+        this.guestTokenService = guestTokenService;
     }
 
     public String consumeAndIssue(
@@ -45,8 +36,8 @@ public class GuestPaymentVerificationService {
                 normalizedPhone, verificationCode, verificationPurpose(context));
 
         String nonce = UUID.randomUUID().toString();
-        String signature = sign(canonical(context, paymentOrderId, normalizedPhone, nonce),
-                tokenProperties.hmacSecret());
+        String signature = guestTokenService.signPayload(
+                canonical(context, paymentOrderId, normalizedPhone, nonce));
         return String.join(".", VERSION, nonce, signature);
     }
 
@@ -62,11 +53,7 @@ public class GuestPaymentVerificationService {
         }
 
         String canonical = canonical(context, paymentOrderId, normalizedPhone, parts[1]);
-        boolean valid = matches(parts[2], sign(canonical, tokenProperties.hmacSecret()));
-        if (!tokenProperties.previousHmacSecret().isBlank()) {
-            valid |= matches(parts[2], sign(canonical, tokenProperties.previousHmacSecret()));
-        }
-        if (!valid) {
+        if (!guestTokenService.matchesPayloadSignature(canonical, parts[2])) {
             throw invalidProof();
         }
     }
@@ -88,22 +75,6 @@ public class GuestPaymentVerificationService {
             return true;
         } catch (IllegalArgumentException exception) {
             return false;
-        }
-    }
-
-    private boolean matches(String actual, String expected) {
-        return MessageDigest.isEqual(
-                Objects.requireNonNullElse(actual, "").getBytes(StandardCharsets.UTF_8),
-                expected.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private String sign(String value, String secret) {
-        try {
-            Mac mac = Mac.getInstance(HMAC_ALGORITHM);
-            mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), HMAC_ALGORITHM));
-            return URL_ENCODER.encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (Exception exception) {
-            throw new TokenSigningException();
         }
     }
 

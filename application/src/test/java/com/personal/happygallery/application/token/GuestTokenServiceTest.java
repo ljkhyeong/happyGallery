@@ -105,6 +105,23 @@ class GuestTokenServiceTest {
                 .isInstanceOf(NotFoundException.class);
     }
 
+    @DisplayName("저장 해시 대조는 서명·만료가 유효하고 전체 토큰 해시가 같을 때만 성공한다")
+    @Test
+    void matches_requiresValidSignatureAndSameHash() {
+        GuestTokenService service = service(ACTIVE_SECRET, PREVIOUS_SECRET);
+        GuestTokenService.IssuedToken issued = service.issue();
+        AccessTokenSigner.SignedToken unknownToken = AccessTokenSigner.sign(
+                NOW.plus(Duration.ofHours(1)), UNKNOWN_SECRET);
+
+        assertSoftly(softly -> {
+            softly.assertThat(service.matches(issued.rawToken(), issued.tokenHash())).isTrue();
+            softly.assertThat(service.matches(issued.rawToken(), Sha256.hex("other"))).isFalse();
+            softly.assertThat(service.matches(unknownToken.rawToken(), unknownToken.tokenHash())).isFalse();
+            softly.assertThat(service.matches(null, issued.tokenHash())).isFalse();
+            softly.assertThat(service.matches(issued.rawToken(), null)).isFalse();
+        });
+    }
+
     private GuestTokenService service(String activeSecret, String previousSecret) {
         return serviceAt(activeSecret, previousSecret, NOW);
     }

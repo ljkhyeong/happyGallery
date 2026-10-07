@@ -44,7 +44,7 @@ public final class AccessTokenSigner {
 
         String payload = nonce + ":" + expiry.getEpochSecond();
         String encodedPayload = URL_ENCODER.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
-        String signature = computeHmac(encodedPayload, hmacSecret);
+        String signature = hmac(encodedPayload, hmacSecret);
         String token = encodedPayload + "." + signature;
         String tokenHash = Sha256.hex(token);
 
@@ -67,7 +67,7 @@ public final class AccessTokenSigner {
         String encodedPayload = token.substring(0, dotIndex);
         String signature = token.substring(dotIndex + 1);
 
-        String expectedSignature = computeHmac(encodedPayload, hmacSecret);
+        String expectedSignature = hmac(encodedPayload, hmacSecret);
         if (!MessageDigest.isEqual(
                 signature.getBytes(StandardCharsets.UTF_8),
                 expectedSignature.getBytes(StandardCharsets.UTF_8))) {
@@ -98,7 +98,8 @@ public final class AccessTokenSigner {
         }
     }
 
-    private static String computeHmac(String data, String hmacSecret) {
+    /** UTF-8 비밀키로 HMAC-SHA256을 계산해 padding 없는 base64url 문자열로 반환한다. */
+    public static String hmac(String data, String hmacSecret) {
         try {
             Mac mac = Mac.getInstance(HMAC_ALGORITHM);
             byte[] keyBytes = Objects.requireNonNull(hmacSecret).getBytes(StandardCharsets.UTF_8);
