@@ -38,7 +38,6 @@ const ERROR_MESSAGES: Record<ErrorCode, string> = {
   REVIEW_REPORT_DECISION_NOT_ALLOWED: "처리 대기 중인 신고만 인정·반려할 수 있습니다.",
   CONFLICT: "요청을 완료할 수 없습니다. 안내된 조건을 확인하거나 잠시 후 다시 시도해 주세요.",
   TOO_MANY_REQUESTS: "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.",
-  REFUND_NOT_ALLOWED: "환불할 수 없습니다. 환불 조건과 처리 상태를 확인해 주세요.",
   PRODUCTION_REFUND_NOT_ALLOWED: "제작 중에는 환불할 수 없습니다.",
   CHANGE_NOT_ALLOWED: "현재는 변경할 수 없습니다. 변경 가능한 조건을 확인해 주세요.",
   PASS_EXPIRED: "이용권이 만료되었습니다.",

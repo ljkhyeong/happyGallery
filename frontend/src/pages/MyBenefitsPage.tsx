@@ -33,7 +33,6 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
   RESTORE: "사용 적립금 복원",
   EXPIRE: "유효기간 만료",
   REVOKE: "적립 취소",
-  ADJUST: "관리자 조정",
 };
 
 export function MyBenefitsPage() {

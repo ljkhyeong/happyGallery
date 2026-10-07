@@ -4191,7 +4191,7 @@ file={JPEG|PNG|WebP binary}
 ```
 
 - 1P는 주문에서 1원으로 사용한다. `availableBalance`는 즉시 사용 가능, `reservedBalance`는 결제 prepare 중 예약, `debtBalance`는 이미 쓴 적립금을 환불로 회수할 때 잔액이 부족해 이후 적립에서 먼저 상계할 금액이다.
-- 원장 유형은 `EARN|RESERVE|RELEASE|USE|RESTORE|EXPIRE|REVOKE|ADJUST`다. 만료·예약·사용·복원·회수는 원장과 잔액을 같은 트랜잭션으로 갱신한다.
+- 원장 유형은 `EARN|RESERVE|RELEASE|USE|RESTORE|EXPIRE|REVOKE`다. 만료·예약·사용·복원·회수는 원장과 잔액을 같은 트랜잭션으로 갱신한다.
 - 배송 완료 또는 픽업 완료 시 배송비·쿠폰·사용 적립금을 제외한 상품 순결제액의 1%를 원 미만 버림으로 한 번 적립하고, 적립분은 1년 뒤 만료한다.
 
 #### 2.20.5 관리자 쿠폰
@@ -4261,7 +4261,6 @@ file={JPEG|PNG|WebP binary}
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
-| 422 | `REFUND_NOT_ALLOWED` | 예약금 환불 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 이용권으로 예약 또는 전체 환불 시도 |
