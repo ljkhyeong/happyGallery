@@ -63,18 +63,7 @@ public class OperationalBacklogMetrics {
     private final EnumMap<RefundStatus, BacklogState> refundStates = new EnumMap<>(RefundStatus.class);
     private final EnumMap<NotificationOutboxStatus, BacklogState> outboxStates =
             new EnumMap<>(NotificationOutboxStatus.class);
-    private final RefreshState refundRefresh;
-    private final RefreshState outboxRefresh;
-    private final RefreshState paymentRefresh;
-    private final RefreshState orderApprovalRefresh;
-    private final RefreshState bookingCancellationTaskRefresh;
-    private final RefreshState smartStoreOrderActionRefresh;
-    private final Counter refundRefreshFailures;
-    private final Counter outboxRefreshFailures;
-    private final Counter paymentRefreshFailures;
-    private final Counter orderApprovalRefreshFailures;
-    private final Counter bookingCancellationTaskRefreshFailures;
-    private final Counter smartStoreOrderActionRefreshFailures;
+    private final List<BacklogSource> sources;
 
     public OperationalBacklogMetrics(RefundPort refundPort,
                                      NotificationOutboxPort outboxPort,
@@ -91,12 +80,6 @@ public class OperationalBacklogMetrics {
         this.bookingCancellationTaskPort = bookingCancellationTaskPort;
         this.smartStoreOrderActionHistoryPort = smartStoreOrderActionHistoryPort;
         this.clock = clock;
-        this.refundRefresh = new RefreshState(clock);
-        this.outboxRefresh = new RefreshState(clock);
-        this.paymentRefresh = new RefreshState(clock);
-        this.orderApprovalRefresh = new RefreshState(clock);
-        this.bookingCancellationTaskRefresh = new RefreshState(clock);
-        this.smartStoreOrderActionRefresh = new RefreshState(clock);
 
         registerBacklogGauges(
                 registry,
@@ -144,135 +127,91 @@ public class OperationalBacklogMetrics {
                     "미완료 알림 outbox");
         });
 
-        registerRefreshGauge(registry, "refund", refundRefresh);
-        registerRefreshGauge(registry, "notification", outboxRefresh);
-        registerRefreshGauge(registry, "payment", paymentRefresh);
-        registerRefreshGauge(registry, "order_approval", orderApprovalRefresh);
-        registerRefreshGauge(
-                registry, "booking_cancellation_task", bookingCancellationTaskRefresh);
-        registerRefreshGauge(registry, "smartstore_order_action", smartStoreOrderActionRefresh);
-        this.refundRefreshFailures = registerRefreshFailureCounter(registry, "refund");
-        this.outboxRefreshFailures = registerRefreshFailureCounter(registry, "notification");
-        this.paymentRefreshFailures = registerRefreshFailureCounter(registry, "payment");
-        this.orderApprovalRefreshFailures =
-                registerRefreshFailureCounter(registry, "order_approval");
-        this.bookingCancellationTaskRefreshFailures =
-                registerRefreshFailureCounter(registry, "booking_cancellation_task");
-        this.smartStoreOrderActionRefreshFailures =
-                registerRefreshFailureCounter(registry, "smartstore_order_action");
+        this.sources = List.of(
+                source(registry, "payment", this::updatePaymentReconciliationBacklog),
+                source(registry, "order_approval", this::updateOrderApprovalBacklog),
+                source(registry, "booking_cancellation_task", this::updateBookingCancellationTaskBacklog),
+                source(registry, "smartstore_order_action", this::updateSmartStoreOrderActionBacklog),
+                source(registry, "refund", this::updateRefundBacklog),
+                source(registry, "notification", this::updateOutboxBacklog));
     }
 
     @Scheduled(
             fixedDelayString = "${app.monitoring.backlog.refresh-delay-ms:15000}",
             initialDelayString = "${app.monitoring.backlog.initial-delay-ms:0}")
     public void refresh() {
-        refreshPaymentReconciliationBacklog();
-        refreshOrderApprovalBacklog();
-        refreshBookingCancellationTaskBacklog();
-        refreshSmartStoreOrderActionBacklog();
-        refreshRefundBacklog();
-        refreshOutboxBacklog();
+        sources.forEach(this::refreshSafely);
     }
 
-    private void refreshPaymentReconciliationBacklog() {
+    /** 한 소스의 조회 실패가 다른 소스 갱신을 막지 않도록 소스마다 실패를 격리한다. */
+    private void refreshSafely(BacklogSource source) {
         try {
-            PaymentAttemptBacklogSummary summary =
-                    paymentAttemptReader.summarizeReconciliationRequiredBacklog();
-            paymentReconciliationState.update(
+            source.updater().run();
+            source.refresh().markSucceeded(clock);
+        } catch (Exception e) {
+            source.failures().increment();
+            log.warn("운영 backlog 메트릭 갱신 실패 [source={} type={}]",
+                    source.name(), e.getClass().getSimpleName());
+        }
+    }
+
+    private void updatePaymentReconciliationBacklog() {
+        PaymentAttemptBacklogSummary summary =
+                paymentAttemptReader.summarizeReconciliationRequiredBacklog();
+        paymentReconciliationState.update(
+                summary.count(), summary.oldestActionAt(), clock.getZone());
+    }
+
+    private void updateOrderApprovalBacklog() {
+        OrderApprovalBacklogSummary summary = orderReader.summarizePendingApprovalBacklog();
+        orderApprovalState.update(
+                summary.count(), summary.oldestPaidAt(), clock.getZone());
+    }
+
+    private void updateBookingCancellationTaskBacklog() {
+        BookingCancellationTaskBacklogSummary summary =
+                bookingCancellationTaskPort.summarizePendingBacklog();
+        bookingCancellationTaskState.update(
+                summary.count(), summary.oldestCreatedAt(), ZoneOffset.UTC);
+    }
+
+    private void updateSmartStoreOrderActionBacklog() {
+        LocalDateTime staleRequestedBefore = LocalDateTime.now(clock)
+                .minus(SmartStoreOrderActionHistory.STALE_REQUEST_AFTER);
+        SmartStoreOrderActionBacklogSummary summary =
+                smartStoreOrderActionHistoryPort.summarizeUnresolvedBacklog(staleRequestedBefore);
+        smartStoreOrderActionState.update(
+                summary.count(), summary.oldestRequestedAt(), clock.getZone());
+    }
+
+    private void updateRefundBacklog() {
+        List<RefundBacklogSummary> summaries = refundPort.summarizeUnresolvedBacklog();
+        EnumMap<RefundStatus, RefundBacklogSummary> snapshot = new EnumMap<>(RefundStatus.class);
+        REFUND_BACKLOG_STATUSES.forEach(status -> snapshot.put(
+                status, new RefundBacklogSummary(status, 0, null)));
+        summaries.forEach(summary -> snapshot.put(summary.status(), summary));
+        REFUND_BACKLOG_STATUSES.forEach(status -> {
+            RefundBacklogSummary summary = snapshot.get(status);
+            ZoneId actionTimeZone = status == RefundStatus.REQUESTED || status == RefundStatus.FAILED
+                    ? ZoneOffset.UTC
+                    : clock.getZone();
+            refundStates.get(status).update(
+                    summary.count(), summary.oldestActionAt(), actionTimeZone);
+        });
+    }
+
+    private void updateOutboxBacklog() {
+        List<NotificationOutboxBacklogSummary> summaries = outboxPort.summarizeUnresolvedBacklog();
+        EnumMap<NotificationOutboxStatus, NotificationOutboxBacklogSummary> snapshot =
+                new EnumMap<>(NotificationOutboxStatus.class);
+        OUTBOX_BACKLOG_STATUSES.forEach(status -> snapshot.put(
+                status, new NotificationOutboxBacklogSummary(status, 0, null)));
+        summaries.forEach(summary -> snapshot.put(summary.status(), summary));
+        OUTBOX_BACKLOG_STATUSES.forEach(status -> {
+            NotificationOutboxBacklogSummary summary = snapshot.get(status);
+            outboxStates.get(status).update(
                     summary.count(), summary.oldestActionAt(), clock.getZone());
-            paymentRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            paymentRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=payment type={}]",
-                    e.getClass().getSimpleName());
-        }
-    }
-
-    private void refreshOrderApprovalBacklog() {
-        try {
-            OrderApprovalBacklogSummary summary = orderReader.summarizePendingApprovalBacklog();
-            orderApprovalState.update(
-                    summary.count(), summary.oldestPaidAt(), clock.getZone());
-            orderApprovalRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            orderApprovalRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=order_approval type={}]",
-                    e.getClass().getSimpleName());
-        }
-    }
-
-    private void refreshBookingCancellationTaskBacklog() {
-        try {
-            BookingCancellationTaskBacklogSummary summary =
-                    bookingCancellationTaskPort.summarizePendingBacklog();
-            bookingCancellationTaskState.update(
-                    summary.count(), summary.oldestCreatedAt(), ZoneOffset.UTC);
-            bookingCancellationTaskRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            bookingCancellationTaskRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=booking_cancellation_task type={}]",
-                    e.getClass().getSimpleName());
-        }
-    }
-
-    private void refreshSmartStoreOrderActionBacklog() {
-        try {
-            LocalDateTime staleRequestedBefore = LocalDateTime.now(clock)
-                    .minus(SmartStoreOrderActionHistory.STALE_REQUEST_AFTER);
-            SmartStoreOrderActionBacklogSummary summary =
-                    smartStoreOrderActionHistoryPort.summarizeUnresolvedBacklog(staleRequestedBefore);
-            smartStoreOrderActionState.update(
-                    summary.count(), summary.oldestRequestedAt(), clock.getZone());
-            smartStoreOrderActionRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            smartStoreOrderActionRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=smartstore_order_action type={}]",
-                    e.getClass().getSimpleName());
-        }
-    }
-
-    private void refreshRefundBacklog() {
-        try {
-            List<RefundBacklogSummary> summaries = refundPort.summarizeUnresolvedBacklog();
-            EnumMap<RefundStatus, RefundBacklogSummary> snapshot = new EnumMap<>(RefundStatus.class);
-            REFUND_BACKLOG_STATUSES.forEach(status -> snapshot.put(
-                    status, new RefundBacklogSummary(status, 0, null)));
-            summaries.forEach(summary -> snapshot.put(summary.status(), summary));
-            REFUND_BACKLOG_STATUSES.forEach(status -> {
-                RefundBacklogSummary summary = snapshot.get(status);
-                ZoneId actionTimeZone = status == RefundStatus.REQUESTED || status == RefundStatus.FAILED
-                        ? ZoneOffset.UTC
-                        : clock.getZone();
-                refundStates.get(status).update(
-                        summary.count(), summary.oldestActionAt(), actionTimeZone);
-            });
-            refundRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            refundRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=refund type={}]",
-                    e.getClass().getSimpleName());
-        }
-    }
-
-    private void refreshOutboxBacklog() {
-        try {
-            List<NotificationOutboxBacklogSummary> summaries = outboxPort.summarizeUnresolvedBacklog();
-            EnumMap<NotificationOutboxStatus, NotificationOutboxBacklogSummary> snapshot =
-                    new EnumMap<>(NotificationOutboxStatus.class);
-            OUTBOX_BACKLOG_STATUSES.forEach(status -> snapshot.put(
-                    status, new NotificationOutboxBacklogSummary(status, 0, null)));
-            summaries.forEach(summary -> snapshot.put(summary.status(), summary));
-            OUTBOX_BACKLOG_STATUSES.forEach(status -> {
-                NotificationOutboxBacklogSummary summary = snapshot.get(status);
-                outboxStates.get(status).update(
-                        summary.count(), summary.oldestActionAt(), clock.getZone());
-            });
-            outboxRefresh.markSucceeded(clock);
-        } catch (Exception e) {
-            outboxRefreshFailures.increment();
-            log.warn("운영 backlog 메트릭 갱신 실패 [source=notification type={}]",
-                    e.getClass().getSimpleName());
-        }
+        });
     }
 
     private void registerBacklogGauges(MeterRegistry registry,
@@ -294,6 +233,12 @@ public class OperationalBacklogMetrics {
         }
         countGauge.register(registry);
         oldestAgeGauge.register(registry);
+    }
+
+    private BacklogSource source(MeterRegistry registry, String name, Runnable updater) {
+        RefreshState refresh = new RefreshState(clock);
+        registerRefreshGauge(registry, name, refresh);
+        return new BacklogSource(name, updater, refresh, registerRefreshFailureCounter(registry, name));
     }
 
     private void registerRefreshGauge(MeterRegistry registry, String source, RefreshState state) {
@@ -341,6 +286,8 @@ public class OperationalBacklogMetrics {
     }
 
     private record BacklogSnapshot(long count, long oldestActionAtEpochSecond) {}
+
+    private record BacklogSource(String name, Runnable updater, RefreshState refresh, Counter failures) {}
 
     private static final class RefreshState {
 
