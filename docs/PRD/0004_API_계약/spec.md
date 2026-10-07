@@ -1357,7 +1357,7 @@ X-Access-Token: {accessToken}
 
 ### 2.5 이용권 API
 
-- 현재 판매 상품은 `REGULAR_CRAFT_4`(4회)다. 기존 `REGULAR_CRAFT_8`·`LEGACY_ALL_CLASSES` 구매 내역은 총 8회와 구매 당시 금액을 유지한다. 목록·상세는 각 구매의 `planName`, `totalCredits`, `remainingCredits`를 표시한다.
+- 판매 상품은 `REGULAR_CRAFT_4`(4회)다. 목록·상세는 각 구매의 `planName`, `totalCredits`, `remainingCredits`를 표시한다.
 
 #### ~~2.5.1 게스트 이용권 구매~~ (2026-03-19 제거)
 
@@ -3183,15 +3183,15 @@ Cookie: HG_SESSION={sessionToken}
 ```json
 {
   "passId": 300,
-  "planCode": "REGULAR_CRAFT_8",
-  "planName": "정규 공예 8회권",
+  "planCode": "REGULAR_CRAFT_4",
+  "planName": "정규 공예 4회권",
   "purchasedAt": "2026-07-01T10:00:00",
   "expiresAt": "2026-09-29T00:00:00",
-  "totalCredits": 8,
+  "totalCredits": 4,
   "remainingCredits": 0,
-  "totalPrice": 320000,
+  "totalPrice": 300000,
   "refund": {
-    "amount": 320000,
+    "amount": 300000,
     "status": "PROCESSING"
   }
 }

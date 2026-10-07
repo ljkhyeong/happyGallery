@@ -484,14 +484,14 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
         content: [{
           expiresAt: "2099-12-31T00:00:00",
           passId,
-          planCode: "REGULAR_CRAFT_8",
-          planName: "정규 공예 8회권",
+          planCode: "REGULAR_CRAFT_4",
+          planName: "정규 공예 4회권",
           purchasedAt: cursor === "passes-next"
             ? "2098-11-01T00:00:00"
             : "2098-12-01T00:00:00",
           refund: null,
-          remainingCredits: 7,
-          totalCredits: 8,
+          remainingCredits: 3,
+          totalCredits: 4,
           totalPrice: 240000,
         }],
         hasMore: cursor !== "passes-next",
@@ -525,7 +525,7 @@ for (const scenario of [
   { path: "bookings", label: "예약 검색", more: "예약 더 보기", sort: "LATEST", status: "CANCELED",
     item: { bookingId: 9090, status: "CANCELED", className: "이력 검색 클래스", startAt: "2099-01-01T10:00:00", participantCount: 1, depositAmount: 10000 } },
   { path: "passes", label: "이용권 번호 검색", more: "이용권 더 보기", sort: "CREDITS_DESC", status: "EXPIRED",
-    item: { passId: 9090, planName: "정규 공예 8회권", planCode: "REGULAR_CRAFT_8", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 8, totalPrice: 240000, refund: null, receiptUrl: null } },
+    item: { passId: 9090, planName: "정규 공예 4회권", planCode: "REGULAR_CRAFT_4", purchasedAt: "2026-01-01T12:00:00", expiresAt: "2026-02-01T12:00:00", remainingCredits: 2, totalCredits: 4, totalPrice: 240000, refund: null, receiptUrl: null } },
 ]) {
   test(`회원 ${scenario.path} 검색은 조건을 서버로 보내고 빈 결과에서도 조건을 바꿀 수 있다`, async ({ page }) => {
     const requests: URL[] = [];

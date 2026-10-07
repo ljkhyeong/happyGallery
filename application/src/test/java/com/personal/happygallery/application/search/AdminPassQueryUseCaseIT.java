@@ -83,7 +83,7 @@ class AdminPassQueryUseCaseIT {
             softly.assertThat(pass.customerName()).isEqualTo("검색 회원");
             softly.assertThat(pass.customerPhone()).isEqualTo("01012345678");
             softly.assertThat(pass.status()).isEqualTo(AdminPassStatus.ACTIVE);
-            softly.assertThat(pass.remainingCredits()).isEqualTo(7);
+            softly.assertThat(pass.remainingCredits()).isEqualTo(3);
             softly.assertThat(pass.futureBookingCount()).isEqualTo(1);
             softly.assertThat(pass.expectedRefundAmount()).isEqualTo(320_000L);
             softly.assertThat(pass.refundStatus()).isNull();

@@ -201,7 +201,7 @@ class AdminSlotSessionCancelUseCaseIT {
             softly.assertThat(refunds).extracting(Refund::getStatus).containsOnly(RefundStatus.SUCCEEDED);
             softly.assertThat(passPurchaseReaderPort.findById(validPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())
-                    .isEqualTo(8);
+                    .isEqualTo(4);
             softly.assertThat(passPurchaseReaderPort.findById(expiredPass.pass().getId()).orElseThrow()
                             .getRemainingCredits())
                     .isZero();

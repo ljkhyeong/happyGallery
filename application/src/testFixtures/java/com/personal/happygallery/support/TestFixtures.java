@@ -71,7 +71,7 @@ public final class TestFixtures {
                 expiresAt.minusDays(90),
                 expiresAt,
                 totalPrice,
-                PassPlan.REGULAR_CRAFT_8);
+                PassPlan.REGULAR_CRAFT_4);
     }
 
     public static Product readyStockProduct(String name, long price) {

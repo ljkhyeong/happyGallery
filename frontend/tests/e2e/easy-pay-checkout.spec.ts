@@ -431,9 +431,9 @@ test("@payment 회원 주문·예약·이용권에서 영수증을 다시 열고
   }));
   await page.route("**/api/v1/me/passes/page**", (route) => json(route, {
     content: [true, false].map((hasReceipt, index) => ({
-      passId: 703 + index, planCode: "REGULAR_CRAFT_8", planName: "정규 공예 8회권",
+      passId: 703 + index, planCode: "REGULAR_CRAFT_4", planName: "정규 공예 4회권",
       purchasedAt: "2026-08-30T10:00:00", expiresAt: "2099-12-31T23:59:59",
-      totalCredits: 8, remainingCredits: 8, totalPrice: 240000, refund: null,
+      totalCredits: 4, remainingCredits: 4, totalPrice: 240000, refund: null,
       receiptUrl: hasReceipt ? receiptUrl : null,
     })), hasMore: false, nextCursor: null,
   }));
