@@ -3059,7 +3059,7 @@ Cookie: HG_SESSION={sessionToken}
   - `409 LOCAL_PASSWORD_NOT_SET` — 소셜 로그인만 사용하는 회원
   - `422 PASSWORD_UNCHANGED` — 현재 비밀번호와 새 비밀번호가 같음
 - 정책:
-  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 롤백 호환 기간에는 식별자 없는 형식과 `{bcrypt}` 형식을 모두 읽고 식별자 없는 형식으로 쓴다.
+  - 현재 비밀번호는 `PasswordEncoder.matches(...)`로 확인하고 새 비밀번호는 BCrypt로 다시 해시한다. 두 값 모두 UTF-8 72바이트 이하여야 한다. 해시는 식별자 없는 BCrypt 형식 하나로 저장·검증한다.
   - 성공하면 `credential_version`을 증가시키고 현재 요청을 포함한 모든 회원 세션을 무효화한다.
   - 검증된 기준 이메일이 있는 소셜 전용 회원은 이 API 대신 2.12.0.7의 SMS 재설정으로 최초 로컬 비밀번호를 설정한다. 기준 이메일이 없는 회원은 먼저 2.12.0.5.2에서 이메일을 등록한다.
 

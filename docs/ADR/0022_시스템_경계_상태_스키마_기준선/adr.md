@@ -91,7 +91,7 @@
 
 - `admin_user`
   - `id`, `username(unique)`, `password_hash`, `credential_version`, `totp_secret_enc nullable`, `mfa_enabled`, `created_at`
-  - 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
+  - 비밀번호 해시는 식별자 없는 BCrypt 형식으로 저장·검증한다. 웹 입력은 UTF-8 72바이트 이하로 제한한다. 실제 비밀번호 또는 MFA 설정 변경 시 `credential_version`을 증가시키며 관리자 Bearer 세션은 발급 당시 버전과 현재 버전이 같아야 유효하다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - 인증되지 않은 요청이 운영자 계정을 잠그는 것을 막기 위해 V103에서 `failed_login_attempts`, `locked_until`을 제거한다. 로그인 남용은 IP 처리율 제한·MFA·감사 이력으로 통제하고, TOTP 비밀키는 AES-GCM 암호문으로만 저장한다.
 - `admin_mfa_challenge`
   - `id`, `admin_user_id`, `token_hmac(unique)`, `expires_at`, `consumed_at nullable`, `created_at`
@@ -110,7 +110,7 @@
 - `users`
   - `id`, `email_enc`, `email_hmac`, `password_hash nullable`, `credential_version`, `version`, `name_enc`, `name_hmac`, `phone_enc nullable`, `phone_hmac nullable`, `phone_verified`, `last_login_at`, `withdrawn_at nullable`, `created_at`
   - 이메일·이름·전화번호 평문 컬럼은 두지 않는다. 복호화가 필요한 값은 `*_enc`, 정확 일치 조회는 `*_hmac`를 사용한다.
-  - 로컬 비밀번호 해시는 롤백 호환 기간에 식별자 없는 BCrypt로 쓰며 `{bcrypt}$2...` 형식도 읽는다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
+  - 로컬 비밀번호 해시는 식별자 없는 BCrypt 형식으로 저장·검증한다. 웹 입력은 UTF-8 72바이트 이하로 제한한다.
   - `credential_version`은 실제 비밀번호·로그인 수단 변경마다 증가하며 이전 버전으로 발급한 회원 세션을 거절한다. 로그인 중 BCrypt 강도만 높여 다시 해시할 때는 버전을 유지한다.
   - `version`은 로그인 시각·휴대폰 확인·비밀번호처럼 같은 회원 행을 갱신하는 경로의 stale update를 막는 JPA 낙관적 락 버전이다.
   - `phone_hmac`은 null을 허용하되 값이 있으면 회원 전체에서 유일하다. 전화번호 변경은 새 번호 SMS 인증 뒤 이 제약과 애플리케이션 조회로 중복을 거절한다.
