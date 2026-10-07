@@ -1,6 +1,7 @@
 package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.notification.port.out.NotificationSendOutcome;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
@@ -275,7 +276,7 @@ class ResilientNotificationSenderTest {
                                                                 int minimumNumberOfCalls,
                                                                 int poolSize,
                                                                 int queueCapacity) {
-        var threadPool = new NotificationResilienceProperties.ThreadPool(poolSize, queueCapacity);
+        var threadPool = new ExecutorPoolProperties(poolSize, queueCapacity);
         var circuitBreaker = new ExternalCircuitBreakerProperties(
                 50f, slidingWindowSize, minimumNumberOfCalls, Duration.ofSeconds(30), 1);
         return new NotificationResilienceProperties(

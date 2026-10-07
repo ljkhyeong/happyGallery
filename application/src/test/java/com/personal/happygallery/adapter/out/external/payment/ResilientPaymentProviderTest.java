@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
@@ -338,7 +339,7 @@ class ResilientPaymentProviderTest {
         var circuitBreaker = new ExternalCircuitBreakerProperties(
                 failureRateThreshold, slidingWindowSize, minimumNumberOfCalls,
                 waitDurationOpen, permittedCallsInHalfOpenState);
-        var threadPool = new ExternalPaymentProperties.ThreadPool(poolSize, queueCapacity);
+        var threadPool = new ExecutorPoolProperties(poolSize, queueCapacity);
         return new ExternalPaymentProperties(timeout, threadPool, circuitBreaker);
     }
 

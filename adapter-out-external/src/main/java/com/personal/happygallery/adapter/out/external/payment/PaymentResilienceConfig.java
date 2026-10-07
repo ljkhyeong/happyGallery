@@ -1,14 +1,13 @@
 package com.personal.happygallery.adapter.out.external.payment;
 
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.payment.port.out.PaymentConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.application.payment.port.out.PaymentPort;
 import com.personal.happygallery.application.payment.port.out.RefundLookupResult;
 import com.personal.happygallery.application.payment.port.out.RefundResult;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
@@ -27,16 +26,9 @@ class PaymentResilienceConfig {
     @Bean
     CircuitBreaker paymentCircuitBreaker(ExternalPaymentProperties properties,
                                          CircuitBreakerRegistry circuitBreakerRegistry) {
-        ExternalCircuitBreakerProperties cb = properties.circuitBreaker();
-        CircuitBreakerConfig circuitBreakerConfig = CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(cb.waitDurationOpen())
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .recordResult(PaymentResilienceConfig::isFailureResult)
-                .build();
-        return circuitBreakerRegistry.circuitBreaker("paymentProvider", circuitBreakerConfig);
+        return circuitBreakerRegistry.circuitBreaker(
+                "paymentProvider",
+                properties.circuitBreaker().toConfig(PaymentResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -53,7 +45,7 @@ class PaymentResilienceConfig {
     @Bean
     ThreadPoolTaskExecutor paymentTimeoutExecutor(ExternalPaymentProperties properties,
                                                   BoundedExecutorFactory executorFactory) {
-        ExternalPaymentProperties.ThreadPool threadPool = properties.threadPool();
+        ExecutorPoolProperties threadPool = properties.threadPool();
         return executorFactory.create(
                 threadPool.poolSize(),
                 threadPool.queueCapacity(),

@@ -44,9 +44,13 @@ class NotificationDeliveryConfigTest {
             .withBean(JavaMailSender.class, () -> smtp)
             .withPropertyValues("spring.profiles.active=prod",
                     "app.external.notification.alimtalk-thread-pool.pool-size=1",
+                    "app.external.notification.alimtalk-thread-pool.queue-capacity=5",
                     "app.external.notification.sms-thread-pool.pool-size=1",
+                    "app.external.notification.sms-thread-pool.queue-capacity=5",
                     "app.external.notification.phone-verification-thread-pool.pool-size=1",
+                    "app.external.notification.phone-verification-thread-pool.queue-capacity=5",
                     "app.external.notification.email-verification-thread-pool.pool-size=1",
+                    "app.external.notification.email-verification-thread-pool.queue-capacity=5",
                     "app.external.notification.circuit-breaker.failure-rate-threshold=50",
                     "app.external.email-verification.from=no-reply@mail.happy-gallery.com",
                     "spring.mail.host=smtp.example.com", "spring.mail.port=587",

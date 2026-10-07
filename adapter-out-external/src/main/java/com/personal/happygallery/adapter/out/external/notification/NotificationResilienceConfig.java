@@ -2,7 +2,7 @@ package com.personal.happygallery.adapter.out.external.notification;
 
 import com.personal.happygallery.adapter.out.external.http.HttpPool;
 import com.personal.happygallery.adapter.out.external.resilience.BoundedExecutorFactory;
-import com.personal.happygallery.adapter.out.external.resilience.ExternalCircuitBreakerProperties;
+import com.personal.happygallery.adapter.out.external.resilience.ExecutorPoolProperties;
 import com.personal.happygallery.application.customer.port.out.EmailVerificationSender;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationSender;
 import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
@@ -10,7 +10,6 @@ import com.personal.happygallery.application.notification.port.out.NotificationS
 import com.personal.happygallery.application.notification.port.out.NotificationDeliveryResultProvider;
 import com.personal.happygallery.application.notification.port.out.NotificationSenderPort;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.timelimiter.TimeLimiter;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
@@ -40,7 +39,7 @@ class NotificationResilienceConfig {
                                                        CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "alimtalkNotification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -48,7 +47,7 @@ class NotificationResilienceConfig {
                                                   CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "smsNotification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -56,7 +55,7 @@ class NotificationResilienceConfig {
                                                        CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "phoneVerificationSms",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -64,7 +63,7 @@ class NotificationResilienceConfig {
                                                     CircuitBreakerRegistry circuitBreakerRegistry) {
         return circuitBreakerRegistry.circuitBreaker(
                 "emailVerification",
-                circuitBreakerConfig(properties.circuitBreaker()));
+                properties.circuitBreaker().toConfig(NotificationResilienceConfig::isFailureResult));
     }
 
     @Bean
@@ -227,17 +226,6 @@ class NotificationResilienceConfig {
                 props.timeout());
     }
 
-    private static CircuitBreakerConfig circuitBreakerConfig(ExternalCircuitBreakerProperties cb) {
-        return CircuitBreakerConfig.custom()
-                .failureRateThreshold(cb.failureRateThreshold())
-                .slidingWindowSize(cb.slidingWindowSize())
-                .minimumNumberOfCalls(cb.minimumNumberOfCalls())
-                .waitDurationInOpenState(cb.waitDurationOpen())
-                .permittedNumberOfCallsInHalfOpenState(cb.permittedCallsInHalfOpenState())
-                .recordResult(NotificationResilienceConfig::isFailureResult)
-                .build();
-    }
-
     private static boolean isFailureResult(Object result) {
         if (result instanceof NotificationSendOutcome outcome) {
             return outcome.result() == NotificationSendResult.TRANSIENT_FAILURE
@@ -248,7 +236,7 @@ class NotificationResilienceConfig {
     }
 
     private static ThreadPoolTaskExecutor createExecutor(
-            NotificationResilienceProperties.ThreadPool threadPool,
+            ExecutorPoolProperties threadPool,
             BoundedExecutorFactory executorFactory,
             String threadNamePrefix,
             String rejectionMetricName,
