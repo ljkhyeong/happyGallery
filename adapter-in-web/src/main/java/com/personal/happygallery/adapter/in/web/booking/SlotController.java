@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Min;
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,7 +27,7 @@ public class SlotController {
     @Operation(operationId = "listAvailableSlots")
     public List<PublicSlotResponse> listAvailableSlots(
             @RequestParam Long classId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+            @RequestParam LocalDate date) {
         return slotQueryUseCase.listAvailable(classId, date).stream()
                 .map(PublicSlotResponse::from)
                 .toList();

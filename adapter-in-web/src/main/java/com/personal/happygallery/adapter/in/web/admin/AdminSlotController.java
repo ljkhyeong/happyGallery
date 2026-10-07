@@ -18,7 +18,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -73,8 +72,8 @@ public class AdminSlotController {
     @Operation(operationId = "getAdminBookingCalendar")
     @GetMapping("/calendar")
     public BookingCalendarResponse getCalendar(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
+            @RequestParam LocalDate dateFrom,
+            @RequestParam LocalDate dateTo) {
         return BookingCalendarResponse.from(
                 bookingCalendarUseCase.getCalendar(dateFrom, dateTo));
     }
@@ -96,7 +95,7 @@ public class AdminSlotController {
     @PutMapping("/calendar/days/{date}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void updateCalendarDay(
-            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @PathVariable LocalDate date,
             @RequestBody @Valid UpdateBookingCalendarDayRequest request) {
         bookingCalendarUseCase.updateDay(new UpdateDayCommand(date, request.mode(), request.reason()));
     }

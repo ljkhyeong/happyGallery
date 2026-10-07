@@ -14,7 +14,6 @@ import com.personal.happygallery.application.dashboard.port.in.DashboardQueryUse
 import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,16 +32,16 @@ public class AdminDashboardController {
     @GetMapping("/overview")
     @Operation(operationId = "overview")
     public DashboardOverviewResponse overview(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
         return DashboardOverviewResponse.from(dashboardQueryUseCase.getOverview(from, to));
     }
 
     @GetMapping("/sales-summary")
     @Operation(operationId = "salesSummary")
     public List<PeriodSalesSummaryResponse> salesSummary(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
             @RequestParam(defaultValue = "DAILY") Granularity granularity) {
         return dashboardQueryUseCase.getSalesSummary(from, to, granularity).stream()
                 .map(PeriodSalesSummaryResponse::from)
@@ -52,8 +51,8 @@ public class AdminDashboardController {
     @GetMapping("/revenue-breakdown")
     @Operation(operationId = "revenueBreakdown")
     public RevenueBreakdownResponse revenueBreakdown(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
         return RevenueBreakdownResponse.from(
                 dashboardQueryUseCase.getRevenueBreakdown(from, to)
         );
@@ -70,16 +69,16 @@ public class AdminDashboardController {
     @GetMapping("/refunds")
     @Operation(operationId = "refundStats")
     public RefundStatsResponse refundStats(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
         return RefundStatsResponse.from(dashboardQueryUseCase.getRefundStats(from, to));
     }
 
     @GetMapping("/top-products")
     @Operation(operationId = "topProducts")
     public List<TopProductResponse> topProducts(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "REVENUE") TopProductSort sort) {
         return dashboardQueryUseCase.getTopProducts(from, to, limit, sort).stream()
@@ -90,8 +89,8 @@ public class AdminDashboardController {
     @GetMapping("/daily-revenue")
     @Operation(operationId = "dailyRevenue")
     public List<DailyRevenueResponse> dailyRevenue(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
         return dashboardQueryUseCase.getDailyRevenueSeries(from, to).stream()
                 .map(DailyRevenueResponse::from)
                 .toList();
@@ -100,8 +99,8 @@ public class AdminDashboardController {
     @GetMapping("/slot-utilization")
     @Operation(operationId = "slotUtilization")
     public List<SlotUtilizationResponse> slotUtilization(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to) {
         return dashboardQueryUseCase.getSlotUtilization(from, to).stream()
                 .map(SlotUtilizationResponse::from)
                 .toList();

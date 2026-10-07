@@ -36,6 +36,10 @@ spring:
           max-document-length: 2097152
           max-token-count: 50000
           max-string-length: 1048576
+  mvc:
+    format:
+      # 쿼리·경로의 LocalDate 파라미터는 ISO(yyyy-MM-dd)만 받는다.
+      date: iso
   servlet:
     multipart:
       max-file-size: 5MB
