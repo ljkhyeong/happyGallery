@@ -10,12 +10,14 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.adapter.out.persistence.review.ReviewRepository;
 import com.personal.happygallery.adapter.out.persistence.review.ReviewImageRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
+import com.personal.happygallery.application.batch.DefaultPersonalDataRetentionBatchService;
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.application.review.port.in.AdminReviewUseCase;
 import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
+import com.personal.happygallery.application.review.port.out.ReviewTombstoneRetentionPort;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -57,6 +59,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.jdbc.JdbcTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -74,7 +78,8 @@ class ReviewUseCaseIT {
     @Autowired ReviewImageAttachmentService imageAttachmentService;
     @Autowired ImageMediaReferenceReaderPort imageReferenceReader;
     @Autowired ReviewEvidenceRetentionService evidenceRetentionService;
-    @Autowired ReviewTombstoneRetentionService tombstoneRetentionService;
+    @Autowired ReviewTombstoneRetentionPort tombstoneRetentionPort;
+    @Autowired PlatformTransactionManager transactionManager;
     @Autowired UserStorePort userStore;
     @Autowired ProductRepository productRepository;
     @Autowired OrderRepository orderRepository;
@@ -400,7 +405,7 @@ class ReviewUseCaseIT {
         memberReviewUseCase.deleteReview(owner.getId(), hidden.id());
 
         LocalDateTime cutoff = LocalDateTime.now(clock)
-                .minus(ReviewTombstoneRetentionService.RETENTION);
+                .minus(DefaultPersonalDataRetentionBatchService.REVIEW_TOMBSTONE_RETENTION);
         jdbcTemplate.update(
                 "UPDATE reviews SET deleted_at = ? WHERE id IN (?, ?, ?)",
                 cutoff,
@@ -418,7 +423,8 @@ class ReviewUseCaseIT {
                 "DELETE FROM reviews WHERE id = ?", blocked.id()))
                 .isInstanceOf(DataIntegrityViolationException.class);
 
-        int deleted = tombstoneRetentionService.deleteBatchBefore(cutoff, 100);
+        int deleted = new TransactionTemplate(transactionManager).execute(
+                status -> tombstoneRetentionPort.deleteUnblockedBefore(cutoff, 100));
 
         assertSoftly(softly -> {
             softly.assertThat(deleted).isEqualTo(1);
