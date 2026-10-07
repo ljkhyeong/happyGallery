@@ -45,6 +45,7 @@ import com.personal.happygallery.domain.product.Inventory;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.reward.RewardReservationStatus;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -129,7 +130,7 @@ class OrderPaymentBenefitUseCaseIT {
 
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(first.getId(), 1), new OrderItemRef(second.getId(), 1)),
+                List.of(PaymentPayloads.item(first.getId(), 1), PaymentPayloads.item(second.getId(), 1)),
                 FulfillmentType.SHIPPING,
                 coupon.getId(),
                 4_000L);
@@ -186,7 +187,7 @@ class OrderPaymentBenefitUseCaseIT {
 
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 8_000L);
@@ -216,7 +217,7 @@ class OrderPaymentBenefitUseCaseIT {
         creditReward(user, 1_000L);
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 1_000L);
@@ -242,7 +243,7 @@ class OrderPaymentBenefitUseCaseIT {
         creditReward(user, 1_000L);
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 1_000L);
@@ -304,7 +305,7 @@ class OrderPaymentBenefitUseCaseIT {
         Product product = createProduct("결제 중단 상품", 10_000L, 1);
         IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
         creditReward(user, 1_000L);
-        PrepareResult prepared = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+        PrepareResult prepared = prepare(user, List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP, coupon.getId(), 1_000L);
         PaymentAttempt attempt = attempt(prepared);
 
@@ -319,7 +320,7 @@ class OrderPaymentBenefitUseCaseIT {
         assertThatThrownBy(() -> confirmUseCase.confirm(customerCommand("abandoned-key", prepared, user)))
                 .isInstanceOfSatisfying(HappyGalleryException.class,
                         exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.PAYMENT_ATTEMPT_EXPIRED));
-        PrepareResult retried = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+        PrepareResult retried = prepare(user, List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP, coupon.getId(), 1_000L);
         assertThat(retried.amount()).isEqualTo(7_000L);
         verifyNoInteractions(paymentProvider);
@@ -333,7 +334,7 @@ class OrderPaymentBenefitUseCaseIT {
         Product product = createProduct("진행 중 결제 상품", 10_000L, 1);
         IssuedCoupon coupon = issueFixedCoupon(user, 2_000L);
         creditReward(user, 1_000L);
-        PrepareResult prepared = prepare(user, List.of(new OrderItemRef(product.getId(), 1)),
+        PrepareResult prepared = prepare(user, List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP, coupon.getId(), 1_000L);
         jdbcTemplate.update("UPDATE payment_attempt SET status = ? WHERE id = ?", status.name(), attempt(prepared).getId());
 
@@ -357,7 +358,7 @@ class OrderPaymentBenefitUseCaseIT {
         creditReward(user, 1_000L);
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 1_000L);
@@ -389,7 +390,7 @@ class OrderPaymentBenefitUseCaseIT {
         creditReward(user, 1_000L);
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 1_000L);
@@ -427,7 +428,7 @@ class OrderPaymentBenefitUseCaseIT {
         creditReward(user, 8_000L);
         PrepareResult prepared = prepare(
                 user,
-                List.of(new OrderItemRef(product.getId(), 1)),
+                List.of(PaymentPayloads.item(product.getId(), 1)),
                 FulfillmentType.PICKUP,
                 coupon.getId(),
                 8_000L);
@@ -494,7 +495,7 @@ class OrderPaymentBenefitUseCaseIT {
                 : null;
         return prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null, items, false,
                         fulfillmentType, shippingAddress, null, false, null, null,
                         issuedCouponId, rewardAmount),

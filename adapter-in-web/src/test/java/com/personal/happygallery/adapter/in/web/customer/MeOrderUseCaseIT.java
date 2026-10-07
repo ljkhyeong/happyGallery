@@ -3,8 +3,6 @@ package com.personal.happygallery.adapter.in.web.customer;
 import com.personal.happygallery.application.customer.port.out.PhoneVerificationReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.notification.NotificationService;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.domain.order.FulfillmentType;
@@ -12,6 +10,7 @@ import com.personal.happygallery.domain.order.ShippingAddress;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.support.CustomerTestHelper;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -197,12 +196,12 @@ class MeOrderUseCaseIT {
     private Long createOrder() throws Exception {
         var prepared = paymentHelper.preparePayment(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         userId,
                         null,
                         null,
                         null,
-                        List.of(new OrderItemRef(productId, 1))),
+                        List.of(PaymentPayloads.item(productId, 1))),
                 sessionCookie);
         return paymentHelper.confirmPayment(prepared, "test-payment-key", sessionCookie)
                 .domainId();
@@ -211,12 +210,12 @@ class MeOrderUseCaseIT {
     private Long createShippingOrder(ShippingAddress shippingAddress) throws Exception {
         var prepared = paymentHelper.preparePayment(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         userId,
                         null,
                         null,
                         null,
-                        List.of(new OrderItemRef(productId, 1)),
+                        List.of(PaymentPayloads.item(productId, 1)),
                         false,
                         FulfillmentType.SHIPPING,
                         shippingAddress),

@@ -16,9 +16,6 @@ import com.personal.happygallery.application.payment.port.in.PaymentReconciliati
 import com.personal.happygallery.application.payment.port.in.PaymentWebhookBatchUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentWebhookUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.BookingPayload;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderItemRef;
-import com.personal.happygallery.application.payment.port.in.PaymentPayload.OrderPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPayload.PassPayload;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase;
 import com.personal.happygallery.application.payment.port.in.PaymentPrepareUseCase.PrepareCommand;
@@ -34,12 +31,12 @@ import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.Slot;
-import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.payment.PaymentAttemptStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -379,7 +376,7 @@ class PaymentConfirmRecoveryUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(user.getId(), null, null, null, slot.getId(), pass.getId(), null),
+                PaymentPayloads.booking(user.getId(), null, null, null, slot.getId(), pass.getId(), null),
                 auth));
         claimTransactionService.resolveConfirmationStep(
                 ConfirmCommand.customerRequest(
@@ -506,9 +503,9 @@ class PaymentConfirmRecoveryUseCaseIT {
         AuthContext orderAuth = AuthContext.member(orderUser.getId());
         PaymentPrepareUseCase.PrepareResult orderPrepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         orderUser.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 orderAuth));
         availableInventory.deduct(1);
         inventoryStorePort.save(availableInventory);

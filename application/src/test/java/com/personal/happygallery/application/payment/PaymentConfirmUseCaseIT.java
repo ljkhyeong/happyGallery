@@ -61,6 +61,7 @@ import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
 import java.time.Clock;
@@ -165,7 +166,7 @@ class PaymentConfirmUseCaseIT {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                PaymentPayloads.order(user.getId(), null, null, null, List.of(), true),
                 auth));
         cartItem.addQty(1, LocalDateTime.of(2026, 7, 19, 10, 1));
         cartItemStorePort.save(cartItem);
@@ -196,7 +197,7 @@ class PaymentConfirmUseCaseIT {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(), true),
+                PaymentPayloads.order(user.getId(), null, null, null, List.of(), true),
                 auth));
         cartItemRepository.deleteById(preparedCartItem.getId());
         cartItemRepository.flush();
@@ -226,7 +227,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         jdbcTemplate.update(
                 "UPDATE products SET name = ?, price = ? WHERE id = ?",
@@ -347,7 +349,7 @@ class PaymentConfirmUseCaseIT {
 
         assertThatThrownBy(() -> prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
@@ -358,7 +360,7 @@ class PaymentConfirmUseCaseIT {
 
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
                         List.of(new OrderItemRef(
                                 product.getId(), variantId,
@@ -424,9 +426,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1)), false,
+                        List.of(PaymentPayloads.item(product.getId(), 1)), false,
                         FulfillmentType.SHIPPING, address),
                 auth));
 
@@ -533,7 +535,7 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.guest();
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.BOOKING,
-                new BookingPayload(
+                PaymentPayloads.booking(
                         null, phone, verificationCode, "비회원 예약자",
                         slot.getId(), null, DepositPaymentMethod.EASY_PAY, acceptedPolicies()),
                 auth));
@@ -673,7 +675,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         AtomicBoolean transactionActiveDuringPgCall = new AtomicBoolean(true);
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
@@ -716,9 +719,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-retryable", prepared, auth);
         when(paymentProvider.confirm(any(), any(), anyLong(), any()))
@@ -794,7 +797,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         availableInventory.deduct(1);
         inventoryStorePort.save(availableInventory);
@@ -851,9 +855,9 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(
+                PaymentPayloads.order(
                         user.getId(), null, null, null,
-                        List.of(new OrderItemRef(product.getId(), 1))),
+                        List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         assertThat(jdbcTemplate.update(
                 "UPDATE users SET withdrawn_at = ? WHERE id = ?",
@@ -894,7 +898,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-concurrent", prepared, auth);
         CountDownLatch pgEntered = new CountDownLatch(1);
@@ -948,7 +953,8 @@ class PaymentConfirmUseCaseIT {
         AuthContext auth = AuthContext.member(user.getId());
         PaymentPrepareUseCase.PrepareResult prepared = prepareUseCase.prepare(new PrepareCommand(
                 PaymentContext.ORDER,
-                new OrderPayload(user.getId(), null, null, null, List.of(new OrderItemRef(product.getId(), 1))),
+                PaymentPayloads.order(
+                        user.getId(), null, null, null, List.of(PaymentPayloads.item(product.getId(), 1))),
                 auth));
         ConfirmCommand command = customerCommand("payment-key-stale", prepared, auth);
         CountDownLatch firstPgEntered = new CountDownLatch(1);
@@ -995,12 +1001,12 @@ class PaymentConfirmUseCaseIT {
     }
 
     private OrderPayload guestOrderPayload(String phone, String verificationCode, Long productId) {
-        return new OrderPayload(
+        return PaymentPayloads.order(
                 null,
                 phone,
                 verificationCode,
                 "비회원",
-                List.of(new OrderItemRef(productId, 1)),
+                List.of(PaymentPayloads.item(productId, 1)),
                 false,
                 FulfillmentType.PICKUP,
                 null,

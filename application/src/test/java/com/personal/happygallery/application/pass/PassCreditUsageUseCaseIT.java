@@ -29,6 +29,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.NotificationLogProbe;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -608,7 +609,7 @@ class PassCreditUsageUseCaseIT {
     }
 
     private BookingPayload passBookingPayload(PassPurchase passPurchase, Slot slot) {
-        return new BookingPayload(
+        return PaymentPayloads.booking(
                 passPurchase.getUserId(), null, null, null, slot.getId(), passPurchase.getId(), null);
     }
 
