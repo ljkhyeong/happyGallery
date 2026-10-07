@@ -91,7 +91,7 @@ class RefundExecutionServiceUseCaseIT {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
-            refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key");
+            refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, "payment-key");
             throw new RuntimeException("outer rollback");
         }))
                 .isInstanceOf(RuntimeException.class)
@@ -119,7 +119,7 @@ class RefundExecutionServiceUseCaseIT {
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
-                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, "payment-key"));
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, "payment-key"));
 
         var refunds = await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)
@@ -157,7 +157,7 @@ class RefundExecutionServiceUseCaseIT {
 
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
         Refund result = transactionTemplate.execute(status ->
-                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, null));
+                refundExecutionService.requestOrderRefund(order.getId(), 55_000L, 55_000L, 0L, 0L, false, null));
 
         await().atMost(3, TimeUnit.SECONDS)
                 .pollInterval(25, TimeUnit.MILLISECONDS)

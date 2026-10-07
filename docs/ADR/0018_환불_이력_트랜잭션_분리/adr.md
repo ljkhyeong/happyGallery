@@ -22,7 +22,8 @@
 
 - 환불 실행/이력 저장 로직을 `RefundExecutionService`로 분리한다.
 - 환불 요청 레코드 생성은 `Propagation.MANDATORY`로 호출 유스케이스의 부모 트랜잭션에 참여한다.
-  - `requestOrderRefund(orderId, amount, paymentKey)`
+  - `requestOrderRefund(orderId, pgRefundAmount, customerRefundAmount, rewardRestoreAmount, rewardRevokeAmount, restoreCoupon, paymentKey)`
+  - `requestOrderClaimRefund(orderId, orderClaimId, pgRefundAmount, customerRefundAmount, rewardRestoreAmount, rewardRevokeAmount, paymentKey)`
   - `requestBookingRefund(bookingId, amount)`
   - `requestPassRefund(passPurchaseId, amount, paymentKey)`
   - `requestPaymentAttemptRefund(paymentAttemptId, amount, paymentKey)`

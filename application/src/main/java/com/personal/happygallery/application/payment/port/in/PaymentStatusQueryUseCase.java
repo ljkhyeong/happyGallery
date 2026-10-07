@@ -27,15 +27,5 @@ public interface PaymentStatusQueryUseCase {
             String accessToken,
             boolean accessRecoveryRequired,
             String receiptUrl
-    ) {
-        public PaymentStatusResult(
-                PaymentContext context,
-                long amount,
-                CustomerPaymentStatus status,
-                Long domainId,
-                String accessToken,
-                boolean accessRecoveryRequired) {
-            this(context, amount, status, domainId, accessToken, accessRecoveryRequired, null);
-        }
-    }
+    ) {}
 }

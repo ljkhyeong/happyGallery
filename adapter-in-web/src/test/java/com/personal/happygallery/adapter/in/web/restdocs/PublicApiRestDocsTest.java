@@ -218,10 +218,10 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                         "pay_20260501_0001", 39000L, PaymentContext.ORDER, "payment-status-token"));
         when(paymentConfirmUseCase.confirm(any()))
                 .thenReturn(new PaymentConfirmUseCase.ConfirmResult(
-                        PaymentContext.ORDER, 200L, "guest-access-token", false));
+                        PaymentContext.ORDER, 200L, "guest-access-token", false, null));
         when(paymentStatusQueryUseCase.getStatus(any(), any(), any()))
                 .thenReturn(new PaymentStatusQueryUseCase.PaymentStatusResult(
-                        PaymentContext.ORDER, 39_000L, CustomerPaymentStatus.REFUNDING, null, null, false));
+                        PaymentContext.ORDER, 39_000L, CustomerPaymentStatus.REFUNDING, null, null, false, null));
         when(paymentStatusRecoveryUseCase.recover(eq("01012345678"), eq("123456")))
                 .thenReturn(new PaymentStatusRecoveryUseCase.RecoveryResult(
                         "recovered-payment-status-token",

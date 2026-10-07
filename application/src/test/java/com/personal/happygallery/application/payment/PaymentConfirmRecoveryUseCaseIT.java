@@ -560,7 +560,7 @@ class PaymentConfirmRecoveryUseCaseIT {
     private Long approve(PreparedPayment prepared, String paymentKey) {
         PgConfirmationRequired required = beginConfirm(prepared, paymentKey);
         assertThat(claimTransactionService.tryMarkApproved(
-                required.attemptId(), required.processingToken(), "confirmed-payment-key", "CARD")).isTrue();
+                required.attemptId(), required.processingToken(), "confirmed-payment-key", "CARD", null)).isTrue();
         return required.attemptId();
     }
 

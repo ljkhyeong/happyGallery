@@ -203,18 +203,6 @@ public class PaymentAttempt {
     public boolean markApproved(String expectedProcessingToken,
                                 String confirmedPaymentKey,
                                 String confirmedPaymentMethod,
-                                LocalDateTime approvedAt) {
-        return markApproved(
-                expectedProcessingToken,
-                confirmedPaymentKey,
-                confirmedPaymentMethod,
-                null,
-                approvedAt);
-    }
-
-    public boolean markApproved(String expectedProcessingToken,
-                                String confirmedPaymentKey,
-                                String confirmedPaymentMethod,
                                 String confirmedReceiptUrl,
                                 LocalDateTime approvedAt) {
         if (!ownsProcessing(expectedProcessingToken)) {
@@ -229,13 +217,6 @@ public class PaymentAttempt {
      * 실패 결과와 달리 외부 승인은 이미 성립한 사실이므로, 새 실행이 처리 중이거나 실패로 끝났어도
      * 도메인 생성 전 APPROVED로 변경한다.
      */
-    public boolean reconcileLatePgApproval(String confirmedPaymentKey,
-                                           String confirmedPaymentMethod,
-                                           LocalDateTime approvedAt) {
-        return reconcileLatePgApproval(
-                confirmedPaymentKey, confirmedPaymentMethod, null, approvedAt);
-    }
-
     public boolean reconcileLatePgApproval(String confirmedPaymentKey,
                                            String confirmedPaymentMethod,
                                            String confirmedReceiptUrl,
