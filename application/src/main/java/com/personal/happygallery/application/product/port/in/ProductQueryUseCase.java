@@ -1,8 +1,7 @@
 package com.personal.happygallery.application.product.port.in;
 
 import com.personal.happygallery.application.product.ProductFilter;
-import com.personal.happygallery.application.product.ProductOptions;
-import com.personal.happygallery.domain.product.Product;
+import com.personal.happygallery.application.product.ProductView;
 import java.util.List;
 
 /**
@@ -12,12 +11,7 @@ import java.util.List;
  */
 public interface ProductQueryUseCase {
 
-    record ProductView(Product product, long quantity, boolean available, ProductOptions options) {}
-
     ProductView getProduct(Long productId);
-
-    /** 전체 ACTIVE 상품 (최신순). HomePage 등 필터 불필요 시 사용. */
-    List<ProductView> listActiveProducts();
 
     /** 관리자용 전체 상품 (ACTIVE/INACTIVE, 최신순). */
     List<ProductView> listAllProducts();

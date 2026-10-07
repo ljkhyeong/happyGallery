@@ -4,6 +4,7 @@ import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.product.ProductOptions.TextInput;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.out.InventoryStorePort;
 import com.personal.happygallery.application.product.port.out.ProductStorePort;
@@ -307,7 +308,7 @@ class CartQueryUseCaseIT {
     void getCart_separatesTextOptionLinesAndCalculatesPrice() {
         User user = userStore.save(new User(
                 "cart-options@example.com", "hashed", "옵션 장바구니", "01087654321"));
-        ProductAdminUseCase.ProductResult registered = productAdminUseCase.register(
+        ProductView registered = productAdminUseCase.register(
                 new ProductAdminUseCase.SaveProductCommand(
                         "각인 키링", ProductType.MADE_TO_ORDER, null,
                         20_000L, 2, null, null, "소가죽 키링", null, 5,

@@ -1,6 +1,6 @@
 package com.personal.happygallery.application.product.port.in;
 
-import com.personal.happygallery.application.product.ProductOptions;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
 import com.personal.happygallery.domain.product.Product;
@@ -15,8 +15,6 @@ import java.util.List;
  * <p>운영자가 상품 상태와 온라인·오프라인 공유 재고를 관리한다.
  */
 public interface ProductAdminUseCase {
-
-    record ProductResult(Product product, long quantity, boolean available, ProductOptions options) {}
 
     record SaveProductCommand(
             String name,
@@ -80,11 +78,11 @@ public interface ProductAdminUseCase {
     ) {}
 
     /** 카테고리를 포함하여 상품 등록. */
-    ProductResult register(SaveProductCommand command);
+    ProductView register(SaveProductCommand command);
 
-    ProductResult update(Long productId, SaveProductCommand command);
+    ProductView update(Long productId, SaveProductCommand command);
 
-    ProductResult changeStatus(Long productId, ProductStatus status);
+    ProductView changeStatus(Long productId, ProductStatus status);
 
     InventoryAdjustment adjustInventory(AdjustInventoryCommand command);
 

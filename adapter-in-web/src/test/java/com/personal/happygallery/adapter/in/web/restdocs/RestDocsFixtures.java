@@ -2,7 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.application.order.port.in.OrderQueryUseCase;
 import com.personal.happygallery.application.product.ProductOptions;
-import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.review.port.in.ReviewUseCase;
 import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
@@ -50,11 +50,11 @@ final class RestDocsFixtures {
         return Clock.fixed(NOW.atZone(Clocks.SEOUL).toInstant(), Clocks.SEOUL);
     }
 
-    static ProductQueryUseCase.ProductView productWithInventory() {
+    static ProductView productWithInventory() {
         return productWithInventory(ProductStatus.ACTIVE);
     }
 
-    static ProductQueryUseCase.ProductView productWithInventory(ProductStatus status) {
+    static ProductView productWithInventory(ProductStatus status) {
         Product product = mock(Product.class);
         when(product.getId()).thenReturn(1L);
         when(product.getName()).thenReturn("시그니처 캔들");
@@ -63,7 +63,7 @@ final class RestDocsFixtures {
         when(product.getPrice()).thenReturn(39000L);
         when(product.getStatus()).thenReturn(status);
 
-        return new ProductQueryUseCase.ProductView(
+        return new ProductView(
                 product, 12L, true,
                 ProductOptions.EMPTY);
     }

@@ -17,7 +17,6 @@ import com.personal.happygallery.adapter.in.web.admin.dto.UpdateProductRequest;
 import com.personal.happygallery.adapter.in.web.security.admin.AdminPrincipal;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase;
 import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.AdjustInventoryCommand;
-import com.personal.happygallery.application.product.port.in.ProductAdminUseCase.ProductResult;
 import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.DeleteMappingCommand;
@@ -62,8 +61,7 @@ public class AdminProductController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ProductResponse register(@RequestBody @Valid CreateProductRequest request) {
-        ProductResult result = productAdminUseCase.register(request.toCommand());
-        return ProductResponse.from(result);
+        return ProductResponse.from(productAdminUseCase.register(request.toCommand()));
     }
 
     @PatchMapping("/{id}")

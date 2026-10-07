@@ -1,6 +1,6 @@
 package com.personal.happygallery.adapter.in.web.product.dto;
 
-import com.personal.happygallery.application.product.port.in.ProductQueryUseCase;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
@@ -36,7 +36,7 @@ public record ProductDetailResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductOptionGroupResponse> optionGroups,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<ProductVariantResponse> variants
 ) {
-    public static ProductDetailResponse from(ProductQueryUseCase.ProductView r) {
+    public static ProductDetailResponse from(ProductView r) {
         Product product = r.product();
         return new ProductDetailResponse(
                 product.getId(),

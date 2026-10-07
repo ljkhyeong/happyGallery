@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.restdocs;
 
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.security.port.in.BotProtectionUseCase;
 
 import com.personal.happygallery.adapter.in.web.booking.BookingController;
@@ -145,7 +146,7 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         workshopProfileUseCase = mock(WorkshopProfileUseCase.class);
         paymentWebhookUseCase = mock(PaymentWebhookUseCase.class);
 
-        ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
+        ProductView product = RestDocsFixtures.productWithInventory();
         ProductQnaUseCase.QnaWithAuthor qna = qna();
         ProductQnaUseCase.PublicQnaListView publicQna =
                 new ProductQnaUseCase.PublicQnaListView(

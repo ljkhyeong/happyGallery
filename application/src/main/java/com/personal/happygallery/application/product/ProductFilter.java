@@ -38,9 +38,4 @@ public record ProductFilter(
             };
         }
     }
-
-    /** 모든 필터가 기본값(미필터 + 최신순)인지 확인한다. */
-    public boolean isDefault() {
-        return type == null && category == null && keyword == null && sort == ProductSortOrder.NEWEST;
-    }
 }

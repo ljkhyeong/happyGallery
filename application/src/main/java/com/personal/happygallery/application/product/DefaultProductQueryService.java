@@ -39,26 +39,15 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
         return toProductViews(List.of(product), false).getFirst();
     }
 
-    /** ACTIVE 상품 목록 조회 — 최신 등록순 (N+1 방지: 재고 일괄 조회) */
-    @Override
-    public List<ProductView> listActiveProducts() {
-        List<Product> products = productReaderPort.findActiveProductsByCreatedAtDesc();
-        return toProductViews(products, false);
-    }
-
     @Override
     public List<ProductView> listAllProducts() {
-        return toProductViews(productReaderPort.findAllProductsByCreatedAtDesc(), true);
+        return toProductViews(productReaderPort.findAllByOrderByCreatedAtDesc(), true);
     }
 
-    /** 필터 조건에 따른 ACTIVE 상품 목록 조회. */
+    /** 필터 조건에 따른 ACTIVE 상품 목록 조회 (N+1 방지: 재고 일괄 조회). */
     @Override
     public List<ProductView> listActiveProducts(ProductFilter filter) {
-        if (filter.isDefault()) {
-            return listActiveProducts();
-        }
-        List<Product> products = productReaderPort.findActiveByFilter(filter);
-        return toProductViews(products, false);
+        return toProductViews(productReaderPort.findActiveByFilter(filter), false);
     }
 
     /** ACTIVE 상품에 존재하는 카테고리 목록. */
@@ -86,12 +75,10 @@ public class DefaultProductQueryService implements ProductQueryUseCase {
                         throw new NotFoundException("재고");
                     }
                     if (p.getType() == ProductType.READY_STOCK) {
-                        return new ProductView(
-                                p, inv.getQuantity(), inv.isAvailable(), ProductOptions.EMPTY);
+                        return ProductView.readyStock(p, inv);
                     }
-                    ProductOptions options = optionsByProductId.getOrDefault(
-                            p.getId(), ProductOptions.EMPTY);
-                    return new ProductView(p, options.quantity(), options.available(), options);
+                    return ProductView.withOptions(
+                            p, optionsByProductId.getOrDefault(p.getId(), ProductOptions.EMPTY));
                 })
                 .toList();
     }

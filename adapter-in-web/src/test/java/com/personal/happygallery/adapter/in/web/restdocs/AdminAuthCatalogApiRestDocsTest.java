@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.in.web.restdocs;
 
 import com.personal.happygallery.adapter.in.web.admin.AdminClassController;
 import com.personal.happygallery.adapter.in.web.admin.AdminRestockDemandController;
+import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.application.product.port.in.RestockDemandUseCase;
 import com.personal.happygallery.adapter.in.web.admin.AdminCredentialController;
 import com.personal.happygallery.adapter.in.web.admin.AdminLoginController;
@@ -153,8 +154,8 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         bookingCalendarUseCase = mock(BookingCalendarUseCase.class);
         imageMediaUseCase = mock(ImageMediaUseCase.class);
 
-        ProductQueryUseCase.ProductView product = RestDocsFixtures.productWithInventory();
-        ProductQueryUseCase.ProductView inactiveProduct =
+        ProductView product = RestDocsFixtures.productWithInventory();
+        ProductView inactiveProduct =
                 RestDocsFixtures.productWithInventory(ProductStatus.INACTIVE);
         InventoryAdjustment inventoryAdjustment = inventoryAdjustment();
         BookingClass bookingClass = RestDocsFixtures.bookingClass();
@@ -178,16 +179,12 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                         "aaaa-bbbb-cccc-0002")));
         when(adminSetupUseCase.isAvailable()).thenReturn(true);
         when(productAdminUseCase.register(any()))
-                .thenReturn(new ProductAdminUseCase.ProductResult(
-                        product.product(), product.quantity(), product.available(), product.options()));
+                .thenReturn(product);
         when(productQueryUseCase.listAllProducts()).thenReturn(List.of(product));
         when(productAdminUseCase.update(eq(1L), any()))
-                .thenReturn(new ProductAdminUseCase.ProductResult(
-                        product.product(), product.quantity(), product.available(), product.options()));
+                .thenReturn(product);
         when(productAdminUseCase.changeStatus(1L, ProductStatus.INACTIVE))
-                .thenReturn(new ProductAdminUseCase.ProductResult(
-                        inactiveProduct.product(), inactiveProduct.quantity(),
-                        inactiveProduct.available(), inactiveProduct.options()));
+                .thenReturn(inactiveProduct);
         when(productAdminUseCase.adjustInventory(any())).thenReturn(inventoryAdjustment);
         when(productAdminUseCase.listRecentInventoryAdjustments(1L))
                 .thenReturn(List.of(inventoryAdjustment));
@@ -625,7 +622,7 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
         Product product = new Product("주문제작 키링", ProductType.MADE_TO_ORDER, null,
                 10000L, null, null, "가죽 키링", null, 3);
         ReflectionTestUtils.setField(product, "id", 2L);
-        when(productAdminUseCase.update(eq(2L), any())).thenReturn(new ProductAdminUseCase.ProductResult(
+        when(productAdminUseCase.update(eq(2L), any())).thenReturn(new ProductView(
                 product, 4, true, new ProductOptions(List.of(),
                 List.of(new ProductOptions.Variant(20L, 2000L, 4, true, List.of())))));
 
