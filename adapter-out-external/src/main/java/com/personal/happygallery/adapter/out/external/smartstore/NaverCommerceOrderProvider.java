@@ -25,6 +25,8 @@ import org.springframework.web.client.RestClientResponseException;
 public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     private static final int PAGE_SIZE = 300;
+    private static final String PRODUCT_ORDER_PATH =
+            "/external/v1/pay-order/seller/product-orders/{productOrderId}";
 
     private final RestClient restClient;
     private final SmartStoreProperties properties;
@@ -177,102 +179,89 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
 
     @Override
     public void delay(DelayCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/delay",
+        execute(PRODUCT_ORDER_PATH + "/delay", command.productOrderId(),
                 new DelayRequest(
                         format(command.dispatchDueDate()), command.reasonCode(),
-                        command.detailedReason()), command.productOrderId());
+                        command.detailedReason()));
     }
 
     @Override
     public void approveCancel(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/cancel/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/cancel/approve", productOrderId);
     }
 
     @Override
     public void approveReturn(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/approve", productOrderId);
     }
 
     @Override
     public void rejectReturn(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/reject", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/reject", productOrderId);
     }
 
     @Override
     public void holdReturn(ReturnHoldCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/return/holdback",
+        execute(PRODUCT_ORDER_PATH + "/claim/return/holdback", command.productOrderId(),
                 new ReturnHoldRequest(command.holdbackClassType(), command.detailedReason(),
-                        command.extraReturnFeeAmount()), command.productOrderId());
+                        command.extraReturnFeeAmount()));
     }
 
     @Override
     public void releaseReturnHold(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/return/holdback/release", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/return/holdback/release", productOrderId);
     }
 
     @Override
     public void requestSellerReturn(SellerReturnCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/return/request",
+        execute(PRODUCT_ORDER_PATH + "/claim/return/request", command.productOrderId(),
                 new SellerReturnRequest(
                         command.returnReason(), command.collectDeliveryMethod(),
                         command.collectDeliveryCompany(), command.collectTrackingNumber(),
-                        command.returnQuantity()), command.productOrderId());
+                        command.returnQuantity()));
     }
 
     @Override
     public void dispatchExchange(ExchangeDispatchCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/dispatch",
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/dispatch", command.productOrderId(),
                 new ExchangeDispatchRequest(
                         command.deliveryMethod(), command.deliveryCompanyCode(),
-                        command.trackingNumber()), command.productOrderId());
+                        command.trackingNumber()));
     }
 
     @Override
     public void completeExchangeCollect(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/exchange/collect/approve", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/exchange/collect/approve", productOrderId);
     }
 
     @Override
     public void rejectExchange(ExchangeRejectCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/reject",
-                new ExchangeRejectRequest(command.reason()), command.productOrderId());
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/reject", command.productOrderId(),
+                new ExchangeRejectRequest(command.reason()));
     }
 
     @Override
     public void holdExchange(ExchangeHoldCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/exchange/holdback",
+        execute(PRODUCT_ORDER_PATH + "/claim/exchange/holdback", command.productOrderId(),
                 new ExchangeHoldRequest(command.holdbackClassType(), command.detailedReason(),
-                        command.extraExchangeFeeAmount()), command.productOrderId());
+                        command.extraExchangeFeeAmount()));
     }
 
     @Override
     public void releaseExchangeHold(String productOrderId) {
-        executeWithoutBody("/external/v1/pay-order/seller/product-orders/"
-                + productOrderId + "/claim/exchange/holdback/release", productOrderId);
+        executeWithoutBody(PRODUCT_ORDER_PATH + "/claim/exchange/holdback/release", productOrderId);
     }
 
     @Override
     public void requestSellerCancel(SellerCancelCommand command) {
-        execute("/external/v1/pay-order/seller/product-orders/"
-                        + command.productOrderId() + "/claim/cancel/request",
+        execute(PRODUCT_ORDER_PATH + "/claim/cancel/request", command.productOrderId(),
                 new SellerCancelRequest(command.reason(), command.detailedReason(),
-                        command.quantity()), command.productOrderId());
+                        command.quantity()));
     }
 
-    private void execute(String path, Object body, String productOrderId) {
+    private void execute(String uriTemplate, String productOrderId, Object body) {
         OperationResponse response = authorizedWrite(token -> restClient.post()
-                .uri(path)
+                .uri(uriTemplate, productOrderId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
@@ -291,9 +280,9 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                 .body(OperationResponse.class));
     }
 
-    private void executeWithoutBody(String path, String productOrderId) {
+    private void executeWithoutBody(String uriTemplate, String productOrderId) {
         OperationResponse response = authorizedWrite(token -> restClient.post()
-                .uri(path)
+                .uri(uriTemplate, productOrderId)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                 .contentLength(0)
                 .retrieve()
