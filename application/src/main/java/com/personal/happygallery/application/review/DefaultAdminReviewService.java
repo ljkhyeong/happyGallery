@@ -10,11 +10,11 @@ import com.personal.happygallery.application.review.port.out.ReviewEvidencePort;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
 import com.personal.happygallery.application.review.port.out.ReviewModerationPort;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
-import com.personal.happygallery.application.review.port.out.ReviewReportListView;
 import com.personal.happygallery.application.review.port.out.ReviewReportPort;
 import com.personal.happygallery.application.review.port.out.ReviewStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.review.Review;
@@ -71,18 +71,13 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewItem> listAdminReviews(
             ReviewTargetType targetType, ReviewStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewListView> fetched;
-        if (cursor == null) {
-            fetched = reviewReader.findForAdmin(targetType, status, pageSize + 1);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            fetched = reviewReader.findForAdminAfter(
-                    targetType,
-                    status,
-                    cursorParam.timestamp(),
-                    cursorParam.id(),
-                    pageSize + 1);
-        }
+        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        List<ReviewListView> fetched = reviewReader.findForAdmin(
+                targetType,
+                status,
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.id(),
+                pageSize + 1);
         return viewAssembler.standardPage(fetched, pageSize, true);
     }
 
@@ -187,19 +182,14 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewReportSummaryItem> listAdminReports(
             ReviewReportStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewReportListView> fetched;
-        if (cursor == null) {
-            fetched = reportPort.findForAdmin(status, pageSize + 1);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            fetched = reportPort.findForAdminAfter(
-                    status, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
-        }
-        List<ReviewReportSummaryItem> items = fetched.stream()
-                .map(DefaultAdminReviewService::toReportSummaryItem)
-                .toList();
+        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        List<ReviewReportSummaryItem> fetched = reportPort.findForAdmin(
+                status,
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.id(),
+                pageSize + 1);
         return CursorPage.of(
-                items,
+                fetched,
                 pageSize,
                 item -> CursorUtils.encode(item.createdAt(), item.id()));
     }
@@ -245,15 +235,5 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
             throw new IllegalStateException("운영 조치의 후기 증거가 없습니다. evidenceSnapshotId=" + snapshotId);
         }
         return evidence;
-    }
-
-    private static ReviewReportSummaryItem toReportSummaryItem(ReviewReportListView report) {
-        return new ReviewReportSummaryItem(
-                report.id(),
-                report.reviewId(),
-                report.reason(),
-                report.snapshotStatus(),
-                report.status(),
-                report.createdAt());
     }
 }

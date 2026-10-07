@@ -46,22 +46,19 @@ public interface ReviewReaderPort {
 
     long countPublishedClass(Long classId, Integer rating);
 
-    List<ReviewListView> findByUserId(Long userId, int limit);
-
-    List<ReviewListView> findByUserIdAfter(
-            Long userId, LocalDateTime createdAt, Long id, int limit);
+    /** 커서 시각·ID가 null이면 첫 페이지를 조회한다. */
+    List<ReviewListView> findByUserId(
+            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
     List<ReviewListView> findByOwnedOrder(Long userId, Long orderId);
 
     List<ReviewListView> findByOwnedBooking(Long userId, Long bookingId);
 
+    /** 커서 시각·ID가 null이면 첫 페이지를 조회한다. */
     List<ReviewListView> findForAdmin(
-            ReviewTargetType targetType, ReviewStatus status, int limit);
-
-    List<ReviewListView> findForAdminAfter(
             ReviewTargetType targetType,
             ReviewStatus status,
-            LocalDateTime createdAt,
-            Long id,
+            LocalDateTime cursorCreatedAt,
+            Long cursorId,
             int limit);
 }

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.review.port.out;
 
+import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewReportSummaryItem;
 import com.personal.happygallery.domain.review.ReviewReport;
 import com.personal.happygallery.domain.review.ReviewReportStatus;
 import java.time.LocalDateTime;
@@ -16,10 +17,9 @@ public interface ReviewReportPort {
 
     boolean existsByReviewIdAndReporterUserId(Long reviewId, Long reporterUserId);
 
-    List<ReviewReportListView> findForAdmin(ReviewReportStatus status, int limit);
-
-    List<ReviewReportListView> findForAdminAfter(
-            ReviewReportStatus status, LocalDateTime createdAt, Long id, int limit);
+    /** 관리자 신고 목록은 민감 상세와 증거를 제외한다. 커서가 null이면 첫 페이지를 조회한다. */
+    List<ReviewReportSummaryItem> findForAdmin(
+            ReviewReportStatus status, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
     List<Long> findReportedReviewIds(Long userId, List<Long> reviewIds);
 

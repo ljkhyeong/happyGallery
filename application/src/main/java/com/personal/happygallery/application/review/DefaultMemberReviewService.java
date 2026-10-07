@@ -7,12 +7,12 @@ import com.personal.happygallery.application.review.port.in.ReviewUseCase.Review
 import com.personal.happygallery.application.review.port.in.ReviewUseCase.ReviewOpportunity;
 import com.personal.happygallery.application.review.port.out.ReviewEligibilityPort;
 import com.personal.happygallery.application.review.port.out.ReviewListView;
-import com.personal.happygallery.application.review.port.out.ReviewOpportunityView;
 import com.personal.happygallery.application.review.port.out.ReviewReaderPort;
 import com.personal.happygallery.application.review.port.out.ReviewSourceReservationView;
 import com.personal.happygallery.application.review.port.out.ReviewStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.CursorUtils;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -119,14 +119,12 @@ class DefaultMemberReviewService implements MemberReviewUseCase {
     @Transactional(readOnly = true)
     public CursorPage<ReviewItem> listMyReviews(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        List<ReviewListView> fetched;
-        if (cursor == null) {
-            fetched = reviewReader.findByUserId(userId, pageSize + 1);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            fetched = reviewReader.findByUserIdAfter(
-                    userId, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
-        }
+        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        List<ReviewListView> fetched = reviewReader.findByUserId(
+                userId,
+                cursorParam == null ? null : cursorParam.timestamp(),
+                cursorParam == null ? null : cursorParam.id(),
+                pageSize + 1);
         return viewAssembler.standardPage(fetched, pageSize, false);
     }
 
@@ -161,9 +159,7 @@ class DefaultMemberReviewService implements MemberReviewUseCase {
                         cursorParam == null ? null : cursorParam.completedAt(),
                         cursorParam == null ? null : cursorParam.targetType(),
                         cursorParam == null ? null : cursorParam.sourceId(),
-                        pageSize + 1).stream()
-                .map(DefaultMemberReviewService::toOpportunity)
-                .toList();
+                        pageSize + 1);
         return CursorPage.of(
                 fetched,
                 pageSize,
@@ -224,17 +220,6 @@ class DefaultMemberReviewService implements MemberReviewUseCase {
             }
             throw new HappyGalleryException(ErrorCode.REVIEW_ALREADY_EXISTS);
         });
-    }
-
-    private static ReviewOpportunity toOpportunity(ReviewOpportunityView view) {
-        return new ReviewOpportunity(
-                view.targetType(),
-                view.sourceId(),
-                view.targetId(),
-                view.targetName(),
-                view.orderId(),
-                view.bookingId(),
-                view.completedAt());
     }
 
     private static ReviewCreationStatus creationStatus(

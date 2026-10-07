@@ -63,31 +63,19 @@ public interface ReviewUseCase {
             long rating3,
             long rating4,
             long rating5
-    ) {
-        public static RatingHistogram empty() {
-            return new RatingHistogram(0L, 0L, 0L, 0L, 0L);
-        }
-    }
+    ) {}
 
     record ReviewSummary(
             long reviewCount,
             double averageRating,
             RatingHistogram histogram
-    ) {
-        public ReviewSummary(long reviewCount, double averageRating) {
-            this(reviewCount, averageRating, RatingHistogram.empty());
-        }
-    }
+    ) {}
 
     record PublicReviewPage(
             ReviewSummary summary,
             long filteredCount,
             CursorPage<ReviewItem> reviews
-    ) {
-        public PublicReviewPage(ReviewSummary summary, CursorPage<ReviewItem> reviews) {
-            this(summary, summary.reviewCount(), reviews);
-        }
-    }
+    ) {}
 
     record ReviewOpportunity(
             ReviewTargetType targetType,
