@@ -485,13 +485,11 @@ class OpenApiSpecGenerator {
         assertNullableProperty(document, "ReviewOpportunityPageResponse", "nextCursor");
         assertNullableProperty(document, "MemberReviewReportResponse", "detail");
         assertNullableProperty(document, "AdminReviewReportResponse", "detail");
-        assertNullableProperty(document, "AdminReviewReportResponse", "evidence");
         assertNullableProperty(document, "AdminReviewReportResponse", "decisionNote");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedByAdminId");
         assertNullableProperty(document, "AdminReviewReportResponse", "decidedAt");
         assertNullableProperty(document, "AdminReviewReportPageResponse", "nextCursor");
         assertNullableProperty(document, "ReviewModerationActionResponse", "reason");
-        assertNullableProperty(document, "ReviewModerationActionResponse", "evidence");
         assertNullableProperty(document, "ReviewEvidenceResponse", "editedAt");
         assertNullableProperty(document, "UpdateReviewStatusRequest", "reason");
         assertNullableProperty(document, "CreateReviewReportRequest", "detail");

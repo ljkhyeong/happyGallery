@@ -25,10 +25,7 @@ export interface OrderOptionSnapshotResponse {
   value: string;
 }
 
-/**
- * @nullable
- */
-export type AdminOrderItemResponseProductType = typeof AdminOrderItemResponseProductType[keyof typeof AdminOrderItemResponseProductType] | null;
+export type AdminOrderItemResponseProductType = typeof AdminOrderItemResponseProductType[keyof typeof AdminOrderItemResponseProductType];
 
 
 export const AdminOrderItemResponseProductType = {
@@ -43,7 +40,6 @@ export interface AdminOrderItemResponse {
   options: OrderOptionSnapshotResponse[];
   productId: number;
   productName: string;
-  /** @nullable */
   productType: AdminOrderItemResponseProductType;
   /** @nullable */
   productVariantId: number | null;
@@ -538,10 +534,7 @@ export interface ShippingResponse {
   trackingUpdatedAt: string | null;
 }
 
-/**
- * @nullable
- */
-export type MarkShippedRequestCarrierCode = typeof MarkShippedRequestCarrierCode[keyof typeof MarkShippedRequestCarrierCode] | null;
+export type MarkShippedRequestCarrierCode = typeof MarkShippedRequestCarrierCode[keyof typeof MarkShippedRequestCarrierCode];
 
 
 export const MarkShippedRequestCarrierCode = {
@@ -560,13 +553,7 @@ export const MarkShippedRequestCarrierCode = {
 } as const;
 
 export interface MarkShippedRequest {
-  /**
-     * @minLength 0
-     * @maxLength 50
-     */
-  carrier: string;
-  /** @nullable */
-  carrierCode?: MarkShippedRequestCarrierCode;
+  carrierCode: MarkShippedRequestCarrierCode;
   /**
      * @minLength 0
      * @maxLength 100

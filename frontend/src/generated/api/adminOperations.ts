@@ -858,27 +858,6 @@ export const listAdminInquiries = async (params?: ListAdminInquiriesParams, opti
 
 
 
-export const getGetAdminInquiryUrl = (id: number,) => {
-
-
-
-
-  return `/api/v1/admin/inquiries/${id}`
-}
-
-export const getAdminInquiry = async (id: number, options?: RequestInit): Promise<AdminInquiryResponse> => {
-
-  return generatedApiClient<AdminInquiryResponse>(getGetAdminInquiryUrl(id),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
 export const getReplyToAdminInquiryUrl = (id: number,) => {
 
 

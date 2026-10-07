@@ -63,6 +63,11 @@ export interface RecoverGuestRecordsRequest {
   verificationCode: string;
 }
 
+export interface GuestRecordRecoveryResponse {
+  accessToken: string;
+  expiresAt: string;
+}
+
 export type GuestRecordRecoveryBookingSummaryStatus = typeof GuestRecordRecoveryBookingSummaryStatus[keyof typeof GuestRecordRecoveryBookingSummaryStatus];
 
 
@@ -79,6 +84,13 @@ export interface GuestRecordRecoveryBookingSummary {
   endAt: string;
   startAt: string;
   status: GuestRecordRecoveryBookingSummaryStatus;
+}
+
+export interface GuestRecoveredBookingPageResponse {
+  content: GuestRecordRecoveryBookingSummary[];
+  hasMore: boolean;
+  /** @nullable */
+  nextCursor: string | null;
 }
 
 export type GuestRecordRecoveryOrderSummaryStatus = typeof GuestRecordRecoveryOrderSummaryStatus[keyof typeof GuestRecordRecoveryOrderSummaryStatus];
@@ -109,20 +121,6 @@ export interface GuestRecordRecoveryOrderSummary {
   orderId: number;
   status: GuestRecordRecoveryOrderSummaryStatus;
   totalAmount: number;
-}
-
-export interface GuestRecordRecoveryResponse {
-  accessToken: string;
-  bookings: GuestRecordRecoveryBookingSummary[];
-  expiresAt: string;
-  orders: GuestRecordRecoveryOrderSummary[];
-}
-
-export interface GuestRecoveredBookingPageResponse {
-  content: GuestRecordRecoveryBookingSummary[];
-  hasMore: boolean;
-  /** @nullable */
-  nextCursor: string | null;
 }
 
 export interface GuestRecoveredOrderPageResponse {

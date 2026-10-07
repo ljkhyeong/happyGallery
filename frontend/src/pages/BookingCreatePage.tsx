@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Container, Form, Button } from "react-bootstrap";
 import { useSearchParams } from "react-router";
@@ -180,7 +180,10 @@ function BookingCreateContent({
     enabled: isAuthenticated,
   });
   const classAcceptsPass = selectedClass?.passEligible === true && selectedClass.category !== "PERFUME";
-  const availablePasses = classAcceptsPass ? (passes ?? []).filter(isPassAvailableForBooking) : [];
+  const availablePasses = useMemo(
+    () => (classAcceptsPass ? (passes ?? []).filter(isPassAvailableForBooking) : []),
+    [classAcceptsPass, passes],
+  );
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
   const requestedClassId = Number(searchParams.get("classId"));
