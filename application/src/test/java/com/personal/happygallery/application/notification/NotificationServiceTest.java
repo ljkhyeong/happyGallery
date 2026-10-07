@@ -12,6 +12,7 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
+import com.personal.happygallery.domain.notification.NotificationLogStatus;
 import com.personal.happygallery.domain.notification.NotificationRecipientType;
 import com.personal.happygallery.domain.time.Clocks;
 import com.personal.happygallery.domain.user.User;
@@ -82,7 +83,7 @@ class NotificationServiceTest {
             softly.assertThat(saved.getUserId()).isEqualTo(10L);
             softly.assertThat(saved.getChannel()).isEqualTo(NotificationChannel.KAKAO);
             softly.assertThat(saved.getEventType()).isEqualTo(NotificationEventType.BOOKING_CONFIRMED);
-            softly.assertThat(saved.getStatus()).isEqualTo("SUCCESS");
+            softly.assertThat(saved.getStatus()).isEqualTo(NotificationLogStatus.SUCCESS);
             softly.assertThat(saved.getFailReason()).isNull();
             softly.assertThat(saved.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
         });
@@ -133,14 +134,14 @@ class NotificationServiceTest {
             softly.assertThat(kakaoLog.getUserId()).isNull();
             softly.assertThat(kakaoLog.getChannel()).isEqualTo(NotificationChannel.KAKAO);
             softly.assertThat(kakaoLog.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-            softly.assertThat(kakaoLog.getStatus()).isEqualTo("FAILED");
+            softly.assertThat(kakaoLog.getStatus()).isEqualTo(NotificationLogStatus.FAILED);
             softly.assertThat(kakaoLog.getFailReason()).isEqualTo("PERMANENT_FAILURE");
             softly.assertThat(kakaoLog.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
             softly.assertThat(smsLog.getGuestId()).isEqualTo(20L);
             softly.assertThat(smsLog.getUserId()).isNull();
             softly.assertThat(smsLog.getChannel()).isEqualTo(NotificationChannel.SMS);
             softly.assertThat(smsLog.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-            softly.assertThat(smsLog.getStatus()).isEqualTo("SUCCESS");
+            softly.assertThat(smsLog.getStatus()).isEqualTo(NotificationLogStatus.SUCCESS);
             softly.assertThat(smsLog.getFailReason()).isNull();
             softly.assertThat(smsLog.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
         });
@@ -181,7 +182,7 @@ class NotificationServiceTest {
         assertSoftly(softly -> {
             NotificationLog saved = captor.getValue();
             softly.assertThat(result).isEqualTo(NotificationSendResult.DELIVERY_UNKNOWN);
-            softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
+            softly.assertThat(saved.getStatus()).isEqualTo(NotificationLogStatus.FAILED);
             softly.assertThat(saved.getFailReason())
                     .isEqualTo(throwsException ? "DELIVERY_EXCEPTION" : "DELIVERY_UNKNOWN");
         });
@@ -215,7 +216,7 @@ class NotificationServiceTest {
             softly.assertThat(saved.getGuestId()).isNull();
             softly.assertThat(saved.getChannel()).isEqualTo(NotificationChannel.SYSTEM);
             softly.assertThat(saved.getEventType()).isEqualTo(NotificationEventType.PASS_EXPIRY_SOON);
-            softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
+            softly.assertThat(saved.getStatus()).isEqualTo(NotificationLogStatus.FAILED);
             softly.assertThat(saved.getFailReason()).isEqualTo("RECIPIENT_NOT_FOUND");
             softly.assertThat(saved.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
         });
@@ -249,7 +250,7 @@ class NotificationServiceTest {
             softly.assertThat(saved.getUserId()).isNull();
             softly.assertThat(saved.getChannel()).isEqualTo(NotificationChannel.SYSTEM);
             softly.assertThat(saved.getEventType()).isEqualTo(NotificationEventType.REMINDER_D1);
-            softly.assertThat(saved.getStatus()).isEqualTo("FAILED");
+            softly.assertThat(saved.getStatus()).isEqualTo(NotificationLogStatus.FAILED);
             softly.assertThat(saved.getFailReason()).isEqualTo("RECIPIENT_NOT_FOUND");
             softly.assertThat(saved.getSentAt()).isEqualTo(LocalDateTime.of(2026, 6, 27, 9, 0));
         });
