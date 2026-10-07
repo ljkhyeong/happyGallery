@@ -28,7 +28,7 @@
 - `users`: 검증된 기준 이메일이 있을 때만 채우는 nullable `email_enc/email_hmac`, `name_enc/name_hmac`, 소셜 회원은 nullable인 `phone_enc/phone_hmac`
 - `guests`: `name_enc/name_hmac`, `phone_enc/phone_hmac`
 - `phone_verifications`: `phone_hmac`, `code_hmac`, `code_enc`
-- `email_verifications`: `email_hmac`, 회원 ID·정규화 이메일과 코드를 결합한 `code_hmac`, 보호된 행 복원과 local/dev 조회에 필요한 `code_enc`. 이메일 원문이나 이메일 암호문은 저장하지 않는다.
+- `email_verifications`: `email_hmac`, 회원 ID·정규화 이메일과 코드를 결합한 `code_hmac`, 보호된 행 복원과 local 조회에 필요한 `code_enc`. 이메일 원문이나 이메일 암호문은 저장하지 않는다.
 - `payment_attempt`: 내부 결제 payload 전체를 `payload_enc`에 저장하고, confirm 재응답에 필요한 비회원 원문 접근 토큰은 `fulfilled_access_token_enc`에 저장한다. 비회원 공개 입력의 인증 코드는 prepare에서 소비한 뒤 저장하지 않고, 결제 context·orderId·정규화 전화번호에 귀속된 HMAC 증거만 암호화 payload에 넣는다. 비회원 결제 상태 복구를 위해 정규화 휴대폰의 HMAC과 비식별 키 버전을 `owner_phone_hmac/owner_phone_hmac_key_id`에 추가 저장한다.
 - `bookings`: `BOOKED` 예약 소유자의 현재 정규화 휴대폰 HMAC을 `owner_phone_hmac`에 저장한다.
   `active_owner_phone_hmac`과 `(slot_id, active_owner_phone_hmac)` 유일 인덱스로 회원·비회원 테이블을
