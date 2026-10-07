@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * 이용권 조회 유스케이스.
  *
- * <p>회원이 자기 이용권 목록·상세를 조회한다.
+ * <p>회원이 자기 이용권 목록을 조회한다.
  */
 public interface PassQueryUseCase {
 
@@ -18,8 +18,6 @@ public interface PassQueryUseCase {
     CursorPage<PassView> listMyPasses(Long userId, String cursor, int size);
 
     CursorPage<PassView> listMyPasses(Long userId, PassHistoryQuery query, String cursor, int size);
-
-    PassView findMyPass(Long id, Long userId);
 
     record PassView(PassPurchase pass, Refund refund, String receiptUrl) {}
 }

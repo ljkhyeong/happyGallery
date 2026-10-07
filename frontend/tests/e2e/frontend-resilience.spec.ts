@@ -442,7 +442,6 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
     "/api/v1/me/orders",
     "/api/v1/me/bookings",
     "/api/v1/me/passes",
-    "/api/v1/me/inquiries",
     "/api/v1/me/inquiries/page",
     "/api/v1/me/social-accounts",
   ]);
@@ -485,7 +484,6 @@ test("@identity 내 정보와 소셜 조회 실패는 0건이나 미연결로 �
       pathname === "/api/v1/me/orders"
       || pathname === "/api/v1/me/bookings"
       || pathname === "/api/v1/me/passes"
-      || pathname === "/api/v1/me/inquiries"
     ) {
       await fulfillJson(route, []);
       return;

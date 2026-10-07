@@ -307,7 +307,6 @@
 - `PATCH /api/v1/me/bookings/{id}/reschedule`
 - `DELETE /api/v1/me/bookings/{id}`
 - `GET /api/v1/me/passes`
-- `GET /api/v1/me/passes/{id}`
 - `POST /api/v1/me/passes/{id}/refund`
 - `DELETE /api/v1/me/orders/{id}`
 - `POST /api/v1/me/orders/{id}/delay-response`

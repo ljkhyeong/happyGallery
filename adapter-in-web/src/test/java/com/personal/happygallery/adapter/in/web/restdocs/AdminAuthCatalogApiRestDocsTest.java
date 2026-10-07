@@ -55,7 +55,6 @@ import com.personal.happygallery.application.product.port.in.SmartStoreInventory
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.MappingHistoryResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ProductPreviewResult;
-import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.VariantMapping;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogPageResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.CatalogProductResult;
 import com.personal.happygallery.application.product.port.in.SmartStoreInventoryUseCase.ChannelOptionResult;
@@ -315,17 +314,9 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
                                 "색상이 달라요", 1, LocalDateTime.of(2026, 8, 29, 12, 30),
                                 "COLLECT_DONE", "CJ대한통운", "9876543210", 3000L,
                                 null, List.of())));
-        when(smartStoreInquiryUseCase.list(true, 100)).thenReturn(List.of(new InquiryResult(
-                456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
-                false, LocalDateTime.of(2026, 8, 29, 10, 0))));
         when(smartStoreInquiryUseCase.getProductInquiryAnswerTemplate())
                 .thenReturn(new AnswerTemplateResult(
                         "PRODUCT", "상품 문의 기본 답변", "문의해 주셔서 감사합니다."));
-        when(smartStoreInquiryUseCase.listCustomerInquiries(true, 100))
-                .thenReturn(List.of(new CustomerInquiryResult(
-                        789L, null, "DELIVERY", "배송 문의", "언제 도착하나요?", null,
-                        false, "order-1", "123", "po-1", "가죽 지갑", "브라운",
-                        "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)));
         when(workshopProfileUseCase.get()).thenReturn(workshop);
         when(workshopProfileUseCase.update(any())).thenReturn(workshop);
         when(classManagementUseCase.createClass(any())).thenReturn(bookingClass);
@@ -1006,11 +997,6 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("관리자 스마트스토어 상품 문의 조회와 답변 API를 문서화한다")
     void admin_manage_smartstore_inquiry() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries")
-                        .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].questionId").value(456));
         when(smartStoreInquiryUseCase.listPage(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), true, 1, 50))
                 .thenReturn(new OffsetPage<>(List.of(new InquiryResult(
                         456L, 123L, "가죽 지갑", "cust***", "각인 가능한가요?", null,
@@ -1043,11 +1029,6 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("관리자 스마트스토어 고객 문의 조회와 답변 API를 문서화한다")
     void admin_manage_smartstore_customer_inquiry() throws Exception {
-        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers")
-                        .with(adminUser())
-                        .header("Authorization", "Bearer admin-session-token"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].inquiryNo").value(789));
         when(smartStoreInquiryUseCase.listCustomerPage(
                 LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), false, 0, 50))
                 .thenReturn(new OffsetPage<>(List.of(), 0, 50, 0, 0));
@@ -1069,16 +1050,18 @@ class AdminAuthCatalogApiRestDocsTest extends RestDocsTestSupport {
     @Test
     @DisplayName("관리자 스마트스토어 고객 문의 답변 수정 API를 문서화한다")
     void admin_update_smartstore_customer_inquiry_answer() throws Exception {
-        when(smartStoreInquiryUseCase.listCustomerInquiries(false, 100))
-                .thenReturn(List.of(new CustomerInquiryResult(
+        when(smartStoreInquiryUseCase.listCustomerPage(
+                LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), false, 0, 50))
+                .thenReturn(new OffsetPage<>(List.of(new CustomerInquiryResult(
                         789L, 456L, "DELIVERY", "배송 문의", "언제 도착하나요?", "오늘 출고 예정입니다.",
                         true, "order-1", "123", "po-1", "가죽 지갑", "브라운",
-                        "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)));
-        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers")
-                        .queryParam("unansweredOnly", "false")
+                        "cust***", "홍*동", LocalDateTime.of(2026, 8, 29, 11, 0), null)), 0, 50, 1, 1));
+        mockMvc.perform(get("/api/v1/admin/smartstore-inquiries/customers/page")
+                        .param("from", "2026-08-01").param("to", "2026-08-31")
+                        .param("unansweredOnly", "false")
                         .with(adminUser()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].answerContentId").value(456));
+                .andExpect(jsonPath("$.content[0].answerContentId").value(456));
         mockMvc.perform(put(
                         "/api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}",
                         789L, 456L)

@@ -40,7 +40,6 @@ import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.nullValue;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -147,21 +146,6 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.content[0].passId").isNumber())
                 .andExpect(jsonPath("$.content[0].receiptUrl").value(receiptUrl))
                 .andExpect(jsonPath("$.hasMore").value(false));
-    }
-
-    @DisplayName("회원 이용권 상세를 조회한다")
-    @Test
-    void getMyPassDetail() throws Exception {
-        Long passId = purchasePass();
-
-        mockMvc.perform(get("/api/v1/me/passes/{id}", passId)
-                        .cookie(sessionCookie))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.passId").value(passId))
-                .andExpect(jsonPath("$.totalCredits").value(4))
-                .andExpect(jsonPath("$.remainingCredits").value(4))
-                .andExpect(jsonPath("$.receiptUrl").value(nullValue()))
-                .andExpect(jsonPath("$.totalPrice").value(300000));
     }
 
     @DisplayName("인증 없이 회원 이용권 목록을 조회하면 401을 반환한다")

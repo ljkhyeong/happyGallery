@@ -62,12 +62,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OwnedQnaListView> listOwnedByProduct(Long productId, Long userId) {
-        return listOwnedByProduct(productId, userId, null, PageParams.MAX_SIZE).content();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public CursorPage<OwnedQnaListView> listOwnedByProduct(
             Long productId, Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
@@ -77,12 +71,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 qnaList.stream().map(DefaultProductQnaService::toOwnedView).toList(),
                 pageSize,
                 item -> CursorUtils.encode(item.createdAt(), item.id()));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<PublicQnaListView> listByProduct(Long productId) {
-        return listByProduct(productId, null, PageParams.MAX_SIZE).content();
     }
 
     @Override
@@ -101,12 +89,6 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
                 items,
                 pageSize,
                 item -> CursorUtils.encode(item.createdAt(), item.id()));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<QnaWithAuthor> listByProductForAdmin(Long productId) {
-        return listByProductForAdmin(productId, null, PageParams.MAX_SIZE).content();
     }
 
     @Override

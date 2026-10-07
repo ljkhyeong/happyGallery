@@ -3,7 +3,6 @@ package com.personal.happygallery.application.qna;
 import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvider;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +21,7 @@ class SmartStoreInquirySearchTest {
     @DisplayName("상품 문의는 선택일 전체를 조회하고 역전된 기간은 외부 호출 전에 거절한다")
     void selectedDates_includeWholeDaysAndRejectReversedRange() {
         SmartStoreInquiryProvider provider = mock(SmartStoreInquiryProvider.class);
-        var service = new DefaultSmartStoreInquiryService(provider, Clock.systemUTC());
+        var service = new DefaultSmartStoreInquiryService(provider);
         LocalDate from = LocalDate.of(2026, 1, 1);
         LocalDate to = LocalDate.of(2026, 7, 31);
         when(provider.isEnabled()).thenReturn(true);

@@ -23,9 +23,6 @@ public interface InquiryRepository extends JpaRepository<Inquiry, Long>,
     <S extends Inquiry> S save(S inquiry);
 
     @Override
-    Optional<Inquiry> findById(Long id);
-
-    @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("SELECT i FROM Inquiry i WHERE i.id = :id")
     Optional<Inquiry> findByIdForUpdate(@Param("id") Long id);

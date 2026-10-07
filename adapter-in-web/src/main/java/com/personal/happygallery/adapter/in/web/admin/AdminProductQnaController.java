@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,14 +26,6 @@ public class AdminProductQnaController {
 
     public AdminProductQnaController(ProductQnaUseCase qnaUseCase) {
         this.qnaUseCase = qnaUseCase;
-    }
-
-    @GetMapping
-    @Operation(operationId = "listAdminProductQna")
-    public List<AdminQnaResponse> list(@RequestParam Long productId) {
-        return qnaUseCase.listByProductForAdmin(productId).stream()
-                .map(AdminQnaResponse::from)
-                .toList();
     }
 
     @GetMapping("/page")

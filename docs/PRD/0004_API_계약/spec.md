@@ -1113,20 +1113,17 @@ Content-Type: application/json
 - 일괄 응답은 `successProductOrderIds`와 `failures[{productOrderId, code, message}]`를 반환한다. 일부 실패가 있어도 성공 결과를 유지하고 실패 주문만 다시 선택할 수 있게 한다.
 
 ```http
-GET /api/v1/admin/smartstore-inquiries?unansweredOnly=true&limit=100
 GET /api/v1/admin/smartstore-inquiries/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 GET /api/v1/admin/smartstore-inquiries/template
 PUT /api/v1/admin/smartstore-inquiries/{questionId}/answer
-GET /api/v1/admin/smartstore-inquiries/customers?unansweredOnly=true&limit=100
 GET /api/v1/admin/smartstore-inquiries/customers/page?from=2026-07-01&to=2026-07-31&unansweredOnly=true&page=0&size=50
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer
 PUT /api/v1/admin/smartstore-inquiries/customers/{inquiryNo}/answer/{answerContentId}
 Authorization: Bearer {token}
 ```
 
-- 기존 배열 목록 API는 최근 30일 네이버 상품 문의와 주문·배송 고객 문의를 구분해 최대 200건 반환한다. 상품 문의는 최대 두 페이지, 고객 문의는 한 페이지를 읽으며 전체 페이지를 미리 수집하지 않는다.
 - 페이지 목록 API의 operationId는 상품 문의 `listSmartStoreInquiriesPage`, 고객 문의 `listSmartStoreCustomerInquiriesPage`다. 필수 `from`, `to`는 `yyyy-MM-dd`이며 양 끝 날짜를 포함한다. 상품 문의는 한국 시간 `00:00:00`부터 `23:59:59.999`까지, 고객 문의는 날짜 그대로 전달한다. 시작일이 종료일보다 늦으면 `400 INVALID_INPUT`이며 별도 최대 기간은 정하지 않는다.
-- 페이지 요청은 `page` 0~999999(기본 0), `size` 10~100(기본 50), `unansweredOnly` 기본 `true`다. 네이버에는 페이지 번호를 1부터 전달하고, 미답변 조회일 때만 `answered=false`를 보낸다. 응답은 `{content, page, size, totalCount, totalPages}`이며 `content`는 기존 문의 DTO 배열이다. 합계는 네이버 응답을 사용하고 선택한 한 페이지만 요청한다.
+- 페이지 요청은 `page` 0~999999(기본 0), `size` 10~100(기본 50), `unansweredOnly` 기본 `true`다. 네이버에는 페이지 번호를 1부터 전달하고, 미답변 조회일 때만 `answered=false`를 보낸다. 응답은 `{content, page, size, totalCount, totalPages}`이며 `content`는 문의 DTO 배열이다. 합계는 네이버 응답을 사용하고 선택한 한 페이지만 요청한다.
 - 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
 - 상품 문의의 `PUT /{questionId}/answer`는 신규 답변 등록과 기존 답변 수정에 함께 사용한다. 관리자 화면은 기존 본문을 편집하고, 취소 시 요청을 보내지 않으며 저장 실패 시 초안을 유지한다. 조회 실패는 목록·템플릿 영역의 재시도로 처리하고 문의 유형 탭과 조회 조건은 계속 표시한다.
 - 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 CONFLICT`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
@@ -3130,7 +3127,6 @@ Cookie: HG_SESSION={sessionToken}
 - `GET /api/v1/me/orders/{id}` — 회원 주문 상세
 - `GET /api/v1/me/passes` — 회원 이용권 목록
 - `GET /api/v1/me/passes/page?cursor={cursor}&size=20` — 회원 이용권 커서 페이지
-- `GET /api/v1/me/passes/{id}` — 회원 이용권 상세
 - `POST /api/v1/me/passes/{id}/refund` — 소유한 이용권 잔여 횟수 정산 환불
 - `DELETE /api/v1/me/orders/{id}` — 승인 대기 주문 취소
 - `POST /api/v1/me/orders/{id}/delay-response` — 제작 지연 제안 수락/거절
@@ -3203,7 +3199,7 @@ Cookie: HG_SESSION={sessionToken}
 - 기존 배열 목록 경로는 `/api/v1` 응답 호환을 위해 유지하되 최신 100건까지만 반환한다. 신규 화면은 `/page`를 사용하며 응답은 `{content,nextCursor,hasMore}`다. `size`는 1~100이고 기본 정렬은 `(createdAt,id)` 또는 해당 이력의 생성 시각과 ID 내림차순 커서로 다음 페이지를 잇는다. 회원 주문·예약·이용권의 검색·정렬 확장은 2.12.3의 조건별 커서 규칙을 따른다.
 - 이용권 예약에서 `cancelPolicy.warningCode=PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE`이면 취소해도 이용 횟수가 복구되지 않는다. 취소 확인창과 완료 알림은 이 사실을 한국어로 명확히 알린다.
 - 신규 `REGULAR_CRAFT_4`은 `passEligible=true`이고 카테고리가 `PERFUME`가 아닌 클래스에만 사용할 수 있다.
-- 회원 예약·주문 상세와 이용권 목록·상세의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
+- 회원 예약·주문 상세와 이용권 목록의 `refund`는 `{amount,status}` 또는 `null` 계약을 사용한다. 본인 소유권 검증 후 조회하며 내부 환불 ID와 실패 사유는 노출하지 않는다.
 - 환불 상태는 `REQUESTED`, `PROCESSING`, `RETRYABLE`, `RECONCILIATION_REQUIRED`, `SUCCEEDED`, `FAILED` 중 하나다. 고객 화면은 비종결 상태만 제한된 간격으로 다시 조회한다.
 
 #### 2.12.4 회원 상품 Q&A 작성
@@ -3232,12 +3228,11 @@ Cookie: HG_SESSION={sessionToken}
 작성자 목록:
 
 ```http
-GET /api/v1/me/products/{productId}/qna
+GET /api/v1/me/products/{productId}/qna/page?cursor={cursor}&size=20
 Cookie: HG_SESSION={sessionToken}
 ```
 
-신규 화면은 `GET /api/v1/me/products/{productId}/qna/page?cursor={cursor}&size=20`의
-`{content,nextCursor,hasMore}` 응답으로 다음 작성글을 이어서 조회한다. 기존 배열 경로는 최신 100건으로 제한한다.
+`{content,nextCursor,hasMore}` 응답으로 다음 작성글을 이어서 조회한다. `size`는 1~100이다.
 
 - 성공: `200 OK`
 - 응답 항목: `id`, `title`, `secret`, `hasReply`, `createdAt`
@@ -3264,9 +3259,7 @@ Cookie: HG_SESSION={sessionToken}
 #### 2.12.5 회원 1:1 문의 작성/조회
 
 - `POST /api/v1/me/inquiries` — 회원 문의 생성
-- `GET /api/v1/me/inquiries` — 내 문의 목록
 - `GET /api/v1/me/inquiries/page?cursor={cursor}&size=20` — 내 문의 커서 페이지
-- `GET /api/v1/me/inquiries/{id}` — 내 문의 상세
 
 ```http
 POST /api/v1/me/inquiries
@@ -3281,12 +3274,11 @@ Cookie: HG_SESSION={sessionToken}
 - 성공: 생성 `201 Created`, 조회 `200 OK`
 - 에러:
   - `401 UNAUTHORIZED` — 회원 세션 없음
-  - `404 NOT_FOUND` — 다른 회원 문의 또는 미존재
 - 정책:
   - 문의 작성/조회는 본인 리소스로만 제한한다.
   - 생성 요청의 `title`은 공백이 아닌 200자 이하, `content`는 공백이 아닌 16,000자 이하로 제한한다.
   - 응답에는 `hasReply`, `replyContent`, `repliedAt`를 포함한다.
-  - 기존 배열 목록은 최신 100건으로 제한하고 신규 화면은 `(createdAt,id)` 내림차순의 `{content,nextCursor,hasMore}` 페이지를 사용한다.
+  - 목록은 `(createdAt,id)` 내림차순의 `{content,nextCursor,hasMore}` 페이지로 조회한다.
 
 #### 2.12.6 회원 장바구니
 
@@ -3318,10 +3310,6 @@ Cookie: HG_SESSION={sessionToken}
 }
 ```
 
-- `POST /api/v1/me/cart/items`
-  - 요청: `{ "productId": 1, "productVariantId": null, "textInputs": [], "qty": 2 }`
-  - `productId`, `qty`는 필수다. 주문제작은 `productVariantId`와 직접입력 그룹의 `{groupKey,value}`를 함께 보내며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
-  - 응답: `201 Created`
 - `POST /api/v1/me/cart/merge`
   - 요청: `{ "expectedCustomerId": 1, "idempotencyKey": "UUID", "items": [{ "productId": 1, "productVariantId": null, "textInputs": [], "qty": 2 }] }`
   - `expectedCustomerId`, 각 항목의 `productId`, `qty`는 필수다. 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
@@ -3403,11 +3391,10 @@ Cookie: HG_SESSION={sessionToken}
 #### 2.13.1 상품 Q&A 목록 조회
 
 ```http
-GET /api/v1/products/{productId}/qna
+GET /api/v1/products/{productId}/qna/page?cursor={cursor}&size=20
 ```
 
-신규 화면은 `GET /api/v1/products/{productId}/qna/page?cursor={cursor}&size=20`의
-`{content,nextCursor,hasMore}` 응답으로 다음 글을 조회한다. 기존 배열 경로는 최신 100건으로 제한한다.
+`{content,nextCursor,hasMore}` 응답으로 다음 글을 조회한다. `size`는 1~100이다.
 
 - 성공: `200 OK`
 - 정책:
@@ -3436,15 +3423,13 @@ GET /api/v1/products/{productId}/qna/{id}
 
 #### 2.14.1 관리자 상품 Q&A 조회/답변
 
-- `GET /api/v1/admin/qna?productId={productId}` — 특정 상품의 Q&A 목록 조회
 - `GET /api/v1/admin/qna/page?productId={productId}&cursor={cursor}&size=20` — 특정 상품의 Q&A 커서 페이지 조회
 - `GET /api/v1/admin/qna/unanswered?cursor={cursor}&size=20` — 전체 미답변 Q&A 최신순 커서 조회
 - `POST /api/v1/admin/qna/{id}/reply` — Q&A 답변 등록
 
 정책:
 - 인증: `Authorization: Bearer {token}`
-- 기존 상품별 배열 목록은 최신 100건으로 제한한다. 상품별 페이지와 미답변 목록 응답은
-  `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
+- 상품별 페이지와 미답변 목록 응답은 `{content, nextCursor, hasMore}`이고 `(createdAt, id)` 내림차순으로 조회한다. `size` 범위는 1~100이다.
 - 답변 작성 시 `replyContent`, `repliedAt`, `repliedBy`를 기록한다.
 - `replyContent`는 공백이 아닌 16,000자 이하로 제한한다.
 - 이미 답변이 있는 글에 재답변을 시도하면 `409 CONFLICT`로 거절하고 기존 답변과 알림 outbox를 변경하지 않는다.
@@ -3454,7 +3439,6 @@ GET /api/v1/products/{productId}/qna/{id}
 #### 2.14.2 관리자 1:1 문의 조회/답변
 
 - `GET /api/v1/admin/inquiries?cursor={cursor}&size=20` — 최신 문의 커서 페이지 조회
-- `GET /api/v1/admin/inquiries/{id}` — 문의 상세 조회
 - `POST /api/v1/admin/inquiries/{id}/reply` — 문의 답변 등록
 
 정책:

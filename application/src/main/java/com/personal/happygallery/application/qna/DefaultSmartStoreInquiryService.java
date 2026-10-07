@@ -7,40 +7,16 @@ import com.personal.happygallery.application.qna.port.out.SmartStoreInquiryProvi
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.time.Clock;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.ArrayList;
-import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase {
 
     private final SmartStoreInquiryProvider provider;
-    private final Clock clock;
 
-    public DefaultSmartStoreInquiryService(SmartStoreInquiryProvider provider, Clock clock) {
+    public DefaultSmartStoreInquiryService(SmartStoreInquiryProvider provider) {
         this.provider = provider;
-        this.clock = clock;
-    }
-
-    @Override
-    public List<InquiryResult> list(boolean unansweredOnly, int limit) {
-        requireEnabled();
-        LocalDateTime now = LocalDateTime.now(clock);
-        int size = Math.min(limit, 100);
-        var first = provider.findProductInquiries(now.minusDays(30), now, unansweredOnly, 0, size);
-        List<InquiryItem> items = new ArrayList<>(first.content());
-        if (first.totalPages() > 1 && items.size() < limit) {
-            items.addAll(provider.findProductInquiries(now.minusDays(30), now, unansweredOnly, 1, size).content());
-        }
-        return items.stream()
-                .sorted(Comparator.comparing(InquiryItem::createdAt).reversed())
-                .limit(limit)
-                .map(DefaultSmartStoreInquiryService::toResult)
-                .toList();
     }
 
     @Override
@@ -66,16 +42,6 @@ public class DefaultSmartStoreInquiryService implements SmartStoreInquiryUseCase
         var template = provider.findProductInquiryAnswerTemplate();
         return new AnswerTemplateResult(
                 template.questionType(), template.subject(), template.content());
-    }
-
-    @Override
-    public List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit) {
-        requireEnabled();
-        LocalDate today = LocalDate.now(clock);
-        return provider.findCustomerInquiries(today.minusDays(30), today, unansweredOnly, 0, Math.max(limit, 10))
-                .content().stream().limit(limit)
-                .map(DefaultSmartStoreInquiryService::toResult)
-                .toList();
     }
 
     @Override

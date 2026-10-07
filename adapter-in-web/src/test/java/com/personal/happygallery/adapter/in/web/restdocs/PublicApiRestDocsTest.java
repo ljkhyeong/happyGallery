@@ -169,7 +169,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(product));
         when(productQueryUseCase.listActiveCategories()).thenReturn(List.of("CANDLE", "PERFUME"));
         when(productQueryUseCase.getProduct(1L)).thenReturn(product);
-        when(qnaUseCase.listByProduct(1L)).thenReturn(List.of(publicQna));
         when(qnaUseCase.listByProduct(eq(1L), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(publicQna), "cursor-next", true));
         when(qnaUseCase.getPublicDetail(1L, 5L)).thenReturn(qna);
@@ -339,13 +338,6 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(get("/api/v1/products/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stockQuantity").value(RestDocsFixtures.productWithInventory().quantity()));
-    }
-
-    @Test
-    @DisplayName("공개 상품 QNA 목록 API를 문서화한다")
-    void list_product_qna() throws Exception {
-        mockMvc.perform(get("/api/v1/products/{productId}/qna", 1L))
-                .andExpect(status().isOk());
     }
 
     @Test

@@ -213,7 +213,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(passQueryUseCase.listMyPasses(CUSTOMER_USER_ID)).thenReturn(List.of(passView));
         when(passQueryUseCase.listMyPasses(eq(CUSTOMER_USER_ID), any(PassHistoryQuery.class), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
-        when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
                 .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
         when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
@@ -235,14 +234,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(socialAuthUseCase.listLinkedProviders(CUSTOMER_USER_ID))
                 .thenReturn(List.of(SocialProvider.GOOGLE));
         when(inquiryUseCase.create(eq(CUSTOMER_USER_ID), any(), any())).thenReturn(inquiry);
-        when(inquiryUseCase.listByUser(CUSTOMER_USER_ID)).thenReturn(List.of(inquiry));
         when(inquiryUseCase.listByUser(eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(inquiry), "cursor-next", true));
-        when(inquiryUseCase.findByIdAndUser(9L, CUSTOMER_USER_ID)).thenReturn(inquiry);
         when(qnaUseCase.createQuestion(eq(1L), eq(CUSTOMER_USER_ID), any(), any(), eq(false)))
                 .thenReturn(qna);
-        when(qnaUseCase.listOwnedByProduct(1L, CUSTOMER_USER_ID))
-                .thenReturn(List.of(ownedQna));
         when(qnaUseCase.listOwnedByProduct(
                 eq(1L), eq(CUSTOMER_USER_ID), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(ownedQna), "cursor-next", true));
@@ -579,16 +574,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("장바구니 상품 추가 API를 문서화한다")
-    void add_cart_item() throws Exception {
-        mockMvc.perform(post("/api/v1/me/cart/items")
-                        .with(customerUser())
-                        .contentType(APPLICATION_JSON)
-                        .content("{\"productId\":1,\"qty\":1}"))
-                .andExpect(status().isCreated());
-    }
-
-    @Test
     @DisplayName("비회원 장바구니 병합 API를 문서화한다")
     void merge_guest_cart() throws Exception {
         mockMvc.perform(post("/api/v1/me/cart/merge")
@@ -821,13 +806,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 이용권 상세 API를 문서화한다")
-    void get_my_pass() throws Exception {
-        mockMvc.perform(get("/api/v1/me/passes/{id}", 300L).with(customerUser()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("내 이용권 정산 환불 API를 문서화한다")
     void refund_my_pass() throws Exception {
         mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 300L).with(customerUser()))
@@ -931,13 +909,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     }
 
     @Test
-    @DisplayName("내 문의 목록 API를 문서화한다")
-    void list_my_inquiries() throws Exception {
-        mockMvc.perform(get("/api/v1/me/inquiries").with(customerUser()))
-                .andExpect(status().isOk());
-    }
-
-    @Test
     @DisplayName("내 문의 커서 페이지 API를 문서화한다")
     void list_my_inquiries_page() throws Exception {
         mockMvc.perform(get("/api/v1/me/inquiries/page")
@@ -947,13 +918,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$.content[0].id").value(9))
                 .andExpect(jsonPath("$.nextCursor").value("cursor-next"))
                 .andExpect(jsonPath("$.hasMore").value(true));
-    }
-
-    @Test
-    @DisplayName("내 문의 상세 API를 문서화한다")
-    void get_my_inquiry() throws Exception {
-        mockMvc.perform(get("/api/v1/me/inquiries/{id}", 9L).with(customerUser()))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -970,14 +934,6 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated());
-    }
-
-    @Test
-    @DisplayName("내 상품 QNA 목록 API를 문서화한다")
-    void list_my_product_qna() throws Exception {
-        mockMvc.perform(get("/api/v1/me/products/{productId}/qna", 1L)
-                        .with(customerUser()))
-                .andExpect(status().isOk());
     }
 
     @Test

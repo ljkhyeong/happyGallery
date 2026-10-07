@@ -3,13 +3,8 @@ package com.personal.happygallery.application.qna.port.in;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 public interface SmartStoreInquiryUseCase {
-
-    List<InquiryResult> list(boolean unansweredOnly, int limit);
-
-    List<CustomerInquiryResult> listCustomerInquiries(boolean unansweredOnly, int limit);
 
     OffsetPage<InquiryResult> listPage(LocalDate from, LocalDate to, boolean unansweredOnly, int page, int size);
 
