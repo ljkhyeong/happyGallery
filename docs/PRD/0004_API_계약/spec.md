@@ -1983,6 +1983,7 @@ X-Webhook-Signature: {HMAC-SHA256 hex}
   - 서명 입력은 `{timestamp}.{원문 JSON 바이트}`이며 `DELIVERY_WEBHOOK_SECRET`으로 HMAC-SHA256을 계산한다.
   - 서버 현재 시각과 5분 넘게 차이 나는 요청은 재전송 공격으로 보고 거절한다.
   - `clientId=order-{orderId}`이고 현재 fulfillment의 택배사 코드·운송장 번호와 일치하는 항목만 반영한다.
+  - 본문은 `items[]`의 `courierCode`, `trackingNumber`, `clientId`, `currentStatus`, `trackingData.deliveryStatusText`, `trackingData.progresses[]`만 읽고 다른 제공자 필드는 무시한다.
   - 웹훅 경로는 세션·CSRF 인증 대신 위 HMAC 서명을 신뢰 경계로 사용한다.
   - 최초 설정은 연동을 끈 상태에서 운영 서버에 `DELIVERY_WEBHOOK_SECRET`을 먼저 배포하고 같은 secret으로 웹훅 URL을 등록한다. 발급된 `endpointId`와 API 키를 설정한 뒤 `DELIVERY_TRACKING_ENABLED=true`로 전환한다.
 
