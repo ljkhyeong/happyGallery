@@ -39,7 +39,7 @@ class CouponPolicyTest {
         assertSoftly(softly -> {
             softly.assertThat(fixed.calculateDiscount(12_000L, NOW)).isEqualTo(12_000L);
             softly.assertThat(percent.calculateDiscount(100_000L, NOW)).isEqualTo(10_000L);
-            softly.assertThat(new CouponQuote(1L, 2L, "쿠폰", 12_000L, 12_000L)
+            softly.assertThat(new CouponQuote(1L, 12_000L, 12_000L)
                             .discountedProductAmount())
                     .isZero();
         });

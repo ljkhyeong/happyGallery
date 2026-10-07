@@ -36,13 +36,8 @@ class PaymentReconciliationTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    LookupRequest prepareLookup(Long attemptId) {
-        PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
-        return new LookupRequest(
-                attempt.getId(),
-                attempt.getOrderIdExternal(),
-                attempt.getPaymentKey(),
-                attempt.getAmount());
+    String prepareLookup(Long attemptId) {
+        return requireReconciliationAttempt(attemptId).getOrderIdExternal();
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -56,7 +51,7 @@ class PaymentReconciliationTransactionService {
                     ErrorCode.INVALID_INPUT, "PG 조회 결과가 저장된 결제 요청과 일치하지 않습니다.");
         }
         if (!attempt.reconcileLatePgApproval(
-                lookup.paymentKey(), lookup.method(), LocalDateTime.now(clock))) {
+                lookup.paymentKey(), lookup.method(), null, LocalDateTime.now(clock))) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "결제 대사 상태가 이미 변경되었습니다.");
         }
         attemptStore.save(attempt);
@@ -85,5 +80,4 @@ class PaymentReconciliationTransactionService {
         return attempt;
     }
 
-    record LookupRequest(Long attemptId, String orderId, String paymentKey, long amount) {}
 }

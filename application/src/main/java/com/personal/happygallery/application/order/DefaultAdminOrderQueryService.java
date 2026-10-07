@@ -17,6 +17,7 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -56,20 +57,12 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
-        List<Order> orders;
-
-        if (cursor == null) {
-            orders = (status != null)
-                    ? orderReaderPort.findByStatusOrderByCreatedAtDesc(status, fetchSize)
-                    : orderReaderPort.findAllOrderByCreatedAtDesc(fetchSize);
-        } else {
-            var param = CursorUtils.decode(cursor);
-            orders = (status != null)
-                    ? orderReaderPort.findByStatusOrderByCreatedAtDescAfterCursor(
-                            status, param.timestamp(), param.id(), fetchSize)
-                    : orderReaderPort.findAllOrderByCreatedAtDescAfterCursor(
-                            param.timestamp(), param.id(), fetchSize);
-        }
+        var param = cursor == null ? null : CursorUtils.decode(cursor);
+        LocalDateTime cursorCreatedAt = param == null ? null : param.timestamp();
+        Long cursorId = param == null ? null : param.id();
+        List<Order> orders = status != null
+                ? orderReaderPort.findAdminOrdersByStatus(status, cursorCreatedAt, cursorId, fetchSize)
+                : orderReaderPort.findAdminOrders(cursorCreatedAt, cursorId, fetchSize);
 
         List<AdminOrderResponse> items = toResponses(orders);
 
@@ -82,7 +75,6 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         OrderLookups.requireOrder(orderReaderPort, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         var shippingAddress = fulfillment.getType() == FulfillmentType.SHIPPING
-                && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
         return AdminOrderFulfillmentResponse.from(

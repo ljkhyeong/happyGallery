@@ -74,7 +74,7 @@ class PaymentConfirmFulfillmentTransactionService {
         if (attempt.getStatus() != PaymentAttemptStatus.PROCESSING
                 || !attempt.markApproved(
                         processingToken, confirmedPaymentKey,
-                        confirmedPaymentMethod, LocalDateTime.now(clock))) {
+                        confirmedPaymentMethod, null, LocalDateTime.now(clock))) {
             return false;
         }
         requestCompensation(attempt, confirmedPaymentKey, reason);

@@ -139,6 +139,7 @@ final class RestDocsFixtures {
     static Order order() {
         Order order = mock(Order.class);
         when(order.getId()).thenReturn(200L);
+        when(order.orderNumber()).thenReturn("ORD-00000200");
         when(order.getStatus()).thenReturn(OrderStatus.PAID_APPROVAL_PENDING);
         when(order.getTotalAmount()).thenReturn(39000L);
         when(order.getPaidAt()).thenReturn(NOW.minusMinutes(5));
@@ -219,12 +220,12 @@ final class RestDocsFixtures {
     static PassPurchase passPurchase() {
         PassPurchase pass = mock(PassPurchase.class);
         when(pass.getId()).thenReturn(300L);
-        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_8);
+        when(pass.getPlan()).thenReturn(PassPlan.REGULAR_CRAFT_4);
         when(pass.getPurchasedAt()).thenReturn(NOW.minusDays(1));
         when(pass.getExpiresAt()).thenReturn(NOW.plusDays(89));
-        when(pass.getTotalCredits()).thenReturn(8);
-        when(pass.getRemainingCredits()).thenReturn(7);
-        when(pass.getTotalPrice()).thenReturn(240000L);
+        when(pass.getTotalCredits()).thenReturn(4);
+        when(pass.getRemainingCredits()).thenReturn(3);
+        when(pass.getTotalPrice()).thenReturn(300000L);
         return pass;
     }
 

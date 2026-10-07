@@ -48,11 +48,8 @@ public interface OrderShippingUseCase {
     ShippingResult markShipped(
             Long orderId,
             ShippingCarrier carrierCode,
-            String carrier,
             String trackingNumber,
             Long adminId);
-
-    ShippingResult markShipped(Long orderId, String carrier, String trackingNumber, Long adminId);
 
     ShippingResult markDelivered(Long orderId, Long adminId);
 }

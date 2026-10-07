@@ -14,20 +14,10 @@ public interface OrderReaderPort {
     List<Order> findPaidApprovalPendingBeforeAfterId(
             LocalDateTime deadline, Long afterId, int limit);
     OrderApprovalBacklogSummary summarizePendingApprovalBacklog();
-    List<Order> findByUserIdOrderByCreatedAtDesc(Long userId, int limit);
-    List<Order> findByUserIdOrderByCreatedAtDescAfterCursor(
-            Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
-    /** 커서 기반 전체 주문 조회 — 첫 페이지 */
-    List<Order> findAllOrderByCreatedAtDesc(int limit);
+    /** 관리자 전체 주문 최신순 커서 조회. 커서 값이 null이면 첫 페이지를 읽는다. */
+    List<Order> findAdminOrders(LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
-    /** 커서 기반 전체 주문 조회 — 커서 이후 */
-    List<Order> findAllOrderByCreatedAtDescAfterCursor(
-            LocalDateTime cursorCreatedAt, Long cursorId, int limit);
-
-    /** 커서 기반 상태별 주문 조회 — 첫 페이지 */
-    List<Order> findByStatusOrderByCreatedAtDesc(OrderStatus status, int limit);
-
-    /** 커서 기반 상태별 주문 조회 — 커서 이후 */
-    List<Order> findByStatusOrderByCreatedAtDescAfterCursor(
+    /** 관리자 상태별 주문 최신순 커서 조회. 커서 값이 null이면 첫 페이지를 읽는다. */
+    List<Order> findAdminOrdersByStatus(
             OrderStatus status, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 }

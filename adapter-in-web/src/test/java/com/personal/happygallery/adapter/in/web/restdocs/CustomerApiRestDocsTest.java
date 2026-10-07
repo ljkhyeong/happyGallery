@@ -214,7 +214,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(new CursorPage<>(List.of(passView), "cursor-next", true));
         when(passQueryUseCase.findMyPass(300L, CUSTOMER_USER_ID)).thenReturn(passView);
         when(memberPassRefundUseCase.refundMyPass(300L, CUSTOMER_USER_ID))
-                .thenReturn(new PassRefundResult(1, 8, 240000L, 901L, RefundStatus.REQUESTED));
+                .thenReturn(new PassRefundResult(1, 4, 300000L, 901L, RefundStatus.REQUESTED));
         when(notificationQueryUseCase.listNotifications(eq(CUSTOMER_USER_ID), any(), eq(0), eq(20), eq(false)))
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
@@ -832,8 +832,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         mockMvc.perform(post("/api/v1/me/passes/{id}/refund", 300L).with(customerUser()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(1))
-                .andExpect(jsonPath("$.refundCredits").value(8))
-                .andExpect(jsonPath("$.refundAmount").value(240000))
+                .andExpect(jsonPath("$.refundCredits").value(4))
+                .andExpect(jsonPath("$.refundAmount").value(300000))
                 .andExpect(jsonPath("$.refundStatus").value("REQUESTED"))
                 .andExpect(jsonPath("$.refundId").doesNotExist());
     }

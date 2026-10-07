@@ -179,10 +179,8 @@ function BookingCreateContent({
     queryFn: ({ signal }) => fetchAllMyPasses(signal),
     enabled: isAuthenticated,
   });
-  const availablePasses = (passes ?? [])
-    .filter(isPassAvailableForBooking)
-    .filter((pass) => pass.planCode === "LEGACY_ALL_CLASSES"
-      || (selectedClass?.passEligible === true && selectedClass.category !== "PERFUME"));
+  const classAcceptsPass = selectedClass?.passEligible === true && selectedClass.category !== "PERFUME";
+  const availablePasses = classAcceptsPass ? (passes ?? []).filter(isPassAvailableForBooking) : [];
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
   const requestedClassId = Number(searchParams.get("classId"));

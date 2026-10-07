@@ -30,7 +30,6 @@ class ShipmentTrackingRegistrationTransactionService {
                 || !fulfillment.claimTrackingRegistration(now, now.minus(PROCESSING_TIMEOUT))) {
             return Optional.empty();
         }
-        fulfillmentPort.save(fulfillment);
         return Optional.of(new RegistrationCommand(
                 fulfillment.getOrderId(), fulfillment.getCarrierCode(), fulfillment.getTrackingNumber()));
     }
@@ -49,7 +48,6 @@ class ShipmentTrackingRegistrationTransactionService {
                     : null;
             fulfillment.failTrackingRegistration(result.reason(), retryAt, MAX_ATTEMPTS);
         }
-        fulfillmentPort.save(fulfillment);
     }
 
     private static long retryDelayMinutes(int attempts) {

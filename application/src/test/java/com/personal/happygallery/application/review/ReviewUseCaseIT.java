@@ -58,6 +58,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.jdbc.JdbcTestUtils;
 
+import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -1209,7 +1210,7 @@ class ReviewUseCaseIT {
         }
         order = orderRepository.saveAndFlush(order);
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         return new ProductOrderSource(product, order, orderItem);
     }
 

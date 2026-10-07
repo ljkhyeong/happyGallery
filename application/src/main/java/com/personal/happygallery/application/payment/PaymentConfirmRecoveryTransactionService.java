@@ -47,9 +47,7 @@ class PaymentConfirmRecoveryTransactionService {
         LocalDateTime now = LocalDateTime.ofInstant(nowInstant, clock.getZone());
         LocalDateTime activityStaleBefore =
                 now.minus(PaymentConfirmClaimTransactionService.CONFIRM_RECOVERY_DELAY);
-        LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(
-                nowInstant.minus(PaymentConfirmClaimTransactionService.CONFIRM_RECOVERY_DELAY), ZoneOffset.UTC);
-        if (!attempt.isConfirmRecoveryCandidate(activityStaleBefore, createdAtStaleBeforeUtc)) {
+        if (!attempt.isConfirmRecoveryCandidate(activityStaleBefore)) {
             return new RecoverySkipped();
         }
         attempt.markConfirmRecoveryAttempted(now);

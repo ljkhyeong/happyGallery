@@ -26,7 +26,7 @@ class PaymentAttemptPolicyTest {
         LocalDateTime approvedAt = LocalDateTime.of(2026, 4, 23, 10, 0);
 
         String processingToken = attempt.startProcessing(10_000L, "payment-key", processingAt);
-        attempt.markApproved(processingToken, "confirmed-payment-key", "CARD", approvedAt);
+        attempt.markApproved(processingToken, "confirmed-payment-key", "CARD", null, approvedAt);
         attempt.markConfirmed(12L, "encrypted-access-token");
 
         assertSoftly(softly -> {
@@ -53,6 +53,7 @@ class PaymentAttemptPolicyTest {
                 processingToken,
                 "confirmed-payment-key",
                 null,
+                null,
                 LocalDateTime.of(2026, 4, 23, 10, 1)))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception -> {
                     assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
@@ -70,7 +71,7 @@ class PaymentAttemptPolicyTest {
         attempt.markApproved(
                 processingToken,
                 "confirmed-payment-key",
-                "CARD",
+                "CARD", null,
                 LocalDateTime.of(2026, 4, 23, 10, 1));
 
         attempt.requireMatchingConfirmedPaymentKey("confirmed-payment-key");
@@ -139,14 +140,14 @@ class PaymentAttemptPolicyTest {
             softly.assertThat(secondToken).isNotEqualTo(firstToken);
             softly.assertThat(attempt.markRetryable(firstToken, "늦게 도착한 실패")).isFalse();
             softly.assertThat(attempt.markApproved(
-                    firstToken, "confirmed-payment-key", "CARD",
+                    firstToken, "confirmed-payment-key", "CARD", null,
                     LocalDateTime.of(2026, 7, 19, 10, 3))).isFalse();
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.PROCESSING);
             softly.assertThat(attempt.getProcessingToken()).isEqualTo(secondToken);
         });
 
         assertThat(attempt.markApproved(
-                secondToken, "confirmed-payment-key", "CARD",
+                secondToken, "confirmed-payment-key", "CARD", null,
                 LocalDateTime.of(2026, 7, 19, 10, 4))).isTrue();
         assertSoftly(softly -> {
             softly.assertThat(attempt.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
@@ -175,12 +176,12 @@ class PaymentAttemptPolicyTest {
 
         assertSoftly(softly -> {
             softly.assertThat(retryable.reconcileLatePgApproval(
-                    "retryable-confirmed-key", "CARD",
+                    "retryable-confirmed-key", "CARD", null,
                     LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
             softly.assertThat(retryable.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(retryable.getConfirmedPaymentKey()).isEqualTo("retryable-confirmed-key");
             softly.assertThat(failed.reconcileLatePgApproval(
-                    "failed-confirmed-key", "CARD",
+                    "failed-confirmed-key", "CARD", null,
                     LocalDateTime.of(2026, 7, 19, 10, 3))).isTrue();
             softly.assertThat(failed.getStatus()).isEqualTo(PaymentAttemptStatus.APPROVED);
             softly.assertThat(failed.getConfirmedPaymentKey()).isEqualTo("failed-confirmed-key");
@@ -201,37 +202,37 @@ class PaymentAttemptPolicyTest {
                 "retryable", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String retryableToken = retryable.startProcessing(10_000L, "retryable-key", boundary);
         retryable.markRetryable(retryableToken, "PG 일시 실패");
-        boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary, boundary);
+        boolean retryableAtBoundary = retryable.isConfirmRecoveryCandidate(boundary);
         retryable.markConfirmRecoveryAttempted(boundary.plusNanos(1));
 
         PaymentAttempt staleApproved = PaymentAttempt.startForMember(
                 "stale-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String staleToken = staleApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
-        staleApproved.markApproved(staleToken, "confirmed-key", "CARD", boundary);
+        staleApproved.markApproved(staleToken, "confirmed-key", "CARD", null, boundary);
         PaymentAttempt freshApproved = PaymentAttempt.startForMember(
                 "fresh-approved", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String freshToken = freshApproved.startProcessing(
                 10_000L, "approved-key", boundary.minusMinutes(10));
-        freshApproved.markApproved(freshToken, "confirmed-key", "CARD", boundary.plusNanos(1));
+        freshApproved.markApproved(freshToken, "confirmed-key", "CARD", null, boundary.plusNanos(1));
 
         PaymentAttempt confirmed = PaymentAttempt.startForMember(
                 "confirmed", PaymentContext.ORDER, 10_000L, "{}", 1L);
         String confirmedToken = confirmed.startProcessing(10_000L, "confirmed-key", boundary.minusMinutes(10));
-        confirmed.markApproved(confirmedToken, "confirmed-key", "CARD", boundary.minusMinutes(5));
+        confirmed.markApproved(confirmedToken, "confirmed-key", "CARD", null, boundary.minusMinutes(5));
         confirmed.markConfirmed(1L, null);
         PaymentAttempt zeroAmount = PaymentAttempt.startForMember(
                 "zero-amount", PaymentContext.BOOKING, 0L, "{}", 1L);
         zeroAmount.startProcessing(0L, null, boundary.minusYears(1));
 
         assertSoftly(softly -> {
-            softly.assertThat(staleProcessing.isConfirmRecoveryCandidate(boundary, boundary)).isTrue();
-            softly.assertThat(freshProcessing.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
+            softly.assertThat(staleProcessing.isConfirmRecoveryCandidate(boundary)).isTrue();
+            softly.assertThat(freshProcessing.isConfirmRecoveryCandidate(boundary)).isFalse();
             softly.assertThat(retryableAtBoundary).isTrue();
-            softly.assertThat(retryable.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
-            softly.assertThat(staleApproved.isConfirmRecoveryCandidate(boundary, boundary)).isTrue();
-            softly.assertThat(freshApproved.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
-            softly.assertThat(confirmed.isConfirmRecoveryCandidate(boundary, boundary)).isFalse();
+            softly.assertThat(retryable.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(staleApproved.isConfirmRecoveryCandidate(boundary)).isTrue();
+            softly.assertThat(freshApproved.isConfirmRecoveryCandidate(boundary)).isFalse();
+            softly.assertThat(confirmed.isConfirmRecoveryCandidate(boundary)).isFalse();
             softly.assertThat(zeroAmount.requiresConfirmReconciliation(boundary.minusDays(14))).isFalse();
         });
     }

@@ -54,12 +54,7 @@ public class DefaultCouponRedemptionService implements CouponRedemptionUseCase {
                 .orElseThrow(NotFoundException.supplier("쿠폰 정의"));
         issuedCoupon.requireAvailableAt(definition.getValidUntil(), now);
         long discountAmount = definition.calculateDiscount(productAmount, now);
-        return new CouponQuote(
-                issuedCoupon.getId(),
-                definition.getId(),
-                definition.getName(),
-                productAmount,
-                discountAmount);
+        return new CouponQuote(issuedCoupon.getId(), productAmount, discountAmount);
     }
 
     @Override

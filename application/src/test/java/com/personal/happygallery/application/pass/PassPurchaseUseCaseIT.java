@@ -105,7 +105,7 @@ class PassPurchaseUseCaseIT {
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
                 softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
-                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+                softly.assertThat(ledger.getAmount()).isEqualTo(4);
             });
         });
     }

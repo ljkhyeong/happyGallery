@@ -1357,7 +1357,7 @@ X-Access-Token: {accessToken}
 
 ### 2.5 이용권 API
 
-- 현재 판매 상품은 `REGULAR_CRAFT_4`(4회)다. 기존 `REGULAR_CRAFT_8`·`LEGACY_ALL_CLASSES` 구매 내역은 총 8회와 구매 당시 금액을 유지한다. 목록·상세는 각 구매의 `planName`, `totalCredits`, `remainingCredits`를 표시한다.
+- 판매 상품은 `REGULAR_CRAFT_4`(4회)다. 목록·상세는 각 구매의 `planName`, `totalCredits`, `remainingCredits`를 표시한다.
 
 #### ~~2.5.1 게스트 이용권 구매~~ (2026-03-19 제거)
 
@@ -1598,7 +1598,7 @@ X-Access-Token: {accessToken}
   - 쿠폰은 배송비를 제외한 상품 금액에 회원당 1장만 적용한다. `rewardEarnBase`는 상품 금액에서 쿠폰 할인과 적립금 사용을 뺀 신규 적립 기준이며, `issuedCouponId`는 쿠폰을 쓰지 않은 주문에서 `null`이다.
   - `couponStatus`는 주문에 사용한 쿠폰의 현재 상태(`AVAILABLE`, `RESERVED`, `REDEEMED`, `EXPIRED`, `CANCELED`)이며 쿠폰 미사용 주문은 `null`이다. 미사용 상태의 쿠폰은 조회 시 유효기간과 사용 중지 여부도 반영하되 저장 상태를 변경하지 않는다. 환불 완료 화면은 이 값으로 재사용 가능 여부를 안내한다.
   - 각 항목의 `grossAmount`, `couponDiscountAmount`, `rewardUsedAmount`, `netPaidAmount`는 주문 전체 혜택을 원 단위로 비례 배분한 불변 스냅샷이다. 항목 합계는 주문의 상품·쿠폰·적립금·적립 기준 금액과 각각 일치한다.
-  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다.
+  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. `productType`은 항상 값이 있고, 기성품의 구매조건 필드는 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - 주문 전액 취소는 PG 결제액과 사용 적립금을 각각 취소·복원하고, 취소 시점에도 유효한 쿠폰만 다시 사용할 수 있게 한다. 사용 쿠폰이 이미 만료됐다면 상태를 `EXPIRED`로 바꾸되 원 결제 시도·주문 연결과 사용 시각은 감사 이력으로 유지한다.
   - `status=PICKUP_EXPIRED`는 관리자 예외 환불 또는 정책 변경 전 자동 환불된 미수령 주문이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 상품 유형과 관계없는 미환불 미수령 종료이며 `refund=null`이다.
@@ -1937,14 +1937,14 @@ POST /api/v1/admin/orders/{id}/mark-delivered
 Authorization: Bearer {token}
 ```
 
-배송 출발은 택배사와 운송장 번호를 함께 받는다.
+배송 출발은 지원 택배사 코드와 운송장 번호를 함께 받는다.
 
 ```http
 POST /api/v1/admin/orders/{id}/mark-shipped
 Authorization: Bearer {token}
 Content-Type: application/json
 
-{ "carrier": "CJ대한통운", "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012" }
+{ "carrierCode": "CJ_LOGISTICS", "trackingNumber": "123456789012" }
 ```
 
 ```json
@@ -1962,8 +1962,8 @@ Content-Type: application/json
 - 정책:
   - `APPROVED_FULFILLMENT_PENDING` → `SHIPPING_PREPARING` → `SHIPPED` → `DELIVERED` 순서만 허용한다.
   - 결제 시 고객이 `SHIPPING`을 선택한 주문만 배송 흐름을 시작할 수 있다. 픽업 주문은 상태 변경 전에 거절한다.
-  - `mark-shipped`의 `carrier`와 `trackingNumber`는 공백일 수 없고 각각 최대 50자, 100자다. `carrierCode`는 선택값으로 기존 클라이언트와 호환하며 새 관리자 화면은 지원 택배사 enum을 반드시 선택한다.
-  - `carrierCode`가 있는 신규 출고는 배송조회 등록 대기 상태가 된다. 매분 25초 배치가 외부 서비스에 등록하고 일시 실패는 최대 10회 재시도한다. 연동 설정이 꺼져 있으면 출고 자체는 정상 처리하고 등록 대기를 유지한다.
+  - `mark-shipped`의 `carrierCode`는 지원 택배사 enum 필수값이고 `trackingNumber`는 공백일 수 없으며 최대 100자다. 응답의 `carrier` 표시명은 `carrierCode`에서 파생하며 자유 문자열 택배사는 받지 않는다.
+  - 출고는 배송조회 등록 대기 상태가 된다. 매분 25초 배치가 외부 서비스에 등록하고 일시 실패는 최대 10회 재시도한다. 연동 설정이 꺼져 있으면 출고 자체는 정상 처리하고 등록 대기를 유지한다.
   - 택배사 배송 완료 웹훅은 배송조회 상태와 이력만 갱신한다. 주문 `DELIVERED` 전이는 적립금과 후기 요청을 발생시키므로 관리자가 별도 API로 확정한다.
   - 각 전이는 `order_approvals` 이력에 `PREPARE_SHIPPING`, `SHIP`, `DELIVER`로 기록한다.
   - 이력의 adminId는 Bearer 세션이면 관리자 ID, 로컬 API key면 `null`이다.
@@ -1983,6 +1983,7 @@ X-Webhook-Signature: {HMAC-SHA256 hex}
   - 서명 입력은 `{timestamp}.{원문 JSON 바이트}`이며 `DELIVERY_WEBHOOK_SECRET`으로 HMAC-SHA256을 계산한다.
   - 서버 현재 시각과 5분 넘게 차이 나는 요청은 재전송 공격으로 보고 거절한다.
   - `clientId=order-{orderId}`이고 현재 fulfillment의 택배사 코드·운송장 번호와 일치하는 항목만 반영한다.
+  - 본문은 `items[]`의 `courierCode`, `trackingNumber`, `clientId`, `currentStatus`, `trackingData.deliveryStatusText`, `trackingData.progresses[]`만 읽고 다른 제공자 필드는 무시한다.
   - 웹훅 경로는 세션·CSRF 인증 대신 위 HMAC 서명을 신뢰 경계로 사용한다.
   - 최초 설정은 연동을 끈 상태에서 운영 서버에 `DELIVERY_WEBHOOK_SECRET`을 먼저 배포하고 같은 secret으로 웹훅 URL을 등록한다. 발급된 `endpointId`와 API 키를 설정한 뒤 `DELIVERY_TRACKING_ENABLED=true`로 전환한다.
 
@@ -3183,15 +3184,15 @@ Cookie: HG_SESSION={sessionToken}
 ```json
 {
   "passId": 300,
-  "planCode": "REGULAR_CRAFT_8",
-  "planName": "정규 공예 8회권",
+  "planCode": "REGULAR_CRAFT_4",
+  "planName": "정규 공예 4회권",
   "purchasedAt": "2026-07-01T10:00:00",
   "expiresAt": "2026-09-29T00:00:00",
-  "totalCredits": 8,
+  "totalCredits": 4,
   "remainingCredits": 0,
-  "totalPrice": 320000,
+  "totalPrice": 300000,
   "refund": {
-    "amount": 320000,
+    "amount": 300000,
     "status": "PROCESSING"
   }
 }
@@ -3663,7 +3664,7 @@ Content-Type: application/json
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
   - 주문제작 상품이 하나라도 포함되면 `madeToOrderConsentVersion`이 현재 정책 버전과 일치하고 `madeToOrderConsent=true`여야 한다. 서버는 현재 동의 문구 버전·전문·서버 동의 시각을 내부 payload에 확정하고 confirm 시 `orders`로 옮긴다. 기성품만 포함되면 이 값과 무관하게 동의 스냅샷을 만들지 않는다.
-  - V97 이전 구형 prepare 중 상품 유형이 없고 주문제작 동의도 없는 항목은 당시 기성품으로 해석해 `READY_STOCK` 주문 항목으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남은 prepare는 구매조건을 재현할 수 없으므로 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다. 이미 PG 승인이 저장된 구형 주문제작 시도가 자동 복구되면 주문을 만들지 않고 기존 보상 환불 경계로 격리한다.
+  - 저장 스냅샷에 상품 유형·품목별 혜택 금액·주문 혜택 금액이 없거나 주문제작 품목에 옵션 조합 ID가 없으면 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 전체 구매 요청에서는 버전을 생략할 수 있지만, `selectedCartItemIds`를 지정한 선택 구매에는 버전이 필수다. 현재 웹 클라이언트는 선택한 행 ID와 버전을 항상 전송한다.
@@ -3672,7 +3673,7 @@ Content-Type: application/json
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 이용권은 회원 전용).
   - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
-    `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
+    `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 내부에서만 사용하며
     OpenAPI 요청 schema에는 노출하지 않는다.
   - OpenAPI의 `PreparePaymentRequest.payload`는 `OrderPayload`, `BookingPayload`, `PassPayload`를 구분하는 `oneOf`다. 공통 `PaymentPayload`는 `type` discriminator mapping만 가지며 subtype `allOf`와 순환하지 않는다.
   - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`가 필수이며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
@@ -4191,7 +4192,7 @@ file={JPEG|PNG|WebP binary}
 ```
 
 - 1P는 주문에서 1원으로 사용한다. `availableBalance`는 즉시 사용 가능, `reservedBalance`는 결제 prepare 중 예약, `debtBalance`는 이미 쓴 적립금을 환불로 회수할 때 잔액이 부족해 이후 적립에서 먼저 상계할 금액이다.
-- 원장 유형은 `EARN|RESERVE|RELEASE|USE|RESTORE|EXPIRE|REVOKE|ADJUST`다. 만료·예약·사용·복원·회수는 원장과 잔액을 같은 트랜잭션으로 갱신한다.
+- 원장 유형은 `EARN|RESERVE|RELEASE|USE|RESTORE|EXPIRE|REVOKE`다. 만료·예약·사용·복원·회수는 원장과 잔액을 같은 트랜잭션으로 갱신한다.
 - 배송 완료 또는 픽업 완료 시 배송비·쿠폰·사용 적립금을 제외한 상품 순결제액의 1%를 원 미만 버림으로 한 번 적립하고, 적립분은 1년 뒤 만료한다.
 
 #### 2.20.5 관리자 쿠폰
@@ -4261,7 +4262,6 @@ file={JPEG|PNG|WebP binary}
 | 410 | `PAYMENT_RESULT_RETENTION_EXPIRED` | 최종 결제 결과의 30일 재조회 보존 기간이 지남 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 요청 본문의 미디어 타입을 처리할 수 없음 |
 | 429 | `TOO_MANY_REQUESTS` | 처리율 제한 초과 |
-| 422 | `REFUND_NOT_ALLOWED` | 예약금 환불 마감 이후 환불 요청 |
 | 422 | `PRODUCTION_REFUND_NOT_ALLOWED` | 제작 시작 후 주문 거절/일반 환불 시도 |
 | 422 | `CHANGE_NOT_ALLOWED` | 슬롯 시작 1시간 이내 변경 요청 |
 | 422 | `PASS_EXPIRED` | 만료된 이용권으로 예약 또는 전체 환불 시도 |

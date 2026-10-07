@@ -68,7 +68,7 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                 case ZeroAmountApprovalRequired required -> {
                     log.debug("amount=0 결제 — PG 호출 생략 [orderId={}]", required.orderId());
                     if (claimTransactionService.tryMarkApproved(
-                            required.attemptId(), required.processingToken(), null, null)) {
+                            required.attemptId(), required.processingToken(), null, null, null)) {
                         return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), 0L, null));
                     }
@@ -78,17 +78,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     PaymentConfirmResult pg = callPayment(required);
                     if (!pg.success()) {
                         String reason = failureReason(pg.failReason(), "결제 확정에 실패했습니다.");
-                        if (pg.reconciliationRequired()) {
-                            if (claimTransactionService.tryRecordPgReconciliationRequired(
-                                    required.attemptId(), required.processingToken(), reason)) {
-                                appMetrics.incrementPaymentConfirmReconciliationRequired();
-                                throw new HappyGalleryException(
-                                        ErrorCode.PAYMENT_RECONCILIATION_REQUIRED, reason);
-                            }
-                            step = claimTransactionService.resolveAfterLostProcessingOwnership(command);
-                            continue;
-                        }
-                        if (!pg.retryable() && required.priorPgCallPossible()) {
+                        if (pg.reconciliationRequired()
+                                || (!pg.retryable() && required.priorPgCallPossible())) {
                             if (claimTransactionService.tryRecordPgReconciliationRequired(
                                     required.attemptId(), required.processingToken(), reason)) {
                                 appMetrics.incrementPaymentConfirmReconciliationRequired();
@@ -114,13 +105,9 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                     String confirmedPaymentMethod = pg.method();
                     boolean approved;
                     try {
-                        approved = pg.receiptUrl() == null
-                                ? claimTransactionService.tryMarkApproved(
-                                        required.attemptId(), required.processingToken(),
-                                        confirmedPaymentKey, confirmedPaymentMethod)
-                                : claimTransactionService.tryMarkApproved(
-                                        required.attemptId(), required.processingToken(),
-                                        confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
+                        approved = claimTransactionService.tryMarkApproved(
+                                required.attemptId(), required.processingToken(),
+                                confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
                     } catch (RuntimeException approvalFailure) {
                         compensateUnpersistedApproval(
                                 required, confirmedPaymentKey, confirmedPaymentMethod, approvalFailure);
@@ -130,11 +117,8 @@ public class DefaultPaymentConfirmService implements PaymentConfirmUseCase {
                         return fulfill(new ReadyForFulfillment(
                                 required.attemptId(), required.orderId(), required.amount(), confirmedPaymentKey));
                     }
-                    step = pg.receiptUrl() == null
-                            ? claimTransactionService.reconcileLatePgApproval(
-                                    command, confirmedPaymentKey, confirmedPaymentMethod)
-                            : claimTransactionService.reconcileLatePgApproval(
-                                    command, confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
+                    step = claimTransactionService.reconcileLatePgApproval(
+                            command, confirmedPaymentKey, confirmedPaymentMethod, pg.receiptUrl());
                 }
             }
         }

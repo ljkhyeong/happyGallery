@@ -281,7 +281,7 @@ class OrderPaymentBenefitUseCaseIT {
         claimTransactionService.reconcileLatePgApproval(
                 customerCommand("benefit-failure-key", prepared, user),
                 "late-confirmed-benefit-key",
-                "CARD");
+                "CARD", null);
         PaymentConfirmUseCase.ConfirmResult recovered = confirmUseCase.confirm(
                 customerCommand("benefit-failure-key", prepared, user));
 

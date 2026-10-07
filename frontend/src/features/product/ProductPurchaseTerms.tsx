@@ -11,7 +11,6 @@ interface Props {
   productionLeadDays: number | null;
   compact?: boolean;
   showCustomizationInquiry?: boolean;
-  showLegacySnapshotNotice?: boolean;
 }
 
 export function ProductPurchaseTerms({
@@ -22,18 +21,11 @@ export function ProductPurchaseTerms({
   productionLeadDays,
   compact = false,
   showCustomizationInquiry = true,
-  showLegacySnapshotNotice = false,
 }: Props) {
   const isMadeToOrder = type === "MADE_TO_ORDER";
 
   return (
     <div className={compact ? "small" : ""}>
-      {type == null && showLegacySnapshotNotice && (
-        <Alert variant="secondary" className="py-2 mb-2">
-          구매 조건 저장 기능을 도입하기 전 주문입니다.
-          당시 안내 내용은 주문 상담 기록으로 확인해 주세요.
-        </Alert>
-      )}
       {isMadeToOrder && showCustomizationInquiry && (
         <Alert variant="info" className="py-2 mb-2">
           온라인 주문은 아래 고정 사양으로 결제 후 제작합니다.

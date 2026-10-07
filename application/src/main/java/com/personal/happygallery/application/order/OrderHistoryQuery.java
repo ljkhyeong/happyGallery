@@ -10,9 +10,5 @@ public record OrderHistoryQuery(String keyword, OrderStatus status, OrderHistory
         sort = sort == null ? OrderHistorySort.LATEST : sort;
     }
 
-    public boolean isDefault() {
-        return keyword == null && status == null && sort == OrderHistorySort.LATEST;
-    }
-
     public enum OrderHistorySort { LATEST, OLDEST, AMOUNT_DESC, AMOUNT_ASC }
 }

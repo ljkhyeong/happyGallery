@@ -4,7 +4,6 @@ import com.personal.happygallery.application.order.port.in.OrderApprovalUseCase;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
@@ -36,20 +35,17 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
     private static final Logger log = LoggerFactory.getLogger(DefaultOrderApprovalService.class);
 
     private final OrderReaderPort orderReader;
-    private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
     private final OrderHistoryPort orderHistoryPort;
     private final OrderRefundSupport orderRefundSupport;
     private final OrderNotificationSupport orderNotificationSupport;
 
     public DefaultOrderApprovalService(OrderReaderPort orderReader,
-                                OrderStorePort orderStore,
                                 OrderItemPort orderItemPort,
                                 OrderHistoryPort orderHistoryPort,
                                 OrderRefundSupport orderRefundSupport,
                                 OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
-        this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.orderHistoryPort = orderHistoryPort;
         this.orderRefundSupport = orderRefundSupport;
@@ -80,9 +76,8 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.APPROVE, adminId, null));
         log.info("order approved [orderId={} adminId={} madeToOrder={}]", orderId, adminId, isMadeToOrder);
-        Order saved = orderStore.save(order);
-        orderNotificationSupport.notifyCustomer(saved, NotificationEventType.ORDER_APPROVED);
-        return saved;
+        orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_APPROVED);
+        return order;
     }
 
     /**
@@ -108,7 +103,7 @@ public class DefaultOrderApprovalService implements OrderApprovalUseCase {
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.REJECT, adminId, null));
         log.info("order rejected [orderId={} adminId={}]", orderId, adminId);
 
-        return new RejectResult(orderStore.save(order), refund);
+        return new RejectResult(order, refund);
     }
 
 }

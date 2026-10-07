@@ -2,12 +2,12 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.coupon.port.in.CouponRedemptionUseCase;
 import com.personal.happygallery.application.customer.MemberAccountGuard;
-import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderPayload;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.FulfillmentType;
+import com.personal.happygallery.domain.order.OrderPricingSnapshot;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import java.time.LocalDateTime;
@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static com.personal.happygallery.support.TestFixtures.preparedReadyStockItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -39,12 +40,13 @@ class OrderPaymentBenefitReservationServiceTest {
                 null,
                 null,
                 null,
-                List.of(new PreparedOrderItem(1L, "상품", 1, 10_000L)),
+                List.of(preparedReadyStockItem(1L, "상품", 1, 10_000L)),
                 false,
                 FulfillmentType.PICKUP,
                 null,
                 0L,
-                null);
+                null,
+                OrderPricingSnapshot.fullPrice(10_000L, 0L));
         PaymentAttempt pending = attempt("pending");
 
         assertThatThrownBy(() -> service.release(pending, payload, LocalDateTime.now()))

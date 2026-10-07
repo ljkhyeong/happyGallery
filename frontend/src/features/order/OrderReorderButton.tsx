@@ -50,7 +50,7 @@ function ReorderDialog({ item, onClose }: { item: OrderItem; onClose: () => void
   const selection = product ? productSelectionView(product, { productVariantId: item.productVariantId, textInputs: [] }) : null;
   const requiresSelection = product && selection && (
     item.options.some((option) => option.type === "TEXT")
-    || (item.productType !== null && item.productType !== product.type)
+    || item.productType !== product.type
     || !selection.configurationValid
     || selectOptionsKey(item.options) !== selectOptionsKey(selection.options)
   );

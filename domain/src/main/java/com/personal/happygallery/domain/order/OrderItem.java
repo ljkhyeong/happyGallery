@@ -43,7 +43,7 @@ public class OrderItem {
     private String productName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "product_type", length = 20)
+    @Column(name = "product_type", nullable = false, length = 20)
     private ProductType productType;
 
     @Column(length = 2_000)
@@ -90,46 +90,6 @@ public class OrderItem {
     private long netPaidAmount;
 
     protected OrderItem() {}
-
-    /**
-     * 주문 상품 라인 생성.
-     *
-     * @param order     소속 주문
-     * @param productId 상품 ID
-     * @param productName 결제 준비 시점 상품명
-     * @param qty         수량
-     * @param unitPrice   단가 (원)
-     */
-    public OrderItem(Order order, Long productId, String productName, int qty, long unitPrice) {
-        this(order, productId, productName, ProductType.READY_STOCK,
-                qty, unitPrice, null, null, null,
-                OrderItemPricing.fullPrice(qty, unitPrice));
-    }
-
-    public OrderItem(Order order, Long productId, String productName, int qty, long unitPrice,
-                     String specification, String careInstructions, Integer productionLeadDays) {
-        this(order, productId, productName,
-                productionLeadDays == null ? ProductType.READY_STOCK : ProductType.MADE_TO_ORDER,
-                qty, unitPrice, specification, careInstructions, productionLeadDays,
-                OrderItemPricing.fullPrice(qty, unitPrice));
-    }
-
-    public OrderItem(Order order, Long productId, String productName, ProductType productType,
-                     int qty, long unitPrice, String specification,
-                     String careInstructions, Integer productionLeadDays) {
-        this(order, productId, productName, productType, qty, unitPrice,
-                specification, careInstructions, productionLeadDays,
-                OrderItemPricing.fullPrice(qty, unitPrice));
-    }
-
-    public OrderItem(Order order, Long productId, String productName, ProductType productType,
-                     int qty, long unitPrice, String specification,
-                     String careInstructions, Integer productionLeadDays,
-                     OrderItemPricing pricing) {
-        this(order, productId, null, productName, productType,
-                qty, unitPrice, unitPrice, 0L, 0L, List.of(),
-                specification, careInstructions, productionLeadDays, pricing);
-    }
 
     public OrderItem(Order order, Long productId, Long productVariantId,
                      String productName, ProductType productType,

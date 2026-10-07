@@ -72,7 +72,6 @@ class DefaultOrderClaimServiceTest {
         when(order.getUserId()).thenReturn(23L);
         when(dependencies.orderClaimItemPort.findByClaimIdIn(List.of(7L)))
                 .thenReturn(List.of());
-        when(dependencies.orderClaimPort.save(claim)).thenReturn(claim);
         when(dependencies.viewAssembler.assemble(claim)).thenReturn(expected);
 
         OrderClaimView result = dependencies.service().resolve(

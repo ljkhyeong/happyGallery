@@ -10,12 +10,8 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 
-public record DeliveryTrackingWebhookRequest(
-        String event,
-        String requestId,
-        String timestamp,
-        List<Item> items
-) {
+/** 배송조회 웹훅 본문. 주문 배송 상태 갱신에 읽는 필드만 선언하고 나머지 제공자 필드는 무시한다. */
+public record DeliveryTrackingWebhookRequest(List<Item> items) {
     private static final String ORDER_CLIENT_PREFIX = "order-";
     private static final DateTimeFormatter PROGRESS_TIME =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -35,9 +31,6 @@ public record DeliveryTrackingWebhookRequest(
             String trackingNumber,
             String clientId,
             String currentStatus,
-            String previousStatus,
-            Boolean hasChanged,
-            Boolean isDelivered,
             TrackingData trackingData
     ) {
         private Optional<TrackingUpdate> toUpdate() {
@@ -61,17 +54,7 @@ public record DeliveryTrackingWebhookRequest(
         }
     }
 
-    public record TrackingData(
-            String trackingNumber,
-            String courierCode,
-            String courierName,
-            String deliveryStatus,
-            String deliveryStatusText,
-            Boolean isDelivered,
-            String dateLastProgress,
-            List<Progress> progresses,
-            String queriedAt
-    ) {}
+    public record TrackingData(String deliveryStatusText, List<Progress> progresses) {}
 
     public record Progress(
             String dateTime,

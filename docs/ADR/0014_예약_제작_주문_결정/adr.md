@@ -144,7 +144,7 @@ READY_STOCK의 지연 제안은 승인 전 재고 부족 대응이며, 승인이
 `setExpectedShipDate`는 설정·갱신마다 `SHIP_DATE_UPDATED` 이력을 추가하고, 변경 전·후 날짜를 `reason`에 남긴다. `proposeDelay`의 `DELAY` 이력도 같은 Bearer admin id를 사용한다.
 `setExpectedShipDate`는 `IN_PRODUCTION`, `DELAY_CONSENT_PENDING`, `DELAY_ACCEPTED`, `SHIPPING_PREPARING` 상태의 SHIPPING fulfillment에서만 허용한다.
 `Fulfillment.setExpectedShipDate()`가 SHIPPING 타입을 직접 검증해 변경 메서드 밖의 중복 사전 검증을 두지 않는다.
-`mark-shipped`는 `carrier`와 `trackingNumber`를 필수로 받고 둘을 한 쌍으로 저장한다. 픽업 fulfillment에는
+`mark-shipped`는 `carrierCode`와 `trackingNumber`를 필수로 받고 택배사 표시명과 운송장을 한 쌍으로 저장한다. 픽업 fulfillment에는
 운송 정보를 저장할 수 없다.
 
 ---

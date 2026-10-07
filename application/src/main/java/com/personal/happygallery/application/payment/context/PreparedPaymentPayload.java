@@ -15,12 +15,12 @@ import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.ProductType;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * prepare에서 서버가 확정해 결제 시도에 암호화 저장하는 내부 스냅샷.
  *
- * <p>Jackson subtype 이름은 기존 저장 JSON과의 호환을 위해 변경하지 않는다.
+ * <p>필수 값 누락은 역직렬화가 아니라 각 fulfiller의 저장 payload 검증에서
+ * "결제를 다시 준비해 주세요" 오류로 거절한다.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -59,43 +59,6 @@ public sealed interface PreparedPaymentPayload {
                 throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "수령 방법과 배송비가 일치하지 않습니다.");
             }
         }
-
-        public PreparedOrderPayload(Long userId,
-                                    String phone,
-                                    String guestVerificationProof,
-                                    String name,
-                                    List<PreparedOrderItem> items) {
-            this(userId, phone, guestVerificationProof, name, items,
-                    false, FulfillmentType.PICKUP, null, 0L, null, null);
-        }
-
-        public PreparedOrderPayload(Long userId,
-                                    String phone,
-                                    String guestVerificationProof,
-                                    String name,
-                                    List<PreparedOrderItem> items,
-                                    boolean cartCheckout,
-                                    FulfillmentType fulfillmentType,
-                                    ShippingAddress shippingAddress,
-                                    long shippingFee) {
-            this(userId, phone, guestVerificationProof, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, shippingFee, null, null);
-        }
-
-        /** 혜택 스냅샷 도입 전에 생성된 호출부·저장 JSON 호환 생성자. */
-        public PreparedOrderPayload(Long userId,
-                                    String phone,
-                                    String guestVerificationProof,
-                                    String name,
-                                    List<PreparedOrderItem> items,
-                                    boolean cartCheckout,
-                                    FulfillmentType fulfillmentType,
-                                    ShippingAddress shippingAddress,
-                                    long shippingFee,
-                                    MadeToOrderConsent madeToOrderConsent) {
-            this(userId, phone, guestVerificationProof, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, shippingFee, madeToOrderConsent, null);
-        }
     }
 
     record PreparedOrderItem(
@@ -119,54 +82,6 @@ public sealed interface PreparedPaymentPayload {
         public PreparedOrderItem {
             optionSnapshots = optionSnapshots == null ? List.of() : List.copyOf(optionSnapshots);
         }
-
-        public long effectiveBasePrice() {
-            return basePrice == 0L ? unitPrice : basePrice;
-        }
-
-        /** V97 이전 저장 JSON과 테스트 fixture는 구매 조건과 상품 유형이 모두 null이다. */
-        public PreparedOrderItem(Long productId, String productName, int qty, long unitPrice) {
-            this(null, productId, null, productName, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(), null, null, null, null, null);
-        }
-
-        /** V97 이전 장바구니 결제 스냅샷 호환 생성자. */
-        public PreparedOrderItem(
-                Long cartItemId, Long productId, String productName, int qty, long unitPrice) {
-            this(cartItemId, productId, null, productName, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(), null, null, null, null, null);
-        }
-
-        /** 혜택 스냅샷 도입 전 호출부·저장 JSON 호환 생성자. */
-        public PreparedOrderItem(
-                Long cartItemId,
-                Long productId,
-                String productName,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays,
-                ProductType productType) {
-            this(cartItemId, productId, productName, qty, unitPrice,
-                    specification, careInstructions, productionLeadDays, productType, null);
-        }
-
-        public PreparedOrderItem(
-                Long cartItemId,
-                Long productId,
-                String productName,
-                int qty,
-                long unitPrice,
-                String specification,
-                String careInstructions,
-                Integer productionLeadDays,
-                ProductType productType,
-                OrderItemPricing pricing) {
-            this(cartItemId, productId, null, productName, qty, unitPrice,
-                    unitPrice, 0L, 0L, List.of(), specification, careInstructions,
-                    productionLeadDays, productType, pricing);
-        }
     }
 
     record PreparedOrderOption(
@@ -187,20 +102,8 @@ public sealed interface PreparedPaymentPayload {
             DepositPaymentMethod paymentMethod,
             long depositAmount,
             long balanceAmount,
-            Integer participantCount
-    ) implements PreparedPaymentPayload {
+            int participantCount
+    ) implements PreparedPaymentPayload {}
 
-        /** V95 배포 전에 저장된 미확정 결제 시도는 기존 단일 인원 계약으로 복구한다. */
-        public int effectiveParticipantCount() {
-            return Objects.requireNonNullElse(participantCount, 1);
-        }
-    }
-
-    record PreparedPassPayload(Long userId, long totalPrice, PassPlan plan) implements PreparedPaymentPayload {
-
-        public PreparedPassPayload {
-            // 종류를 저장하기 전에 준비한 결제는 당시 판매하던 8회권으로 완료한다.
-            plan = Objects.requireNonNullElse(plan, PassPlan.REGULAR_CRAFT_8);
-        }
-    }
+    record PreparedPassPayload(Long userId, long totalPrice, PassPlan plan) implements PreparedPaymentPayload {}
 }

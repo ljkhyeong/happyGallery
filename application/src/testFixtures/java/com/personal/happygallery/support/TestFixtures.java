@@ -1,6 +1,7 @@
 package com.personal.happygallery.support;
 
 import com.personal.happygallery.application.crypto.SpringSecurityFieldEncryptor;
+import com.personal.happygallery.application.payment.context.PreparedPaymentPayload.PreparedOrderItem;
 import com.personal.happygallery.application.policy.PolicyAcceptance;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
@@ -9,6 +10,9 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderItemPricing;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.product.Inventory;
@@ -16,6 +20,7 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -68,11 +73,28 @@ public final class TestFixtures {
                 expiresAt.minusDays(90),
                 expiresAt,
                 totalPrice,
-                PassPlan.REGULAR_CRAFT_8);
+                PassPlan.REGULAR_CRAFT_4);
     }
 
     public static Product readyStockProduct(String name, long price) {
         return new Product(name, ProductType.READY_STOCK, price);
+    }
+
+    /** 할인 없는 기성품 주문 상품 라인. */
+    public static OrderItem readyStockOrderItem(
+            Order order, Long productId, String productName, int qty, long unitPrice) {
+        return new OrderItem(
+                order, productId, null, productName, ProductType.READY_STOCK, qty, unitPrice, unitPrice,
+                0L, 0L, List.of(), null, null, null, OrderItemPricing.fullPrice(qty, unitPrice));
+    }
+
+    /** prepare가 저장하는 형식과 같은 할인 없는 기성품 결제 품목 스냅샷. */
+    public static PreparedOrderItem preparedReadyStockItem(
+            Long productId, String productName, int qty, long unitPrice) {
+        return new PreparedOrderItem(
+                null, productId, null, productName, qty, unitPrice, unitPrice, 0L, 0L,
+                List.of(), null, null, null, ProductType.READY_STOCK,
+                OrderItemPricing.fullPrice(qty, unitPrice));
     }
 
     public static Inventory inventory(Product product, int quantity) {

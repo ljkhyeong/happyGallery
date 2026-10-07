@@ -86,39 +86,26 @@ public interface PaymentAttemptRepository
             SELECT id
             FROM payment_attempt
             WHERE (
-                    (
-                        status IN ('PROCESSING', 'RETRYABLE')
-                        AND (
-                            processing_at <= :activityStaleBefore
-                            OR (processing_at IS NULL AND created_at <= :createdAtStaleBeforeUtc)
-                        )
-                    )
-                    OR (
-                        status = 'APPROVED'
-                        AND (
-                            confirmed_at <= :activityStaleBefore
-                            OR (confirmed_at IS NULL AND created_at <= :createdAtStaleBeforeUtc)
-                        )
-                    )
+                    (status IN ('PROCESSING', 'RETRYABLE') AND processing_at <= :activityStaleBefore)
+                    OR (status = 'APPROVED' AND confirmed_at <= :activityStaleBefore)
                   )
               AND (
                     confirm_recovery_attempted_at IS NULL
                     OR confirm_recovery_attempted_at <= :activityStaleBefore
                   )
             ORDER BY GREATEST(
-                        CASE
-                            WHEN status = 'APPROVED' THEN COALESCE(confirmed_at, created_at)
-                            ELSE COALESCE(processing_at, created_at)
-                        END,
-                        COALESCE(confirm_recovery_attempted_at, created_at)
+                        CASE WHEN status = 'APPROVED' THEN confirmed_at ELSE processing_at END,
+                        COALESCE(
+                            confirm_recovery_attempted_at,
+                            CASE WHEN status = 'APPROVED' THEN confirmed_at ELSE processing_at END
+                        )
                      ),
                      id
             LIMIT :limit
             """, nativeQuery = true)
     List<Long> findConfirmRecoveryCandidateIds(
-                                               @Param("activityStaleBefore") LocalDateTime activityStaleBefore,
-                                               @Param("createdAtStaleBeforeUtc") LocalDateTime createdAtStaleBeforeUtc,
-                                               @Param("limit") int limit);
+            @Param("activityStaleBefore") LocalDateTime activityStaleBefore,
+            @Param("limit") int limit);
 
     @Override
     @Query(value = """

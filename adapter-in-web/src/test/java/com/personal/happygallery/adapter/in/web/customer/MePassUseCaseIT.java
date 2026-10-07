@@ -186,7 +186,7 @@ class MePassUseCaseIT {
                         .cookie(sessionCookie))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(1))
-                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundCredits").value(4))
                 .andExpect(jsonPath("$.refundAmount").value(240000))
                 .andExpect(jsonPath("$.refundStatus").value("REQUESTED"));
 
@@ -214,7 +214,7 @@ class MePassUseCaseIT {
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
 
         assertThat(passPurchaseRepository.findById(passId).orElseThrow().getRemainingCredits())
-                .isEqualTo(8);
+                .isEqualTo(4);
         assertThat(refundRepository.findByPassPurchaseId(passId)).isEmpty();
     }
 

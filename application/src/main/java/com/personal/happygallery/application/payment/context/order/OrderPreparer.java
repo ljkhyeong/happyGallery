@@ -224,7 +224,7 @@ public class OrderPreparer implements PaymentPreparer {
                     item.productName(),
                     item.qty(),
                     item.unitPrice(),
-                    item.effectiveBasePrice(),
+                    item.basePrice(),
                     item.variantPriceAdjustment(),
                     item.textOptionPriceAdjustment(),
                     item.optionSnapshots(),

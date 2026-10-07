@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -79,7 +80,7 @@ class ReviewNotificationEligibilityUseCaseIT {
                 new Product("후기 알림 상품", ProductType.READY_STOCK, 30_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         NotificationReminderRecipient recipient = NotificationReminderRecipient.forUser(user.getId());
 
         assertThat(eligibilityPort.findOrderRequestRecipient(order.getId())).contains(recipient);
@@ -145,7 +146,7 @@ class ReviewNotificationEligibilityUseCaseIT {
                 new Product("상태 알림 상품", ProductType.READY_STOCK, 40_000L));
         Order order = completedOrder(user, product.getPrice());
         OrderItem orderItem = orderItemRepository.saveAndFlush(
-                new OrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
+                readyStockOrderItem(order, product.getId(), product.getName(), 1, product.getPrice()));
         Review review = reviewRepository.saveAndFlush(Review.forProduct(
                 user.getId(), orderItem.getId(), product.getId(), 4, "정성스러운 작품이에요", now()));
         AdminUser admin = adminUserRepository.saveAndFlush(

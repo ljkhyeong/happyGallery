@@ -17,8 +17,6 @@ public interface RefundPort {
 
     Optional<Refund> findDirectByOrderId(Long orderId);
 
-    Optional<Refund> findByOrderClaimId(Long orderClaimId);
-
     Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
 
     Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);

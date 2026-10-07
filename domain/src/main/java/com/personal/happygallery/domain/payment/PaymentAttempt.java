@@ -203,18 +203,6 @@ public class PaymentAttempt {
     public boolean markApproved(String expectedProcessingToken,
                                 String confirmedPaymentKey,
                                 String confirmedPaymentMethod,
-                                LocalDateTime approvedAt) {
-        return markApproved(
-                expectedProcessingToken,
-                confirmedPaymentKey,
-                confirmedPaymentMethod,
-                null,
-                approvedAt);
-    }
-
-    public boolean markApproved(String expectedProcessingToken,
-                                String confirmedPaymentKey,
-                                String confirmedPaymentMethod,
                                 String confirmedReceiptUrl,
                                 LocalDateTime approvedAt) {
         if (!ownsProcessing(expectedProcessingToken)) {
@@ -229,13 +217,6 @@ public class PaymentAttempt {
      * 실패 결과와 달리 외부 승인은 이미 성립한 사실이므로, 새 실행이 처리 중이거나 실패로 끝났어도
      * 도메인 생성 전 APPROVED로 변경한다.
      */
-    public boolean reconcileLatePgApproval(String confirmedPaymentKey,
-                                           String confirmedPaymentMethod,
-                                           LocalDateTime approvedAt) {
-        return reconcileLatePgApproval(
-                confirmedPaymentKey, confirmedPaymentMethod, null, approvedAt);
-    }
-
     public boolean reconcileLatePgApproval(String confirmedPaymentKey,
                                            String confirmedPaymentMethod,
                                            String confirmedReceiptUrl,
@@ -264,6 +245,7 @@ public class PaymentAttempt {
         if (amount == 0 && hasConfirmedPaymentKey) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "0원 결제에는 PG 승인 키를 저장할 수 없습니다.");
         }
+        Objects.requireNonNull(approvedAt, "approvedAt");
         this.status = PaymentAttemptStatus.APPROVED;
         this.confirmedPaymentKey = confirmedPaymentKey;
         this.confirmedPaymentMethod = confirmedPaymentMethod;
@@ -379,21 +361,15 @@ public class PaymentAttempt {
      * confirm 도중 프로세스 또는 DB 장애로 중단된 시도인지 판정한다.
      *
      * <p>PG 결과 저장 전인 PROCESSING은 선점 시각을, PG 승인 저장 후인 APPROVED는 승인 시각을 기준으로 한다.
-     * 시각이 없는 과거 데이터는 생성 시각까지 제한 시간을 넘긴 경우에만 복구한다.
      */
-    public boolean isConfirmRecoveryCandidate(LocalDateTime activityStaleBefore,
-                                              LocalDateTime createdAtStaleBeforeUtc) {
+    public boolean isConfirmRecoveryCandidate(LocalDateTime activityStaleBefore) {
         if (confirmRecoveryAttemptedAt != null
                 && !isAtOrBefore(confirmRecoveryAttemptedAt, activityStaleBefore)) {
             return false;
         }
         return switch (status) {
-            case PROCESSING, RETRYABLE -> processingAt != null
-                    ? isAtOrBefore(processingAt, activityStaleBefore)
-                    : isAtOrBefore(createdAt, createdAtStaleBeforeUtc);
-            case APPROVED -> confirmedAt != null
-                    ? isAtOrBefore(confirmedAt, activityStaleBefore)
-                    : isAtOrBefore(createdAt, createdAtStaleBeforeUtc);
+            case PROCESSING, RETRYABLE -> isAtOrBefore(processingAt, activityStaleBefore);
+            case APPROVED -> isAtOrBefore(confirmedAt, activityStaleBefore);
             default -> false;
         };
     }

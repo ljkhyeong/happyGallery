@@ -42,15 +42,7 @@ public interface PaymentConfirmUseCase {
             String accessToken,
             boolean accessRecoveryRequired,
             String receiptUrl
-    ) {
-        public ConfirmResult(
-                PaymentContext context,
-                Long domainId,
-                String accessToken,
-                boolean accessRecoveryRequired) {
-            this(context, domainId, accessToken, accessRecoveryRequired, null);
-        }
-    }
+    ) {}
 
     ConfirmResult confirm(ConfirmCommand command);
 }

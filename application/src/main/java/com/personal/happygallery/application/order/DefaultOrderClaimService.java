@@ -104,20 +104,15 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
     @Override
     public OrderClaimView requestGuestClaim(Long orderId, String accessToken, RequestCommand command) {
-        Order order = requireOrderForUpdate(orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
-        return request(order, command);
+        return request(
+                OrderLookups.requireGuestOrderForUpdate(orderReader, guestTokenService, orderId, accessToken),
+                command);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listMemberClaims(Long orderId, Long userId) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getUserId(), userId)) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireMemberOrder(orderReader, orderId, userId);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
@@ -125,10 +120,7 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     @Override
     @Transactional(readOnly = true)
     public List<OrderClaimView> listGuestClaims(Long orderId, String accessToken) {
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getAccessToken(), guestTokenService.resolveTokenHash(accessToken))) {
-            throw new NotFoundException("주문");
-        }
+        OrderLookups.requireGuestOrder(orderReader, guestTokenService, orderId, accessToken);
         return viewAssembler.assemble(
                 orderClaimPort.findByOrderIdOrderByRequestedAtDesc(orderId));
     }
@@ -171,9 +163,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
 
         if (!command.approved()) {
             claim.reject(adminId, command.note(), now());
-            OrderClaim saved = orderClaimPort.save(claim);
-            notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return viewAssembler.assemble(saved);
+            notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+            return viewAssembler.assemble(claim);
         }
 
         List<StockAdjustment> inventoryAdjustments = lines.stream()
@@ -188,9 +179,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             }
             orderStockService.deductAll(inventoryAdjustments);
             claim.approveExchange(adminId, command.note(), now());
-            OrderClaim saved = orderClaimPort.save(claim);
-            notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-            return viewAssembler.assemble(saved);
+            notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+            return viewAssembler.assemble(claim);
         }
 
         if (command.restoreInventory()) {
@@ -231,7 +221,6 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         validateCumulativeBenefits(order, approvedStateByItemId, allocation);
         orderClaimItemPort.saveAll(lines.stream().map(OrderClaimLine::claimItem).toList());
         claim.approveRefund(adminId, command.note(), now());
-        OrderClaim saved = orderClaimPort.save(claim);
         refundExecutionService.requestOrderClaimRefund(
                 order.getId(),
                 claim.getId(),
@@ -240,8 +229,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
                 allocation.rewardRestoreAmount(),
                 allocation.rewardRevokeAmount(),
                 order.getPaymentKey());
-        notifyCustomer(order, saved, NotificationEventType.ORDER_CLAIM_RESOLVED);
-        return viewAssembler.assemble(saved);
+        notifyCustomer(order, claim, NotificationEventType.ORDER_CLAIM_RESOLVED);
+        return viewAssembler.assemble(claim);
     }
 
     @Override
@@ -251,9 +240,8 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
         Order order = OrderLookups.requireOrder(orderReader, claim.getOrderId());
         claim.completeExchange(
                 adminId, command.carrier(), command.trackingNumber(), command.note(), now());
-        OrderClaim saved = orderClaimPort.save(claim);
-        notifyCustomer(order, saved, NotificationEventType.ORDER_EXCHANGE_COMPLETED);
-        return viewAssembler.assemble(saved);
+        notifyCustomer(order, claim, NotificationEventType.ORDER_EXCHANGE_COMPLETED);
+        return viewAssembler.assemble(claim);
     }
 
     private OrderClaimView request(Order order, RequestCommand command) {

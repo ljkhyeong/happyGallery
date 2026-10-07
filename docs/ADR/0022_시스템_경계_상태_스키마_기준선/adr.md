@@ -429,8 +429,8 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 #### 8회권
 
 - `pass_purchases`
-  - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits=8`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
-  - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_8`, 정책 도입 전 데이터는 `LEGACY_ALL_CLASSES`를 사용한다.
+  - `id`, `user_id NOT NULL`, `purchased_at`, `expires_at`, `plan_code`, `total_credits`, `remaining_credits`, `total_price`, `payment_key nullable`, `version`
+  - `plan_code`는 구매 시점 이용권 계약 스냅샷이다. 신규 구매는 `REGULAR_CRAFT_4`를 사용하고 `total_credits`는 계획의 총 횟수를 저장한다.
   - `V105`는 기존 `fk_pass_user`를 내리고 `user_id NOT NULL` 변경과 `fk_pass_user_v105` 재생성을 하나의 atomic `ALTER TABLE`로 적용한다. MySQL은 같은 ALTER 안에서 제거한 FK 이름을 즉시 재사용할 수 없어 새 이름을 쓴다. 기존 소유자 없는 행은 자동 귀속하지 않고 migration을 실패시키며, 실패한 DDL의 부분 적용이나 FK 유실을 남기지 않는다.
   - 서로 다른 테이블의 DDL은 하나의 Flyway migration 트랜잭션으로 묶이지 않으므로 환불 금액 제약은 별도 `V106`으로 분리한다. 각 migration은 단일 atomic DDL만 실행해 오염 데이터로 실패해도 다른 불변식이 부분 적용된 failed migration을 남기지 않는다.
 - `pass_ledger`

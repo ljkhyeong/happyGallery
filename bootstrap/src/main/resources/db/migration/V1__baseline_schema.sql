@@ -135,12 +135,12 @@ CREATE TABLE `pass_purchases` (
   `user_id` bigint NOT NULL,
   `purchased_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `expires_at` datetime(6) NOT NULL COMMENT 'purchased_at + 90일',
-  `plan_code` varchar(30) NOT NULL COMMENT '구매 시점 8회권 정책 코드',
-  `total_credits` int NOT NULL DEFAULT '8',
-  `remaining_credits` int NOT NULL DEFAULT '8',
-  `total_price` bigint NOT NULL DEFAULT '0' COMMENT '8회권 총 결제금액 (KRW)',
+  `plan_code` varchar(30) NOT NULL COMMENT '구매 시점 이용권 계획 코드',
+  `total_credits` int NOT NULL COMMENT '구매 계획의 총 이용 횟수',
+  `remaining_credits` int NOT NULL,
+  `total_price` bigint NOT NULL DEFAULT '0' COMMENT '이용권 총 결제금액 (KRW)',
   `version` bigint NOT NULL DEFAULT '0' COMMENT '낙관적 락 버전',
-  `payment_key` varchar(200) DEFAULT NULL COMMENT 'Toss paymentKey (8회권 결제 확정 시)',
+  `payment_key` varchar(200) DEFAULT NULL COMMENT 'Toss paymentKey (이용권 결제 확정 시)',
   PRIMARY KEY (`id`),
   KEY `idx_pass_purchases_expires_credits` (`expires_at`,`remaining_credits`),
   KEY `idx_pass_purchases_purchased_at` (`purchased_at`),
@@ -811,7 +811,7 @@ CREATE TABLE `order_items` (
   `product_id` bigint NOT NULL,
   `product_variant_id` bigint DEFAULT NULL,
   `product_name` varchar(255) NOT NULL COMMENT '결제 준비 시점 상품명 스냅샷',
-  `product_type` varchar(20) DEFAULT NULL COMMENT '결제 준비 시점 상품 유형 스냅샷; NULL은 V97 이전 주문',
+  `product_type` varchar(20) NOT NULL COMMENT '결제 준비 시점 상품 유형 스냅샷',
   `specification` varchar(2000) DEFAULT NULL COMMENT '결제 준비 시점 상품 고정 사양 스냅샷',
   `care_instructions` varchar(2000) DEFAULT NULL COMMENT '결제 준비 시점 관리 방법 스냅샷',
   `production_lead_days` int DEFAULT NULL COMMENT '결제 준비 시점 제작 기간(일) 스냅샷',
@@ -836,7 +836,7 @@ CREATE TABLE `order_items` (
   CONSTRAINT `chk_order_item_option_price_parts` CHECK (((`base_price` >= 1) and (`text_option_price_adjustment` >= 0) and (`unit_price` = ((`base_price` + `variant_price_adjustment`) + `text_option_price_adjustment`)))),
   CONSTRAINT `chk_order_items_benefit_amounts` CHECK (((`gross_amount` between 1 and 9007199254740991) and (`coupon_discount_amount` between 0 and `gross_amount`) and (`reward_used_amount` between 0 and (`gross_amount` - `coupon_discount_amount`)) and (`net_paid_amount` = ((`gross_amount` - `coupon_discount_amount`) - `reward_used_amount`)))),
   CONSTRAINT `chk_order_items_price_arithmetic` CHECK (((`qty` between 1 and 99) and (`unit_price` between 1 and 9007199254740991) and (`gross_amount` = (`qty` * `unit_price`)))),
-  CONSTRAINT `chk_order_items_purchase_terms` CHECK (((`product_type` is null) or ((`product_type` = 'MADE_TO_ORDER') and (`specification` is not null) and (char_length(trim(`specification`)) > 0) and (`production_lead_days` is not null) and (`production_lead_days` between 1 and 180)) or ((`product_type` = 'READY_STOCK') and (`production_lead_days` is null))))
+  CONSTRAINT `chk_order_items_purchase_terms` CHECK ((((`product_type` = 'MADE_TO_ORDER') and (`specification` is not null) and (char_length(trim(`specification`)) > 0) and (`production_lead_days` is not null) and (`production_lead_days` between 1 and 180)) or ((`product_type` = 'READY_STOCK') and (`production_lead_days` is null))))
 ) ENGINE=InnoDB;
 
 CREATE TABLE `order_claim_items` (

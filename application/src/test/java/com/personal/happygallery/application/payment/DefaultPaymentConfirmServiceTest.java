@@ -61,7 +61,7 @@ class DefaultPaymentConfirmServiceTest {
         ZeroAmountApprovalRequired required = new ZeroAmountApprovalRequired(1L, "order-id", "token");
         RuntimeException approvalFailure = new IllegalStateException("approval save failed");
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
-        when(claimTransactionService.tryMarkApproved(1L, "token", null, null)).thenThrow(approvalFailure);
+        when(claimTransactionService.tryMarkApproved(1L, "token", null, null, null)).thenThrow(approvalFailure);
 
         assertThatThrownBy(() -> service.confirm(COMMAND)).isSameAs(approvalFailure);
 
@@ -80,7 +80,7 @@ class DefaultPaymentConfirmServiceTest {
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.success("confirmed-key", "CARD", "approved-at"));
-        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD"))
+        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD", null))
                 .thenThrow(approvalFailure);
         when(fulfillmentTransactionService.requestCompensationForUnpersistedApproval(
                 1L, "token", "confirmed-key", "CARD", "PG 승인 후 결제 상태 저장에 실패했습니다."))
@@ -101,7 +101,7 @@ class DefaultPaymentConfirmServiceTest {
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.success("confirmed-key", "CARD", "approved-at"));
-        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD"))
+        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD", null))
                 .thenThrow(approvalFailure);
         when(fulfillmentTransactionService.requestCompensationForUnpersistedApproval(
                 1L, "token", "confirmed-key", "CARD", "PG 승인 후 결제 상태 저장에 실패했습니다."))
@@ -131,7 +131,7 @@ class DefaultPaymentConfirmServiceTest {
     @Test
     void confirm_stalePgFailure_returnsLatestCompletedResult() {
         PgConfirmationRequired required = paidConfirmationRequired();
-        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false, null);
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.failure("PG 거절"));
@@ -188,7 +188,7 @@ class DefaultPaymentConfirmServiceTest {
     @Test
     void confirm_stalePgIdentityMismatch_returnsLatestCompletedResult() {
         PgConfirmationRequired required = paidConfirmationRequired();
-        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false, null);
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.reconciliationRequired("PG 응답 식별자 불일치"));
@@ -208,19 +208,19 @@ class DefaultPaymentConfirmServiceTest {
         PgConfirmationRequired required = paidConfirmationRequired();
         ReadyForFulfillment ready = new ReadyForFulfillment(
                 1L, "order-id", 10_000L, "confirmed-key");
-        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false);
+        ConfirmResult completed = new ConfirmResult(PaymentContext.ORDER, 10L, null, false, null);
         when(claimTransactionService.resolveConfirmationStep(COMMAND)).thenReturn(required);
         when(paymentPort.confirm("payment-key", "order-id", 10_000L, "order-id"))
                 .thenReturn(PaymentConfirmResult.success("confirmed-key", "CARD", "approved-at"));
-        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD"))
+        when(claimTransactionService.tryMarkApproved(1L, "token", "confirmed-key", "CARD", null))
                 .thenReturn(false);
-        when(claimTransactionService.reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD"))
+        when(claimTransactionService.reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD", null))
                 .thenReturn(ready);
         when(fulfillmentTransactionService.fulfillAndConfirm(1L)).thenReturn(completed);
 
         assertThat(service.confirm(COMMAND)).isEqualTo(completed);
 
-        verify(claimTransactionService).reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD");
+        verify(claimTransactionService).reconcileLatePgApproval(COMMAND, "confirmed-key", "CARD", null);
     }
 
     @DisplayName("0원 fulfillment 실패 상태 저장 오류는 원래 fulfillment 예외를 가리지 않는다")
@@ -244,6 +244,6 @@ class DefaultPaymentConfirmServiceTest {
     }
 
     private PgConfirmationRequired paidConfirmationRequired() {
-        return new PgConfirmationRequired(1L, "order-id", 10_000L, "payment-key", "token");
+        return new PgConfirmationRequired(1L, "order-id", 10_000L, "payment-key", "token", false);
     }
 }

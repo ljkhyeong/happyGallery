@@ -34,8 +34,6 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
     @Query("SELECT r FROM Refund r WHERE r.orderId = :orderId AND r.orderClaimId IS NULL")
     Optional<Refund> findDirectByOrderId(@Param("orderId") Long orderId);
     @Override
-    Optional<Refund> findByOrderClaimId(Long orderClaimId);
-    @Override
     Optional<Refund> findByPassPurchaseId(Long passPurchaseId);
     @Override
     Optional<Refund> findByPaymentAttemptId(Long paymentAttemptId);

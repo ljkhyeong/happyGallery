@@ -39,7 +39,6 @@ public class AdminOrderShippingController {
         OrderShippingUseCase.ShippingResult result = orderShippingUseCase.markShipped(
                 id,
                 request.carrierCode(),
-                request.carrier(),
                 request.trackingNumber(),
                 admin.auditActorId());
         return ShippingResponse.from(result);

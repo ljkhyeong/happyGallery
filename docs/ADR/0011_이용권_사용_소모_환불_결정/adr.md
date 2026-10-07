@@ -27,7 +27,7 @@
 크레딧 차감 전에는 구매 시 저장한 `PassPlan`으로 클래스 카테고리와 `passEligible`을 함께 검증한다.
 prepare와 confirm 모두 클래스 적용 가능 여부를 먼저 확인한 뒤 현재 시각의 만료·잔여 횟수를 확인해,
 여러 조건이 동시에 위반된 경우에도 같은 오류 우선순위를 유지한다.
-신규 `REGULAR_CRAFT_4`와 기존 `REGULAR_CRAFT_8`은 `passEligible=true`인 정규 공예 클래스에만 사용할 수 있고 `PERFUME`에는 사용할 수 없다.
+`REGULAR_CRAFT_4`는 `passEligible=true`인 정규 공예 클래스에만 사용할 수 있고 `PERFUME`에는 사용할 수 없다.
 `UNIQUE(related_booking_id, type)`으로 같은 예약에 `USE` 또는 예약 취소 `REFUND`가 중복 기록되는 것도 차단한다.
 
 **이유**:

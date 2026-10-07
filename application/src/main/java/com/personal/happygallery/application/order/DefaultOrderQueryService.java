@@ -13,7 +13,6 @@ import com.personal.happygallery.application.payment.PaymentReceiptQuery;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.application.customer.port.out.MemberHistoryReaderPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
-import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.order.Fulfillment;
@@ -25,7 +24,6 @@ import com.personal.happygallery.application.token.GuestTokenService;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,32 +74,13 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 회원 — 자기 주문 목록 조회 */
     @Override
     public List<OrderSummary> listMyOrders(Long userId) {
-        return listMyOrders(userId, null, PageParams.MAX_SIZE).content();
+        return withItems(memberHistoryReader.findOrders(
+                userId, new OrderHistoryQuery(null, null, null), null, PageParams.MAX_SIZE)).content();
     }
 
     @Override
     public CursorPage<OrderSummary> listMyOrders(Long userId, OrderHistoryQuery query, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        if (query.isDefault()) return listMyOrders(userId, cursor, pageSize);
-        return withItems(memberHistoryReader.findOrders(userId, query, cursor, pageSize));
-    }
-
-    @Override
-    public CursorPage<OrderSummary> listMyOrders(Long userId, String cursor, int size) {
-        int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Order> orders;
-        if (cursor == null) {
-            orders = orderReader.findByUserIdOrderByCreatedAtDesc(userId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            orders = orderReader.findByUserIdOrderByCreatedAtDescAfterCursor(
-                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
-        return withItems(CursorPage.of(
-                orders,
-                pageSize,
-                order -> CursorUtils.encode(order.getCreatedAt(), order.getId())));
+        return withItems(memberHistoryReader.findOrders(userId, query, cursor, PageParams.requireSize(size)));
     }
 
     private CursorPage<OrderSummary> withItems(CursorPage<Order> page) {
@@ -117,9 +96,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 회원 — 자기 주문 상세 조회 (소유권 검증 포함) */
     @Override
     public OrderDetail findMyOrder(Long id, Long userId) {
-        Order order = orderReader.findById(id)
-                .filter(o -> Objects.equals(o.getUserId(), userId))
-                .orElseThrow(NotFoundException.supplier("주문"));
+        Order order = OrderLookups.requireMemberOrder(orderReader, id, userId);
         List<OrderItem> items = orderItemPort.findByOrder(order);
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(id).orElse(null);
         return detail(order, items, fulfillment);
@@ -128,11 +105,7 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     /** 토큰 기반 주문 상세 조회 — 입력 토큰을 SHA-256 해시 후 비교 */
     @Override
     public OrderDetail getOrderByToken(Long orderId, String rawToken) {
-        String tokenHash = guestTokenService.resolveTokenHash(rawToken);
-        Order order = OrderLookups.requireOrder(orderReader, orderId);
-        if (!Objects.equals(order.getAccessToken(), tokenHash)) {
-            throw new NotFoundException("주문");
-        }
+        Order order = OrderLookups.requireGuestOrder(orderReader, guestTokenService, orderId, rawToken);
         List<OrderItem> items = orderItemPort.findByOrder(order);
         Fulfillment fulfillment = fulfillmentPort.findByOrderId(orderId).orElse(null);
         return detail(order, items, fulfillment);
@@ -141,7 +114,6 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private OrderDetail detail(Order order, List<OrderItem> items, Fulfillment fulfillment) {
         ShippingAddress shippingAddress = fulfillment != null
                 && fulfillment.getType() == FulfillmentType.SHIPPING
-                && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
         return new OrderDetail(

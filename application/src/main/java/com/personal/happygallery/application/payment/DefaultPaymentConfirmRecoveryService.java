@@ -11,7 +11,6 @@ import com.personal.happygallery.domain.error.HappyGalleryException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +46,8 @@ public class DefaultPaymentConfirmRecoveryService implements PaymentConfirmRecov
         Instant staleBefore = clock.instant()
                 .minus(PaymentConfirmClaimTransactionService.CONFIRM_RECOVERY_DELAY);
         LocalDateTime activityStaleBefore = LocalDateTime.ofInstant(staleBefore, clock.getZone());
-        LocalDateTime createdAtStaleBeforeUtc = LocalDateTime.ofInstant(staleBefore, ZoneOffset.UTC);
         List<Long> attemptIds = attemptReader.findConfirmRecoveryCandidateIds(
-                activityStaleBefore, createdAtStaleBeforeUtc, BATCH_SIZE);
+                activityStaleBefore, BATCH_SIZE);
         return BatchExecutor.execute(
                 attemptIds,
                 attemptId -> attemptId,

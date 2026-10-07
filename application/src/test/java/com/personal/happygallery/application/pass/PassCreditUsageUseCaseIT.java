@@ -22,7 +22,6 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassLedger;
 import com.personal.happygallery.domain.pass.PassLedgerType;
-import com.personal.happygallery.domain.pass.PassPlan;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -58,7 +57,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import static com.personal.happygallery.support.BookingTestHelper.FUTURE;
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
-import static com.personal.happygallery.support.TestFixtures.defaultBookingClass;
 import static com.personal.happygallery.support.TestFixtures.passPurchase;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.awaitility.Awaitility.await;
@@ -137,7 +135,7 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 1: 이용권 예약 시 USE ledger(-1), remaining=7
+    // Proof 1: 이용권 예약 시 USE ledger(-1), remaining=3
     // -----------------------------------------------------------------------
 
     @DisplayName("이용권으로 예약하면 크레딧이 차감된다")
@@ -158,7 +156,7 @@ class PassCreditUsageUseCaseIT {
                 softly.assertThat(ledger.getAmount()).isEqualTo(1);
                 softly.assertThat(ledger.getRelatedBookingId()).isEqualTo(confirmed.domainId());
             });
-            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(3);
             softly.assertThat(bookings).singleElement().satisfies(booking -> {
                 softly.assertThat(booking.getId()).isEqualTo(confirmed.domainId());
                 softly.assertThat(booking.isPassBooking()).isTrue();
@@ -208,32 +206,10 @@ class PassCreditUsageUseCaseIT {
         PassPurchase reloadedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
         Slot reloadedSlot = slotRepository.findById(ineligibleSlot.getId()).orElseThrow();
         assertSoftly(softly -> {
-            softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(4);
             softly.assertThat(reloadedSlot.getBookedCount()).isZero();
             softly.assertThat(bookingRepository.findAll()).isEmpty();
             softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId())).isEmpty();
-        });
-    }
-
-    @DisplayName("정책 도입 전에 구매한 이용권은 기존처럼 향수 클래스에도 사용할 수 있다")
-    @Test
-    void book_with_legacyPass_forPerfumeClass_preservesPreviousContract() throws Exception {
-        jdbcTemplate.update(
-                "UPDATE pass_purchases SET plan_code = 'LEGACY_ALL_CLASSES' WHERE id = ?",
-                pass.getId());
-        BookingClass perfumeClass = classRepository.save(defaultBookingClass());
-        Slot perfumeSlot = slotRepository.save(slot(perfumeClass, FUTURE, FUTURE.plusHours(2)));
-
-        PaymentTestHelper.ConfirmedPayment confirmed = paymentHelper.createMemberPassBooking(
-                sessionCookie, pass.getUserId(), perfumeSlot.getId(), pass.getId());
-
-        PassPurchase reloadedPass = passPurchaseRepository.findById(pass.getId()).orElseThrow();
-        assertSoftly(softly -> {
-            softly.assertThat(confirmed.domainId()).isPositive();
-            softly.assertThat(reloadedPass.getPlan()).isEqualTo(PassPlan.LEGACY_ALL_CLASSES);
-            softly.assertThat(reloadedPass.getRemainingCredits()).isEqualTo(7);
-            softly.assertThat(slotRepository.findById(perfumeSlot.getId()).orElseThrow().getBookedCount())
-                    .isEqualTo(1);
         });
     }
 
@@ -281,7 +257,7 @@ class PassCreditUsageUseCaseIT {
                 .filter(ledger -> ledger.getType() == PassLedgerType.USE)
                 .toList();
         assertSoftly(softly -> {
-            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8 - bookingCount);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(4 - bookingCount);
             softly.assertThat(useLedgers).hasSize(bookingCount);
             softly.assertThat(useLedgers).extracting(ledger -> ledger.getRelatedBookingId())
                     .doesNotHaveDuplicates();
@@ -292,7 +268,7 @@ class PassCreditUsageUseCaseIT {
     }
 
     // -----------------------------------------------------------------------
-    // Proof 2: 이용권 횟수 복원 마감 이전 취소 → REFUND ledger(+1), remaining=8 복구
+    // Proof 2: 이용권 횟수 복원 마감 이전 취소 → REFUND ledger(+1), remaining=4 복구
     // -----------------------------------------------------------------------
 
     @DisplayName("이용권 예약을 기한 내 취소하면 크레딧이 환불된다")
@@ -318,7 +294,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(ledgers)
                     .filteredOn(ledger -> ledger.getType() == PassLedgerType.REFUND)
                     .singleElement();
-            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(8);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(4);
             softly.assertThat(refundRepository.count()).isEqualTo(0);
         });
     }
@@ -347,13 +323,13 @@ class PassCreditUsageUseCaseIT {
                     .containsExactlyInAnyOrder(PassLedgerType.USE, PassLedgerType.EXPIRE);
             softly.assertThat(ledgers).filteredOn(ledger -> ledger.getType() == PassLedgerType.EXPIRE)
                     .singleElement()
-                    .satisfies(ledger -> softly.assertThat(ledger.getAmount()).isEqualTo(7));
+                    .satisfies(ledger -> softly.assertThat(ledger.getAmount()).isEqualTo(3));
             softly.assertThat(ledgers).noneMatch(ledger -> ledger.getType() == PassLedgerType.REFUND);
         });
     }
 
     // -----------------------------------------------------------------------
-    // Proof 3: 이용권 횟수 복원 마감 이후 취소 → 크레딧 소멸 유지 (remaining=7)
+    // Proof 3: 이용권 횟수 복원 마감 이후 취소 → 크레딧 소멸 유지 (remaining=3)
     // -----------------------------------------------------------------------
 
     @DisplayName("이용권 예약을 늦게 취소하면 크레딧이 소멸된다")
@@ -378,7 +354,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(ledgers).singleElement()
                     .extracting(PassLedger::getType)
                     .isEqualTo(PassLedgerType.USE);
-            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(3);
         });
     }
 
@@ -411,7 +387,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(ledgers).singleElement()
                     .extracting(PassLedger::getType)
                     .isEqualTo(PassLedgerType.USE);
-            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(7);
+            softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(3);
         });
     }
 
@@ -434,7 +410,7 @@ class PassCreditUsageUseCaseIT {
                     .singleElement()
                     .satisfies(ledger -> softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.USE));
             softly.assertThat(passPurchaseRepository.findById(pass.getId()).orElseThrow().getRemainingCredits())
-                    .isEqualTo(7);
+                    .isEqualTo(3);
         });
     }
 
@@ -448,7 +424,7 @@ class PassCreditUsageUseCaseIT {
         Slot slot1 = slotRepository.save(slot(cls, FUTURE, FUTURE.plusHours(2)));
         Slot slot2 = slotRepository.save(slot(cls, FUTURE.plusDays(1), FUTURE.plusDays(1).plusHours(2)));
 
-        // 2회 예약 (remaining: 8 → 6). 미래 예약은 아직 쓰지 않은 크레딧이므로 전체 환불에 포함한다.
+        // 2회 예약 (remaining: 4 → 2). 미래 예약은 아직 쓰지 않은 크레딧이므로 전체 환불에 포함한다.
         createPassBooking(slot1.getId());
         createPassBooking(slot2.getId());
 
@@ -457,8 +433,8 @@ class PassCreditUsageUseCaseIT {
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(2))
-                .andExpect(jsonPath("$.refundCredits").value(8))
-                .andExpect(jsonPath("$.refundAmount").value(320_000)); // 8 × (320000/8)
+                .andExpect(jsonPath("$.refundCredits").value(4))
+                .andExpect(jsonPath("$.refundAmount").value(320_000)); // 4 × (320000/4)
 
         var bookings = bookingRepository.findAll();
         var ledgers = passLedgerRepository.findByPassPurchaseId(pass.getId());
@@ -500,7 +476,7 @@ class PassCreditUsageUseCaseIT {
                     .filteredOn(ledger -> ledger.getType() == PassLedgerType.REFUND)
                     .singleElement()
                     .extracting(PassLedger::getAmount)
-                    .isEqualTo(8);
+                    .isEqualTo(4);
             softly.assertThat(reloaded.getRemainingCredits()).isEqualTo(0);
             // Q1-T4: slot bookedCount 복구 확인
             softly.assertThat(reloadedSlot1.getBookedCount()).as("slot1 bookedCount").isEqualTo(0);
@@ -530,7 +506,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(reloaded.getRemainingCredits()).isZero();
             softly.assertThat(ledgers).singleElement().satisfies(ledger -> {
                 softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.EXPIRE);
-                softly.assertThat(ledger.getAmount()).isEqualTo(8);
+                softly.assertThat(ledger.getAmount()).isEqualTo(4);
             });
             softly.assertThat(refundRepository.count()).isZero();
         });
@@ -547,7 +523,7 @@ class PassCreditUsageUseCaseIT {
                         .header("X-Admin-Key", ADMIN_KEY))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.canceledBookings").value(0))
-                .andExpect(jsonPath("$.refundCredits").value(8))
+                .andExpect(jsonPath("$.refundCredits").value(4))
                 .andExpect(jsonPath("$.refundAmount").value(320_000))
                 .andExpect(jsonPath("$.refundStatus").value("REQUESTED"));
 
@@ -573,7 +549,7 @@ class PassCreditUsageUseCaseIT {
             softly.assertThat(passLedgerRepository.findByPassPurchaseId(pass.getId()))
                     .anySatisfy(ledger -> {
                         softly.assertThat(ledger.getType()).isEqualTo(PassLedgerType.REFUND);
-                        softly.assertThat(ledger.getAmount()).isEqualTo(8);
+                        softly.assertThat(ledger.getAmount()).isEqualTo(4);
                     });
         });
     }

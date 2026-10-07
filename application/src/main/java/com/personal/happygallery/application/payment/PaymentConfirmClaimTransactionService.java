@@ -140,15 +140,6 @@ class PaymentConfirmClaimTransactionService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public ConfirmationStep reconcileLatePgApproval(
-            ConfirmCommand command,
-            String confirmedPaymentKey,
-            String confirmedPaymentMethod) {
-        return reconcileLatePgApproval(
-                command, confirmedPaymentKey, confirmedPaymentMethod, null);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ConfirmationStep reconcileLatePgApproval(ConfirmCommand command,
                                                      String confirmedPaymentKey,
                                                      String confirmedPaymentMethod,
@@ -173,15 +164,6 @@ class PaymentConfirmClaimTransactionService {
         }
         attemptStore.save(attempt);
         return readyForFulfillment(attempt);
-    }
-
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public boolean tryMarkApproved(Long attemptId,
-                                   String processingToken,
-                                   String confirmedPaymentKey,
-                                   String confirmedPaymentMethod) {
-        return tryMarkApproved(
-                attemptId, processingToken, confirmedPaymentKey, confirmedPaymentMethod, null);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -337,14 +319,6 @@ class PaymentConfirmClaimTransactionService {
                                   String paymentKey,
                                   String processingToken,
                                   boolean priorPgCallPossible) implements ConfirmationStep {
-
-        PgConfirmationRequired(Long attemptId,
-                               String orderId,
-                               long amount,
-                               String paymentKey,
-                               String processingToken) {
-            this(attemptId, orderId, amount, paymentKey, processingToken, false);
-        }
 
         String idempotencyKey() {
             return orderId;

@@ -7,7 +7,6 @@ import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderHistoryPort;
 import com.personal.happygallery.application.order.port.out.OrderItemPort;
 import com.personal.happygallery.application.order.port.out.OrderReaderPort;
-import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.config.OptimisticLockRetryable;
 import com.personal.happygallery.domain.order.OrderApprovalDecision;
 import com.personal.happygallery.domain.booking.Refund;
@@ -38,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class DefaultOrderProductionService implements OrderProductionUseCase {
 
     private final OrderReaderPort orderReader;
-    private final OrderStorePort orderStore;
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final OrderHistoryPort orderHistoryPort;
@@ -46,14 +44,12 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
     private final OrderNotificationSupport orderNotificationSupport;
 
     public DefaultOrderProductionService(OrderReaderPort orderReader,
-                                         OrderStorePort orderStore,
                                          OrderItemPort orderItemPort,
                                          FulfillmentPort fulfillmentPort,
                                          OrderHistoryPort orderHistoryPort,
                                          OrderRefundSupport orderRefundSupport,
                                          OrderNotificationSupport orderNotificationSupport) {
         this.orderReader = orderReader;
-        this.orderStore = orderStore;
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.orderHistoryPort = orderHistoryPort;
@@ -76,7 +72,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
         LocalDate previousShipDate = fulfillment.getExpectedShipDate();
 
         fulfillment.setExpectedShipDate(command.expectedShipDate());
-        fulfillmentPort.save(fulfillment);
         orderHistoryPort.save(new OrderApprovalHistory(
                 order.getId(),
                 OrderApprovalDecision.SHIP_DATE_UPDATED,
@@ -108,7 +103,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
         orderHistoryPort.save(new OrderApprovalHistory(
                 order.getId(), OrderApprovalDecision.DELAY, command.adminId(), null));
-        orderStore.save(order);
         orderNotificationSupport.notifyCustomer(order, NotificationEventType.ORDER_DELAY_REQUESTED);
         return ProductionResult.of(order, fulfillment);
     }
@@ -134,7 +128,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.DELAY_CANCEL, adminId, null));
-        orderStore.save(order);
         return new DelayCancellationResult(ProductionResult.of(order, fulfillment), refund);
     }
 
@@ -152,7 +145,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.RESUME_PRODUCTION, adminId, null));
-        orderStore.save(order);
         return ProductionResult.of(order, fulfillment);
     }
 
@@ -171,7 +163,6 @@ public class DefaultOrderProductionService implements OrderProductionUseCase {
 
         orderHistoryPort.save(
                 new OrderApprovalHistory(order.getId(), OrderApprovalDecision.PRODUCTION_COMPLETE, adminId, null));
-        orderStore.save(order);
         return ProductionResult.of(order, fulfillment);
     }
 }

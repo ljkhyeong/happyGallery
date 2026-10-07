@@ -198,7 +198,6 @@ export function OrderListSection({
                           productionLeadDays={item.productionLeadDays}
                           compact
                           showCustomizationInquiry={false}
-                          showLegacySnapshotNotice
                         />
                       </div>
                     ))}
