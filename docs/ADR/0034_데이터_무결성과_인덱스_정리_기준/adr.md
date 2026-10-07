@@ -121,13 +121,7 @@
 
 ## 구현 반영
 
-- `V44__enforce_identity_and_transaction_consistency.sql`
-- `V98__enforce_booking_phone_identity.sql`
-- `V94__index_notification_outbox_event_aggregate.sql`
-- `V109__allow_shared_guest_recovery_order_token.sql`
-- `V110__allow_shared_guest_recovery_booking_token.sql`
-- `V111__index_member_order_cursor.sql`부터 `V115__index_product_qna_cursors.sql`까지의 고객 이력 커서 인덱스
-- `V141__index_public_review_rating_low_sort.sql`의 상품·클래스 낮은 별점순 혼합 방향 인덱스
+- `V1__baseline_schema.sql`의 식별·거래 정합성 제약과 고객 이력 커서·후기 정렬 인덱스 (재작성 전 V44·V94·V98·V109~V115·V141)
 - `VerifiedGuestResolver`와 Guest persistence 원자 get-or-create 경계
 - 전화번호 HMAC 기준 활성 예약 조회와 계정별 활성 예약 DB 제약
 - 예약 UNIQUE 제약 이름 기준 예외 변환

@@ -2,7 +2,7 @@
 
 - **상태**: 확정
 - **날짜**: 2026-02-21
-- **관련 파일**: `bootstrap/src/main/resources/db/migration/V2__core_tables.sql`
+- **관련 파일**: `bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql` (재작성 전 `V2__core_tables.sql`)
 
 ---
 
@@ -37,7 +37,7 @@ spec.md 기반으로 MVP를 구현하기 위한 최초 DB 스키마가 필요했
 - `order_id`, `booking_id` 모두 nullable FK로 설계.
 - spec.md는 `order_id`만 명시하지만, 예약금 환불(booking deposit refund)도 동일 테이블에서 추적이 필요해 `booking_id`를 선제적으로 추가.
 - 둘 중 정확히 하나만 non-null이어야 한다. V2 당시에는 애플리케이션에서만 강제했지만
-  현재는 `V41__harden_payment_confirm_boundary.sql`의 `chk_refunds_exactly_one_source`
+  현재는 기준선 `V1__baseline_schema.sql`의 `chk_refunds_exactly_one_source`
   제약으로 DB에서도 강제한다.
 
 **`slots` 복합 UNIQUE**

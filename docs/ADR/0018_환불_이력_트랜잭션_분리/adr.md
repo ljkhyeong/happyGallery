@@ -90,8 +90,8 @@
 - `DefaultRefundQueryService`와 `AdminRefundController`는 관리자 환불 단건 상태 조회를 담당
 - 예약·주문 상세 응답은 소유권 확인 후 환불 금액(`amount`)과 상태(`status`)만 포함한다.
 - 프론트 고객 상세와 관리자 환불 시작 화면은 `REQUESTED`, `PROCESSING` 동안 상태를 재조회
-- `V43__harden_refund_recovery.sql`은 선점 토큰, 시도 횟수, 다음 시각, 낙관적 잠금 컬럼과 복구 인덱스를 추가
-- `V89__harden_refund_identity_and_recovery.sql`은 환불 거래 식별자 UNIQUE와 복구 후보 순환 시각·인덱스를 추가
+- 기준선 `V1__baseline_schema.sql`(재작성 전 V43)은 선점 토큰, 시도 횟수, 다음 시각, 낙관적 잠금 컬럼과 복구 인덱스를 추가
+- 기준선 `V1__baseline_schema.sql`(재작성 전 V89)은 환불 거래 식별자 UNIQUE와 복구 후보 순환 시각·인덱스를 추가
 - `OrderApprovalService#processRefund` → `RefundExecutionService` 위임
 - `BookingCancelService` 예약금 환불 경로 → `RefundExecutionService` 위임
 - `PassRefundService` 8회권 환불 경로 → `RefundExecutionService` 위임

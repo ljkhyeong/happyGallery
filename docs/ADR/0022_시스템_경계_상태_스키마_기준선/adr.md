@@ -3,7 +3,7 @@
 **날짜**: 2026-03-17  
 **상태**: Accepted
 
-**갱신**: 2026-09-02
+**갱신**: 2026-10-07
 
 ---
 
@@ -550,3 +550,11 @@ moderation·종결 신고 보존 조회 인덱스를 각각 추가한다. 각 �
 - V182는 `group_inquiries.status` CHECK에 `CANCELED`를 추가한다. 취소는 기존 `CLOSED`(관리자 상담 종료)와 구분하고 문의 행 잠금·버전 확인 뒤 저장한다.
 - V183의 `group_inquiry_activities.member_action`은 기존 행을 `false`로 유지한다. 관리자 ID가 비어 있는 로컬 관리자 기록도 관리자 메모이므로 회원 이력 조회의 근거로 `admin_id IS NULL`을 사용하지 않는다. 회원 변경만 `member_action=true`로 저장하고 공개한다. 회원 상세는 이 조건을 DB 조회에 적용하고, 관리자 상세는 전체 이력을 조회한다. 두 조회 모두 ID 내림차순을 유지한다.
 - 새 취소 상태 저장 이후에는 이 상태를 모르는 이전 애플리케이션으로 롤백하지 않는다. 배포 시 서버·웹·API 계약을 함께 반영한다.
+
+### Migration 기준선 재작성 (2026-10-07)
+
+- 보존할 운영 데이터가 없어 V1~V186과 Java migration V46을 지우고 `bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql` 하나로 합쳤다. 기준선은 기존 이력을 모두 적용한 DB에서 만들었고 컬럼·주석·인덱스·CHECK·FK가 같은지 비교했다.
+- 이 문서와 다른 ADR에 나오는 `V41`·`V98`·`V105` 같은 번호는 재작성 전 이력이다. 원본은 commit `a1d13803`에서 볼 수 있다. 기존 데이터를 옮기던 단계(백필·임시 테이블 검증·V46 평문 전환)는 더 이상 실행하지 않는다.
+- 일부 테이블만 `utf8mb4_0900_ai_ci`로 만들어지던 차이를 없애고, 모든 테이블이 DB 기본 문자셋·정렬 규칙을 따르게 했다.
+- 같은 정리에서 과거 행만을 위한 nullable 컬럼과 분기를 없앴다. `order_items.product_type`, `user_social_accounts.provider_id_enc`, `review_moderation_actions.evidence_snapshot_id`, `smartstore_product_orders.completed_return_quantity`는 필수이고, `review_evidence_snapshots.provenance`·`images_complete`와 `smartstore_product_orders.return_reviewed_remain_quantity`는 제거했다.
+- 운영 배포는 `deploy/k3s/schema-reset.json` 표식으로 1회 초기화 release임을 알리고, 빈 DB에서만 진행한다. 절차는 `deploy/k3s/rolling-deployments.md`를 따른다. 이후 스키마 변경은 다시 새 migration으로 추가한다.

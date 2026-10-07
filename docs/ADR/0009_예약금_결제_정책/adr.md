@@ -83,7 +83,7 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 | 파일 | 역할 |
 |------|------|
 | `domain/booking/DepositPaymentMethod.java` | CARD / EASY_PAY / BANK_TRANSFER 열거형 |
-| `db/migration/V4__add_payment_method.sql` | bookings.payment_method 컬럼 추가 |
+| `db/migration/V1__baseline_schema.sql` | bookings.payment_method 컬럼 (재작성 전 V4) |
 | `domain/booking/Booking.java` | paymentMethod 필드 + 생성자 파라미터 |
 | `domain/error/ErrorCode.java` | PAYMENT_METHOD_NOT_ALLOWED (422) 추가 |
 | `domain/error/PaymentMethodNotAllowedException.java` | 예외 클래스 |
@@ -92,5 +92,5 @@ D-1 환불 경계는 §5.4/§6.1에서 이미 강제된다.
 | `adapter-in-web/.../payment/PaymentController.java` | 결제 prepare/confirm 단일 진입점 |
 | `GuestBookingUseCaseIT` | bankTransfer_returns422 Proof 테스트 |
 | `BookingRescheduleUseCaseIT` | depositAmount 불변 단언 추가 |
-| `db/migration/V57__add_booking_balance_paid_at.sql` | 잔금 결제 시각, 정합성 제약, 기간 조회 인덱스 추가 |
+| `db/migration/V1__baseline_schema.sql` (재작성 전 V57) | 잔금 결제 시각, 정합성 제약, 기간 조회 인덱스 추가 |
 | `DefaultBookingSettlementService` | 잔금 결제·미수·수업 완료를 단일 트랜잭션으로 처리 |

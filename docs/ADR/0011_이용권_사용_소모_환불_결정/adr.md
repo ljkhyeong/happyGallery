@@ -121,4 +121,4 @@ prepare와 confirm 모두 클래스 적용 가능 여부를 먼저 확인한 뒤
 | `application/.../booking/DefaultBookingCancelService.java` | D-1 이후 취소 시 크레딧 소멸 유지 분기 |
 | `adapter-out-persistence/.../booking/BookingRepository.java` | `findFutureBookedPassBookings()` JPQL 쿼리 |
 | `adapter-in-web/.../admin/AdminBookingController.java` | `POST /admin/bookings/{id}/no-show` |
-| `bootstrap/src/main/resources/db/migration/V5__add_pass_booking_link.sql` | bookings.pass_purchase_id FK, pass_purchases.total_price |
+| `bootstrap/src/main/resources/db/migration/V1__baseline_schema.sql` (재작성 전 V5) | bookings.pass_purchase_id FK, pass_purchases.total_price |

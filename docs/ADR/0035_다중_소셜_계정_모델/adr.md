@@ -48,6 +48,7 @@ Naver와 Kakao 로그인을 추가하면 비밀번호 회원이 Google, Naver, K
 - V45는 기존 `users.provider != LOCAL` 계정을 `user_social_accounts`로 이전하면서 롤링 배포 호환을 위해 `users.provider`, `users.provider_id`와 기존 복합 인덱스를 임시 유지했다.
 - V46은 소셜 식별자를 `provider_id_hmac`로 전환하고 `users.provider`, `users.provider_id`와 기존 인덱스를 제거해 과도기를 종료했다.
 - V46은 전환한 `(provider, provider_id_hmac)`가 충돌하면 자동 병합하지 않고 마이그레이션을 중단한다.
+- 2026-10-07 migration 기준선 재작성으로 V46 전환은 삭제했다. 기준선의 `user_social_accounts`는 `provider_id_hmac`과 필수 `provider_id_enc`만 가진다.
 - V82는 검증된 기준 이메일이 없는 회원을 표현하도록 `users.email_enc/email_hmac`을 nullable로 변경한다. 이메일 HMAC 유일 제약은 null이 아닌 값에 계속 적용된다.
 - V147은 `user_social_accounts.provider` CHECK 제약에 `KAKAO`를 추가한다.
 - `LOCAL`은 소셜 제공자가 아니므로 새 테이블에 저장하지 않는다. 비밀번호 존재 여부가 로컬 로그인 가능 여부를 나타낸다.

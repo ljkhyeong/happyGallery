@@ -278,15 +278,7 @@ PG 승인이 끝난 뒤 fulfillment가 실패하면 confirm HTTP 응답은 원�
 - `RefundExecutionService`, `RefundTransactionService`, `Refund`
 - `TossPaymentsProvider`
 - `TossPaymentSettlementProvider`, `DefaultPaymentSettlementService`, `PaymentSettlement`
-- `V155__store_payment_receipt_url.sql`, `V156__reconcile_payment_settlements.sql`
-- `V41__harden_payment_confirm_boundary.sql`
-- `V46__ProtectPlaintextPersonalData`
-- `V49__persist_payment_confirm_result.sql`
-- `V50__fence_payment_confirm_processing.sql`
-- `V51__track_payment_confirm_recovery.sql`
-- `V58__track_refund_success_time.sql`
-- `V60__normalize_revenue_timestamps_to_seoul.sql`
-- `V76__secure_payment_attempt_status_lookup.sql`
+- `V1__baseline_schema.sql`의 `payment_attempt`·`payment_settlements`·`refunds` 정의 (재작성 전 V41·V46·V49~V51·V58·V60·V76·V155·V156)
 
 ## 장바구니 선택 구매
 
