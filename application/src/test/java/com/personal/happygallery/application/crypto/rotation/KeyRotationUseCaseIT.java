@@ -115,7 +115,7 @@ class KeyRotationUseCaseIT {
                 oldEncryptor.encrypt("""
                         {"type":"PREPARED_BOOKING","userId":null,"phone":"01022223333",
                          "guestVerificationProof":"v1.proof.signature","name":"회전 비회원","slotId":1,"passId":null,
-                         "paymentMethod":"CARD","depositAmount":10000,"balanceAmount":90000}
+                         "paymentMethod":"CARD","depositAmount":10000,"balanceAmount":90000,"participantCount":1}
                         """),
                 oldIndexer.index(paymentPhone), "v1", "a".repeat(64)));
         LocalDateTime paidAt = LocalDateTime.of(2030, 1, 1, 10, 0);

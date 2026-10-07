@@ -46,7 +46,7 @@ public class BookingFulfiller implements PaymentFulfiller {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "예약 금액 정보가 없습니다. 결제를 다시 준비해 주세요.");
         }
-        int participantCount = bp.effectiveParticipantCount();
+        int participantCount = bp.participantCount();
         SlotCapacity.requireValidParticipantCount(participantCount);
         if (bp.passId() != null) {
             if (bp.userId() == null || attempt.getAmount() != 0L
@@ -65,7 +65,7 @@ public class BookingFulfiller implements PaymentFulfiller {
     @Transactional(propagation = Propagation.MANDATORY)
     public FulfillResult fulfill(PaymentAttempt attempt, PreparedPaymentPayload payload) {
         PreparedBookingPayload bp = (PreparedBookingPayload) payload;
-        int participantCount = bp.effectiveParticipantCount();
+        int participantCount = bp.participantCount();
         DepositPaymentMethod paymentMethod = confirmedPaymentMethod(attempt, bp);
 
         if (bp.userId() != null) {

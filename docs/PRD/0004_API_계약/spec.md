@@ -3663,7 +3663,7 @@ Content-Type: application/json
   - `cartCheckout`은 항상 명시한다. 직접 주문은 `false`, 회원 장바구니 주문은 `true`다.
   - `ORDER` payload는 `fulfillmentType=SHIPPING|PICKUP`을 반드시 포함한다. `SHIPPING`은 구조화된 `shippingAddress`가 필수이고 `PICKUP`은 `shippingAddress=null`이어야 한다.
   - 주문제작 상품이 하나라도 포함되면 `madeToOrderConsentVersion`이 현재 정책 버전과 일치하고 `madeToOrderConsent=true`여야 한다. 서버는 현재 동의 문구 버전·전문·서버 동의 시각을 내부 payload에 확정하고 confirm 시 `orders`로 옮긴다. 기성품만 포함되면 이 값과 무관하게 동의 스냅샷을 만들지 않는다.
-  - V97 이전 구형 prepare 중 상품 유형이 없고 주문제작 동의도 없는 항목은 당시 기성품으로 해석해 `READY_STOCK` 주문 항목으로 확정한다. 상품 유형은 없지만 주문제작 동의가 남은 prepare는 구매조건을 재현할 수 없으므로 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다. 이미 PG 승인이 저장된 구형 주문제작 시도가 자동 복구되면 주문을 만들지 않고 기존 보상 환불 경계로 격리한다.
+  - 저장 스냅샷에 상품 유형·품목별 혜택 금액·주문 혜택 금액이 없거나 주문제작 품목에 옵션 조합 ID가 없으면 PG 호출 전에 `400 INVALID_INPUT`으로 거절하고 새 prepare를 요구한다.
   - 클라이언트는 `GET /api/v1/orders/policy`의 `shippingFee`를 사전 표시용으로 사용하되 요청 금액으로 보내지 않는다. prepare가 현재 설정을 다시 읽어 확정하고 주문에 스냅샷으로 저장한다.
   - 직접 주문과 장바구니 주문 모두 `ACTIVE` 상품만 확정한다. 판매 중지 상품은 재고가 남아 있어도 `400 INVALID_INPUT`으로 거절한다.
   - 회원 장바구니는 `cartCheckout=true`를 지정하고 직전 `GET /api/v1/me/cart`의 `cartVersion`을 `expectedCartVersion`으로 보낸다. 서버는 버전이 일치할 때만 클라이언트의 `items` 대신 장바구니에서 구매 가능한 항목을 확정한다. 기존 전체 구매 요청에서는 버전을 생략할 수 있지만, `selectedCartItemIds`를 지정한 선택 구매에는 버전이 필수다. 현재 웹 클라이언트는 선택한 행 ID와 버전을 항상 전송한다.
@@ -3672,7 +3672,7 @@ Content-Type: application/json
   - 비회원 경로(`HG_SESSION` 없음)는 payload에 `phone/verificationCode/name`이 모두 채워져 있어야 한다 (`PASS` 제외 — 이용권은 회원 전용).
   - 비회원 `ORDER`, `BOOKING` payload는 `policyAcceptance`에 현재 이용약관·개인정보처리방침 버전과 두 동의 여부를 함께 보낸다. 서버는 결제 시도와 같은 트랜잭션에서 유형·목적·서버 수락 시각을 저장한다. 회원 거래에는 이 필드를 요구하지 않는다.
   - 공개 `payload.type` 계약에는 `ORDER`, `BOOKING`, `PASS`만 존재한다. 서버 암호화 스냅샷의
-    `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 저장 JSON 호환을 위해 내부에서만 유지하며
+    `PREPARED_ORDER`, `PREPARED_BOOKING`, `PREPARED_PASS` 식별자는 내부에서만 사용하며
     OpenAPI 요청 schema에는 노출하지 않는다.
   - OpenAPI의 `PreparePaymentRequest.payload`는 `OrderPayload`, `BookingPayload`, `PassPayload`를 구분하는 `oneOf`다. 공통 `PaymentPayload`는 `type` discriminator mapping만 가지며 subtype `allOf`와 순환하지 않는다.
   - `OrderPayload`의 필수 필드는 `type`, `items`, `cartCheckout`, `fulfillmentType`, `madeToOrderConsent`다. 각 `items` 항목의 `productId`, `qty`가 필수이며 직접입력이 없으면 `textInputs`를 생략하거나 빈 배열로 보낸다.
