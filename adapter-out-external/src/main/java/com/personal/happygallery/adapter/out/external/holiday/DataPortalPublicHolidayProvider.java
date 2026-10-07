@@ -1,16 +1,14 @@
 package com.personal.happygallery.adapter.out.external.holiday;
 
+import com.personal.happygallery.adapter.out.external.http.SecureXml;
 import com.personal.happygallery.application.booking.port.out.PublicHolidayProvider;
 import com.personal.happygallery.application.booking.port.out.PublicHolidaySnapshotPort.PublicHoliday;
-import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +16,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
-import org.xml.sax.helpers.DefaultHandler;
 
 @Component
 class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
@@ -75,15 +72,7 @@ class DataPortalPublicHolidayProvider implements PublicHolidayProvider {
             throw new IllegalArgumentException("공휴일 응답이 비어 있습니다.");
         }
 
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newDefaultInstance();
-        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-        var builder = factory.newDocumentBuilder();
-        builder.setErrorHandler(new DefaultHandler());
-        Element root = builder.parse(new ByteArrayInputStream(xml)).getDocumentElement();
+        Element root = SecureXml.parse(xml);
         if (!"00".equals(text(root, "resultCode"))) {
             throw new IllegalArgumentException("공휴일 API가 실패 응답을 반환했습니다.");
         }
