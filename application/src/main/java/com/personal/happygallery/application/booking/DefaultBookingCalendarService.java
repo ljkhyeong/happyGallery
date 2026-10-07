@@ -53,13 +53,6 @@ public class DefaultBookingCalendarService implements BookingCalendarUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public BookingCalendarSettings getSettings() {
-        return settingsPort.findById(BookingCalendarSettings.SINGLETON_ID)
-                .orElseThrow(NotFoundException.supplier("예약 캘린더 설정"));
-    }
-
-    @Override
     public BookingCalendarSettings updateSettings(UpdateSettingsCommand command) {
         List<BookingClass> classes = lockAllClasses();
         BookingCalendarSettings settings = settingsPort
