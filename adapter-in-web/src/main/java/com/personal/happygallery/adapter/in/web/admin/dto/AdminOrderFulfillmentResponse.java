@@ -32,7 +32,7 @@ public record AdminOrderFulfillmentResponse(
             com.personal.happygallery.application.order.port.in.AdminOrderFulfillmentResponse response) {
         return new AdminOrderFulfillmentResponse(
                 response.orderId(),
-                FulfillmentType.valueOf(response.type()),
+                response.type(),
                 Address.from(response.shippingAddress()),
                 response.expectedShipDate(),
                 response.pickupDeadlineAt(),
