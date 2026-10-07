@@ -110,7 +110,7 @@ class SmartStoreOrderTransactionService {
     public SmartStoreProductOrder retryInventory(String productOrderId) {
         SmartStoreProductOrder order = lockedOrder(productOrderId);
         reconcile(order);
-        return orderPort.save(order);
+        return order;
     }
 
     @Transactional
@@ -120,7 +120,7 @@ class SmartStoreOrderTransactionService {
         if (restoreQuantity > 0) {
             restore(order, restoreQuantity);
         }
-        return orderPort.save(order);
+        return order;
     }
 
     @Transactional
@@ -147,7 +147,6 @@ class SmartStoreOrderTransactionService {
         if (applied && order.pendingReturnQuantity() > 0) {
             order.requireAttention(SmartStoreOrderAttentionReason.RETURN_REVIEW);
         }
-        SmartStoreProductOrder saved = orderPort.save(order);
 
         LocalDateTime changedAt = LocalDateTime.now(clock);
         String summary = "상품 %d, 옵션 조합 %s, 재고 반영 방법 %s, 목표 적용 %d개, 사유: %s".formatted(
@@ -162,7 +161,7 @@ class SmartStoreOrderTransactionService {
             history.reject("STOCK_SHORTAGE", "내부 재고가 부족해 선택한 수량을 반영하지 못했습니다.", changedAt);
         }
         actionHistoryPort.save(history);
-        return saved;
+        return order;
     }
 
     private void validateManualTarget(
