@@ -82,7 +82,7 @@ class CartConcurrencyUseCaseIT {
         ready.countDown();
         try {
             start.await();
-            cartUseCase.addItem(userId, productId, 1);
+            cartUseCase.addItem(userId, productId, null, List.of(), 1);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("장바구니 동시성 테스트가 중단되었습니다.", e);

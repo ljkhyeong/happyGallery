@@ -20,12 +20,6 @@ public interface CartUseCase {
             options = List.copyOf(options);
         }
 
-        public CartItemView(Long productId, String productName, ProductType productType,
-                            long price, int qty, boolean available, int availableQuantity) {
-            this(null, productId, null, productName, productType,
-                    price, 0L, 0L, price, null, null, null, List.of(), qty, available, availableQuantity);
-        }
-
         public long subtotal() { return OrderAmountCalculator.addLine(0L, qty, price); }
     }
 
@@ -47,10 +41,6 @@ public interface CartUseCase {
         public MergeItem {
             textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
         }
-
-        public MergeItem(Long productId, int qty) {
-            this(productId, null, List.of(), qty);
-        }
     }
 
     CartView getCart(Long userId);
@@ -59,10 +49,6 @@ public interface CartUseCase {
 
     void addItem(Long userId, Long productId, Long productVariantId,
                  List<TextInput> textInputs, int qty);
-
-    default void addItem(Long userId, Long productId, int qty) {
-        addItem(userId, productId, null, List.of(), qty);
-    }
 
     void mergeItems(Long userId, UUID idempotencyKey, List<MergeItem> items);
 

@@ -1,9 +1,7 @@
 package com.personal.happygallery.adapter.out.persistence.cart;
 
-import com.personal.happygallery.application.cart.port.out.CartItemDetail;
 import com.personal.happygallery.application.cart.port.out.CartItemReaderPort;
 import com.personal.happygallery.application.cart.port.out.CartItemStorePort;
-import com.personal.happygallery.application.cart.port.out.CartReadModelPort;
 import com.personal.happygallery.domain.cart.CartItem;
 import java.util.Collection;
 import java.util.List;
@@ -17,8 +15,7 @@ import static jakarta.persistence.LockModeType.PESSIMISTIC_WRITE;
 
 public interface CartItemRepository extends JpaRepository<CartItem, Long>,
         CartItemReaderPort,
-        CartItemStorePort,
-        CartReadModelPort {
+        CartItemStorePort {
 
     @Override
     <S extends CartItem> S save(S item);
@@ -29,19 +26,8 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
     @Override
     void delete(CartItem item);
 
-    @Override
+    /** 운영 포트에는 없는 테스트 검증용 파생 쿼리다. */
     Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);
-
-    @Override
-    @Lock(PESSIMISTIC_WRITE)
-    @Query("""
-            select item
-              from CartItem item
-             where item.userId = :userId
-               and item.productId = :productId
-            """)
-    Optional<CartItem> findByUserIdAndProductIdForUpdate(@Param("userId") Long userId,
-                                                        @Param("productId") Long productId);
 
     @Override
     @Lock(PESSIMISTIC_WRITE)
@@ -82,27 +68,4 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
     @Override
     @Lock(PESSIMISTIC_WRITE)
     List<CartItem> findAllByUserIdAndIdInOrderByIdAsc(Long userId, Collection<Long> cartItemIds);
-
-    @Override
-    @Query("""
-            select new com.personal.happygallery.application.cart.port.out.CartItemDetail(
-                       item.id,
-                       product.id,
-                       product.name,
-                       product.type,
-                       product.price,
-                       product.specification,
-                       product.careInstructions,
-                       product.productionLeadDays,
-                       item.qty,
-                       product.status,
-                       inventory.quantity
-                   )
-              from CartItem item
-              join Product product on product.id = item.productId
-              left join Inventory inventory on inventory.productId = item.productId
-             where item.userId = :userId
-             order by item.createdAt, item.id
-            """)
-    List<CartItemDetail> findDetailsByUserId(@Param("userId") Long userId);
 }

@@ -181,7 +181,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
         when(cartUseCase.getCart(CUSTOMER_USER_ID))
                 .thenReturn(new CartUseCase.CartView(
                         List.of(new CartUseCase.CartItemView(
-                                1L, "시그니처 캔들", ProductType.READY_STOCK, 39000L, 1, true, 5)),
+                                null, 1L, null, "시그니처 캔들", ProductType.READY_STOCK,
+                                39000L, 0L, 0L, 39000L, null, null, null, List.of(), 1, true, 5)),
                         39000L,
                         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
         when(bookingQueryUseCase.listMyBookings(CUSTOMER_USER_ID)).thenReturn(List.of(booking));
