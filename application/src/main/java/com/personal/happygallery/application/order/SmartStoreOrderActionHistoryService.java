@@ -82,11 +82,11 @@ class SmartStoreOrderActionHistoryService {
     @Transactional(readOnly = true)
     public CursorPage<ActionHistoryResult> listUnresolved(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        CursorUtils.CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        CursorUtils.CursorParam cursorParam = CursorUtils.decodeOrFirst(cursor);
         List<ActionHistoryResult> results = historyPort.findUnresolvedPage(
                         staleRequestedBefore(),
-                        cursorParam == null ? null : cursorParam.timestamp(),
-                        cursorParam == null ? null : cursorParam.id(),
+                        cursorParam.timestamp(),
+                        cursorParam.id(),
                         pageSize + 1)
                 .stream()
                 .map(SmartStoreOrderActionHistoryService::result)

@@ -5,6 +5,7 @@ import com.personal.happygallery.application.customer.port.out.UserReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryReaderPort;
 import com.personal.happygallery.application.inquiry.port.out.InquiryStorePort;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -54,15 +55,9 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional(readOnly = true)
     public CursorPage<Inquiry> listByUser(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Inquiry> inquiries;
-        if (cursor == null) {
-            inquiries = inquiryReader.findByUserId(userId, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            inquiries = inquiryReader.findByUserIdAfter(
-                    userId, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Inquiry> inquiries = inquiryReader.findByUserId(
+                userId, after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(
                 inquiries,
                 pageSize,
@@ -73,15 +68,8 @@ public class DefaultInquiryService implements InquiryUseCase {
     @Transactional(readOnly = true)
     public CursorPage<InquiryWithUser> listAll(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Inquiry> inquiries;
-        if (cursor == null) {
-            inquiries = inquiryReader.findRecent(fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            inquiries = inquiryReader.findRecentAfter(
-                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Inquiry> inquiries = inquiryReader.findRecent(after.timestamp(), after.id(), pageSize + 1);
         Map<Long, User> userMap = batchFetchUsers(inquiries);
         List<InquiryWithUser> items = inquiries.stream()
                 .map(i -> new InquiryWithUser(i, userName(userMap, i.getUserId())))

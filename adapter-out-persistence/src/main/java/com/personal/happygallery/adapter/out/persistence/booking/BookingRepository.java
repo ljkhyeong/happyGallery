@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -116,25 +115,15 @@ public interface BookingRepository extends JpaRepository<Booking, Long>, Booking
             JOIN FETCH b.bookingClass
             JOIN FETCH b.slot
             WHERE b.accessToken = :accessToken
+              AND (:cursorCreatedAt IS NULL
+                   OR b.createdAt < :cursorCreatedAt
+                   OR (b.createdAt = :cursorCreatedAt AND b.id < :cursorId))
             ORDER BY b.createdAt DESC, b.id DESC
             """)
-    List<Booking> findByAccessTokenWithDetails(
-            @Param("accessToken") String accessToken, Pageable pageable);
-
-    @Query("""
-            SELECT b FROM Booking b
-            JOIN FETCH b.guest
-            JOIN FETCH b.bookingClass
-            JOIN FETCH b.slot
-            WHERE b.accessToken = :accessToken
-              AND (b.createdAt < :createdAt
-                   OR (b.createdAt = :createdAt AND b.id < :id))
-            ORDER BY b.createdAt DESC, b.id DESC
-            """)
-    List<Booking> findByAccessTokenWithDetailsAfter(
+    List<Booking> findPageByAccessTokenWithDetails(
             @Param("accessToken") String accessToken,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     /** 운영자 수업 취소가 클래스·슬롯보다 먼저 잠글 이용권 ID를 PK 순으로 조회한다. */

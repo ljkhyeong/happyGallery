@@ -71,33 +71,19 @@ public interface RefundRepository extends JpaRepository<Refund, Long>, RefundPor
                 com.personal.happygallery.domain.payment.RefundStatus.RETRYABLE,
                 com.personal.happygallery.domain.payment.RefundStatus.RECONCILIATION_REQUIRED
             )
+              AND (:cursorCreatedAt IS NULL
+                   OR r.createdAt < :cursorCreatedAt
+                   OR (r.createdAt = :cursorCreatedAt AND r.id < :cursorId))
             ORDER BY r.createdAt DESC, r.id DESC
             """)
-    List<Refund> findActionRequiredPage(Pageable pageable);
-
-    @Query("""
-            SELECT r FROM Refund r
-            WHERE r.status IN (
-                com.personal.happygallery.domain.payment.RefundStatus.FAILED,
-                com.personal.happygallery.domain.payment.RefundStatus.RETRYABLE,
-                com.personal.happygallery.domain.payment.RefundStatus.RECONCILIATION_REQUIRED
-            )
-              AND (r.createdAt < :createdAt
-                   OR (r.createdAt = :createdAt AND r.id < :id))
-            ORDER BY r.createdAt DESC, r.id DESC
-            """)
-    List<Refund> findActionRequiredAfterPage(@Param("createdAt") LocalDateTime createdAt,
-                                             @Param("id") Long id,
-                                             Pageable pageable);
+    List<Refund> findActionRequiredPage(
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
+            Pageable pageable);
 
     @Override
-    default List<Refund> findActionRequired(int limit) {
-        return findActionRequiredPage(PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit) {
-        return findActionRequiredAfterPage(createdAt, id, PageRequest.ofSize(limit));
+    default List<Refund> findActionRequired(LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return findActionRequiredPage(cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override

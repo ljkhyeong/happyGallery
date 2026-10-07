@@ -41,6 +41,11 @@ public final class CursorUtils {
         }
     }
 
+    /** 첫 페이지(null)는 값이 모두 null인 커서로 바꿔 nullable 커서 조회에 그대로 넘긴다. */
+    public static CursorParam decodeOrFirst(String cursor) {
+        return cursor == null ? CursorParam.FIRST : decode(cursor);
+    }
+
     public static KeyCursor decodeKey(String cursor) {
         try {
             String raw = new String(
@@ -60,7 +65,10 @@ public final class CursorUtils {
         return new HappyGalleryException(ErrorCode.INVALID_INPUT, "페이지 커서가 올바르지 않습니다.");
     }
 
-    public record CursorParam(LocalDateTime timestamp, Long id) {}
+    /** 값이 모두 null이면 첫 페이지를 뜻한다. */
+    public record CursorParam(LocalDateTime timestamp, Long id) {
+        private static final CursorParam FIRST = new CursorParam(null, null);
+    }
 
     public record KeyCursor(LocalDateTime timestamp, String key) {}
 }

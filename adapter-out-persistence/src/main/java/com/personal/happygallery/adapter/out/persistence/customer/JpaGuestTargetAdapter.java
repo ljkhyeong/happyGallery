@@ -64,28 +64,16 @@ class JpaGuestTargetAdapter
     }
 
     @Override
-    public List<Order> findOrdersByAccessToken(String accessTokenHash, int limit) {
-        return orderRepository.findByAccessTokenOrderByCreatedAtDescIdDesc(
-                accessTokenHash, PageRequest.ofSize(limit));
+    public List<Order> findOrdersByAccessToken(
+            String accessTokenHash, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return orderRepository.findPageByAccessToken(
+                accessTokenHash, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override
-    public List<Order> findOrdersByAccessTokenAfter(
-            String accessTokenHash, LocalDateTime createdAt, Long id, int limit) {
-        return orderRepository.findByAccessTokenAfterPage(
-                accessTokenHash, createdAt, id, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    public List<Booking> findBookingsByAccessToken(String accessTokenHash, int limit) {
-        return bookingRepository.findByAccessTokenWithDetails(
-                accessTokenHash, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    public List<Booking> findBookingsByAccessTokenAfter(
-            String accessTokenHash, LocalDateTime createdAt, Long id, int limit) {
-        return bookingRepository.findByAccessTokenWithDetailsAfter(
-                accessTokenHash, createdAt, id, PageRequest.ofSize(limit));
+    public List<Booking> findBookingsByAccessToken(
+            String accessTokenHash, LocalDateTime cursorCreatedAt, Long cursorId, int limit) {
+        return bookingRepository.findPageByAccessTokenWithDetails(
+                accessTokenHash, cursorCreatedAt, cursorId, PageRequest.ofSize(limit));
     }
 }

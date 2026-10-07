@@ -17,7 +17,6 @@ import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.Fulfillment;
 import com.personal.happygallery.domain.order.FulfillmentType;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -57,12 +56,10 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
     public CursorPage<AdminOrderResponse> listOrders(OrderStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         int fetchSize = pageSize + 1;
-        var param = cursor == null ? null : CursorUtils.decode(cursor);
-        LocalDateTime cursorCreatedAt = param == null ? null : param.timestamp();
-        Long cursorId = param == null ? null : param.id();
+        var after = CursorUtils.decodeOrFirst(cursor);
         List<Order> orders = status != null
-                ? orderReaderPort.findAdminOrdersByStatus(status, cursorCreatedAt, cursorId, fetchSize)
-                : orderReaderPort.findAdminOrders(cursorCreatedAt, cursorId, fetchSize);
+                ? orderReaderPort.findAdminOrdersByStatus(status, after.timestamp(), after.id(), fetchSize)
+                : orderReaderPort.findAdminOrders(after.timestamp(), after.id(), fetchSize);
 
         List<AdminOrderResponse> items = toResponses(orders);
 

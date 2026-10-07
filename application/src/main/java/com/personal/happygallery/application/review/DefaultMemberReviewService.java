@@ -119,12 +119,9 @@ class DefaultMemberReviewService implements MemberReviewUseCase {
     @Transactional(readOnly = true)
     public CursorPage<ReviewItem> listMyReviews(Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        CursorParam cursorParam = CursorUtils.decodeOrFirst(cursor);
         List<ReviewListView> fetched = reviewReader.findByUserId(
-                userId,
-                cursorParam == null ? null : cursorParam.timestamp(),
-                cursorParam == null ? null : cursorParam.id(),
-                pageSize + 1);
+                userId, cursorParam.timestamp(), cursorParam.id(), pageSize + 1);
         return viewAssembler.standardPage(fetched, pageSize, false);
     }
 

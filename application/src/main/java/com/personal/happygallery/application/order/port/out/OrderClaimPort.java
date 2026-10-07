@@ -16,12 +16,10 @@ public interface OrderClaimPort {
 
     List<OrderClaim> findByOrderIdOrderByRequestedAtDesc(Long orderId);
 
-    List<OrderClaim> findRecent(int limit);
+    /** 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (requestedAt DESC, id DESC)다. */
+    List<OrderClaim> findRecent(LocalDateTime cursorRequestedAt, Long cursorId, int limit);
 
-    List<OrderClaim> findRecentAfter(LocalDateTime requestedAt, Long id, int limit);
-
-    List<OrderClaim> findRecentByStatus(OrderClaimStatus status, int limit);
-
-    List<OrderClaim> findRecentByStatusAfter(
-            OrderClaimStatus status, LocalDateTime requestedAt, Long id, int limit);
+    /** 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (requestedAt DESC, id DESC)다. */
+    List<OrderClaim> findRecentByStatus(
+            OrderClaimStatus status, LocalDateTime cursorRequestedAt, Long cursorId, int limit);
 }

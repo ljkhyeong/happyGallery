@@ -29,9 +29,8 @@ public interface RefundPort {
 
     long sumRewardRevokeAmountByOrderId(Long orderId);
 
-    List<Refund> findActionRequired(int limit);
-
-    List<Refund> findActionRequiredAfter(LocalDateTime createdAt, Long id, int limit);
+    /** 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (createdAt DESC, id DESC)다. */
+    List<Refund> findActionRequired(LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
     List<Long> findRecoverableIds(LocalDateTime now, LocalDateTime staleBefore, int limit);
 

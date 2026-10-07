@@ -71,12 +71,12 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewItem> listAdminReviews(
             ReviewTargetType targetType, ReviewStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        CursorParam cursorParam = CursorUtils.decodeOrFirst(cursor);
         List<ReviewListView> fetched = reviewReader.findForAdmin(
                 targetType,
                 status,
-                cursorParam == null ? null : cursorParam.timestamp(),
-                cursorParam == null ? null : cursorParam.id(),
+                cursorParam.timestamp(),
+                cursorParam.id(),
                 pageSize + 1);
         return viewAssembler.standardPage(fetched, pageSize, true);
     }
@@ -182,11 +182,11 @@ class DefaultAdminReviewService implements AdminReviewUseCase {
     public CursorPage<ReviewReportSummaryItem> listAdminReports(
             ReviewReportStatus status, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        CursorParam cursorParam = cursor == null ? null : CursorUtils.decode(cursor);
+        CursorParam cursorParam = CursorUtils.decodeOrFirst(cursor);
         List<ReviewReportSummaryItem> fetched = reportPort.findForAdmin(
                 status,
-                cursorParam == null ? null : cursorParam.timestamp(),
-                cursorParam == null ? null : cursorParam.id(),
+                cursorParam.timestamp(),
+                cursorParam.id(),
                 pageSize + 1);
         return CursorPage.of(
                 fetched,

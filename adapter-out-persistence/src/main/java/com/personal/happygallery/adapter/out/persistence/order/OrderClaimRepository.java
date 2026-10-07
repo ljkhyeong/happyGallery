@@ -45,55 +45,40 @@ public interface OrderClaimRepository extends JpaRepository<OrderClaim, Long>, O
             """)
     boolean existsActiveByUserId(@Param("userId") Long userId);
 
-    List<OrderClaim> findAllByOrderByRequestedAtDescIdDesc(Pageable pageable);
-
     @Query("""
             SELECT c FROM OrderClaim c
-            WHERE c.requestedAt < :requestedAt
-               OR (c.requestedAt = :requestedAt AND c.id < :id)
+            WHERE :cursorRequestedAt IS NULL
+               OR c.requestedAt < :cursorRequestedAt
+               OR (c.requestedAt = :cursorRequestedAt AND c.id < :cursorId)
             ORDER BY c.requestedAt DESC, c.id DESC
             """)
-    List<OrderClaim> findRecentAfterPage(
-            @Param("requestedAt") LocalDateTime requestedAt,
-            @Param("id") Long id,
+    List<OrderClaim> findRecentPage(
+            @Param("cursorRequestedAt") LocalDateTime cursorRequestedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
-
-    List<OrderClaim> findByStatusOrderByRequestedAtDescIdDesc(
-            OrderClaimStatus status, Pageable pageable);
 
     @Query("""
             SELECT c FROM OrderClaim c
             WHERE c.status = :status
-              AND (c.requestedAt < :requestedAt
-                   OR (c.requestedAt = :requestedAt AND c.id < :id))
+              AND (:cursorRequestedAt IS NULL
+                   OR c.requestedAt < :cursorRequestedAt
+                   OR (c.requestedAt = :cursorRequestedAt AND c.id < :cursorId))
             ORDER BY c.requestedAt DESC, c.id DESC
             """)
-    List<OrderClaim> findRecentByStatusAfterPage(
+    List<OrderClaim> findRecentPageByStatus(
             @Param("status") OrderClaimStatus status,
-            @Param("requestedAt") LocalDateTime requestedAt,
-            @Param("id") Long id,
+            @Param("cursorRequestedAt") LocalDateTime cursorRequestedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     @Override
-    default List<OrderClaim> findRecent(int limit) {
-        return findAllByOrderByRequestedAtDescIdDesc(PageRequest.ofSize(limit));
+    default List<OrderClaim> findRecent(LocalDateTime cursorRequestedAt, Long cursorId, int limit) {
+        return findRecentPage(cursorRequestedAt, cursorId, PageRequest.ofSize(limit));
     }
 
     @Override
-    default List<OrderClaim> findRecentAfter(LocalDateTime requestedAt, Long id, int limit) {
-        return findRecentAfterPage(requestedAt, id, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<OrderClaim> findRecentByStatus(OrderClaimStatus status, int limit) {
-        return findByStatusOrderByRequestedAtDescIdDesc(
-                status, PageRequest.ofSize(limit));
-    }
-
-    @Override
-    default List<OrderClaim> findRecentByStatusAfter(
-            OrderClaimStatus status, LocalDateTime requestedAt, Long id, int limit) {
-        return findRecentByStatusAfterPage(
-                status, requestedAt, id, PageRequest.ofSize(limit));
+    default List<OrderClaim> findRecentByStatus(
+            OrderClaimStatus status, LocalDateTime cursorRequestedAt, Long cursorId, int limit) {
+        return findRecentPageByStatus(status, cursorRequestedAt, cursorId, PageRequest.ofSize(limit));
     }
 }
