@@ -75,7 +75,6 @@ public class DefaultAdminOrderQueryService implements AdminOrderQueryUseCase {
         OrderLookups.requireOrder(orderReaderPort, orderId);
         Fulfillment fulfillment = OrderLookups.requireFulfillment(fulfillmentPort, orderId);
         var shippingAddress = fulfillment.getType() == FulfillmentType.SHIPPING
-                && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
         return AdminOrderFulfillmentResponse.from(

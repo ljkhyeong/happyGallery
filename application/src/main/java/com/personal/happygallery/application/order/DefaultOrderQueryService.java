@@ -114,7 +114,6 @@ public class DefaultOrderQueryService implements OrderQueryUseCase {
     private OrderDetail detail(Order order, List<OrderItem> items, Fulfillment fulfillment) {
         ShippingAddress shippingAddress = fulfillment != null
                 && fulfillment.getType() == FulfillmentType.SHIPPING
-                && fulfillment.getShippingAddressEnc() != null
                 ? shippingAddressProtector.decrypt(fulfillment.getShippingAddressEnc())
                 : null;
         return new OrderDetail(
