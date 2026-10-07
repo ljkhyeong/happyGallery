@@ -56,23 +56,8 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     List<NotificationOutbox> findSentByUserId(@Param("userId") Long userId, boolean unreadOnly, Pageable pageable);
 
     @Override
-    default List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int limit, int offset) {
-        return findSentByUserId(userId, unreadOnly, PageRequest.of(offset / limit, limit));
-    }
-
-    @Query("""
-            SELECT n
-            FROM NotificationOutbox n
-            WHERE n.guestId = :guestId
-              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
-              AND (:unreadOnly = false OR n.readAt IS NULL)
-            ORDER BY n.processedAt DESC, n.id DESC
-            """)
-    List<NotificationOutbox> findSentByGuestId(@Param("guestId") Long guestId, boolean unreadOnly, Pageable pageable);
-
-    @Override
-    default List<NotificationOutbox> findSentByGuestId(Long guestId, boolean unreadOnly, int limit, int offset) {
-        return findSentByGuestId(guestId, unreadOnly, PageRequest.of(offset / limit, limit));
+    default List<NotificationOutbox> findSentByUserId(Long userId, boolean unreadOnly, int page, int size) {
+        return findSentByUserId(userId, unreadOnly, PageRequest.of(page, size));
     }
 
     @Override
@@ -86,16 +71,6 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
     long countUnreadSentByUserId(@Param("userId") Long userId);
 
     @Override
-    @Query("""
-            SELECT COUNT(n)
-            FROM NotificationOutbox n
-            WHERE n.guestId = :guestId
-              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
-              AND n.readAt IS NULL
-            """)
-    long countUnreadSentByGuestId(@Param("guestId") Long guestId);
-
-    @Override
     @Modifying
     @Query("""
             UPDATE NotificationOutbox n
@@ -105,17 +80,6 @@ public interface NotificationOutboxRepository extends JpaRepository<Notification
               AND n.readAt IS NULL
             """)
     void markAllSentReadByUserId(@Param("userId") Long userId, @Param("readAt") LocalDateTime readAt);
-
-    @Override
-    @Modifying
-    @Query("""
-            UPDATE NotificationOutbox n
-            SET n.readAt = :readAt
-            WHERE n.guestId = :guestId
-              AND n.status = com.personal.happygallery.domain.notification.NotificationOutboxStatus.SENT
-              AND n.readAt IS NULL
-            """)
-    void markAllSentReadByGuestId(@Param("guestId") Long guestId, @Param("readAt") LocalDateTime readAt);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

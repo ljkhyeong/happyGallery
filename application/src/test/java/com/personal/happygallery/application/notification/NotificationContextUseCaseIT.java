@@ -80,7 +80,7 @@ class NotificationContextUseCaseIT {
         booking.reschedule(nextSlot);
         bookings.save(booking);
 
-        var results = query.listNotifications(user.getId(), null, 0, 20, false);
+        var results = query.listNotifications(user.getId(), 0, 20, false);
         assertThat(results).filteredOn(row -> row.id().equals(orderNotice)).singleElement()
                 .satisfies(row -> {
                     assertThat(row.contextTitle()).isEqualTo("주문 #" + order.getId() + " · 구매 당시 작품명 외 1건");
@@ -108,7 +108,7 @@ class NotificationContextUseCaseIT {
         var foreign = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
         var missing = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", Long.MAX_VALUE);
         sent(other.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
-        var results = query.listNotifications(owner.getId(), null, 0, 20, false);
+        var results = query.listNotifications(owner.getId(), 0, 20, false);
         assertThat(results).extracting(NotificationQueryUseCase.NotificationView::id)
                 .containsExactlyInAnyOrder(foreign, missing);
         assertThat(results).allSatisfy(row -> {

@@ -31,14 +31,13 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
     }
 
     @Override
-    public List<NotificationView> listNotifications(Long userId, Long guestId, int page, int size, boolean unreadOnly) {
-        int offset = PageParams.offset(page, size);
-        List<NotificationOutbox> notifications = (userId != null)
-                ? outboxPort.findSentByUserId(userId, unreadOnly, size, offset)
-                : outboxPort.findSentByGuestId(guestId, unreadOnly, size, offset);
+    public List<NotificationView> listNotifications(Long userId, int page, int size, boolean unreadOnly) {
+        // 페이지 번호·크기와 offset 범위를 검증한다.
+        PageParams.offset(page, size);
+        List<NotificationOutbox> notifications = outboxPort.findSentByUserId(userId, unreadOnly, page, size);
 
         var contexts = contextPort.findContexts(
-                        notifications.stream().map(NotificationOutbox::getId).toList(), userId, guestId)
+                        notifications.stream().map(NotificationOutbox::getId).toList(), userId)
                 .stream().collect(Collectors.toMap(Context::notificationId, Function.identity()));
         return notifications.stream().map(outbox -> {
             Context context = contexts.get(outbox.getId());
@@ -61,21 +60,18 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
     }
 
     @Override
-    public long countUnread(Long userId, Long guestId) {
-        return (userId != null)
-                ? outboxPort.countUnreadSentByUserId(userId)
-                : outboxPort.countUnreadSentByGuestId(guestId);
+    public long countUnread(Long userId) {
+        return outboxPort.countUnreadSentByUserId(userId);
     }
 
     @Override
     @Transactional
-    public void markAsRead(Long notificationId, Long userId, Long guestId) {
+    public void markAsRead(Long notificationId, Long userId) {
         NotificationOutbox notification = outboxPort.findById(notificationId)
                 .orElseThrow(NotFoundException.supplier("알림"));
 
-        boolean isOwner = (userId != null && userId.equals(notification.getUserId()))
-                || (guestId != null && guestId.equals(notification.getGuestId()));
-        if (!isOwner || notification.getStatus() != NotificationOutboxStatus.SENT) {
+        if (!userId.equals(notification.getUserId())
+                || notification.getStatus() != NotificationOutboxStatus.SENT) {
             throw new NotFoundException("알림");
         }
 
@@ -84,12 +80,7 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
 
     @Override
     @Transactional
-    public void markAllAsRead(Long userId, Long guestId) {
-        LocalDateTime readAt = LocalDateTime.now(clock);
-        if (userId != null) {
-            outboxPort.markAllSentReadByUserId(userId, readAt);
-        } else {
-            outboxPort.markAllSentReadByGuestId(guestId, readAt);
-        }
+    public void markAllAsRead(Long userId) {
+        outboxPort.markAllSentReadByUserId(userId, LocalDateTime.now(clock));
     }
 }
