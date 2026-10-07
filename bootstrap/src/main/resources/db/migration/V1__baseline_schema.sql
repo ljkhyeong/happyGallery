@@ -727,8 +727,6 @@ CREATE TABLE `notification_log` (
   `sent_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_notification_log_provider_delivery` (`channel`,`provider_request_id`,`provider_recipient_seq`),
-  KEY `idx_noti_log_guest_event` (`guest_id`,`event_type`,`status`,`sent_at`),
-  KEY `idx_noti_log_user_event` (`user_id`,`event_type`,`status`,`sent_at`),
   KEY `idx_notification_log_retention` (`sent_at`,`id`),
   CONSTRAINT `chk_notification_log_exactly_one_recipient` CHECK ((((`guest_id` is not null) and (`user_id` is null)) or ((`guest_id` is null) and (`user_id` is not null))))
 ) ENGINE=InnoDB;
