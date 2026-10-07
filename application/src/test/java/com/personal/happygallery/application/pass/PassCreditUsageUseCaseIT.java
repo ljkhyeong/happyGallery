@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLogStatus;
 import com.personal.happygallery.domain.pass.PassLedger;
@@ -28,6 +29,7 @@ import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.payment.RefundStatus;
 import com.personal.happygallery.support.CustomerTestHelper;
 import com.personal.happygallery.support.NotificationLogProbe;
+import com.personal.happygallery.support.PaymentPayloads;
 import com.personal.happygallery.support.PaymentTestHelper;
 import com.personal.happygallery.support.TestCleanupSupport;
 import com.personal.happygallery.support.UseCaseIT;
@@ -174,7 +176,7 @@ class PassCreditUsageUseCaseIT {
                 "WOOD",
                 120,
                 50_000L,
-                30,
+                30, SlotCapacity.DEFAULT,
                 true,
                 null,
                 null,
@@ -607,7 +609,7 @@ class PassCreditUsageUseCaseIT {
     }
 
     private BookingPayload passBookingPayload(PassPurchase passPurchase, Slot slot) {
-        return new BookingPayload(
+        return PaymentPayloads.booking(
                 passPurchase.getUserId(), null, null, null, slot.getId(), passPurchase.getId(), null);
     }
 

@@ -169,7 +169,6 @@ public class SmartStoreStockSync {
     public LocalDateTime getProcessingStartedAt() { return processingStartedAt; }
     public String getLastError() { return lastError; }
     public LocalDateTime getSyncedAt() { return syncedAt; }
-    public long getRowVersion() { return rowVersion; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
 }

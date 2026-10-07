@@ -150,10 +150,11 @@ class AdminContentConcurrencyUseCaseIT {
         originalWorkshopProfile = staleProfile;
         long expectedVersion = staleProfile.getVersion();
 
-        workshopProfileUseCase.update(commandFrom(
+        WorkshopProfile updated = workshopProfileUseCase.update(commandFrom(
                 staleProfile,
                 "먼저 반영된 공방명",
                 expectedVersion));
+        assertThat(updated.getVersion()).isEqualTo(expectedVersion + 1);
 
         assertThatThrownBy(() -> workshopProfileUseCase.update(commandFrom(
                 staleProfile,

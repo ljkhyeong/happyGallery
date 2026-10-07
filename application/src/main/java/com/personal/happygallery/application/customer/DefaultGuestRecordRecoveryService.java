@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.port.in.GuestRecordRecover
 import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.GuestRecordRecoveryTargetPort;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.token.GuestTokenService;
 import com.personal.happygallery.application.token.GuestTokenService.IssuedToken;
 import com.personal.happygallery.application.shared.page.CursorPage;
@@ -58,16 +59,10 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
     public CursorPage<RecoveredOrder> listRecoveredOrders(
             String accessToken, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
         String tokenHash = guestTokenService.resolveTokenHash(accessToken);
-        List<Order> orders;
-        if (cursor == null) {
-            orders = recoveryTargets.findOrdersByAccessToken(tokenHash, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            orders = recoveryTargets.findOrdersByAccessTokenAfter(
-                    tokenHash, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Order> orders = recoveryTargets.findOrdersByAccessToken(
+                tokenHash, after.timestamp(), after.id(), pageSize + 1);
         CursorPage<Order> page = CursorPage.of(
                 orders,
                 pageSize,
@@ -83,16 +78,10 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
     public CursorPage<RecoveredBooking> listRecoveredBookings(
             String accessToken, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
         String tokenHash = guestTokenService.resolveTokenHash(accessToken);
-        List<Booking> bookings;
-        if (cursor == null) {
-            bookings = recoveryTargets.findBookingsByAccessToken(tokenHash, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            bookings = recoveryTargets.findBookingsByAccessTokenAfter(
-                    tokenHash, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Booking> bookings = recoveryTargets.findBookingsByAccessToken(
+                tokenHash, after.timestamp(), after.id(), pageSize + 1);
         CursorPage<Booking> page = CursorPage.of(
                 bookings,
                 pageSize,

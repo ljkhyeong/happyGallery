@@ -372,7 +372,6 @@ public class Review {
     public LocalDateTime getEditedAt() { return editedAt; }
     public long getContentRevision() { return contentRevision; }
     public String getReplyContent() { return replyContent; }
-    public Long getReplyAdminId() { return replyAdminId; }
     public LocalDateTime getReplyCreatedAt() { return replyCreatedAt; }
     public LocalDateTime getReplyEditedAt() { return replyEditedAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }

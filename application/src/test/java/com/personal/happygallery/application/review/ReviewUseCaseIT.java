@@ -62,6 +62,8 @@ import org.springframework.test.jdbc.JdbcTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -283,7 +285,7 @@ class ReviewUseCaseIT {
                 TestFixtures.readyStockProduct("다른 상품", 20_000L));
         ClassBookingSource classSource = createClassBookingSource(user, "수강한 클래스");
         BookingClass unrelatedClass = classRepository.saveAndFlush(
-                new BookingClass("다른 클래스", "CRAFT", 90, 40_000L, 20));
+                bookingClass("다른 클래스", "CRAFT", 90, 40_000L, 20));
         LocalDateTime now = LocalDateTime.now(clock);
 
         assertThatThrownBy(() -> reviewRepository.saveAndFlush(Review.forProduct(
@@ -805,7 +807,7 @@ class ReviewUseCaseIT {
         Product product = productRepository.saveAndFlush(
                 TestFixtures.readyStockProduct("공개 정렬 상품", 30_000L));
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
+                bookingClass("공개 정렬 클래스", "PERFUME", 120, 50_000L, 30));
         User lowUser = createUser("review-sort-low@example.com", "01074000024", "낮은 별점 회원");
         User highUser = createUser("review-sort-high@example.com", "01074000025", "높은 별점 회원");
         User middleUser = createUser(
@@ -1205,7 +1207,7 @@ class ReviewUseCaseIT {
     private ProductOrderSource createProductOrderSource(
             User user, boolean completed, Product product) {
         LocalDateTime now = LocalDateTime.now(clock);
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), 30_000L, now.minusHours(1), now.plusHours(23));
         if (completed) {
             order.approve();
@@ -1220,7 +1222,7 @@ class ReviewUseCaseIT {
 
     private ClassBookingSource createClassBookingSource(User user, String className) {
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass(className, "PERFUME", 120, 50_000L, 30));
+                bookingClass(className, "PERFUME", 120, 50_000L, 30));
         return createClassBookingSource(user, bookingClass, 0);
     }
 

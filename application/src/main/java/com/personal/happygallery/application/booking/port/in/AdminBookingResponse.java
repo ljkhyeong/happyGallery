@@ -1,6 +1,9 @@
 package com.personal.happygallery.application.booking.port.in;
 
+import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingSource;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.user.User;
 import java.time.LocalDateTime;
 
@@ -11,13 +14,13 @@ public record AdminBookingResponse(
         String className,
         LocalDateTime startAt,
         LocalDateTime endAt,
-        String status,
-        String source,
+        BookingStatus status,
+        BookingSource source,
         int participantCount,
         long depositAmount,
         LocalDateTime depositPaidAt,
         long balanceAmount,
-        String balanceStatus,
+        BalanceStatus balanceStatus,
         LocalDateTime balancePaidAt,
         boolean arrears,
         boolean passBooking
@@ -46,13 +49,13 @@ public record AdminBookingResponse(
                 booking.getBookingClass().getName(),
                 booking.getSlot().getStartAt(),
                 booking.getSlot().getEndAt(),
-                booking.getStatus().name(),
-                booking.getSource().name(),
+                booking.getStatus(),
+                booking.getSource(),
                 booking.getParticipantCount(),
                 booking.getDepositAmount(),
                 booking.getDepositPaidAt(),
                 booking.getBalanceAmount(),
-                booking.getBalanceStatus().name(),
+                booking.getBalanceStatus(),
                 booking.getBalancePaidAt(),
                 booking.isArrearsFlag(),
                 booking.isPassBooking()

@@ -273,13 +273,13 @@ class AdminSlotSessionCancelUseCaseIT {
         PassPurchase pass = passPurchase(user.getId(), expiresAt, 320_000L);
         pass.useCredit(expiresAt.minusDays(1));
         pass = passPurchaseStorePort.save(pass);
-        Booking booking = bookingStorePort.save(Booking.forMemberPass(user, slot, pass));
+        Booking booking = bookingStorePort.save(Booking.forMemberPass(user, slot, pass, 1));
         return new PassBooking(booking, pass);
     }
 
     private void occupy(Slot slot, int count) {
         for (int i = 0; i < count; i++) {
-            slot.incrementBookedCount();
+            slot.incrementBookedCount(1);
         }
         slotStorePort.save(slot);
     }

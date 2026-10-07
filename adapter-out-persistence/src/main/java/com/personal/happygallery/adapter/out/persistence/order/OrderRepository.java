@@ -98,20 +98,18 @@ public interface OrderRepository extends JpaRepository<Order, Long>, OrderReader
             @Param("guestId") Long guestId,
             @Param("accessToken") String accessToken);
 
-    List<Order> findByAccessTokenOrderByCreatedAtDescIdDesc(
-            String accessToken, Pageable pageable);
-
     @Query("""
             SELECT o FROM Order o
             WHERE o.accessToken = :accessToken
-              AND (o.createdAt < :createdAt
-                   OR (o.createdAt = :createdAt AND o.id < :id))
+              AND (:cursorCreatedAt IS NULL
+                   OR o.createdAt < :cursorCreatedAt
+                   OR (o.createdAt = :cursorCreatedAt AND o.id < :cursorId))
             ORDER BY o.createdAt DESC, o.id DESC
             """)
-    List<Order> findByAccessTokenAfterPage(
+    List<Order> findPageByAccessToken(
             @Param("accessToken") String accessToken,
-            @Param("createdAt") LocalDateTime createdAt,
-            @Param("id") Long id,
+            @Param("cursorCreatedAt") LocalDateTime cursorCreatedAt,
+            @Param("cursorId") Long cursorId,
             Pageable pageable);
 
     // ── 관리자 커서 기반 페이지네이션 ──

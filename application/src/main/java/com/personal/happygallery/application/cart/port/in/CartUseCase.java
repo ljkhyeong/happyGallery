@@ -47,9 +47,6 @@ public interface CartUseCase {
 
     PurchasableCart getPurchasableCart(Long userId, List<Long> selectedCartItemIds);
 
-    void addItem(Long userId, Long productId, Long productVariantId,
-                 List<TextInput> textInputs, int qty);
-
     void mergeItems(Long userId, UUID idempotencyKey, List<MergeItem> items);
 
     void updateItemQty(Long userId, Long cartItemId, int qty);

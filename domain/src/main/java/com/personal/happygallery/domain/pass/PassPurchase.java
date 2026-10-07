@@ -158,11 +158,6 @@ public class PassPurchase {
         return OptionalInt.of(expiredCredits);
     }
 
-    /** 크레딧 단가 = total_price / total_credits */
-    public long unitPrice() {
-        return totalCredits == 0 ? 0 : totalPrice / totalCredits;
-    }
-
     /** 지정 크레딧을 총 결제액에 비례해 정산한다. 전 횟수 환불은 원결제액과 같다. */
     public long calculateRefundAmount(int refundCredits) {
         return Math.multiplyExact(totalPrice, refundCredits) / totalCredits;

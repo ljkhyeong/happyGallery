@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static com.personal.happygallery.support.TestFixtures.guest;
@@ -21,11 +22,11 @@ class BookingDepositPolicyTest {
     @DisplayName("일반 예약은 최소 1원의 예약금이 계산되는 클래스 가격만 허용한다")
     @Test
     void bookingClassPrice_keepsDepositPositive() {
-        assertThatThrownBy(() -> new BookingClass(
+        assertThatThrownBy(() -> bookingClass(
                 "가격 미달 클래스", "CRAFT", 60, BookingClass.MIN_PRICE - 1, 30))
                 .isInstanceOf(HappyGalleryException.class);
 
-        BookingClass bookingClass = new BookingClass(
+        BookingClass bookingClass = bookingClass(
                 "최소 가격 클래스", "CRAFT", 60, BookingClass.MIN_PRICE, 30);
         Slot slot = new Slot(bookingClass, LocalDateTime.of(2030, 1, 1, 10, 0));
 
@@ -39,7 +40,7 @@ class BookingDepositPolicyTest {
     @DisplayName("다인 예약 인원을 줄이면 남은 인원 비율로 예약금과 잔금을 조정한다")
     @Test
     void reduceParticipants_proratesBookingAmounts() {
-        BookingClass bookingClass = new BookingClass(
+        BookingClass bookingClass = bookingClass(
                 "단체 클래스", "CRAFT", 60, 50_000L, 30);
         Slot slot = new Slot(bookingClass, LocalDateTime.of(2030, 1, 1, 10, 0));
         Booking booking = Booking.forGuestDeposit(

@@ -30,6 +30,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -169,7 +170,7 @@ class AdminLoginUseCaseIT {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
 
-        assertThat(historyRepository.findAllByOrderByIdAsc())
+        assertThat(historyRepository.findAll(Sort.by("id")))
                 .extracting(history -> history.getOutcome())
                 .containsExactly(AdminAuthOutcome.LOGIN_SUCCEEDED);
     }
@@ -198,7 +199,7 @@ class AdminLoginUseCaseIT {
         String token = loginAndGetToken();
 
         assertThat(token).isNotBlank();
-        assertThat(historyRepository.findAllByOrderByIdAsc())
+        assertThat(historyRepository.findAll(Sort.by("id")))
                 .extracting(history -> history.getOutcome())
                 .contains(
                         AdminAuthOutcome.LOGIN_FAILED,
@@ -267,7 +268,7 @@ class AdminLoginUseCaseIT {
                 .findMatchingTimeStep(anyString(), eq(RECOVERY_CODES.get(0)));
         String replayChallenge = loginAndGetChallenge();
         assertInvalidMfa(replayChallenge, RECOVERY_CODES.get(0));
-        assertThat(historyRepository.findAllByOrderByIdAsc())
+        assertThat(historyRepository.findAll(Sort.by("id")))
                 .extracting(history -> history.getOutcome())
                 .contains(
                         AdminAuthOutcome.MFA_ENABLED,
@@ -348,7 +349,7 @@ class AdminLoginUseCaseIT {
             softly.assertThat(recovered.getCredentialVersion())
                     .isEqualTo(credentialVersionBeforeRecovery + 1);
             softly.assertThat(recoveryCodeRepository.findAll()).isEmpty();
-            softly.assertThat(historyRepository.findAllByOrderByIdAsc())
+            softly.assertThat(historyRepository.findAll(Sort.by("id")))
                     .extracting(history -> history.getOutcome())
                     .contains(
                             AdminAuthOutcome.RECOVERY_CODE_USED,

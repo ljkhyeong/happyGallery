@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.order;
 
 import com.personal.happygallery.domain.product.ProductOptionPolicy;
 import com.personal.happygallery.domain.product.ProductOptionType;
+import com.personal.happygallery.domain.text.DomainText;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EnumType;
@@ -34,9 +35,9 @@ public class OrderOptionSnapshot {
             throw new IllegalArgumentException("주문 옵션 스냅샷이 올바르지 않습니다.");
         }
         this.type = type;
-        this.groupName = ProductOptionPolicy.requireName(groupName, "주문 옵션명");
-        this.value = ProductOptionPolicy.requireText(
-                value, "주문 옵션값", ProductOptionPolicy.MAX_INPUT_LENGTH);
+        this.groupName = ProductOptionPolicy.requireName(groupName, "주문 옵션명은");
+        this.value = DomainText.required(
+                value, "주문 옵션값은", ProductOptionPolicy.MAX_INPUT_LENGTH);
         this.priceAdjustment = priceAdjustment;
         this.sortOrder = ProductOptionPolicy.requireSortOrder(sortOrder);
     }

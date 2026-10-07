@@ -8,6 +8,7 @@ import com.personal.happygallery.adapter.out.persistence.product.ProductReposito
 import com.personal.happygallery.application.media.port.out.ImageMediaReferenceReaderPort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.BookingClassStatus;
+import com.personal.happygallery.domain.booking.SlotCapacity;
 import com.personal.happygallery.domain.event.Event;
 import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductType;
@@ -99,7 +100,7 @@ class ImagePublicReferenceUseCaseIT {
                 "WOOD",
                 120,
                 50_000L,
-                30,
+                30, SlotCapacity.DEFAULT,
                 true,
                 null,
                 imageUrl,

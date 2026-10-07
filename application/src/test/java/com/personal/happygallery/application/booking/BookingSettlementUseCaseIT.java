@@ -74,7 +74,7 @@ class BookingSettlementUseCaseIT {
                 bookingClass,
                 LocalDateTime.now(clock).minusHours(3),
                 LocalDateTime.now(clock).minusHours(1)));
-        slot.incrementBookedCount();
+        slot.incrementBookedCount(1);
         slotStorePort.save(slot);
         Guest guest = guestRepository.save(guest("미수 고객", "01011112222"));
         Booking booking = bookingStorePort.save(booking(
@@ -131,7 +131,7 @@ class BookingSettlementUseCaseIT {
                 bookingClass,
                 LocalDateTime.now(clock).minusHours(3),
                 LocalDateTime.now(clock).minusHours(1)));
-        slot.incrementBookedCount();
+        slot.incrementBookedCount(1);
         slotStorePort.save(slot);
         Booking booking = bookingStorePort.save(Booking.forMemberDeposit(
                 user, slot, 5_000L, 0L, DepositPaymentMethod.CARD));

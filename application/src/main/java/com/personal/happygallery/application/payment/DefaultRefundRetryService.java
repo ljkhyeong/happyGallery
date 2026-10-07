@@ -3,6 +3,7 @@ package com.personal.happygallery.application.payment;
 import com.personal.happygallery.application.payment.port.in.RefundRetryUseCase;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.booking.Refund;
@@ -34,15 +35,8 @@ public class DefaultRefundRetryService implements RefundRetryUseCase {
     @Transactional(readOnly = true)
     public CursorPage<Refund> listFailed(String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        int fetchSize = pageSize + 1;
-        List<Refund> refunds;
-        if (cursor == null) {
-            refunds = refundPort.findActionRequired(fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            refunds = refundPort.findActionRequiredAfter(
-                    cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<Refund> refunds = refundPort.findActionRequired(after.timestamp(), after.id(), pageSize + 1);
         return CursorPage.of(refunds, pageSize,
                 refund -> CursorUtils.encode(refund.getCreatedAt(), refund.getId()));
     }

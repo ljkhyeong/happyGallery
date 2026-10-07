@@ -52,95 +52,6 @@ public sealed interface PaymentPayload {
         public OrderPayload {
             FulfillmentPolicy.requireValid(fulfillmentType, shippingAddress);
         }
-
-        public OrderPayload(Long userId, String phone, String verificationCode, String name,
-                            List<OrderItemRef> items, boolean cartCheckout,
-                            FulfillmentType fulfillmentType, ShippingAddress shippingAddress,
-                            String madeToOrderConsentVersion, boolean madeToOrderConsent,
-                            PolicyAcceptance policyAcceptance, String expectedCartVersion,
-                            Long issuedCouponId, long rewardAmount) {
-            this(userId, phone, verificationCode, name, items, cartCheckout, fulfillmentType,
-                    shippingAddress, madeToOrderConsentVersion, madeToOrderConsent,
-                    policyAcceptance, expectedCartVersion, issuedCouponId, rewardAmount, null);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items) {
-            this(userId, phone, verificationCode, name, items, false, FulfillmentType.PICKUP, null);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items,
-                            boolean cartCheckout) {
-            this(userId, phone, verificationCode, name, items, cartCheckout, FulfillmentType.PICKUP, null);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items,
-                            boolean cartCheckout,
-                            FulfillmentType fulfillmentType,
-                            ShippingAddress shippingAddress) {
-            this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress, null, false, null, null, null, 0L);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items,
-                            boolean cartCheckout,
-                            FulfillmentType fulfillmentType,
-                            ShippingAddress shippingAddress,
-                            String madeToOrderConsentVersion,
-                            boolean madeToOrderConsent) {
-            this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress,
-                    madeToOrderConsentVersion, madeToOrderConsent, null, null, null, 0L);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items,
-                            boolean cartCheckout,
-                            FulfillmentType fulfillmentType,
-                            ShippingAddress shippingAddress,
-                            String madeToOrderConsentVersion,
-                            boolean madeToOrderConsent,
-                            PolicyAcceptance policyAcceptance) {
-            this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress,
-                    madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance, null, null, 0L);
-        }
-
-        public OrderPayload(Long userId,
-                            String phone,
-                            String verificationCode,
-                            String name,
-                            List<OrderItemRef> items,
-                            boolean cartCheckout,
-                            FulfillmentType fulfillmentType,
-                            ShippingAddress shippingAddress,
-                            String madeToOrderConsentVersion,
-                            boolean madeToOrderConsent,
-                            PolicyAcceptance policyAcceptance,
-                            String expectedCartVersion) {
-            this(userId, phone, verificationCode, name, items, cartCheckout,
-                    fulfillmentType, shippingAddress,
-                    madeToOrderConsentVersion, madeToOrderConsent, policyAcceptance,
-                    expectedCartVersion, null, 0L);
-        }
     }
 
     record OrderItemRef(
@@ -151,10 +62,6 @@ public sealed interface PaymentPayload {
     ) {
         public OrderItemRef {
             textInputs = textInputs == null ? List.of() : List.copyOf(textInputs);
-        }
-
-        public OrderItemRef(Long productId, int qty) {
-            this(productId, null, List.of(), qty);
         }
     }
 
@@ -173,30 +80,7 @@ public sealed interface PaymentPayload {
             DepositPaymentMethod paymentMethod,
             int participantCount,
             PolicyAcceptance policyAcceptance
-    ) implements PaymentPayload {
-
-        public BookingPayload(Long userId,
-                              String phone,
-                              String verificationCode,
-                              String name,
-                              Long slotId,
-                              Long passId,
-                              DepositPaymentMethod paymentMethod) {
-            this(userId, phone, verificationCode, name, slotId, passId, paymentMethod, 1, null);
-        }
-
-        public BookingPayload(Long userId,
-                              String phone,
-                              String verificationCode,
-                              String name,
-                              Long slotId,
-                              Long passId,
-                              DepositPaymentMethod paymentMethod,
-                              PolicyAcceptance policyAcceptance) {
-            this(userId, phone, verificationCode, name, slotId, passId,
-                    paymentMethod, 1, policyAcceptance);
-        }
-    }
+    ) implements PaymentPayload {}
 
     /** 이용권 구매 payload. 회원 전용 — userId 필수. */
     record PassPayload(Long userId) implements PaymentPayload {}

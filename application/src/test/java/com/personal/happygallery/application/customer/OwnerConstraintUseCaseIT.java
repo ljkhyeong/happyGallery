@@ -25,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
 import static com.personal.happygallery.support.TestFixtures.guest;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
@@ -67,7 +68,7 @@ class OwnerConstraintUseCaseIT {
 
         LocalDateTime paidAt = startAt.minusDays(1);
         Order order = orderStorePort.save(
-                Order.forMember(member.getId(), 50_000L, paidAt, paidAt.plusHours(24)));
+                memberOrder(member.getId(), 50_000L, paidAt, paidAt.plusHours(24)));
 
         assertSoftly(softly -> {
             softly.assertThatThrownBy(() -> jdbcTemplate.update(

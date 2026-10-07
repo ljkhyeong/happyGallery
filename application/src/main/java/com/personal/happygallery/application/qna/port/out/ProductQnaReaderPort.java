@@ -13,22 +13,16 @@ public interface ProductQnaReaderPort {
 
     Optional<ProductQna> findByIdAndProductIdAndUserId(Long id, Long productId, Long userId);
 
-    List<ProductQnaListView> findOwnedByProduct(Long productId, Long userId, int limit);
+    // 목록 조회는 커서 값이 null이면 첫 페이지를 조회한다. 정렬은 (createdAt DESC, id DESC)다.
 
-    List<ProductQnaListView> findOwnedByProductAfter(
-            Long productId, Long userId, LocalDateTime createdAt, Long id, int limit);
+    List<ProductQnaListView> findOwnedByProduct(
+            Long productId, Long userId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
-    List<ProductQnaListView> findByProductId(Long productId, int limit);
+    List<ProductQnaListView> findByProductId(
+            Long productId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
-    List<ProductQnaListView> findByProductIdAfter(
-            Long productId, LocalDateTime createdAt, Long id, int limit);
+    List<ProductQna> findByProductIdForAdmin(
+            Long productId, LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 
-    List<ProductQna> findByProductIdForAdmin(Long productId, int limit);
-
-    List<ProductQna> findByProductIdForAdminAfter(
-            Long productId, LocalDateTime createdAt, Long id, int limit);
-
-    List<ProductQna> findUnanswered(int limit);
-
-    List<ProductQna> findUnansweredAfter(LocalDateTime createdAt, Long id, int limit);
+    List<ProductQna> findUnanswered(LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 }

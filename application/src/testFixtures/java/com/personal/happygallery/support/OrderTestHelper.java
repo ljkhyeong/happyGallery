@@ -173,7 +173,8 @@ public class OrderTestHelper {
         LocalDateTime paidAt = LocalDateTime.now(clock).minusHours(25);
         Order order = orderStorePort.save(
                 Order.forMember(
-                        member.getId(), price, 0L, paidAt, paidAt.plusHours(24),
+                        member.getId(), OrderPricingSnapshot.fullPrice(price, 0L),
+                        paidAt, paidAt.plusHours(24),
                         type == ProductType.MADE_TO_ORDER
                                 ? MadeToOrderConsent.current(paidAt)
                                 : null));

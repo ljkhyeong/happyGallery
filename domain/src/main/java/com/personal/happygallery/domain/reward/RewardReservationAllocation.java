@@ -56,9 +56,7 @@ public class RewardReservationAllocation {
     }
 
     public Long getId() { return id; }
-    public Long getReservationId() { return reservationId; }
     public Long getRewardLotId() { return rewardLotId; }
     public long getAmount() { return amount; }
-    public long getRestoredAmount() { return restoredAmount; }
     public LocalDateTime getOriginalExpiry() { return originalExpiry; }
 }

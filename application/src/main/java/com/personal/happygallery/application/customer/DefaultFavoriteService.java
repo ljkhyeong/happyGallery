@@ -51,9 +51,8 @@ public class DefaultFavoriteService implements FavoriteUseCase {
     @Transactional(readOnly = true)
     public CursorPage<View> list(Long userId, FavoriteTargetType type, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        var before = cursor == null ? null : CursorUtils.decode(cursor);
-        return CursorPage.of(favorites.list(userId, type, before == null ? null : before.timestamp(),
-                before == null ? null : before.id(), pageSize + 1), pageSize,
+        var before = CursorUtils.decodeOrFirst(cursor);
+        return CursorPage.of(favorites.list(userId, type, before.timestamp(), before.id(), pageSize + 1), pageSize,
                 row -> CursorUtils.encode(row.createdAt(), row.id()));
     }
 }

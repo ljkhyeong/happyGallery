@@ -124,44 +124,15 @@ public class Order {
     }
 
     /** 비회원 주문 생성. 초기 상태는 {@link OrderStatus#PAID_APPROVAL_PENDING}. */
-    public static Order forGuest(Long guestId, String accessToken, long totalAmount,
-                                 LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return forGuest(guestId, accessToken, totalAmount, 0L, paidAt, approvalDeadlineAt);
-    }
-
-    public static Order forGuest(Long guestId, String accessToken, long totalAmount, long shippingFee,
-                                 LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return forGuest(
-                guestId, accessToken, totalAmount, shippingFee, paidAt, approvalDeadlineAt, null);
-    }
-
     public static Order forGuest(Long guestId, String accessToken, long totalAmount, long shippingFee,
                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
                                  MadeToOrderConsent madeToOrderConsent) {
         return new Order(
-                null, guestId, accessToken, legacyPricing(totalAmount, shippingFee),
+                null, guestId, accessToken, guestPricing(totalAmount, shippingFee),
                 paidAt, approvalDeadlineAt, madeToOrderConsent);
     }
 
     /** 회원 주문 생성. guest 대신 user_id를 설정한다. */
-    public static Order forMember(Long userId, long totalAmount,
-                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return forMember(userId, totalAmount, 0L, paidAt, approvalDeadlineAt);
-    }
-
-    public static Order forMember(Long userId, long totalAmount, long shippingFee,
-                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt) {
-        return forMember(userId, totalAmount, shippingFee, paidAt, approvalDeadlineAt, null);
-    }
-
-    public static Order forMember(Long userId, long totalAmount, long shippingFee,
-                                  LocalDateTime paidAt, LocalDateTime approvalDeadlineAt,
-                                  MadeToOrderConsent madeToOrderConsent) {
-        return new Order(
-                userId, null, null, legacyPricing(totalAmount, shippingFee),
-                paidAt, approvalDeadlineAt, madeToOrderConsent);
-    }
-
     public static Order forMember(Long userId,
                                   OrderPricingSnapshot pricing,
                                   LocalDateTime paidAt,
@@ -172,7 +143,8 @@ public class Order {
                 paidAt, approvalDeadlineAt, madeToOrderConsent);
     }
 
-    private static OrderPricingSnapshot legacyPricing(long totalAmount, long shippingFee) {
+    /** 비회원 주문은 쿠폰·적립금이 없어 총액에서 배송비를 뺀 값이 상품 금액이다. */
+    private static OrderPricingSnapshot guestPricing(long totalAmount, long shippingFee) {
         if (shippingFee < 0L || shippingFee > totalAmount) {
             throw new IllegalArgumentException("배송비는 0원 이상이며 총 결제 금액을 넘을 수 없습니다.");
         }
@@ -357,14 +329,6 @@ public class Order {
         this.userId = userId;
         this.guestId = null;
         this.accessToken = null;
-    }
-
-    /** 휴대폰 번호 인증 후 비회원 주문의 관리 토큰을 교체한다. */
-    public void replaceGuestAccessToken(String accessToken) {
-        if (guestId == null) {
-            throw new IllegalStateException("회원 주문에는 비회원 접근 토큰을 발급할 수 없습니다.");
-        }
-        this.accessToken = accessToken;
     }
 
     /** 결제 confirm 성공 후 원결제 paymentKey를 저장한다. */

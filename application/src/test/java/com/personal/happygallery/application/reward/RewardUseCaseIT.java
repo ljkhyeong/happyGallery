@@ -1,5 +1,8 @@
 package com.personal.happygallery.application.reward;
 
+import static com.personal.happygallery.support.ConcurrentExecution.runSimultaneously;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
+import static java.util.Collections.nCopies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -22,10 +25,6 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -377,8 +376,9 @@ class RewardUseCaseIT {
         Order spendingOrder = saveOrder(user.getId(), 60_000L, now);
         rewardBenefitService.consume(attempt.getId(), spendingOrder.getId(), 60L, now);
 
-        runConcurrently(5, () -> rewardBenefitService.restoreUsed(
-                spendingOrder.getId(), 30L, "test:reward:concurrent-restore", now.plusMinutes(1)));
+        assertThat(runSimultaneously(nCopies(5, () -> rewardBenefitService.restoreUsed(
+                spendingOrder.getId(), 30L, "test:reward:concurrent-restore", now.plusMinutes(1)))))
+                .containsOnlyNulls();
 
         RewardQueryUseCase.RewardWallet wallet = rewardQueryUseCase.getWallet(user.getId());
         assertThat(wallet.availableBalance()).isEqualTo(30L);
@@ -395,8 +395,9 @@ class RewardUseCaseIT {
         Order earningOrder = saveOrder(user.getId(), 100_000L, now);
         rewardBenefitService.accrue(user.getId(), earningOrder.getId(), 100L, now);
 
-        runConcurrently(5, () -> rewardBenefitService.revokeEarned(
-                user.getId(), earningOrder.getId(), 40L, "test:reward:concurrent-revoke"));
+        assertThat(runSimultaneously(nCopies(5, () -> rewardBenefitService.revokeEarned(
+                user.getId(), earningOrder.getId(), 40L, "test:reward:concurrent-revoke"))))
+                .containsOnlyNulls();
 
         RewardQueryUseCase.RewardWallet wallet = rewardQueryUseCase.getWallet(user.getId());
         assertThat(wallet.availableBalance()).isEqualTo(60L);
@@ -439,7 +440,7 @@ class RewardUseCaseIT {
     }
 
     private Order saveOrder(Long userId, long amount, LocalDateTime paidAt) {
-        return orderRepository.saveAndFlush(Order.forMember(
+        return orderRepository.saveAndFlush(memberOrder(
                 userId, amount, paidAt, paidAt.plusHours(24)));
     }
 
@@ -477,37 +478,6 @@ class RewardUseCaseIT {
                         resultSet.getLong("amount"),
                         resultSet.getLong("restored_amount")),
                 orderId);
-    }
-
-    private void runConcurrently(int requestCount, Runnable command) throws Exception {
-        CountDownLatch ready = new CountDownLatch(requestCount);
-        CountDownLatch start = new CountDownLatch(1);
-        try (var executor = Executors.newFixedThreadPool(requestCount)) {
-            List<? extends Future<?>> futures = IntStream.range(0, requestCount)
-                    .mapToObj(index -> executor.submit(() -> {
-                        ready.countDown();
-                        await(start);
-                        command.run();
-                        return null;
-                    }))
-                    .toList();
-            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
-            start.countDown();
-            for (Future<?> future : futures) {
-                future.get(10, TimeUnit.SECONDS);
-            }
-        }
-    }
-
-    private static void await(CountDownLatch latch) {
-        try {
-            if (!latch.await(5, TimeUnit.SECONDS)) {
-                throw new AssertionError("동시 실행 시작 신호를 기다리는 시간이 초과되었습니다.");
-            }
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new AssertionError("동시 실행 대기가 중단되었습니다.", exception);
-        }
     }
 
     private record RewardLotSnapshot(

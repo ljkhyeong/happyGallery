@@ -110,7 +110,7 @@ public interface SmartStoreOrderProvider {
         }
     }
 
-    record CompletedReturn(String claimId, int quantity, LocalDateTime completedAt) {}
+    record CompletedReturn(String claimId, int quantity) {}
 
     record OperationResult(List<String> successProductOrderIds, List<OperationFailure> failures) {
         public OperationResult {

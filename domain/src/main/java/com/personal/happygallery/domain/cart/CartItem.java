@@ -58,10 +58,6 @@ public class CartItem {
 
     protected CartItem() {}
 
-    public CartItem(Long userId, Long productId, int qty, LocalDateTime createdAt) {
-        this(userId, productId, null, List.of(), qty, createdAt);
-    }
-
     public CartItem(Long userId, Long productId, Long productVariantId,
                     List<CartItemTextInput> textInputs, int qty, LocalDateTime createdAt) {
         OrderAmountCalculator.requireQuantity(qty);
@@ -93,7 +89,6 @@ public class CartItem {
     public Long getUserId() { return userId; }
     public Long getProductId() { return productId; }
     public Long getProductVariantId() { return productVariantId; }
-    public String getLineKey() { return lineKey; }
     public List<CartItemTextInput> getTextInputs() { return List.copyOf(textInputs); }
     public int getQty() { return qty; }
     public LocalDateTime getCreatedAt() { return createdAt; }

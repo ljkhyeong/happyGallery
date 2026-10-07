@@ -21,6 +21,7 @@ import com.personal.happygallery.support.UseCaseIT;
 import jakarta.servlet.Filter;
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -179,8 +180,9 @@ class MePassUseCaseIT {
                 .isEqualTo(BookingStatus.CANCELED);
         assertThat(slotRepository.findById(savedSlot.getId()).orElseThrow().getBookedCount()).isZero();
         await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
-                assertThat(refundRepository.findByPassPurchaseId(passId))
-                        .hasValueSatisfying(refund ->
+                assertThat(refundRepository.findByPassPurchaseIdIn(List.of(passId)))
+                        .singleElement()
+                        .satisfies(refund ->
                                 assertThat(refund.getStatus()).isEqualTo(RefundStatus.SUCCEEDED)));
     }
 
@@ -199,7 +201,7 @@ class MePassUseCaseIT {
 
         assertThat(passPurchaseRepository.findById(passId).orElseThrow().getRemainingCredits())
                 .isEqualTo(4);
-        assertThat(refundRepository.findByPassPurchaseId(passId)).isEmpty();
+        assertThat(refundRepository.findByPassPurchaseIdIn(List.of(passId))).isEmpty();
     }
 
     @DisplayName("인증 없이 이용권 환불을 요청하면 401을 반환한다")

@@ -88,11 +88,11 @@ public class DefaultGroupInquiryService implements GroupInquiryUseCase {
 
     private CursorPage<View> search(Long userId, AdminFilter filter, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        var before = cursor == null ? null : CursorUtils.decode(cursor);
+        var before = CursorUtils.decodeOrFirst(cursor);
         var rows = inquiries.search(userId, filter.status(), filter.source(), filter.inquiryId(),
                 filter.from() == null ? null : filter.from().atStartOfDay(),
-                filter.to() == null ? null : filter.to().plusDays(1).atStartOfDay(), before == null ? null : before.timestamp(),
-                before == null ? null : before.id(), pageSize + 1);
+                filter.to() == null ? null : filter.to().plusDays(1).atStartOfDay(),
+                before.timestamp(), before.id(), pageSize + 1);
         return CursorPage.of(rows.stream().map(this::view).toList(), pageSize,
                 value -> CursorUtils.encode(value.inquiry().getCreatedAt(), value.inquiry().getId()));
     }

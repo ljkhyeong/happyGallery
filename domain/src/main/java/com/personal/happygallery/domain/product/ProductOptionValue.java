@@ -49,7 +49,7 @@ public class ProductOptionValue {
     }
 
     public void update(String name, int sortOrder) {
-        this.name = ProductOptionPolicy.requireName(name, "옵션값");
+        this.name = ProductOptionPolicy.requireName(name, "옵션값은");
         this.sortOrder = ProductOptionPolicy.requireSortOrder(sortOrder);
         this.active = true;
     }

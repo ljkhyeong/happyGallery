@@ -172,36 +172,6 @@ public class DefaultCartService implements CartUseCase {
     }
 
     @Override
-    public void addItem(Long userId, Long productId, Long productVariantId,
-                        List<TextInput> textInputs, int qty) {
-        OrderAmountCalculator.requireQuantity(qty);
-        cartOwnerLock.lock(userId);
-        ResolvedLine resolved = optionConfigurationService.resolvePurchases(List.of(
-                new PurchaseRequest(0, productId, productVariantId, textInputs))).getFirst();
-        LocalDateTime changedAt = LocalDateTime.now(clock);
-        List<CartItemTextInput> cartInputs = cartInputs(resolved.purchase());
-        CartItem candidate = new CartItem(
-                userId, productId, resolved.purchase().variantId(), cartInputs, qty, changedAt);
-
-        List<CartItem> existingItems = cartItemReader.findAllByUserIdAndProductIdInForUpdate(
-                userId, List.of(productId));
-        StockKey stockKey = stockKey(resolved);
-        long desiredQuantity = quantitiesByStockKey(existingItems)
-                .getOrDefault(stockKey, 0L) + qty;
-        requireAvailableStock(
-                Map.of(stockKey, desiredQuantity), Map.of(stockKey, resolved));
-
-        existingItems.stream()
-                .filter(item -> CartItem.lineKey(
-                        item.getProductId(), item.getProductVariantId(), item.getTextInputs())
-                        .equals(candidate.getLineKey()))
-                .min(Comparator.comparing(CartItem::getId))
-                .ifPresentOrElse(
-                        existing -> existing.addQty(qty, changedAt),
-                        () -> cartItemStore.save(candidate));
-    }
-
-    @Override
     public void mergeItems(Long userId, UUID idempotencyKey, List<MergeItem> items) {
         if (items.isEmpty()) {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "장바구니 병합 항목이 비었습니다.");

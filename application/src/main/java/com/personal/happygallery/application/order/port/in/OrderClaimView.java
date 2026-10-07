@@ -15,8 +15,6 @@ public record OrderClaimView(
         OrderClaimStatus status,
         String customerReason,
         String adminNote,
-        Long resolvedByAdminId,
-        Long completedByAdminId,
         String replacementCarrier,
         String replacementTrackingNumber,
         long maximumRefundAmount,

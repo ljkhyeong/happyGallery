@@ -26,9 +26,6 @@ public interface CartItemRepository extends JpaRepository<CartItem, Long>,
     @Override
     void delete(CartItem item);
 
-    /** 운영 포트에는 없는 테스트 검증용 파생 쿼리다. */
-    Optional<CartItem> findByUserIdAndProductId(Long userId, Long productId);
-
     @Override
     @Lock(PESSIMISTIC_WRITE)
     @Query("""

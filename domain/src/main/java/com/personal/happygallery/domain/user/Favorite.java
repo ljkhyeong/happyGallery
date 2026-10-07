@@ -30,6 +30,5 @@ public class Favorite {
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getProductId() { return productId; }
-    public Long getClassId() { return classId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

@@ -26,7 +26,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.http.HttpStatus;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -81,7 +80,7 @@ public class AdminBookingController {
     @GetMapping
     @Operation(operationId = "listBookings")
     public List<AdminBookingResponse> listBookings(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam LocalDate date,
             @RequestParam(required = false) BookingStatus status) {
         return adminBookingQueryUseCase.listBookings(date, status).stream()
                 .map(AdminBookingResponse::from)
@@ -93,8 +92,8 @@ public class AdminBookingController {
     @Operation(operationId = "searchBookings")
     public AdminBookingSearchPageResponse searchBookings(
             @RequestParam(required = false) BookingStatus status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(required = false) LocalDate dateFrom,
+            @RequestParam(required = false) LocalDate dateTo,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

@@ -16,6 +16,7 @@ import com.personal.happygallery.application.order.OrderStockService.StockAdjust
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.application.reward.RewardBenefitService.RewardEarnedSnapshot;
 import com.personal.happygallery.application.shared.page.CursorPage;
+import com.personal.happygallery.application.shared.page.CursorUtils.CursorParam;
 import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.application.token.GuestTokenService;
@@ -130,19 +131,10 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
     public CursorPage<OrderClaimView> list(OrderClaimStatus status, String cursor, int size) {
         int pageSize = PageParams.clampSize(size);
         int fetchSize = pageSize + 1;
-        List<OrderClaim> claims;
-        if (cursor == null) {
-            claims = status == null
-                    ? orderClaimPort.findRecent(fetchSize)
-                    : orderClaimPort.findRecentByStatus(status, fetchSize);
-        } else {
-            var cursorParam = CursorUtils.decode(cursor);
-            claims = status == null
-                    ? orderClaimPort.findRecentAfter(
-                            cursorParam.timestamp(), cursorParam.id(), fetchSize)
-                    : orderClaimPort.findRecentByStatusAfter(
-                            status, cursorParam.timestamp(), cursorParam.id(), fetchSize);
-        }
+        CursorParam after = CursorUtils.decodeOrFirst(cursor);
+        List<OrderClaim> claims = status == null
+                ? orderClaimPort.findRecent(after.timestamp(), after.id(), fetchSize)
+                : orderClaimPort.findRecentByStatus(status, after.timestamp(), after.id(), fetchSize);
         return CursorPage.of(
                 viewAssembler.assemble(claims),
                 pageSize,

@@ -44,6 +44,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -99,7 +101,7 @@ class KeyRotationUseCaseIT {
                 oldEncryptor.encrypt("회전 비회원"), oldIndexer.index("회전 비회원"),
                 oldEncryptor.encrypt("01087654321"), oldIndexer.index("01087654321")));
         BookingClass bookingClass = classRepository.save(
-                new BookingClass("키 회전 클래스", "KEY_ROTATION", 60, 50_000L, 0));
+                bookingClass("키 회전 클래스", "KEY_ROTATION", 60, 50_000L, 0));
         Slot slot = slotRepository.save(new Slot(
                 bookingClass,
                 LocalDateTime.of(2030, 1, 2, 10, 0),
@@ -119,7 +121,7 @@ class KeyRotationUseCaseIT {
                         """),
                 oldIndexer.index(paymentPhone), "v1", "a".repeat(64)));
         LocalDateTime paidAt = LocalDateTime.of(2030, 1, 1, 10, 0);
-        Order order = orderRepository.save(Order.forMember(
+        Order order = orderRepository.save(memberOrder(
                 user.getId(), 50_000L, paidAt, paidAt.plusHours(24)));
         Fulfillment fulfillment = fulfillmentRepository.save(Fulfillment.shipping(
                 order.getId(), oldEncryptor.encrypt("{\"address\":\"서울\"}")));

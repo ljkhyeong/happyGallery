@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import static com.personal.happygallery.support.TestFixtures.smartStoreProductOrder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doThrow;
@@ -40,9 +41,8 @@ class DefaultSmartStoreChannelOrderServiceTest {
                 mock(SmartStoreDeliveryInfoProtector.class),
                 mock(SmartStoreOrderActionHistoryService.class));
         LocalDateTime changedAt = LocalDateTime.of(2026, 8, 31, 12, 0);
-        SmartStoreProductOrder order = new SmartStoreProductOrder(
-                "po-1", "order-1", 123L, null, "가죽 지갑", null, "PAYED",
-                null, null, 1, 1, "PAYED", changedAt, changedAt);
+        SmartStoreProductOrder order = smartStoreProductOrder(
+                "po-1", "order-1", "가죽 지갑", "PAYED", 1, changedAt, changedAt);
         SmartStoreClaimDetail claim = hasClaim ? new SmartStoreClaimDetail(
                 "claim-1", "RETURN", "RETURN_REQUEST", "PRODUCT_UNSATISFIED", null,
                 1, changedAt, null, null, null, null, null, List.of()) : null;

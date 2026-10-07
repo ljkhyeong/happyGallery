@@ -30,6 +30,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
+import static com.personal.happygallery.support.TestFixtures.cartItem;
 import static com.personal.happygallery.support.TestFixtures.inventory;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,7 +57,7 @@ class CartQueryUseCaseIT {
         User user = userStore.save(new User("cart-decrease@example.com", "hashed", "수량 고객", "01012345678"));
         Product product = productStore.save(readyStockProduct("수량 감소 상품", 10_000L));
         Inventory inventory = inventoryStore.save(inventory(product, 5));
-        cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 5);
+        addToCart(user.getId(), product.getId(), null, List.of(), 5);
         Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
         inventory.deduct(3);
         cartUseCase.updateItemQty(user.getId(), itemId, 4);
@@ -82,12 +83,12 @@ class CartQueryUseCaseIT {
         Long productId = registered.product().getId();
         Long variantId = registered.options().variants().getFirst().id();
         List<TextInput> inputs = List.of(new TextInput("z", "앞면"), new TextInput("A", "뒷면"));
-        cartUseCase.addItem(user.getId(), productId, variantId, inputs, 2);
+        addToCart(user.getId(), productId, variantId, inputs, 2);
         entityManager.flush();
         Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
 
         productAdminUseCase.update(productId, textOptionProduct(1, 0));
-        cartUseCase.addItem(user.getId(), productId, variantId, inputs.reversed(), 1);
+        addToCart(user.getId(), productId, variantId, inputs.reversed(), 1);
 
         assertThat(cartUseCase.getCart(user.getId()).items())
                 .extracting(CartUseCase.CartItemView::cartItemId, CartUseCase.CartItemView::qty)
@@ -124,10 +125,10 @@ class CartQueryUseCaseIT {
         String message = "각인🙂".repeat(25);
         List<TextInput> singleInput = List.of(new TextInput("a", message + ";b=B"));
         List<TextInput> twoInputs = List.of(new TextInput("a", message), new TextInput("b", "B"));
-        cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
+        addToCart(user.getId(), productId, variantId, singleInput, 1);
         entityManager.flush();
         Long itemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
-        cartUseCase.addItem(user.getId(), productId, variantId, singleInput, 1);
+        addToCart(user.getId(), productId, variantId, singleInput, 1);
         UUID mergeKey = UUID.randomUUID();
         cartUseCase.mergeItems(user.getId(), mergeKey,
                 List.of(new CartUseCase.MergeItem(productId, variantId, twoInputs, 1)));
@@ -155,9 +156,9 @@ class CartQueryUseCaseIT {
 
         LocalDateTime createdAt = LocalDateTime.now(clock);
         CartItem availableItem = cartItemStore.save(
-                new CartItem(user.getId(), availableProduct.getId(), 2, createdAt));
+                cartItem(user.getId(), availableProduct.getId(), 2, createdAt));
         CartItem unavailableItem = cartItemStore.save(
-                new CartItem(user.getId(), unavailableProduct.getId(), 1, createdAt.plusSeconds(1)));
+                cartItem(user.getId(), unavailableProduct.getId(), 1, createdAt.plusSeconds(1)));
 
         CartUseCase.CartView cart = cartUseCase.getCart(user.getId());
 
@@ -182,7 +183,7 @@ class CartQueryUseCaseIT {
                 "cart-version@example.com", "hashed", "버전 회원", "01011112222"));
         Product product = productStore.save(readyStockProduct("버전 상품", 19_000L));
         Inventory inventory = inventoryStore.save(inventory(product, 5));
-        CartItem cartItem = cartItemStore.save(new CartItem(
+        CartItem cartItem = cartItemStore.save(cartItem(
                 user.getId(), product.getId(), 1, LocalDateTime.now(clock)));
 
         String firstVersion = cartUseCase.getCart(user.getId()).cartVersion();
@@ -221,7 +222,7 @@ class CartQueryUseCaseIT {
         Product newProduct = productStore.save(readyStockProduct("새 병합 상품", 20_000L));
         inventoryStore.save(inventory(existingProduct, 5));
         inventoryStore.save(inventory(newProduct, 5));
-        cartItemStore.save(new CartItem(
+        cartItemStore.save(cartItem(
                 user.getId(), existingProduct.getId(), 1, LocalDateTime.now(clock)));
         UUID idempotencyKey = UUID.randomUUID();
         List<CartUseCase.MergeItem> items = List.of(
@@ -269,20 +270,16 @@ class CartQueryUseCaseIT {
         }
     }
 
-    @DisplayName("장바구니 추가·병합·수량 변경은 SKU 재고를 초과할 수 없다")
+    @DisplayName("장바구니 병합·수량 변경은 SKU 재고를 초과할 수 없다")
     @Test
     void cartMutations_rejectQuantityOverStock() {
         User user = userStore.save(new User(
                 "cart-stock@example.com", "hashed", "재고 장바구니", "01022223333"));
         Product product = productStore.save(readyStockProduct("재고 제한 상품", 12_000L));
         inventoryStore.save(inventory(product, 2));
-        cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 1);
+        addToCart(user.getId(), product.getId(), null, List.of(), 1);
         Long cartItemId = cartUseCase.getCart(user.getId()).items().getFirst().cartItemId();
 
-        assertThatThrownBy(() -> cartUseCase.addItem(user.getId(), product.getId(), null, List.of(), 2))
-                .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
-                        assertThat(exception.getErrorCode())
-                                .isEqualTo(ErrorCode.INVENTORY_NOT_ENOUGH));
         assertThatThrownBy(() -> cartUseCase.mergeItems(
                 user.getId(), UUID.randomUUID(),
                 List.of(new CartUseCase.MergeItem(product.getId(), null, List.of(), 2))))
@@ -314,13 +311,13 @@ class CartQueryUseCaseIT {
                         List.of()));
         Long variantId = registered.options().variants().getFirst().id();
 
-        cartUseCase.addItem(
+        addToCart(
                 user.getId(), registered.product().getId(), variantId,
                 List.of(new TextInput("engraving", "HAPPY")), 1);
-        cartUseCase.addItem(
+        addToCart(
                 user.getId(), registered.product().getId(), variantId,
                 List.of(new TextInput("engraving", "GALLERY")), 1);
-        assertThatThrownBy(() -> cartUseCase.addItem(
+        assertThatThrownBy(() -> addToCart(
                 user.getId(), registered.product().getId(), variantId,
                 List.of(new TextInput("engraving", "HAPPY")), 1))
                 .isInstanceOfSatisfying(HappyGalleryException.class, exception ->
@@ -375,5 +372,10 @@ class CartQueryUseCaseIT {
         return new CartUseCase.CartItemView(
                 null, productId, null, productName, ProductType.READY_STOCK, price, 0L, 0L, price,
                 null, null, null, List.of(), qty, available, availableQuantity);
+    }
+
+    private void addToCart(Long userId, Long productId, Long variantId, List<TextInput> textInputs, int qty) {
+        cartUseCase.mergeItems(userId, UUID.randomUUID(),
+                List.of(new CartUseCase.MergeItem(productId, variantId, textInputs, qty)));
     }
 }

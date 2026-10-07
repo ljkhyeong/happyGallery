@@ -86,8 +86,6 @@ public class RewardLot {
     public Long getId() { return id; }
     public Long getUserId() { return userId; }
     public Long getSourceOrderId() { return sourceOrderId; }
-    public long getEarnedAmount() { return earnedAmount; }
-    public long getRemainingAmount() { return remainingAmount; }
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

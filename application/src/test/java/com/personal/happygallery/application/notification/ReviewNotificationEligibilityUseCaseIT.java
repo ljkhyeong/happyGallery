@@ -42,6 +42,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.memberOrder;
 import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -123,7 +125,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     void findBookingRequestRecipient_checksCompletedMemberBookingAndReview() {
         User user = createUser("booking-review-notice@example.com", "01071000002");
         BookingClass bookingClass = classRepository.saveAndFlush(
-                new BookingClass("후기 알림 클래스", "CRAFT", 120, 50_000L, 30));
+                bookingClass("후기 알림 클래스", "CRAFT", 120, 50_000L, 30));
         Slot slot = slotRepository.saveAndFlush(
                 new Slot(bookingClass, now().minusHours(3), now().minusHours(1)));
         Booking booking = Booking.forMemberDeposit(
@@ -213,7 +215,7 @@ class ReviewNotificationEligibilityUseCaseIT {
     }
 
     private Order completedOrder(User user, long totalAmount) {
-        Order order = Order.forMember(
+        Order order = memberOrder(
                 user.getId(), totalAmount, now().minusHours(1), now().plusHours(23));
         order.approve();
         order.markPickupReady();

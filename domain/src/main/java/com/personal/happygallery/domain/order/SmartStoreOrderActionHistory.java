@@ -104,7 +104,7 @@ public class SmartStoreOrderActionHistory {
         complete(SmartStoreOrderActionStatus.NOT_SENT, resultCode, resultMessage, completedAt);
     }
 
-    public boolean requiresReconciliation(LocalDateTime staleRequestedBefore) {
+    private boolean requiresReconciliation(LocalDateTime staleRequestedBefore) {
         if (reconciledAt != null) {
             return false;
         }

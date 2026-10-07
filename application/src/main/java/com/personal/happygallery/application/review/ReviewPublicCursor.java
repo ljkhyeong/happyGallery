@@ -3,18 +3,16 @@ package com.personal.happygallery.application.review;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.review.ReviewSort;
-import java.nio.charset.StandardCharsets;
+import com.personal.happygallery.application.shared.page.CursorCodec;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 import java.util.Objects;
 
 /** 정렬 기준과 별점을 포함해 다른 공개 정렬에 재사용되지 않는 후기 전용 커서. */
 final class ReviewPublicCursor {
 
     private static final String VERSION = "review-v1";
-    private static final String SEPARATOR = "|";
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private ReviewPublicCursor() {}
@@ -25,25 +23,20 @@ final class ReviewPublicCursor {
             int rating,
             LocalDateTime createdAt,
             Long id) {
-        String raw = String.join(
-                SEPARATOR,
+        return CursorCodec.encode(
                 VERSION,
                 sort.name(),
                 Objects.toString(ratingFilter, "ALL"),
                 Integer.toString(rating),
                 FORMATTER.format(createdAt),
                 id.toString());
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
     }
 
     static CursorParam decode(
             String cursor, ReviewSort expectedSort, Integer expectedRatingFilter) {
         try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            String[] parts = raw.split("\\|", -1);
-            if (parts.length != 6 || !VERSION.equals(parts[0])) {
+            String[] parts = CursorCodec.decode(cursor, 6);
+            if (!VERSION.equals(parts[0])) {
                 throw new IllegalArgumentException("Invalid review cursor");
             }
             ReviewSort sort = ReviewSort.valueOf(parts[1]);

@@ -43,7 +43,7 @@ public record AdminOrderSearchPageResponse(
             return new Order(
                     row.orderId(),
                     row.orderNumber(),
-                    OrderStatus.valueOf(row.status()),
+                    row.status(),
                     row.totalAmount(),
                     row.buyerName(),
                     row.buyerPhone(),

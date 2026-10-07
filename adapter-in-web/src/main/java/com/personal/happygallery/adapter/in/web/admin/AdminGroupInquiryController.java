@@ -11,7 +11,6 @@ import com.personal.happygallery.application.inquiry.port.in.GroupInquiryUseCase
 import com.personal.happygallery.domain.inquiry.GroupInquiryStatus;
 import com.personal.happygallery.domain.inquiry.GroupInquiry;
 import java.time.LocalDate;
-import org.springframework.format.annotation.DateTimeFormat;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -37,8 +36,8 @@ public class AdminGroupInquiryController {
     public GroupInquiryPageResponse list(@RequestParam(required = false) GroupInquiryStatus status,
             @RequestParam(required = false) GroupInquiry.Source source,
             @RequestParam(required = false) Long inquiryId,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
             @RequestParam(required = false) String cursor, @RequestParam(defaultValue = "20") int size) {
         return GroupInquiryPageResponse.from(inquiries.listForAdmin(new GroupInquiryUseCase.AdminFilter(status, source, inquiryId, from, to), cursor, size));
     }

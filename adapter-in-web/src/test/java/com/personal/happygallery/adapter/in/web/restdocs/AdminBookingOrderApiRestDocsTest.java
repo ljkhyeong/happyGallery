@@ -35,10 +35,12 @@ import com.personal.happygallery.application.search.port.in.AdminBookingSearchUs
 import com.personal.happygallery.application.search.port.in.AdminOrderSearchUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
+import com.personal.happygallery.domain.booking.BalanceStatus;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskStatus;
 import com.personal.happygallery.domain.booking.BookingCancellationTaskType;
 import com.personal.happygallery.domain.booking.BookingSource;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
@@ -523,10 +525,10 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
                 "BK-00000100",
                 new AdminBookingResponse.CustomerSummary("GUEST", "홍길동", "01012345678"),
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
-                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
-                "PHONE",
+                LocalDateTime.of(2026, 5, 7, 21, 0), BookingStatus.BOOKED,
+                BookingSource.PHONE,
                 3, 15000L, LocalDateTime.of(2026, 5, 1, 20, 50),
-                135000L, "UNPAID", null, false, false);
+                135000L, BalanceStatus.UNPAID, null, false, false);
     }
 
     private static TaskView bookingCancellationTask(
@@ -552,10 +554,10 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     private static AdminBookingSearchRow adminBookingSearchRow() {
         return new AdminBookingSearchRow(100L, "BK-00000100", "GUEST", "홍길동", "01012345678",
                 "향수 원데이", LocalDateTime.of(2026, 5, 7, 19, 0),
-                LocalDateTime.of(2026, 5, 7, 21, 0), "BOOKED",
-                "PHONE",
+                LocalDateTime.of(2026, 5, 7, 21, 0), BookingStatus.BOOKED,
+                BookingSource.PHONE,
                 3, 15000L, LocalDateTime.of(2026, 5, 1, 20, 50),
-                135000L, "UNPAID", null, false, false,
+                135000L, BalanceStatus.UNPAID, null, false, false,
                 LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC));
     }
 
@@ -586,7 +588,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     private static AdminOrderFulfillmentResponse adminOrderFulfillmentResponse() {
         return new AdminOrderFulfillmentResponse(
                 200L,
-                "SHIPPING",
+                FulfillmentType.SHIPPING,
                 new ShippingAddress("홍길동", "01012345678", "06236", "서울시 강남구 테헤란로 1", "2층"),
                 LocalDate.of(2026, 5, 8),
                 null,
@@ -601,7 +603,7 @@ class AdminBookingOrderApiRestDocsTest extends RestDocsTestSupport {
     }
 
     private static AdminOrderSearchRow adminOrderSearchRow() {
-        return new AdminOrderSearchRow(200L, "ORD-00000200", "PAID_APPROVAL_PENDING", 39000L,
+        return new AdminOrderSearchRow(200L, "ORD-00000200", OrderStatus.PAID_APPROVAL_PENDING, 39000L,
                 "홍길동", "01012345678",
                 LocalDateTime.of(2026, 5, 1, 20, 55),
                 LocalDateTime.of(2026, 5, 1, 21, 15),
