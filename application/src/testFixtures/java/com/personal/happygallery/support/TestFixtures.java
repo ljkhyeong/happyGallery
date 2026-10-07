@@ -10,6 +10,8 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.crypto.BlindIndexer;
 import com.personal.happygallery.domain.crypto.FieldEncryptor;
+import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.order.OrderItemPricing;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.pass.PassPlan;
@@ -76,6 +78,14 @@ public final class TestFixtures {
 
     public static Product readyStockProduct(String name, long price) {
         return new Product(name, ProductType.READY_STOCK, price);
+    }
+
+    /** 할인 없는 기성품 주문 상품 라인. */
+    public static OrderItem readyStockOrderItem(
+            Order order, Long productId, String productName, int qty, long unitPrice) {
+        return new OrderItem(
+                order, productId, null, productName, ProductType.READY_STOCK, qty, unitPrice, unitPrice,
+                0L, 0L, List.of(), null, null, null, OrderItemPricing.fullPrice(qty, unitPrice));
     }
 
     /** prepare가 저장하는 형식과 같은 할인 없는 기성품 결제 품목 스냅샷. */

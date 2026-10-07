@@ -65,7 +65,7 @@ public record OrderDetailResponse(
             Long productId,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             String productName,
-            @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true)
+            @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             ProductType productType,
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED)
             int qty,

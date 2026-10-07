@@ -60,7 +60,6 @@ export function OrderDetailCard({ order }: Props) {
                       productionLeadDays={item.productionLeadDays}
                       compact
                       showCustomizationInquiry={false}
-                      showLegacySnapshotNotice
                     />
                   </div>
                   <OrderReorderButton item={item} />

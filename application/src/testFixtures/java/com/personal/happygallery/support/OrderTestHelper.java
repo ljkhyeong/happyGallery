@@ -9,6 +9,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.order.OrderItemPricing;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.MadeToOrderConsent;
 import com.personal.happygallery.domain.order.ShippingAddress;
@@ -165,13 +166,19 @@ public final class OrderTestHelper {
         orderItemPort.save(new OrderItem(
                 order,
                 product.getId(),
+                null,
                 product.getName(),
                 product.getType(),
                 1,
                 price,
+                price,
+                0L,
+                0L,
+                List.of(),
                 product.getSpecification(),
                 product.getCareInstructions(),
-                product.getProductionLeadDays()));
+                product.getProductionLeadDays(),
+                OrderItemPricing.fullPrice(1, price)));
 
         Inventory inventory = inventoryReaderPort.findByProductId(product.getId()).orElseThrow();
         inventory.deduct(1);

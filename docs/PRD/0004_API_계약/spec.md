@@ -1598,7 +1598,7 @@ X-Access-Token: {accessToken}
   - 쿠폰은 배송비를 제외한 상품 금액에 회원당 1장만 적용한다. `rewardEarnBase`는 상품 금액에서 쿠폰 할인과 적립금 사용을 뺀 신규 적립 기준이며, `issuedCouponId`는 쿠폰을 쓰지 않은 주문에서 `null`이다.
   - `couponStatus`는 주문에 사용한 쿠폰의 현재 상태(`AVAILABLE`, `RESERVED`, `REDEEMED`, `EXPIRED`, `CANCELED`)이며 쿠폰 미사용 주문은 `null`이다. 미사용 상태의 쿠폰은 조회 시 유효기간과 사용 중지 여부도 반영하되 저장 상태를 변경하지 않는다. 환불 완료 화면은 이 값으로 재사용 가능 여부를 안내한다.
   - 각 항목의 `grossAmount`, `couponDiscountAmount`, `rewardUsedAmount`, `netPaidAmount`는 주문 전체 혜택을 원 단위로 비례 배분한 불변 스냅샷이다. 항목 합계는 주문의 상품·쿠폰·적립금·적립 기준 금액과 각각 일치한다.
-  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. 스냅샷 도입 전 주문은 `productType`과 구매조건 필드가 `null`일 수 있다.
+  - 각 항목의 `productName`, `productType`, `unitPrice`, `specification`, `careInstructions`, `productionLeadDays`는 prepare 당시 스냅샷이다. `productType`은 항상 값이 있고, 기성품의 구매조건 필드는 `null`일 수 있다.
   - 환불 이력이 있으면 `refund`에 고객 반환 총액 `amount`, `pgRefundAmount`, `rewardRestoreAmount`, `rewardRevokeAmount`, `restoreCoupon`, `status`를 반환하고, 없으면 `null`이다. 고객 응답에는 `refundId`, 실패 사유, 시도 횟수를 노출하지 않는다.
   - 주문 전액 취소는 PG 결제액과 사용 적립금을 각각 취소·복원하고, 취소 시점에도 유효한 쿠폰만 다시 사용할 수 있게 한다. 사용 쿠폰이 이미 만료됐다면 상태를 `EXPIRED`로 바꾸되 원 결제 시도·주문 연결과 사용 시각은 감사 이력으로 유지한다.
   - `status=PICKUP_EXPIRED`는 관리자 예외 환불 또는 정책 변경 전 자동 환불된 미수령 주문이며 `refund`에 진행 상태를 반환한다. `status=PICKUP_FORFEITED`는 상품 유형과 관계없는 미환불 미수령 종료이며 `refund=null`이다.

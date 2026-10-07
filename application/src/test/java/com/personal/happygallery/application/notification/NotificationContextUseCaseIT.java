@@ -16,7 +16,6 @@ import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
-import com.personal.happygallery.domain.order.OrderItem;
 import com.personal.happygallery.domain.product.RestockAlert;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -31,6 +30,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import static com.personal.happygallery.support.TestFixtures.bookingClass;
+import static com.personal.happygallery.support.TestFixtures.readyStockOrderItem;
 import static com.personal.happygallery.support.TestFixtures.readyStockProduct;
 import static com.personal.happygallery.support.TestFixtures.slot;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,8 +67,8 @@ class NotificationContextUseCaseIT {
         var product = products.save(readyStockProduct("현재 상품명", 10_000L));
         var second = products.save(readyStockProduct("다른 상품", 10_000L));
         var order = orderStore.save(Order.forMember(user.getId(), 20_000L, now, now.plusDays(1)));
-        orderItems.save(new OrderItem(order, product.getId(), "구매 당시 작품명", 1, 10_000L));
-        orderItems.save(new OrderItem(order, second.getId(), "다른 작품명", 1, 10_000L));
+        orderItems.save(readyStockOrderItem(order, product.getId(), "구매 당시 작품명", 1, 10_000L));
+        orderItems.save(readyStockOrderItem(order, second.getId(), "다른 작품명", 1, 10_000L));
         var bookingClass = classes.save(bookingClass("가죽공예", "CRAFT", 120, 50_000L, 30));
         var firstSlot = slots.save(slot(bookingClass, now.plusDays(2), now.plusDays(2).plusHours(2)));
         var nextSlot = slots.save(slot(bookingClass, now.plusDays(3), now.plusDays(3).plusHours(2)));
@@ -104,7 +104,7 @@ class NotificationContextUseCaseIT {
         var other = users.save(new User("notification-other@example.com", "hash", "다른 회원", "01098760003"));
         var product = products.save(readyStockProduct("타인 작품", 10_000L));
         var order = orderStore.save(Order.forMember(other.getId(), 10_000L, now, now.plusDays(1)));
-        orderItems.save(new OrderItem(order, product.getId(), "타인 구매 내용", 1, 10_000L));
+        orderItems.save(readyStockOrderItem(order, product.getId(), "타인 구매 내용", 1, 10_000L));
         var foreign = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
         var missing = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", Long.MAX_VALUE);
         sent(other.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
