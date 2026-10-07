@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.Duration;
@@ -29,7 +30,7 @@ class GuestTokenServiceTest {
                 issued.rawToken(), ACTIVE_SECRET, NOW);
 
         assertSoftly(softly -> {
-            softly.assertThat(issued.tokenHash()).isEqualTo(AccessTokenHasher.hash(issued.rawToken()));
+            softly.assertThat(issued.tokenHash()).isEqualTo(Sha256.hex(issued.rawToken()));
             softly.assertThat(claims.expiry()).isEqualTo(NOW.plus(Duration.ofDays(30)));
         });
         assertThatThrownBy(() -> AccessTokenSigner.verify(issued.rawToken(), PREVIOUS_SECRET, NOW))

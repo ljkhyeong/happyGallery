@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.token;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.NotFoundException;
 import java.time.Clock;
 import java.time.Duration;
@@ -57,7 +58,7 @@ public class GuestTokenService {
     public String resolveTokenHash(String rawToken) {
         try {
             verifySigned(rawToken);
-            return AccessTokenHasher.hash(rawToken);
+            return Sha256.hex(rawToken);
         } catch (InvalidTokenException e) {
             log.warn("게스트 토큰 검증 실패 [type={}]", e.getClass().getSimpleName());
             throw new NotFoundException("접근 토큰");

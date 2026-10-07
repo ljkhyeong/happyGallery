@@ -20,6 +20,7 @@ import com.personal.happygallery.application.product.port.out.InventoryReaderPor
 import com.personal.happygallery.application.product.port.out.ProductReaderPort;
 import com.personal.happygallery.domain.cart.CartItem;
 import com.personal.happygallery.domain.cart.CartItemTextInput;
+import com.personal.happygallery.domain.crypto.Sha256;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.InventoryNotEnoughException;
@@ -30,8 +31,6 @@ import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -39,7 +38,6 @@ import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -451,12 +449,7 @@ public class DefaultCartService implements CartUseCase {
                 })
                 .sorted()
                 .collect(Collectors.joining("&"));
-        try {
-            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                    .digest(canonicalItems.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256을 사용할 수 없습니다.", exception);
-        }
+        return Sha256.hex(canonicalItems);
     }
 
     private record CartSnapshot(

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.token;
 
+import com.personal.happygallery.domain.crypto.Sha256;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -45,7 +46,7 @@ public final class AccessTokenSigner {
         String encodedPayload = URL_ENCODER.encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         String signature = computeHmac(encodedPayload, hmacSecret);
         String token = encodedPayload + "." + signature;
-        String tokenHash = AccessTokenHasher.hash(token);
+        String tokenHash = Sha256.hex(token);
 
         return new SignedToken(token, tokenHash);
     }
