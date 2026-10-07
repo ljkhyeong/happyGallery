@@ -2,11 +2,9 @@ package com.personal.happygallery.application.shared.page;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
-import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 /**
  * 커서 인코딩/디코딩 유틸리티.
@@ -16,7 +14,6 @@ import java.util.Base64;
  */
 public final class CursorUtils {
 
-    private static final String SEPARATOR = "|";
     private static final DateTimeFormatter FMT = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private CursorUtils() {}
@@ -27,9 +24,7 @@ public final class CursorUtils {
 
     /** 문자열 키(예: 스마트스토어 상품 주문 번호)로 동점을 가르는 커서를 만든다. */
     public static String encode(LocalDateTime timestamp, String key) {
-        String raw = FMT.format(timestamp) + SEPARATOR + key;
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        return CursorCodec.encode(FMT.format(timestamp), key);
     }
 
     public static CursorParam decode(String cursor) {
@@ -48,14 +43,11 @@ public final class CursorUtils {
 
     public static KeyCursor decodeKey(String cursor) {
         try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            int sep = raw.indexOf(SEPARATOR);
-            if (sep < 1 || sep == raw.length() - 1) {
+            String[] values = CursorCodec.decode(cursor, 2);
+            if (values[1].isEmpty()) {
                 throw new IllegalArgumentException("Invalid cursor format");
             }
-            LocalDateTime timestamp = LocalDateTime.parse(raw.substring(0, sep), FMT);
-            return new KeyCursor(timestamp, raw.substring(sep + 1));
+            return new KeyCursor(LocalDateTime.parse(values[0], FMT), values[1]);
         } catch (DateTimeException | IllegalArgumentException exception) {
             throw invalidCursor();
         }

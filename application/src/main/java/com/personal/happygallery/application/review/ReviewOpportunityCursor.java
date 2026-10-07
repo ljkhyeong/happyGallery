@@ -3,35 +3,25 @@ package com.personal.happygallery.application.review;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.review.ReviewTargetType;
-import java.nio.charset.StandardCharsets;
+import com.personal.happygallery.application.shared.page.CursorCodec;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Base64;
 
 final class ReviewOpportunityCursor {
 
-    private static final String SEPARATOR = "|";
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private ReviewOpportunityCursor() {}
 
     static String encode(LocalDateTime completedAt, ReviewTargetType targetType, Long sourceId) {
-        String raw = FORMATTER.format(completedAt)
-                + SEPARATOR + targetType.name()
-                + SEPARATOR + sourceId;
-        return Base64.getUrlEncoder().withoutPadding()
-                .encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+        return CursorCodec.encode(
+                FORMATTER.format(completedAt), targetType.name(), String.valueOf(sourceId));
     }
 
     static CursorParam decode(String cursor) {
         try {
-            String raw = new String(
-                    Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            String[] parts = raw.split("\\|", -1);
-            if (parts.length != 3) {
-                throw new IllegalArgumentException("Invalid opportunity cursor");
-            }
+            String[] parts = CursorCodec.decode(cursor, 3);
             LocalDateTime completedAt = LocalDateTime.parse(parts[0], FORMATTER);
             ReviewTargetType targetType = ReviewTargetType.valueOf(parts[1]);
             Long sourceId = Long.valueOf(parts[2]);
