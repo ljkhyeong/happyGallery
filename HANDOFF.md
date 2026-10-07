@@ -23,10 +23,10 @@
   - `deploy/k3s/scripts/validate.sh` 통과, `agent-feedback final a1d13803` 통과. 영역별 리뷰 4건의 지적(초기화 시 Redis 세션, 본문 검증 문구, 회귀 테스트, PRD 커서 문구)은 모두 수정했다.
 - 운영 배포: main에 병합하면 CD는 preflight에서 멈춘다(의도한 동작). 절차는 `deploy/k3s/rolling-deployments.md`의 초기화 release 3단계를 따른다. DB·Redis 비우기는 권한 검사에서 자동화가 거부돼 운영자 판단으로 남겼다.
 - 로컬 개발 DB(`hg-design-mysql`의 `happygallery`)는 옛 Flyway 이력이라 새 백엔드가 시작 검증에서 실패한다. 다시 만든 뒤 사용한다.
-- 후속 후보:
-  - PRD-0002의 '8회권' 표기
-  - `OrderPaymentBenefitReservationService.reservation`의 `pricing() == null` 분기(정상 payload에서는 도달하지 않음)
-  - 관리자 주문 상태 필터 커서가 상태 인덱스 대신 생성일 인덱스를 고를 수 있음(OR 범위 스캔 자체는 EXPLAIN으로 확인)
+- 후속 후보 3건 처리 완료:
+  - PRD-0002와 현재 동작을 설명하는 ADR의 '8회권' 표기를 '이용권'으로 바꿨다. ADR-0010, Idea, 회고 문서는 기록이라 그대로 두었다.
+  - 결제 준비 payload의 pricing·상품 유형·이용권 계획 검사를 record 생성자로 모았다. 품목 pricing은 준비 중간 단계에서 비어 있어 이행 검증에 남겼다.
+  - 관리자 주문 상태 필터 커서는 MySQL 8.4 측정 결과 정상 범위 스캔이라 코드를 바꾸지 않았다. 측정 근거는 Idea-0038에 있다.
 
 ## G 전시 도록형 화면 적용 (2026-10-07)
 
