@@ -32,7 +32,6 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
-import tools.jackson.core.JacksonException;
 
 import static java.util.stream.Collectors.joining;
 
@@ -167,19 +166,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return mvcErrorResponse(errorCode, errorCode.message, headers, status);
     }
 
-    /**
-     * 서버 내부 직렬화/역직렬화 실패.
-     * 요청 JSON 파싱 오류는 Spring의 HttpMessageNotReadableException 경로에서 400으로 처리한다.
-     */
-    @ExceptionHandler(JacksonException.class)
-    public ResponseEntity<ErrorResponse> handleJacksonException(JacksonException e) {
-        log.error("JSON 처리 중 내부 오류", e);
-        Sentry.captureException(e);
-        return ResponseEntity
-                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
-    }
-
     /** DB 제약 위반. 이름과 의미를 아는 제약만 클라이언트 오류로 번역한다. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException e) {
@@ -248,17 +234,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return Optional.empty();
     }
 
-    private ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
-        Throwable current = e;
-        while (current != null) {
-            if (current instanceof ObjectOptimisticLockingFailureException objectFailure
-                    && (Booking.class.equals(objectFailure.getPersistentClass())
-                    || Booking.class.getName().equals(objectFailure.getPersistentClassName()))) {
-                return ErrorCode.BOOKING_CONFLICT;
-            }
-            current = current.getCause();
-        }
-        return ErrorCode.CONFLICT;
+    private static ErrorCode resolveOptimisticLockErrorCode(OptimisticLockingFailureException e) {
+        return e instanceof ObjectOptimisticLockingFailureException failure
+                && Booking.class.getName().equals(failure.getPersistentClassName())
+                ? ErrorCode.BOOKING_CONFLICT
+                : ErrorCode.CONFLICT;
     }
 
     private ResponseEntity<Object> invalidRequestParameter(
