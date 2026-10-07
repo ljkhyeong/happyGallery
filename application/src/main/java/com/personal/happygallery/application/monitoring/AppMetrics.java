@@ -164,12 +164,6 @@ public class AppMetrics {
         }
     }
 
-    /** BatchResult를 반환하지 않는 배치의 정상 완료를 기록한다. */
-    public void recordBatchSuccess(String job, long durationNanos) {
-        recordBatchRun(job, "succeeded", durationNanos);
-        recordBatchLastSuccess(job);
-    }
-
     /** 예외로 중단된 배치를 기록한다. */
     public void recordBatchFailure(String job, long durationNanos) {
         recordBatchRun(job, "failed", durationNanos);
