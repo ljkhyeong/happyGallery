@@ -1,25 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="happygallery"/>
     <springProperty scope="context" name="ROOT_LOG_LEVEL" source="logging.level.root" defaultValue="INFO"/>
 
     <springProfile name="prod">
+        <!-- Spring Boot logstash 형식. service 필드·마스킹·제외 필드는 application-prod.yml의 logging.structured.json에서 정한다. -->
         <appender name="CONSOLE_JSON" class="ch.qos.logback.core.ConsoleAppender">
-            <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
-                <providers>
-                    <timestamp>
-                        <timeZone>Asia/Seoul</timeZone>
-                    </timestamp>
-                    <logLevel/>
-                    <loggerName/>
-                    <threadName/>
-                    <provider class="com.personal.happygallery.bootstrap.logging.MaskingMessageJsonProvider"/>
-                    <mdc/>
-                    <provider class="com.personal.happygallery.bootstrap.logging.MaskingStackTraceJsonProvider"/>
-                    <pattern>
-                        <pattern>{"service":"${APP_NAME}"}</pattern>
-                    </pattern>
-                </providers>
+            <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+                <format>logstash</format>
+                <charset>UTF-8</charset>
             </encoder>
         </appender>
 
