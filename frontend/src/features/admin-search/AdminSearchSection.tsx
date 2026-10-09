@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
+import { SearchBookingsStatus } from "@/generated/api/adminBooking";
+import { SearchOrdersStatus } from "@/generated/api/adminOrder";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
@@ -32,26 +34,9 @@ interface Props {
   onAuthError: () => void;
 }
 
-const ORDER_STATUS_OPTIONS = [
-  "PAID_APPROVAL_PENDING",
-  "APPROVED_FULFILLMENT_PENDING",
-  "IN_PRODUCTION",
-  "DELAY_CONSENT_PENDING",
-  "DELAY_ACCEPTED",
-  "SHIPPING_PREPARING",
-  "SHIPPED",
-  "DELIVERED",
-  "PICKUP_READY",
-  "PICKED_UP",
-  "COMPLETED",
-  "REJECTED",
-  "CUSTOMER_CANCELED",
-  "AUTO_REFUND_TIMEOUT",
-  "PICKUP_EXPIRED",
-  "PICKUP_FORFEITED",
-] as const;
-
-const BOOKING_STATUS_OPTIONS = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"] as const;
+// 상태 선택지는 서버 검색 enum을 그대로 써서 상태가 추가돼도 빠지지 않게 한다.
+const ORDER_STATUS_OPTIONS = Object.values(SearchOrdersStatus);
+const BOOKING_STATUS_OPTIONS = Object.values(SearchBookingsStatus);
 
 function normalizeKeyword(value: string): string | undefined {
   const trimmed = value.trim();

@@ -5,6 +5,8 @@ import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { parseEnumValue } from "@/shared/lib/enum";
+import { ListOrdersStatus } from "@/generated/api/adminOrder";
 import { useOrderMutations } from "./useOrderMutations";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -17,12 +19,12 @@ import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
 interface Props {
   adminKey: string;
   onAuthError: () => void;
-  initialStatus?: string;
+  initialStatus?: "" | ListOrdersStatus;
   focusOrderId?: number;
   focusOrderStatus?: OrderStatus;
 }
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
+const STATUS_OPTIONS: ReadonlyArray<{ value: "" | ListOrdersStatus; label: string }> = [
   { value: "", label: "전체" },
   { value: "PAID_APPROVAL_PENDING", label: "승인 대기" },
   { value: "APPROVED_FULFILLMENT_PENDING", label: "배송·수령 준비 대기" },
@@ -141,7 +143,10 @@ export function OrderListSection({
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-order-status-filter">
             <Form.Label>상태</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => { resetPagination(); setStatusFilter(e.target.value); }}>
+            <Form.Select value={statusFilter} onChange={(e) => {
+              resetPagination();
+              setStatusFilter(parseEnumValue(ListOrdersStatus, e.target.value) ?? "");
+            }}>
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}

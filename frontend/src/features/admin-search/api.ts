@@ -2,24 +2,24 @@ import {
   searchBookings,
   SearchBookingsStatus,
   type AdminBookingSearchPageResponse,
-  type SearchBookingsStatus as BookingSearchStatus,
 } from "@/generated/api/adminBooking";
 import {
   searchOrders,
   SearchOrdersStatus,
   type AdminOrderSearchPageResponse,
-  type SearchOrdersStatus as OrderSearchStatus,
 } from "@/generated/api/adminOrder";
 import {
   searchAdminPasses,
   type AdminPassPageResponse,
 } from "@/generated/api/adminOperations";
 import { adminHeaders } from "@/shared/api";
+import { parseEnumValue } from "@/shared/lib/enum";
 
 export type AdminSearchTarget = "CUSTOMER" | "ORDER" | "BOOKING";
 
 export interface AdminSearchCriteria {
   target: AdminSearchTarget;
+  /** 화면 선택지는 대상별 생성 enum 값으로 만들고 대상을 바꾸면 비운다. */
   status?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -64,38 +64,15 @@ export async function searchAdminRecords(
 
   if (criteria.target === "ORDER") {
     const page = await searchOrders(
-      { ...common, status: orderStatus(criteria.status) },
+      { ...common, status: parseEnumValue(SearchOrdersStatus, criteria.status) },
       options,
     );
     return { target: "ORDER", page };
   }
 
   const page = await searchBookings(
-    { ...common, status: bookingStatus(criteria.status) },
+    { ...common, status: parseEnumValue(SearchBookingsStatus, criteria.status) },
     options,
   );
   return { target: "BOOKING", page };
-}
-
-function orderStatus(value: string | undefined): OrderSearchStatus | undefined {
-  return enumValue(SearchOrdersStatus, value, "주문");
-}
-
-function bookingStatus(value: string | undefined): BookingSearchStatus | undefined {
-  return enumValue(SearchBookingsStatus, value, "예약");
-}
-
-function enumValue<T extends string>(
-  values: Record<string, T>,
-  value: string | undefined,
-  label: string,
-): T | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const matched = Object.values(values).find((candidate) => candidate === value);
-  if (matched === undefined) {
-    throw new Error(`지원하지 않는 ${label} 상태입니다.`);
-  }
-  return matched;
 }

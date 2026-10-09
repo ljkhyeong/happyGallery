@@ -44,8 +44,10 @@ import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileFo
 import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ADMIN_FOCUS_PARAMS, type AdminFocusParam } from "@/shared/lib/adminLinks";
+import { parseEnumValue } from "@/shared/lib/enum";
 import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
-import type { BookingStatus, OrderStatus } from "@/shared/types";
+import { ListBookingsStatus } from "@/generated/api/adminBooking";
+import { AdminOrderListItemResponseStatus } from "@/generated/api/adminOrder";
 
 const ADMIN_VIEWS = [
   {
@@ -102,28 +104,6 @@ const REQUIRE_ADMIN_MFA_ENROLLMENT =
   import.meta.env.PROD
   || import.meta.env.VITE_REQUIRE_ADMIN_MFA_ENROLLMENT === "true";
 
-const ORDER_STATUSES: readonly OrderStatus[] = [
-  "PAID_APPROVAL_PENDING",
-  "APPROVED_FULFILLMENT_PENDING",
-  "REJECTED",
-  "CUSTOMER_CANCELED",
-  "AUTO_REFUND_TIMEOUT",
-  "IN_PRODUCTION",
-  "DELAY_CONSENT_PENDING",
-  "DELAY_ACCEPTED",
-  "DELAY_REJECTED_CANCELED",
-  "SHIPPING_PREPARING",
-  "SHIPPED",
-  "DELIVERED",
-  "PICKUP_READY",
-  "PICKED_UP",
-  "PICKUP_EXPIRED",
-  "PICKUP_FORFEITED",
-  "COMPLETED",
-];
-
-const BOOKING_STATUSES: readonly BookingStatus[] = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"];
-
 function isAdminView(value: string | null): value is AdminView {
   return ADMIN_VIEWS.some((view) => view.value === value);
 }
@@ -132,14 +112,6 @@ function parsePositiveId(value: string | null): number | undefined {
   if (!value) return undefined;
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-function parseOrderStatus(value: string | null): OrderStatus | undefined {
-  return ORDER_STATUSES.find((status) => status === value);
-}
-
-function parseBookingStatus(value: string | null): BookingStatus | undefined {
-  return BOOKING_STATUSES.find((status) => status === value);
 }
 
 /** 한 작업 영역의 화면 오류가 관리자 화면 전체를 막지 않게 영역마다 따로 감싼다. 다시 시도하면 관리자 조회를 새로 받는다. */
@@ -201,9 +173,9 @@ export function AdminPage() {
   // 메뉴를 바꿀 때 지울 값과 같은 목록에서 이름을 고르게 해 새 값이 지우기 목록에서 빠지지 않게 한다.
   const focusParam = (name: AdminFocusParam) => searchParams.get(name);
   const focusedOrderId = parsePositiveId(focusParam("orderId"));
-  const focusedOrderStatus = parseOrderStatus(focusParam("orderStatus"));
+  const focusedOrderStatus = parseEnumValue(AdminOrderListItemResponseStatus, focusParam("orderStatus"));
   const focusedBookingId = parsePositiveId(focusParam("bookingId"));
-  const focusedBookingStatus = parseBookingStatus(focusParam("bookingStatus"));
+  const focusedBookingStatus = parseEnumValue(ListBookingsStatus, focusParam("bookingStatus"));
   const focusedBookingDate = focusParam("bookingDate") ?? undefined;
   const focusedReviewId = parsePositiveId(focusParam("reviewId"));
   const focusedProductId = parsePositiveId(focusParam("productId"));

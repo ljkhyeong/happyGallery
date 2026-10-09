@@ -6,7 +6,6 @@ import {
   expirePickups as expireAdminPickups,
   getFulfillment,
   getOrderHistory,
-  ListOrdersStatus,
   listOrders,
   markDelivered as markAdminOrderDelivered,
   markPickupReady,
@@ -21,6 +20,7 @@ import {
   type AdminOrderHistoryResponse,
   type AdminOrderPageResponse,
   type BatchResponse,
+  type ListOrdersStatus,
   type MarkPickupReadyRequest,
   type MarkShippedRequest,
   type MissedPickupRefundResponse,
@@ -35,25 +35,14 @@ import { adminHeaders } from "@/shared/api";
 
 export function fetchOrders(
   adminKey: string,
-  status?: string,
+  status?: ListOrdersStatus,
   cursor?: string,
   size = 20,
 ): Promise<AdminOrderPageResponse> {
   return listOrders(
-    { status: orderStatus(status), cursor, size },
+    { status, cursor, size },
     { headers: adminHeaders(adminKey) },
   );
-}
-
-function orderStatus(value: string | undefined): ListOrdersStatus | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-  const matched = Object.values(ListOrdersStatus).find((candidate) => candidate === value);
-  if (matched === undefined) {
-    throw new Error("지원하지 않는 주문 상태입니다.");
-  }
-  return matched;
 }
 
 export function fetchOrderFulfillment(
