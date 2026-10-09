@@ -13,6 +13,8 @@ export const cursorPageParams = {
 };
 
 /** 불러온 커서 페이지들의 항목을 순서대로 이어 붙인다. */
-export function flattenCursorPages<T>(data: InfiniteData<{ content: T[] }> | undefined): T[] {
-  return data?.pages.flatMap((page) => page.content) ?? [];
+export function flattenCursorPages<TPage extends { content: unknown[] }>(
+  data: InfiniteData<TPage> | undefined,
+): TPage["content"] {
+  return (data?.pages.flatMap((page) => page.content) ?? []) as TPage["content"];
 }
