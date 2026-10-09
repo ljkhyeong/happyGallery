@@ -7,6 +7,7 @@ import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
 import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
@@ -50,11 +51,11 @@ public interface SmartStoreChannelOrderUseCase {
 
     void confirm(String productOrderId, AdminActor actor);
 
-    BulkOperationResult confirmAll(List<String> productOrderIds, AdminActor actor);
+    SmartStoreOperationResult confirmAll(List<String> productOrderIds, AdminActor actor);
 
     void dispatch(SmartStoreDispatchCommand command, AdminActor actor);
 
-    BulkOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor);
+    SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor);
 
     void delay(SmartStoreDelayCommand command, AdminActor actor);
 
@@ -168,11 +169,4 @@ public interface SmartStoreChannelOrderUseCase {
             Long expectedSettlementAmount,
             SmartStoreClaimDetail claimDetail
     ) {}
-
-    record BulkOperationResult(
-            List<String> successProductOrderIds,
-            List<BulkOperationFailure> failures
-    ) {}
-
-    record BulkOperationFailure(String productOrderId, String code, String message) {}
 }

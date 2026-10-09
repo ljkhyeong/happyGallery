@@ -7,6 +7,8 @@ import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationFailure;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
 import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
@@ -166,7 +168,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public BulkOperationResult confirmAll(List<String> productOrderIds, AdminActor actor) {
+    public SmartStoreOperationResult confirmAll(List<String> productOrderIds, AdminActor actor) {
         requireEnabled();
         return executeBulkAudited(
                 productOrderIds,
@@ -190,7 +192,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @Override
     @Transactional(propagation = Propagation.NEVER)
-    public BulkOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor) {
+    public SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands, AdminActor actor) {
         requireEnabled();
         Map<String, SmartStoreDispatchCommand> commandsById = commands.stream()
                 .collect(Collectors.toMap(
@@ -364,7 +366,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         }
     }
 
-    private BulkOperationResult executeBulkAudited(
+    private SmartStoreOperationResult executeBulkAudited(
             List<String> productOrderIds,
             SmartStoreOrderAction action,
             Function<String, String> summary,
@@ -375,7 +377,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                         productOrderId,
                         actionHistoryService.start(productOrderId, action, summary.apply(productOrderId), actor)))
                 .toList();
-        SmartStoreOrderProvider.OperationResult result;
+        SmartStoreOperationResult result;
         try {
             result = operation.execute();
         } catch (RuntimeException exception) {
@@ -388,13 +390,13 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             throw operationFailure(exception);
         }
 
-        Map<String, SmartStoreOrderProvider.OperationFailure> failures = result.failures().stream()
+        Map<String, SmartStoreOperationFailure> failures = result.failures().stream()
                 .collect(Collectors.toMap(
-                        SmartStoreOrderProvider.OperationFailure::productOrderId,
+                        SmartStoreOperationFailure::productOrderId,
                         Function.identity(),
                         (first, ignored) -> first));
         started.forEach(item -> {
-            SmartStoreOrderProvider.OperationFailure failure = failures.get(item.productOrderId());
+            SmartStoreOperationFailure failure = failures.get(item.productOrderId());
             if (failure == null) {
                 completeAudit(() -> actionHistoryService.succeed(item.historyId()), item.historyId());
             } else if ("UNKNOWN_RESULT".equals(failure.code())) {
@@ -408,7 +410,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
                         item.historyId());
             }
         });
-        return bulkResult(result);
+        return result;
     }
 
     private void completeFailureAudit(long historyId, RuntimeException exception) {
@@ -483,15 +485,6 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
         return new HappyGalleryException(ErrorCode.CONFLICT, message);
     }
 
-    private static BulkOperationResult bulkResult(SmartStoreOrderProvider.OperationResult result) {
-        return new BulkOperationResult(
-                result.successProductOrderIds(),
-                result.failures().stream()
-                        .map(failure -> new BulkOperationFailure(
-                                failure.productOrderId(), failure.code(), failure.message()))
-                        .toList());
-    }
-
     private ChannelOrderResult result(SmartStoreProductOrder order) {
         return new ChannelOrderResult(
                 order.getProductOrderId(), order.getOrderId(), order.getOriginProductNo(),
@@ -506,7 +499,7 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     @FunctionalInterface
     private interface Operation {
-        SmartStoreOrderProvider.OperationResult execute();
+        SmartStoreOperationResult execute();
     }
 
     private record StartedAction(String productOrderId, long historyId) {}

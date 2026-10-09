@@ -7,6 +7,7 @@ import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
 import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
@@ -26,16 +27,16 @@ public interface SmartStoreOrderProvider {
     List<ProductOrderDetail> fetchDetails(List<String> productOrderIds);
 
     default void confirm(String productOrderId) {
-        confirmAll(List.of(productOrderId)).requireSuccess(productOrderId);
+        requireSuccess(confirmAll(List.of(productOrderId)), productOrderId);
     }
 
-    OperationResult confirmAll(List<String> productOrderIds);
+    SmartStoreOperationResult confirmAll(List<String> productOrderIds);
 
     default void dispatch(SmartStoreDispatchCommand command) {
-        dispatchAll(List.of(command)).requireSuccess(command.productOrderId());
+        requireSuccess(dispatchAll(List.of(command)), command.productOrderId());
     }
 
-    OperationResult dispatchAll(List<SmartStoreDispatchCommand> commands);
+    SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands);
 
     void delay(SmartStoreDelayCommand command);
 
@@ -112,27 +113,18 @@ public interface SmartStoreOrderProvider {
 
     record CompletedReturn(String claimId, int quantity) {}
 
-    record OperationResult(List<String> successProductOrderIds, List<OperationFailure> failures) {
-        public OperationResult {
-            successProductOrderIds = successProductOrderIds == null
-                    ? List.of() : List.copyOf(successProductOrderIds);
-            failures = failures == null ? List.of() : List.copyOf(failures);
-        }
-
-        public void requireSuccess(String productOrderId) {
-            failures.stream()
-                    .filter(failure -> productOrderId.equals(failure.productOrderId()))
-                    .findFirst()
-                    .ifPresent(failure -> {
-                        if ("UNKNOWN_RESULT".equals(failure.code())) {
-                            throw new OperationResultUnknownException(failure.message());
-                        }
-                        throw new OperationRejectedException(failure.code(), failure.message());
-                    });
-        }
+    /** 단건 처리 결과에서 요청한 상품 주문이 실패했으면 결과 미확인 또는 거절 예외로 바꾼다. */
+    private static void requireSuccess(SmartStoreOperationResult result, String productOrderId) {
+        result.failures().stream()
+                .filter(failure -> productOrderId.equals(failure.productOrderId()))
+                .findFirst()
+                .ifPresent(failure -> {
+                    if ("UNKNOWN_RESULT".equals(failure.code())) {
+                        throw new OperationResultUnknownException(failure.message());
+                    }
+                    throw new OperationRejectedException(failure.code(), failure.message());
+                });
     }
-
-    record OperationFailure(String productOrderId, String code, String message) {}
 
     class OperationRejectedException extends RuntimeException {
         private final String code;

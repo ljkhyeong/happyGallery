@@ -8,6 +8,8 @@ import com.personal.happygallery.application.order.dto.SmartStoreDispatchCommand
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeDispatchCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreExchangeRejectCommand;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationFailure;
+import com.personal.happygallery.application.order.dto.SmartStoreOperationResult;
 import com.personal.happygallery.application.order.dto.SmartStoreReturnHoldCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerCancelCommand;
 import com.personal.happygallery.application.order.dto.SmartStoreSellerReturnCommand;
@@ -165,7 +167,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public OperationResult confirmAll(List<String> productOrderIds) {
+    public SmartStoreOperationResult confirmAll(List<String> productOrderIds) {
         OperationResponse response = executeBulk(
                 "/external/v1/pay-order/seller/product-orders/confirm",
                 new ConfirmRequest(productOrderIds));
@@ -173,7 +175,7 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
     }
 
     @Override
-    public OperationResult dispatchAll(List<SmartStoreDispatchCommand> commands) {
+    public SmartStoreOperationResult dispatchAll(List<SmartStoreDispatchCommand> commands) {
         OperationResponse response = executeBulk(
                 "/external/v1/pay-order/seller/product-orders/dispatch",
                 new DispatchRequest(commands.stream()
@@ -371,12 +373,12 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
         throw new OperationRejectedException(failure.code(), failure.message());
     }
 
-    private static OperationResult operationResult(
+    private static SmartStoreOperationResult operationResult(
             OperationResponse response, List<String> requestedIds) {
         OperationData data = response == null ? null : response.data();
         if (data == null) {
-            return new OperationResult(List.of(), requestedIds.stream()
-                    .map(id -> new OperationFailure(
+            return new SmartStoreOperationResult(List.of(), requestedIds.stream()
+                    .map(id -> new SmartStoreOperationFailure(
                             id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                     .toList());
         }
@@ -387,24 +389,24 @@ public class NaverCommerceOrderProvider implements SmartStoreOrderProvider {
                     .map(OperationSuccess::productOrderId)
                     .toList();
         }
-        List<OperationFailure> failures = data.failProductOrderInfos() == null
+        List<SmartStoreOperationFailure> failures = data.failProductOrderInfos() == null
                 ? List.of() : data.failProductOrderInfos().stream()
-                        .map(failure -> new OperationFailure(
+                        .map(failure -> new SmartStoreOperationFailure(
                                 failure.productOrderId(), failure.code(), failure.message()))
                         .toList();
         List<String> completedIds = successIds;
         List<String> failedIds = failures.stream()
-                .map(OperationFailure::productOrderId)
+                .map(SmartStoreOperationFailure::productOrderId)
                 .toList();
-        List<OperationFailure> missing = requestedIds.stream()
+        List<SmartStoreOperationFailure> missing = requestedIds.stream()
                 .filter(id -> !completedIds.contains(id) && !failedIds.contains(id))
-                .map(id -> new OperationFailure(
+                .map(id -> new SmartStoreOperationFailure(
                         id, "UNKNOWN_RESULT", "네이버 응답에서 처리 결과를 확인할 수 없습니다."))
                 .toList();
         if (!missing.isEmpty()) {
             failures = Stream.concat(failures.stream(), missing.stream()).toList();
         }
-        return new OperationResult(successIds, failures);
+        return new SmartStoreOperationResult(successIds, failures);
     }
 
     private static String format(LocalDateTime value) {
