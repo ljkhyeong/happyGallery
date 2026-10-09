@@ -6,9 +6,10 @@ import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { formatDateTime, parseApiDateTime } from "@/shared/lib";
 import { fetchClasses, fetchSlotsByClass } from "@/features/admin-slot/api";
 import { createBookingByAdmin } from "./api";
-import type {
-  AdminBookingResponse,
+import { BOOKING_SOURCE_LABEL } from "./bookingSource";
+import {
   CreateAdminBookingRequestSource,
+  type AdminBookingResponse,
 } from "@/generated/api/adminBooking";
 
 interface Props {
@@ -18,13 +19,6 @@ interface Props {
   onHide: () => void;
   onCreated: (booking: AdminBookingResponse) => void;
 }
-
-const SOURCE_OPTIONS: Array<{ value: CreateAdminBookingRequestSource; label: string }> = [
-  { value: "PHONE", label: "전화" },
-  { value: "NAVER_TALK", label: "네이버톡톡" },
-  { value: "KAKAO", label: "카카오톡" },
-  { value: "VISIT", label: "방문" },
-];
 
 export function AdminBookingCreateModal({
   adminKey,
@@ -241,8 +235,8 @@ export function AdminBookingCreateModal({
                       event.target.value as CreateAdminBookingRequestSource,
                     )}
                   >
-                    {SOURCE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
+                    {Object.values(CreateAdminBookingRequestSource).map((value) => (
+                      <option key={value} value={value}>{BOOKING_SOURCE_LABEL[value]}</option>
                     ))}
                   </Form.Select>
                 </Form.Group>

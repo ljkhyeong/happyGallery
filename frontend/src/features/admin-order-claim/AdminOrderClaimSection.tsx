@@ -9,16 +9,19 @@ import {
   ORDER_CLAIM_SLOW_POLL_INTERVAL_MS,
   orderClaimPollingInterval,
 } from "@/features/order-claim/polling";
+import {
+  ORDER_CLAIM_RESOLUTION_LABELS,
+  ORDER_CLAIM_TYPE_LABELS,
+} from "@/features/order-claim/labels";
+import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import type {
   CompleteOrderExchangeRequest,
-  OrderClaimResolution,
   OrderClaimResponse,
   OrderClaimStatus,
-  OrderClaimType,
   ResolveOrderClaimRequest,
 } from "@/features/order-claim/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
@@ -30,18 +33,6 @@ interface Props {
   onAuthError: () => void;
   initialStatus?: "" | OrderClaimStatus;
 }
-
-const TYPE_LABELS: Record<OrderClaimType, string> = {
-  DAMAGED: "상품 파손·하자",
-  WRONG_ITEM: "오배송",
-  CHANGE_OF_MIND: "단순 변심",
-  OTHER: "기타",
-};
-
-const RESOLUTION_LABELS: Record<OrderClaimResolution, string> = {
-  REFUND: "환불",
-  EXCHANGE: "교환",
-};
 
 const STATUS_OPTIONS: Array<{ value: "" | OrderClaimStatus; label: string }> = [
   { value: "", label: "전체" },
@@ -98,7 +89,7 @@ export function AdminOrderClaimSection({
       toast.show(
         claim.status === "REJECTED"
           ? `주문 #${claim.orderId}의 교환·환불 요청을 거절했습니다.`
-          : `주문 #${claim.orderId} ${RESOLUTION_LABELS[claim.requestedResolution]}을 승인했습니다.`,
+          : `주문 #${claim.orderId} ${ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}을 승인했습니다.`,
       );
       invalidate();
     },
@@ -137,7 +128,7 @@ export function AdminOrderClaimSection({
       </Row>
 
       {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
+      <ErrorAlert error={visibleAdminError(error)} />
       <ErrorAlert error={resolve.error ?? completeExchange.error} />
       {!isLoading && claims?.length === 0 && (
         <EmptyState message="해당 상태의 교환·환불 요청이 없습니다." />
@@ -217,8 +208,8 @@ function AdminOrderClaimItem({
       <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
         <div className="d-flex flex-wrap gap-1 align-items-center">
           <strong>주문 #{claim.orderId} · 접수 #{claim.id}</strong>
-          <Badge bg="secondary">{TYPE_LABELS[claim.type]}</Badge>
-          <Badge bg="info">{RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
+          <Badge bg="secondary">{ORDER_CLAIM_TYPE_LABELS[claim.type]}</Badge>
+          <Badge bg="info">{ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
           <Badge bg={claim.status === "REJECTED" ? "danger" : "success"}>
             {STATUS_OPTIONS.find((option) => option.value === claim.status)?.label}
           </Badge>
@@ -294,7 +285,7 @@ function AdminOrderClaimItem({
                 || (claim.requestedResolution === "REFUND" && !validRefundAmount)}
               onClick={approve}
             >
-              {pending ? "처리 중..." : `${RESOLUTION_LABELS[claim.requestedResolution]} 승인`}
+              {pending ? "처리 중..." : `${ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]} 승인`}
             </Button>
             <Button
               size="sm"
@@ -370,7 +361,7 @@ function AdminOrderClaimItem({
       {claim.refundAmount != null && (
         <p className="small mb-1">
           환불 {formatKRW(claim.refundAmount)}
-          {claim.refundStatus ? ` · ${refundStatusLabel(claim.refundStatus)}` : ""}
+          {claim.refundStatus ? ` · ${ADMIN_REFUND_STATUS_LABEL[claim.refundStatus]}` : ""}
         </p>
       )}
       {(claim.replacementCarrier || claim.replacementTrackingNumber) && (
@@ -382,15 +373,4 @@ function AdminOrderClaimItem({
       )}
     </article>
   );
-}
-
-function refundStatusLabel(status: NonNullable<OrderClaimResponse["refundStatus"]>): string {
-  switch (status) {
-    case "REQUESTED": return "요청 접수";
-    case "PROCESSING": return "처리 중";
-    case "RETRYABLE": return "환불 재시도 예정";
-    case "RECONCILIATION_REQUIRED": return "결제사 확인 필요";
-    case "SUCCEEDED": return "환불 완료";
-    case "FAILED": return "환불 실패";
-  }
 }

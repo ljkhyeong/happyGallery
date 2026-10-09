@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "@/shared/api";
 import { adminRefundPollingInterval, isRefundActivelyProcessing } from "@/shared/lib";
 import { useToast } from "@/shared/ui";
 import type { RefundStatus } from "@/shared/types";
 import { fetchRefund } from "./api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 
 const POLL_ERROR_RETRY_DELAY_MS = 15_000;
 const MAX_POLL_ERRORS = 3;
@@ -38,7 +38,7 @@ export function useAdminRefundPolling(adminKey: string, onAuthError: () => void)
         await wait(adminRefundPollingInterval(pollCount++));
       } catch (error) {
         if (!activeRefundIds.current.has(refundId)) return;
-        if (error instanceof ApiError && error.status === 401) {
+        if (isAdminSessionUnauthorized(error)) {
           activeRefundIds.current.delete(refundId);
           onAuthError();
           return;

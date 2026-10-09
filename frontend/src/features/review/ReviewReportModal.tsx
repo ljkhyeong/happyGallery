@@ -6,14 +6,7 @@ import { Link } from "react-router";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { submitReviewReport, type ReviewReportReason } from "./api";
-
-const REPORT_REASON_LABELS: Record<ReviewReportReason, string> = {
-  SPAM: "광고·도배",
-  ABUSIVE: "욕설·비방",
-  PRIVACY: "개인정보 노출",
-  FALSE_INFORMATION: "허위 정보",
-  OTHER: "기타",
-};
+import { REVIEW_REPORT_REASON_LABELS } from "./reviewLabels";
 
 interface Props {
   reviewId: number;
@@ -117,7 +110,7 @@ export function ReviewReportModal({
                 disabled={mutation.isPending}
                 onChange={(event) => setReason(event.target.value as ReviewReportReason)}
               >
-                {Object.entries(REPORT_REASON_LABELS).map(([value, label]) => (
+                {Object.entries(REVIEW_REPORT_REASON_LABELS).map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </Form.Select>

@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-bootstrap";
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
+import { productVariantLabel } from "./productVariantLabel";
 import { StockThresholdForm } from "./StockThresholdForm";
-import { ApiError } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -122,17 +123,7 @@ export function InventoryAdjustmentModal({
             >
               {product.variants.map((variant) => (
                 <option key={variant.id} value={variant.id}>
-                  {variant.selections.length === 0
-                    ? "기본 조합"
-                    : variant.selections.map((selection) => {
-                      const group = product.optionGroups.find(
-                        (candidate) => candidate.key === selection.groupKey,
-                      );
-                      const value = group?.values.find(
-                        (candidate) => candidate.key === selection.valueKey,
-                      );
-                      return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
-                    }).join(" / ")} ({variant.quantity}개)
+                  {productVariantLabel(product, variant)} ({variant.quantity}개)
                 </option>
               ))}
             </Form.Select>
@@ -251,8 +242,7 @@ export function InventoryAdjustmentModal({
 
         <h6>최근 조정 이력</h6>
         {historyQuery.isLoading && <LoadingSpinner />}
-        {historyQuery.error && !(historyQuery.error instanceof ApiError && historyQuery.error.status === 401)
-          && <ErrorAlert error={historyQuery.error} />}
+        <ErrorAlert error={visibleAdminError(historyQuery.error)} />
         {historyQuery.data?.length === 0 && <EmptyState message="재고 조정 이력이 없습니다." />}
         {historyQuery.data && historyQuery.data.length > 0 && (
           <Table responsive size="sm" className="mb-0">

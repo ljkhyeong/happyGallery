@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Modal, Table } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
@@ -46,7 +46,7 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error instanceof ApiError && error.status === 401) return null;
+  if (isAdminSessionUnauthorized(error)) return null;
   if (error && page === undefined && !hasPreviousPage) {
     return (
       <ErrorAlert

@@ -18,7 +18,8 @@ import {
   StatusBadge,
   useToast,
 } from "@/shared/ui";
-import { ApiError, queryKeys } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
@@ -27,8 +28,9 @@ import type {
   AdminBookingResponse,
   ListBookingsStatus,
 } from "@/generated/api/adminBooking";
-import type { RefundStatus } from "@/shared/types";
+import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import { AdminBookingCreateModal } from "./AdminBookingCreateModal";
+import { BOOKING_SOURCE_LABEL } from "./bookingSource";
 import {
   HalfHourDaySchedule,
   type HalfHourScheduleItem,
@@ -54,19 +56,10 @@ function todayStr(): string {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 }
 
-const REFUND_STATUS_LABEL: Record<RefundStatus, string> = {
-  REQUESTED: "요청 접수",
-  PROCESSING: "처리 중",
-  RETRYABLE: "자동으로 다시 처리 예정",
-  RECONCILIATION_REQUIRED: "결제사 확인 필요",
-  SUCCEEDED: "환불 완료",
-  FAILED: "환불 실패",
-};
-
 function cancelResultToast(result: AdminBookingCancelResponse) {
   const compensation = result.depositRefundAmount > 0
     ? `예약금 ${formatKRW(result.depositRefundAmount)} ${result.depositRefundStatus
-      ? REFUND_STATUS_LABEL[result.depositRefundStatus]
+      ? ADMIN_REFUND_STATUS_LABEL[result.depositRefundStatus]
       : "확인 필요"}`
     : result.passCreditRestored
       ? "이용권 1회 복구"
@@ -253,7 +246,7 @@ export function BookingListSection({
       </Row>
 
       {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && <ErrorAlert error={error} />}
+      <ErrorAlert error={visibleAdminError(error)} />
       {bookings && bookings.length === 0 && <EmptyState message="해당 날짜에 예약이 없습니다." />}
 
       {bookings && bookings.length > 0 && (
@@ -297,7 +290,7 @@ export function BookingListSection({
                   <div>{b.className}</div>
                   <small className="text-muted-soft">
                     {b.participantCount}명
-                    {b.source !== "WEB" ? ` · ${sourceLabel(b.source)}` : ""}
+                    {b.source !== "WEB" ? ` · ${BOOKING_SOURCE_LABEL[b.source]}` : ""}
                   </small>
                 </td>
                 <td>
@@ -406,9 +399,7 @@ export function BookingListSection({
         </>
       )}
 
-      {mutationError && !(mutationError instanceof ApiError && mutationError.status === 401) && (
-        <ErrorAlert error={mutationError} />
-      )}
+      <ErrorAlert error={visibleAdminError(mutationError)} />
 
       <Modal
         show={cancelTarget !== null}
@@ -485,12 +476,4 @@ export function BookingListSection({
       />
     </div>
   );
-}
-
-function sourceLabel(source: AdminBookingResponse["source"]): string {
-  if (source === "PHONE") return "전화";
-  if (source === "NAVER_TALK") return "네이버톡톡";
-  if (source === "KAKAO") return "카카오톡";
-  if (source === "VISIT") return "방문";
-  return "웹";
 }

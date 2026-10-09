@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
-import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import type {
   AdminBookingSearchRow,
@@ -23,6 +22,7 @@ import {
   type AdminSearchResult,
   type AdminSearchTarget,
 } from "./api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
@@ -379,7 +379,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
 
       {validationError && <div className="text-danger mt-2" role="alert">{validationError}</div>}
       {query.isLoading && <LoadingSpinner text="검색 중..." />}
-      {query.error && !(query.error instanceof ApiError && query.error.status === 401) && (
+      {visibleAdminError(query.error) && (
         <div className="mt-3"><ErrorAlert error={query.error} /></div>
       )}
       {query.data && (

@@ -7,7 +7,7 @@ import { ProductEditModal } from "./ProductEditModal";
 import { SmartStoreInventoryModal } from "./SmartStoreInventoryModal";
 import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import { formatKRW, PRODUCT_TYPE_LABEL } from "@/shared/lib";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
@@ -43,7 +43,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} />;
   }
   if (!products?.length) return <EmptyState message="등록된 상품이 없습니다." />;

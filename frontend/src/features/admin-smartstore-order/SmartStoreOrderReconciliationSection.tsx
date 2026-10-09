@@ -6,7 +6,7 @@ import type {
   ReconcileSmartStoreOrderActionRequestOutcome,
   SmartStoreOrderActionHistoryResponse,
 } from "@/generated/api/adminOrder";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -35,7 +35,7 @@ export function SmartStoreOrderReconciliationSection({ adminKey, onAuthError }: 
 
   if (query.isLoading) return <LoadingSpinner />;
   if (query.error) {
-    if (query.error instanceof ApiError && query.error.status === 401) return null;
+    if (isAdminSessionUnauthorized(query.error)) return null;
     return <ErrorAlert error={query.error} />;
   }
 

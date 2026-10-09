@@ -3,10 +3,11 @@ import { ArrowRight } from "lucide-react";
 import type { ProductResponse, ProductVariantResponse } from "@/generated/api/adminCatalog";
 import { listAdminStockLevels } from "@/generated/api/adminCatalog";
 import { adminHeaders } from "@/shared/api";
-import { ApiError } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { fetchProducts } from "./api";
+import { productVariantLabel } from "./productVariantLabel";
 
 interface Props {
   adminKey: string;
@@ -18,17 +19,6 @@ interface OutOfStockItem {
   variant?: ProductVariantResponse;
   quantity: number;
   minimumStock: number | null;
-}
-
-function variantLabel(product: ProductResponse, variant: ProductVariantResponse): string {
-  if (variant.selections.length === 0) {
-    return "기본 조합";
-  }
-  return variant.selections.map((selection) => {
-    const group = product.optionGroups.find((candidate) => candidate.key === selection.groupKey);
-    const value = group?.values.find((candidate) => candidate.key === selection.valueKey);
-    return `${group?.name ?? "옵션"}: ${value?.name ?? "값"}`;
-  }).join(" / ");
 }
 
 export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
@@ -44,7 +34,7 @@ export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
   if (query.isLoading || levels.isLoading) return <LoadingSpinner />;
   if (levels.error) return <ErrorAlert error={levels.error} />;
   if (query.error) {
-    if (query.error instanceof ApiError && query.error.status === 401) return null;
+    if (isAdminSessionUnauthorized(query.error)) return null;
     return <ErrorAlert error={query.error} />;
   }
 
@@ -72,7 +62,7 @@ export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
                 {product.type === "READY_STOCK" ? "기성품" : "주문제작"}
               </Badge>
             </td>
-            <td>{variant ? variantLabel(product, variant) : "기본 재고"}</td>
+            <td>{variant ? productVariantLabel(product, variant) : "기본 재고"}</td>
             <td><Badge bg={quantity === 0 ? "danger" : "warning"}>{quantity === 0 ? "품절" : "재고 부족"}</Badge> {quantity} / {minimumStock ?? 0}개</td>
             <td className="text-end">
               <LinkButton

@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
-import { ApiError } from "@/shared/api";
 import { formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner } from "@/shared/ui";
 import {
@@ -9,6 +8,7 @@ import {
   type DailyRevenueResponse,
   type DashboardGranularity,
 } from "./api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 
 interface Props {
@@ -173,7 +173,7 @@ export function AdminDashboardSection({ adminKey, onAuthError }: Props) {
 
       {rangeError && <Alert variant="danger" className="mt-3 mb-0">{rangeError}</Alert>}
       {isLoading && <LoadingSpinner text="운영 지표를 집계하는 중..." />}
-      {queryError && !(queryError instanceof ApiError && queryError.status === 401) && (
+      {visibleAdminError(queryError) && (
         <div className="mt-3"><ErrorAlert error={queryError} /></div>
       )}
 

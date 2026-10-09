@@ -4,10 +4,10 @@ import { Badge, Button, Table } from "react-bootstrap";
 import { ClassEditModal } from "./ClassEditModal";
 import { fetchAdminClasses, updateClassStatus } from "./api";
 import {
-  ApiError,
   invalidateSlotAvailability,
   queryKeys,
 } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatKRW } from "@/shared/lib";
@@ -42,7 +42,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
 
   if (isLoading) return <LoadingSpinner />;
   if (error) {
-    if (error instanceof ApiError && error.status === 401) return null;
+    if (isAdminSessionUnauthorized(error)) return null;
     return <ErrorAlert error={error} onRetry={() => void refetch()} retrying={isFetching} />;
   }
   if (!classes?.length) return <EmptyState message="등록된 클래스가 없습니다." />;

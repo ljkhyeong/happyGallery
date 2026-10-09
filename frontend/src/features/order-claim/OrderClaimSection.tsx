@@ -7,6 +7,7 @@ import {
   requestGuestOrderClaim,
   requestMemberOrderClaim,
 } from "./api";
+import { ORDER_CLAIM_RESOLUTION_LABELS, ORDER_CLAIM_TYPE_LABELS } from "./labels";
 import { orderClaimPollingInterval } from "./polling";
 import type {
   OrderClaimRequest,
@@ -28,18 +29,6 @@ interface Props {
   order: OrderDetailResponse;
   access: ClaimAccess;
 }
-
-const TYPE_LABELS: Record<OrderClaimType, string> = {
-  DAMAGED: "상품 파손·하자",
-  WRONG_ITEM: "오배송",
-  CHANGE_OF_MIND: "단순 변심",
-  OTHER: "기타",
-};
-
-const RESOLUTION_LABELS: Record<OrderClaimResolution, string> = {
-  REFUND: "환불",
-  EXCHANGE: "교환",
-};
 
 const STATUS_LABELS: Record<OrderClaimStatus, string> = {
   REQUESTED: "접수",
@@ -168,7 +157,7 @@ export function OrderClaimSection({ order, access }: Props) {
                   onChange={(event) => setType(event.target.value as "" | OrderClaimType)}
                 >
                   <option value="">선택</option>
-                  {Object.entries(TYPE_LABELS).map(([value, label]) => (
+                  {Object.entries(ORDER_CLAIM_TYPE_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </Form.Select>
@@ -184,7 +173,7 @@ export function OrderClaimSection({ order, access }: Props) {
                     setResolution(event.target.value as "" | OrderClaimResolution)}
                 >
                   <option value="">선택</option>
-                  {Object.entries(RESOLUTION_LABELS).map(([value, label]) => (
+                  {Object.entries(ORDER_CLAIM_RESOLUTION_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </Form.Select>
@@ -270,8 +259,8 @@ function OrderClaimHistoryItem({ claim }: { claim: OrderClaimResponse }) {
       <div className="d-flex flex-wrap justify-content-between gap-2 mb-2">
         <div className="d-flex flex-wrap gap-1 align-items-center">
           <strong>접수 #{claim.id}</strong>
-          <Badge bg="secondary">{TYPE_LABELS[claim.type]}</Badge>
-          <Badge bg="info">{RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
+          <Badge bg="secondary">{ORDER_CLAIM_TYPE_LABELS[claim.type]}</Badge>
+          <Badge bg="info">{ORDER_CLAIM_RESOLUTION_LABELS[claim.requestedResolution]}</Badge>
           <Badge bg={claim.status === "REJECTED" ? "danger" : "success"}>
             {STATUS_LABELS[claim.status]}
           </Badge>

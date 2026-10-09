@@ -11,10 +11,10 @@ import {
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
-  ApiError,
   invalidateSlotAvailability,
   queryKeys,
 } from "@/shared/api";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime } from "@/shared/lib";
@@ -124,7 +124,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   return (
     <div>
       {classesQuery.isLoading && <LoadingSpinner text="클래스 목록을 불러오는 중..." />}
-      {classesQuery.error && !(classesQuery.error instanceof ApiError && classesQuery.error.status === 401) && (
+      {visibleAdminError(classesQuery.error) && (
         <ErrorAlert
           error={classesQuery.error}
           onRetry={() => { void classesQuery.refetch(); }}
@@ -170,7 +170,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
         </>
       )}
       {slotsQuery.isLoading && <LoadingSpinner />}
-      {slotsQuery.error && !(slotsQuery.error instanceof ApiError && slotsQuery.error.status === 401) && (
+      {visibleAdminError(slotsQuery.error) && (
         <ErrorAlert
           error={slotsQuery.error}
           onRetry={() => { void slotsQuery.refetch(); }}

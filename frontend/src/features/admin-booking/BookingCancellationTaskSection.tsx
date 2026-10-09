@@ -8,7 +8,8 @@ import {
   fetchBookingCancellationTasks,
   type BookingCancellationTaskType,
 } from "./api";
-import { ApiError, queryKeys } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -50,7 +51,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
   });
 
   if (isLoading) return <LoadingSpinner />;
-  if (error instanceof ApiError && error.status === 401) return null;
+  if (isAdminSessionUnauthorized(error)) return null;
   if (error) return <ErrorAlert error={error} />;
   if (!tasks?.length) {
     return <EmptyState message="예약 취소 후 직접 처리할 일이 없습니다." />;

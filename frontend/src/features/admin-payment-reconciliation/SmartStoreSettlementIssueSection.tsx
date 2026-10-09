@@ -3,8 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Table } from "react-bootstrap";
 import type { SmartStoreSettlementIssueResponse } from "@/generated/api/adminOperations";
 import { fetchSmartStoreSettlementIssues, synchronizeSmartStoreSettlementRange } from "./api";
-import { ApiError } from "@/shared/api";
 import { formatDateInput, formatDateTime, formatKRW } from "@/shared/lib";
+import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
@@ -34,7 +34,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
 
   if (query.isLoading) return <LoadingSpinner />;
   if (query.error) {
-    if (query.error instanceof ApiError && query.error.status === 401) return null;
+    if (isAdminSessionUnauthorized(query.error)) return null;
     return <ErrorAlert error={query.error} />;
   }
   return <>

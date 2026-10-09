@@ -4,9 +4,9 @@ import { X } from "lucide-react";
 import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
-import { ApiError } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { useOrderMutations } from "./useOrderMutations";
+import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
@@ -158,7 +158,7 @@ export function OrderListSection({
       </Row>
 
       {isLoading && <LoadingSpinner />}
-      {error && !(error instanceof ApiError && error.status === 401) && (
+      {visibleAdminError(error) && (
         <ErrorAlert
           error={error}
           onRetry={() => { void refetch(); }}
@@ -296,9 +296,7 @@ export function OrderListSection({
         </Modal.Footer>
       </Modal>
 
-      {mutations.lastError && !(mutations.lastError instanceof ApiError && mutations.lastError.status === 401) && (
-        <ErrorAlert error={mutations.lastError} />
-      )}
+      <ErrorAlert error={visibleAdminError(mutations.lastError)} />
     </div>
   );
 }
