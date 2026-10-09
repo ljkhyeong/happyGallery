@@ -133,6 +133,30 @@ function AdminPanel({ title, children }: { title: string; children: ReactNode })
   );
 }
 
+function AdminWorkspaceHeader({
+  title,
+  loggingOut,
+  onLogout,
+}: {
+  title: string;
+  loggingOut: boolean;
+  onLogout: () => void;
+}) {
+  return (
+    <header className="admin-workspace-header">
+      <h4 className="mb-0">{title}</h4>
+      <Button
+        size="sm"
+        variant="outline-secondary"
+        onClick={onLogout}
+        disabled={loggingOut}
+      >
+        {loggingOut ? "로그아웃 중..." : "로그아웃"}
+      </Button>
+    </header>
+  );
+}
+
 /** 등록 폼은 목록 작업보다 드물게 쓰므로 접어 두고 버튼으로 연다. 닫으면 입력 중인 내용도 지운다. */
 function AdminFormPanel({ title, openLabel, children }: { title: string; openLabel: string; children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -189,16 +213,16 @@ export function AdminPage() {
     toast.show("인증이 만료되었습니다. 다시 로그인해 주세요.", "warning");
   }, [adminKey, clearAdminKey, toast]);
 
-  const handlePasswordChanged = useCallback(() => {
-    clearAdminKey();
-    toast.show("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.", "success");
-  }, [clearAdminKey, toast]);
-
   const handleAdminCredentialsChanged = useCallback((message: string) => {
     clearAdminKey();
     toast.show(message, "success");
   }, [clearAdminKey, toast]);
 
+  const handlePasswordChanged = useCallback(() => {
+    handleAdminCredentialsChanged("비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.");
+  }, [handleAdminCredentialsChanged]);
+
+  // 운영 빌드(또는 설정)에서만 조회한다. 조회하지 않으면 isLoading·error·data가 모두 비어 아래 등록 안내 분기도 건너뛴다.
   const productionMfaStatus = useAdminQuery(handleAuthError, {
     queryKey: ["admin", "auth", "mfa", "enrollment-gate"],
     queryFn: () => getAdminMfaStatus(adminKey),
@@ -238,11 +262,11 @@ export function AdminPage() {
     return <AdminLoginGate onLogin={login} onVerifyMfa={verifyMfa} />;
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.isLoading) {
+  if (productionMfaStatus.isLoading) {
     return <LoadingSpinner text="관리자 보안 상태 확인 중..." />;
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.error) {
+  if (productionMfaStatus.error) {
     return (
       <Container className="page-container admin-workspace">
         <ErrorAlert error={productionMfaStatus.error} />
@@ -250,20 +274,14 @@ export function AdminPage() {
     );
   }
 
-  if (REQUIRE_ADMIN_MFA_ENROLLMENT && productionMfaStatus.data?.enabled === false) {
+  if (productionMfaStatus.data?.enabled === false) {
     return (
       <Container className="page-container admin-workspace">
-        <header className="admin-workspace-header">
-          <h4 className="mb-0">관리자 2단계 인증 등록</h4>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            onClick={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? "로그아웃 중..." : "로그아웃"}
-          </Button>
-        </header>
+        <AdminWorkspaceHeader
+          title="관리자 2단계 인증 등록"
+          loggingOut={loggingOut}
+          onLogout={handleLogout}
+        />
         <AdminPanel title="2단계 인증">
           <AdminMfaSettings
             adminKey={adminKey}
@@ -277,17 +295,7 @@ export function AdminPage() {
 
   return (
     <Container className="page-container admin-workspace">
-      <header className="admin-workspace-header">
-        <h4 className="mb-0">관리자</h4>
-        <Button
-          size="sm"
-          variant="outline-secondary"
-          onClick={handleLogout}
-          disabled={loggingOut}
-        >
-          {loggingOut ? "로그아웃 중..." : "로그아웃"}
-        </Button>
-      </header>
+      <AdminWorkspaceHeader title="관리자" loggingOut={loggingOut} onLogout={handleLogout} />
 
       {productionMfaStatus.data?.recoveryResetAvailable && (
         <Alert
