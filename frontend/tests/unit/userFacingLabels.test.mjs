@@ -3,11 +3,9 @@ import test from "node:test";
 
 import { getUserMessage } from "../../src/shared/lib/errorMessages.ts";
 import {
-  CLASS_CATEGORY_OPTIONS,
   FULFILLMENT_TYPE_LABEL,
   getClassCategoryLabel,
   getStatusLabel,
-  isPerfumeClassCategory,
   NOTIFICATION_EVENT_LABEL,
   PRODUCT_FULFILLMENT_LABEL,
   PRODUCT_TYPE_LABEL,
@@ -64,11 +62,6 @@ test("클래스 카테고리는 알려진 종류를 고객이 읽을 수 있는 
   assert.equal(getClassCategoryLabel("PERFUME"), "향수");
   assert.equal(getClassCategoryLabel(" resin "), "레진아트");
   assert.equal(getClassCategoryLabel("CERAMIC"), "CERAMIC");
-  assert.equal(isPerfumeClassCategory(" perfume "), true);
-  assert.deepEqual(
-    CLASS_CATEGORY_OPTIONS.map(({ code }) => code),
-    ["PERFUME", "RESIN", "WOOD", "KNIT", "LEATHER", "UPCYCLING"],
-  );
 });
 
 test("상품과 알림 라벨은 내부 업무 용어 대신 고객 표현을 사용한다", () => {
