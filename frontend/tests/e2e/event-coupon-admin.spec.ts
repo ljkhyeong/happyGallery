@@ -1,25 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, openMockedAdmin } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
-const ADMIN_TOKEN = "event-coupon-admin-token";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function openAuthenticatedAdmin(page: Page, view: "events" | "coupons") {
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, ADMIN_TOKEN] as const);
-  await page.goto(`/admin?view=${view}`);
-  await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
-}
 
 test("공개 이벤트 목록은 종료된 항목을 숨기고 상세와 연관 상품을 연결한다", async ({ page }) => {
   const upcomingEvent = {
@@ -403,7 +393,7 @@ test("@admin 관리자는 이벤트를 등록·수정·삭제할 수 있다", as
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "events");
+  await openMockedAdmin(page, "events");
   await page.getByRole("button", { name: "새 이벤트 작성" }).click();
   await page.getByLabel("제목").fill("공방 오픈데이");
   await page.getByLabel("요약").fill("새 작품을 소개합니다.");
@@ -493,7 +483,7 @@ test("@admin 관리자는 공개 발급 쿠폰을 등록·수정·비활성화�
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "coupons");
+  await openMockedAdmin(page, "coupons");
   await page.getByRole("button", { name: "새 쿠폰 등록" }).click();
   await page.getByLabel("쿠폰 이름").fill("회원 감사 쿠폰");
   await page.getByLabel("할인 금액", { exact: true }).fill("5000");
@@ -575,7 +565,7 @@ test("@admin 발급된 쿠폰 조건 변경 오류를 동시 수정 충돌로 �
     await fulfillJson(route, []);
   });
 
-  await openAuthenticatedAdmin(page, "coupons");
+  await openMockedAdmin(page, "coupons");
   const couponCard = page.locator(".card").filter({ hasText: storedCoupon.name }).last();
   await couponCard.getByRole("button", { name: "수정", exact: true }).click();
   const nameInput = page.getByLabel("쿠폰 이름");

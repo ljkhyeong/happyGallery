@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
 test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제하면 목록에서 빠진다", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "stock-threshold-admin"));
+  await seedAdminSession(page);
   let minimumStock: number | null = null;
   let version = 0;
   const product = { id: 42, name: "재고 기준 작품", type: "READY_STOCK", category: null, price: 10000, status: "ACTIVE", quantity: 2, available: true, variants: [], optionGroups: [] };

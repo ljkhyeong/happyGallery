@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
   headcount: 20, preferredSchedule: "10월 평일 오전", location: "기관 강당", classInterest: "레진아트", message: null };
@@ -61,7 +61,7 @@ for (const member of [false, true]) {
 }
 
 test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저장한다", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "group-admin"));
+  await seedAdminSession(page);
   let created = false;
   let version = 0;
   let status = "RECEIVED";

@@ -1,4 +1,10 @@
-import type { BrowserContext, Page, Route } from "@playwright/test";
+import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
+
+/** 관리자 화면이 토큰을 읽는 sessionStorage 키. src/features/admin-product/useAdminKey.ts의 TOKEN_KEY와 같다. */
+export const ADMIN_TOKEN_KEY = "hg_admin_token";
+
+/** 값을 확인하지 않는 모의 관리자 API에 쓰는 기본 토큰 */
+export const MOCK_ADMIN_TOKEN = "e2e-admin-token";
 
 /**
  * API 모의 응답을 JSON으로 보낸다. 실제 백엔드를 쓰는 준비 helper는 support.ts에 둔다.
@@ -16,6 +22,20 @@ export async function installCsrfCookie(
 ) {
   if (!url) throw new Error("Playwright baseURL이 필요합니다.");
   await context.addCookies([{ name: "XSRF-TOKEN", value, url }]);
+}
+
+/** 다음 문서부터 관리자 토큰이 저장된 상태로 연다. 토큰 값을 단정할 때만 token을 넘긴다. */
+export async function seedAdminSession(page: Page, token = MOCK_ADMIN_TOKEN) {
+  await page.addInitScript(([key, value]) => {
+    sessionStorage.setItem(key, value);
+  }, [ADMIN_TOKEN_KEY, token] as const);
+}
+
+/** 모의 관리자 세션으로 관리자 화면의 view를 열고 머리글이 보일 때까지 기다린다. */
+export async function openMockedAdmin(page: Page, view: string, token?: string) {
+  await seedAdminSession(page, token);
+  await page.goto(`/admin?view=${view}`);
+  await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
 }
 
 /** Toss SDK 대역이 requestPayment 요청을 쌓는 전역 이름. 직접 내려주는 SDK 스크립트도 이 이름을 쓴다. */

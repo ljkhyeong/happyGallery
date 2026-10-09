@@ -4,9 +4,8 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const EMPTY_CART_VERSION = "0".repeat(64);
 
 test.afterEach(async () => {
@@ -57,9 +56,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, "qna-cache-admin-token"] as const);
+  await seedAdminSession(page);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

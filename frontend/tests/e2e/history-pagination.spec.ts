@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -321,9 +321,7 @@ test("비회원 복구 화면은 POST 배열 대신 토큰 기반 GET 페이지�
 
 test("관리자 상품별 Q&A는 page API 커서를 이전·다음 이력 UI에 연결한다", async ({ page }) => {
   const requestedCursors: Array<string | null> = [];
-  await page.addInitScript(() => {
-    sessionStorage.setItem("hg_admin_token", "admin-qna-page-token");
-  });
+  await seedAdminSession(page);
 
   await page.route("**/api/v1/admin/**", async (route) => {
     const url = new URL(route.request().url());

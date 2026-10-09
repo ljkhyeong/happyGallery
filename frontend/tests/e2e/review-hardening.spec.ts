@@ -5,9 +5,8 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const EMPTY_CART_VERSION = "0".repeat(64);
 const ONE_PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
@@ -93,9 +92,7 @@ test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 �
       : [],
   });
 
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, "review-hardening-admin-token"] as const);
+  await seedAdminSession(page, "review-hardening-admin-token");
   await page.addInitScript(() => {
     const created: string[] = [];
     const revoked: string[] = [];

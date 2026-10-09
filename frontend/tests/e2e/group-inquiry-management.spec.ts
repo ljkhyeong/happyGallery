@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
 
 const initialSummary = { id: 51, source: "WEBSITE", status: "CONSULTING", organization: "일정 변경 기관", headcount: 20,
   preferredSchedule: "10월 오전", location: "기관 강당", classInterest: "레진아트", createdAt: "2026-09-05T10:00:00" };
@@ -58,7 +58,7 @@ test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변�
 });
 
 test("관리자 문의 검색은 접수 번호와 날짜 및 경로를 다음 페이지에도 유지한다 @admin", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "inquiry-admin"));
+  await seedAdminSession(page);
   const queries: URLSearchParams[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());

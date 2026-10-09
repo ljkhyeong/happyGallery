@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
 test("관리자는 재입고 대기 인원을 페이지로 확인하고 재고 관리로 이동한다", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "restock-admin"));
+  await seedAdminSession(page);
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);

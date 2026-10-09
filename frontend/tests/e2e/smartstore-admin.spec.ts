@@ -6,14 +6,14 @@ import type {
   GroupInquiryPageResponse,
   SmartStoreAccountingReportResponse,
 } from "../../src/generated/api/adminOperations";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
 function inquiryPage(content: unknown[], page = 0, totalCount = content.length) {
   return { content, page, size: 50, totalCount, totalPages: Math.ceil(totalCount / 50) };
 }
 
 async function prepareAdmin(page: Page) {
-  await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "smartstore-admin-test"));
+  await seedAdminSession(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") return fulfillJson(route, {}, 401);

@@ -4,9 +4,8 @@ import {
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, seedAdminSession } from "./mock-support";
 
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const workshop = {
   name: "해피갤러리",
   updatedAt: "2026-08-08T10:00:00",
@@ -39,9 +38,7 @@ test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최�
     }],
   }));
 
-  await page.addInitScript(([key, token]) => {
-    sessionStorage.setItem(key, token);
-  }, [ADMIN_TOKEN_KEY, "notice-cache-admin-token"] as const);
+  await seedAdminSession(page);
   await updatePublicHomeFixture();
 
   await page.route("**/api/v1/**", async (route) => {

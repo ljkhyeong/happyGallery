@@ -25,12 +25,12 @@ import type {
   SignupRequest,
 } from "../../src/generated/api/customerAuth";
 import type { CurrentPolicyConsentResponse } from "../../src/generated/api/policyConsent";
+import { ADMIN_TOKEN_KEY } from "./mock-support";
 
 const ADMIN_KEY = process.env.PLAYWRIGHT_ADMIN_KEY ?? "dev-admin-key";
 const ADMIN_USERNAME = process.env.PLAYWRIGHT_ADMIN_USERNAME ?? "admin";
 const ADMIN_PASSWORD = process.env.PLAYWRIGHT_ADMIN_PASSWORD ?? "admin1234";
 const BACKEND_BASE_URL = (process.env.PLAYWRIGHT_BACKEND_URL ?? "http://127.0.0.1:8080/api/v1").replace(/\/$/, "");
-const ADMIN_TOKEN_KEY = "hg_admin_token";
 const CUSTOMER_SESSION_COOKIE = "HG_SESSION";
 const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
