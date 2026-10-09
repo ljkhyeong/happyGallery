@@ -203,7 +203,6 @@
   font-size: clamp(1.9rem, 3.4vw, 2.75rem);
   line-height: 1.2;
   letter-spacing: -0.035em;
-  color: var(--hg-dark);
 }
 
 .store-detail-description {
@@ -335,12 +334,10 @@
 
 // ── Purchase panel ─────────────────────────────────────
 .store-purchase-card.store-order-sheet {
-  position: relative;
   overflow: hidden;
   background: var(--hg-surface);
   border: 1px solid var(--hg-dark);
   border-radius: var(--hg-radius-media);
-  box-shadow: var(--hg-shadow-soft);
 }
 
 .store-order-sheet-header {
@@ -399,9 +396,7 @@
 
   h3 {
     margin: 0;
-    font-family: inherit;
     font-size: 0.9375rem;
-    font-weight: 700;
   }
 }
 
@@ -506,7 +501,6 @@
 }
 
 .store-purchase-btn-primary {
-  font-weight: 700;
   letter-spacing: 0.04em;
 }
 
@@ -536,7 +530,6 @@
 .auth-hero-card,
 .auth-form-card {
   background: var(--hg-surface);
-  box-shadow: none;
   border: 1px solid var(--hg-border);
 }
 
@@ -567,11 +560,6 @@
   color: var(--hg-accent);
   text-decoration: none;
   font-weight: 600;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-accent-deep);
-  }
 }
 
 .auth-footer-link {
@@ -678,7 +666,6 @@
 .my-list-card,
 .my-action-card {
   background: var(--hg-surface);
-  box-shadow: none;
   border: 1px solid var(--hg-border);
 }
 
@@ -697,11 +684,6 @@
   color: var(--hg-accent);
   text-decoration: none;
   font-weight: 600;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-accent-deep);
-  }
 }
 
 .my-list-card {
@@ -710,7 +692,6 @@
 
   &:hover,
   &:focus-visible {
-    color: $body-color;
     transform: translateY(-2px);
     border-color: var(--hg-dark);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
@@ -998,9 +979,7 @@
 }
 
 .review-card {
-  border: 1px solid var(--hg-border);
   border-radius: 0;
-  box-shadow: none;
 }
 
 .public-review-card .card-body,
@@ -1216,9 +1195,7 @@
 }
 
 .review-opportunity-card {
-  border: 1px solid var(--hg-border);
   border-radius: 0;
-  box-shadow: none;
 }
 
 .review-opportunity-card .card-body {
@@ -1387,7 +1364,6 @@
 
   h2 {
     margin: 0;
-    font-family: inherit;
     font-size: 1.05rem;
     font-weight: 800;
     line-height: 1.4;
@@ -1523,7 +1499,6 @@
   background: var(--hg-surface);
   border: 1px solid var(--hg-border);
   border-radius: var(--hg-radius);
-  box-shadow: var(--hg-shadow-soft);
 }
 
 .checkout-summary-media {
@@ -1836,7 +1811,6 @@
   }
 
   .list-group-item.active {
-    color: var(--hg-dark);
     background: var(--hg-leaf-tint);
     border-color: var(--hg-leaf) !important;
     box-shadow: inset 0 0 0 1px var(--hg-leaf);
@@ -1856,14 +1830,12 @@
 
   .checkout-panel {
     padding: 1.25rem 1.1rem;
-    border-radius: var(--hg-radius);
   }
 
   .checkout-summary {
     position: static;
     max-height: none;
     overflow: visible;
-    box-shadow: none;
   }
 
   .checkout-summary-media {
@@ -1875,7 +1847,6 @@
   }
 
   .checkout-summary-note {
-    margin-top: -0.5rem;
     padding: 0 1.1rem 1.25rem;
   }
 
@@ -2096,7 +2067,6 @@
 
   &:hover,
   &:focus-visible {
-    color: #FFFFFF;
     background: var(--hg-leaf);
   }
 
@@ -2148,7 +2118,6 @@
 
   &:hover,
   &:focus-visible {
-    color: var(--hg-dark);
     border-color: var(--hg-dark);
   }
 }
@@ -2181,7 +2150,6 @@
 
   h2 {
     margin: 0;
-    font-family: inherit;
     font-size: 1rem;
     font-weight: 800;
   }
@@ -2313,9 +2281,7 @@
 
     h2 {
       margin: 0;
-      font-family: inherit;
       font-size: 0.98rem;
-      font-weight: 700;
     }
 
     time {
@@ -2350,8 +2316,6 @@
 
 .my-form-card {
   background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
-  border-radius: var(--hg-radius);
 }
 
 @media (max-width: 991.98px) {
@@ -2640,10 +2604,6 @@
   color: var(--hg-leaf);
 }
 
-.payment-result.is-danger .payment-result-icon {
-  color: var(--hg-accent-deep);
-}
-
 .payment-result.is-notice .payment-result-icon {
   color: var(--hg-brass);
 }
@@ -2689,7 +2649,6 @@
 
 // 예약 변경·인원 변경·취소 카드: 제목 줄을 같은 굵기로 맞춘다.
 .my-action-card {
-  border-radius: var(--hg-radius);
   overflow: hidden;
 
   > .card-header {

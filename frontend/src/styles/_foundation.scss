@@ -10,22 +10,6 @@
   }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 // ── Design tokens ──────────────────────────────────────
 :root {
   --hg-surface: #FFFFFF;
@@ -49,7 +33,6 @@
   &::before {
     display: block;
     margin-bottom: 0.4rem;
-    color: var(--hg-dark);
     font-family: var(--hg-font-display);
     font-size: 0.9rem;
     font-weight: 600;

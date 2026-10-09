@@ -4,13 +4,11 @@
 // 토큰 이름은 이전 방향과 같게 두고 값만 바꿨다: leaf·accent=먹색(주 행동·선택), clay-tint=옅은 회색 면.
 :root {
   --hg-paper: #FFFFFF;
-  --hg-paper-deep: #F4F4F2;
   --hg-surface: #FFFFFF;
   --hg-surface-alt: #F4F4F2;
   --hg-surface-dim: #EDEDEA;
   --hg-ink-soft: #5E5E5A;
   --hg-ink-soft-on-alt: #55554F;
-  --hg-shadow-soft: none;
   --hg-accent: #111111;
   --hg-accent-deep: #111111;
   --hg-signal: #C8102E;
@@ -24,7 +22,6 @@
   --hg-radius: 2px;
   --hg-radius-media: 0;
   --hg-radius-card: 2px;
-  --hg-container: 1180px;
   --hg-transition: 180ms ease;
   --hg-font-display: "Hahmlet", "AppleMyungjo", "Nanum Myeongjo", serif;
 }
@@ -132,10 +129,6 @@ textarea {
   font-weight: 600;
   letter-spacing: -0.02em;
   text-decoration: none;
-
-  &:hover {
-    color: var(--hg-dark);
-  }
 }
 
 // 검색창은 2px 먹색 테두리 안에 입력과 검색 버튼을 붙인다. 포커스는 테두리 바깥에 한 번 더 그린다.
@@ -233,7 +226,6 @@ textarea {
   &:hover,
   &:focus-visible {
     background: #000000;
-    color: #FFFFFF;
   }
 }
 
@@ -451,21 +443,17 @@ textarea {
 // 주요·보조 행동 버튼은 화면마다 색이 달라지지 않도록 먹색으로 통일한다.
 .btn-primary,
 .btn-dark {
-  --bs-btn-color: #FFFFFF;
-  --bs-btn-bg: var(--hg-leaf);
-  --bs-btn-border-color: var(--hg-leaf);
-  --bs-btn-hover-color: #FFFFFF;
   --bs-btn-hover-bg: var(--hg-leaf-deep);
   --bs-btn-hover-border-color: var(--hg-leaf-deep);
-  --bs-btn-active-color: #FFFFFF;
   --bs-btn-active-bg: var(--hg-leaf-deep);
   --bs-btn-active-border-color: var(--hg-leaf-deep);
-  --bs-btn-disabled-color: #FFFFFF;
   --bs-btn-disabled-bg: #B5B5B5;
   --bs-btn-disabled-border-color: #B5B5B5;
   --bs-btn-focus-shadow-rgb: 34, 34, 34;
 }
 
+// 앞 여섯 값은 Bootstrap 기본값과 같아도 지우지 않는다. 소셜 로그인 버튼(outline-dark)의
+// .social-login-button-* 색 변수를 뒤에서 덮어 지금 글자·테두리·hover 색을 정한다.
 .btn-outline-primary,
 .btn-outline-dark {
   --bs-btn-color: var(--hg-leaf);
@@ -503,15 +491,11 @@ textarea {
 // 노랑 테두리 버튼도 노랑 글자는 흰 바탕에서 읽히지 않아, 글자만 먹색(18.9:1)으로 쓴다.
 .btn-outline-warning {
   --bs-btn-color: var(--hg-accent-deep);
-  --bs-btn-border-color: var(--hg-brass);
   --bs-btn-hover-color: var(--hg-dark);
-  --bs-btn-hover-bg: var(--hg-brass);
-  --bs-btn-hover-border-color: var(--hg-brass);
   --bs-btn-active-color: var(--hg-dark);
   --bs-btn-active-bg: #D8A42C;
   --bs-btn-active-border-color: #D8A42C;
   --bs-btn-disabled-color: var(--hg-accent-deep);
-  --bs-btn-disabled-border-color: var(--hg-brass);
 }
 
 // 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
@@ -520,11 +504,7 @@ textarea {
 .store-detail-kicker,
 .product-card-kicker {
   margin-bottom: 0.75rem;
-  padding: 0;
-  border: 0;
   color: var(--hg-accent-deep);
-  background: transparent !important;
-  font-family: inherit;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -539,11 +519,6 @@ textarea {
   height: 100%;
   color: var(--hg-dark);
   text-decoration: none;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-dark);
-  }
 
   &:hover .product-card-name {
     text-decoration: underline;
@@ -703,11 +678,6 @@ textarea {
   font-size: 0.8rem;
   letter-spacing: 0;
   text-transform: none;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--hg-accent-deep);
-  }
 }
 
 .workshop-visit-info {
@@ -878,7 +848,6 @@ textarea {
 
 .list-group-item {
   background: transparent;
-  border-color: var(--hg-border);
 }
 
 .store-list-header {
@@ -972,8 +941,6 @@ textarea {
   h1 {
     margin-bottom: 0.75rem;
     font-size: clamp(1.5rem, 4vw, 1.875rem);
-    font-weight: 700;
-    color: var(--hg-dark);
   }
 
   p {
@@ -1157,7 +1124,6 @@ textarea {
 
   h2 {
     margin-bottom: 0.6rem;
-    font-family: inherit;
     font-size: 0.95rem;
     font-weight: 800;
   }
