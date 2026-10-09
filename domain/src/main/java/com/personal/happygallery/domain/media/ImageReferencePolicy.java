@@ -2,6 +2,7 @@ package com.personal.happygallery.domain.media;
 
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.text.DomainText;
 import java.net.URI;
 
 /** 상품, 클래스와 이벤트가 저장하는 대표 이미지 참조의 형식과 길이를 정의한다. */
@@ -13,12 +14,9 @@ public final class ImageReferencePolicy {
 
     /** 비어 있거나, 정규화한 서비스 절대 경로이거나, 호스트가 있는 HTTP(S) URL인 이미지 참조를 반환한다. */
     public static String optional(String value) {
-        if (value == null || value.isBlank()) {
+        String normalized = DomainText.optional(value, "대표 이미지 URL은", MAX_LENGTH);
+        if (normalized == null) {
             return null;
-        }
-        String normalized = value.strip();
-        if (normalized.codePointCount(0, normalized.length()) > MAX_LENGTH) {
-            throw invalidReference("대표 이미지 URL은 " + MAX_LENGTH + "자 이하여야 합니다.");
         }
         try {
             URI reference = URI.create(normalized);
