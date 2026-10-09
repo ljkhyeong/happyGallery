@@ -4,6 +4,7 @@ import {
   type ImageUploadResponse,
 } from "@/generated/api/adminCatalog";
 import { adminHeaders } from "@/shared/api";
+import { assertImageBlob } from "@/shared/hooks/useBlobObjectUrl";
 
 const PUBLIC_IMAGE_PREFIX = "/api/v1/media/images/";
 
@@ -33,8 +34,5 @@ export async function fetchAdminImagePreview(
     cache: "no-store",
     signal,
   });
-  if (!blob.type.startsWith("image/")) {
-    throw new Error("대표 이미지 응답 형식이 올바르지 않습니다.");
-  }
-  return blob;
+  return assertImageBlob(blob, "대표 이미지 응답 형식이 올바르지 않습니다.");
 }
