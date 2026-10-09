@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminInquiries, replyInquiry } from "./api";
 import type { AdminInquiryResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -44,26 +45,13 @@ export function AdminInquirySection({ token, onAuthError }: Props) {
           onAuthError={onAuthError}
         />
       ))}
-      {(hasPreviousPage || page?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mt-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={!hasPreviousPage || isLoading}
-            onClick={showPreviousPage}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            disabled={!page?.hasMore || isLoading}
-            onClick={() => showNextPage(page?.nextCursor)}
-          >
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        hasPreviousPage={hasPreviousPage}
+        page={page}
+        busy={isLoading}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
     </div>
   );
 }

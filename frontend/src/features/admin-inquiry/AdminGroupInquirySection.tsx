@@ -10,6 +10,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime } from "@/shared/lib";
 
 interface Props { token: string; onAuthError: () => void }
@@ -84,10 +85,9 @@ export function AdminGroupInquirySection({ token, onAuthError }: Props) {
         </div>
         <Button size="sm" variant="outline-primary" onClick={() => setSelectedId(inquiry.id)}>상담 열기</Button>
       </Card.Body></Card>)}
-      {(paging.hasPreviousPage || query.data?.hasMore) && <div className="d-flex gap-2 my-3">
-        <Button size="sm" disabled={!paging.hasPreviousPage || query.isFetching} onClick={paging.showPreviousPage}>이전</Button>
-        <Button size="sm" disabled={!query.data?.hasMore || query.isFetching} onClick={() => paging.showNextPage(query.data?.nextCursor)}>다음</Button>
-      </div>}
+      <CursorPager className="d-flex gap-2 my-3" previousVariant="primary" nextVariant="primary"
+        hasPreviousPage={paging.hasPreviousPage} page={query.data} busy={query.isFetching}
+        onPrevious={paging.showPreviousPage} onNext={paging.showNextPage} />
       {selectedId !== null && <GroupInquiryDetail key={selectedId} id={selectedId} token={token} onAuthError={onAuthError} />}
     </div>
   );

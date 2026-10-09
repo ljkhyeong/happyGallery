@@ -5,6 +5,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { REVIEW_REPORT_REASON_LABELS } from "@/features/review/reviewLabels";
 import { AdminReviewReportDetail } from "./AdminReviewReportDetail";
 import {
@@ -95,16 +96,13 @@ export function AdminReviewReportSection({
           />
         ))}
       </div>
-      {(hasPreviousPage || query.data?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mt-3">
-          <Button type="button" size="sm" variant="outline-secondary" disabled={!hasPreviousPage || query.isFetching} onClick={showPreviousPage}>
-            이전
-          </Button>
-          <Button type="button" size="sm" variant="outline-primary" disabled={!query.data?.hasMore || query.isFetching} onClick={() => showNextPage(query.data?.nextCursor)}>
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        hasPreviousPage={hasPreviousPage}
+        page={query.data}
+        busy={query.isFetching}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
     </section>
   );
 }

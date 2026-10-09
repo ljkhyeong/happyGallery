@@ -5,6 +5,7 @@ import { fetchAdminQnaPage, fetchUnansweredAdminQna, replyQna } from "./api";
 import { fetchProducts } from "@/features/admin-product/api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -128,26 +129,13 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
           onAuthError={onAuthError}
         />
       ))}
-      {(hasPreviousPage || currentPage?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mt-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={!hasPreviousPage || isLoading}
-            onClick={showPreviousPage}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            disabled={!currentPage?.hasMore || isLoading}
-            onClick={() => showNextPage(currentPage?.nextCursor)}
-          >
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        hasPreviousPage={hasPreviousPage}
+        page={currentPage}
+        busy={isLoading}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
     </div>
   );
 }

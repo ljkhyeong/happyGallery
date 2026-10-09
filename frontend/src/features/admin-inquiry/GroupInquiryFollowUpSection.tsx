@@ -5,6 +5,7 @@ import { adminHeaders } from "@/shared/api";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { GroupInquiryDetail } from "./AdminGroupInquirySection";
 
 export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: string; onAuthError: () => void }) {
@@ -24,10 +25,9 @@ export function GroupInquiryFollowUpSection({ token, onAuthError }: { token: str
       <div><strong>{row.organization}</strong><div className="small">연락 예정일 {row.nextContactOn}</div></div>
       <Button size="sm" variant="outline-primary" onClick={() => setSelectedId(row.id)}>상담 열기</Button>
     </div>)}
-    {(paging.hasPreviousPage || query.data?.hasMore) && <div className="d-flex gap-2 my-2">
-      <Button size="sm" disabled={!paging.hasPreviousPage || query.isFetching} onClick={paging.showPreviousPage}>이전</Button>
-      <Button size="sm" disabled={!query.data?.hasMore || query.isFetching} onClick={() => paging.showNextPage(query.data?.nextCursor)}>다음</Button>
-    </div>}
+    <CursorPager className="d-flex gap-2 my-2" previousVariant="primary" nextVariant="primary"
+      hasPreviousPage={paging.hasPreviousPage} page={query.data} busy={query.isFetching}
+      onPrevious={paging.showPreviousPage} onNext={paging.showNextPage} />
     {selectedId !== null && <GroupInquiryDetail key={selectedId} id={selectedId} token={token} onAuthError={onAuthError} />}
   </div>;
 }

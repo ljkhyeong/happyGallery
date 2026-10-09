@@ -9,8 +9,10 @@ import type {
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import {
   fetchCurrentSmartStoreOrderStatus,
   fetchUnresolvedSmartStoreOrderActions,
@@ -24,9 +26,8 @@ interface Props {
 }
 
 export function SmartStoreOrderReconciliationSection({ adminKey, onAuthError }: Props) {
-  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
+  const { cursor, hasPreviousPage, showNextPage, showPreviousPage } = useCursorHistory();
   const [selected, setSelected] = useState<SmartStoreOrderActionHistoryResponse | null>(null);
-  const cursor = pageCursors.at(-1);
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "smartstore-order-actions", "unresolved", cursor ?? null],
     queryFn: () => fetchUnresolvedSmartStoreOrderActions(adminKey, cursor),
@@ -83,23 +84,15 @@ export function SmartStoreOrderReconciliationSection({ adminKey, onAuthError }: 
           </tbody>
         </Table>
       )}
-      {(pageCursors.length > 1 || query.data?.hasMore) && (
-        <div className="d-flex justify-content-end gap-2">
-          <Button size="sm" variant="outline-secondary" disabled={pageCursors.length === 1}
-            onClick={() => setPageCursors((current) => current.slice(0, -1))}>
-            이전
-          </Button>
-          <Button size="sm" variant="outline-secondary"
-            disabled={!query.data?.hasMore || !query.data.nextCursor}
-            onClick={() => {
-              if (query.data?.nextCursor) {
-                setPageCursors((current) => [...current, query.data?.nextCursor ?? undefined]);
-              }
-            }}>
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        className="d-flex justify-content-end gap-2"
+        nextVariant="outline-secondary"
+        hasPreviousPage={hasPreviousPage}
+        page={query.data}
+        busy={false}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
       <ReconciliationModal
         key={selected?.id ?? "closed"}
         adminKey={adminKey}

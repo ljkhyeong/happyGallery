@@ -8,6 +8,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { ReviewStars, ReviewStatusBadge } from "@/features/review/ReviewDisplay";
 import { ReviewImageGallery } from "@/features/review/ReviewImageGallery";
 import { ReviewTrustBadges } from "@/features/review/ReviewTrustBadges";
@@ -253,28 +254,13 @@ export function AdminReviewSection({
               />
             ))}
           </div>
-          {(hasPreviousPage || reviewsQuery.data?.hasMore) && (
-            <div className="d-flex justify-content-center gap-2 mt-3">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline-secondary"
-                disabled={!hasPreviousPage || reviewsQuery.isFetching}
-                onClick={showPreviousPage}
-              >
-                이전
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline-primary"
-                disabled={!reviewsQuery.data?.hasMore || reviewsQuery.isFetching}
-                onClick={() => showNextPage(reviewsQuery.data?.nextCursor)}
-              >
-                다음
-              </Button>
-            </div>
-          )}
+          <CursorPager
+            hasPreviousPage={hasPreviousPage}
+            page={reviewsQuery.data}
+            busy={reviewsQuery.isFetching}
+            onPrevious={showPreviousPage}
+            onNext={showNextPage}
+          />
             </>
           )}
         </div>

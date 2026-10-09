@@ -23,9 +23,11 @@ import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 import { ConfirmModal } from "@/shared/ui/ConfirmModal";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import {
   approveSmartStoreCancel,
   approveSmartStoreReturn,
@@ -96,7 +98,7 @@ export function SmartStoreChannelOrderSection({
   const [attentionReason, setAttentionReason] = useState<
     ListSmartStoreChannelOrdersAttentionReason | ""
   >("");
-  const [pageCursors, setPageCursors] = useState<(string | undefined)[]>([undefined]);
+  const { cursor, hasPreviousPage, showNextPage, showPreviousPage, resetCursor } = useCursorHistory();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(focusProductOrderId ?? null);
   const [inventoryResolutionOrder, setInventoryResolutionOrder] =
@@ -105,7 +107,6 @@ export function SmartStoreChannelOrderSection({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDispatchIds, setBulkDispatchIds] = useState<string[] | null>(null);
   const [bulkResult, setBulkResult] = useState<SmartStoreOrderBulkActionResponse | null>(null);
-  const cursor = pageCursors.at(-1);
   const queryKey = [
     "admin", "smartstore-orders", attentionOnly, attentionReason || null, cursor ?? null,
   ] as const;
@@ -122,7 +123,7 @@ export function SmartStoreChannelOrderSection({
   const orders = data?.content ?? [];
 
   function resetPages() {
-    setPageCursors([undefined]);
+    resetCursor();
     setSelectedIds(new Set());
   }
 
@@ -322,34 +323,21 @@ export function SmartStoreChannelOrderSection({
           </tbody>
         </Table>
       )}
-      {(pageCursors.length > 1 || data?.hasMore) && (
-        <div className="d-flex justify-content-end gap-2 mb-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={selectionLocked || pageCursors.length === 1}
-            onClick={() => {
-              setPageCursors((current) => current.slice(0, -1));
-              setSelectedIds(new Set());
-            }}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={selectionLocked || !data?.hasMore || !data.nextCursor}
-            onClick={() => {
-              if (data?.nextCursor) {
-                setPageCursors((current) => [...current, data.nextCursor ?? undefined]);
-                setSelectedIds(new Set());
-              }
-            }}
-          >
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        className="d-flex justify-content-end gap-2 mb-3"
+        nextVariant="outline-secondary"
+        hasPreviousPage={hasPreviousPage}
+        page={data}
+        busy={selectionLocked}
+        onPrevious={() => {
+          showPreviousPage();
+          setSelectedIds(new Set());
+        }}
+        onNext={(nextCursor) => {
+          showNextPage(nextCursor);
+          setSelectedIds(new Set());
+        }}
+      />
       <ConfirmModal
         show={returnReviewOrder !== null}
         title="스마트스토어 반품 검수"

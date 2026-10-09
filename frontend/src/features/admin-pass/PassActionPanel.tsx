@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Button,
-  ButtonGroup,
   Col,
   Form,
   Row,
@@ -30,6 +29,7 @@ import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import { useAdminRefundPolling } from "@/features/admin-refund/useAdminRefundPolling";
+import { AdminSearchPagination } from "@/features/admin-search/AdminSearchPagination";
 import type { AdminPassResponse } from "@/shared/types";
 
 interface Props {
@@ -182,28 +182,12 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
             </tbody>
           </Table>
 
-          <div className="admin-search-pagination">
-            <small className="text-muted-soft">
-              총 {passSearch.data.totalCount.toLocaleString("ko-KR")}건 · {passSearch.data.page + 1}/
-              {passSearch.data.totalPages.toLocaleString("ko-KR")} 페이지
-            </small>
-            <ButtonGroup size="sm" aria-label="이용권 검색 결과 페이지 이동">
-              <Button
-                variant="outline-secondary"
-                disabled={passSearch.isFetching || page === 0}
-                onClick={() => movePage(page - 1)}
-              >
-                이전
-              </Button>
-              <Button
-                variant="outline-secondary"
-                disabled={passSearch.isFetching || page + 1 >= passSearch.data.totalPages}
-                onClick={() => movePage(page + 1)}
-              >
-                다음
-              </Button>
-            </ButtonGroup>
-          </div>
+          <AdminSearchPagination
+            page={passSearch.data}
+            onMove={movePage}
+            disabled={passSearch.isFetching}
+            ariaLabel="이용권 검색 결과 페이지 이동"
+          />
         </div>
       )}
 

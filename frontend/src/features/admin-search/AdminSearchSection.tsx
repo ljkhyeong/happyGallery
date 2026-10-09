@@ -8,6 +8,7 @@ import type {
   AdminPassResponse,
   OffsetPage,
 } from "@/shared/types";
+import { AdminSearchPagination } from "./AdminSearchPagination";
 import {
   EmptyState,
   ErrorAlert,
@@ -50,45 +51,6 @@ const ORDER_STATUS_OPTIONS = [
 ] as const;
 
 const BOOKING_STATUS_OPTIONS = ["BOOKED", "CANCELED", "NO_SHOW", "COMPLETED"] as const;
-
-function Pagination({
-  page,
-  onMove,
-  disabled,
-}: {
-  page: OffsetPage<unknown>;
-  onMove: (nextPage: number) => void;
-  disabled: boolean;
-}) {
-  if (page.totalPages === 0) {
-    return <small className="d-block mt-3 text-muted-soft">총 0건</small>;
-  }
-
-  const currentPage = page.page + 1;
-  return (
-    <div className="admin-search-pagination">
-      <small className="text-muted-soft">
-        총 {page.totalCount.toLocaleString("ko-KR")}건 · {currentPage}/{page.totalPages.toLocaleString("ko-KR")} 페이지
-      </small>
-      <ButtonGroup size="sm" aria-label="검색 결과 페이지 이동">
-        <Button
-          variant="outline-secondary"
-          disabled={disabled || page.page === 0}
-          onClick={() => onMove(page.page - 1)}
-        >
-          이전
-        </Button>
-        <Button
-          variant="outline-secondary"
-          disabled={disabled || page.page + 1 >= page.totalPages}
-          onClick={() => onMove(page.page + 1)}
-        >
-          다음
-        </Button>
-      </ButtonGroup>
-    </div>
-  );
-}
 
 function normalizeKeyword(value: string): string | undefined {
   const trimmed = value.trim();
@@ -386,7 +348,7 @@ export function AdminSearchSection({ adminKey, onAuthError }: Props) {
         <div className="admin-search-results">
           <SearchResults result={query.data} />
           {query.data.target !== "CUSTOMER" && (
-            <Pagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
+            <AdminSearchPagination page={query.data.page} onMove={movePage} disabled={query.isFetching} />
           )}
         </div>
       )}

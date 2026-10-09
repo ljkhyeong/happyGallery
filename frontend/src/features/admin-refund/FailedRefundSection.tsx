@@ -4,6 +4,7 @@ import { Alert, Button, Table } from "react-bootstrap";
 import { fetchFailedRefunds, retryRefund } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ConfirmModal } from "@/shared/ui/ConfirmModal";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -121,26 +122,14 @@ export function FailedRefundSection({ adminKey, onAuthError }: Props) {
       ) : !error && refunds !== undefined ? (
         <EmptyState message="이 페이지에 확인이 필요한 환불이 없습니다." />
       ) : null}
-      {(hasPreviousPage || page?.hasMore) && (
-        <div className="d-flex justify-content-center gap-2 mb-3">
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            disabled={!hasPreviousPage || isLoading}
-            onClick={showPreviousPage}
-          >
-            이전
-          </Button>
-          <Button
-            size="sm"
-            variant="outline-primary"
-            disabled={!page?.hasMore || isLoading}
-            onClick={() => showNextPage(page?.nextCursor)}
-          >
-            다음
-          </Button>
-        </div>
-      )}
+      <CursorPager
+        className="d-flex justify-content-center gap-2 mb-3"
+        hasPreviousPage={hasPreviousPage}
+        page={page}
+        busy={isLoading}
+        onPrevious={showPreviousPage}
+        onNext={showNextPage}
+      />
       <ConfirmModal
         show={retryTarget !== null}
         title="환불 처리 다시 확인"
