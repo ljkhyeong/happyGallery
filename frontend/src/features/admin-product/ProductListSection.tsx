@@ -123,19 +123,25 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
         </tbody>
       </Table>
 
-      <InventoryAdjustmentModal
-        adminKey={adminKey}
-        product={selectedProduct}
-        initialVariantId={selectedProductId === focusProductId ? focusVariantId : undefined}
-        onClose={() => setSelectedProductId(null)}
-        onAuthError={onAuthError}
-      />
-      <ProductEditModal
-        adminKey={adminKey}
-        product={editingProduct}
-        onClose={() => setEditingProductId(null)}
-        onAuthError={onAuthError}
-      />
+      {selectedProduct && (
+        <InventoryAdjustmentModal
+          key={selectedProduct.id}
+          adminKey={adminKey}
+          product={selectedProduct}
+          initialVariantId={selectedProduct.id === focusProductId ? focusVariantId : undefined}
+          onClose={() => setSelectedProductId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
+      {editingProduct && (
+        <ProductEditModal
+          key={editingProduct.id}
+          adminKey={adminKey}
+          product={editingProduct}
+          onClose={() => setEditingProductId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
       {smartStoreProduct && (
         <SmartStoreInventoryModal
           key={smartStoreProduct.id}

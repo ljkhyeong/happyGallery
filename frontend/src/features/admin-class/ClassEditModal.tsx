@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { updateClass } from "./api";
@@ -13,14 +13,12 @@ import {
   classCategoryChangeHandler,
   classDetailPayload,
   classDetailsFrom,
-  EMPTY_CLASS_DETAILS,
   invalidateClassQueries,
-  type ClassDetailValues,
 } from "./classFormRules";
 
 interface Props {
   adminKey: string;
-  bookingClass: ClassResponse | null;
+  bookingClass: ClassResponse;
   onClose: () => void;
   onAuthError: () => void;
 }
@@ -28,28 +26,20 @@ interface Props {
 export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [name, setName] = useState("");
-  const [categoryValue, setCategoryValue] = useState(createClassCategoryValue);
-  const [price, setPrice] = useState("");
-  const [passEligible, setPassEligible] = useState(false);
-  const [details, setDetails] = useState<ClassDetailValues>(EMPTY_CLASS_DETAILS);
-
-  useEffect(() => {
-    if (!bookingClass) return;
-    const nextCategoryValue = createClassCategoryValue(bookingClass.category);
-    setName(bookingClass.name);
-    setCategoryValue(nextCategoryValue);
-    setPrice(String(bookingClass.price));
-    setPassEligible(
-      bookingClass.passEligible && !isPerfumeClassCategory(nextCategoryValue.category),
-    );
-    setDetails(classDetailsFrom(bookingClass));
-  }, [bookingClass]);
+  // 목록이 수정할 클래스마다 key를 바꿔 새로 만들므로 처음 값은 한 번만 채운다.
+  const [name, setName] = useState(bookingClass.name);
+  const [categoryValue, setCategoryValue] = useState(
+    () => createClassCategoryValue(bookingClass.category),
+  );
+  const [price, setPrice] = useState(() => String(bookingClass.price));
+  const [passEligible, setPassEligible] = useState(() => bookingClass.passEligible
+    && !isPerfumeClassCategory(createClassCategoryValue(bookingClass.category).category));
+  const [details, setDetails] = useState(() => classDetailsFrom(bookingClass));
 
   const handleCategoryChange = classCategoryChangeHandler(setCategoryValue, setPassEligible);
 
   const mutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateClass(adminKey, bookingClass!.id, {
+    mutationFn: () => updateClass(adminKey, bookingClass.id, {
       name,
       category: categoryValue.category,
       price: Number(price),
@@ -70,7 +60,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
 
   return (
     <Modal
-      show={bookingClass != null}
+      show
       aria-labelledby="admin-class-edit-title"
       onHide={onClose}
       centered

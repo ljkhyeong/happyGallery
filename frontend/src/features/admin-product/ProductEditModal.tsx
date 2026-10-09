@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button, Form, Modal, Row, Col } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateProduct } from "./api";
@@ -6,17 +6,12 @@ import { ErrorAlert, useToast } from "@/shared/ui";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import type { ProductResponse } from "@/shared/types";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
-import {
-  optionDraftsFromProduct,
-  ProductOptionEditor,
-  type OptionGroupDraft,
-  type VariantDraft,
-} from "./ProductOptionEditor";
+import { optionDraftsFromProduct, ProductOptionEditor } from "./ProductOptionEditor";
 import { invalidateProductQueries, isProductFormValid } from "./productFormRules";
 
 interface Props {
   adminKey: string;
-  product: ProductResponse | null;
+  product: ProductResponse;
   onClose: () => void;
   onAuthError: () => void;
 }
@@ -24,36 +19,23 @@ interface Props {
 export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [price, setPrice] = useState("");
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [specification, setSpecification] = useState("");
-  const [careInstructions, setCareInstructions] = useState("");
-  const [productionLeadDays, setProductionLeadDays] = useState("");
+  // 목록이 수정할 상품마다 key를 바꿔 새로 만들므로 처음 값은 한 번만 채운다.
+  const [name, setName] = useState(product.name);
+  const [category, setCategory] = useState(product.category ?? "");
+  const [price, setPrice] = useState(() => String(product.price));
+  const [description, setDescription] = useState(product.description ?? "");
+  const [imageUrl, setImageUrl] = useState(product.imageUrl ?? "");
+  const [specification, setSpecification] = useState(product.specification ?? "");
+  const [careInstructions, setCareInstructions] = useState(product.careInstructions ?? "");
+  const [productionLeadDays, setProductionLeadDays] = useState(
+    () => product.productionLeadDays?.toString() ?? "",
+  );
   const [quantity, setQuantity] = useState("0");
-  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
-  const [variants, setVariants] = useState<VariantDraft[]>([]);
-
-  useEffect(() => {
-    if (!product) return;
-    setName(product.name);
-    setCategory(product.category ?? "");
-    setPrice(String(product.price));
-    setDescription(product.description ?? "");
-    setImageUrl(product.imageUrl ?? "");
-    setSpecification(product.specification ?? "");
-    setCareInstructions(product.careInstructions ?? "");
-    setProductionLeadDays(product.productionLeadDays?.toString() ?? "");
-    setQuantity("0");
-    const drafts = optionDraftsFromProduct(product);
-    setOptionGroups(drafts.groups);
-    setVariants(drafts.variants);
-  }, [product]);
+  const [optionGroups, setOptionGroups] = useState(() => optionDraftsFromProduct(product).groups);
+  const [variants, setVariants] = useState(() => optionDraftsFromProduct(product).variants);
 
   const mutation = useAdminMutation(onAuthError, {
-    mutationFn: () => updateProduct(adminKey, product!.id, {
+    mutationFn: () => updateProduct(adminKey, product.id, {
       name,
       category: category.trim() || undefined,
       price: Number(price),
@@ -61,16 +43,16 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       imageUrl: imageUrl.trim() || undefined,
       specification: specification.trim() || undefined,
       careInstructions: careInstructions.trim() || undefined,
-      productionLeadDays: product!.type === "MADE_TO_ORDER"
+      productionLeadDays: product.type === "MADE_TO_ORDER"
         ? Number(productionLeadDays)
         : undefined,
-      quantity: product!.type === "MADE_TO_ORDER"
+      quantity: product.type === "MADE_TO_ORDER"
         && optionGroups.every((group) => group.type !== "SELECT")
         && variants.length === 0
         ? Number(quantity)
         : undefined,
-      optionGroups: product!.type === "MADE_TO_ORDER" ? optionGroups : [],
-      variants: product!.type === "MADE_TO_ORDER" ? variants : [],
+      optionGroups: product.type === "MADE_TO_ORDER" ? optionGroups : [],
+      variants: product.type === "MADE_TO_ORDER" ? variants : [],
     }),
     onSuccess: () => {
       invalidateProductQueries(queryClient);
@@ -80,10 +62,10 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
   });
 
   const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
-  const defaultVariant = !hasSelectOptions && product?.optionGroups.every((group) => group.type !== "SELECT")
+  const defaultVariant = !hasSelectOptions && product.optionGroups.every((group) => group.type !== "SELECT")
     ? product.variants.find((variant) => variant.selections.length === 0)
     : undefined;
-  const valid = product !== null && isProductFormValid({
+  const valid = isProductFormValid({
     type: product.type,
     name,
     price,
@@ -97,7 +79,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
 
   return (
     <Modal
-      show={product != null}
+      show
       aria-labelledby="admin-product-edit-title"
       onHide={onClose}
       centered
@@ -134,7 +116,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
             <Col xs={12}>
               <Form.Group controlId="admin-edit-product-specification">
                 <Form.Label>
-                  상품 사양 {product?.type === "MADE_TO_ORDER" && <span className="text-danger">*</span>}
+                  상품 사양 {product.type === "MADE_TO_ORDER" && <span className="text-danger">*</span>}
                 </Form.Label>
                 <Form.Control
                   as="textarea"
@@ -145,7 +127,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
                 />
               </Form.Group>
             </Col>
-            {product?.type === "MADE_TO_ORDER" && (
+            {product.type === "MADE_TO_ORDER" && (
               <>
                 <Col xs={12} md={6}>
                   <Form.Group controlId="admin-edit-product-production-lead-days">

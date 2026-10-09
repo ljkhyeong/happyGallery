@@ -107,12 +107,15 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
         </tbody>
       </Table>
 
-      <ClassEditModal
-        adminKey={adminKey}
-        bookingClass={editingClass}
-        onClose={() => setEditingId(null)}
-        onAuthError={onAuthError}
-      />
+      {editingClass && (
+        <ClassEditModal
+          key={editingClass.id}
+          adminKey={adminKey}
+          bookingClass={editingClass}
+          onClose={() => setEditingId(null)}
+          onAuthError={onAuthError}
+        />
+      )}
     </>
   );
 }
