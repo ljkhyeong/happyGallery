@@ -123,12 +123,8 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     @Transactional
     public void linkSocialAccount(SocialLinkCommand command) {
         User user = findUserForUpdate(command.userId());
-        if (user.getCredentialVersion() != command.credentialVersion()) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!command.recentlyReauthenticated()) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
-        }
+        ProtectedAccountChange.requireCurrentSession(
+                user, command.credentialVersion(), command.recentlyReauthenticated());
 
         Optional<SocialAccount> linkedIdentity = socialAccountReader.findByProviderAndProviderId(
                 command.provider(), command.providerId());
@@ -173,12 +169,8 @@ public class DefaultSocialAuthService implements SocialAuthUseCase {
     @Transactional
     public boolean unlinkSocialAccount(SocialUnlinkCommand command) {
         User user = findUserForUpdate(command.userId());
-        if (user.getCredentialVersion() != command.credentialVersion()) {
-            throw new HappyGalleryException(ErrorCode.UNAUTHORIZED);
-        }
-        if (!command.recentlyReauthenticated()) {
-            throw new HappyGalleryException(ErrorCode.REAUTHENTICATION_REQUIRED);
-        }
+        ProtectedAccountChange.requireCurrentSession(
+                user, command.credentialVersion(), command.recentlyReauthenticated());
         List<SocialAccount> linkedAccounts = socialAccountReader.findByUserId(command.userId());
         boolean linked = linkedAccounts.stream()
                 .anyMatch(account -> account.getProvider() == command.provider());
