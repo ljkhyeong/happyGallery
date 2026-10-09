@@ -89,7 +89,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     localStorage.setItem(storageKey, value);
   }, [
     GUEST_CART_STORAGE_KEY,
-    JSON.stringify([{ productId: 11, qty: 2, lineageId: "shared-lineage" }]),
+    JSON.stringify([{ productId: 11, productVariantId: null, textInputs: [], qty: 2, lineageId: "shared-lineage" }]),
   ] as const);
   await expect(secondPage.locator('a[href="/cart"] .badge')).toHaveText("2");
 
@@ -105,7 +105,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
         : [];
       localStorage.setItem(storageKey, JSON.stringify([
         ...items,
-        { productId: 22, qty: 1, lineageId: "queued-lineage" },
+        { productId: 22, productVariantId: null, textInputs: [], qty: 1, lineageId: "queued-lineage" },
       ]));
     });
   }, [GUEST_CART_LOCK_NAME, GUEST_CART_STORAGE_KEY] as const);
@@ -195,7 +195,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     localStorage.setItem(storageKey, JSON.stringify(items));
   }, [
     GUEST_CART_STORAGE_KEY,
-    [{ productId: 31, qty: 2, lineageId: "account-a-lineage" }],
+    [{ productId: 31, productVariantId: null, textInputs: [], qty: 2, lineageId: "account-a-lineage" }],
   ] as const);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
