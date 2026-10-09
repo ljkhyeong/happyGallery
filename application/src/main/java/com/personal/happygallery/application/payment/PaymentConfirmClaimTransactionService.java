@@ -4,7 +4,6 @@ import com.personal.happygallery.application.payment.context.PreparedPaymentPayl
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmResult;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
@@ -30,20 +29,17 @@ class PaymentConfirmClaimTransactionService {
             "PG 멱등 응답 안전 기간이 지나 결제 상태 대사가 필요합니다.";
 
     private final PaymentAttemptReaderPort attemptReader;
-    private final PaymentAttemptStorePort attemptStore;
     private final PaymentAttemptAccessVerifier accessVerifier;
     private final PaymentConfirmAttemptResolver attemptResolver;
     private final OrderPaymentBenefitReservationService benefitReservationService;
     private final Clock clock;
 
     PaymentConfirmClaimTransactionService(PaymentAttemptReaderPort attemptReader,
-                                          PaymentAttemptStorePort attemptStore,
                                           PaymentAttemptAccessVerifier accessVerifier,
                                           PaymentConfirmAttemptResolver attemptResolver,
                                           OrderPaymentBenefitReservationService benefitReservationService,
                                           Clock clock) {
         this.attemptReader = attemptReader;
-        this.attemptStore = attemptStore;
         this.accessVerifier = accessVerifier;
         this.attemptResolver = attemptResolver;
         this.benefitReservationService = benefitReservationService;
@@ -65,7 +61,6 @@ class PaymentConfirmClaimTransactionService {
                 ? benefitReservationService.readPayloadForRelease(attempt)
                 : null;
         if (attempt.expirePendingBefore(prepareExpiredBeforeUtc)) {
-            attemptStore.save(attempt);
             if (expiryPayload != null) {
                 benefitReservationService.release(attempt, expiryPayload, now);
             }
@@ -79,7 +74,6 @@ class PaymentConfirmClaimTransactionService {
                         nowInstant.minus(CONFIRM_AUTOMATIC_RETRY_MAX_AGE), ZoneOffset.UTC))) {
             attempt.requireMatchingConfirmRequest(command.amount(), paymentKey);
             attempt.markConfirmReconciliationRequired(CONFIRM_RECONCILIATION_REASON);
-            attemptStore.save(attempt);
             return new ConfirmationRejected(attempt.getId(), paymentFailure(attempt));
         }
 
@@ -108,7 +102,6 @@ class PaymentConfirmClaimTransactionService {
                 } else {
                     processingToken = attempt.startProcessing(command.amount(), paymentKey, now);
                 }
-                attemptStore.save(attempt);
                 if (attempt.getAmount() == 0L) {
                     yield new ZeroAmountApprovalRequired(
                             attempt.getId(), attempt.getOrderIdExternal(), processingToken);
@@ -162,7 +155,6 @@ class PaymentConfirmClaimTransactionService {
                 LocalDateTime.now(clock))) {
             throw new HappyGalleryException(ErrorCode.PAYMENT_CONFIRM_IN_PROGRESS);
         }
-        attemptStore.save(attempt);
         return readyForFulfillment(attempt);
     }
 
@@ -178,16 +170,12 @@ class PaymentConfirmClaimTransactionService {
             attempt.requireMatchingConfirmedPaymentKey(confirmedPaymentKey);
             return true;
         }
-        if (!attempt.markApproved(
+        return attempt.markApproved(
                 processingToken,
                 confirmedPaymentKey,
                 confirmedPaymentMethod,
                 confirmedReceiptUrl,
-                LocalDateTime.now(clock))) {
-            return false;
-        }
-        attemptStore.save(attempt);
-        return true;
+                LocalDateTime.now(clock));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -207,7 +195,6 @@ class PaymentConfirmClaimTransactionService {
         if (!changed) {
             return false;
         }
-        attemptStore.save(attempt);
         if (!retryable) {
             benefitReservationService.release(attempt, LocalDateTime.now(clock));
         }
@@ -219,11 +206,7 @@ class PaymentConfirmClaimTransactionService {
                                                      String processingToken,
                                                      String reason) {
         PaymentAttempt attempt = findForUpdate(attemptId);
-        if (!attempt.markConfirmReconciliationRequired(processingToken, reason)) {
-            return false;
-        }
-        attemptStore.save(attempt);
-        return true;
+        return attempt.markConfirmReconciliationRequired(processingToken, reason);
     }
 
     private PaymentAttempt findForUpdate(Long attemptId) {

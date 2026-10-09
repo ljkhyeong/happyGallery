@@ -2,7 +2,6 @@ package com.personal.happygallery.application.payment;
 
 import com.personal.happygallery.application.payment.context.PreparedPaymentPayload;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.payment.port.out.PaymentLookupResult;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
@@ -21,16 +20,13 @@ import org.springframework.util.StringUtils;
 class PaymentReconciliationTransactionService {
 
     private final PaymentAttemptReaderPort attemptReader;
-    private final PaymentAttemptStorePort attemptStore;
     private final OrderPaymentBenefitReservationService benefitReservationService;
     private final Clock clock;
 
     PaymentReconciliationTransactionService(PaymentAttemptReaderPort attemptReader,
-                                            PaymentAttemptStorePort attemptStore,
                                             OrderPaymentBenefitReservationService benefitReservationService,
                                             Clock clock) {
         this.attemptReader = attemptReader;
-        this.attemptStore = attemptStore;
         this.benefitReservationService = benefitReservationService;
         this.clock = clock;
     }
@@ -54,7 +50,6 @@ class PaymentReconciliationTransactionService {
                 lookup.paymentKey(), lookup.method(), null, LocalDateTime.now(clock))) {
             throw new HappyGalleryException(ErrorCode.CONFLICT, "결제 대사 상태가 이미 변경되었습니다.");
         }
-        attemptStore.save(attempt);
         return lookup.paymentKey();
     }
 
@@ -63,12 +58,11 @@ class PaymentReconciliationTransactionService {
         PaymentAttempt attempt = requireReconciliationAttempt(attemptId);
         PreparedPaymentPayload payload = benefitReservationService.readPayloadForRelease(attempt);
         attempt.markReconciledNotApproved(reason);
-        PaymentAttempt savedAttempt = attemptStore.save(attempt);
         if (payload != null) {
             benefitReservationService.release(
-                    savedAttempt, payload, LocalDateTime.now(clock));
+                    attempt, payload, LocalDateTime.now(clock));
         }
-        return savedAttempt;
+        return attempt;
     }
 
     private PaymentAttempt requireReconciliationAttempt(Long attemptId) {

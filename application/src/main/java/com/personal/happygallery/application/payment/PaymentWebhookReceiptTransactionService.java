@@ -38,18 +38,14 @@ class PaymentWebhookReceiptTransactionService {
         PaymentAttempt attempt = attemptReader.findById(receipt.getPaymentAttemptId()).orElse(null);
         if (attempt == null || attempt.getStatus() != PaymentAttemptStatus.RECONCILIATION_REQUIRED) {
             receipt.markProcessed(now);
-            receiptPort.save(receipt);
             return Optional.empty();
         }
-        receiptPort.save(receipt);
         return Optional.of(attempt.getId());
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     void complete(Long receiptId) {
-        receiptPort.findByIdForUpdate(receiptId).ifPresent(receipt -> {
-            receipt.markProcessed(LocalDateTime.now(clock));
-            receiptPort.save(receipt);
-        });
+        receiptPort.findByIdForUpdate(receiptId)
+                .ifPresent(receipt -> receipt.markProcessed(LocalDateTime.now(clock)));
     }
 }

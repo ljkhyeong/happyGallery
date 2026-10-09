@@ -6,7 +6,6 @@ import com.personal.happygallery.application.order.port.out.OrderReaderPort;
 import com.personal.happygallery.application.order.port.out.OrderClaimPort;
 import com.personal.happygallery.application.payment.port.out.RefundPort;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
 import com.personal.happygallery.application.reward.RewardBenefitService;
 import com.personal.happygallery.domain.booking.Guest;
@@ -38,7 +37,6 @@ class RefundTransactionService {
 
     private final RefundPort refundPort;
     private final PaymentAttemptReaderPort paymentAttemptReader;
-    private final PaymentAttemptStorePort paymentAttemptStore;
     private final BookingReaderPort bookingReader;
     private final OrderReaderPort orderReader;
     private final OrderClaimPort orderClaimPort;
@@ -51,7 +49,6 @@ class RefundTransactionService {
 
     RefundTransactionService(RefundPort refundPort,
                              PaymentAttemptReaderPort paymentAttemptReader,
-                             PaymentAttemptStorePort paymentAttemptStore,
                              BookingReaderPort bookingReader,
                              OrderReaderPort orderReader,
                              OrderClaimPort orderClaimPort,
@@ -63,7 +60,6 @@ class RefundTransactionService {
                              Clock clock) {
         this.refundPort = refundPort;
         this.paymentAttemptReader = paymentAttemptReader;
-        this.paymentAttemptStore = paymentAttemptStore;
         this.bookingReader = bookingReader;
         this.orderReader = orderReader;
         this.orderClaimPort = orderClaimPort;
@@ -101,9 +97,8 @@ class RefundTransactionService {
         }
         if (!StringUtils.hasText(refund.getPaymentKey())) {
             refund.markFailed(processingToken, MISSING_PAYMENT_KEY_REASON);
-            Refund failedRefund = refundPort.save(refund);
-            markPaymentAttemptCompensationFailed(failedRefund, MISSING_PAYMENT_KEY_REASON);
-            return new RefundCall.Skipped(failedRefund);
+            markPaymentAttemptCompensationFailed(refund, MISSING_PAYMENT_KEY_REASON);
+            return new RefundCall.Skipped(refund);
         }
         if (statusBeforeClaim == RefundStatus.RECONCILIATION_REQUIRED) {
             return new RefundCall.LookupRequired(
@@ -126,7 +121,6 @@ class RefundTransactionService {
             throw new HappyGalleryException(ErrorCode.INVALID_INPUT,
                     "조치 필요 상태 환불만 재시도 가능합니다. (현재: " + refund.getStatus() + ")");
         }
-        refundPort.save(refund);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -135,8 +129,7 @@ class RefundTransactionService {
         if (!refund.markSucceeded(processingToken, refundTransactionKey, LocalDateTime.now(clock))) {
             return refund;
         }
-        Refund savedRefund = refundPort.save(refund);
-        return completeSuccessfulRefund(savedRefund);
+        return completeSuccessfulRefund(refund);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -145,43 +138,37 @@ class RefundTransactionService {
         if (!refund.markLocallySucceeded(processingToken, LocalDateTime.now(clock))) {
             return refund;
         }
-        return completeSuccessfulRefund(refundPort.save(refund));
+        return completeSuccessfulRefund(refund);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markFailed(Long refundId, String processingToken, String reason) {
         Refund refund = findRefundForUpdate(refundId);
         String resolvedReason = failureReason(reason);
-        if (!refund.markFailed(processingToken, resolvedReason)) {
-            return refund;
+        if (refund.markFailed(processingToken, resolvedReason)) {
+            markPaymentAttemptCompensationFailed(refund, resolvedReason);
         }
-        Refund savedRefund = refundPort.save(refund);
-        markPaymentAttemptCompensationFailed(savedRefund, resolvedReason);
-        return savedRefund;
+        return refund;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markRetryable(Long refundId, String processingToken, String reason) {
         Refund refund = findRefundForUpdate(refundId);
-        if (!refund.markRetryable(
+        refund.markRetryable(
                 processingToken,
                 failureReason(reason),
-                LocalDateTime.now(clock).plus(RETRY_DELAY))) {
-            return refund;
-        }
-        return refundPort.save(refund);
+                LocalDateTime.now(clock).plus(RETRY_DELAY));
+        return refund;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund markReconciliationRequired(Long refundId, String processingToken, String reason) {
         Refund refund = findRefundForUpdate(refundId);
-        if (!refund.markReconciliationRequired(
+        refund.markReconciliationRequired(
                 processingToken,
                 failureReason(reason),
-                LocalDateTime.now(clock).plus(RETRY_DELAY))) {
-            return refund;
-        }
-        return refundPort.save(refund);
+                LocalDateTime.now(clock).plus(RETRY_DELAY));
+        return refund;
     }
 
     private Refund findRefundForUpdate(Long refundId) {
@@ -206,7 +193,6 @@ class RefundTransactionService {
                 .orElseThrow(NotFoundException.supplier("결제 시도"));
         attempt.markCompensated();
         benefitReservationService.release(attempt, LocalDateTime.now(clock));
-        paymentAttemptStore.save(attempt);
     }
 
     private Refund completeSuccessfulRefund(Refund refund) {
@@ -249,7 +235,6 @@ class RefundTransactionService {
         var claim = orderClaimPort.findByIdForUpdate(refund.getOrderClaimId())
                 .orElseThrow(NotFoundException.supplier("주문 클레임"));
         claim.completeRefund(LocalDateTime.now(clock));
-        orderClaimPort.save(claim);
     }
 
     private void markPaymentAttemptCompensationFailed(Refund refund, String reason) {
@@ -259,7 +244,6 @@ class RefundTransactionService {
         var attempt = paymentAttemptReader.findByIdForUpdate(refund.getPaymentAttemptId())
                 .orElseThrow(NotFoundException.supplier("결제 시도"));
         attempt.markCompensationFailed(reason);
-        paymentAttemptStore.save(attempt);
     }
 
     private void publishRefundSucceededNotification(Refund refund) {

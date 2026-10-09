@@ -4,7 +4,6 @@ import com.personal.happygallery.application.payment.context.PreparedPaymentPayl
 import com.personal.happygallery.application.payment.port.in.AuthContext;
 import com.personal.happygallery.application.payment.port.in.PaymentConfirmUseCase.ConfirmCommand;
 import com.personal.happygallery.application.payment.port.out.PaymentAttemptReaderPort;
-import com.personal.happygallery.application.payment.port.out.PaymentAttemptStorePort;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.payment.PaymentAttempt;
 import java.time.Clock;
@@ -19,16 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 class PaymentConfirmRecoveryTransactionService {
 
     private final PaymentAttemptReaderPort attemptReader;
-    private final PaymentAttemptStorePort attemptStore;
     private final PaymentConfirmAttemptResolver attemptResolver;
     private final Clock clock;
 
     PaymentConfirmRecoveryTransactionService(PaymentAttemptReaderPort attemptReader,
-                                             PaymentAttemptStorePort attemptStore,
                                              PaymentConfirmAttemptResolver attemptResolver,
                                              Clock clock) {
         this.attemptReader = attemptReader;
-        this.attemptStore = attemptStore;
         this.attemptResolver = attemptResolver;
         this.clock = clock;
     }
@@ -56,10 +52,8 @@ class PaymentConfirmRecoveryTransactionService {
                 ZoneOffset.UTC))) {
             attempt.markConfirmReconciliationRequired(
                     PaymentConfirmClaimTransactionService.CONFIRM_RECONCILIATION_REASON);
-            attemptStore.save(attempt);
             return new ReconciliationRequired();
         }
-        attemptStore.save(attempt);
         try {
             PreparedPaymentPayload payload = attemptResolver.readPayload(attempt);
             AuthContext auth = payload.userId() == null
