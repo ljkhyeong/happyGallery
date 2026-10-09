@@ -61,10 +61,8 @@ class DefaultAdminMfaServiceTest {
         given(adminUserPort.findByIdForUpdate(42L)).willReturn(Optional.of(admin));
         given(admin.isMfaEnabled()).willReturn(true);
         given(admin.getPasswordHash()).willReturn("password-hash");
-        given(admin.getTotpSecretEnc()).willReturn("encrypted-secret");
         given(passwordEncoder.matches("current-password", "password-hash")).willReturn(true);
-        given(fieldEncryptor.decrypt("encrypted-secret")).willReturn("secret");
-        given(mfaCodeVerifier.verifyAndConsume(admin, "secret", "123456", NOW))
+        given(mfaCodeVerifier.verifyAndConsume(admin, "123456", NOW))
                 .willReturn(AdminMfaCodeVerifier.Verification.TOTP);
 
         service.disable(42L, "current-password", "123456");

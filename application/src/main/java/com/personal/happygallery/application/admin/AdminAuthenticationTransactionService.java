@@ -8,7 +8,6 @@ import com.personal.happygallery.domain.admin.AdminAuthOutcome;
 import com.personal.happygallery.domain.admin.AdminMfaChallenge;
 import com.personal.happygallery.domain.admin.AdminUser;
 import com.personal.happygallery.domain.crypto.BlindIndexKeyRing;
-import com.personal.happygallery.domain.crypto.FieldEncryptor;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -28,7 +27,6 @@ class AdminAuthenticationTransactionService {
     private final AdminMfaCodeVerifier mfaCodeVerifier;
     private final AdminAuthAuditService auditService;
     private final BlindIndexKeyRing blindIndexKeyRing;
-    private final FieldEncryptor fieldEncryptor;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -38,7 +36,6 @@ class AdminAuthenticationTransactionService {
             AdminMfaCodeVerifier mfaCodeVerifier,
             AdminAuthAuditService auditService,
             BlindIndexKeyRing blindIndexKeyRing,
-            FieldEncryptor fieldEncryptor,
             PasswordEncoder passwordEncoder,
             Clock clock) {
         this.adminUserPort = adminUserPort;
@@ -46,7 +43,6 @@ class AdminAuthenticationTransactionService {
         this.mfaCodeVerifier = mfaCodeVerifier;
         this.auditService = auditService;
         this.blindIndexKeyRing = blindIndexKeyRing;
-        this.fieldEncryptor = fieldEncryptor;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
@@ -122,11 +118,8 @@ class AdminAuthenticationTransactionService {
             return AuthenticationDecision.rejected();
         }
 
-        AdminMfaCodeVerifier.Verification verification = mfaCodeVerifier.verifyAndConsume(
-                admin,
-                fieldEncryptor.decrypt(admin.getTotpSecretEnc()),
-                code,
-                now);
+        AdminMfaCodeVerifier.Verification verification =
+                mfaCodeVerifier.verifyAndConsume(admin, code, now);
         if (verification == AdminMfaCodeVerifier.Verification.INVALID) {
             auditService.record(admin.getId(), admin.getUsername(), AdminAuthOutcome.MFA_FAILED);
             return AuthenticationDecision.rejected();
