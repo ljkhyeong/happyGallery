@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Table, Button, Form, Row, Col } from "react-bootstrap";
 import { X } from "lucide-react";
-import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
+import type { OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
@@ -9,12 +9,14 @@ import { parseEnumValue } from "@/shared/lib/enum";
 import { ListOrdersStatus } from "@/generated/api/adminOrder";
 import { useOrderMutations } from "./useOrderMutations";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
+import { useAdminInfiniteQuery } from "@/shared/hooks/useAdminInfiniteQuery";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
 import { RiskActionButton } from "./RiskActionButton";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
 import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
+import { OrderOptionList } from "@/features/order/OrderOptionList";
 
 interface Props {
   adminKey: string;
@@ -60,23 +62,11 @@ export function OrderListSection({
       ? { id: focusOrderId, status: focusOrderStatus }
       : null,
   );
-  const [allOrders, setAllOrders] = useState<AdminOrderResponse[]>([]);
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
-  const [hasMore, setHasMore] = useState(false);
-
-  function resetPagination() {
-    setAllOrders([]);
-    setCursor(undefined);
-    setHasMore(false);
-  }
-
   const mutations = useOrderMutations({
     adminKey,
     onAuthError,
-    onInvalidate: () => {
-      resetPagination();
-      setFocusedOrder(null);
-    },
+    // 처리 뒤에는 주소에서 받은 상태가 맞지 않으므로 검색한 주문 영역을 닫는다. 목록은 불러온 페이지째 다시 읽는다.
+    onInvalidate: () => setFocusedOrder(null),
   });
 
   const focusedFulfillment = useAdminQuery(onAuthError, {
@@ -85,17 +75,22 @@ export function OrderListSection({
     enabled: focusedOrder != null,
   });
 
-  const { data: page, isLoading, error, isFetching, refetch } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "orders", statusFilter, cursor],
-    queryFn: () => fetchOrders(adminKey, statusFilter || undefined, cursor),
+  const {
+    data,
+    isLoading,
+    error,
+    isFetching,
+    refetch,
+    hasNextPage,
+    fetchNextPage,
+    isFetchNextPageError,
+  } = useAdminInfiniteQuery(onAuthError, {
+    queryKey: ["admin", "orders", statusFilter],
+    queryFn: ({ pageParam }) => fetchOrders(adminKey, statusFilter || undefined, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined),
   });
-
-  useEffect(() => {
-    if (page) {
-      setAllOrders(prev => cursor ? [...prev, ...page.content] : page.content);
-      setHasMore(page.hasMore);
-    }
-  }, [page, cursor]);
+  const orders = data?.pages.flatMap((page) => page.content) ?? [];
 
   return (
     <div>
@@ -143,10 +138,10 @@ export function OrderListSection({
         <Col xs={12} sm={5}>
           <Form.Group controlId="admin-order-status-filter">
             <Form.Label>상태</Form.Label>
-            <Form.Select value={statusFilter} onChange={(e) => {
-              resetPagination();
-              setStatusFilter(parseEnumValue(ListOrdersStatus, e.target.value) ?? "");
-            }}>
+            <Form.Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(parseEnumValue(ListOrdersStatus, e.target.value) ?? "")}
+            >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -171,15 +166,15 @@ export function OrderListSection({
       {visibleAdminError(error) && (
         <ErrorAlert
           error={error}
-          onRetry={() => { void refetch(); }}
+          onRetry={() => { void (isFetchNextPageError ? fetchNextPage() : refetch()); }}
           retrying={isFetching}
         />
       )}
-      {!isLoading && !error && page && allOrders.length === 0 && (
+      {!isLoading && !error && data && orders.length === 0 && (
         <EmptyState message="해당 조건의 주문이 없습니다." />
       )}
 
-      {allOrders.length > 0 && (
+      {orders.length > 0 && (
         <>
           <Table responsive hover size="sm">
             <thead>
@@ -188,18 +183,14 @@ export function OrderListSection({
               </tr>
             </thead>
             <tbody>
-              {allOrders.map((o) => (
+              {orders.map((o) => (
                 <tr key={o.orderId}>
                   <td className="text-nowrap">{o.orderNumber}</td>
                   <td>
                     {o.items.map((item) => (
                       <div key={`${item.productId}-${item.productVariantId ?? 0}`} className="mb-2">
                         <small>{item.productName} x {item.qty}</small>
-                        {item.options.map((option) => (
-                          <div key={`${option.type}-${option.groupName}`} className="small text-muted">
-                            {option.groupName}: {option.value}
-                          </div>
-                        ))}
+                        <OrderOptionList options={item.options} />
                         <ProductPurchaseTerms
                           productName={item.productName}
                           type={item.productType}
@@ -237,11 +228,11 @@ export function OrderListSection({
               ))}
             </tbody>
           </Table>
-          {hasMore && (
+          {hasNextPage && (
             <div className="text-center mb-3">
               <Button variant="outline-primary" size="sm"
                 disabled={isFetching}
-                onClick={() => page?.nextCursor && setCursor(page.nextCursor)}>
+                onClick={() => void fetchNextPage()}>
                 {isFetching ? "불러오는 중..." : "더보기"}
               </Button>
             </div>
