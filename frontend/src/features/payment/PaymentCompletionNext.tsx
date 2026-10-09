@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { captureCustomerSession } from "@/shared/api";
 import { LinkButton } from "@/shared/ui";
-import type { ConfirmPaymentResponse } from "./types";
+import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 
 function GuestCompletionActions({ children }: { children: ReactNode }) {
   const signupHref = buildAuthPageHref("/signup", {

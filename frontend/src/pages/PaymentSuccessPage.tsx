@@ -15,11 +15,11 @@ import {
   removePaymentConfirmRequest,
   shouldPollPaymentStatus,
   storePaymentConfirmRequest,
-  type ConfirmPaymentResponse,
   type PaymentConfirmRequest,
   type PaymentSessionHandle,
-  type PaymentStatusResponse,
 } from "@/features/payment";
+import type { ConfirmPaymentResponse } from "@/generated/api/payment";
+import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { isPositiveSafeIntegerString } from "@/shared/lib";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";

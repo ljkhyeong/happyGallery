@@ -17,13 +17,7 @@ export type {
   PaymentContext,
   PaymentPayload,
   OrderPayload,
-  BookingPayload,
-  PassPayload,
-  PreparePaymentResponse,
-  ConfirmPaymentResponse,
-  PaymentStatusResponse,
   CustomerPaymentStatus,
-  PassPaymentPolicyResponse,
   FulfillmentType,
   ShippingAddress,
 } from "./types";

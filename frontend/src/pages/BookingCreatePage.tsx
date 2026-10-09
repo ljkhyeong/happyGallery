@@ -14,8 +14,8 @@ import {
   PaymentMethodFields,
   PaymentErrorAlert,
   useCheckoutSelection,
-  type BookingPayload,
 } from "@/features/payment";
+import type { BookingPayload } from "@/generated/api/payment";
 import { ApiError, queryKeys } from "@/shared/api";
 import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel } from "@/shared/lib";
 import {

@@ -1,6 +1,1 @@
-export type {
-  AdminPassResponse,
-  AdminPassResponseStatus as AdminPassStatus,
-  PassRefundResponse,
-} from "@/generated/api/adminOperations";
-export type { MemberPassRefundResponse } from "@/generated/api/customerStore";
+export type { AdminPassResponse } from "@/generated/api/adminOperations";

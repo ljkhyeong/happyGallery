@@ -18,7 +18,8 @@ import {
   CustomerSessionChangedError,
   requireCurrentCustomerSession,
 } from "@/shared/api";
-import type { PaymentContext, PaymentPayload, PreparePaymentResponse } from "./types";
+import type { PreparePaymentResponse } from "@/generated/api/payment";
+import type { PaymentContext, PaymentPayload } from "./types";
 
 export class PaymentRecoveryStorageError extends Error {
   constructor() {

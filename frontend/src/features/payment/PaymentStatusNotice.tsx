@@ -1,6 +1,6 @@
 import { Alert } from "react-bootstrap";
 import { formatKRW } from "@/shared/lib";
-import type { PaymentStatusResponse } from "./types";
+import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 
 function paymentContextCopy(context: PaymentStatusResponse["context"]) {
   switch (context) {
