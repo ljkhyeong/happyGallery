@@ -75,31 +75,28 @@ public class NotificationService {
             NotificationEventType eventType,
             String idempotencyKey,
             NotificationChannel startAfterChannel) {
+        // 수신자 유형에 맞는 ID는 outbox 수신자 갱신 검사와 DB CHECK 제약이 보장한다.
         return switch (recipientType) {
-            case GUEST -> guestId == null
-                    ? NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS)
-                    : guestReader.findById(guestId)
-                            .map(guest -> sendNotification(
-                                    guestId,
-                                    null,
-                                    idempotencyKey,
-                                    guestPersonalDataProtector.decryptPhone(guest),
-                                    guestPersonalDataProtector.decryptName(guest),
-                                    eventType,
-                                    startAfterChannel))
-                            .orElseGet(() -> recipientNotFoundAttempt(guestId, null, eventType));
-            case USER -> userId == null
-                    ? NotificationDeliveryAttempt.immediate(NotificationSendResult.SUCCESS)
-                    : userReader.findById(userId)
-                            .map(user -> sendNotification(
-                                    null,
-                                    userId,
-                                    idempotencyKey,
-                                    user.getPhone(),
-                                    user.getName(),
-                                    eventType,
-                                    startAfterChannel))
-                            .orElseGet(() -> recipientNotFoundAttempt(null, userId, eventType));
+            case GUEST -> guestReader.findById(guestId)
+                    .map(guest -> sendNotification(
+                            guestId,
+                            null,
+                            idempotencyKey,
+                            guestPersonalDataProtector.decryptPhone(guest),
+                            guestPersonalDataProtector.decryptName(guest),
+                            eventType,
+                            startAfterChannel))
+                    .orElseGet(() -> recipientNotFoundAttempt(guestId, null, eventType));
+            case USER -> userReader.findById(userId)
+                    .map(user -> sendNotification(
+                            null,
+                            userId,
+                            idempotencyKey,
+                            user.getPhone(),
+                            user.getName(),
+                            eventType,
+                            startAfterChannel))
+                    .orElseGet(() -> recipientNotFoundAttempt(null, userId, eventType));
         };
     }
 
