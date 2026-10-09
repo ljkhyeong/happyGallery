@@ -71,12 +71,12 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
             String cursor,
             int size) {
         int pageSize = PageParams.requireSize(size);
-        KeyCursor cursorParam = cursor == null ? null : CursorUtils.decodeKey(cursor);
+        KeyCursor cursorParam = CursorUtils.decodeKeyOrFirst(cursor);
         List<SmartStoreProductOrder> orders = orderPort.findRecentPage(
                 attentionOnly,
                 attentionReason,
-                cursorParam == null ? null : cursorParam.timestamp(),
-                cursorParam == null ? null : cursorParam.key(),
+                cursorParam.timestamp(),
+                cursorParam.key(),
                 pageSize + 1);
         List<ChannelOrderResult> results = orders.stream().map(this::result).toList();
         return CursorPage.of(results, pageSize, item -> CursorUtils.encode(

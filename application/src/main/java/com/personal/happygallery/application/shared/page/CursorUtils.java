@@ -41,6 +41,11 @@ public final class CursorUtils {
         return cursor == null ? CursorParam.FIRST : decode(cursor);
     }
 
+    /** 첫 페이지(null)는 값이 모두 null인 문자열 키 커서로 바꿔 nullable 커서 조회에 그대로 넘긴다. */
+    public static KeyCursor decodeKeyOrFirst(String cursor) {
+        return cursor == null ? KeyCursor.FIRST : decodeKey(cursor);
+    }
+
     public static KeyCursor decodeKey(String cursor) {
         try {
             String[] values = CursorCodec.decode(cursor, 2);
@@ -62,5 +67,8 @@ public final class CursorUtils {
         private static final CursorParam FIRST = new CursorParam(null, null);
     }
 
-    public record KeyCursor(LocalDateTime timestamp, String key) {}
+    /** 값이 모두 null이면 첫 페이지를 뜻한다. */
+    public record KeyCursor(LocalDateTime timestamp, String key) {
+        private static final KeyCursor FIRST = new KeyCursor(null, null);
+    }
 }

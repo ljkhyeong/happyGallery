@@ -148,14 +148,12 @@ class DefaultMemberReviewService implements MemberReviewUseCase {
     public CursorPage<ReviewOpportunity> listMyReviewOpportunities(
             Long userId, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
-        ReviewOpportunityCursor.CursorParam cursorParam = cursor == null
-                ? null
-                : ReviewOpportunityCursor.decode(cursor);
+        ReviewOpportunityCursor.CursorParam cursorParam = ReviewOpportunityCursor.decodeOrFirst(cursor);
         List<ReviewOpportunity> fetched = eligibilityPort.findReviewOpportunities(
                         userId,
-                        cursorParam == null ? null : cursorParam.completedAt(),
-                        cursorParam == null ? null : cursorParam.targetType(),
-                        cursorParam == null ? null : cursorParam.sourceId(),
+                        cursorParam.completedAt(),
+                        cursorParam.targetType(),
+                        cursorParam.sourceId(),
                         pageSize + 1);
         return CursorPage.of(
                 fetched,

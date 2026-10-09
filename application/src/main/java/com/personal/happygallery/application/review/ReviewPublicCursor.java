@@ -32,7 +32,13 @@ final class ReviewPublicCursor {
                 id.toString());
     }
 
-    static CursorParam decode(
+    /** 첫 페이지(null)는 값이 모두 null인 커서로 바꿔 nullable 커서 조회에 그대로 넘긴다. */
+    static CursorParam decodeOrFirst(
+            String cursor, ReviewSort expectedSort, Integer expectedRatingFilter) {
+        return cursor == null ? CursorParam.FIRST : decode(cursor, expectedSort, expectedRatingFilter);
+    }
+
+    private static CursorParam decode(
             String cursor, ReviewSort expectedSort, Integer expectedRatingFilter) {
         try {
             String[] parts = CursorCodec.decode(cursor, 6);
@@ -59,5 +65,8 @@ final class ReviewPublicCursor {
         }
     }
 
-    record CursorParam(int rating, LocalDateTime createdAt, Long id) {}
+    /** 값이 모두 null이면 첫 페이지를 뜻한다. */
+    record CursorParam(Integer rating, LocalDateTime createdAt, Long id) {
+        private static final CursorParam FIRST = new CursorParam(null, null, null);
+    }
 }
