@@ -25,6 +25,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import {
   approveSmartStoreCancel,
   approveSmartStoreReturn,
@@ -349,35 +350,29 @@ export function SmartStoreChannelOrderSection({
           </Button>
         </div>
       )}
-      <Modal
+      <ConfirmModal
         show={returnReviewOrder !== null}
-        onHide={() => { if (!resolveReturn.isPending) setReturnReviewOrder(null); }}
-        centered
-      >
-        <Modal.Header closeButton={!resolveReturn.isPending}>
-          <Modal.Title className="fs-6">스마트스토어 반품 검수</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={resolveReturn.error} />
-          <div>{returnReviewOrder?.productName}</div>
-          {returnReviewOrder?.productOption && <div>{returnReviewOrder.productOption}</div>}
-          <div className="small text-muted-soft mb-3">상품 주문 번호: {returnReviewOrder?.productOrderId}</div>
-          <p className="fw-semibold">이번 검수 대상: {returnReviewOrder?.pendingReturnQuantity}개</p>
-          <p className="mb-0">표시된 수량을 모두 검수한 뒤 처리해 주세요. 판매 가능한 반품만 재고로 복원하세요.</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" disabled={resolveReturn.isPending}
-            onClick={() => setReturnReviewOrder(null)}>닫기</Button>
+        title="스마트스토어 반품 검수"
+        pending={resolveReturn.isPending}
+        onClose={() => setReturnReviewOrder(null)}
+        cancelVariant="secondary"
+        extraActions={(
           <Button variant="outline-secondary" disabled={resolveReturn.isPending}
             onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: false })}>
             복원 없이 검수 완료
           </Button>
-          <Button variant="success" disabled={resolveReturn.isPending}
-            onClick={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: true })}>
-            {returnReviewOrder?.pendingReturnQuantity}개 재고 복원
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        )}
+        confirmLabel={<>{returnReviewOrder?.pendingReturnQuantity}개 재고 복원</>}
+        confirmVariant="success"
+        onConfirm={() => returnReviewOrder && resolveReturn.mutate({ order: returnReviewOrder, restoreStock: true })}
+      >
+        <ErrorAlert error={resolveReturn.error} />
+        <div>{returnReviewOrder?.productName}</div>
+        {returnReviewOrder?.productOption && <div>{returnReviewOrder.productOption}</div>}
+        <div className="small text-muted-soft mb-3">상품 주문 번호: {returnReviewOrder?.productOrderId}</div>
+        <p className="fw-semibold">이번 검수 대상: {returnReviewOrder?.pendingReturnQuantity}개</p>
+        <p className="mb-0">표시된 수량을 모두 검수한 뒤 처리해 주세요. 판매 가능한 반품만 재고로 복원하세요.</p>
+      </ConfirmModal>
       {inventoryResolutionOrder && (
         <InventoryResolutionModal
           key={inventoryResolutionOrder.productOrderId}

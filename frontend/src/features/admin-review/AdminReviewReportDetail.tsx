@@ -1,10 +1,11 @@
-import { useId, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { Alert, Button, Form } from "react-bootstrap";
 import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { formatDateTime } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import { AdminReviewEvidence } from "./AdminReviewEvidence";
 import {
   decideReviewReport,
@@ -25,7 +26,6 @@ export function AdminReviewReportDetail({
   onOpenReview: (reviewId: number) => void;
   onDecisionComplete: () => void;
 }) {
-  const confirmationTitleId = useId();
   const [note, setNote] = useState("");
   const [pendingDecision, setPendingDecision] = useState<ReviewReportDecision | null>(null);
   const queryClient = useQueryClient();
@@ -118,52 +118,33 @@ export function AdminReviewReportDetail({
           {report.decisionNote && <p className="mb-0 mt-1">메모: {report.decisionNote}</p>}
         </div>
       )}
-      <Modal
+      <ConfirmModal
         show={pendingDecision !== null}
-        onHide={closeConfirmation}
-        centered
-        aria-labelledby={confirmationTitleId}
+        title={pendingDecision === "ACCEPTED" ? "위반 신고로 인정할까요?" : "신고를 반려할까요?"}
+        pending={mutation.isPending}
+        onClose={closeConfirmation}
+        closeLabel="닫기"
+        cancelLabel="취소"
+        confirmLabel={mutation.isPending
+          ? "처리 중..."
+          : pendingDecision === "ACCEPTED" ? "위반 인정 확정" : "신고 반려 확정"}
+        confirmVariant={pendingDecision === "ACCEPTED" ? "danger" : "dark"}
+        confirmDisabled={pendingDecision === null}
+        onConfirm={() => {
+          if (pendingDecision) mutation.mutate(pendingDecision);
+        }}
       >
-        <Modal.Header closeButton={!mutation.isPending} closeLabel="닫기">
-          <Modal.Title id={confirmationTitleId} className="fs-6">
-            {pendingDecision === "ACCEPTED" ? "위반 신고로 인정할까요?" : "신고를 반려할까요?"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Alert variant="warning" className="small">
-            신고 #{report.id}의 처리 결과는 저장 후 변경할 수 없습니다. 인정·반려 여부를 확인해 주세요.
-          </Alert>
-          <p className="small mb-2">
-            {pendingDecision === "ACCEPTED"
-              ? "신고를 인정합니다. 후기 비공개는 후기 관리에서 별도로 처리하세요."
-              : "신고를 반려합니다."}
-          </p>
-          {note.trim() && <div className="small text-muted-soft">처리 메모: {note.trim()}</div>}
-          <div className="mt-3"><ErrorAlert error={mutation.error} /></div>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            type="button"
-            variant="outline-secondary"
-            disabled={mutation.isPending}
-            onClick={closeConfirmation}
-          >
-            취소
-          </Button>
-          <Button
-            type="button"
-            variant={pendingDecision === "ACCEPTED" ? "danger" : "dark"}
-            disabled={mutation.isPending || pendingDecision === null}
-            onClick={() => {
-              if (pendingDecision) mutation.mutate(pendingDecision);
-            }}
-          >
-            {mutation.isPending
-              ? "처리 중..."
-              : pendingDecision === "ACCEPTED" ? "위반 인정 확정" : "신고 반려 확정"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <Alert variant="warning" className="small">
+          신고 #{report.id}의 처리 결과는 저장 후 변경할 수 없습니다. 인정·반려 여부를 확인해 주세요.
+        </Alert>
+        <p className="small mb-2">
+          {pendingDecision === "ACCEPTED"
+            ? "신고를 인정합니다. 후기 비공개는 후기 관리에서 별도로 처리하세요."
+            : "신고를 반려합니다."}
+        </p>
+        {note.trim() && <div className="small text-muted-soft">처리 메모: {note.trim()}</div>}
+        <div className="mt-3"><ErrorAlert error={mutation.error} /></div>
+      </ConfirmModal>
     </div>
   );
 }

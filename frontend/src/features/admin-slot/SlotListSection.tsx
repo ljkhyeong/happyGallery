@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Table, Button, Badge, Form, Row, Col, ProgressBar, Modal } from "react-bootstrap";
+import { Table, Button, Badge, Form, Row, Col, ProgressBar } from "react-bootstrap";
 import { CalendarX2 } from "lucide-react";
 import {
   activateSlot,
@@ -10,6 +10,7 @@ import {
   fetchSlotsByClass,
 } from "./api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -23,6 +24,7 @@ import {
   HalfHourDaySchedule,
   type HalfHourScheduleItem,
 } from "@/features/admin-calendar/HalfHourDaySchedule";
+import { CancelReasonField } from "@/features/admin-booking/CancelReasonField";
 
 interface Props {
   adminKey: string;
@@ -263,67 +265,38 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
         </>
       )}
 
-      <Modal
+      <ConfirmModal
         show={cancelTarget !== null}
-        aria-labelledby="admin-slot-session-cancel-title"
-        onHide={() => {
-          if (!cancelMutation.isPending) setCancelTarget(null);
-        }}
-        centered
+        title="회차 일괄 취소"
+        pending={cancelMutation.isPending}
+        onClose={() => setCancelTarget(null)}
+        confirmLabel={cancelMutation.isPending ? "취소 처리 중..." : "회차 취소 확정"}
+        confirmVariant="danger"
+        confirmDisabled={!cancelTarget || !cancelReason.trim()}
+        onConfirm={() => cancelTarget && cancelMutation.mutate({
+          slotId: cancelTarget.id,
+          reason: cancelReason.trim(),
+        })}
       >
-        <Modal.Header closeButton={!cancelMutation.isPending}>
-          <Modal.Title id="admin-slot-session-cancel-title" className="fs-6">
-            회차 일괄 취소
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={cancelMutation.error} />
-          {cancelTarget && (
-            <>
-              <p className="small text-muted-soft mb-3">
-                수업 일정 #{cancelTarget.id} · {formatDateTime(cancelTarget.startAt)} · 예약 {cancelTarget.bookedCount}건
-              </p>
-              <p className="mb-3">
-                이 회차의 예약을 모두 취소하고 예약금 환불 또는 이용권 복구를 시작합니다.
-                처리 결과에 따라 이미 받은 잔금을 직접 반환하거나 고객과 보상 방법을 협의해야 할 수 있습니다.
-              </p>
-            </>
-          )}
-          <Form.Group controlId="admin-slot-session-cancel-reason">
-            <Form.Label>취소 사유</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              maxLength={200}
-              value={cancelReason}
-              disabled={cancelMutation.isPending}
-              onChange={(event) => setCancelReason(event.target.value)}
-              placeholder="고객에게 안내할 회차 취소 사유를 입력하세요."
-              autoFocus
-            />
-            <Form.Text className="text-muted">{cancelReason.length}/200자</Form.Text>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={cancelMutation.isPending}
-            onClick={() => setCancelTarget(null)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={!cancelTarget || !cancelReason.trim() || cancelMutation.isPending}
-            onClick={() => cancelTarget && cancelMutation.mutate({
-              slotId: cancelTarget.id,
-              reason: cancelReason.trim(),
-            })}
-          >
-            {cancelMutation.isPending ? "취소 처리 중..." : "회차 취소 확정"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={cancelMutation.error} />
+        {cancelTarget && (
+          <>
+            <p className="small text-muted-soft mb-3">
+              수업 일정 #{cancelTarget.id} · {formatDateTime(cancelTarget.startAt)} · 예약 {cancelTarget.bookedCount}건
+            </p>
+            <p className="mb-3">
+              이 회차의 예약을 모두 취소하고 예약금 환불 또는 이용권 복구를 시작합니다.
+              처리 결과에 따라 이미 받은 잔금을 직접 반환하거나 고객과 보상 방법을 협의해야 할 수 있습니다.
+            </p>
+          </>
+        )}
+        <CancelReasonField
+          value={cancelReason}
+          onChange={setCancelReason}
+          disabled={cancelMutation.isPending}
+          placeholder="고객에게 안내할 회차 취소 사유를 입력하세요."
+        />
+      </ConfirmModal>
     </div>
   );
 }

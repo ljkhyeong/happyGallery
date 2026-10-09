@@ -1,8 +1,9 @@
-import { useId, useState } from "react";
-import { Alert, Button, Form, InputGroup, Modal } from "react-bootstrap";
+import { useState } from "react";
+import { Button, Form, InputGroup } from "react-bootstrap";
 import type { OrderStatus } from "@/shared/types";
 import { parseApiDateTime } from "@/shared/lib";
 import type { OrderMutations } from "./useOrderMutations";
+import { RiskActionButton } from "./RiskActionButton";
 import {
   MarkShippedRequestCarrierCode,
   type MarkShippedRequestCarrierCode as GeneratedShippingCarrierCode,
@@ -30,72 +31,6 @@ interface Props {
   status: OrderStatus;
   fulfillmentType: "SHIPPING" | "PICKUP" | null;
   mutations: OrderMutations;
-}
-
-interface RiskActionButtonProps {
-  buttonLabel: string;
-  confirmLabel: string;
-  title: string;
-  impact: string;
-  disabled: boolean;
-  pending: boolean;
-  onConfirm: () => void;
-}
-
-function RiskActionButton({
-  buttonLabel,
-  confirmLabel,
-  title,
-  impact,
-  disabled,
-  pending,
-  onConfirm,
-}: RiskActionButtonProps) {
-  const titleId = `admin-order-action-title-${useId()}`;
-  const [show, setShow] = useState(false);
-
-  return (
-    <>
-      <Button
-        size="sm"
-        variant="outline-danger"
-        disabled={disabled}
-        onClick={() => setShow(true)}
-      >
-        {pending ? "처리 중..." : buttonLabel}
-      </Button>
-      <Modal
-        show={show}
-        aria-labelledby={titleId}
-        onHide={() => !pending && setShow(false)}
-        centered
-      >
-        <Modal.Header closeButton={!pending}>
-          <Modal.Title id={titleId} className="fs-6">{title}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Alert variant="warning" className="mb-0 small">
-            {impact}
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" disabled={pending} onClick={() => setShow(false)}>
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={pending}
-            onClick={() => {
-              setShow(false);
-              onConfirm();
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </>
-  );
 }
 
 export function OrderActionCell({ orderId, status, fulfillmentType, mutations }: Props) {

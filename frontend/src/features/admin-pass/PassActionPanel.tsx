@@ -6,7 +6,6 @@ import {
   ButtonGroup,
   Col,
   Form,
-  Modal,
   Row,
   Table,
 } from "react-bootstrap";
@@ -24,6 +23,7 @@ import {
   StatusBadge,
   useToast,
 } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -278,59 +278,38 @@ export function PassActionPanel({ adminKey, onAuthError }: Props) {
         <ErrorAlert error={visibleAdminError(expire.error)} />
       </section>
 
-      <Modal
+      <ConfirmModal
         show={showRefundConfirm}
-        aria-labelledby="admin-pass-refund-title"
-        onHide={() => {
-          if (!refund.isPending) setShowRefundConfirm(false);
-        }}
-        centered
+        title="이용권 전체 환불 확인"
+        pending={refund.isPending}
+        onClose={() => setShowRefundConfirm(false)}
+        confirmLabel={refund.isPending ? "환불 처리 중..." : "전체 환불 확정"}
+        confirmVariant="danger"
+        confirmDisabled={!selectedPass || !refundable}
+        onConfirm={() => selectedPass && refund.mutate(selectedPass.passId)}
       >
-        <Modal.Header closeButton={!refund.isPending}>
-          <Modal.Title id="admin-pass-refund-title" className="fs-6">
-            이용권 전체 환불 확인
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={visibleAdminError(refund.error)} />
-          {selectedPass && (
-            <>
-              <p className="mb-3">
-                <strong>{selectedPass.passNumber}</strong>을 전체 환불하고 남은 이용 권한을 종료합니다.
-              </p>
-              <dl className="row small mb-3">
-                <dt className="col-6">현재 상태</dt>
-                <dd className="col-6"><StatusBadge status={selectedPass.status} audience="admin" /></dd>
-                <dt className="col-6">잔여 횟수</dt>
-                <dd className="col-6">{selectedPass.remainingCredits}/{selectedPass.totalCredits}회</dd>
-                <dt className="col-6">자동 취소될 미래 예약</dt>
-                <dd className="col-6 fw-semibold">{selectedPass.futureBookingCount}건</dd>
-                <dt className="col-6">예상 환불액</dt>
-                <dd className="col-6 fw-semibold">{formatKRW(selectedPass.expectedRefundAmount)}</dd>
-              </dl>
-              <Alert variant="warning" className="mb-0 py-2 small">
-                미래 예약은 자동 취소되고 잔여 횟수는 0회가 됩니다. 실행 후에는 되돌릴 수 없습니다.
-              </Alert>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={refund.isPending}
-            onClick={() => setShowRefundConfirm(false)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={!selectedPass || !refundable || refund.isPending}
-            onClick={() => selectedPass && refund.mutate(selectedPass.passId)}
-          >
-            {refund.isPending ? "환불 처리 중..." : "전체 환불 확정"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        <ErrorAlert error={visibleAdminError(refund.error)} />
+        {selectedPass && (
+          <>
+            <p className="mb-3">
+              <strong>{selectedPass.passNumber}</strong>을 전체 환불하고 남은 이용 권한을 종료합니다.
+            </p>
+            <dl className="row small mb-3">
+              <dt className="col-6">현재 상태</dt>
+              <dd className="col-6"><StatusBadge status={selectedPass.status} audience="admin" /></dd>
+              <dt className="col-6">잔여 횟수</dt>
+              <dd className="col-6">{selectedPass.remainingCredits}/{selectedPass.totalCredits}회</dd>
+              <dt className="col-6">자동 취소될 미래 예약</dt>
+              <dd className="col-6 fw-semibold">{selectedPass.futureBookingCount}건</dd>
+              <dt className="col-6">예상 환불액</dt>
+              <dd className="col-6 fw-semibold">{formatKRW(selectedPass.expectedRefundAmount)}</dd>
+            </dl>
+            <Alert variant="warning" className="mb-0 py-2 small">
+              미래 예약은 자동 취소되고 잔여 횟수는 0회가 됩니다. 실행 후에는 되돌릴 수 없습니다.
+            </Alert>
+          </>
+        )}
+      </ConfirmModal>
     </div>
   );
 }

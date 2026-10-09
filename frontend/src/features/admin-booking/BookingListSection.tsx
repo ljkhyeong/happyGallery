@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Table, Button, Badge, Form, Row, Col, Modal } from "react-bootstrap";
+import { Table, Button, Badge, Form, Row, Col } from "react-bootstrap";
 import { CalendarPlus, CalendarX2 } from "lucide-react";
 import {
   cancelBookingByAdmin,
@@ -18,6 +18,7 @@ import {
   StatusBadge,
   useToast,
 } from "@/shared/ui";
+import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import { queryKeys } from "@/shared/api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -30,6 +31,7 @@ import type {
 } from "@/generated/api/adminBooking";
 import { ADMIN_REFUND_STATUS_LABEL } from "@/features/admin-refund/refundStatusLabel";
 import { AdminBookingCreateModal } from "./AdminBookingCreateModal";
+import { CancelReasonField } from "./CancelReasonField";
 import { BOOKING_SOURCE_LABEL } from "./bookingSource";
 import {
   HalfHourDaySchedule,
@@ -401,65 +403,36 @@ export function BookingListSection({
 
       <ErrorAlert error={visibleAdminError(mutationError)} />
 
-      <Modal
+      <ConfirmModal
         show={cancelTarget !== null}
-        aria-labelledby="admin-booking-cancel-title"
-        onHide={() => {
-          if (!cancelMutation.isPending) setCancelTarget(null);
-        }}
-        centered
+        title="공방 사정으로 예약 취소"
+        pending={cancelMutation.isPending}
+        onClose={() => setCancelTarget(null)}
+        confirmLabel={cancelMutation.isPending ? "취소 처리 중..." : "예약 취소 확정"}
+        confirmVariant="danger"
+        confirmDisabled={!cancelTarget || !cancelReason.trim()}
+        onConfirm={() => cancelTarget && cancelMutation.mutate({
+          bookingId: cancelTarget.bookingId,
+          reason: cancelReason.trim(),
+        })}
       >
-        <Modal.Header closeButton={!cancelMutation.isPending}>
-          <Modal.Title id="admin-booking-cancel-title" className="fs-6">
-            공방 사정으로 예약 취소
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <ErrorAlert error={cancelMutation.error} />
-          {cancelTarget && (
-            <p className="small text-muted-soft mb-3">
-              {cancelTarget.bookingNumber} · {cancelTarget.customerSummary.name} · {formatDateTime(cancelTarget.startAt)}
-            </p>
-          )}
-          <p className="mb-3">
-            예약을 취소하고 예약금 환불 또는 이용권 1회 복구를 시작합니다.
-            이미 받은 잔금은 결과에 따라 고객에게 직접 반환해야 할 수 있습니다.
+        <ErrorAlert error={cancelMutation.error} />
+        {cancelTarget && (
+          <p className="small text-muted-soft mb-3">
+            {cancelTarget.bookingNumber} · {cancelTarget.customerSummary.name} · {formatDateTime(cancelTarget.startAt)}
           </p>
-          <Form.Group controlId="admin-booking-cancel-reason">
-            <Form.Label>취소 사유</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              maxLength={200}
-              value={cancelReason}
-              disabled={cancelMutation.isPending}
-              onChange={(event) => setCancelReason(event.target.value)}
-              placeholder="고객에게 안내할 취소 사유를 입력하세요."
-              autoFocus
-            />
-            <Form.Text className="text-muted">{cancelReason.length}/200자</Form.Text>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={cancelMutation.isPending}
-            onClick={() => setCancelTarget(null)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={!cancelTarget || !cancelReason.trim() || cancelMutation.isPending}
-            onClick={() => cancelTarget && cancelMutation.mutate({
-              bookingId: cancelTarget.bookingId,
-              reason: cancelReason.trim(),
-            })}
-          >
-            {cancelMutation.isPending ? "취소 처리 중..." : "예약 취소 확정"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        )}
+        <p className="mb-3">
+          예약을 취소하고 예약금 환불 또는 이용권 1회 복구를 시작합니다.
+          이미 받은 잔금은 결과에 따라 고객에게 직접 반환해야 할 수 있습니다.
+        </p>
+        <CancelReasonField
+          value={cancelReason}
+          onChange={setCancelReason}
+          disabled={cancelMutation.isPending}
+          placeholder="고객에게 안내할 취소 사유를 입력하세요."
+        />
+      </ConfirmModal>
       <AdminBookingCreateModal
         adminKey={adminKey}
         onAuthError={onAuthError}

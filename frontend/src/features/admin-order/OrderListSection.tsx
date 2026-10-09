@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Alert, Table, Button, Form, Row, Col, Modal } from "react-bootstrap";
+import { Table, Button, Form, Row, Col } from "react-bootstrap";
 import { X } from "lucide-react";
 import type { AdminOrderResponse, OrderStatus } from "@/shared/types";
 import { fetchOrderFulfillment, fetchOrders } from "./api";
@@ -9,6 +9,7 @@ import { useOrderMutations } from "./useOrderMutations";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { OrderActionCell } from "./OrderActionCell";
+import { RiskActionButton } from "./RiskActionButton";
 import { OrderHistoryPanel } from "./OrderHistoryPanel";
 import { OrderFulfillmentDetails, OrderFulfillmentPanel } from "./OrderFulfillmentPanel";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
@@ -52,7 +53,6 @@ export function OrderListSection({
   const [statusFilter, setStatusFilter] = useState(initialStatus);
   const [historyOrderId, setHistoryOrderId] = useState<number | null>(null);
   const [fulfillmentOrderId, setFulfillmentOrderId] = useState<number | null>(null);
-  const [showExpireConfirmation, setShowExpireConfirmation] = useState(false);
   const [focusedOrder, setFocusedOrder] = useState(
     focusOrderId != null && focusOrderStatus
       ? { id: focusOrderId, status: focusOrderStatus }
@@ -149,11 +149,16 @@ export function OrderListSection({
           </Form.Group>
         </Col>
         <Col xs="auto">
-          <Button size="sm" variant="outline-secondary"
+          <RiskActionButton
+            variant="outline-secondary"
+            buttonLabel="수령 기한 지난 주문 미수령 처리"
+            confirmLabel="미수령 처리 실행"
+            title="수령 기한 지난 주문 처리 확인"
+            impact="모든 주문을 환불 없이 미수령으로 종료합니다. 기성품 재고는 복구하고 주문제작 재고는 유지합니다. 고객과 상담 후 환불이 필요하면 개별 주문의 ‘관리자 예외 환불’을 사용하세요."
             disabled={mutations.expire.isPending}
-            onClick={() => setShowExpireConfirmation(true)}>
-            {mutations.expire.isPending ? "처리 중..." : "수령 기한 지난 주문 미수령 처리"}
-          </Button>
+            pending={mutations.expire.isPending}
+            onConfirm={() => mutations.expire.mutate()}
+          />
         </Col>
       </Row>
 
@@ -258,43 +263,6 @@ export function OrderListSection({
           />
         </div>
       )}
-
-      <Modal
-        show={showExpireConfirmation}
-        aria-labelledby="expire-pickup-orders-title"
-        onHide={() => !mutations.expire.isPending && setShowExpireConfirmation(false)}
-        centered
-      >
-        <Modal.Header closeButton={!mutations.expire.isPending}>
-          <Modal.Title id="expire-pickup-orders-title" className="fs-6">
-            수령 기한 지난 주문 처리 확인
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Alert variant="warning" className="mb-0 small">
-            모든 주문을 환불 없이 미수령으로 종료합니다. 기성품 재고는 복구하고 주문제작 재고는 유지합니다. 고객과 상담 후 환불이 필요하면 개별 주문의 ‘관리자 예외 환불’을 사용하세요.
-          </Alert>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button
-            variant="outline-secondary"
-            disabled={mutations.expire.isPending}
-            onClick={() => setShowExpireConfirmation(false)}
-          >
-            닫기
-          </Button>
-          <Button
-            variant="danger"
-            disabled={mutations.expire.isPending}
-            onClick={() => {
-              setShowExpireConfirmation(false);
-              mutations.expire.mutate();
-            }}
-          >
-            미수령 처리 실행
-          </Button>
-        </Modal.Footer>
-      </Modal>
 
       <ErrorAlert error={visibleAdminError(mutations.lastError)} />
     </div>
