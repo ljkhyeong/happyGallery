@@ -1,7 +1,7 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { Container, Form, Button, Alert, Card, Row, Col, Badge } from "react-bootstrap";
-import { Link, useNavigate, useLocation, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -12,17 +12,12 @@ import { isPasswordWithinByteLimit } from "@/shared/validation/password";
 export function LoginPage() {
   const { login } = useCustomerAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const returnTo = resolveSafeReturnTo(
-    searchParams.get("redirect") ?? (location.state as { from?: string } | null)?.from,
-  );
+  const returnTo = resolveSafeReturnTo(searchParams.get("redirect"));
   const claimIntent = searchParams.get("claim") === "1" || returnTo.includes("claim=1");
   const signupHref = buildAuthPageHref("/signup", {
     redirectTo: returnTo,
     claim: claimIntent,
-    phone: searchParams.get("phone") ?? undefined,
-    name: searchParams.get("name") ?? undefined,
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

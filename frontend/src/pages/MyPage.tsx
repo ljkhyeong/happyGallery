@@ -92,13 +92,11 @@ function MyPageContent() {
   const latestOrder = orders?.[0];
 
   const navigationState = location.state as {
-    phoneOnboarding?: boolean;
     phoneChangeRequested?: boolean;
     emailRegistrationRequested?: boolean;
     accountWithdrawalRequested?: boolean;
     socialAccountLinked?: string;
   } | null;
-  const phoneOnboardingRequested = Boolean(navigationState?.phoneOnboarding);
   const linkedSocialProvider = navigationState?.socialAccountLinked;
   const phoneChangeRequested = Boolean(navigationState?.phoneChangeRequested);
   const emailRegistrationRequested = Boolean(
@@ -135,7 +133,6 @@ function MyPageContent() {
     emailRegistrationRequested,
     isAuthenticated,
     phoneOnboardingHandled,
-    phoneOnboardingRequested,
     showEmailRegistration,
     user?.phone,
   ]);
@@ -211,9 +208,6 @@ function MyPageContent() {
     setPhoneOnboardingHandled(true);
     setShowPhoneRegistration(false);
     setPhoneStepUpCompleted(false);
-    if (phoneOnboardingRequested) {
-      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-    }
   };
 
   return (

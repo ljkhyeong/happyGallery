@@ -163,11 +163,7 @@ export function SocialCallbackPage() {
 
         removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
 
-        if (user?.phone === null) {
-          navigate("/my", { replace: true, state: { phoneOnboarding: true } });
-        } else {
-          navigate(savedReturnTo, { replace: true });
-        }
+        navigate(user?.phone === null ? "/my" : savedReturnTo, { replace: true });
       } catch (error) {
         if (error instanceof CustomerSessionChangedError) {
           navigate("/my", { replace: true });

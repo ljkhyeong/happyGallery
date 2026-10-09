@@ -28,10 +28,7 @@ export function SocialSignupConsent({ attemptId, returnTo }: { attemptId: string
     try {
       const user = await completeSocialSignup(attemptId, consent.acceptance);
       removeSessionValues(SESSION_KEYS.socialLoginReturnTo);
-      navigate(user.phone === null ? "/my" : returnTo, {
-        replace: true,
-        state: user.phone === null ? { phoneOnboarding: true } : null,
-      });
+      navigate(user.phone === null ? "/my" : returnTo, { replace: true });
     } catch (requestError) {
       if (requestError instanceof CustomerSessionChangedError) {
         navigate("/my", { replace: true });

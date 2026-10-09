@@ -1,5 +1,3 @@
-import { normalizePhone } from "@/shared/validation/phone";
-
 const SAFE_RETURN_TO_BASE = "https://happygallery.local";
 
 export function resolveSafeReturnTo(value: string | null | undefined): string {
@@ -21,8 +19,6 @@ export function resolveSafeReturnTo(value: string | null | undefined): string {
 interface BuildAuthPageHrefOptions {
   redirectTo?: string;
   claim?: boolean;
-  phone?: string;
-  name?: string;
 }
 
 export function buildAuthPageHref(
@@ -38,15 +34,6 @@ export function buildAuthPageHref(
 
   if (options.claim) {
     searchParams.set("claim", "1");
-  }
-
-  if (path === "/signup") {
-    if (options.phone) {
-      searchParams.set("phone", normalizePhone(options.phone));
-    }
-    if (options.name) {
-      searchParams.set("name", options.name);
-    }
   }
 
   const query = searchParams.toString();

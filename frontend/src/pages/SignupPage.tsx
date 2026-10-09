@@ -8,7 +8,6 @@ import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons"
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { PasswordInput } from "@/features/customer-auth/PasswordInput";
 import { ErrorAlert } from "@/shared/ui";
-import { normalizePhone } from "@/shared/validation/phone";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
@@ -25,8 +24,8 @@ export function SignupPage() {
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState(searchParams.get("name") ?? "");
-  const [phone, setPhone] = useState(normalizePhone(searchParams.get("phone") ?? ""));
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -168,15 +167,6 @@ export function SignupPage() {
                   ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
                   : "가입 후 내 정보에서 주문·예약·이용권을 확인하고 관리하세요."}
               </p>
-              {claimIntent && (name || phone) && (
-                <div className="auth-prefill-card mb-4">
-                  <div className="auth-prefill-title">가져온 정보</div>
-                  <div className="small text-muted-soft">
-                    {name ? <div>이름: {name}</div> : null}
-                    {phone ? <div>전화번호: {phone}</div> : null}
-                  </div>
-                </div>
-              )}
               <div className="auth-benefit-list mb-4">
                 <div className="auth-benefit-item">주문·예약·이용권을 상태별로 조회</div>
                 <div className="auth-benefit-item">비회원 주문·예약을 가져와 내 정보에서 조회</div>
