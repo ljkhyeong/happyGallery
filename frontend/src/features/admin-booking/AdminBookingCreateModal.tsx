@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button, Col, Form, Modal, Row } from "react-bootstrap";
+import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { formatDateTime, parseApiDateTime } from "@/shared/lib";
-import { fetchClasses, fetchSlotsByClass } from "@/features/admin-slot/api";
+import { adminClassesQuery } from "@/features/admin-class/api";
+import { fetchSlotsByClass } from "@/features/admin-slot/api";
 import { createBookingByAdmin } from "./api";
 import { BOOKING_SOURCE_LABEL } from "./bookingSource";
 import {
@@ -36,13 +38,12 @@ export function AdminBookingCreateModal({
   const [depositPaid, setDepositPaid] = useState(false);
 
   const classesQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "classes"],
-    queryFn: () => fetchClasses(adminKey),
+    ...adminClassesQuery(adminKey),
     enabled: show,
   });
   const selectedClassId = Number(classId);
   const slotsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "slots", selectedClassId],
+    queryKey: queryKeys.admin.slots.byClass(selectedClassId),
     queryFn: () => fetchSlotsByClass(adminKey, selectedClassId),
     enabled: show && Number.isSafeInteger(selectedClassId) && selectedClassId > 0,
   });

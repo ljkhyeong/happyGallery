@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, Badge, Button, ButtonGroup, Form, InputGroup } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminQnaPage, fetchUnansweredAdminQna, replyQna } from "./api";
-import { fetchProducts } from "@/features/admin-product/api";
+import { adminProductsQuery } from "@/features/admin-product/api";
 import type { AdminQnaResponse } from "./api";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
 import { CursorPager } from "@/shared/ui/CursorPager";
@@ -32,10 +32,7 @@ export function AdminQnaSection({ token, onAuthError }: Props) {
     resetCursor,
   } = useCursorHistory();
 
-  const productsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(token),
-  });
+  const productsQuery = useAdminQuery(onAuthError, adminProductsQuery(token));
 
   const unansweredQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.productQna.unanswered(cursor),

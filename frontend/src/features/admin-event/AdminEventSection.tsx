@@ -12,10 +12,10 @@ import {
   type UpdateEventRequest,
 } from "./api";
 import {
-  fetchAdminCoupons,
+  adminCouponsQuery,
   type AdminCouponResponse,
 } from "@/features/admin-coupon/api";
-import { fetchProducts } from "@/features/admin-product/api";
+import { adminProductsQuery } from "@/features/admin-product/api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { eventTimingLabel } from "@/features/event/time";
 import { queryKeys } from "@/shared/api";
@@ -132,14 +132,8 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
     queryKey: queryKeys.admin.events,
     queryFn: () => fetchAdminEvents(adminKey),
   });
-  const productsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
-  const couponsQuery = useAdminQuery(onAuthError, {
-    queryKey: queryKeys.admin.coupons,
-    queryFn: () => fetchAdminCoupons(adminKey),
-  });
+  const productsQuery = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
+  const couponsQuery = useAdminQuery(onAuthError, adminCouponsQuery(adminKey));
 
   const invalidateEvents = () => {
     void Promise.all([

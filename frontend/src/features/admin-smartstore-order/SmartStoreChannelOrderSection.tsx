@@ -17,7 +17,7 @@ import type {
   SmartStoreOrderBulkActionResponse,
 } from "@/generated/api/adminOrder";
 import { ApiError } from "@/shared/api";
-import { fetchProducts } from "@/features/admin-product/api";
+import { adminProductsQuery } from "@/features/admin-product/api";
 import { productVariantLabel } from "@/features/admin-product/productVariantLabel";
 import { ReturnDeliveryCompanies } from "./ReturnDeliveryCompanies";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
@@ -422,10 +422,7 @@ function InventoryResolutionModal({
       order.attentionReason === "STATUS_REVIEW" ? "KEEP_CURRENT" : "APPLY_REMAINING",
     );
   const [reason, setReason] = useState("");
-  const productsQuery = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
+  const productsQuery = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
   const selectedProduct = productsQuery.data?.find(
     (product) => product.id === Number(productId),
   );

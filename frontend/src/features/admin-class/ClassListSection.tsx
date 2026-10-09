@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { ClassEditModal } from "./ClassEditModal";
-import { fetchAdminClasses, updateClassStatus } from "./api";
+import { adminClassesQuery, updateClassStatus } from "./api";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -23,10 +23,10 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
-  const { data: classes, isLoading, error, refetch, isFetching } = useAdminQuery(onAuthError, {
-    queryKey: queryKeys.admin.classes,
-    queryFn: () => fetchAdminClasses(adminKey),
-  });
+  const { data: classes, isLoading, error, refetch, isFetching } = useAdminQuery(
+    onAuthError,
+    adminClassesQuery(adminKey),
+  );
 
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>

@@ -6,9 +6,9 @@ import {
   activateSlot,
   cancelSlotSession,
   deactivateSlot,
-  fetchClasses,
   fetchSlotsByClass,
 } from "./api";
+import { adminClassesQuery } from "@/features/admin-class/api";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import {
@@ -40,10 +40,7 @@ export function SlotListSection({ adminKey, onAuthError }: Props) {
   const [cancelReason, setCancelReason] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
 
-  const classesQuery = useAdminQuery(onAuthError, {
-    queryKey: queryKeys.admin.classes,
-    queryFn: () => fetchClasses(adminKey),
-  });
+  const classesQuery = useAdminQuery(onAuthError, adminClassesQuery(adminKey));
 
   const classIdNum = Number(classId);
   const slotsQuery = useAdminQuery(onAuthError, {

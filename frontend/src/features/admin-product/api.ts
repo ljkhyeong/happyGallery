@@ -39,12 +39,21 @@ import {
   type UpdateProductRequest,
   type UpdateProductStatusRequestStatus,
 } from "@/generated/api/adminCatalog";
-import { adminHeaders, ApiError } from "@/shared/api";
+import { queryOptions } from "@tanstack/react-query";
+import { adminHeaders, ApiError, queryKeys } from "@/shared/api";
 
 export type ProductStatus = UpdateProductStatusRequestStatus;
 
 export function fetchProducts(adminKey: string): Promise<ProductResponse[]> {
   return listAll({ headers: adminHeaders(adminKey) });
+}
+
+/** 관리자 화면 여러 곳이 같은 캐시로 공유하는 전체 상품 목록 조회 */
+export function adminProductsQuery(adminKey: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.products,
+    queryFn: () => fetchProducts(adminKey),
+  });
 }
 
 export function createProduct(

@@ -29,6 +29,7 @@ export const queryKeys = {
           ["admin", "reviews", "reports", "detail", reportId] as const,
       },
     },
+    products: ["admin", "products"] as const,
     classes: ["admin", "classes"] as const,
     slots: {
       all: ["admin", "slots"] as const,

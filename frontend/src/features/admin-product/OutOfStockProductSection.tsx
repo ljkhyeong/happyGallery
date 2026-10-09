@@ -6,7 +6,7 @@ import { adminHeaders } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
-import { fetchProducts } from "./api";
+import { adminProductsQuery } from "./api";
 import { productVariantLabel } from "./productVariantLabel";
 
 interface Props {
@@ -22,10 +22,7 @@ interface OutOfStockItem {
 }
 
 export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
-  const query = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
+  const query = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
 
   const levels = useAdminQuery(onAuthError, {
     queryKey: ["admin", "products", "stock-levels"],

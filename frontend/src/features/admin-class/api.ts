@@ -8,12 +8,21 @@ import {
   type UpdateClassRequest,
   type UpdateClassStatusRequestStatus,
 } from "@/generated/api/adminCatalog";
-import { adminHeaders } from "@/shared/api";
+import { queryOptions } from "@tanstack/react-query";
+import { adminHeaders, queryKeys } from "@/shared/api";
 
 export type ClassStatus = UpdateClassStatusRequestStatus;
 
 export function fetchAdminClasses(adminKey: string): Promise<AdminClassResponse[]> {
   return listClasses({ headers: adminHeaders(adminKey) });
+}
+
+/** 클래스 관리·회차 관리·직접 예약 등록이 같은 캐시로 공유하는 클래스 목록 조회 */
+export function adminClassesQuery(adminKey: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.classes,
+    queryFn: () => fetchAdminClasses(adminKey),
+  });
 }
 
 export function createClass(

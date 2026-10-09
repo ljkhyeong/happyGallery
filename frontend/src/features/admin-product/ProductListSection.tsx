@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
-import { fetchProducts, updateProductStatus } from "./api";
+import { adminProductsQuery, updateProductStatus } from "./api";
 import { InventoryAdjustmentModal } from "./InventoryAdjustmentModal";
 import { ProductEditModal } from "./ProductEditModal";
 import { SmartStoreInventoryModal } from "./SmartStoreInventoryModal";
@@ -24,10 +24,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [pendingStatusId, setPendingStatusId] = useState<number | null>(null);
   const [smartStoreProductId, setSmartStoreProductId] = useState<number | null>(null);
-  const { data: products, isLoading, error } = useAdminQuery(onAuthError, {
-    queryKey: ["admin", "products"],
-    queryFn: () => fetchProducts(adminKey),
-  });
+  const { data: products, isLoading, error } = useAdminQuery(onAuthError, adminProductsQuery(adminKey));
 
   const statusMutation = useAdminMutation(onAuthError, {
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>

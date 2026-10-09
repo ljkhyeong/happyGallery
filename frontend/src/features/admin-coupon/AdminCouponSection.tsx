@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
+  adminCouponsQuery,
   createCoupon,
   deleteCoupon,
   fetchAdminCoupon,
-  fetchAdminCoupons,
   updateCoupon,
   type AdminCouponResponse,
   type CreateCouponRequest,
@@ -145,10 +145,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
     },
   });
 
-  const couponsQuery = useAdminQuery(onAuthError, {
-    queryKey: queryKeys.admin.coupons,
-    queryFn: () => fetchAdminCoupons(adminKey),
-  });
+  const couponsQuery = useAdminQuery(onAuthError, adminCouponsQuery(adminKey));
 
   const invalidateCoupons = () => {
     void Promise.all([
