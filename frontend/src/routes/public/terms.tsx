@@ -1,11 +1,6 @@
 import type { Route } from "./+types/terms";
 import heroWorkshop from "@/assets/happygallery/hero-workshop.jpg";
-import {
-  resolvePolicyDocument,
-  TERMS_POLICY_DOCUMENTS,
-} from "@/features/policy-consent/policyDocuments";
-import { TERMS_POLICY_VERSION } from "@/features/policy-consent/policyVersions";
-import { TermsPage } from "@/pages/TermsPage";
+import { loadPolicyRoute, policyDocument } from "@/features/policy-consent/policyRoute";
 import {
   buildBreadcrumbJsonLd,
   buildSeoMeta,
@@ -17,19 +12,14 @@ const TITLE = "이용약관 | 해피갤러리";
 const DESCRIPTION = "해피갤러리 서비스 이용약관입니다.";
 
 export function loader({ params }: Route.LoaderArgs) {
-  const version = params.version ?? TERMS_POLICY_VERSION;
-  if (!resolvePolicyDocument(TERMS_POLICY_DOCUMENTS, version)) {
-    throw new Response(null, { status: 404, statusText: "Not Found" });
-  }
-  return { version, current: version === TERMS_POLICY_VERSION };
+  return loadPolicyRoute("terms", params.version);
 }
 
 export function meta({ loaderData, params }: Route.MetaArgs) {
-  const pathname = loaderData?.current ? "/terms" : `/terms/${params.version ?? ""}`;
   return buildSeoMeta({
     title: TITLE,
     description: DESCRIPTION,
-    pathname,
+    pathname: loaderData?.pathname ?? `/terms/${params.version ?? ""}`,
     image: heroWorkshop,
     indexable: Boolean(loaderData?.current),
     followLinks: Boolean(loaderData),
@@ -37,17 +27,17 @@ export function meta({ loaderData, params }: Route.MetaArgs) {
 }
 
 export default function TermsRoute({ loaderData }: Route.ComponentProps) {
-  const pathname = loaderData.current ? "/terms" : `/terms/${loaderData.version}`;
+  const PolicyDocument = policyDocument("terms", loaderData.version);
   return (
     <>
       <CspJsonLd value={[
-        buildWebPageJsonLd(pathname, TITLE, DESCRIPTION),
+        buildWebPageJsonLd(loaderData.pathname, TITLE, DESCRIPTION),
         buildBreadcrumbJsonLd([
           { name: "홈", pathname: "/" },
-          { name: "이용약관", pathname },
+          { name: "이용약관", pathname: loaderData.pathname },
         ]),
       ]} />
-      <TermsPage />
+      <PolicyDocument />
     </>
   );
 }
