@@ -26,7 +26,7 @@ import {
   isClassSituationTag,
   isPerfumeClassCategory,
 } from "@/shared/lib";
-import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton } from "@/shared/ui";
 
 export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse }) {
   const classId = initialClass.id;
@@ -37,7 +37,6 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
   const {
     data: bookingClass,
     error,
-    isLoading,
   } = useLoaderBackedQuery({
     queryKey: classQueryKey,
     queryFn: ({ signal }) => getPublicClass(classId, { signal }),
@@ -46,13 +45,9 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
   // 다가오는 일정 구역과 같은 캐시를 써서 가장 가까운 회차를 결제 안내에 한 줄로 보여 준다.
   const slotsQuery = useQuery(upcomingSlotsQuery(classId));
 
-  if (isLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
   if (error) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
-  if (!bookingClass) return null;
   const perfume = isPerfumeClassCategory(bookingClass.category);
   const passEligible = bookingClass.passEligible && !perfume;
   const { depositAmount, balanceAmount } = splitBookingAmount(bookingClass.price);

@@ -4,14 +4,13 @@ import { EventPeriodText } from "./EventPeriodText";
 import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { EventResponse } from "./api";
 
 export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventResponse[] }) {
   const {
     data: events,
     error,
-    isLoading,
     query: eventsQuery,
   } = useLoaderBackedQuery({
     queryKey: queryKeys.events.all,
@@ -19,9 +18,9 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
     staleTime: PUBLIC_DATA_STALE_TIME,
     refetchInterval: ({ state }) => eventRefetchInterval(state.data),
   }, initialEvents);
-  const featuredEvents = events?.filter(
+  const featuredEvents = events.filter(
     (event) => event.featured && isEventAvailable(event),
-  ) ?? [];
+  );
   const featured = featuredEvents.find((event) => isEventOngoing(event)) ?? featuredEvents[0];
 
   return (
@@ -29,11 +28,6 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       className={`home-update-panel home-event-panel${featured?.imageUrl ? " has-media" : ""}`}
       aria-labelledby="home-event-title"
     >
-      {isLoading && (
-        <div className="home-event-state">
-          <LoadingSpinner text="이벤트를 불러오는 중입니다" />
-        </div>
-      )}
       {error && (
         <div className="home-event-state">
           <ErrorAlert
@@ -43,7 +37,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           />
         </div>
       )}
-      {!isLoading && !error && !featured && (
+      {!error && !featured && (
         <div className="home-event-copy home-event-empty">
           <p className="store-section-kicker">이벤트</p>
           <h2 id="home-event-title">새로운 이벤트를 준비하고 있습니다</h2>

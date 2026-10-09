@@ -18,12 +18,11 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
   const {
     data: workshop,
     error,
-    isLoading,
     query: { isFetching, refetch },
   } = useWorkshopProfile(initialWorkshop);
-  const inquiryHref = workshop?.naverTalkUrl;
-  const kakaoTalkId = workshop?.kakaoTalkId;
-  const phone = workshop?.phone;
+  const inquiryHref = workshop.naverTalkUrl;
+  const kakaoTalkId = workshop.kakaoTalkId;
+  const phone = workshop.phone;
 
   const copyKakaoTalkId = async () => {
     if (!kakaoTalkId) return;
@@ -107,13 +106,12 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
                 카카오톡 ID {kakaoTalkId} 복사
               </Button>
             )}
-            {isLoading && <span>수업 문의 채널을 확인하고 있습니다.</span>}
             <ErrorAlert
               error={error}
               onRetry={() => { void refetch(); }}
               retrying={isFetching}
             />
-            {!isLoading && !error && !inquiryHref && !phone && !kakaoTalkId && (
+            {!error && !inquiryHref && !phone && !kakaoTalkId && (
               <span>수업 문의 채널을 준비하고 있습니다.</span>
             )}
             <Link to="/classes" className="store-section-link">개인 클래스 보기 →</Link>

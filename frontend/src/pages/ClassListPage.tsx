@@ -39,20 +39,19 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const {
     data: classes,
     error: classesError,
-    isLoading: classesLoading,
   } = useLoaderBackedQuery({
     queryKey: queryKeys.catalog.classes,
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
   }, initialClasses);
   const slotResults = useQueries({
-    queries: (classes ?? []).map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
+    queries: classes.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
-  const slotResultByClassId = new Map((classes ?? []).map((bookingClass, index) => [bookingClass.id, slotResults[index]]));
+  const slotResultByClassId = new Map(classes.map((bookingClass, index) => [bookingClass.id, slotResults[index]]));
   // 주말·오늘 조건은 일정이 모두 도착한 뒤에 걸러 목록이 줄어드는 깜빡임을 막는다.
   const whenPending = when !== null && slotResults.some((result) => result.isPending);
   const whenDates = when ? slotWhenDates(when) : [];
-  const visibleClasses = whenPending ? undefined : classes?.filter((bookingClass) =>
+  const visibleClasses = whenPending ? undefined : classes.filter((bookingClass) =>
     (!passEligibleOnly || (bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category)))
     && (!tag || bookingClass.situationTags.includes(tag))
     && (!when || hasOpenSlotOn(slotResultByClassId.get(bookingClass.id)?.data, whenDates)));
@@ -128,7 +127,6 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         {visibleClasses && <span className="small text-muted-soft" role="status">수업 {visibleClasses.length}개</span>}
       </div>
 
-      {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
       {whenPending && <LoadingSpinner text={`${WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (

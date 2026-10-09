@@ -22,7 +22,7 @@ import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCateg
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
-import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
@@ -88,7 +88,6 @@ export function HomePage({
   const {
     data: products,
     error: productsError,
-    isLoading: productsLoading,
   } = useLoaderBackedQuery({
     queryKey: queryKeys.catalog.products,
     queryFn: () => fetchProducts(),
@@ -97,7 +96,6 @@ export function HomePage({
   const {
     data: classes,
     error: classesError,
-    isLoading: classesLoading,
   } = useLoaderBackedQuery({
     queryKey: queryKeys.catalog.classes,
     queryFn: fetchClasses,
@@ -107,7 +105,7 @@ export function HomePage({
   const { data: pricePolicy } = useOrderPricePolicy();
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
 
-  const availableProducts = products?.filter((product) => product.available) ?? [];
+  const availableProducts = products.filter((product) => product.available);
   // 이미 받은 목록을 화면에서만 나눠 보여 주므로 카테고리를 바꿔도 다시 조회하지 않는다.
   const featuredProducts = availableProducts
     .filter((product) => category === ALL_CATEGORIES || product.category === category)
@@ -117,13 +115,13 @@ export function HomePage({
   const productListHref = category === ALL_CATEGORIES
     ? "/products"
     : `/products?${new URLSearchParams({ category })}`;
-  const featuredClasses = classes?.slice(0, HOME_CLASS_LIMIT) ?? [];
+  const featuredClasses = classes.slice(0, HOME_CLASS_LIMIT);
   const classSlotResults = useQueries({
     queries: featuredClasses.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
-  const address = [workshop?.addressLine1, workshop?.addressLine2].filter(Boolean).join(" ");
-  const consultHref = workshop?.naverTalkUrl
-    ?? (workshop?.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
+  const address = [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ");
+  const consultHref = workshop.naverTalkUrl
+    ?? (workshop.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
   const shippingFee = pricePolicy?.shippingFee;
   const shippingText = typeof shippingFee !== "number"
     ? "매장 수령은 무료이며, 택배 배송비는 주문서에서 확인할 수 있습니다."
@@ -150,7 +148,7 @@ export function HomePage({
             </p>
             <dl className="gallery-hero-facts">
               {address && <div><dt>장소</dt><dd>{address}</dd></div>}
-              {workshop?.businessHours && <div><dt>관람</dt><dd>{workshop.businessHours}</dd></div>}
+              {workshop.businessHours && <div><dt>관람</dt><dd>{workshop.businessHours}</dd></div>}
               <div><dt>구매</dt><dd>온라인 주문 · 택배 또는 공방 수령</dd></div>
               <div><dt>체험</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
             </dl>
@@ -188,7 +186,6 @@ export function HomePage({
             )}
             <Link to={productListHref} className="gallery-section-more">전체 작품 보기</Link>
           </SectionHead>
-          {productsLoading && <LoadingSpinner />}
           <ErrorAlert error={productsError} />
           {featuredProducts.length > 0 && (
             <div className="product-grid home-product-grid">
@@ -197,7 +194,7 @@ export function HomePage({
               ))}
             </div>
           )}
-          {!productsLoading && !productsError && featuredProducts.length === 0 && (
+          {!productsError && featuredProducts.length === 0 && (
             <p className="text-muted-soft">지금 소개할 작품을 준비하고 있습니다.</p>
           )}
         </Container>
@@ -211,7 +208,6 @@ export function HomePage({
             </nav>
             <Link to="/classes" className="gallery-section-more">전체 클래스 보기</Link>
           </SectionHead>
-          {classesLoading && <LoadingSpinner text="클래스를 불러오는 중입니다" />}
           <ErrorAlert error={classesError} />
           {featuredClasses.length > 0 && (
             <ul className="gallery-program-list">
@@ -247,7 +243,7 @@ export function HomePage({
               })}
             </ul>
           )}
-          {!classesLoading && !classesError && featuredClasses.length === 0 && (
+          {!classesError && featuredClasses.length === 0 && (
             <p className="text-muted-soft">예약 가능한 클래스를 준비하고 있습니다.</p>
           )}
           <div className="gallery-program-links">
@@ -295,21 +291,21 @@ export function HomePage({
             <img src={leatherWorkshopHands} alt="빈티지 가죽에 각인 도장을 찍는 손" loading="lazy" />
             <div className="gallery-story-copy">
               <p className="gallery-story-label"><span aria-hidden="true">04</span>공방 이야기</p>
-              <h2 id="home-shop-title">{workshop?.name ?? "해피갤러리"}</h2>
-              {workshop?.introduction && <p>{workshop.introduction}</p>}
+              <h2 id="home-shop-title">{workshop.name}</h2>
+              {workshop.introduction && <p>{workshop.introduction}</p>}
               {address && <p className="gallery-story-address">{address}</p>}
               <div className="gallery-story-actions">
-                {workshop?.mapUrl && (
+                {workshop.mapUrl && (
                   <a href={workshop.mapUrl} target="_blank" rel="noreferrer" className="btn btn-outline-dark">오시는 길</a>
                 )}
                 {consultHref && (
                   <a
                     href={consultHref}
-                    target={workshop?.naverTalkUrl ? "_blank" : undefined}
+                    target={workshop.naverTalkUrl ? "_blank" : undefined}
                     rel="noreferrer"
                     className="btn btn-dark"
                   >
-                    {workshop?.naverTalkUrl ? "톡톡 문의" : "전화 문의"}
+                    {workshop.naverTalkUrl ? "톡톡 문의" : "전화 문의"}
                   </a>
                 )}
               </div>

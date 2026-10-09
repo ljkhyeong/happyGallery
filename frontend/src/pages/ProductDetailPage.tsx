@@ -16,7 +16,7 @@ import {
   type OrderPayload,
 } from "@/features/payment";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { LoadingSpinner, ErrorAlert, useToast } from "@/shared/ui";
+import { ErrorAlert, useToast } from "@/shared/ui";
 import {
   formatKRW,
   PRODUCT_TYPE_LABEL,
@@ -88,19 +88,18 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
   const {
     data: product,
     error,
-    isLoading,
   } = useLoaderBackedQuery({
     queryKey: productQueryKey,
     queryFn: () => fetchProduct(productId),
     staleTime: PUBLIC_DATA_STALE_TIME,
   }, initialProduct);
-  const requiresMadeToOrderConsent = product?.type === "MADE_TO_ORDER";
+  const requiresMadeToOrderConsent = product.type === "MADE_TO_ORDER";
   const consent = useMadeToOrderConsent(requiresMadeToOrderConsent);
 
   const orderMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("로그인이 필요합니다.");
-      const items = (product?.optionGroups.length || purchaseLines.length)
+      const items = (product.optionGroups.length || purchaseLines.length)
         ? purchaseLines.map((line) => ({
           productId,
           productVariantId: line.productVariantId,
@@ -109,7 +108,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         }))
         : [{
           productId,
-          productVariantId: product ? productSelectionView(product, {}).productVariantId : null,
+          productVariantId: productSelectionView(product, {}).productVariantId,
           textInputs: [],
           qty,
         }];
@@ -146,7 +145,6 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
   const cartMutation = useMutation({
     mutationFn: () => runForCurrentCustomer(
       async () => {
-        if (!product) throw new Error("상품 정보를 확인할 수 없습니다.");
         const items = (product.optionGroups.length || purchaseLines.length)
           ? purchaseLines.map((line) => ({
             productId, productVariantId: line.productVariantId, textInputs: line.textInputs, qty: line.qty,
@@ -178,9 +176,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
     return () => observer.disconnect();
   }, [product]);
 
-  if (isLoading) return <Container className="page-container"><LoadingSpinner /></Container>;
   if (error) return <Container className="page-container"><ErrorAlert error={error} /></Container>;
-  if (!product) return null;
 
   const hasConfiguredOptions = product.optionGroups.length > 0 || purchaseLines.length > 0;
   const linkedVariant = product.variants.find((variant) => variant.active && String(variant.id) === variantId);

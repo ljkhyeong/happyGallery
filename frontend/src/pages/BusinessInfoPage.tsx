@@ -1,20 +1,12 @@
 import { Container } from "react-bootstrap";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert } from "@/shared/ui";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
 
 export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: WorkshopProfileResponse }) {
-  const {
-    data: workshop,
-    error,
-    isLoading,
-  } = useWorkshopProfile(initialWorkshop);
+  const { data: workshop, error } = useWorkshopProfile(initialWorkshop);
 
-  if (isLoading) {
-    return <Container className="page-container"><LoadingSpinner /></Container>;
-  }
-
-  if (error || !workshop) {
+  if (error) {
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
