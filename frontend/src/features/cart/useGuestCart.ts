@@ -48,10 +48,11 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
     typeof item.productId !== "number"
     || !Number.isSafeInteger(item.productId)
     || item.productId <= 0
-    || (item.productVariantId !== undefined
-      && item.productVariantId !== null
-      && (!Number.isSafeInteger(item.productVariantId) || item.productVariantId <= 0))
-    || (item.textInputs !== undefined && !Array.isArray(item.textInputs))
+    || (item.productVariantId !== null
+      && (typeof item.productVariantId !== "number"
+        || !Number.isSafeInteger(item.productVariantId)
+        || item.productVariantId <= 0))
+    || !Array.isArray(item.textInputs)
     || typeof item.qty !== "number"
     || !Number.isSafeInteger(item.qty)
     || item.qty <= 0
@@ -61,19 +62,18 @@ function normalizeGuestCartItem(value: unknown): GuestCartItem | undefined {
   ) {
     return undefined;
   }
-  const textInputs = (item.textInputs ?? []).filter((input) => (
+  const textInputs = item.textInputs.filter((input) => (
     typeof input === "object"
     && input !== null
     && typeof input.groupKey === "string"
     && (input.value === undefined || typeof input.value === "string")
   )) as ProductTextInputRequest[];
-  if (textInputs.length !== (item.textInputs ?? []).length) return undefined;
-  const productVariantId = item.productVariantId ?? null;
+  if (textInputs.length !== item.textInputs.length) return undefined;
   return {
     productId: item.productId,
-    productVariantId,
+    productVariantId: item.productVariantId,
     textInputs,
-    lineKey: productOptionLineKey(item.productId, productVariantId, textInputs),
+    lineKey: productOptionLineKey(item.productId, item.productVariantId, textInputs),
     qty: item.qty,
     lineageId: item.lineageId,
   };
