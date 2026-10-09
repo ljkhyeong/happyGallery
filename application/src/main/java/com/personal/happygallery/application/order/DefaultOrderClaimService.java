@@ -29,6 +29,7 @@ import com.personal.happygallery.domain.order.OrderClaimItem;
 import com.personal.happygallery.domain.order.OrderClaimResolution;
 import com.personal.happygallery.domain.order.OrderClaimStatus;
 import com.personal.happygallery.domain.order.OrderItem;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -386,9 +387,9 @@ public class DefaultOrderClaimService implements OrderClaimUseCase, AdminOrderCl
             Order order, OrderClaim claim, NotificationEventType eventType) {
         NotificationRequestedEvent event = order.getUserId() != null
                 ? NotificationRequestedEvent.forUser(
-                        order.getUserId(), eventType, "ORDER_CLAIM", claim.getId())
+                        order.getUserId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId())
                 : NotificationRequestedEvent.forGuest(
-                        order.getGuestId(), eventType, "ORDER_CLAIM", claim.getId());
+                        order.getGuestId(), eventType, NotificationAggregateType.ORDER_CLAIM, claim.getId());
         eventPublisher.publishEvent(event);
     }
 

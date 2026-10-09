@@ -3,6 +3,7 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.port.in.NotificationFailureAdminUseCase;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -42,7 +43,7 @@ class NotificationFailureAdminUseCaseIT {
         LocalDateTime now = LocalDateTime.now(clock);
         NotificationOutbox outbox = outboxRepository.save(NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        user.getId(), NotificationEventType.PASS_PURCHASED, "PASS_PURCHASE", 1L),
+                        user.getId(), NotificationEventType.PASS_PURCHASED, NotificationAggregateType.PASS_PURCHASE, 1L),
                 now));
         for (int attempt = 0; attempt < 5; attempt++) {
             String processingToken = outbox.markProcessing(now);

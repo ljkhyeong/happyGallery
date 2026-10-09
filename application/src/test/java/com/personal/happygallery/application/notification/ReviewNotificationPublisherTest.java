@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.notification;
 
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.util.List;
@@ -70,17 +71,17 @@ class ReviewNotificationPublisherTest {
                 .containsExactly(
                         tuple(
                                 NotificationEventType.REVIEW_HIDDEN,
-                                "REVIEW_MODERATION_ACTION",
+                                NotificationAggregateType.REVIEW_MODERATION_ACTION,
                                 40L,
                                 "USER:10:REVIEW_HIDDEN:REVIEW_MODERATION_ACTION:40"),
                         tuple(
                                 NotificationEventType.REVIEW_REPUBLISHED,
-                                "REVIEW_MODERATION_ACTION",
+                                NotificationAggregateType.REVIEW_MODERATION_ACTION,
                                 50L,
                                 "USER:10:REVIEW_REPUBLISHED:REVIEW_MODERATION_ACTION:50"),
                         tuple(
                                 NotificationEventType.REVIEW_OWNER_REPLIED,
-                                "REVIEW",
+                                NotificationAggregateType.REVIEW,
                                 30L,
                                 "USER:10:REVIEW_OWNER_REPLIED:REVIEW:30"));
     }

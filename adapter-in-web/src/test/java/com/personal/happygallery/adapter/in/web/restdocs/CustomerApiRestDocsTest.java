@@ -59,6 +59,7 @@ import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderStatus;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -222,7 +223,7 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .thenReturn(List.of(new NotificationQueryUseCase.NotificationView(
                         1L,
                         NotificationEventType.ORDER_PAID,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
                         null, "주문 #200 · 가죽 지갑", null)));

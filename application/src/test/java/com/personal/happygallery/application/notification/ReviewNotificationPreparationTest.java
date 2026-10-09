@@ -4,6 +4,7 @@ import com.personal.happygallery.application.notification.port.out.NotificationO
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -93,7 +94,7 @@ class ReviewNotificationPreparationTest {
         NotificationOutboxPort outboxPort = mock(NotificationOutboxPort.class);
         ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
         NotificationRequestedEvent event = NotificationRequestedEvent.forUserOncePerAggregate(
-                10L, NotificationEventType.REVIEW_REQUEST, "ORDER", 100L);
+                10L, NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, 100L);
         when(insertPort.insertIfAbsent(any(NotificationOutbox.class))).thenReturn(false);
         NotificationOutboxService service = new NotificationOutboxService(
                 insertPort, outboxPort, eventPublisher, CLOCK);
@@ -109,7 +110,7 @@ class ReviewNotificationPreparationTest {
                 NotificationRequestedEvent.forUser(
                         userId,
                         NotificationEventType.REVIEW_HIDDEN,
-                        "REVIEW_MODERATION_ACTION",
+                        NotificationAggregateType.REVIEW_MODERATION_ACTION,
                         30L),
                 LocalDateTime.now(CLOCK).minusMinutes(1));
     }

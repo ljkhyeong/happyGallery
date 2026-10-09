@@ -3195,6 +3195,7 @@
             "type" : [ "integer", "null" ]
           },
           "aggregateType" : {
+            "enum" : [ "ORDER", "ORDER_CLAIM", "BOOKING", "VACANCY_ALERT", "PASS_PURCHASE", "REFUND", "INQUIRY", "PRODUCT_QNA", "RESTOCK_ALERT", "REVIEW", "REVIEW_MODERATION_ACTION" ],
             "type" : [ "string", "null" ]
           },
           "attemptCount" : {
@@ -4843,6 +4844,7 @@
             "type" : [ "integer", "null" ]
           },
           "aggregateType" : {
+            "enum" : [ "ORDER", "ORDER_CLAIM", "BOOKING", "VACANCY_ALERT", "PASS_PURCHASE", "REFUND", "INQUIRY", "PRODUCT_QNA", "RESTOCK_ALERT", "REVIEW", "REVIEW_MODERATION_ACTION" ],
             "type" : [ "string", "null" ]
           },
           "contextTitle" : {

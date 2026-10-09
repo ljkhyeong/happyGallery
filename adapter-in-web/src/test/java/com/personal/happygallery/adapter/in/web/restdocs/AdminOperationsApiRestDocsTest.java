@@ -28,6 +28,7 @@ import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.shared.page.OffsetPage;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Refund;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -107,7 +108,7 @@ class AdminOperationsApiRestDocsTest extends RestDocsTestSupport {
         when(retriedNotification.getRecipientType()).thenReturn(NotificationRecipientType.USER);
         when(retriedNotification.getUserId()).thenReturn(10L);
         when(retriedNotification.getEventType()).thenReturn(NotificationEventType.PASS_PURCHASED);
-        when(retriedNotification.getAggregateType()).thenReturn("PASS");
+        when(retriedNotification.getAggregateType()).thenReturn(NotificationAggregateType.PASS_PURCHASE);
         when(retriedNotification.getAggregateId()).thenReturn(300L);
         when(retriedNotification.getStatus()).thenReturn(NotificationOutboxStatus.PENDING);
         when(retriedNotification.getCreatedAt())

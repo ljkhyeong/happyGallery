@@ -10,6 +10,7 @@ import com.personal.happygallery.application.shared.page.CursorUtils;
 import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.NotFoundException;
 import com.personal.happygallery.domain.inquiry.Inquiry;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.user.User;
@@ -88,7 +89,7 @@ public class DefaultInquiryService implements InquiryUseCase {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 inquiry.getUserId(),
                 NotificationEventType.INQUIRY_ANSWERED,
-                "INQUIRY",
+                NotificationAggregateType.INQUIRY,
                 inquiry.getId()));
         String name = userReader.findById(inquiry.getUserId())
                 .map(User::getName).orElse("탈퇴회원");

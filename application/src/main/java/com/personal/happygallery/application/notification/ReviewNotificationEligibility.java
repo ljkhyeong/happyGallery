@@ -2,17 +2,13 @@ package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
 import com.personal.happygallery.application.notification.port.out.ReviewNotificationEligibilityPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 @Service
 class ReviewNotificationEligibility {
-
-    private static final String ORDER = "ORDER";
-    private static final String BOOKING = "BOOKING";
-    private static final String REVIEW = "REVIEW";
-    private static final String REVIEW_MODERATION_ACTION = "REVIEW_MODERATION_ACTION";
 
     private final ReviewNotificationEligibilityPort eligibilityPort;
 
@@ -23,13 +19,13 @@ class ReviewNotificationEligibility {
     Optional<NotificationReminderRecipient> findEligibleRecipient(NotificationOutbox outbox) {
         return switch (outbox.getEventType()) {
             case REVIEW_REQUEST -> findRequestRecipient(outbox);
-            case REVIEW_HIDDEN -> hasAggregate(outbox, REVIEW_MODERATION_ACTION)
+            case REVIEW_HIDDEN -> hasAggregate(outbox, NotificationAggregateType.REVIEW_MODERATION_ACTION)
                     ? eligibilityPort.findHiddenReviewRecipient(outbox.getAggregateId())
                     : Optional.empty();
-            case REVIEW_REPUBLISHED -> hasAggregate(outbox, REVIEW_MODERATION_ACTION)
+            case REVIEW_REPUBLISHED -> hasAggregate(outbox, NotificationAggregateType.REVIEW_MODERATION_ACTION)
                     ? eligibilityPort.findRepublishedReviewRecipient(outbox.getAggregateId())
                     : Optional.empty();
-            case REVIEW_OWNER_REPLIED -> hasAggregate(outbox, REVIEW)
+            case REVIEW_OWNER_REPLIED -> hasAggregate(outbox, NotificationAggregateType.REVIEW)
                     ? eligibilityPort.findOwnerRepliedReviewRecipient(outbox.getAggregateId())
                     : Optional.empty();
             case BOOKING_CONFIRMED,
@@ -59,16 +55,16 @@ class ReviewNotificationEligibility {
     }
 
     private Optional<NotificationReminderRecipient> findRequestRecipient(NotificationOutbox outbox) {
-        if (hasAggregate(outbox, ORDER)) {
+        if (hasAggregate(outbox, NotificationAggregateType.ORDER)) {
             return eligibilityPort.findOrderRequestRecipient(outbox.getAggregateId());
         }
-        if (hasAggregate(outbox, BOOKING)) {
+        if (hasAggregate(outbox, NotificationAggregateType.BOOKING)) {
             return eligibilityPort.findBookingRequestRecipient(outbox.getAggregateId());
         }
         return Optional.empty();
     }
 
-    private boolean hasAggregate(NotificationOutbox outbox, String aggregateType) {
-        return aggregateType.equals(outbox.getAggregateType()) && outbox.getAggregateId() != null;
+    private boolean hasAggregate(NotificationOutbox outbox, NotificationAggregateType aggregateType) {
+        return outbox.getAggregateType() == aggregateType && outbox.getAggregateId() != null;
     }
 }

@@ -15,6 +15,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.user.User;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -118,7 +119,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuest(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         bookingId),
                 now);
         String processingToken = legacyOutbox.markProcessing(now);
@@ -299,7 +300,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now));
         booking.cancel();
@@ -327,7 +328,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         previousGuestId,
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now));
         User currentOwner = userStorePort.save(
@@ -360,7 +361,7 @@ class BookingReminderBatchUseCaseIT {
                 NotificationRequestedEvent.forGuestOncePerAggregate(
                         booking.getGuest().getId(),
                         NotificationEventType.REMINDER_D1,
-                        "BOOKING",
+                        NotificationAggregateType.BOOKING,
                         booking.getId()),
                 now.minusHours(1));
         String token = outbox.markProcessing(now.minusHours(1));

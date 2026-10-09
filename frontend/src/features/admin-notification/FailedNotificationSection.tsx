@@ -95,17 +95,23 @@ function recipientLabel(notification: FailedNotificationResponse): string {
   return `${notification.recipientType === "USER" ? "회원" : "비회원"} ${notification.recipientId}`;
 }
 
+const AGGREGATE_LABEL: Record<NonNullable<FailedNotificationResponse["aggregateType"]>, string> = {
+  ORDER: "주문",
+  ORDER_CLAIM: "환불·교환 요청",
+  BOOKING: "예약",
+  VACANCY_ALERT: "빈자리 알림",
+  PASS_PURCHASE: "이용권",
+  REFUND: "환불",
+  INQUIRY: "1:1 문의",
+  PRODUCT_QNA: "상품 문의",
+  RESTOCK_ALERT: "재입고 알림",
+  REVIEW: "후기",
+  REVIEW_MODERATION_ACTION: "후기 공개 상태 변경",
+};
+
 function aggregateLabel(notification: FailedNotificationResponse): string {
   if (!notification.aggregateType || notification.aggregateId == null) return "-";
-  const labels: Record<string, string> = {
-    ORDER: "주문",
-    BOOKING: "예약",
-    PASS: "이용권",
-    INQUIRY: "1:1 문의",
-    PRODUCT_QNA: "상품 문의",
-    REVIEW: "후기",
-  };
-  return `${labels[notification.aggregateType] ?? "관련 항목"} #${notification.aggregateId}`;
+  return `${AGGREGATE_LABEL[notification.aggregateType]} #${notification.aggregateId}`;
 }
 
 function notificationFailureLabel(reason: string | null | undefined): string {

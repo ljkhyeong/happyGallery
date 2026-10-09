@@ -2,6 +2,7 @@ package com.personal.happygallery.adapter.out.persistence.booking;
 
 import com.personal.happygallery.application.booking.port.out.BookingReminderCandidatePort;
 import com.personal.happygallery.application.booking.port.out.BookingReminderTarget;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +12,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePort {
 
-    private static final String AGGREGATE_TYPE = "BOOKING";
     private final JdbcClient jdbc;
 
     JdbcBookingReminderCandidateAdapter(JdbcClient jdbc) {
@@ -51,7 +51,7 @@ class JdbcBookingReminderCandidateAdapter implements BookingReminderCandidatePor
                 .param("startInclusive", startInclusive)
                 .param("afterId", afterId)
                 .param("eventType", eventType.name())
-                .param("aggregateType", AGGREGATE_TYPE)
+                .param("aggregateType", NotificationAggregateType.BOOKING.name())
                 .param("limit", limit)
                 .query(BookingReminderTarget.class)
                 .list();

@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.order;
 
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
@@ -24,11 +25,13 @@ class OrderNotificationSupport {
         if (order.getUserId() != null) {
             event = repeatable
                     ? NotificationRequestedEvent.forUser(order.getUserId(), eventType)
-                    : NotificationRequestedEvent.forUser(order.getUserId(), eventType, "ORDER", order.getId());
+                    : NotificationRequestedEvent.forUser(
+                            order.getUserId(), eventType, NotificationAggregateType.ORDER, order.getId());
         } else {
             event = repeatable
                     ? NotificationRequestedEvent.forGuest(order.getGuestId(), eventType)
-                    : NotificationRequestedEvent.forGuest(order.getGuestId(), eventType, "ORDER", order.getId());
+                    : NotificationRequestedEvent.forGuest(
+                            order.getGuestId(), eventType, NotificationAggregateType.ORDER, order.getId());
         }
         eventPublisher.publishEvent(event);
     }

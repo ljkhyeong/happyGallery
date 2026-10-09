@@ -6,6 +6,7 @@ import com.personal.happygallery.application.notification.NotificationOutboxServ
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.PickupReminderTarget;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -52,9 +53,9 @@ public class DefaultPickupDeadlineReminderBatchService implements PickupDeadline
 
         NotificationRequestedEvent event = target.userId() != null
                 ? NotificationRequestedEvent.forUserOncePerAggregate(
-                        target.userId(), eventType, "ORDER", orderId)
+                        target.userId(), eventType, NotificationAggregateType.ORDER, orderId)
                 : NotificationRequestedEvent.forGuestOncePerAggregate(
-                        target.guestId(), eventType, "ORDER", orderId);
+                        target.guestId(), eventType, NotificationAggregateType.ORDER, orderId);
         return notificationOutboxService.enqueue(event);
     }
 }

@@ -12,6 +12,7 @@ import com.personal.happygallery.application.product.port.out.ProductStorePort;
 import com.personal.happygallery.application.product.port.out.RestockAlertPort;
 import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
@@ -74,9 +75,9 @@ class NotificationContextUseCaseIT {
         var nextSlot = slots.save(slot(bookingClass, now.plusDays(3), now.plusDays(3).plusHours(2)));
         var booking = bookings.save(Booking.forMemberDeposit(user, firstSlot, 5_000L, 45_000L, DepositPaymentMethod.CARD));
         var alert = restockAlerts.saveAndFlush(new RestockAlert(user.getId(), product.getId(), null, "기본 옵션", now));
-        var orderNotice = sent(user.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
-        var bookingNotice = sent(user.getId(), NotificationEventType.BOOKING_CONFIRMED, "BOOKING", booking.getId());
-        var restockNotice = sent(user.getId(), NotificationEventType.PRODUCT_RESTOCK_AVAILABLE, "RESTOCK_ALERT", alert.getId());
+        var orderNotice = sent(user.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, order.getId());
+        var bookingNotice = sent(user.getId(), NotificationEventType.BOOKING_CONFIRMED, NotificationAggregateType.BOOKING, booking.getId());
+        var restockNotice = sent(user.getId(), NotificationEventType.PRODUCT_RESTOCK_AVAILABLE, NotificationAggregateType.RESTOCK_ALERT, alert.getId());
         booking.reschedule(nextSlot);
         bookings.save(booking);
 
@@ -105,9 +106,9 @@ class NotificationContextUseCaseIT {
         var product = products.save(readyStockProduct("타인 작품", 10_000L));
         var order = orderStore.save(memberOrder(other.getId(), 10_000L, now, now.plusDays(1)));
         orderItems.save(readyStockOrderItem(order, product.getId(), "타인 구매 내용", 1, 10_000L));
-        var foreign = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
-        var missing = sent(owner.getId(), NotificationEventType.ORDER_PAID, "ORDER", Long.MAX_VALUE);
-        sent(other.getId(), NotificationEventType.ORDER_PAID, "ORDER", order.getId());
+        var foreign = sent(owner.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, order.getId());
+        var missing = sent(owner.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, Long.MAX_VALUE);
+        sent(other.getId(), NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, order.getId());
         var results = query.listNotifications(owner.getId(), 0, 20, false);
         assertThat(results).extracting(NotificationQueryUseCase.NotificationView::id)
                 .containsExactlyInAnyOrder(foreign, missing);
@@ -117,7 +118,7 @@ class NotificationContextUseCaseIT {
         });
     }
 
-    private Long sent(Long userId, NotificationEventType eventType, String aggregateType, Long aggregateId) {
+    private Long sent(Long userId, NotificationEventType eventType, NotificationAggregateType aggregateType, Long aggregateId) {
         return new TransactionTemplate(transactionManager).execute(status -> {
             var now = LocalDateTime.now(clock).withNano(0);
             var outbox = outboxRepository.save(NotificationOutbox.from(

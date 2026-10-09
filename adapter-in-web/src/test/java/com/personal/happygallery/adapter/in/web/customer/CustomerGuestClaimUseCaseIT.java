@@ -27,6 +27,7 @@ import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.PhoneVerificationPurpose;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.order.FulfillmentType;
 import com.personal.happygallery.domain.order.Order;
@@ -236,8 +237,8 @@ class CustomerGuestClaimUseCaseIT {
                     .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.REVIEW_REQUEST)
                     .extracting("userId", "aggregateType", "aggregateId")
                     .containsExactlyInAnyOrder(
-                            tuple(user.getId(), "ORDER", order.getId()),
-                            tuple(user.getId(), "BOOKING", booking.getId()));
+                            tuple(user.getId(), NotificationAggregateType.ORDER, order.getId()),
+                            tuple(user.getId(), NotificationAggregateType.BOOKING, booking.getId()));
         });
     }
 

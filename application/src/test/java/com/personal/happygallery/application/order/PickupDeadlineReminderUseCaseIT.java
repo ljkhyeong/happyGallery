@@ -9,6 +9,7 @@ import com.personal.happygallery.application.notification.port.in.NotificationQu
 import com.personal.happygallery.application.order.port.in.PickupDeadlineReminderBatchUseCase;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.port.out.OrderStorePort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -78,7 +79,7 @@ class PickupDeadlineReminderUseCaseIT {
                 NotificationRequestedEvent.forUser(
                         user.getId(),
                         NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         order.getId()),
                 now);
         String processingToken = legacyOutbox.markProcessing(now);
@@ -118,7 +119,7 @@ class PickupDeadlineReminderUseCaseIT {
                 NotificationRequestedEvent.forUserOncePerAggregate(
                         user.getId(),
                         NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                        "ORDER",
+                        NotificationAggregateType.ORDER,
                         order.getId()),
                 now));
         order.confirmPickup();
@@ -156,7 +157,7 @@ class PickupDeadlineReminderUseCaseIT {
                         NotificationRequestedEvent.forGuestOncePerAggregate(
                                 previousOwner.getId(),
                                 NotificationEventType.PICKUP_DEADLINE_REMINDER,
-                                "ORDER",
+                                NotificationAggregateType.ORDER,
                                 order.getId()),
                         now));
         order.claimToUser(currentOwner.getId());

@@ -13,6 +13,7 @@ import com.personal.happygallery.application.shared.page.PageParams;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.qna.ProductQna;
@@ -152,7 +153,7 @@ public class DefaultProductQnaService implements ProductQnaUseCase {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 qna.getUserId(),
                 NotificationEventType.PRODUCT_QNA_ANSWERED,
-                "PRODUCT_QNA",
+                NotificationAggregateType.PRODUCT_QNA,
                 qna.getId()));
         String authorName = userReader.findById(qna.getUserId())
                 .map(User::getName).orElse("탈퇴회원");

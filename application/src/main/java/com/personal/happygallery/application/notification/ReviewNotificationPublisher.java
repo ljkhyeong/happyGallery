@@ -1,5 +1,6 @@
 package com.personal.happygallery.application.notification;
 
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -10,11 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 /** 후기 작성 기회와 운영 상태 변경 알림을 도메인 트랜잭션의 outbox 요청으로 발행한다. */
 @Component
 public class ReviewNotificationPublisher {
-
-    private static final String ORDER = "ORDER";
-    private static final String BOOKING = "BOOKING";
-    private static final String REVIEW = "REVIEW";
-    private static final String REVIEW_MODERATION_ACTION = "REVIEW_MODERATION_ACTION";
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -28,7 +24,7 @@ public class ReviewNotificationPublisher {
             return;
         }
         eventPublisher.publishEvent(NotificationRequestedEvent.forUserOncePerAggregate(
-                userId, NotificationEventType.REVIEW_REQUEST, ORDER, orderId));
+                userId, NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, orderId));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -37,7 +33,7 @@ public class ReviewNotificationPublisher {
             return;
         }
         eventPublisher.publishEvent(NotificationRequestedEvent.forUserOncePerAggregate(
-                userId, NotificationEventType.REVIEW_REQUEST, BOOKING, bookingId));
+                userId, NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.BOOKING, bookingId));
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -63,7 +59,7 @@ public class ReviewNotificationPublisher {
             return;
         }
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                userId, eventType, REVIEW, reviewId));
+                userId, eventType, NotificationAggregateType.REVIEW, reviewId));
     }
 
     private void publishModerationAction(
@@ -74,6 +70,6 @@ public class ReviewNotificationPublisher {
             return;
         }
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                userId, eventType, REVIEW_MODERATION_ACTION, moderationActionId));
+                userId, eventType, NotificationAggregateType.REVIEW_MODERATION_ACTION, moderationActionId));
     }
 }

@@ -6,6 +6,7 @@ import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
@@ -104,7 +105,7 @@ public class OrderService {
         eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                 guestId,
                 NotificationEventType.ORDER_PAID,
-                "ORDER",
+                NotificationAggregateType.ORDER,
                 order.getId()));
 
         return new OrderCreationResult(order, rawToken);
@@ -134,7 +135,7 @@ public class OrderService {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 userId,
                 NotificationEventType.ORDER_PAID,
-                "ORDER",
+                NotificationAggregateType.ORDER,
                 order.getId()));
 
         return order;

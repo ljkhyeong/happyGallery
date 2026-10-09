@@ -2609,6 +2609,7 @@ Authorization: Bearer {token}
 - `GET /api/v1/admin/notifications/failed`
   - 자동 재시도를 모두 소진한 `FAILED` outbox를 오래된 순서로 최대 100건 반환한다.
   - 현재 도메인 상태와 맞지 않아 발송 없이 종결된 `OBSOLETE` 리마인드는 실패 목록에 포함하지 않는다.
+  - `aggregateType`·`aggregateId`는 회원 알림함(2.12.7)과 같은 대상 종류·ID이며 대상이 없는 알림은 null이다.
   - `createdAt`은 UTC 오프셋을 포함한 ISO-8601 시각으로 반환한다.
 - `POST /api/v1/admin/notifications/{outboxId}/retry`
   - 성공: `200 OK`, 기존 outbox를 `PENDING`으로 다시 연 결과를 반환한다.
@@ -3382,6 +3383,7 @@ Cookie: HG_SESSION={sessionToken}
 - `scheduledAt`은 조회 시점의 현재 예약 시작 시각(서울 현지 시각)이며 알림 발생 당시 일정이 아니다. 화면에 “현재 예약일”이라고 표시한다. 주문·재입고 알림에서는 null이다. 목록과 상단 알림 팝오버가 같은 정보를 사용한다.
 - 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.
+- `aggregateType`은 알림이 가리키는 대상 종류이며 `ORDER`, `ORDER_CLAIM`, `BOOKING`, `VACANCY_ALERT`, `PASS_PURCHASE`, `REFUND`, `INQUIRY`, `PRODUCT_QNA`, `RESTOCK_ALERT`, `REVIEW`, `REVIEW_MODERATION_ACTION` 중 하나다. `aggregateId`는 그 대상의 ID다. 예약 일정 변경·주문 제작 지연 요청처럼 같은 대상에 반복 발송하는 알림은 두 값이 모두 null이다. 관리자 실패 알림 목록도 같은 값을 사용한다.
 - 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
 - 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
 - 발송 완료, 발송 조건을 충족하지 않아 발송 없이 종료된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.

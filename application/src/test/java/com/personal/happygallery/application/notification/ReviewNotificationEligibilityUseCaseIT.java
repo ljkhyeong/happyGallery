@@ -19,6 +19,7 @@ import com.personal.happygallery.domain.booking.Booking;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -100,7 +101,7 @@ class ReviewNotificationEligibilityUseCaseIT {
 
         NotificationOutbox outbox = notificationOutboxRepository.saveAndFlush(NotificationOutbox.from(
                 NotificationRequestedEvent.forUserOncePerAggregate(
-                        user.getId(), NotificationEventType.REVIEW_REQUEST, "ORDER", order.getId()),
+                        user.getId(), NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, order.getId()),
                 now()));
         String processingToken = outbox.markProcessing(now());
         notificationOutboxRepository.saveAndFlush(outbox);

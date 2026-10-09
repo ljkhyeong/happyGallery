@@ -14,6 +14,7 @@ import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -277,13 +278,13 @@ class RefundTransactionService {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                         booking.getUserId(),
                         NotificationEventType.DEPOSIT_REFUNDED,
-                        "REFUND",
+                        NotificationAggregateType.REFUND,
                         refund.getId()));
             } else {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                         booking.getGuest().getId(),
                         NotificationEventType.DEPOSIT_REFUNDED,
-                        "REFUND",
+                        NotificationAggregateType.REFUND,
                         refund.getId()));
             }
         });
@@ -295,13 +296,13 @@ class RefundTransactionService {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                         order.getUserId(),
                         NotificationEventType.ORDER_REFUNDED,
-                        "REFUND",
+                        NotificationAggregateType.REFUND,
                         refund.getId()));
             } else {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
                         order.getGuestId(),
                         NotificationEventType.ORDER_REFUNDED,
-                        "REFUND",
+                        NotificationAggregateType.REFUND,
                         refund.getId()));
             }
         });
@@ -312,7 +313,7 @@ class RefundTransactionService {
                 eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                         pass.getUserId(),
                         NotificationEventType.PASS_REFUNDED,
-                        "REFUND",
+                        NotificationAggregateType.REFUND,
                         refund.getId())));
     }
 

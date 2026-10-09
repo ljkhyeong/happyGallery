@@ -30,6 +30,7 @@ import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.order.ShipmentTrackingStatus;
 import com.personal.happygallery.domain.order.ShippingCarrier;
 import com.personal.happygallery.domain.order.TrackingRegistrationStatus;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.booking.Refund;
@@ -513,7 +514,7 @@ class OrderProductionUseCaseIT {
                     OrderApprovalDecision.PICKUP_COMPLETE);
             softly.assertThat(notificationOutboxRepository.findAll())
                     .extracting("eventType", "aggregateType", "aggregateId")
-                    .contains(tuple(NotificationEventType.REVIEW_REQUEST, "ORDER", order.getId()));
+                    .contains(tuple(NotificationEventType.REVIEW_REQUEST, NotificationAggregateType.ORDER, order.getId()));
         });
     }
 

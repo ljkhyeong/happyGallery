@@ -4,6 +4,7 @@ import com.personal.happygallery.application.customer.MemberAccountGuard;
 import com.personal.happygallery.application.pass.port.in.PassPurchaseUseCase;
 import com.personal.happygallery.application.pass.port.out.PassLedgerStorePort;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseStorePort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassLedger;
@@ -59,7 +60,7 @@ public class DefaultPassPurchaseService implements PassPurchaseUseCase {
         eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
                 userId,
                 NotificationEventType.PASS_PURCHASED,
-                "PASS_PURCHASE",
+                NotificationAggregateType.PASS_PURCHASE,
                 purchase.getId()));
 
         return purchase;

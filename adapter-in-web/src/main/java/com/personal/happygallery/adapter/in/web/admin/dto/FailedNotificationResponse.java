@@ -1,5 +1,6 @@
 package com.personal.happygallery.adapter.in.web.admin.dto;
 
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
 import com.personal.happygallery.domain.notification.NotificationOutboxStatus;
@@ -14,7 +15,7 @@ public record FailedNotificationResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) NotificationRecipientType recipientType,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long recipientId,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) NotificationEventType eventType,
-        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) String aggregateType,
+        @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) NotificationAggregateType aggregateType,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED, nullable = true) Long aggregateId,
         @Schema(
                 requiredMode = Schema.RequiredMode.REQUIRED,

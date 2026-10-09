@@ -51,10 +51,10 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
     private String contextTitle(NotificationOutbox outbox, Context context) {
         if (context == null || context.name() == null) return null;
         return switch (outbox.getAggregateType()) {
-            case "ORDER" -> "주문 #" + outbox.getAggregateId() + " · " + context.name()
+            case ORDER -> "주문 #" + outbox.getAggregateId() + " · " + context.name()
                     + (context.itemCount() > 1 ? " 외 " + (context.itemCount() - 1) + "건" : "");
-            case "BOOKING" -> "예약 #" + outbox.getAggregateId() + " · " + context.name();
-            case "RESTOCK_ALERT" -> "재입고 · " + context.name();
+            case BOOKING -> "예약 #" + outbox.getAggregateId() + " · " + context.name();
+            case RESTOCK_ALERT -> "재입고 · " + context.name();
             default -> null;
         };
     }

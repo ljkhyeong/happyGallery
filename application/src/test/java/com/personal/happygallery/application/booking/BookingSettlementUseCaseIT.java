@@ -21,6 +21,7 @@ import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Guest;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.HappyGalleryException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.TestCleanupSupport;
@@ -145,7 +146,7 @@ class BookingSettlementUseCaseIT {
                     .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.REVIEW_REQUEST)
                     .singleElement()
                     .satisfies(outbox -> {
-                        softly.assertThat(outbox.getAggregateType()).isEqualTo("BOOKING");
+                        softly.assertThat(outbox.getAggregateType()).isEqualTo(NotificationAggregateType.BOOKING);
                         softly.assertThat(outbox.getAggregateId()).isEqualTo(booking.getId());
                         softly.assertThat(outbox.getIdempotencyKey())
                                 .isEqualTo("AGGREGATE:REVIEW_REQUEST:BOOKING:" + booking.getId());

@@ -9,6 +9,7 @@ import com.personal.happygallery.domain.booking.BookingHistoryAction;
 import com.personal.happygallery.domain.booking.BookingHistoryActor;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.error.NotFoundException;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.util.Objects;
@@ -85,7 +86,8 @@ class BookingSupport {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
             return NotificationRequestedEvent.forUser(booking.getUserId(), eventType);
         }
-        return NotificationRequestedEvent.forUser(booking.getUserId(), eventType, "BOOKING", booking.getId());
+        return NotificationRequestedEvent.forUser(
+                booking.getUserId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
     }
 
     private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
@@ -95,7 +97,7 @@ class BookingSupport {
         return NotificationRequestedEvent.forGuest(
                 booking.getGuest().getId(),
                 eventType,
-                "BOOKING",
+                NotificationAggregateType.BOOKING,
                 booking.getId());
     }
 }

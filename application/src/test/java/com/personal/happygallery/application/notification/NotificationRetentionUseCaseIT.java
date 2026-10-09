@@ -6,6 +6,7 @@ import com.personal.happygallery.adapter.out.persistence.notification.Notificati
 import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationRetentionPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationLog;
@@ -130,7 +131,7 @@ class NotificationRetentionUseCaseIT {
     private static NotificationOutbox newOutbox(Long userId, Long aggregateId, LocalDateTime requestedAt) {
         return NotificationOutbox.from(
                 NotificationRequestedEvent.forUser(
-                        userId, NotificationEventType.ORDER_PAID, "ORDER", aggregateId),
+                        userId, NotificationEventType.ORDER_PAID, NotificationAggregateType.ORDER, aggregateId),
                 requestedAt);
     }
 }

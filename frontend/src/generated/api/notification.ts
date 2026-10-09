@@ -1,4 +1,24 @@
 import { generatedApiClient } from '../../shared/api/generatedClient';
+/**
+ * @nullable
+ */
+export type NotificationResponseAggregateType = typeof NotificationResponseAggregateType[keyof typeof NotificationResponseAggregateType] | null;
+
+
+export const NotificationResponseAggregateType = {
+  ORDER: 'ORDER',
+  ORDER_CLAIM: 'ORDER_CLAIM',
+  BOOKING: 'BOOKING',
+  VACANCY_ALERT: 'VACANCY_ALERT',
+  PASS_PURCHASE: 'PASS_PURCHASE',
+  REFUND: 'REFUND',
+  INQUIRY: 'INQUIRY',
+  PRODUCT_QNA: 'PRODUCT_QNA',
+  RESTOCK_ALERT: 'RESTOCK_ALERT',
+  REVIEW: 'REVIEW',
+  REVIEW_MODERATION_ACTION: 'REVIEW_MODERATION_ACTION',
+} as const;
+
 export type NotificationResponseEventType = typeof NotificationResponseEventType[keyof typeof NotificationResponseEventType];
 
 
@@ -35,7 +55,7 @@ export interface NotificationResponse {
   /** @nullable */
   aggregateId: number | null;
   /** @nullable */
-  aggregateType: string | null;
+  aggregateType: NotificationResponseAggregateType;
   /**
      * 본인 주문의 구매 당시 상품명, 현재 예약 클래스 또는 재입고 상품·옵션. 원본이 없거나 타인 소유이면 null
      * @nullable

@@ -3,6 +3,7 @@ package com.personal.happygallery.application.booking;
 import com.personal.happygallery.application.booking.port.out.BookingVacancyAlertPort;
 import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import java.time.Clock;
@@ -56,12 +57,12 @@ class BookingVacancyAlertPublisher {
                 ? NotificationRequestedEvent.forUser(
                         alert.getUserId(),
                         NotificationEventType.BOOKING_VACANCY_AVAILABLE,
-                        "VACANCY_ALERT",
+                        NotificationAggregateType.VACANCY_ALERT,
                         alert.getId())
                 : NotificationRequestedEvent.forGuest(
                         alert.getGuestId(),
                         NotificationEventType.BOOKING_VACANCY_AVAILABLE,
-                        "VACANCY_ALERT",
+                        NotificationAggregateType.VACANCY_ALERT,
                         alert.getId());
         eventPublisher.publishEvent(event);
     }

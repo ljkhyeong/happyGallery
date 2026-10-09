@@ -7,6 +7,7 @@ import com.personal.happygallery.application.pass.port.in.PassExpiryBatchUseCase
 import com.personal.happygallery.application.pass.port.out.PassExpiryReminderCandidatePort;
 import com.personal.happygallery.application.pass.port.out.PassExpiryReminderTarget;
 import com.personal.happygallery.application.pass.port.out.PassPurchaseReaderPort;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.pass.PassPurchase;
@@ -80,7 +81,7 @@ public class DefaultPassExpiryBatchService implements PassExpiryBatchUseCase {
         NotificationRequestedEvent event = NotificationRequestedEvent.forUser(
                 target.userId(),
                 NotificationEventType.PASS_EXPIRY_SOON,
-                "PASS_PURCHASE",
+                NotificationAggregateType.PASS_PURCHASE,
                 target.passId());
         return notificationOutboxService.enqueue(event);
     }

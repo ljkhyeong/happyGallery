@@ -3,6 +3,7 @@ package com.personal.happygallery.application.notification;
 import com.personal.happygallery.application.notification.port.out.NotificationOutboxPort;
 import com.personal.happygallery.application.notification.port.out.NotificationLogStorePort;
 import com.personal.happygallery.application.notification.port.out.NotificationReminderRecipient;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationChannel;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.notification.NotificationOutbox;
@@ -105,7 +106,7 @@ class NotificationOutboxTransactionService {
             }
             recipient = eligibleRecipient.get();
         } else if (outbox.getEventType() == NotificationEventType.PRODUCT_RESTOCK_AVAILABLE) {
-            var userId = "RESTOCK_ALERT".equals(outbox.getAggregateType())
+            var userId = outbox.getAggregateType() == NotificationAggregateType.RESTOCK_ALERT
                     ? restockDelivery.findEligibleUserId(outbox.getAggregateId())
                             .filter(value -> Objects.equals(value, outbox.getUserId()))
                     : Optional.<Long>empty();
