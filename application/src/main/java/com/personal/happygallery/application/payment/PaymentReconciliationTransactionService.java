@@ -46,10 +46,9 @@ class PaymentReconciliationTransactionService {
             throw new HappyGalleryException(
                     ErrorCode.INVALID_INPUT, "PG 조회 결과가 저장된 결제 요청과 일치하지 않습니다.");
         }
-        if (!attempt.reconcileLatePgApproval(
-                lookup.paymentKey(), lookup.method(), null, LocalDateTime.now(clock))) {
-            throw new HappyGalleryException(ErrorCode.CONFLICT, "결제 대사 상태가 이미 변경되었습니다.");
-        }
+        // 잠금 아래 RECONCILIATION_REQUIRED임을 확인했으므로 늦은 승인 반영은 항상 APPROVED로 바뀐다.
+        attempt.reconcileLatePgApproval(
+                lookup.paymentKey(), lookup.method(), null, LocalDateTime.now(clock));
         return lookup.paymentKey();
     }
 

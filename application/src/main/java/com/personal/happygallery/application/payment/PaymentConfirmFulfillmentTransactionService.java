@@ -66,10 +66,10 @@ class PaymentConfirmFulfillmentTransactionService {
                                                              String confirmedPaymentMethod,
                                                              String reason) {
         PaymentAttempt attempt = findForUpdate(attemptId);
-        if (attempt.getStatus() != PaymentAttemptStatus.PROCESSING
-                || !attempt.markApproved(
-                        processingToken, confirmedPaymentKey,
-                        confirmedPaymentMethod, null, LocalDateTime.now(clock))) {
+        // markApproved는 PROCESSING 실행권 소유자만 승인으로 바꾸고, 그 밖의 상태는 변경 없이 false를 반환한다.
+        if (!attempt.markApproved(
+                processingToken, confirmedPaymentKey,
+                confirmedPaymentMethod, null, LocalDateTime.now(clock))) {
             return false;
         }
         requestCompensation(attempt, confirmedPaymentKey, reason);
