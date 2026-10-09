@@ -9,10 +9,10 @@ import { fetchMyOrdersPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys } from "@/shared/api";
-import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, PageHeader } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 
 const DEFAULT_SORT = "LATEST";
@@ -67,15 +67,13 @@ export function MyOrdersPage() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/orders")}
-        description="주문 상태와 결제 금액을 확인하고 주문을 검색하세요."
-        actions={(
-          <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
-        )}
-      />
-
+    <MySectionPage
+      path="/my/orders"
+      description="주문 상태와 결제 금액을 확인하고 주문을 검색하세요."
+      actions={(
+        <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
+      )}
+    >
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
@@ -142,6 +140,6 @@ export function MyOrdersPage() {
           </Button>
         </div>
       )}
-    </>
+    </MySectionPage>
   );
 }

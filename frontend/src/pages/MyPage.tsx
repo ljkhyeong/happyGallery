@@ -25,11 +25,6 @@ import { parseApiDateTime } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyPageContent key={sessionVersion} />;
-}
-
-function MyPageContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();

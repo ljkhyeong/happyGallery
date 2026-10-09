@@ -12,7 +12,7 @@ import {
   isPassRefundable,
 } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
   invalidateSlotAvailability,
@@ -21,7 +21,7 @@ import {
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
-import { LoadingSpinner, ErrorAlert, EmptyState, useToast, PageHeader } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, useToast } from "@/shared/ui";
 import {
   customerRefundPollingInterval,
   formatDateTime,
@@ -37,11 +37,6 @@ const PASS_SORT_OPTIONS = [
 ];
 
 export function MyPassesPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyPassesContent key={sessionVersion} />;
-}
-
-function MyPassesContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isAuthenticated } = useCustomerAuth();
@@ -127,15 +122,13 @@ function MyPassesContent() {
   });
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/passes")}
-        description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
-        actions={(
-          <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
-        )}
-      />
-
+    <MySectionPage
+      path="/my/passes"
+      description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
+      actions={(
+        <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
+      )}
+    >
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
@@ -273,6 +266,6 @@ function MyPassesContent() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </>
+    </MySectionPage>
   );
 }

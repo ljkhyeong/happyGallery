@@ -3,8 +3,8 @@ import { Badge, Button } from "react-bootstrap";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchMyInquiriesPage } from "@/features/my-inquiry/api";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { LoadingSpinner, ErrorAlert, EmptyState, PageHeader } from "@/shared/ui";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { formatDateTime } from "@/shared/lib";
 import { queryKeys } from "@/shared/api";
 
@@ -32,17 +32,15 @@ export function MyInquiriesPage() {
   const hasLoadedInquiries = inquiriesData !== undefined;
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/inquiries")}
-        description="상품·예약·이용 관련 문의를 남기고 공방의 답변을 확인하세요."
-        actions={(
-          <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
-            문의 작성
-          </LinkButton>
-        )}
-      />
-
+    <MySectionPage
+      path="/my/inquiries"
+      description="상품·예약·이용 관련 문의를 남기고 공방의 답변을 확인하세요."
+      actions={(
+        <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
+          문의 작성
+        </LinkButton>
+      )}
+    >
       {isLoading && <LoadingSpinner />}
       <ErrorAlert
         error={error}
@@ -85,6 +83,6 @@ export function MyInquiriesPage() {
           </Button>
         </div>
       )}
-    </>
+    </MySectionPage>
   );
 }

@@ -3,14 +3,15 @@ import { PageHeader } from "@/shared/ui";
 import { myNavLabel } from "./myNavigation";
 
 /** 로그인 확인과 메뉴는 MyShell이 맡고, 이 컴포넌트는 메뉴와 같은 제목의 머리만 붙인다. */
-export function MySectionPage({ path, description, children }: {
+export function MySectionPage({ path, description, actions, children }: {
   path: string;
   description?: ReactNode;
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <>
-      <PageHeader title={myNavLabel(path)} description={description} />
+      <PageHeader title={myNavLabel(path)} description={description} actions={actions} />
       {children}
     </>
   );

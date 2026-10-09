@@ -8,14 +8,14 @@ import {
 } from "@/features/coupon/api";
 import { couponDiscountLabel } from "@/features/coupon/presentation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import {
   fetchMyRewardWallet,
   type RewardHistoryResponse,
 } from "@/features/reward/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast, PageHeader } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
   AVAILABLE: { label: "사용 가능", bg: "success" },
@@ -36,11 +36,6 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
 };
 
 export function MyBenefitsPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyBenefitsContent key={sessionVersion} />;
-}
-
-function MyBenefitsContent() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const { isAuthenticated } = useCustomerAuth();
@@ -78,12 +73,10 @@ function MyBenefitsContent() {
   const wallet = rewardsQuery.data;
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/benefits")}
-        description="보유 쿠폰과 적립금 내역을 확인하세요."
-      />
-
+    <MySectionPage
+      path="/my/benefits"
+      description="보유 쿠폰과 적립금 내역을 확인하세요."
+    >
       <section className="mb-5" aria-labelledby="reward-wallet-heading">
         <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
           <div>
@@ -227,6 +220,6 @@ function MyBenefitsContent() {
           );
         })}
       </section>
-    </>
+    </MySectionPage>
   );
 }

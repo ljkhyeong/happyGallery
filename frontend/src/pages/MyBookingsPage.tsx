@@ -8,10 +8,10 @@ import { fetchMyBookingsPage } from "@/features/my/api";
 import { MyListFilterBar } from "@/features/my/MyListFilterBar";
 import { bookingDepositLabel, buildStatusFilterOptions } from "@/features/my/listUtils";
 import { useMyListFilters } from "@/features/my/useMyListFilters";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys } from "@/shared/api";
-import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge, PageHeader } from "@/shared/ui";
+import { LoadingSpinner, ErrorAlert, EmptyState, StatusBadge } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 
 const DEFAULT_SORT = "SOONEST";
@@ -65,15 +65,13 @@ export function MyBookingsPage() {
   ];
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/bookings")}
-        description="예약 일정과 변경·취소 가능 여부를 확인하세요."
-        actions={(
-          <LinkButton to="/bookings/new" variant="outline-dark" size="sm">새 예약 만들기</LinkButton>
-        )}
-      />
-
+    <MySectionPage
+      path="/my/bookings"
+      description="예약 일정과 변경·취소 가능 여부를 확인하세요."
+      actions={(
+        <LinkButton to="/bookings/new" variant="outline-dark" size="sm">새 예약 만들기</LinkButton>
+      )}
+    >
       <ErrorAlert
         error={error}
         onRetry={() => { void refetch(); }}
@@ -139,6 +137,6 @@ export function MyBookingsPage() {
           </Button>
         </div>
       )}
-    </>
+    </MySectionPage>
   );
 }

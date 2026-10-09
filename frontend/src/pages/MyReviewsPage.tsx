@@ -1,19 +1,14 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button } from "react-bootstrap";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { myNavLabel } from "@/features/my/myNavigation";
+import { MySectionPage } from "@/features/my/MySectionPage";
 import { fetchMyReviews } from "@/features/review/api";
 import { MemberReviewCard } from "@/features/review/MemberReviewCard";
 import { ReviewOpportunityList } from "@/features/review/ReviewOpportunityList";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { EmptyState, ErrorAlert, LoadingSpinner, PageHeader } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 export function MyReviewsPage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyReviewsContent key={sessionVersion} />;
-}
-
-function MyReviewsContent() {
   const { isAuthenticated } = useCustomerAuth();
   const reviewsQuery = useInfiniteQuery({
     queryKey: queryKeys.member.reviews.history,
@@ -29,12 +24,10 @@ function MyReviewsContent() {
   const reviews = reviewsQuery.data?.pages.flatMap((page) => page.content) ?? [];
 
   return (
-    <>
-      <PageHeader
-        title={myNavLabel("/my/reviews")}
-        description="작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다."
-      />
-
+    <MySectionPage
+      path="/my/reviews"
+      description="작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다."
+    >
       <ReviewOpportunityList />
 
       {reviewsQuery.isLoading && <LoadingSpinner text="내 후기를 불러오는 중입니다" />}
@@ -75,6 +68,6 @@ function MyReviewsContent() {
           </Button>
         </div>
       )}
-    </>
+    </MySectionPage>
   );
 }

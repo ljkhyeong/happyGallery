@@ -20,11 +20,6 @@ import {
 } from "@/shared/validation/contentText";
 
 export function MyInquiryCreatePage() {
-  const { sessionVersion } = useCustomerAuth();
-  return <MyInquiryCreateContent key={sessionVersion} />;
-}
-
-function MyInquiryCreateContent() {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
