@@ -5,6 +5,7 @@ import { Button, Form } from "react-bootstrap";
 import {
   ApiError,
   CustomerSessionChangedError,
+  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
@@ -36,7 +37,7 @@ export function CustomerStepUpPrompt({
   const [password, setPassword] = useState("");
   const [socialPending, setSocialPending] = useState(false);
   const linkedProviders = useQuery({
-    queryKey: ["me", "social-accounts"],
+    queryKey: queryKeys.member.socialAccounts,
     queryFn: fetchLinkedSocialProviders,
   });
   const passwordReauthentication = useMutation({

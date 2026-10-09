@@ -8,7 +8,7 @@ import {
 } from "@/generated/api/customerStore";
 import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import {
-  ApiError, captureCustomerSession, requireCurrentCustomerSession, runForCurrentCustomer,
+  ApiError, captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer,
   runForCustomerSession, type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
@@ -31,7 +31,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
   const cancelTitleId = useId();
   const client = useQueryClient();
   const toast = useToast();
-  const detailKey = ["me", "group-inquiries", "detail", id] as const;
+  const detailKey = queryKeys.member.groupInquiries.detail(id);
   const query = useQuery({
     queryKey: detailKey,
     queryFn: ({ signal }) => runForCurrentCustomer(() => getMyGroupInquiry(id, { signal })),
@@ -50,7 +50,7 @@ export function MyGroupInquiryDetail({ id }: { id: number }) {
       setDraft(null);
       setConfirmCancel(false);
       toast.show(change.action === "cancel" ? "문의가 취소되었습니다." : "희망 일정과 참여 인원을 저장했습니다.", "success");
-      await client.invalidateQueries({ queryKey: ["me", "group-inquiries", "list"] });
+      await client.invalidateQueries({ queryKey: queryKeys.member.groupInquiries.lists });
     }),
   });
 

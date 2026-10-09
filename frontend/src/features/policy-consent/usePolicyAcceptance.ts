@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { fetchCurrentPolicyConsent } from "./api";
 import type { PolicyAcceptance } from "./types";
+import { queryKeys } from "@/shared/api";
 
 export function usePolicyAcceptance() {
   const [capturedAcceptance, setCapturedAcceptance] = useState<PolicyAcceptance | null>(null);
   const policyQuery = useQuery({
-    queryKey: ["policy-consent", "current"],
+    queryKey: queryKeys.policies.consent,
     queryFn: fetchCurrentPolicyConsent,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });

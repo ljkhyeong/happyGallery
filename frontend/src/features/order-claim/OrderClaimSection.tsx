@@ -49,7 +49,7 @@ export function OrderClaimSection({ order, access }: Props) {
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const queryKey = access.kind === "member"
     ? queryKeys.member.orders.claims(order.orderId)
-    : ["guest", "order", order.orderId, "claims", access.requestKey] as const;
+    : queryKeys.guest.orderClaims(order.orderId, access.requestKey);
   const claimable = CLAIMABLE_STATUSES.has(order.status);
 
   const { data: claims, isLoading, isFetching, error, refetch } = useQuery({

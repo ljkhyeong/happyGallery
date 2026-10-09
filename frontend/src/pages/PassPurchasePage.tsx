@@ -14,12 +14,13 @@ import {
   LoadingSpinner,
   PageHeader,
 } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 export function PassPurchasePage() {
   const { isAuthenticated, user } = useCustomerAuth();
   const [checkoutSelection, setCheckoutSelection] = useCheckoutSelection();
   const policyQuery = useQuery({
-    queryKey: ["payment", "pass-policy"],
+    queryKey: queryKeys.policies.passPayment,
     queryFn: fetchPassPaymentPolicy,
   });
 

@@ -16,6 +16,7 @@ import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 import {
   isCurrentCustomerSessionState,
+  queryKeys,
   runForCurrentCustomer,
   type CustomerSessionOwnedState,
 } from "@/shared/api";
@@ -62,7 +63,7 @@ function OrderDetailContent() {
       : null,
   );
   const { data: order, error, isFetching, refetch: refetchOrder } = useQuery({
-    queryKey: ["guest", "order", lookup?.credentials.id, lookup?.requestId],
+    queryKey: queryKeys.guest.record("order", lookup?.credentials.id, lookup?.requestId),
     queryFn: lookup
       ? () => runForCurrentCustomer(
           () => fetchOrder(lookup.credentials.id, lookup.credentials.token),

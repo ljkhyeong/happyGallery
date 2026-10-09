@@ -22,6 +22,7 @@ import { customerRefundPollingInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import {
   isCurrentCustomerSessionState,
+  queryKeys,
   runForCurrentCustomer,
   type CustomerSessionOwnedState,
 } from "@/shared/api";
@@ -76,7 +77,7 @@ function BookingManageContent() {
     isFetching,
     refetch: refetchBooking,
   } = useQuery({
-    queryKey: ["guest", "booking", lookup?.credentials.bookingId, lookup?.requestId],
+    queryKey: queryKeys.guest.record("booking", lookup?.credentials.bookingId, lookup?.requestId),
     queryFn: lookup
       ? () => runForCurrentCustomer(
           () => fetchBooking(

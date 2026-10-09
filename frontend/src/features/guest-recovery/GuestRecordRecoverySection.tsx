@@ -80,7 +80,8 @@ export function GuestRecordRecoverySection() {
   const recoverySessionVersion = recoveryView?.customerSession.version ?? -1;
   const recoveryExpiresAt = result?.expiresAt ?? "inactive";
   const ordersQuery = useInfiniteQuery({
-    queryKey: queryKeys.member.guestRecovery.orders(
+    queryKey: queryKeys.member.guestRecovery.records(
+      "orders",
       owner?.boundaryEpoch ?? null,
       owner?.boundaryCustomerId ?? null,
       recoverySessionVersion,
@@ -105,7 +106,8 @@ export function GuestRecordRecoverySection() {
     enabled: recoveryView !== null,
   });
   const bookingsQuery = useInfiniteQuery({
-    queryKey: queryKeys.member.guestRecovery.bookings(
+    queryKey: queryKeys.member.guestRecovery.records(
+      "bookings",
       owner?.boundaryEpoch ?? null,
       owner?.boundaryCustomerId ?? null,
       recoverySessionVersion,

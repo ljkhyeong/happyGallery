@@ -4,7 +4,7 @@ import { Alert, Button, Modal } from "react-bootstrap";
 import { Link } from "react-router";
 import { createGuestGroupInquiry, createMyGroupInquiry, type GroupInquiryRequest } from "@/generated/api/customerStore";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { GroupInquiryForm } from "./GroupInquiryForm";
 import { useBotProtection } from "@/features/bot-protection/useBotProtection";
@@ -25,7 +25,7 @@ function GroupInquirySectionContent() {
     mutationFn: (request: GroupInquiryRequest) => isAuthenticated
       ? runForCurrentCustomer(() => createMyGroupInquiry(request, options), (receipt) => {
         setReceiptId(receipt.id);
-        void client.invalidateQueries({ queryKey: ["me", "group-inquiries"] });
+        void client.invalidateQueries({ queryKey: queryKeys.member.groupInquiries.all });
       })
       : createGuestGroupInquiry(request, options).then((receipt) => { setReceiptId(receipt.id); }),
     onSettled: botProtection.reset,

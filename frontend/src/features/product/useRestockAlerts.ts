@@ -5,11 +5,10 @@ import {
 } from "@/generated/api/customerStore";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import {
-  requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession,
+  queryKeys, requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession,
   type CustomerSessionSnapshot,
 } from "@/shared/api";
 
-const restockAlertsKey = ["me", "restock-alerts"] as const;
 type RestockAlertChange = { customerSession: CustomerSessionSnapshot } & (
   | { action: "register"; request: RestockAlertRequest }
   | { action: "cancel"; id: number }
@@ -19,7 +18,7 @@ export function useRestockAlerts() {
   const { isAuthenticated } = useCustomerAuth();
   const client = useQueryClient();
   const query = useQuery({
-    queryKey: restockAlertsKey,
+    queryKey: queryKeys.member.restockAlerts,
     queryFn: ({ signal }) => runForCurrentCustomer(() => listMyRestockAlerts({ signal })),
     enabled: isAuthenticated,
   });
@@ -29,7 +28,7 @@ export function useRestockAlerts() {
       else await cancelMyRestockAlert(change.id);
       requireCurrentCustomerSession(change.customerSession);
       // 변경 응답에는 최신 상태가 없으므로 조회 오류는 변경 오류와 따로 표시한다.
-      await client.invalidateQueries({ queryKey: restockAlertsKey });
+      await client.invalidateQueries({ queryKey: queryKeys.member.restockAlerts });
       requireCurrentCustomerSession(change.customerSession);
     }),
   });

@@ -16,6 +16,7 @@ import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";
 import { BookingDateChips, BookingSlotTime } from "./BookingDateChips";
+import { queryKeys } from "@/shared/api";
 
 interface Props {
   initialClassId?: number | null;
@@ -52,7 +53,7 @@ export function SlotSelectionStep({
     error: classesError,
     refetch: refetchClasses,
   } = useQuery({
-    queryKey: ["classes"],
+    queryKey: queryKeys.catalog.classes,
     queryFn: fetchClasses,
     staleTime: REFERENCE_DATA_STALE_TIME,
   });

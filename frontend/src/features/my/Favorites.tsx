@@ -6,18 +6,17 @@ import { getMyFavoriteStatus, saveMyFavorite, removeMyFavorite, listMyFavorites,
   type FavoriteResponse, type FavoritePageResponse } from "@/generated/api/customerStore";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
-import { captureCustomerSession, requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession, type CustomerSessionSnapshot } from "@/shared/api";
+import { captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCurrentCustomer, runForCustomerSession, type CustomerSessionSnapshot } from "@/shared/api";
 import { ErrorAlert, LoadingSpinner, EmptyState, LinkButton, useToast } from "@/shared/ui";
 
 type TargetType = FavoriteResponse["targetType"];
-const favoritesKey = ["me", "favorites"] as const;
 const targetHref = (type: TargetType, id: number) => `${type === "PRODUCT" ? "/products" : "/classes"}/${id}`;
 
 function refreshFavorites(client: QueryClient, type: TargetType, targetId: number, saved: boolean) {
-  client.setQueryData([...favoritesKey, "status", type, targetId], { saved });
+  client.setQueryData(queryKeys.member.favorites.status(type, targetId), { saved });
   if (!saved) {
     client.setQueriesData<InfiniteData<FavoritePageResponse>>(
-      { queryKey: [...favoritesKey, "list"] },
+      { queryKey: queryKeys.member.favorites.lists },
       (data) => data && ({
         ...data,
         pages: data.pages.map((page) => ({
@@ -27,7 +26,7 @@ function refreshFavorites(client: QueryClient, type: TargetType, targetId: numbe
       }),
     );
   }
-  return client.invalidateQueries({ queryKey: favoritesKey });
+  return client.invalidateQueries({ queryKey: queryKeys.member.favorites.all });
 }
 
 export function FavoriteButton(props: { type: TargetType; targetId: number }) {
@@ -39,7 +38,7 @@ function FavoriteButtonContent({ type, targetId }: { type: TargetType; targetId:
   const { isAuthenticated, isLoading } = useCustomerAuth();
   const client = useQueryClient();
   const toast = useToast();
-  const query = useQuery({ queryKey: [...favoritesKey, "status", type, targetId], enabled: isAuthenticated,
+  const query = useQuery({ queryKey: queryKeys.member.favorites.status(type, targetId), enabled: isAuthenticated,
     queryFn: ({ signal }) => runForCurrentCustomer(() => getMyFavoriteStatus(type, targetId, { signal })) });
   const saved = query.data?.saved ?? false;
   const mutation = useMutation({
@@ -81,7 +80,7 @@ export function MyFavoritesSection() {
   const { isAuthenticated } = useCustomerAuth();
   const client = useQueryClient();
   const query = useInfiniteQuery({
-    queryKey: [...favoritesKey, "list", type], enabled: isAuthenticated,
+    queryKey: queryKeys.member.favorites.list(type), enabled: isAuthenticated,
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(() => listMyFavorites({ type: type || undefined, cursor: pageParam, size: 20 }, { signal })),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (page) => page.hasMore ? page.nextCursor ?? undefined : undefined,

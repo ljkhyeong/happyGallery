@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card } from "react-bootstrap";
 import { listMyGroupInquiries } from "@/generated/api/customerStore";
 import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
-import { runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
@@ -14,7 +14,7 @@ export function MyGroupInquiriesSection() {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedId = Number(searchParams.get("inquiryId"));
   const selectedId = Number.isSafeInteger(requestedId) && requestedId > 0 ? requestedId : null;
-  const query = useQuery({ queryKey: ["me", "group-inquiries", "list", paging.cursor],
+  const query = useQuery({ queryKey: queryKeys.member.groupInquiries.list(paging.cursor),
     queryFn: ({ signal }) => runForCurrentCustomer(() => listMyGroupInquiries({ cursor: paging.cursor, size: 20 }, { signal })) });
   return (
     <section id="my-group-inquiries" className="mb-4">

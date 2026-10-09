@@ -6,7 +6,7 @@ import { paymentFailureMessage } from "@/features/payment/paymentFailure";
 import { consumePaymentReturnHint, readPaymentReturnHint, readPaymentStatusToken } from "@/features/payment/session";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { captureCustomerSession, requireCurrentCustomerSession, runForCustomerSession } from "@/shared/api";
+import { captureCustomerSession, queryKeys, requireCurrentCustomerSession, runForCustomerSession } from "@/shared/api";
 import { ErrorAlert } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import { Container, Button } from "react-bootstrap";
@@ -40,7 +40,7 @@ export function PaymentFailPage() {
   });
   const orderId = returnHint?.value.orderId;
   const statusQuery = useQuery({
-    queryKey: ["me", "payment-abandon-status", customerSession.version, customerSession.boundaryEpoch, orderId],
+    queryKey: queryKeys.member.paymentAbandonStatus(customerSession.version, customerSession.boundaryEpoch, orderId),
     queryFn: returnMutation.isError && orderId
       ? () => runForCustomerSession(customerSession,
         () => fetchPaymentStatus(orderId, readPaymentStatusToken(orderId, customerSession)))

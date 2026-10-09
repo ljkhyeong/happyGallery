@@ -16,6 +16,7 @@ import {
   captureCustomerSession,
   isCurrentCustomerSession,
   isCurrentCustomerSessionState,
+  queryKeys,
   runForCustomerSession,
   type CustomerSessionOwnedState,
 } from "@/shared/api";
@@ -60,15 +61,13 @@ export function GuestPaymentStatusPage() {
     isFetching,
     refetch,
   } = useQuery({
-    queryKey: [
-      "guest",
-      "payment-status",
+    queryKey: queryKeys.guest.paymentStatus(
       customerSession.version,
       customerSession.boundaryEpoch,
       customerSession.boundaryCustomerId,
       orderId,
       statusToken,
-    ],
+    ),
     queryFn: statusToken && !sessionChanged
       ? () => runForCustomerSession(
           customerSession,

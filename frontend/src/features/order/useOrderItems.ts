@@ -5,10 +5,11 @@ import { productQuantities, productQuantityLimit, productSkuKey } from "@/featur
 import { productOptionLineKey } from "@/features/product/optionLineKey";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import type { OrderItemInput } from "@/shared/types";
+import { queryKeys } from "@/shared/api";
 
 export function useOrderItems(requestedItems: OrderItemInput[]) {
   const query = useQuery({
-    queryKey: ["products"],
+    queryKey: queryKeys.catalog.products,
     queryFn: () => fetchProducts(),
     staleTime: PUBLIC_DATA_STALE_TIME,
   });

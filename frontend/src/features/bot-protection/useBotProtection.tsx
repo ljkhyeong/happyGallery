@@ -4,6 +4,7 @@ import { DEFAULT_SCRIPT_ID, Turnstile } from "@marsidev/react-turnstile";
 import { getBotProtection } from "@/generated/api/customerAuth";
 import { CspNonceContext } from "@/shared/seo/CspJsonLd";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { queryKeys } from "@/shared/api";
 
 type Action = "phone_verification" | "group_inquiry";
 
@@ -57,7 +58,7 @@ function BotChallenge({ siteKey, action, onToken, onRetry }: {
 
 export function useBotProtection(action: Action) {
   const configuration = useQuery({
-    queryKey: ["bot-protection"],
+    queryKey: queryKeys.botProtection,
     queryFn: () => getBotProtection(),
     staleTime: 60_000,
     retry: false,

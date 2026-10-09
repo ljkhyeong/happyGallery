@@ -6,6 +6,7 @@ import {
   ApiError,
   CustomerSessionChangedError,
   currentCustomerSessionUserId,
+  queryKeys,
   runForCurrentCustomer,
 } from "@/shared/api";
 import { getUserMessage } from "@/shared/lib";
@@ -51,7 +52,7 @@ export function SocialAccountSection({ localPasswordEnabled }: Props) {
     isFetching: linkedProvidersFetching,
     refetch: refetchLinkedProviders,
   } = useQuery({
-    queryKey: ["me", "social-accounts"],
+    queryKey: queryKeys.member.socialAccounts,
     queryFn: fetchLinkedSocialProviders,
   });
   const unlinkMutation = useMutation({

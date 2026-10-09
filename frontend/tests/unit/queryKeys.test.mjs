@@ -114,7 +114,8 @@ test("회원 이력 페이지 키는 기존 무효화 접두사 아래에서 sum
 
 test("비회원 복구 이력 키는 회원 세대에 속하고 원문 토큰을 포함하지 않는다", () => {
   const secretToken = "raw-guest-recovery-token";
-  const key = queryKeys.member.guestRecovery.orders(
+  const key = queryKeys.member.guestRecovery.records(
+    "orders",
     "storage-owner-epoch",
     null,
     17,

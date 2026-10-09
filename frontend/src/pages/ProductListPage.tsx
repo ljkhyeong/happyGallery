@@ -27,10 +27,8 @@ export function ProductListPage({
 
   const hasActiveFilter = Object.keys(filterParams).length > 0;
   const productsQueryKey = useMemo(
-    () => hasActiveFilter
-      ? [queryKeys.catalog.products[0], filterParams] as const
-      : queryKeys.catalog.products,
-    [filterParams, hasActiveFilter],
+    () => queryKeys.catalog.productList(filterParams),
+    [filterParams],
   );
 
   const {
