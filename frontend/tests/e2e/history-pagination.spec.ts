@@ -503,10 +503,9 @@ test("예약 생성의 이용권 후보는 첫 페이지에 없더라도 다음 
   });
 
   await page.goto("/bookings/new?passId=9&classId=42");
-  await page.waitForTimeout(500);
-  expect(pageErrors).toEqual([]);
   await page.getByRole("button", { name: /2099\. 01\. 02\. 오전 10:00/ }).click();
   await expect(page.getByLabel("사용할 이용권")).toHaveValue("9");
+  expect(pageErrors).toEqual([]);
   expect(requestedCursors[0]).toBeNull();
   expect(requestedCursors.at(-1)).toBe("passes-next");
 });

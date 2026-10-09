@@ -290,10 +290,9 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
   });
 
   await page.goto("/products/42");
-  await page.waitForTimeout(500);
+  await expect(page.getByText("공개 질문", { exact: true })).toBeVisible();
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);
-  await expect(page.getByText("공개 질문", { exact: true })).toBeVisible();
   const publicCard = qnaCard(page, "공개 질문");
   await publicCard.getByRole("button", { name: "내용 보기" }).click();
   await expect(publicCard.getByText("공개 질문 본문", { exact: true })).toBeVisible();

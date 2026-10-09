@@ -297,10 +297,7 @@ export async function loginCustomer(page: Page, credentials: CustomerFixtureCred
 }
 
 export async function logoutCustomer(page: Page) {
-  const logoutButton = page.getByRole("button", { name: /로그아웃|LOGOUT/ }).first();
-  if (await logoutButton.isVisible()) {
-    await logoutButton.click();
-  }
+  await page.locator(".app-navbar").getByRole("button", { name: "로그아웃" }).click();
 }
 
 export async function completePhoneVerification(
@@ -495,21 +492,29 @@ export async function clearNextRefundFailure(request: APIRequestContext): Promis
   await apiDelete(request, "/admin/dev/payment/refunds/fail-next", { admin: true });
 }
 
+/** 목록을 다시 조회하며 조건에 맞는 항목을 기다리고, 마지막 조회에서 찾은 항목을 돌려준다. */
+async function pollFor<T>(
+  load: () => Promise<T[]>,
+  match: (item: T) => boolean,
+  message: string,
+): Promise<T> {
+  let found: T | undefined;
+  await expect.poll(async () => {
+    found = (await load()).find(match);
+    return found !== undefined;
+  }, { message }).toBe(true);
+  return found!;
+}
+
 export async function waitForProduct(
   request: APIRequestContext,
   name: string,
 ): Promise<ProductResponse> {
-  await expect.poll(async () => {
-    const products = await fetchAdminProducts(request);
-    return products.some((product) => product.name === name);
-  }).toBeTruthy();
-
-  const products = await fetchAdminProducts(request);
-  const product = products.find((item) => item.name === name);
-  if (!product) {
-    throw new Error(`Could not find product: ${name}`);
-  }
-  return product;
+  return pollFor(
+    () => fetchAdminProducts(request),
+    (product) => product.name === name,
+    `Could not find product: ${name}`,
+  );
 }
 
 export async function waitForOrder(
@@ -517,34 +522,22 @@ export async function waitForOrder(
   orderId: number,
   status?: ListOrdersStatus,
 ): Promise<AdminOrderListItemResponse> {
-  await expect.poll(async () => {
-    const orders = await fetchAdminOrders(request, status);
-    return orders.some((order) => order.orderId === orderId);
-  }).toBeTruthy();
-
-  const orders = await fetchAdminOrders(request, status);
-  const order = orders.find((item) => item.orderId === orderId);
-  if (!order) {
-    throw new Error(`Could not find order: ${orderId}`);
-  }
-  return order;
+  return pollFor(
+    () => fetchAdminOrders(request, status),
+    (order) => order.orderId === orderId,
+    `Could not find order: ${orderId}`,
+  );
 }
 
 export async function waitForFailedRefundByOrderId(
   request: APIRequestContext,
   orderId: number,
 ): Promise<FailedRefundResponse> {
-  await expect.poll(async () => {
-    const refunds = await fetchFailedRefunds(request);
-    return refunds.some((refund) => refund.orderId === orderId);
-  }).toBeTruthy();
-
-  const refunds = await fetchFailedRefunds(request);
-  const refund = refunds.find((item) => item.orderId === orderId);
-  if (!refund) {
-    throw new Error(`Could not find failed refund for order: ${orderId}`);
-  }
-  return refund;
+  return pollFor(
+    () => fetchFailedRefunds(request),
+    (refund) => refund.orderId === orderId,
+    `Could not find failed refund for order: ${orderId}`,
+  );
 }
 
 export async function waitForFailedRefundGone(
