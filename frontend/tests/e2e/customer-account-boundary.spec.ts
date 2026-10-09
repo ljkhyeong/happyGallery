@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests } from "./mock-support";
 
 interface Customer {
   id: number;
@@ -222,24 +222,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
   });
 
   await installCsrfCookie(page.context(), baseURL);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installTossRequestRecorder(page);
 
   const product = productFixture("지연 결제 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -343,12 +326,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
   await prepareResponse;
   await flushBrowserTasks(page);
 
-  await expect.poll(() => page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-    };
-    return browserGlobal.accountBoundaryTossRequests.length;
-  })).toBe(0);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
   await expect.poll(() => page.evaluate(() => ({
     statusToken: sessionStorage.getItem("hg_payment_status_token:payment-A"),
     returnHint: sessionStorage.getItem("hg_payment_return_hint"),
@@ -372,24 +350,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   });
 
   await installCsrfCookie(page.context(), baseURL);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installTossRequestRecorder(page);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -522,12 +483,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
   await prepareResponse;
   await flushBrowserTasks(page);
 
-  await expect.poll(() => page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-    };
-    return browserGlobal.accountBoundaryTossRequests.length;
-  })).toBe(0);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
   await expect.poll(() => page.evaluate(() => ({
     statusToken: sessionStorage.getItem("hg_payment_status_token:guest-payment"),
     returnHint: sessionStorage.getItem("hg_payment_return_hint"),
@@ -669,24 +625,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
   });
 
   await installCsrfCookie(context, baseURL);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      accountBoundaryTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.accountBoundaryTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.accountBoundaryTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installTossRequestRecorder(page);
 
   const product = productFixture("탭 경계 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
@@ -807,12 +746,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     await prepareResponse;
     await flushBrowserTasks(page);
 
-    await expect.poll(() => page.evaluate(() => {
-      const browserGlobal = globalThis as unknown as {
-        accountBoundaryTossRequests: unknown[];
-      };
-      return browserGlobal.accountBoundaryTossRequests.length;
-    })).toBe(0);
+    await expect.poll(async () => (await readTossRequests(page)).length).toBe(0);
     await expect.poll(() => page.evaluate(() => ({
       statusToken: sessionStorage.getItem(
         "hg_payment_status_token:cross-tab-payment-A",

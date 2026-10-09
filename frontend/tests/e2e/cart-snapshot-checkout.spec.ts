@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -17,24 +17,7 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
   const preparePayloads: Array<Record<string, unknown>> = [];
 
   await installCsrfCookie(context, baseURL);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      cartSnapshotTossRequests: unknown[];
-      TossPayments: () => {
-        payment: () => {
-          requestPayment: (request: unknown) => Promise<void>;
-        };
-      };
-    };
-    browserGlobal.cartSnapshotTossRequests = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({
-        requestPayment: async (request: unknown) => {
-          browserGlobal.cartSnapshotTossRequests.push(request);
-        },
-      }),
-    });
-  });
+  await installTossRequestRecorder(page);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -176,12 +159,7 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
     expectedCartVersion: refreshedVersion,
     selectedCartItemIds: [42],
   });
-  await expect.poll(() => page.evaluate(() => {
-    const browserGlobal = globalThis as unknown as {
-      cartSnapshotTossRequests: unknown[];
-    };
-    return browserGlobal.cartSnapshotTossRequests.length;
-  })).toBe(1);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(1);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
 });
@@ -296,18 +274,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
   const preparePayloads: Array<Record<string, unknown>> = [];
   const cartWrites: string[] = [];
   await installCsrfCookie(context, baseURL);
-  await page.addInitScript(() => {
-    const browserGlobal = globalThis as unknown as {
-      selectedStockPayments: unknown[];
-      TossPayments: () => { payment: () => { requestPayment: (request: unknown) => Promise<void> } };
-    };
-    browserGlobal.selectedStockPayments = [];
-    browserGlobal.TossPayments = () => ({
-      payment: () => ({ requestPayment: async (request) => {
-        browserGlobal.selectedStockPayments.push(request);
-      } }),
-    });
-  });
+  await installTossRequestRecorder(page);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -380,8 +347,6 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
     cartCheckout: true, expectedCartVersion: cartVersion, selectedCartItemIds: [91],
     madeToOrderConsent: true,
   });
-  await expect.poll(() => page.evaluate(() =>
-    (globalThis as unknown as { selectedStockPayments: unknown[] }).selectedStockPayments.length,
-  )).toBe(1);
+  await expect.poll(async () => (await readTossRequests(page)).length).toBe(1);
   expect(cartWrites).toEqual([]);
 });

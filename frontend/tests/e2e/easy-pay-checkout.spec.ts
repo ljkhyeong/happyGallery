@@ -1,20 +1,11 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests, TOSS_REQUESTS_GLOBAL } from "./mock-support";
 
 async function openCheckout(page: Page, amount = 12000) {
   const prepares: unknown[] = [];
   const confirms: unknown[] = [];
   const abandoned: string[] = [];
-  await page.addInitScript(() => {
-    const app = window as unknown as {
-      tossRequests: unknown[];
-      TossPayments: () => { payment: () => { requestPayment: (request: unknown) => Promise<void> } };
-    };
-    app.tossRequests = [];
-    app.TossPayments = () => ({ payment: () => ({
-      requestPayment: async (request) => { app.tossRequests.push(request); },
-    }) });
-  });
+  await installTossRequestRecorder(page);
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     switch (pathname) {
@@ -54,10 +45,6 @@ async function openCheckout(page: Page, amount = 12000) {
   return { prepares, confirms, abandoned };
 }
 
-function requests(page: Page) {
-  return page.evaluate(() => (window as unknown as { tossRequests: unknown[] }).tossRequests);
-}
-
 for (const { method, label } of [
   { method: "NAVERPAY", label: "네이버페이" },
   { method: "KAKAOPAY", label: "카카오페이" },
@@ -68,10 +55,10 @@ for (const { method, label } of [
     await page.getByRole("button", { name: "결제하기", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("간편결제에 필요한 약관에 동의해 주세요.");
     expect(prepares).toHaveLength(0);
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
     await page.getByRole("checkbox", { name: "[필수] 토스페이먼츠 결제 약관에 동의합니다.", exact: true }).check();
     await page.getByRole("button", { name: "결제하기", exact: true }).click();
-    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+    await expect.poll(() => readTossRequests(page)).toEqual([expect.objectContaining({
       method: "CARD", card: { flowMode: "DIRECT", easyPay: method }, windowTarget: "self",
       amount: { currency: "KRW", value: 12000 }, orderId: "easy-pay-test",
     })]);
@@ -86,7 +73,7 @@ for (const { method, label } of [
     await expect.poll(() => confirms).toEqual([{ orderId: "easy-pay-test", amount: 0 }]);
     await expect(page.getByRole("heading", { name: "결제 완료", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "내 주문 상세 보기" })).toHaveAttribute("href", "/my/orders/701");
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
   });
 }
 
@@ -210,7 +197,7 @@ test("@payment 이전 계정의 0원 확정 요청은 새 구매에 사용하지
     }));
   });
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   expect(prepares).toHaveLength(1);
   expect(confirms).toHaveLength(0);
   await expect(page).toHaveURL(/\/cart$/);
@@ -219,8 +206,8 @@ test("@payment 이전 계정의 0원 확정 요청은 새 구매에 사용하지
 test("@payment 기본 카드 결제는 별도 약관 입력 없이 기존 통합창을 연다", async ({ page }) => {
   await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
-  const [request] = await requests(page);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  const [request] = await readTossRequests(page);
   expect(request).toMatchObject({ method: "CARD", amount: { currency: "KRW", value: 12000 } });
   expect(request).not.toHaveProperty("card");
 });
@@ -236,14 +223,14 @@ test("@payment 간편결제 수단을 바꾸면 약관 동의를 다시 받는�
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("약관에 동의해 주세요.");
   expect(prepares).toHaveLength(0);
-  expect(await requests(page)).toHaveLength(0);
+  expect(await readTossRequests(page)).toHaveLength(0);
 });
 
 test("@payment 결제창 취소는 콜백 주문번호 없이도 기존 결제를 종료한 뒤 장바구니로 복귀한다", async ({ page }) => {
   const { prepares, confirms, abandoned } = await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
-  const [request] = await requests(page) as Array<{ failUrl: string }>;
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
+  const [request] = await readTossRequests(page) as Array<{ failUrl: string }>;
   await page.goto(`${request!.failUrl}?code=PAY_PROCESS_CANCELED&message=external-message`);
   await expect(page.getByText("결제창에서 결제를 취소했습니다.")).toBeVisible();
   await expect(page).toHaveURL(/\/payments\/fail$/);
@@ -307,7 +294,7 @@ test("@payment 복귀 정보가 없거나 외부 주소이면 구매 복귀 링�
 test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨긴다", async ({ page }) => {
   await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   await page.goto("/payments/fail?code=PAY_PROCESS_CANCELED");
   const back = page.getByRole("button", { name: "구매 화면으로 돌아가기", exact: true });
   await expect(back).toBeVisible();
@@ -328,7 +315,7 @@ test("@payment 계정이 바뀌면 이전 고객의 구매 복귀 링크를 숨�
 test("@payment 승인 중인 결제는 종료하지 못하며 구매 화면 대신 현재 상태를 보여준다", async ({ page }) => {
   const { prepares, confirms } = await openCheckout(page);
   await page.getByRole("button", { name: "결제하기", exact: true }).click();
-  await expect.poll(() => requests(page)).toHaveLength(1);
+  await expect.poll(() => readTossRequests(page)).toHaveLength(1);
   await page.route("**/api/v1/payments/easy-pay-test/abandon", (route) => route.fulfill({
     status: 409, json: { code: "CONFLICT" },
   }));
@@ -380,7 +367,7 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
       }
       return route.fulfill({ contentType: "application/javascript", body: `
         window.TossPayments = () => ({ payment: () => ({
-          requestPayment: async (request) => { window.tossRequests.push(request); },
+          requestPayment: async (request) => { window.${TOSS_REQUESTS_GLOBAL}.push(request); },
         }) });
       ` });
     });
@@ -395,13 +382,13 @@ for (const failure of ["응답 지연", "다운로드 실패", "초기화 누락
 
     await expect(page.getByRole("alert")).toBeVisible();
     await expect.poll(() => abandoned).toHaveLength(1);
-    expect(await requests(page)).toHaveLength(0);
+    expect(await readTossRequests(page)).toHaveLength(0);
     await expect(method).toBeChecked();
     await expect(terms).toBeChecked();
     // 지연된 첫 연결을 종료한 뒤 다음 다운로드가 성공하도록 복구한다.
     await delayedRequest?.abort("failed");
     await pay.click();
-    await expect.poll(() => requests(page)).toEqual([expect.objectContaining({
+    await expect.poll(() => readTossRequests(page)).toEqual([expect.objectContaining({
       orderId: "easy-pay-test", card: { flowMode: "DIRECT", easyPay: "NAVERPAY" },
     })]);
     expect(sdkRequests).toBe(2);
