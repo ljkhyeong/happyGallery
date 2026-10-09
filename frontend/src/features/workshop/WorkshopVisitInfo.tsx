@@ -1,11 +1,8 @@
 import { useWorkshopProfile } from "./useWorkshopProfile";
 import { ErrorAlert } from "@/shared/ui";
 
-interface Props {
-  compact?: boolean;
-}
-
-export function WorkshopVisitInfo({ compact = false }: Props) {
+/** 예약·주문·상세 화면의 간단 방문 안내. 소개 문단과 블로그 링크 없이 찾아오는 정보만 보여 준다. */
+export function WorkshopVisitInfo() {
   const {
     data: profile,
     error,
@@ -43,12 +40,10 @@ export function WorkshopVisitInfo({ compact = false }: Props) {
         onRetry={() => { void refetch(); }}
         retrying={isFetching}
       />
-      <div className={compact ? "workshop-visit-info is-compact" : "workshop-visit-info"}>
+      <div className="workshop-visit-info">
         <div>
           <p className="store-section-kicker mb-2">방문 안내</p>
           <h2 className="workshop-visit-name">{profile.name}</h2>
-          {/* 예약·상세 화면의 간단 안내에서는 소개 문단을 빼고 찾아오는 정보만 보여 준다. */}
-          {!compact && profile.introduction && <p className="workshop-visit-introduction">{profile.introduction}</p>}
         </div>
         <dl className="workshop-visit-details mb-0">
           {address && <><dt>주소</dt><dd>{address}</dd></>}
@@ -69,11 +64,6 @@ export function WorkshopVisitInfo({ compact = false }: Props) {
           {profile.mapUrl && (
             <a className="workshop-map-link" href={profile.mapUrl} target="_blank" rel="noreferrer">
               지도에서 보기 <span aria-hidden="true">↗</span>
-            </a>
-          )}
-          {!compact && profile.naverBlogUrl && (
-            <a className="workshop-map-link" href={profile.naverBlogUrl} target="_blank" rel="noreferrer">
-              공방 기록 보기 <span aria-hidden="true">↗</span>
             </a>
           )}
         </div>

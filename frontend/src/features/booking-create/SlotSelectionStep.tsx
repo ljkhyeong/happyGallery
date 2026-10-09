@@ -295,7 +295,7 @@ export function SlotSelectionStep({
           </>
         )}
 
-        {selectedSlot !== null && <WorkshopVisitInfo compact />}
+        {selectedSlot !== null && <WorkshopVisitInfo />}
       </CheckoutPanel>
     </>
   );

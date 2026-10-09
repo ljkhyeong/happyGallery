@@ -168,7 +168,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
       </div>
 
       <div className="class-detail-section class-detail-visit">
-        <WorkshopVisitInfo compact />
+        <WorkshopVisitInfo />
       </div>
 
       <PublicReviewSection targetType="CLASS" targetId={bookingClass.id} />

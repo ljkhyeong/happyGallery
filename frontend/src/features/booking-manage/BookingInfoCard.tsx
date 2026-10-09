@@ -47,7 +47,7 @@ export function BookingInfoCard({ label, status, className, startAt, endAt, rows
       </div>
       <RefundProgressAlert refund={refund} />
       <div className="my-detail-card-visit">
-        <WorkshopVisitInfo compact />
+        <WorkshopVisitInfo />
       </div>
     </article>
   );

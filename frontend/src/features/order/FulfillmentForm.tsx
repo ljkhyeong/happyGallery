@@ -55,7 +55,7 @@ export function FulfillmentForm({ value, onChange }: Props) {
       {value.fulfillmentType === "PICKUP" && (
         <>
           <div className="small text-muted-soft mb-3">준비 완료 알림을 받은 뒤 매장에서 수령합니다.</div>
-          <WorkshopVisitInfo compact />
+          <WorkshopVisitInfo />
         </>
       )}
 
