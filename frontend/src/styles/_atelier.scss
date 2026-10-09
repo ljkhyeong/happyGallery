@@ -47,11 +47,6 @@ textarea {
   }
 }
 
-.page-container {
-  max-width: 1180px;
-  padding-block: clamp(2rem, 4vw, 3.5rem) clamp(3rem, 6vw, 5rem);
-}
-
 // 본문 바로가기: 키보드 포커스를 받을 때만 왼쪽 위에 나타난다.
 .skip-link:focus {
   position: fixed;
@@ -651,8 +646,13 @@ textarea {
   }
 }
 
+// 목록·체크아웃 화면 머리(PageHeader): 제목·설명과 행동 버튼을 한 줄에 둔다. 아래 여백은 마크업의 mb-4가 정한다.
 .store-section-header {
-  margin-bottom: 2.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
   padding-bottom: 1.25rem;
   border-bottom: 1px solid var(--hg-border);
 }
@@ -664,11 +664,9 @@ textarea {
   font-size: 2.55rem;
   font-weight: 800;
   line-height: 1.4;
-  letter-spacing: 0;
 }
 
 .store-section-desc {
-  margin-bottom: 0;
   color: var(--hg-ink-soft);
   font-size: 0.9375rem;
 }
@@ -676,41 +674,25 @@ textarea {
 .store-section-link {
   color: var(--hg-dark);
   font-size: 0.8rem;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.workshop-visit-info {
-  display: grid;
-  grid-template-columns: minmax(10rem, 0.7fr) minmax(18rem, 1.3fr) auto;
-  gap: clamp(1.5rem, 4vw, 4rem);
-  align-items: start;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 // 예약·주문·상세 화면의 간단 방문 안내: 옅은 회색 면 하나로 묶는다(강조 선은 쓰지 않는다).
-.workshop-visit-info.is-compact {
+.workshop-visit-info {
+  display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem;
+  align-items: start;
   padding: 1.1rem 1.25rem;
   background: var(--hg-surface-alt);
-
-  .workshop-visit-name {
-    font-size: 1rem;
-  }
 }
 
 .workshop-visit-name {
   margin: 0;
   font-family: var(--hg-font-display);
-  font-size: 2.25rem;
+  font-size: 1rem;
   font-weight: 800;
-}
-
-.workshop-visit-introduction {
-  margin: 1rem 0 0;
-  color: var(--hg-ink-soft);
-  line-height: 1.75;
-  white-space: pre-line;
 }
 
 .workshop-visit-details {
@@ -822,10 +804,6 @@ textarea {
 }
 
 @media (max-width: 767.98px) {
-  .workshop-visit-info {
-    grid-template-columns: 1fr;
-  }
-
   .business-info-list > div {
     grid-template-columns: 1fr;
     gap: 0.25rem;
@@ -852,8 +830,6 @@ textarea {
 
 .store-list-header {
   padding: 0 0 1.5rem;
-  background: transparent;
-  border: 0;
   border-bottom: 1px solid var(--hg-border);
 }
 
@@ -862,22 +838,6 @@ textarea {
   font-family: var(--hg-font-display);
   font-weight: 500;
 }
-
-.lookup-panel,
-.store-detail-card,
-.store-purchase-card,
-.store-list-header,
-.auth-hero-card,
-.auth-form-card,
-.my-gate-card,
-.my-stat-card,
-.my-claim-card,
-.my-list-card,
-.my-action-card,
-.my-filter-card {
-  border-color: var(--hg-border);
-}
-
 
 @media (prefers-reduced-motion: reduce) {
   *,

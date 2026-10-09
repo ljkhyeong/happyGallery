@@ -10,20 +10,6 @@
   }
 }
 
-// ── Design tokens ──────────────────────────────────────
-:root {
-  --hg-surface: #FFFFFF;
-  --hg-surface-alt: #F4F4F2;
-  --hg-surface-dim: #EDEDEA;
-  --hg-ink-soft: #5E5E5A;
-  --hg-shadow-soft: none;
-  --hg-accent: #111111;
-  --hg-signal: #C8102E;
-  --hg-dark: #111111;
-  --hg-border: #DCDCD8;
-  --hg-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 // ── Common utilities ───────────────────────────────────
 // 상세 화면 구역 번호(01·02…). 제목 위에 작은 명조 숫자로 붙이고, 화면 읽기에서는 번호를 읽지 않는다.
 // 번호를 셀 화면 바깥 틀에 `counter-reset: hg-detail-section`을 둔다.
@@ -41,10 +27,17 @@
   }
 }
 
+// 화면 본문 틀: 머리글·바닥글과 같은 1180px 폭에 맞춘다.
 .page-container {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding: clamp(2rem, 4vw, 3.5rem) 1.5rem clamp(3rem, 6vw, 5rem);
+}
+
+@media (max-width: 575.98px) {
+  .page-container {
+    padding-inline: 1rem;
+  }
 }
 
 .empty-state {

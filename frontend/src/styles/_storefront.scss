@@ -16,49 +16,6 @@
   text-transform: uppercase;
 }
 
-// ── Section header ─────────────────────────────────────
-.store-section-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: end;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.store-section-title {
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.store-section-desc {
-  font-size: 0.8125rem;
-}
-
-.store-section-link {
-  color: var(--hg-accent);
-  font-weight: 700;
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-decoration: none;
-  transition: color var(--hg-transition);
-
-  &:hover {
-    color: var(--hg-accent-deep);
-  }
-}
-
-// ── Shared card base ───────────────────────────────────
-.lookup-panel,
-.store-detail-card,
-.store-purchase-card,
-.store-list-header {
-  background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
-  box-shadow: none;
-}
-
 // ── Lookup panel ───────────────────────────────────────
 .lookup-panel {
   padding: 2.5rem;
@@ -85,19 +42,6 @@
   text-transform: uppercase;
   color: var(--hg-accent);
   margin-bottom: 0.35rem;
-}
-
-// ── List header ────────────────────────────────────────
-.store-list-header {
-  padding: 2rem;
-  background: var(--hg-surface);
-  border-bottom: 2px solid var(--hg-dark);
-}
-
-.store-list-title {
-  font-family: var(--hg-font-display);
-  font-weight: 800;
-  letter-spacing: 0;
 }
 
 // ── Detail page ────────────────────────────────────────
@@ -523,23 +467,16 @@
 }
 
 // ── Auth pages ─────────────────────────────────────────
-.auth-shell {
-  padding-top: 3rem;
-}
-
 .auth-hero-card,
 .auth-form-card {
   background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
 }
 
 .auth-kicker {
   width: fit-content;
   border: 1px solid var(--hg-border);
   letter-spacing: 0.12em;
-  font-weight: 700;
   font-size: 0.625rem;
-  color: var(--hg-accent);
 }
 
 .auth-benefit-list {
@@ -664,9 +601,9 @@
 .my-stat-card,
 .my-claim-card,
 .my-list-card,
-.my-action-card {
+.my-action-card,
+.my-filter-card {
   background: var(--hg-surface);
-  border: 1px solid var(--hg-border);
 }
 
 .my-claim-entry-note {
@@ -686,8 +623,10 @@
   font-weight: 600;
 }
 
+// 테두리는 border-0이 없는 내 정보 홈 최근 내역 링크(.my-recent-item)에만 보인다.
 .my-list-card {
   color: $body-color;
+  border: 1px solid var(--hg-border);
   transition: all var(--hg-transition);
 
   &:hover,
@@ -696,12 +635,6 @@
     border-color: var(--hg-dark);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   }
-}
-
-.my-filter-card {
-  background: var(--hg-surface);
-  box-shadow: none;
-  border: 1px solid var(--hg-border);
 }
 
 .my-quick-tabs {
@@ -1257,18 +1190,13 @@
 }
 
 // ── Purchase panel sticky ──────────────────────────────
-
-.store-mobile-purchase-cta {
-  display: none;
-}
-
+// 넓은 화면에서는 마크업의 d-lg-none이 숨긴다.
 @media (max-width: 991.98px) {
   .store-mobile-purchase-cta {
     position: fixed;
     left: 50%;
     bottom: calc(0.75rem + env(safe-area-inset-bottom));
     z-index: 1020;
-    display: block;
     width: min(calc(100vw - 2rem), 20rem);
     transform: translateX(-50%);
 
@@ -1281,11 +1209,6 @@
 
 // ── Responsive ─────────────────────────────────────────
 @media (max-width: 575.98px) {
-  .page-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
   .app-utility-copy {
     display: none;
   }
@@ -1903,10 +1826,6 @@
 }
 
 // ── 내 정보 셸: 데스크톱 왼쪽 메뉴, 모바일은 홈 묶음 목록·하위 화면 가로 메뉴 ─────
-.my-gate-page {
-  max-width: 760px;
-}
-
 .my-shell {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -2569,11 +2488,6 @@
 }
 
 // ── 결제 결과 ─────────────────────────────────────────
-.payment-result-page {
-  max-width: 600px;
-  padding-top: clamp(1.5rem, 5vw, 3.5rem);
-}
-
 .payment-result {
   display: grid;
   justify-items: center;
