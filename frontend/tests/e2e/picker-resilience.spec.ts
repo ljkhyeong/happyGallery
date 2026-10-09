@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
-import { fulfillJson, openMockedAdmin } from "./mock-support";
+import { EMPTY_CART_VERSION, fulfillJson, openMockedAdmin } from "./mock-support";
 
-const EMPTY_CART_VERSION = "0".repeat(64);
 const EMPTY_CURSOR_PAGE = {
   content: [],
   nextCursor: null,

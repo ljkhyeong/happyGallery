@@ -1,14 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
 test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다", async ({ page, context, baseURL }) => {
   await installCsrfCookie(context, baseURL);
-  const product = { id: 42, name: "주소 확인 작품", description: null, category: "공예", type: "READY_STOCK", price: 12000,
-    imageUrl: null, available: true, stockQuantity: 10, specification: null, careInstructions: null,
-    productionLeadDays: null, optionGroups: [], variants: [] };
+  const product = productDetailFixture({ name: "주소 확인 작품", category: "공예" });
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
   let address: Record<string, string | null> | null = null;
   let version = 0;
@@ -37,8 +35,7 @@ test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다",
     if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
     if (path === "/api/v1/me/group-inquiries" || path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
     if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
-    if (path.endsWith("/reviews")) return fulfillJson(route, { content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-      summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+    if (path.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
     if (path === "/api/v1/orders/policy") return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
     if (path === "/api/v1/me/rewards") return fulfillJson(route, { balance: 0 });
     return fulfillJson(route, []);

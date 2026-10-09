@@ -1,10 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
-import { installCsrfCookie } from "./mock-support";
+import { EMPTY_CART_VERSION, installCsrfCookie } from "./mock-support";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
 const GUEST_CART_LOCK_NAME = "hg_guest_cart";
-const EMPTY_CART_VERSION = "0".repeat(64);
 
 interface MergeRequest {
   expectedCustomerId: number;

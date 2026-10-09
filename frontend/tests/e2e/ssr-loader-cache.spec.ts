@@ -1,43 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
-
-async function navigateInApp(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, "", nextPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, path);
-}
-
-function product(name: string) {
-  return {
-    id: 42,
-    name,
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
-}
+import { EMPTY_REVIEW_PAGE, fulfillJson, navigateInApp, productDetailFixture } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
 
 test("@smoke client navigation의 최신 loader 데이터가 기존 query cache보다 우선한다", async ({ page }) => {
-  const firstProduct = product("이전 loader 작품");
+  const firstProduct = productDetailFixture({ name: "이전 loader 작품" });
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/products/42", firstProduct),
     ssrApiFixture("/events", []),
@@ -58,17 +32,7 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
       return;
     }
     if (pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/products/42/qna/page") {
@@ -102,7 +66,7 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
   await navigateInApp(page, "/events");
   await expect(page.getByRole("heading", { name: "이벤트", exact: true })).toBeVisible();
 
-  const latestProduct = product("최신 loader 작품");
+  const latestProduct = productDetailFixture({ name: "최신 loader 작품" });
   await replaceSsrUpstreamFixtures(
     ssrApiFixture("/products/42", latestProduct),
     ssrApiFixture("/events", []),
@@ -119,7 +83,7 @@ test("@smoke client navigation의 최신 loader 데이터가 기존 query cache�
 });
 
 test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되고 빈 검색을 초기화할 수 있다", async ({ page }) => {
-  const selected = product("검색 조건 보존 작품");
+  const selected = productDetailFixture({ name: "검색 조건 보존 작품" });
   const query = new URLSearchParams({ type: "READY_STOCK", category: "테스트", keyword: "보존", sort: "price_asc" });
   const emptyQuery = new URLSearchParams({ type: "READY_STOCK", category: "테스트", keyword: "없는작품", sort: "price_asc" });
   await replaceSsrUpstreamFixtures(
@@ -144,8 +108,7 @@ test("상품 검색 조건은 SSR·뒤로 가기·새로고침에서 유지되�
       return;
     }
     if (pathname.endsWith("/reviews")) {
-      await fulfillJson(route, { content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname.endsWith("/qna/page")) {

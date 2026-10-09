@@ -6,7 +6,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -27,22 +27,7 @@ test.afterEach(async () => {
   const cartVersion = "d".repeat(64);
   let claimed = false;
   let preparedPayload: Record<string, unknown> | null = null;
-  const product = {
-    id: 52,
-    name: "혜택 적용 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 20000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 5,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ id: 52, name: "혜택 적용 작품", price: 20000, stockQuantity: 5 });
   if (!checkout.cartCheckout) {
     await replaceSsrUpstreamFixtures(ssrApiFixture("/products/52", product));
   }
@@ -193,13 +178,7 @@ test.afterEach(async () => {
       return;
     }
     if (pathname === "/api/v1/products/52/reviews") {
-      await fulfillJson(route, {
-        content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: {
-          averageRating: 0, reviewCount: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/payments/prepare") {

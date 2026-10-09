@@ -2,15 +2,13 @@ import { expect, test, type Page } from "@playwright/test";
 import type { CreateQnaRequest, ProductQnaDetail } from "../../src/generated/api/productQna";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, productDetailFixture } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 test.afterEach(clearSsrUpstreamFixtures);
 
 async function mockQna(page: Page) {
-  const product = { id: 42, name: "문의 확인 작품", type: "READY_STOCK", price: 12000, available: true,
-    stockQuantity: 3, description: null, category: "공예", imageUrl: null, specification: null,
-    careInstructions: null, productionLeadDays: null, optionGroups: [], variants: [] };
+  const product = productDetailFixture({ name: "문의 확인 작품", stockQuantity: 3, category: "공예" });
   const state = {
     accountId: 501, hold: false, fail: false, release: () => {},
     requests: [] as Array<{ accountId: number; body: CreateQnaRequest }>,
@@ -52,8 +50,7 @@ async function mockQna(page: Page) {
       case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
       case "/api/v1/me/favorites/PRODUCT/42": return fulfillJson(route, { saved: false });
       case "/api/v1/products/42": return route.fallback();
-      case "/api/v1/products/42/reviews": return fulfillJson(route, { content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+      case "/api/v1/products/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
       case "/api/v1/orders/policy": return fulfillJson(route, { shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 동의" });
       case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
       default: throw new Error(`정의하지 않은 상품 문의 작성 테스트 요청: ${request.method()} ${pathname}`);

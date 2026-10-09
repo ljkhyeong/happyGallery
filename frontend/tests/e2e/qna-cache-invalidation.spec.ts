@@ -4,20 +4,11 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, seedAdminSession } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, navigateInApp, productDetailFixture, seedAdminSession } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function navigateInApp(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, "", nextPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, path);
-}
 
 function qnaCard(page: Page, title: string) {
   return page.getByText(title, { exact: true }).locator(
@@ -37,22 +28,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
   let memberListReads = 0;
   let publicDetailReads = 0;
   let memberDetailReads = 0;
-  const product = {
-    id: 42,
-    name: "Q&A 캐시 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "Q&A 캐시 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
@@ -98,17 +74,7 @@ test("@admin 관리자 Q&A 답변 뒤 공개·회원 목록과 상세 캐시를 
       return;
     }
     if (pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {

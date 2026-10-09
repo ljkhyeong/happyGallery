@@ -5,9 +5,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, fulfillJson } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();

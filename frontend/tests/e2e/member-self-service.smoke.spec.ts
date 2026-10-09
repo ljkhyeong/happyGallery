@@ -11,9 +11,7 @@ import {
   makeUniqueLabel,
   signupCustomer,
 } from "./support";
-import { installCsrfCookie } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, installCsrfCookie } from "./mock-support";
 
 test("P8-6 @smoke @payment 회원 가입 후 상품 상세에서 주문하고 내 주문 상세를 확인할 수 있다", async ({ page, request }) => {
   await installTossPaymentStub(page);

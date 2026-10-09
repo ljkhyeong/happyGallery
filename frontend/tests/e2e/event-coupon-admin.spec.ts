@@ -6,7 +6,6 @@ import {
 } from "./ssr-upstream-fixture";
 import { fulfillJson, installCsrfCookie, openMockedAdmin } from "./mock-support";
 
-
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });

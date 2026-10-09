@@ -1,10 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, seedAdminSession } from "./mock-support";
+import { fulfillJson, navigateInApp, seedAdminSession } from "./mock-support";
 
 const workshop = {
   name: "해피갤러리",
@@ -15,13 +15,6 @@ const workshop = {
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function navigateInApp(page: Page, path: string) {
-  await page.evaluate((nextPath) => {
-    window.history.pushState({}, "", nextPath);
-    window.dispatchEvent(new PopStateEvent("popstate"));
-  }, path);
-}
 
 test("@admin 관리자 공지 저장 뒤 공개 공지 loader와 캐시가 최신 내용을 표시한다", async ({ page }) => {
   let publicTitle = "변경 전 공지";

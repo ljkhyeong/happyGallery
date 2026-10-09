@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
 
 declare global {
   interface Window {
@@ -50,10 +50,7 @@ async function prepare(page: Page, clipboardAvailable = true) {
       shippingFee: 3000, madeToOrderConsentVersion: "2026-09", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
     });
     if (path === "/api/v1/products/80/qna/page") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/products/80/reviews") return fulfillJson(route, {
-      content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-      summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } },
-    });
+    if (path === "/api/v1/products/80/reviews") return fulfillJson(route, EMPTY_REVIEW_PAGE);
     return fulfillJson(route, []);
   });
 }

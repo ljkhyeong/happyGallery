@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ClassResponse } from "../../src/generated/api/booking";
 import type { FavoriteResponse } from "../../src/generated/api/customerStore";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -67,8 +67,7 @@ async function mockFavorites(page: Page) {
       }
       case "/api/v1/classes/42": return route.fallback();
       case "/api/v1/slots/upcoming": return fulfillJson(route, []);
-      case "/api/v1/classes/42/reviews": return fulfillJson(route, { content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-        summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } } });
+      case "/api/v1/classes/42/reviews": return fulfillJson(route, EMPTY_REVIEW_PAGE);
       default: throw new Error(`정의하지 않은 찜 테스트 요청: ${pathname}`);
     }
   });

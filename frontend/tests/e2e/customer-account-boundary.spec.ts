@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie, installTossRequestRecorder, readTossRequests } from "./mock-support";
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, installTossRequestRecorder, productDetailFixture, readTossRequests } from "./mock-support";
 
 interface Customer {
   id: number;
@@ -15,46 +15,12 @@ interface Customer {
   localPasswordEnabled: boolean;
 }
 
-const EMPTY_CART_VERSION = "0".repeat(64);
-const EMPTY_REVIEW_PAGE = {
-  content: [],
-  filteredCount: 0,
-  hasMore: false,
-  nextCursor: null,
-  summary: {
-    averageRating: 0,
-    histogram: {
-      rating1: 0,
-      rating2: 0,
-      rating3: 0,
-      rating4: 0,
-      rating5: 0,
-    },
-    reviewCount: 0,
-  },
-};
-
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
 
 function productFixture(name: string) {
-  return {
-    id: 42,
-    name,
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 30000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  return productDetailFixture({ name, price: 30000 });
 }
 
 const customerA: Customer = {
@@ -395,22 +361,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
       return;
     }
     if (pathname === "/api/v1/products") {
-      await fulfillJson(route, [{
-        id: 42,
-        name: "비회원 지연 결제 작품",
-        description: null,
-        category: "테스트",
-        type: "READY_STOCK",
-        price: 30000,
-        imageUrl: null,
-        available: true,
-        stockQuantity: 10,
-        specification: null,
-        careInstructions: null,
-        productionLeadDays: null,
-        optionGroups: [],
-        variants: [],
-      }]);
+      await fulfillJson(route, [productFixture("비회원 지연 결제 작품")]);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {

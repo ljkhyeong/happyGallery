@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 않고 새 세션에서 선택을 확인한다", async ({
   baseURL,

@@ -1,7 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,

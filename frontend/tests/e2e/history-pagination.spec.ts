@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -18,7 +18,6 @@ const member = {
   phoneVerified: true,
   localPasswordEnabled: true,
 };
-const EMPTY_CART_VERSION = "0".repeat(64);
 
 async function fulfillCommon(route: Route) {
   const { pathname } = new URL(route.request().url());
@@ -101,22 +100,7 @@ test("회원 주문은 첫 페이지에서 더 보기를 눌러 다음 커서 �
 test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함께 전진시켜 비밀글 소유권을 판정한다", async ({ page }) => {
   const publicCursors: Array<string | null> = [];
   const ownerCursors: Array<string | null> = [];
-  const product = {
-    id: 42,
-    name: "페이지 Q&A 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "페이지 Q&A 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
@@ -129,17 +113,7 @@ test("공개 문의 더 보기는 같은 크기의 내 문의 페이지도 함�
       return;
     }
     if (url.pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (url.pathname === "/api/v1/products/42/qna/page") {

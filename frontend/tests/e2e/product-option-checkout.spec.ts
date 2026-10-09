@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
+import { EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -49,10 +49,7 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
       shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
     });
     if (pathname.endsWith("/qna/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
-    if (pathname.endsWith("/reviews")) return fulfillJson(route, {
-      content: [], filteredCount: 0, hasMore: false, nextCursor: null,
-      summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } },
-    });
+    if (pathname.endsWith("/reviews")) return fulfillJson(route, EMPTY_REVIEW_PAGE);
     if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", version: 1 });
     return fulfillJson(route, []);
   });

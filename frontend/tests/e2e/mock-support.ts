@@ -1,4 +1,7 @@
+// API를 모의하는 E2E spec의 공용 응답·세션·fixture. 실제 백엔드를 쓰는 준비 helper는 support.ts에 둔다.
 import { expect, type BrowserContext, type Page, type Route } from "@playwright/test";
+import type { ProductDetailResponse } from "../../src/generated/api/product";
+import type { PublicReviewPageResponse } from "../../src/generated/api/review";
 
 /** 관리자 화면이 토큰을 읽는 sessionStorage 키. src/features/admin-product/useAdminKey.ts의 TOKEN_KEY와 같다. */
 export const ADMIN_TOKEN_KEY = "hg_admin_token";
@@ -6,10 +9,52 @@ export const ADMIN_TOKEN_KEY = "hg_admin_token";
 /** 값을 확인하지 않는 모의 관리자 API에 쓰는 기본 토큰 */
 export const MOCK_ADMIN_TOKEN = "e2e-admin-token";
 
-/**
- * API 모의 응답을 JSON으로 보낸다. 실제 백엔드를 쓰는 준비 helper는 support.ts에 둔다.
- * Playwright는 json 값이 falsy이면 content-type을 붙이지 않으므로 직접 지정한다.
- */
+/** 빈 회원 장바구니의 cartVersion */
+export const EMPTY_CART_VERSION = "0".repeat(64);
+
+/** 후기가 없는 공개 후기 목록. 공유 객체이므로 spec에서 수정하지 않는다. */
+export const EMPTY_REVIEW_PAGE = {
+  content: [],
+  filteredCount: 0,
+  hasMore: false,
+  nextCursor: null,
+  summary: {
+    averageRating: 0,
+    reviewCount: 0,
+    histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
+  },
+} satisfies PublicReviewPageResponse;
+
+/** 옵션 없는 재고 작품 상세. 시나리오에 필요한 값만 overrides로 바꾼다. */
+export function productDetailFixture(overrides: Partial<ProductDetailResponse> = {}): ProductDetailResponse {
+  return {
+    id: 42,
+    name: "테스트 작품",
+    description: null,
+    category: "테스트",
+    type: "READY_STOCK",
+    price: 12000,
+    imageUrl: null,
+    available: true,
+    stockQuantity: 10,
+    specification: null,
+    careInstructions: null,
+    productionLeadDays: null,
+    optionGroups: [],
+    variants: [],
+    ...overrides,
+  } satisfies ProductDetailResponse;
+}
+
+/** 전체 문서를 다시 받지 않고 React Router의 클라이언트 이동으로 path를 연다. */
+export async function navigateInApp(page: Page, path: string) {
+  await page.evaluate((nextPath) => {
+    window.history.pushState({}, "", nextPath);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, path);
+}
+
+/** API 모의 응답을 JSON으로 보낸다. Playwright는 json 값이 falsy이면 content-type을 붙이지 않으므로 직접 지정한다. */
 export async function fulfillJson(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: "application/json", json: body });
 }

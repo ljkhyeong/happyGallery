@@ -9,9 +9,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie } from "./mock-support";
-
-const EMPTY_CART_VERSION = "0".repeat(64);
+import { EMPTY_CART_VERSION, EMPTY_REVIEW_PAGE, fulfillJson, installCsrfCookie, productDetailFixture } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
@@ -328,22 +326,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
   page,
 }) => {
   let qnaAttempts = 0;
-  const product = {
-    id: 42,
-    name: "오류 복구 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "오류 복구 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
@@ -374,17 +357,7 @@ test("공개 Q&A 실패는 재시도하고 홈 loader 실패는 오류 경계로
       return;
     }
     if (pathname === "/api/v1/products/42/reviews") {
-      await fulfillJson(route, {
-        content: [],
-        filteredCount: 0,
-        hasMore: false,
-        nextCursor: null,
-        summary: {
-          averageRating: 0,
-          histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 },
-          reviewCount: 0,
-        },
-      });
+      await fulfillJson(route, EMPTY_REVIEW_PAGE);
       return;
     }
     if (pathname === "/api/v1/orders/policy") {

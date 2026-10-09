@@ -5,9 +5,8 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson, installCsrfCookie, seedAdminSession } from "./mock-support";
+import { EMPTY_CART_VERSION, fulfillJson, installCsrfCookie, productDetailFixture, seedAdminSession } from "./mock-support";
 
-const EMPTY_CART_VERSION = "0".repeat(64);
 const ONE_PIXEL_PNG = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
   "base64",
@@ -487,22 +486,7 @@ test("@smoke 공개 후기 반응은 불러온 페이지별로 조회하고 도�
     averageRating: 5,
     histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 3 },
   };
-  const product = {
-    id: 42,
-    name: "페이지 반응 검증 작품",
-    description: null,
-    category: "테스트",
-    type: "READY_STOCK",
-    price: 12000,
-    imageUrl: null,
-    available: true,
-    stockQuantity: 10,
-    specification: null,
-    careInstructions: null,
-    productionLeadDays: null,
-    optionGroups: [],
-    variants: [],
-  };
+  const product = productDetailFixture({ name: "페이지 반응 검증 작품" });
 
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
 
