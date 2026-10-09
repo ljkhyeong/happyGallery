@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, ListGroup } from "react-bootstrap";
-import { fetchClasses } from "./api";
-import { slotDayParts, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "./upcomingSlots";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { publicClassesQuery, slotDayParts, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "./upcomingSlots";
 import { CheckoutPanel, LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import {
   CLASS_CATEGORY_OPTIONS,
@@ -16,7 +14,6 @@ import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 import { VacancyAlertButton } from "./VacancyAlertButton";
 import { BookingDateChips, BookingSlotTime } from "./BookingDateChips";
-import { queryKeys } from "@/shared/api";
 
 interface Props {
   initialClassId?: number | null;
@@ -52,11 +49,7 @@ export function SlotSelectionStep({
     isFetching: classesFetching,
     error: classesError,
     refetch: refetchClasses,
-  } = useQuery({
-    queryKey: queryKeys.catalog.classes,
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  });
+  } = useQuery(publicClassesQuery());
 
   const classIdNum = Number(classId);
   const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;

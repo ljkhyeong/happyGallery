@@ -1,16 +1,15 @@
 import { useQueries } from "@tanstack/react-query";
 import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
-import { fetchClasses } from "@/features/booking-create/api";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
 import {
   hasOpenSlotOn,
   isSlotWhen,
+  publicClassesQuery,
   type SlotWhen,
   slotWhenDates,
   upcomingSlotsQuery,
 } from "@/features/booking-create/upcomingSlots";
-import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import {
   CLASS_SITUATION_TAG_OPTIONS,
   type ClassSituationTagCode,
@@ -24,7 +23,7 @@ import {
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
-import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
+import { useLoaderBackedQuery } from "@/shared/api";
 
 const WHEN_LABEL: Record<SlotWhen, string> = { weekend: "이번 주말", today: "오늘 바로" };
 const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
@@ -39,11 +38,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const {
     data: classes,
     error: classesError,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.catalog.classes,
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  }, initialClasses);
+  } = useLoaderBackedQuery(publicClassesQuery(), initialClasses);
   const slotResults = useQueries({
     queries: classes.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });

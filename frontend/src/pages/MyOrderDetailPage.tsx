@@ -10,7 +10,7 @@ import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPa
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { cancelMyOrder, respondToMyOrderDelay } from "@/features/order/api";
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
-import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { customerRefundRefetchInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 import { OrderReviewsSection } from "@/features/review/OrderReviewsSection";
@@ -28,11 +28,7 @@ export function MyOrderDetailPage() {
     queryKey: queryKeys.member.orders.detail(orderId),
     queryFn: () => getMyOrder(orderId),
     enabled: isAuthenticated && validOrderId,
-    refetchInterval: ({ state }) =>
-      customerRefundPollingInterval(
-        state.data?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      ),
+    refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
   const cancelMutation = useMutation({
     mutationFn: () => runForCurrentCustomer(

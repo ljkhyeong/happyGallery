@@ -1,7 +1,17 @@
 import { queryKeys } from "@/shared/api";
+import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { formatTime, isPerfumeClassCategory, parseApiDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
-import { fetchUpcomingSlots } from "./api";
+import { fetchClasses, fetchUpcomingSlots } from "./api";
+
+/** 홈·클래스 목록·예약 화면이 같은 공개 클래스 목록 캐시를 쓴다. */
+export function publicClassesQuery() {
+  return {
+    queryKey: queryKeys.catalog.classes,
+    queryFn: fetchClasses,
+    staleTime: REFERENCE_DATA_STALE_TIME,
+  };
+}
 
 /** 예약·일정 변경·홈 빠른 예약이 같은 캐시를 쓰도록 조회 기간을 한 곳에서 정한다. */
 export const UPCOMING_SLOT_DAYS = 14;

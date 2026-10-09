@@ -11,7 +11,7 @@ import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { ErrorAlert } from "@/shared/ui";
-import { customerRefundPollingInterval } from "@/shared/lib";
+import { customerRefundRefetchInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 import {
@@ -70,11 +70,7 @@ function OrderDetailContent() {
         )
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) =>
-      customerRefundPollingInterval(
-        state.data?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      ),
+    refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
   const cancelMutation = useMutation({
     mutationFn: ({ id, token: accessToken }: { id: number; token: string }) =>

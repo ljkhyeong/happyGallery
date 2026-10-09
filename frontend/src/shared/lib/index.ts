@@ -7,6 +7,7 @@ export { isPositiveSafeIntegerString } from "./number";
 export {
   adminRefundPollingInterval,
   customerRefundPollingInterval,
+  customerRefundRefetchInterval,
   isRefundActivelyProcessing,
 } from "./refund";
 export {

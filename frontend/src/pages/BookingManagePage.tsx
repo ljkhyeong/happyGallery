@@ -18,7 +18,7 @@ import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert } from "@/shared/ui";
-import { customerRefundPollingInterval } from "@/shared/lib";
+import { customerRefundRefetchInterval } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import {
   isCurrentCustomerSessionState,
@@ -87,11 +87,7 @@ function BookingManageContent() {
         )
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) =>
-      customerRefundPollingInterval(
-        state.data?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      ),
+    refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
 
   const [relookupOpen, setRelookupOpen] = useState(false);

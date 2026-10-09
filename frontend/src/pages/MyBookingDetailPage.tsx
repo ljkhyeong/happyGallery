@@ -16,7 +16,7 @@ import {
   rescheduleMyBooking,
 } from "@/features/my-booking/api";
 import { LoadingSpinner, ErrorAlert, PageHeader } from "@/shared/ui";
-import { customerRefundPollingInterval, isPositiveSafeIntegerString } from "@/shared/lib";
+import { customerRefundRefetchInterval, isPositiveSafeIntegerString } from "@/shared/lib";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { queryKeys } from "@/shared/api";
 import { BookingReviewSection } from "@/features/review/BookingReviewSection";
@@ -39,11 +39,7 @@ export function MyBookingDetailPage() {
     queryKey: queryKeys.member.bookings.detail(bookingId),
     queryFn: () => fetchMyBooking(bookingId),
     enabled: isAuthenticated && validBookingId,
-    refetchInterval: ({ state }) =>
-      customerRefundPollingInterval(
-        state.data?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      ),
+    refetchInterval: customerRefundRefetchInterval((record) => record.refund?.status),
   });
 
   if (!validBookingId) return <NotFoundPage />;

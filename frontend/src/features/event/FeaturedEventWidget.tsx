@@ -1,9 +1,8 @@
 import { Badge } from "react-bootstrap";
-import { fetchEvents } from "./api";
+import { publicEventsQuery } from "./api";
 import { EventPeriodText } from "./EventPeriodText";
-import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
-import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
-import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { isEventAvailable, isEventOngoing } from "./time";
+import { useLoaderBackedQuery } from "@/shared/api";
 import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { EventResponse } from "./api";
 
@@ -12,12 +11,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
     data: events,
     error,
     query: eventsQuery,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.events.all,
-    queryFn: ({ signal }) => fetchEvents(signal),
-    staleTime: PUBLIC_DATA_STALE_TIME,
-    refetchInterval: ({ state }) => eventRefetchInterval(state.data),
-  }, initialEvents);
+  } = useLoaderBackedQuery(publicEventsQuery(), initialEvents);
   const featuredEvents = events.filter(
     (event) => event.featured && isEventAvailable(event),
   );

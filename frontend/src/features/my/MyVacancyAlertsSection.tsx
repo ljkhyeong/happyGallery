@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card } from "react-bootstrap";
 import {
   cancelMyVacancyAlert,
-  fetchMyVacancyAlerts,
+  myVacancyAlertsQuery,
   type VacancyAlertResponse,
 } from "@/features/vacancy-alert/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
@@ -18,10 +18,7 @@ export function MyVacancyAlertsSection() {
     isFetching,
     error,
     refetch,
-  } = useQuery({
-    queryKey: queryKeys.member.vacancyAlerts,
-    queryFn: ({ signal }) => runForCurrentCustomer(() => fetchMyVacancyAlerts(signal)),
-  });
+  } = useQuery(myVacancyAlertsQuery());
   const cancelMutation = useMutation({
     mutationFn: (alert: VacancyAlertResponse) => runForCurrentCustomer(
       () => cancelMyVacancyAlert(alert.slotId),

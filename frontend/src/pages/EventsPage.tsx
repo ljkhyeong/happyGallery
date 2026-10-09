@@ -1,9 +1,8 @@
 import { Col, Container, Row } from "react-bootstrap";
 import { EventCard } from "@/features/event/EventCard";
-import { fetchEvents } from "@/features/event/api";
-import { eventRefetchInterval, isEventAvailable } from "@/features/event/time";
-import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
-import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { publicEventsQuery } from "@/features/event/api";
+import { isEventAvailable } from "@/features/event/time";
+import { useLoaderBackedQuery } from "@/shared/api";
 import { EmptyState, ErrorAlert, PageHeader } from "@/shared/ui";
 import type { EventResponse } from "@/features/event/api";
 
@@ -12,12 +11,7 @@ export function EventsPage({ initialEvents }: { initialEvents: EventResponse[] }
     data: loadedEvents,
     error,
     query: eventsQuery,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.events.all,
-    queryFn: ({ signal }) => fetchEvents(signal),
-    staleTime: PUBLIC_DATA_STALE_TIME,
-    refetchInterval: ({ state }) => eventRefetchInterval(state.data),
-  }, initialEvents);
+  } = useLoaderBackedQuery(publicEventsQuery(), initialEvents);
   const events = loadedEvents.filter((event) => isEventAvailable(event));
 
   return (

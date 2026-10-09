@@ -16,12 +16,13 @@ import {
   invalidateSlotAvailability,
   queryKeys,
   runForCurrentCustomer,
+  flattenCursorPages,
 } from "@/shared/api";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import { LoadingSpinner, ErrorAlert, EmptyState, useToast, CursorLoadMore } from "@/shared/ui";
 import {
-  customerRefundPollingInterval,
+  customerRefundRefetchInterval,
   formatDateTime,
   formatKRW,
   parseApiDateTime,
@@ -56,16 +57,9 @@ export function MyPassesPage() {
     statusValues: Object.values(ListMyPassesPageStatus),
     sortOptions: PASS_SORT_OPTIONS,
     defaultSort: DEFAULT_SORT,
-    refetchInterval: ({ state }) => {
-      const pendingRefund = state.data?.pages
-        .flatMap((page) => page.content)
-        .find(({ refund }) =>
-        refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED");
-      return customerRefundPollingInterval(
-        pendingRefund?.refund?.status,
-        state.dataUpdateCount + state.fetchFailureCount,
-      );
-    },
+    refetchInterval: customerRefundRefetchInterval((data) => flattenCursorPages(data)
+      .find(({ refund }) => refund !== null && refund.status !== "SUCCEEDED" && refund.status !== "FAILED")
+      ?.refund?.status),
   });
   const hasLoadedPasses = query.data !== undefined;
   const expiringSoonCount = passes.filter((pass) => {

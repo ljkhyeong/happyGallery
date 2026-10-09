@@ -10,9 +10,8 @@ import perfumeShelf from "@/assets/happygallery/perfume-shelf.jpg";
 import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import toleMaterials from "@/assets/happygallery/tole-materials.jpg";
 import acrylicPouring from "@/assets/happygallery/acrylic-pouring.jpg";
-import { fetchClasses } from "@/features/booking-create/api";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
-import { nextOpenSlot, slotDayParts, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import { nextOpenSlot, publicClassesQuery, slotDayParts, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
@@ -20,7 +19,7 @@ import { fetchProducts } from "@/features/product/api";
 import { ProductCard } from "@/features/product/ProductCard";
 import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCategories";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
-import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
+import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
@@ -96,11 +95,7 @@ export function HomePage({
   const {
     data: classes,
     error: classesError,
-  } = useLoaderBackedQuery({
-    queryKey: queryKeys.catalog.classes,
-    queryFn: fetchClasses,
-    staleTime: REFERENCE_DATA_STALE_TIME,
-  }, initialClasses);
+  } = useLoaderBackedQuery(publicClassesQuery(), initialClasses);
   const { data: workshop } = useWorkshopProfile(initialWorkshop);
   const { data: pricePolicy } = useOrderPricePolicy();
   const [category, setCategory] = useState<string>(ALL_CATEGORIES);
