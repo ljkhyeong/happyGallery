@@ -29,6 +29,8 @@ import com.personal.happygallery.application.booking.port.in.ClassQueryUseCase;
 import com.personal.happygallery.application.booking.port.in.GuestBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotQueryUseCase;
 import com.personal.happygallery.application.customer.GuestPersonalDataProtector;
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
 import com.personal.happygallery.application.monitoring.port.in.ClientMonitoringUseCase;
 import com.personal.happygallery.application.notice.port.in.NoticeQueryUseCase;
@@ -50,6 +52,7 @@ import com.personal.happygallery.application.review.port.in.PublicReviewUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.application.store.port.in.WorkshopProfileUseCase;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.PhoneVerification;
@@ -58,6 +61,7 @@ import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.notice.Notice;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.payment.PaymentContext;
 import com.personal.happygallery.domain.review.ReviewSort;
 import com.personal.happygallery.domain.store.WorkshopProfile;
@@ -240,15 +244,15 @@ class PublicApiRestDocsTest extends RestDocsTestSupport {
         when(guestRecordRecoveryUseCase.listRecoveredOrders(
                 eq("guest-recovery-token"), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(
-                        new GuestRecordRecoveryUseCase.RecoveredOrder(
-                                200L, "PAID_APPROVAL_PENDING", 39_000L,
+                        new GuestOrderSummary(
+                                200L, OrderStatus.PAID_APPROVAL_PENDING, 39_000L,
                                 OffsetDateTime.parse("2026-05-01T00:00:00Z"))),
                         "cursor-next", true));
         when(guestRecordRecoveryUseCase.listRecoveredBookings(
                 eq("guest-recovery-token"), isNull(), eq(20)))
                 .thenReturn(new CursorPage<>(List.of(
-                        new GuestRecordRecoveryUseCase.RecoveredBooking(
-                                100L, "BOOKED", "향수 클래스",
+                        new GuestBookingSummary(
+                                100L, BookingStatus.BOOKED, "향수 클래스",
                                 LocalDateTime.parse("2026-05-07T10:00:00"),
                                 LocalDateTime.parse("2026-05-07T12:00:00"))),
                         "cursor-next", true));

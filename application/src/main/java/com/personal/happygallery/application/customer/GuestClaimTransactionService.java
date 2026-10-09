@@ -1,9 +1,9 @@
 package com.personal.happygallery.application.customer;
 
-import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase.ClaimBookingSummary;
-import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase.ClaimOrderSummary;
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase.ClaimPreview;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase.ClaimResult;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.out.GuestClaimTargetPort;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
 import com.personal.happygallery.application.customer.port.out.UserReaderPort;
@@ -174,10 +174,10 @@ class GuestClaimTransactionService {
                 .map(guest -> new ClaimPreview(
                         user.isPhoneVerified(),
                         claimTargets.findOrdersByGuestId(guest.getId(), PREVIEW_LIMIT).stream()
-                                .map(ClaimOrderSummary::from)
+                                .map(GuestOrderSummary::from)
                                 .toList(),
                         claimTargets.findBookingsByGuestId(guest.getId(), PREVIEW_LIMIT).stream()
-                                .map(ClaimBookingSummary::from)
+                                .map(GuestBookingSummary::from)
                                 .toList()))
                 .orElseGet(() -> new ClaimPreview(user.isPhoneVerified(), List.of(), List.of()));
     }

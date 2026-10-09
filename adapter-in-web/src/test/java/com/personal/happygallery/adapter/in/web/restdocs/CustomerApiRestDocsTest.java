@@ -32,7 +32,9 @@ import com.personal.happygallery.application.booking.port.in.BookingRescheduleUs
 import com.personal.happygallery.application.cart.port.in.CartUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerAuthUseCase;
 import com.personal.happygallery.application.customer.port.in.CustomerCredentialUseCase;
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
 import com.personal.happygallery.application.customer.port.in.GuestClaimUseCase;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.CustomerAccountLifecycleUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberPhoneUpdateUseCase;
 import com.personal.happygallery.application.customer.port.in.MemberEmailRegistrationUseCase;
@@ -49,12 +51,14 @@ import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.booking.Booking;
+import com.personal.happygallery.domain.booking.BookingStatus;
 import com.personal.happygallery.domain.booking.BookingVacancyAlert;
 import com.personal.happygallery.domain.booking.Refund;
 import com.personal.happygallery.domain.booking.Slot;
 import com.personal.happygallery.domain.booking.VacancyAlertStatus;
 import com.personal.happygallery.domain.inquiry.Inquiry;
 import com.personal.happygallery.domain.order.Order;
+import com.personal.happygallery.domain.order.OrderStatus;
 import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.pass.PassPurchase;
 import com.personal.happygallery.domain.payment.RefundStatus;
@@ -1197,11 +1201,11 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
     private static GuestClaimUseCase.ClaimPreview claimPreview(boolean verified) {
         return new GuestClaimUseCase.ClaimPreview(
                 verified,
-                List.of(new GuestClaimUseCase.ClaimOrderSummary(
-                        200L, "PAID_APPROVAL_PENDING", 39000L,
+                List.of(new GuestOrderSummary(
+                        200L, OrderStatus.PAID_APPROVAL_PENDING, 39000L,
                         LocalDateTime.of(2026, 5, 1, 20, 50).atOffset(ZoneOffset.UTC))),
-                List.of(new GuestClaimUseCase.ClaimBookingSummary(
-                        100L, "BOOKED", "향수 원데이",
+                List.of(new GuestBookingSummary(
+                        100L, BookingStatus.BOOKED, "향수 원데이",
                         LocalDateTime.of(2026, 5, 7, 19, 0),
                         LocalDateTime.of(2026, 5, 7, 21, 0))));
     }

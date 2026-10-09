@@ -1,5 +1,7 @@
 package com.personal.happygallery.application.customer;
 
+import com.personal.happygallery.application.customer.port.in.GuestBookingSummary;
+import com.personal.happygallery.application.customer.port.in.GuestOrderSummary;
 import com.personal.happygallery.application.customer.port.in.GuestRecordRecoveryUseCase;
 import com.personal.happygallery.application.customer.port.in.PhoneOwnershipVerificationUseCase;
 import com.personal.happygallery.application.customer.port.out.GuestReaderPort;
@@ -56,7 +58,7 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
 
     @Override
     @Transactional(readOnly = true)
-    public CursorPage<RecoveredOrder> listRecoveredOrders(
+    public CursorPage<GuestOrderSummary> listRecoveredOrders(
             String accessToken, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         String tokenHash = guestTokenService.resolveTokenHash(accessToken);
@@ -68,14 +70,14 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
                 pageSize,
                 order -> CursorUtils.encode(order.getCreatedAt(), order.getId()));
         return new CursorPage<>(
-                page.content().stream().map(RecoveredOrder::from).toList(),
+                page.content().stream().map(GuestOrderSummary::from).toList(),
                 page.nextCursor(),
                 page.hasMore());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public CursorPage<RecoveredBooking> listRecoveredBookings(
+    public CursorPage<GuestBookingSummary> listRecoveredBookings(
             String accessToken, String cursor, int size) {
         int pageSize = PageParams.requireSize(size);
         String tokenHash = guestTokenService.resolveTokenHash(accessToken);
@@ -87,7 +89,7 @@ public class DefaultGuestRecordRecoveryService implements GuestRecordRecoveryUse
                 pageSize,
                 booking -> CursorUtils.encode(booking.getCreatedAt(), booking.getId()));
         return new CursorPage<>(
-                page.content().stream().map(RecoveredBooking::from).toList(),
+                page.content().stream().map(GuestBookingSummary::from).toList(),
                 page.nextCursor(),
                 page.hasMore());
     }
