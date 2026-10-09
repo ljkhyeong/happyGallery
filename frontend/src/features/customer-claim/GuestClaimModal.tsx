@@ -10,7 +10,6 @@ import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { normalizePhone } from "@/shared/validation/phone";
 
 interface Props {
-  show: boolean;
   onClose: () => void;
   phone: string;
   phoneVerified: boolean;
@@ -18,7 +17,6 @@ interface Props {
 }
 
 export function GuestClaimModal({
-  show,
   onClose,
   phone,
   phoneVerified,
@@ -34,16 +32,8 @@ export function GuestClaimModal({
   const previewQuery = useQuery({
     queryKey: queryKeys.member.guestClaimPreview,
     queryFn: getGuestClaimPreview,
-    enabled: show && phoneVerified,
+    enabled: phoneVerified,
   });
-
-  useEffect(() => {
-    if (!show) {
-      setPreviewOverride(null);
-      setSelectedOrderIds([]);
-      setSelectedBookingIds([]);
-    }
-  }, [show]);
 
   const preview = previewOverride ?? previewQuery.data;
 
@@ -101,20 +91,16 @@ export function GuestClaimModal({
   const needsPhoneVerification =
     !phoneVerified && !(previewOverride?.phoneVerified ?? false);
 
+  // 화면을 열 때만 mount되므로 개발 모드의 effect 재실행에서도 한 번만 기록한다.
   useEffect(() => {
-    if (!show) {
-      openTrackedRef.current = false;
-      return;
-    }
     if (openTrackedRef.current) return;
-
     openTrackedRef.current = true;
     trackClientEvent("GUEST_CLAIM_MODAL_OPENED");
-  }, [show]);
+  }, []);
 
   return (
     <Modal
-      show={show}
+      show
       aria-labelledby="guest-claim-title"
       onHide={onClose}
       centered

@@ -25,7 +25,7 @@ export function notificationTarget(notification: NotificationResponse): string |
 
 function fallbackTarget(eventType: string): string | null {
   if (eventType === "BOOKING_VACANCY_AVAILABLE") return "/my/vacancy-alerts";
-  if (eventType.startsWith("ORDER_") || eventType === "ORDER_REFUNDED") return "/my/orders";
+  if (eventType.startsWith("ORDER_")) return "/my/orders";
   if (eventType.startsWith("BOOKING_") || eventType === "DEPOSIT_REFUNDED"
     || eventType.startsWith("REMINDER_")) return "/my/bookings";
   if (eventType.startsWith("PASS_")) return "/my/passes";

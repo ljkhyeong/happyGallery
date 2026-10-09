@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card } from "react-bootstrap";
-import { Link } from "react-router";
 import {
   cancelMyVacancyAlert,
   fetchMyVacancyAlerts,
@@ -8,7 +7,7 @@ import {
 } from "@/features/vacancy-alert/api";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 
 export function MyVacancyAlertsSection() {
   const queryClient = useQueryClient();
@@ -78,13 +77,14 @@ export function MyVacancyAlertsSection() {
                 </small>
               </div>
               <div className="d-flex flex-wrap gap-2">
-                <Link
+                <LinkButton
                   to={`/bookings/new?classId=${alert.classId}&slotId=${alert.slotId}`}
-                  className="btn btn-outline-primary btn-sm"
+                  variant="outline-primary"
+                  size="sm"
                   aria-label={`${alert.className} 예약 가능 여부 확인`}
                 >
                   예약 가능 여부 확인
-                </Link>
+                </LinkButton>
                 {alert.status === "WAITING" && (
                   <Button
                     type="button"

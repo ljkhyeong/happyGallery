@@ -272,7 +272,6 @@ function MyPageContent() {
 
       {showClaimModal && user!.phone && (
         <GuestClaimModal
-          show={showClaimModal}
           onClose={() => setShowClaimModal(false)}
           phone={user!.phone}
           phoneVerified={user!.phoneVerified}

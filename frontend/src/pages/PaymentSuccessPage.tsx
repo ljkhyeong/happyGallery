@@ -18,6 +18,7 @@ import {
   type PaymentConfirmRequest,
   type PaymentSessionHandle,
 } from "@/features/payment";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import type { ConfirmPaymentResponse } from "@/generated/api/payment";
 import type { PaymentStatusResponse } from "@/generated/api/paymentQuery";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -426,16 +427,7 @@ export function PaymentSuccessPage() {
         actions={(
           <>
             <PaymentCompletionNext result={result} />
-            {result.receiptUrl && (
-              <a
-                className="btn btn-outline-secondary"
-                href={result.receiptUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                결제 영수증 보기
-              </a>
-            )}
+            <PaymentReceiptLink receiptUrl={result.receiptUrl} size="default" />
           </>
         )}
       />

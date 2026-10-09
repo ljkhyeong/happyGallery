@@ -88,7 +88,6 @@ interface Props {
   onSuccess: () => void | Promise<void>;
   cancelPolicy: BookingCancelPolicy;
   depositAmount: number;
-  buttonLabel?: string;
 }
 
 export function CancelButton({
@@ -96,7 +95,6 @@ export function CancelButton({
   onSuccess,
   cancelPolicy,
   depositAmount,
-  buttonLabel = "예약 취소",
 }: Props) {
   const titleId = `booking-cancel-title-${useId()}`;
   const toast = useToast();
@@ -110,9 +108,6 @@ export function CancelButton({
     res: CancelResponse,
     requireCurrent: () => void,
   ) => {
-    const passCreditNotRestored =
-      cancelPolicy.warningCode === PASS_CREDIT_NOT_RESTORABLE_AFTER_DEADLINE;
-    const passBooking = passCreditNotRestored || cancelPolicy.passCreditRestorable;
     requireCurrent();
     await Promise.all([
       invalidateSlotAvailability(queryClient),
@@ -170,7 +165,7 @@ export function CancelButton({
         title={!cancelPolicy.cancellable ? "공방 확인이 필요한 예약입니다." : undefined}
         onClick={() => setShowConfirm(true)}
       >
-        {buttonLabel}
+        예약 취소
       </Button>
 
       <Modal

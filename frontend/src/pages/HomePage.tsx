@@ -22,7 +22,7 @@ import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCateg
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { PUBLIC_DATA_STALE_TIME, REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
 import type { NoticeListResponse } from "@/generated/api/notice";
@@ -155,8 +155,8 @@ export function HomePage({
               <div><dt>체험</dt><dd>원데이 클래스 · 정규반 4회권 · 단체 출강</dd></div>
             </dl>
             <div className="gallery-hero-actions">
-              <Link to="/products" className="btn btn-dark btn-lg">전시 작품 보기</Link>
-              <Link to="/classes" className="btn btn-outline-dark btn-lg">체험 프로그램 예약</Link>
+              <LinkButton to="/products" variant="dark" size="lg">전시 작품 보기</LinkButton>
+              <LinkButton to="/classes" variant="outline-dark" size="lg">체험 프로그램 예약</LinkButton>
             </div>
           </div>
           <figure className="gallery-hero-figure">

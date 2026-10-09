@@ -11,6 +11,7 @@ import {
   readPaymentStatusToken,
   shouldPollPaymentStatus,
 } from "@/features/payment";
+import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
   captureCustomerSession,
   isCurrentCustomerSession,
@@ -151,15 +152,8 @@ export function GuestPaymentStatusPage() {
         actions={(
           <>
             {completedResult && <PaymentCompletionNext result={completedResult} />}
-            {status.status === "COMPLETED" && status.receiptUrl && (
-              <a
-                className="btn btn-outline-secondary"
-                href={status.receiptUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                결제 영수증 보기
-              </a>
+            {status.status === "COMPLETED" && (
+              <PaymentReceiptLink receiptUrl={status.receiptUrl} size="default" />
             )}
             <Button
               variant={completedResult ? "outline-secondary" : "primary"}

@@ -1,11 +1,10 @@
 import { Badge } from "react-bootstrap";
-import { Link } from "react-router";
 import { fetchEvents } from "./api";
 import { EventPeriodText } from "./EventPeriodText";
 import { eventRefetchInterval, isEventAvailable, isEventOngoing } from "./time";
 import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import type { EventResponse } from "./api";
 
 export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventResponse[] }) {
@@ -49,7 +48,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           <p className="store-section-kicker">이벤트</p>
           <h2 id="home-event-title">새로운 이벤트를 준비하고 있습니다</h2>
           <p>진행 예정인 공방 소식은 이벤트 목록에서 확인할 수 있습니다.</p>
-          <Link to="/events" className="btn btn-outline-light">전체 이벤트</Link>
+          <LinkButton to="/events" variant="outline-light">전체 이벤트</LinkButton>
         </div>
       )}
       {featured?.imageUrl && (
@@ -69,8 +68,8 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           <p className="home-event-summary">{featured.summary}</p>
           <EventPeriodText event={featured} className="home-event-period" />
           <div className="home-event-actions">
-            <Link to={`/events/${featured.id}`} className="btn btn-light">이벤트 보기</Link>
-            <Link to="/events" className="btn btn-outline-light">전체 이벤트</Link>
+            <LinkButton to={`/events/${featured.id}`} variant="light">이벤트 보기</LinkButton>
+            <LinkButton to="/events" variant="outline-light">전체 이벤트</LinkButton>
           </div>
         </div>
       )}

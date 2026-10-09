@@ -1,5 +1,5 @@
 import { Button, Card } from "react-bootstrap";
-import { Link } from "react-router";
+import { LinkButton } from "@/shared/ui";
 import { SocialAccountSection } from "@/features/customer-auth/SocialAccountSection";
 import type { CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 
@@ -38,13 +38,14 @@ export function MyAccountCard({
               변경
             </Button>
           ) : user.email && user.phone ? (
-            <Link
-              className="btn btn-outline-primary btn-sm"
+            <LinkButton
+              variant="outline-primary"
+              size="sm"
               to="/forgot-password"
               state={{ email: user.email, phone: user.phone }}
             >
               설정
-            </Link>
+            </LinkButton>
           ) : null}
         </div>
 

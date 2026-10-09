@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card } from "react-bootstrap";
-import { Link } from "react-router";
 import {
   claimCoupon,
   fetchClaimableCoupons,
@@ -11,7 +10,7 @@ import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
   eventId: number;
@@ -84,9 +83,9 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
             <p className="mb-0">
               로그인하면 이 이벤트에 연결된 쿠폰을 받을 수 있습니다.
             </p>
-            <Link className="btn btn-primary" to={loginHref}>
+            <LinkButton to={loginHref}>
               로그인하고 쿠폰 받기
-            </Link>
+            </LinkButton>
           </div>
         )}
         {isAuthenticated && (
@@ -107,9 +106,9 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
                     {formatDateTime(ownedCoupon.validUntil)}까지
                   </small>
                 </div>
-                <Link className="btn btn-outline-dark" to="/my/benefits">
+                <LinkButton variant="outline-dark" to="/my/benefits">
                   받은 쿠폰 확인
-                </Link>
+                </LinkButton>
               </div>
             )}
             {!ownedCoupon && claimableCoupon && (

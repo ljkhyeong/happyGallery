@@ -14,7 +14,7 @@ import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
 
 interface Props {
   classId: number;
-  className?: string;
+  className: string;
   currentSlotId: number;
   currentStartAt: string;
   participantCount: number;
@@ -55,9 +55,7 @@ export function RescheduleForm({
     queryFn: () => fetchRescheduleSlots(classId, date),
     enabled: date.length > 0,
   });
-  const upcomingQuery = useQuery({
-    ...upcomingSlotsQuery(classId),
-  });
+  const upcomingQuery = useQuery(upcomingSlotsQuery(classId));
 
   const applySuccess = async (requireCurrent: () => void) => {
     requireCurrent();
@@ -137,7 +135,7 @@ export function RescheduleForm({
       {!slotsLoading && slots && availableSlots.length === 0 && (
         <div className="mb-3">
           <EmptyState message="선택한 날짜에 변경 가능한 시간이 없습니다." />
-          {className && <WorkshopInquiryLink className={className} desiredDate={date} />}
+          <WorkshopInquiryLink className={className} desiredDate={date} />
         </div>
       )}
 
