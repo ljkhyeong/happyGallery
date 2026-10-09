@@ -499,6 +499,11 @@
   grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
   gap: clamp(2.5rem, 6vw, 6rem);
   align-items: center;
+  padding-bottom: clamp(4rem, 8vw, 6rem);
+
+  figure {
+    aspect-ratio: 4 / 5;
+  }
 }
 
 .group-class-intro figure,
@@ -676,15 +681,11 @@
   align-items: center;
   margin-bottom: 1.1rem;
 
+  // 먹색 이벤트 면 위 이름표는 흰색으로 둔다(홈은 먹색·흰색·빨간 점만 쓴다).
   .store-section-kicker {
     margin-bottom: 0;
+    color: #FFFFFF;
   }
-}
-
-// 먹색 이벤트 면의 이름표는 노랑 대신 흰색으로 둔다(홈은 먹색·흰색·빨간 점만 쓴다).
-.home-event-labels .store-section-kicker,
-.home-event-empty .store-section-kicker {
-  color: #FFFFFF;
 }
 
 .home-event-summary {
@@ -708,6 +709,10 @@
 
 .home-event-empty {
   align-items: flex-start;
+
+  .store-section-kicker {
+    color: #FFFFFF;
+  }
 
   > p:not(.store-section-kicker) {
     max-width: 30rem;
@@ -734,14 +739,6 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-// ── 방문 안내 ──────────────────────────────────────────
-.workshop-visit-links {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
-  align-items: flex-start;
 }
 
 // ── 클래스 목록 ─────────────────────────────────────────
@@ -1394,14 +1391,6 @@
     max-width: 34rem;
     margin: 0;
     color: rgba(255, 255, 255, 0.84);
-  }
-}
-
-.group-class-intro {
-  padding-bottom: clamp(4rem, 8vw, 6rem);
-
-  figure {
-    aspect-ratio: 4 / 5;
   }
 }
 

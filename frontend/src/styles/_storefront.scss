@@ -114,7 +114,9 @@
 
 .store-detail-title {
   margin: 0;
+  font-family: var(--hg-font-display);
   font-size: clamp(1.9rem, 3.4vw, 2.75rem);
+  font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.035em;
 }
@@ -1148,10 +1150,6 @@
 
 // ── Responsive ─────────────────────────────────────────
 @media (max-width: 575.98px) {
-  .app-utility-copy {
-    display: none;
-  }
-
   .store-detail-terms > div {
     grid-template-columns: 1fr;
   }
