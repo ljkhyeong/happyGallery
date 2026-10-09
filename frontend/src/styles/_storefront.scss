@@ -5,8 +5,6 @@
 
 .anim-delay-1 { animation-delay: 0.1s; }
 .anim-delay-2 { animation-delay: 0.2s; }
-.anim-delay-3 { animation-delay: 0.3s; }
-.anim-delay-4 { animation-delay: 0.4s; }
 
 // ── Status badge ───────────────────────────────────────
 .badge-status {
@@ -14,34 +12,6 @@
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-}
-
-// ── Lookup panel ───────────────────────────────────────
-.lookup-panel {
-  padding: 2.5rem;
-  background: var(--hg-surface-alt);
-}
-
-.lookup-panel-title {
-  font-weight: 700;
-}
-
-.lookup-panel-note,
-.guest-route-note {
-  padding: 1rem 1.25rem;
-  background: #FFFFFF;
-  border: 1px solid var(--hg-border);
-  color: var(--hg-dark);
-  font-size: 0.8125rem;
-}
-
-.guest-route-note-title {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--hg-accent);
-  margin-bottom: 0.35rem;
 }
 
 // ── Detail page ────────────────────────────────────────
@@ -225,8 +195,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 2rem;
 
-  > .alert,
-  > .btn {
+  > .alert {
     grid-column: 1 / -1;
   }
 
@@ -238,10 +207,6 @@
   strong {
     margin-bottom: 0.35rem;
     font-size: 0.8125rem;
-  }
-
-  .btn {
-    justify-self: start;
   }
 }
 
@@ -379,20 +344,6 @@
 
 .store-purchase-line {
   font-size: 0.8125rem;
-}
-
-.store-purchase-total-divider {
-  border-top: 2px solid var(--hg-dark);
-}
-
-.store-purchase-total-label {
-  font-weight: 700;
-}
-
-.store-purchase-total-value {
-  font-family: var(--hg-font-display);
-  font-size: 1.35rem;
-  font-weight: 500;
 }
 
 .store-purchase-helper {
@@ -582,18 +533,6 @@
 .social-login-button-google .social-login-button-icon,
 .social-login-button-kakao .social-login-button-icon {
   padding: 10px;
-}
-
-.auth-prefill-card {
-  padding: 1.25rem;
-  background: var(--hg-surface-alt);
-  border: 1px solid var(--hg-border);
-}
-
-.auth-prefill-title {
-  color: var(--hg-dark);
-  font-weight: 700;
-  margin-bottom: 0.35rem;
 }
 
 // ── My page cards ──────────────────────────────────────
@@ -1217,10 +1156,6 @@
     grid-template-columns: 1fr;
   }
 
-  .lookup-panel {
-    padding: 1.5rem;
-  }
-
   .store-detail-title {
     font-size: 1.85rem;
   }
@@ -1237,12 +1172,6 @@
   .store-order-sheet-header {
     align-items: flex-start;
     flex-direction: column;
-  }
-}
-
-@media (min-width: 992px) {
-  .border-lg-start {
-    border-left: 1px solid var(--hg-border) !important;
   }
 }
 
@@ -2453,8 +2382,7 @@
       display: none;
     }
 
-    tbody,
-    tr {
+    tbody {
       display: block;
     }
 

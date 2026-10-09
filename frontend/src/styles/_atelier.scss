@@ -464,20 +464,6 @@ textarea {
   --bs-btn-focus-shadow-rgb: 34, 34, 34;
 }
 
-// 클래스 예약 버튼: 전시 도록 방향은 색을 늘리지 않으므로 주 행동과 같은 먹색 채움이다.
-.btn-accent {
-  --bs-btn-color: #FFFFFF;
-  --bs-btn-bg: var(--hg-accent);
-  --bs-btn-border-color: var(--hg-accent);
-  --bs-btn-hover-color: #FFFFFF;
-  --bs-btn-hover-bg: #000000;
-  --bs-btn-hover-border-color: #000000;
-  --bs-btn-active-color: #FFFFFF;
-  --bs-btn-active-bg: #000000;
-  --bs-btn-active-border-color: #000000;
-  --bs-btn-focus-shadow-rgb: 17, 17, 17;
-}
-
 // 노랑 배지(승인 대기·지연·답변 대기)는 흰 글자가 1.96:1이라 먹색 글자(8.1:1)로 쓴다.
 .badge.bg-warning {
   color: var(--hg-dark);
@@ -496,8 +482,7 @@ textarea {
 // 한글 kicker는 자간을 거의 두지 않고, 영문 표기만 대문자로 넓힌다.
 .store-section-kicker,
 .store-purchase-kicker,
-.store-detail-kicker,
-.product-card-kicker {
+.store-detail-kicker {
   margin-bottom: 0.75rem;
   color: var(--hg-accent-deep);
   font-size: 0.75rem;
@@ -657,8 +642,7 @@ textarea {
   border-bottom: 1px solid var(--hg-border);
 }
 
-.store-section-title,
-.lookup-panel-title {
+.store-section-title {
   margin-bottom: 0.55rem;
   font-family: var(--hg-font-display);
   font-size: 2.55rem;
@@ -808,20 +792,6 @@ textarea {
     grid-template-columns: 1fr;
     gap: 0.25rem;
   }
-}
-
-.lookup-panel {
-  padding: clamp(2rem, 4vw, 3rem);
-  background: #EFEFEC;
-  border: 0;
-  border-radius: var(--hg-radius);
-}
-
-.lookup-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1.75rem;
 }
 
 .list-group-item {
