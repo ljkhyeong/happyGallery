@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Alert, Card, Badge, Button, Form } from "react-bootstrap";
+import { useState } from "react";
+import { Card, Badge, Button, Form } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   fetchAdminNotice,
@@ -10,11 +10,12 @@ import {
   type NoticeDetailResponse,
   type NoticeListResponse,
 } from "./api";
-import { ApiError, queryKeys } from "@/shared/api";
-import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { ErrorAlert, LoadingSpinner, EmptyState, useToast } from "@/shared/ui";
+import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 import { formatDateTime } from "@/shared/lib";
 import {
   CONTENT_BODY_MAX_LENGTH,
@@ -45,33 +46,32 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [pinned, setPinned] = useState(false);
   const [actionError, setActionError] = useState<Error | null>(null);
-  const [editLoading, setEditLoading] = useState(false);
-  const [conflict, setConflict] = useState<NoticeDetailResponse | null>(null);
-  const editRequestId = useRef(0);
+  const edit = useVersionedEdit<NoticeDetailResponse>({
+    onAuthError,
+    isConflict: isVersionConflict,
+    applyToForm: (notice) => {
+      setTitle(notice.title);
+      setContent(notice.content);
+      setPinned(notice.pinned);
+    },
+    setError: setActionError,
+    onConflict: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
+    },
+  });
 
   const resetForm = () => {
-    editRequestId.current += 1;
+    edit.reset();
     setShowForm(false);
     setEditId(null);
-    setEditVersion(null);
     setTitle("");
     setContent("");
     setPinned(false);
     setActionError(null);
-    setEditLoading(false);
-    setConflict(null);
-  };
-
-  const hydrateEditForm = (notice: NoticeDetailResponse) => {
-    setEditVersion(notice.version);
-    setTitle(notice.title);
-    setContent(notice.content);
-    setPinned(notice.pinned);
   };
 
   const createMutation = useAdminMutation(onAuthError, {
@@ -88,7 +88,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
   const updateMutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateNotice(
       editId!,
-      { expectedVersion: editVersion!, title, content, pinned },
+      { expectedVersion: edit.version!, title, content, pinned },
       adminKey,
     ),
     onMutate: () => setActionError(null),
@@ -97,32 +97,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
       resetForm();
       invalidateSavedNotices();
     },
-    onError: async (error) => {
-      if (!(error instanceof ApiError) || error.status !== 409 || editId === null) {
-        setActionError(error);
-        return;
-      }
-
-      const requestId = editRequestId.current;
-      setEditLoading(true);
-      try {
-        const latest = await fetchAdminNotice(editId, adminKey);
-        if (requestId !== editRequestId.current) return;
-        setConflict(latest);
-        setActionError(null);
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
-      } catch (refreshError) {
-        if (requestId !== editRequestId.current) return;
-        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
-        setActionError(
-          refreshError instanceof Error
-            ? refreshError
-            : new Error("최신 공지사항을 불러오지 못했습니다."),
-        );
-      } finally {
-        if (requestId === editRequestId.current) setEditLoading(false);
-      }
-    },
+    onError: (error) => edit.handleSaveError(error, () => fetchAdminNotice(editId!, adminKey)),
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
@@ -133,46 +108,21 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
       toast.show("공지사항이 삭제되었습니다.");
       invalidateSavedNotices();
     },
-    onError: (error) => {
-      setActionError(error);
-      if (error instanceof ApiError && error.status === 409) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.notices });
-      }
-    },
+    onError: edit.handleDeleteError,
   });
 
-  const startEdit = async (notice: NoticeListResponse) => {
-    const requestId = ++editRequestId.current;
+  const startEdit = (notice: NoticeListResponse) => {
     setEditId(notice.id);
-    setEditVersion(null);
     setTitle(notice.title);
     setContent("");
     setPinned(notice.pinned);
-    setActionError(null);
-    setConflict(null);
     setShowForm(true);
-    setEditLoading(true);
-
-    try {
-      const detail = await fetchAdminNotice(notice.id, adminKey);
-      if (requestId !== editRequestId.current) return;
-      hydrateEditForm(detail);
-    } catch (editError) {
-      if (requestId !== editRequestId.current) return;
-      if (isAdminSessionUnauthorized(editError)) onAuthError();
-      setActionError(
-        editError instanceof Error
-          ? editError
-          : new Error("공지사항을 불러오지 못했습니다."),
-      );
-    } finally {
-      if (requestId === editRequestId.current) setEditLoading(false);
-    }
+    void edit.startEdit(() => fetchAdminNotice(notice.id, adminKey));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editId !== null && editVersion !== null) {
+    if (editId !== null && edit.version !== null) {
       updateMutation.mutate();
     } else if (editId === null) {
       createMutation.mutate();
@@ -192,38 +142,13 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
       {showForm && (
         <Card className="mb-3">
           <Card.Body>
-            {editLoading && <LoadingSpinner text="공지사항 불러오는 중..." />}
-            {conflict && (
-              <Alert variant="warning">
-                <p className="mb-2">
-                  다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다.
-                </p>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-dark"
-                    onClick={() => {
-                      setEditVersion(conflict.version);
-                      setConflict(null);
-                      toast.show("입력 내용은 유지했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
-                    }}
-                  >
-                    내 초안 유지
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => {
-                      hydrateEditForm(conflict);
-                      setConflict(null);
-                    }}
-                  >
-                    다른 관리자가 저장한 내용 불러오기
-                  </Button>
-                </div>
-              </Alert>
+            {edit.loading && <LoadingSpinner text="공지사항 불러오는 중..." />}
+            {edit.conflict && (
+              <VersionConflictAlert
+                message="다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다."
+                onKeepDraft={edit.keepDraft}
+                onLoadLatest={edit.loadLatest}
+              />
             )}
             <Form onSubmit={handleSubmit}>
               <Form.Group className="mb-2" controlId="admin-notice-title">
@@ -234,7 +159,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                   maxLength={CONTENT_TITLE_MAX_LENGTH}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  disabled={editLoading}
+                  disabled={edit.loading}
                   required
                   aria-describedby="admin-notice-title-count"
                 />
@@ -252,7 +177,7 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                   maxLength={CONTENT_BODY_MAX_LENGTH}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  disabled={editLoading}
+                  disabled={edit.loading}
                   required
                   aria-describedby="admin-notice-content-count"
                 />
@@ -265,16 +190,16 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                 label="상단 고정"
                 checked={pinned}
                 onChange={(e) => setPinned(e.target.checked)}
-                disabled={editLoading}
+                disabled={edit.loading}
                 className="mb-2"
               />
               <Button
                 type="submit"
                 size="sm"
                 disabled={
-                  editLoading
-                  || conflict !== null
-                  || (editId !== null && editVersion === null)
+                  edit.loading
+                  || edit.conflict !== null
+                  || (editId !== null && edit.version === null)
                   || createMutation.isPending
                   || updateMutation.isPending
                 }
@@ -305,8 +230,8 @@ export function AdminNoticeSection({ adminKey, onAuthError }: Props) {
                 <Button
                   size="sm"
                   variant="outline-secondary"
-                  onClick={() => void startEdit(n)}
-                  disabled={editLoading}
+                  onClick={() => startEdit(n)}
+                  disabled={edit.loading}
                 >
                   수정
                 </Button>

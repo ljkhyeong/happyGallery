@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
+import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
   createEvent,
   deleteEvent,
@@ -18,12 +18,13 @@ import {
 import { fetchProducts } from "@/features/admin-product/api";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { eventTimingLabel } from "@/features/event/time";
-import { ApiError, queryKeys } from "@/shared/api";
-import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 import {
   CONTENT_BODY_MAX_LENGTH,
   CONTENT_TITLE_MAX_LENGTH,
@@ -113,14 +114,19 @@ function updateRequest(form: EventFormState, expectedVersion: number): UpdateEve
 export function AdminEventSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const editRequestId = useRef(0);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [form, setForm] = useState<EventFormState>(emptyForm);
-  const [editLoading, setEditLoading] = useState(false);
   const [actionError, setActionError] = useState<Error | null>(null);
-  const [conflict, setConflict] = useState<EventResponse | null>(null);
+  const edit = useVersionedEdit<EventResponse>({
+    onAuthError,
+    isConflict: isVersionConflict,
+    applyToForm: (event) => setForm(formFrom(event)),
+    setError: setActionError,
+    onConflict: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.events });
+    },
+  });
 
   const eventsQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.events,
@@ -143,14 +149,11 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
   };
 
   const resetForm = () => {
-    editRequestId.current += 1;
+    edit.reset();
     setShowForm(false);
     setEditId(null);
-    setEditVersion(null);
     setForm(emptyForm());
-    setEditLoading(false);
     setActionError(null);
-    setConflict(null);
   };
 
   const createMutation = useAdminMutation(onAuthError, {
@@ -167,7 +170,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
   const updateMutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateEvent(
       editId!,
-      updateRequest(form, editVersion!),
+      updateRequest(form, edit.version!),
       adminKey,
     ),
     onMutate: () => setActionError(null),
@@ -176,32 +179,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
       resetForm();
       invalidateEvents();
     },
-    onError: async (error) => {
-      if (!(error instanceof ApiError) || error.status !== 409 || editId === null) {
-        setActionError(error);
-        return;
-      }
-
-      const requestId = editRequestId.current;
-      setEditLoading(true);
-      try {
-        const latest = await fetchAdminEvent(editId, adminKey);
-        if (requestId !== editRequestId.current) return;
-        setConflict(latest);
-        setActionError(null);
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.events });
-      } catch (refreshError) {
-        if (requestId !== editRequestId.current) return;
-        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
-        setActionError(
-          refreshError instanceof Error
-            ? refreshError
-            : new Error("최신 이벤트를 불러오지 못했습니다."),
-        );
-      } finally {
-        if (requestId === editRequestId.current) setEditLoading(false);
-      }
-    },
+    onError: (error) => edit.handleSaveError(error, () => fetchAdminEvent(editId!, adminKey)),
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
@@ -212,35 +190,14 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
       toast.show("이벤트가 삭제되었습니다.");
       invalidateEvents();
     },
-    onError: (error) => {
-      setActionError(error);
-      if (error instanceof ApiError && error.status === 409) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.events });
-      }
-    },
+    onError: edit.handleDeleteError,
   });
 
-  const startEdit = async (event: EventResponse) => {
-    const requestId = ++editRequestId.current;
+  const startEdit = (event: EventResponse) => {
     setEditId(event.id);
-    setEditVersion(null);
     setForm(formFrom(event));
     setShowForm(true);
-    setEditLoading(true);
-    setActionError(null);
-    setConflict(null);
-    try {
-      const latest = await fetchAdminEvent(event.id, adminKey);
-      if (requestId !== editRequestId.current) return;
-      setForm(formFrom(latest));
-      setEditVersion(latest.version);
-    } catch (error) {
-      if (requestId !== editRequestId.current) return;
-      if (isAdminSessionUnauthorized(error)) onAuthError();
-      setActionError(error instanceof Error ? error : new Error("이벤트를 불러오지 못했습니다."));
-    } finally {
-      if (requestId === editRequestId.current) setEditLoading(false);
-    }
+    void edit.startEdit(() => fetchAdminEvent(event.id, adminKey));
   };
 
   const valid = form.title.trim().length > 0
@@ -254,7 +211,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
     event.preventDefault();
     if (!valid) return;
     if (editId === null) createMutation.mutate();
-    else if (editVersion !== null) updateMutation.mutate();
+    else if (edit.version !== null) updateMutation.mutate();
   };
 
   return (
@@ -280,39 +237,13 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
       {showForm && (
         <Card className="mb-4">
           <Card.Body>
-            {editLoading && <LoadingSpinner text="이벤트 불러오는 중..." />}
-            {conflict && (
-              <Alert variant="warning">
-                <p className="mb-2">
-                  다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다.
-                </p>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-dark"
-                    onClick={() => {
-                      setEditVersion(conflict.version);
-                      setConflict(null);
-                      toast.show("입력 내용은 유지했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
-                    }}
-                  >
-                    내 초안 유지
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => {
-                      setForm(formFrom(conflict));
-                      setEditVersion(conflict.version);
-                      setConflict(null);
-                    }}
-                  >
-                    다른 관리자가 저장한 내용 불러오기
-                  </Button>
-                </div>
-              </Alert>
+            {edit.loading && <LoadingSpinner text="이벤트 불러오는 중..." />}
+            {edit.conflict && (
+              <VersionConflictAlert
+                message="다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다."
+                onKeepDraft={edit.keepDraft}
+                onLoadLatest={edit.loadLatest}
+              />
             )}
 
             <Form onSubmit={submit}>
@@ -324,7 +255,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       value={form.title}
                       maxLength={CONTENT_TITLE_MAX_LENGTH}
                       onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       required
                     />
                     <Form.Text className="d-block text-end">
@@ -341,7 +272,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       value={form.summary}
                       maxLength={SUMMARY_MAX_LENGTH}
                       onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       required
                     />
                     <Form.Text className="d-block text-end">
@@ -358,7 +289,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       value={form.content}
                       maxLength={CONTENT_BODY_MAX_LENGTH}
                       onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       required
                     />
                     <Form.Text className="d-block text-end">
@@ -383,7 +314,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       type="datetime-local"
                       value={form.startAt}
                       onChange={(event) => setForm((current) => ({ ...current, startAt: event.target.value }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       required
                     />
                   </Form.Group>
@@ -396,7 +327,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       value={form.endAt}
                       min={form.startAt || undefined}
                       onChange={(event) => setForm((current) => ({ ...current, endAt: event.target.value }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       required
                     />
                   </Form.Group>
@@ -414,7 +345,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                           ? Number(event.target.value)
                           : null,
                       }))}
-                      disabled={editLoading || couponsQuery.isLoading}
+                      disabled={edit.loading || couponsQuery.isLoading}
                     >
                       <option value="">연결하지 않음</option>
                       {couponsQuery.data?.map((coupon) => (
@@ -444,7 +375,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                           type="checkbox"
                           label={`${product.name} (#${product.id})`}
                           checked={form.relatedProductIds.includes(product.id)}
-                          disabled={editLoading}
+                          disabled={edit.loading}
                           onChange={(changeEvent) => setForm((current) => ({
                             ...current,
                             relatedProductIds: changeEvent.target.checked
@@ -464,7 +395,7 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       label="공개"
                       checked={form.published}
                       onChange={(event) => setForm((current) => ({ ...current, published: event.target.checked }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                     />
                     <Form.Check
                       id="admin-event-featured"
@@ -472,16 +403,16 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
                       label="홈 추천"
                       checked={form.featured}
                       onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                     />
                   </div>
                   <Button
                     type="submit"
                     disabled={
                       !valid
-                      || editLoading
-                      || conflict !== null
-                      || (editId !== null && editVersion === null)
+                      || edit.loading
+                      || edit.conflict !== null
+                      || (editId !== null && edit.version === null)
                       || createMutation.isPending
                       || updateMutation.isPending
                     }
@@ -528,8 +459,8 @@ export function AdminEventSection({ adminKey, onAuthError }: Props) {
               <Button
                 size="sm"
                 variant="outline-secondary"
-                onClick={() => void startEdit(event)}
-                disabled={editLoading}
+                onClick={() => startEdit(event)}
+                disabled={edit.loading}
               >
                 수정
               </Button>

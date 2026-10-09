@@ -1,14 +1,14 @@
-import { useEffect, useRef, useState } from "react";
-import { Alert, Button, Col, Form, InputGroup, Row } from "react-bootstrap";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { Button, Col, Form, InputGroup, Row } from "react-bootstrap";
 import { useQueryClient } from "@tanstack/react-query";
 import { fetchAdminWorkshopProfile, updateWorkshopProfile } from "@/features/workshop/api";
-import { ApiError } from "@/shared/api";
 import type { WorkshopProfile } from "@/shared/types";
 import { ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
-import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
+import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { RoadAddressSearchButton } from "@/shared/ui/RoadAddressSearchButton";
+import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 
 interface Props {
   adminKey: string;
@@ -63,26 +63,35 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [form, setForm] = useState(initialForm);
-  const [expectedVersion, setExpectedVersion] = useState<number | null>(null);
-  const [conflict, setConflict] = useState<WorkshopProfile | null>(null);
-  const [conflictLoading, setConflictLoading] = useState(false);
-  const [conflictRefreshError, setConflictRefreshError] = useState<Error | null>(null);
+  const [actionError, setActionError] = useState<Error | null>(null);
   const initiallyHydrated = useRef(false);
   const query = useAdminQuery(onAuthError, {
     queryKey: ["admin", "workshop-profile"],
     queryFn: () => fetchAdminWorkshopProfile(adminKey),
   });
+  const edit = useVersionedEdit<WorkshopProfile>({
+    onAuthError,
+    isConflict: isVersionConflict,
+    applyToForm: (profile) => setForm(profileToForm(profile)),
+    setError: setActionError,
+    onConflict: (latest) => {
+      if (latest) queryClient.setQueryData(["admin", "workshop-profile"], latest);
+    },
+  });
+
+  const hydrateInitialProfile = useEffectEvent((profile: WorkshopProfile) => {
+    edit.applyLatest(profile);
+  });
 
   useEffect(() => {
     if (!query.data || initiallyHydrated.current) return;
     initiallyHydrated.current = true;
-    setExpectedVersion(query.data.version);
-    setForm(profileToForm(query.data));
+    hydrateInitialProfile(query.data);
   }, [query.data]);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateWorkshopProfile(adminKey, {
-      expectedVersion: expectedVersion!,
+      expectedVersion: edit.version!,
       name: form.name,
       phone: form.phone.trim() || null,
       postalCode: form.postalCode.trim() || null,
@@ -102,34 +111,14 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
       instagramUrl: form.instagramUrl.trim() || null,
       smartStoreUrl: form.smartStoreUrl.trim() || null,
     }),
-    onMutate: () => setConflictRefreshError(null),
+    onMutate: () => setActionError(null),
     onSuccess: (saved) => {
-      setExpectedVersion(saved.version);
-      setForm(profileToForm(saved));
-      setConflict(null);
+      edit.applyLatest(saved);
       queryClient.setQueryData(["admin", "workshop-profile"], saved);
       queryClient.invalidateQueries({ queryKey: ["workshop-profile"] });
       toast.show("공방 정보가 저장되었습니다.");
     },
-    onError: async (error) => {
-      if (!(error instanceof ApiError) || error.status !== 409) return;
-
-      setConflictLoading(true);
-      try {
-        const latest = await fetchAdminWorkshopProfile(adminKey);
-        queryClient.setQueryData(["admin", "workshop-profile"], latest);
-        setConflict(latest);
-      } catch (refreshError) {
-        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
-        setConflictRefreshError(
-          refreshError instanceof Error
-            ? refreshError
-            : new Error("최신 공방 정보를 불러오지 못했습니다."),
-        );
-      } finally {
-        setConflictLoading(false);
-      }
-    },
+    onError: (error) => edit.handleSaveError(error, () => fetchAdminWorkshopProfile(adminKey)),
   });
 
   const update = (field: keyof typeof form, value: string) => {
@@ -141,50 +130,16 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
   return (
     <Form onSubmit={(event) => {
       event.preventDefault();
-      if (form.name.trim() && expectedVersion !== null) mutation.mutate();
+      if (form.name.trim() && edit.version !== null) mutation.mutate();
     }}>
-      <ErrorAlert
-        error={
-          query.error
-          || conflictRefreshError
-          || (conflict ? null : mutation.error)
-        }
-      />
-      {conflictLoading && <LoadingSpinner text="최신 공방 정보 확인 중..." />}
-      {conflict && (
-        <Alert variant="warning">
-          <p className="mb-2">
-            다른 관리자가 공방 정보를 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다.
-          </p>
-          <div className="d-flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline-dark"
-              onClick={() => {
-                setExpectedVersion(conflict.version);
-                setConflict(null);
-                mutation.reset();
-                toast.show("입력 내용은 유지했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
-              }}
-            >
-              내 초안 유지
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline-secondary"
-              onClick={() => {
-                setExpectedVersion(conflict.version);
-                setForm(profileToForm(conflict));
-                setConflict(null);
-                mutation.reset();
-              }}
-            >
-              다른 관리자가 저장한 내용 불러오기
-            </Button>
-          </div>
-        </Alert>
+      <ErrorAlert error={query.error || actionError} />
+      {edit.loading && <LoadingSpinner text="최신 공방 정보 확인 중..." />}
+      {edit.conflict && (
+        <VersionConflictAlert
+          message="다른 관리자가 공방 정보를 먼저 수정했습니다. 작성 중인 초안은 그대로 보존했습니다."
+          onKeepDraft={edit.keepDraft}
+          onLoadLatest={edit.loadLatest}
+        />
       )}
       <Row className="g-3">
         <Col md={6}>
@@ -346,9 +301,9 @@ export function WorkshopProfileForm({ adminKey, onAuthError }: Props) {
             type="submit"
             disabled={
               !form.name.trim()
-              || expectedVersion === null
-              || conflict !== null
-              || conflictLoading
+              || edit.version === null
+              || edit.conflict !== null
+              || edit.loading
               || mutation.isPending
             }
           >

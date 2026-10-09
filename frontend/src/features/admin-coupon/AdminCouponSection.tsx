@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Alert, Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
+import { Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
 import {
   createCoupon,
   deleteCoupon,
@@ -11,12 +11,13 @@ import {
   type CreateCouponRequest,
   type UpdateCouponRequest,
 } from "./api";
-import { ApiError, queryKeys } from "@/shared/api";
-import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
+import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { isVersionConflict, useVersionedEdit } from "@/shared/hooks/useVersionedEdit";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { VersionConflictAlert } from "@/shared/ui/VersionConflictAlert";
 
 interface Props {
   adminKey: string;
@@ -116,6 +117,11 @@ function updateRequest(
   return request ? { ...request, expectedVersion } : null;
 }
 
+/** 쿠폰 저장은 버전 충돌(CONFLICT)만 초안 보존 흐름으로 보내고, 다른 409 업무 오류는 그대로 보여 준다. */
+function isCouponVersionConflict(error: unknown): boolean {
+  return isVersionConflict(error) && error.code === "CONFLICT";
+}
+
 function discountLabel(coupon: AdminCouponResponse): string {
   return coupon.discountType === "FIXED"
     ? `${formatKRW(coupon.discountValue)} 정액 할인`
@@ -125,14 +131,19 @@ function discountLabel(coupon: AdminCouponResponse): string {
 export function AdminCouponSection({ adminKey, onAuthError }: Props) {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const editRequestId = useRef(0);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [editVersion, setEditVersion] = useState<number | null>(null);
   const [form, setForm] = useState<CouponFormState>(emptyForm);
-  const [editLoading, setEditLoading] = useState(false);
   const [actionError, setActionError] = useState<Error | null>(null);
-  const [conflict, setConflict] = useState<AdminCouponResponse | null>(null);
+  const edit = useVersionedEdit<AdminCouponResponse>({
+    onAuthError,
+    isConflict: isCouponVersionConflict,
+    applyToForm: (coupon) => setForm(formFrom(coupon)),
+    setError: setActionError,
+    onConflict: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.coupons });
+    },
+  });
 
   const couponsQuery = useAdminQuery(onAuthError, {
     queryKey: queryKeys.admin.coupons,
@@ -148,14 +159,11 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
   };
 
   const resetForm = () => {
-    editRequestId.current += 1;
+    edit.reset();
     setShowForm(false);
     setEditId(null);
-    setEditVersion(null);
     setForm(emptyForm());
-    setEditLoading(false);
     setActionError(null);
-    setConflict(null);
   };
 
   const createMutation = useAdminMutation(onAuthError, {
@@ -172,7 +180,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
   const updateMutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateCoupon(
       editId!,
-      updateRequest(form, editVersion!)!,
+      updateRequest(form, edit.version!)!,
       adminKey,
     ),
     onMutate: () => setActionError(null),
@@ -181,36 +189,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
       resetForm();
       invalidateCoupons();
     },
-    onError: async (error) => {
-      if (
-        !(error instanceof ApiError)
-        || error.status !== 409
-        || error.code !== "CONFLICT"
-        || editId === null
-      ) {
-        setActionError(error);
-        return;
-      }
-      const requestId = editRequestId.current;
-      setEditLoading(true);
-      try {
-        const latest = await fetchAdminCoupon(editId, adminKey);
-        if (requestId !== editRequestId.current) return;
-        setConflict(latest);
-        setActionError(null);
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.coupons });
-      } catch (refreshError) {
-        if (requestId !== editRequestId.current) return;
-        if (isAdminSessionUnauthorized(refreshError)) onAuthError();
-        setActionError(
-          refreshError instanceof Error
-            ? refreshError
-            : new Error("최신 쿠폰 정보를 불러오지 못했습니다."),
-        );
-      } finally {
-        if (requestId === editRequestId.current) setEditLoading(false);
-      }
-    },
+    onError: (error) => edit.handleSaveError(error, () => fetchAdminCoupon(editId!, adminKey)),
   });
 
   const deleteMutation = useAdminMutation(onAuthError, {
@@ -221,35 +200,14 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
       toast.show("쿠폰 사용을 중지했습니다.");
       invalidateCoupons();
     },
-    onError: (error) => {
-      setActionError(error);
-      if (error instanceof ApiError && error.status === 409) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.admin.coupons });
-      }
-    },
+    onError: edit.handleDeleteError,
   });
 
-  const startEdit = async (coupon: AdminCouponResponse) => {
-    const requestId = ++editRequestId.current;
+  const startEdit = (coupon: AdminCouponResponse) => {
     setEditId(coupon.id);
-    setEditVersion(null);
     setForm(formFrom(coupon));
     setShowForm(true);
-    setEditLoading(true);
-    setActionError(null);
-    setConflict(null);
-    try {
-      const latest = await fetchAdminCoupon(coupon.id, adminKey);
-      if (requestId !== editRequestId.current) return;
-      setForm(formFrom(latest));
-      setEditVersion(latest.version);
-    } catch (error) {
-      if (requestId !== editRequestId.current) return;
-      if (isAdminSessionUnauthorized(error)) onAuthError();
-      setActionError(error instanceof Error ? error : new Error("쿠폰을 불러오지 못했습니다."));
-    } finally {
-      if (requestId === editRequestId.current) setEditLoading(false);
-    }
+    void edit.startEdit(() => fetchAdminCoupon(coupon.id, adminKey));
   };
 
   const request = createRequest(form);
@@ -279,44 +237,20 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
       {showForm && (
         <Card className="mb-3">
           <Card.Body>
-            {editLoading && <LoadingSpinner text="쿠폰 정보를 불러오는 중입니다" />}
-            {conflict && (
-              <Alert variant="warning">
-                <p className="mb-2">다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 보존했습니다.</p>
-                <div className="d-flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-dark"
-                    onClick={() => {
-                      setEditVersion(conflict.version);
-                      setConflict(null);
-                      toast.show("입력 내용은 유지했습니다. 최신 내용을 확인한 뒤 다시 저장해 주세요.");
-                    }}
-                  >
-                    내 초안 유지
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-secondary"
-                    onClick={() => {
-                      setForm(formFrom(conflict));
-                      setEditVersion(conflict.version);
-                      setConflict(null);
-                    }}
-                  >
-                    다른 관리자가 저장한 내용 불러오기
-                  </Button>
-                </div>
-              </Alert>
+            {edit.loading && <LoadingSpinner text="쿠폰 정보를 불러오는 중입니다" />}
+            {edit.conflict && (
+              <VersionConflictAlert
+                message="다른 관리자가 먼저 수정했습니다. 작성 중인 초안은 보존했습니다."
+                onKeepDraft={edit.keepDraft}
+                onLoadLatest={edit.loadLatest}
+              />
             )}
 
             <Form onSubmit={(event) => {
               event.preventDefault();
               if (!request) return;
               if (editId === null) createMutation.mutate();
-              else if (editVersion !== null) updateMutation.mutate();
+              else if (edit.version !== null) updateMutation.mutate();
             }}>
               <Row className="g-3">
                 <Col md={8}>
@@ -326,7 +260,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       value={form.name}
                       maxLength={100}
                       required
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       onChange={(event) => setForm({ ...form, name: event.target.value })}
                     />
                   </Form.Group>
@@ -336,7 +270,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                     <Form.Label>할인 방식</Form.Label>
                     <Form.Select
                       value={form.discountType}
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       onChange={(event) => setForm({
                         ...form,
                         discountType: event.target.value as CouponFormState["discountType"],
@@ -360,7 +294,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       step={1}
                       value={form.discountValue}
                       required
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       onChange={(event) => setForm({ ...form, discountValue: event.target.value })}
                     />
                   </Form.Group>
@@ -374,7 +308,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       step={1}
                       value={form.minOrderAmount}
                       required
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       onChange={(event) => setForm({ ...form, minOrderAmount: event.target.value })}
                     />
                   </Form.Group>
@@ -388,7 +322,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       step={1}
                       value={form.maxDiscountAmount}
                       required={form.discountType === "PERCENT"}
-                      disabled={editLoading || form.discountType === "FIXED"}
+                      disabled={edit.loading || form.discountType === "FIXED"}
                       placeholder={form.discountType === "FIXED" ? "정액 쿠폰은 사용하지 않음" : "필수"}
                       onChange={(event) => setForm({ ...form, maxDiscountAmount: event.target.value })}
                     />
@@ -401,7 +335,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       type="datetime-local"
                       value={form.validFrom}
                       required
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       onChange={(event) => setForm({ ...form, validFrom: event.target.value })}
                     />
                   </Form.Group>
@@ -413,7 +347,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                       type="datetime-local"
                       value={form.validUntil}
                       required
-                      disabled={editLoading}
+                      disabled={edit.loading}
                       isInvalid={Boolean(form.validFrom && form.validUntil && form.validFrom >= form.validUntil)}
                       onChange={(event) => setForm({ ...form, validUntil: event.target.value })}
                     />
@@ -430,7 +364,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                   type="checkbox"
                   label="사용 가능"
                   checked={form.active}
-                  disabled={editLoading}
+                  disabled={edit.loading}
                   onChange={(event) => setForm({ ...form, active: event.target.checked })}
                 />
                 <Form.Check
@@ -438,7 +372,7 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                   type="checkbox"
                   label="회원이 직접 발급 가능"
                   checked={form.publiclyClaimable}
-                  disabled={editLoading}
+                  disabled={edit.loading}
                   onChange={(event) => setForm({ ...form, publiclyClaimable: event.target.checked })}
                 />
               </div>
@@ -447,11 +381,11 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                 type="submit"
                 size="sm"
                 disabled={
-                  editLoading
+                  edit.loading
                   || saving
                   || request === null
-                  || conflict !== null
-                  || (editId !== null && editVersion === null)
+                  || edit.conflict !== null
+                  || (editId !== null && edit.version === null)
                 }
               >
                 {saving ? "저장 중..." : editId === null ? "등록" : "수정"}
@@ -486,8 +420,8 @@ export function AdminCouponSection({ adminKey, onAuthError }: Props) {
                 type="button"
                 size="sm"
                 variant="outline-secondary"
-                disabled={editLoading}
-                onClick={() => { void startEdit(coupon); }}
+                disabled={edit.loading}
+                onClick={() => startEdit(coupon)}
               >
                 수정
               </Button>
