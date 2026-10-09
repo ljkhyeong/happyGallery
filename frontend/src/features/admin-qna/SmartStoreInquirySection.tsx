@@ -15,6 +15,7 @@ import type {
   SmartStoreInquiryResponse,
 } from "./api";
 import { formatDateTime } from "@/shared/lib";
+import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
@@ -27,11 +28,9 @@ interface Props {
 
 const queryKey = ["admin", "smartstore-inquiries"] as const;
 type InquiryType = "product" | "customer";
-const dateInputFormat = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" });
-
 function initialSearch() {
-  const from = dateInputFormat.format(new Date(Date.now() - 29 * 86400000));
-  const to = dateInputFormat.format(new Date());
+  const to = formatDateInput(Date.now());
+  const from = addDaysToDateInput(to, -29);
   return { from, to, draftFrom: from, draftTo: to, unansweredOnly: true, page: 0 };
 }
 

@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { formatKRW } from "@/shared/lib";
+import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner } from "@/shared/ui";
 import {
   fetchDashboardSnapshot,
@@ -27,18 +28,13 @@ const GRANULARITY_OPTIONS: Array<{ value: DashboardGranularity; label: string }>
   { value: "MONTHLY", label: "월별" },
 ];
 
-function kstDate(date = new Date()): string {
-  return date.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-}
-
 function recentRange(days: number): DashboardRange {
-  const to = new Date();
-  const from = new Date(to.getTime() - (days - 1) * 24 * 60 * 60 * 1000);
-  return { from: kstDate(from), to: kstDate(to) };
+  const to = formatDateInput(Date.now());
+  return { from: addDaysToDateInput(to, -(days - 1)), to };
 }
 
 function monthRange(): DashboardRange {
-  const to = kstDate();
+  const to = formatDateInput(Date.now());
   return { from: `${to.slice(0, 8)}01`, to };
 }
 

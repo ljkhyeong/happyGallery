@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Form, Table } from "react-bootstrap";
 import type { SmartStoreSettlementIssueResponse } from "@/generated/api/adminOperations";
 import { fetchSmartStoreSettlementIssues, synchronizeSmartStoreSettlementRange } from "./api";
-import { formatDateInput, formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW } from "@/shared/lib";
+import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
@@ -87,9 +88,7 @@ export function SmartStoreSettlementIssueSection({ adminKey, onAuthError }: Prop
 }
 
 function shiftDate(days: number): string {
-  const value = new Date(`${formatDateInput(Date.now())}T00:00:00Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
+  return addDaysToDateInput(formatDateInput(Date.now()), days);
 }
 
 function settlementStatusLabel(status: SmartStoreSettlementIssueResponse["status"]): string {

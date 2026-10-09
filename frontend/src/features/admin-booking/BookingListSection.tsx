@@ -23,7 +23,7 @@ import { queryKeys } from "@/shared/api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
+import { formatDateInput, formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
 import type {
   AdminBookingCancelResponse,
   AdminBookingResponse,
@@ -53,10 +53,6 @@ const STATUS_OPTIONS = [
   { value: "NO_SHOW", label: getStatusLabel("NO_SHOW", "admin") },
   { value: "COMPLETED", label: getStatusLabel("COMPLETED", "admin") },
 ] as const;
-
-function todayStr(): string {
-  return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
-}
 
 function cancelResultToast(result: AdminBookingCancelResponse) {
   const compensation = result.depositRefundAmount > 0
@@ -88,7 +84,7 @@ function cancelResultToast(result: AdminBookingCancelResponse) {
 export function BookingListSection({
   adminKey,
   onAuthError,
-  initialDate = todayStr(),
+  initialDate = formatDateInput(Date.now()),
   initialStatus = "",
   focusBookingId,
 }: Props) {
