@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제하면 목록에서 빠진다", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("hg_admin_token", "stock-threshold-admin"));
@@ -7,11 +8,10 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
   const product = { id: 42, name: "재고 기준 작품", type: "READY_STOCK", category: null, price: 10000, status: "ACTIVE", quantity: 2, available: true, variants: [], optionGroups: [] };
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/me") return json({ code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
-    if (path === "/api/v1/admin/products") return json([product]);
-    if (path === "/api/v1/admin/products/42/inventory-adjustments") return json([]);
+    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    if (path === "/api/v1/admin/products") return fulfillJson(route, [product]);
+    if (path === "/api/v1/admin/products/42/inventory-adjustments") return fulfillJson(route, []);
     if (path === "/api/v1/admin/stock-levels/threshold") {
       const request = route.request().postDataJSON();
       expect(request.productId).toBe(42);
@@ -21,11 +21,11 @@ test("최소 보유 수량을 저장하면 오늘 할 일에 표시하고 해제
       version += 1;
       return route.fulfill({ status: 204 });
     }
-    if (path === "/api/v1/admin/stock-levels") return json([{
+    if (path === "/api/v1/admin/stock-levels") return fulfillJson(route, [{
       productId: 42, productVariantId: null, productName: product.name, type: product.type,
       quantity: 2, minimumStock, version, active: true, lowStock: minimumStock !== null && 2 <= minimumStock,
     }]);
-    return json({ code: "SERVICE_UNAVAILABLE", message: "이 테스트에서는 조회하지 않는 운영 항목입니다." }, 503);
+    return fulfillJson(route, { code: "SERVICE_UNAVAILABLE", message: "이 테스트에서는 조회하지 않는 운영 항목입니다." }, 503);
   });
   await page.goto("/admin?view=products&productId=42");
   await page.getByLabel("최소 보유 수량", { exact: true }).fill("3");

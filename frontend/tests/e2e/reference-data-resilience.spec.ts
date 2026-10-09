@@ -1,24 +1,17 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 const temporaryError = {
   code: "SERVICE_UNAVAILABLE",

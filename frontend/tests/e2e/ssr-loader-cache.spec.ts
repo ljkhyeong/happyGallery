@@ -1,17 +1,10 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
+import { fulfillJson } from "./mock-support";
 
 async function navigateInApp(page: Page, path: string) {
   await page.evaluate((nextPath) => {

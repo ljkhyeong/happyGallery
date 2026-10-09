@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyGroupInquiryResponse } from "../../src/generated/api/customerStore";
+import { fulfillJson } from "./mock-support";
 
 function inquiry(id: number, organization: string): MyGroupInquiryResponse {
   return {
@@ -21,25 +22,24 @@ async function mockInquiries(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     const details = state.accounts.get(state.accountId)!;
     const match = pathname.match(/^\/api\/v1\/me\/group-inquiries\/(\d+)(\/cancel)?$/);
     if (match) {
       const id = Number(match[1]);
       const detail = details.get(id);
-      if (!detail) return json({ code: "NOT_FOUND" }, 404);
+      if (!detail) return fulfillJson(route, { code: "NOT_FOUND" }, 404);
       if (request.method() === "GET") {
         state.readCount += 1;
-        return state.failRead ? json({ code: "SERVICE_UNAVAILABLE" }, 503) : json(detail);
+        return state.failRead ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503) : fulfillJson(route, detail);
       }
       const body = request.postDataJSON();
       const action = match[2] ? "cancel" : "update";
       state.requests.push({ id, action, ...body });
       if (state.failWrite) {
         if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-        return json({ code: "SERVICE_UNAVAILABLE" }, 503);
+        return fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503);
       }
-      if (body.version !== detail.version) return json({ code: "CONFLICT" }, 409);
+      if (body.version !== detail.version) return fulfillJson(route, { code: "CONFLICT" }, 409);
       detail.version += 1;
       if (action === "cancel") detail.summary.status = "CANCELED";
       else {
@@ -50,17 +50,17 @@ async function mockInquiries(page: Page) {
         createdAt: "2026-09-12T11:00:00" });
       const response = structuredClone(detail);
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-      return json(response);
+      return fulfillJson(route, response);
     }
     switch (pathname) {
-      case "/api/v1/auth/csrf": return route.fulfill({ contentType: "application/json",
-        headers: { "Set-Cookie": "XSRF-TOKEN=inquiry-draft; Path=/" }, body: "{}" });
-      case "/api/v1/me": return json({ id: state.accountId, name: `회원${state.accountId}`,
+      case "/api/v1/auth/csrf": return route.fulfill({
+        headers: { "Set-Cookie": "XSRF-TOKEN=inquiry-draft; Path=/" }, json: {} });
+      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
         email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
-      case "/api/v1/me/group-inquiries": return json({ content: Array.from(details.values()).map((detail) => detail.summary),
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
+      case "/api/v1/me/group-inquiries": return fulfillJson(route, { content: Array.from(details.values()).map((detail) => detail.summary),
         hasMore: false, nextCursor: null });
       default: throw new Error(`정의하지 않은 단체 문의 테스트 요청: ${pathname}`);
     }

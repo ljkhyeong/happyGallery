@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { NotificationResponse } from "../../src/generated/api/notification";
+import { fulfillJson } from "./mock-support";
 
 const FAILURE_NOTICE = "알림을 읽음 처리하지 못했습니다. 알림 목록에서 다시 시도해 주세요.";
 
@@ -18,27 +19,26 @@ async function mockNotifications(page: Page) {
   };
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     const rows = accounts.get(state.accountId)!;
     if (pathname.endsWith("/read-all") || pathname.endsWith("/read")) {
       const id = pathname.endsWith("/read-all") ? undefined : Number(pathname.split("/").at(-2));
       state.requests.push(id);
       if (state.hold) await new Promise<void>((resolve) => { state.release = resolve; });
-      if (state.fail) return json({ code: "INTERNAL_ERROR" }, 503);
+      if (state.fail) return fulfillJson(route, { code: "INTERNAL_ERROR" }, 503);
       rows.filter((row) => id === undefined || row.id === id).forEach((row) => { row.read = true; });
       return route.fulfill({ status: 204 });
     }
     switch (pathname) {
       case "/api/v1/auth/csrf": return route.fulfill({
-        contentType: "application/json", headers: { "Set-Cookie": "XSRF-TOKEN=notification-read-test; Path=/" }, body: "{}",
+        headers: { "Set-Cookie": "XSRF-TOKEN=notification-read-test; Path=/" }, json: {},
       });
-      case "/api/v1/me": return json({ id: state.accountId, name: `회원${state.accountId}`,
+      case "/api/v1/me": return fulfillJson(route, { id: state.accountId, name: `회원${state.accountId}`,
         email: "notification@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-      case "/api/v1/workshop": return json({ name: "해피갤러리" });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: rows.filter((row) => !row.read).length });
-      case "/api/v1/me/notifications": return json(rows.filter((row) => searchParams.get("unreadOnly") !== "true" || !row.read));
-      case "/api/v1/me/restock-alerts": return json([]);
+      case "/api/v1/workshop": return fulfillJson(route, { name: "해피갤러리" });
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: rows.filter((row) => !row.read).length });
+      case "/api/v1/me/notifications": return fulfillJson(route, rows.filter((row) => searchParams.get("unreadOnly") !== "true" || !row.read));
+      case "/api/v1/me/restock-alerts": return fulfillJson(route, []);
       default: throw new Error(`정의하지 않은 알림 테스트 요청: ${pathname}`);
     }
   });

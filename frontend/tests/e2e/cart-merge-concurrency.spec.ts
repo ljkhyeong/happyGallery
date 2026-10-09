@@ -35,29 +35,26 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
     if (!authenticated) {
       await route.fulfill({
         status: 401,
-        contentType: "application/json",
-        body: JSON.stringify({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }),
+        json: { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
       });
       return;
     }
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         id: 101,
         email: "cart-merge@example.com",
         name: "장바구니 회원",
         phone: "01012345678",
         phoneVerified: true,
         localPasswordEnabled: true,
-      }),
+      },
     });
   });
   await context.route(/\/api\/v1\/me\/cart$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
+      json: { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 },
     });
   });
   await context.route(/\/api\/v1\/me\/cart\/merge$/, async (route) => {
@@ -70,15 +67,13 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
   await context.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0 }),
+      json: { count: 0 },
     });
   });
   await context.route(/\/api\/v1\/workshop$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ name: "해피갤러리" }),
+      json: { name: "해피갤러리" },
     });
   });
 
@@ -204,8 +199,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     if (pathname === "/api/v1/me" && request.method() === "GET") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(currentCustomer),
+        json: currentCustomer,
       });
       return;
     }
@@ -213,8 +207,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
       currentCustomer = customerB;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(customerB),
+        json: customerB,
       });
       return;
     }
@@ -227,35 +220,31 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
     if (pathname === "/api/v1/me/cart") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        json: {
           cartVersion: EMPTY_CART_VERSION,
           items: [],
           totalAmount: 0,
-        }),
+        },
       });
       return;
     }
     if (pathname === "/api/v1/me/notifications/unread-count") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ count: 0 }),
+        json: { count: 0 },
       });
       return;
     }
     if (pathname === "/api/v1/workshop") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ name: "해피갤러리" }),
+        json: { name: "해피갤러리" },
       });
       return;
     }
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([]),
+      json: [],
     });
   });
 

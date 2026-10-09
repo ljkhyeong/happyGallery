@@ -1,8 +1,9 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import type { SmartStoreNoticePageResponse } from "../../src/generated/api/adminCatalog";
 import type { SmartStoreAccountingReportResponse } from "../../src/generated/api/adminOperations";
 import type { SmartStoreInquiryPageResponse, SmartStoreInquiryAnswerTemplateResponse } from "../../src/generated/api/productQna";
 import { skipExternalFonts } from "./external-fonts";
+import { fulfillJson } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "admin-content-recovery-token";
@@ -14,8 +15,8 @@ const EMPTY_CURSOR_PAGE = {
 
 test.beforeEach(async ({ page }) => {
   await skipExternalFonts({ page });
-  await page.route("**/api/v1/me", (route) => json(route, { code: "UNAUTHORIZED" }, 401));
-  await page.route("**/api/v1/workshop", (route) => json(route, { name: "해피갤러리", version: 1 }));
+  await page.route("**/api/v1/me", (route) => fulfillJson(route, { code: "UNAUTHORIZED" }, 401));
+  await page.route("**/api/v1/workshop", (route) => fulfillJson(route, { name: "해피갤러리", version: 1 }));
 });
 
 async function openAuthenticatedAdmin(page: Page, view: "support" | "settings" | "orders") {
@@ -24,14 +25,6 @@ async function openAuthenticatedAdmin(page: Page, view: "support" | "settings" |
   }, [ADMIN_TOKEN_KEY, ADMIN_TOKEN] as const);
   await page.goto(`/admin?view=${view}`);
   await expect(page.getByRole("heading", { name: "관리자", exact: true })).toBeVisible();
-}
-
-async function json(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
 }
 
 test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 뒤 초안을 보존한다", async ({ page }) => {
@@ -45,7 +38,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
     const { pathname } = url;
 
     if (pathname === "/api/v1/admin/notices" && request.method() === "GET") {
-      await json(route, [{
+      await fulfillJson(route, [{
         id: 1,
         title: "운영 안내",
         pinned: true,
@@ -58,7 +51,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
 
     if (pathname === "/api/v1/admin/notices/1" && request.method() === "GET") {
       detailReads += 1;
-      await json(route, {
+      await fulfillJson(route, {
         id: 1,
         title: detailReads === 1 ? "운영 안내" : "다른 관리자가 수정한 제목",
         content: detailReads === 1 ? "기존 공지 본문" : "다른 관리자가 수정한 본문",
@@ -73,7 +66,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
     if (pathname === "/api/v1/admin/notices/1" && request.method() === "PUT") {
       updateAttempts += 1;
       if (updateAttempts === 1) {
-        await json(route, {
+        await fulfillJson(route, {
           code: "CONFLICT",
           message: "다른 관리자가 먼저 수정했습니다.",
         }, 409);
@@ -81,7 +74,7 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
       }
 
       retriedBody = request.postDataJSON() as Record<string, unknown>;
-      await json(route, {
+      await fulfillJson(route, {
         id: 1,
         ...retriedBody,
         viewCount: 3,
@@ -92,29 +85,29 @@ test("P8-CONTENT-1 @admin 공지 수정은 기존 본문을 불러오고 충돌 
     }
 
     if (pathname === "/api/v1/admin/products") {
-      await json(route, []);
+      await fulfillJson(route, []);
       return;
     }
     if (pathname === "/api/v1/admin/qna/unanswered") {
-      await json(route, EMPTY_CURSOR_PAGE);
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/inquiries" || pathname === "/api/v1/admin/group-inquiries") {
-      await json(route, EMPTY_CURSOR_PAGE);
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-inquiries/page") {
-      await json(route, {
+      await fulfillJson(route, {
         content: [], totalPages: 0, totalCount: 0, page: 0, size: 50,
       } satisfies SmartStoreInquiryPageResponse);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-inquiries/template") {
-      await json(route, { content: "", questionType: "", subject: "" } satisfies SmartStoreInquiryAnswerTemplateResponse);
+      await fulfillJson(route, { content: "", questionType: "", subject: "" } satisfies SmartStoreInquiryAnswerTemplateResponse);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-notices") {
-      await json(route, {
+      await fulfillJson(route, {
         notices: [], page: 1, size: 100, totalElements: 0, totalPages: 0,
       } satisfies SmartStoreNoticePageResponse);
       return;
@@ -179,7 +172,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
 
     if (pathname === "/api/v1/admin/workshop" && request.method() === "GET") {
       workshopReads += 1;
-      await json(
+      await fulfillJson(
         route,
         workshopReads === 1
           ? workshopProfile(1, "해피갤러리")
@@ -191,7 +184,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
     if (pathname === "/api/v1/admin/workshop" && request.method() === "PUT") {
       workshopUpdates += 1;
       if (workshopUpdates === 1) {
-        await json(route, {
+        await fulfillJson(route, {
           code: "CONFLICT",
           message: "다른 관리자가 먼저 수정했습니다.",
         }, 409);
@@ -199,7 +192,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
       }
 
       retriedWorkshop = request.postDataJSON() as Record<string, unknown>;
-      await json(route, {
+      await fulfillJson(route, {
         ...workshopProfile(3, String(retriedWorkshop.name)),
         ...retriedWorkshop,
         version: 3,
@@ -208,7 +201,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
     }
 
     if (pathname === "/api/v1/admin/auth/mfa" && request.method() === "GET") {
-      await json(route, {
+      await fulfillJson(route, {
         enabled: false,
         enrollmentPending: false,
         recoveryCodesRemaining: 0,
@@ -217,7 +210,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
     }
 
     if (pathname === "/api/v1/admin/auth/password" && request.method() === "PATCH") {
-      await json(route, {
+      await fulfillJson(route, {
         code: "INVALID_CREDENTIALS",
         message: "현재 비밀번호가 올바르지 않습니다.",
       }, 401);
@@ -225,7 +218,7 @@ test("P8-CONTENT-2 @admin 공방 주소 변경과 설정 충돌·인증·로그�
     }
 
     if (pathname === "/api/v1/admin/auth/logout" && request.method() === "POST") {
-      await json(route, {
+      await fulfillJson(route, {
         code: "SERVICE_UNAVAILABLE",
         message: "세션 저장소를 확인할 수 없습니다.",
       }, 503);
@@ -306,7 +299,7 @@ test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 
 
     if (pathname === "/api/v1/admin/orders") {
       orderAttempts += 1;
-      await json(
+      await fulfillJson(
         route,
         orderAttempts <= 2
           ? { code: "SERVICE_UNAVAILABLE", message: "잠시 후 다시 시도해 주세요." }
@@ -316,20 +309,20 @@ test("P8-CONTENT-3 @admin 주문 조회 실패는 빈 목록으로 단정하지 
       return;
     }
     if (pathname === "/api/v1/admin/order-claims") {
-      await json(route, EMPTY_CURSOR_PAGE);
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-orders") {
-      await json(route, EMPTY_CURSOR_PAGE);
+      await fulfillJson(route, EMPTY_CURSOR_PAGE);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-settlements/issues") {
-      await json(route, []);
+      await fulfillJson(route, []);
       return;
     }
     if (pathname === "/api/v1/admin/smartstore-settlements/accounting") {
       const params = new URL(route.request().url()).searchParams;
-      await json(route, {
+      await fulfillJson(route, {
         from: params.get("from")!, to: params.get("to")!, vatAvailableThrough: "2026-07-31",
         dailySettlements: [], commissionDetails: [], dailyVat: [],
       } satisfies SmartStoreAccountingReportResponse);

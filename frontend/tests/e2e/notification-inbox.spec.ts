@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공하고 읽음 처리 후 목록을 갱신한다 @identity", async ({ page }) => {
   const orderTitle = `주문 #42 · 가죽 지갑 ${"LongProductName".repeat(8)} 외 1건`;
@@ -10,20 +11,19 @@ test("알림 전체 목록은 이전 페이지와 읽지 않은 필터를 제공
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
-    const json = (body: unknown) => route.fulfill({ contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/auth/csrf") return route.fulfill({ contentType: "application/json", headers: { "Set-Cookie": "XSRF-TOKEN=inbox-test; Path=/" }, body: "{}" });
-    if (path === "/api/v1/me") return json({ id: 501, name: "회원", email: "inbox@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-    if (path === "/api/v1/me/notifications/unread-count") return json({ count: rows.filter((row) => !row.read).length });
+    if (path === "/api/v1/auth/csrf") return route.fulfill({ headers: { "Set-Cookie": "XSRF-TOKEN=inbox-test; Path=/" }, json: {} });
+    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "inbox@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: rows.filter((row) => !row.read).length });
     if (path === "/api/v1/me/notifications") {
       const filtered = rows.filter((row) => url.searchParams.get("unreadOnly") !== "true" || !row.read);
       const offset = Number(url.searchParams.get("page") ?? 0) * 20;
-      return json(filtered.slice(offset, offset + 20));
+      return fulfillJson(route, filtered.slice(offset, offset + 20));
     }
     if (path.endsWith("/read-all")) { rows.forEach((row) => { row.read = true; }); return route.fulfill({ status: 200, headers: { "Content-Length": "0" } }); }
     if (path.endsWith("/read")) { rows.find((row) => row.id === Number(path.split("/").at(-2)))!.read = true; return route.fulfill({ status: 200, headers: { "Content-Length": "0" } }); }
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
-    return json([]);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    return fulfillJson(route, []);
   });
   await page.goto("/my/notifications");
   await expect(page.getByRole("heading", { name: "알림함", level: 1 })).toBeVisible();

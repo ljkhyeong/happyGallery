@@ -4,6 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 interface Customer {
   id: number;
@@ -73,14 +74,6 @@ const customerB: Customer = {
   phoneVerified: true,
   localPasswordEnabled: true,
 };
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 /** 작품 상세·주문서가 함께 부르는 회원 주문 혜택 조회. 기본 응답 `{}` 대신 실제 형태를 준다. */
 async function fulfillMemberBenefits(route: Route, pathname: string): Promise<boolean> {

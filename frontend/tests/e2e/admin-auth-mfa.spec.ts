@@ -4,46 +4,42 @@ test("P8-MFA @admin 운영 MFA 미등록 관리자는 등록과 복구 코드 �
   await page.route("**/api/v1/admin/auth/login", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         status: "AUTHENTICATED",
         token: "limited-admin-session",
         challengeToken: null,
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         enabled: false,
         enrollmentPending: false,
         recoveryCodesRemaining: 0,
         recoveryResetAvailable: false,
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa/enrollment", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         secret: "JBSWY3DPEHPK3PXP",
         provisioningUri: "otpauth://totp/happyGallery:admin?secret=JBSWY3DPEHPK3PXP",
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa/enrollment/confirm", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         recoveryCodes: [
           "aaaa-bbbb-cccc-0001",
           "aaaa-bbbb-cccc-0002",
         ],
-      }),
+      },
     });
   });
 
@@ -72,35 +68,32 @@ test("P8-MFA-RECOVERY @admin 복구 코드 세션은 현재 비밀번호 확인 
   await page.route("**/api/v1/admin/auth/login", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         status: "MFA_REQUIRED",
         token: null,
         challengeToken: "recovery-challenge",
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa/verify", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         status: "AUTHENTICATED",
         token: "recovery-admin-session",
         challengeToken: null,
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa", async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         enabled: true,
         enrollmentPending: false,
         recoveryCodesRemaining: 3,
         recoveryResetAvailable: true,
-      }),
+      },
     });
   });
   await page.route("**/api/v1/admin/auth/mfa/recovery", async (route) => {

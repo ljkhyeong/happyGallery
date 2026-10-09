@@ -1,14 +1,7 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원되고 취소할 수 있다", async ({
   baseURL,

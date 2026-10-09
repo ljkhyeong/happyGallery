@@ -186,42 +186,38 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
   await page.route(/\/api\/v1\/me\/cart$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 }),
+      json: { cartVersion: EMPTY_CART_VERSION, items: [], totalAmount: 0 },
     });
   });
 
   await page.route(/\/api\/v1\/me\/notifications\/unread-count$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ count: 0 }),
+      json: { count: 0 },
     });
   });
 
   await page.route(/\/api\/v1\/slots(?:\?.*)?$/, async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    await route.fulfill({ status: 200, json: [] });
   });
 
   await page.route(/\/api\/v1\/me$/, async (route) => {
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         id: 101,
         email: "pass-warning@example.com",
         name: "이용권 회원",
         phone: "01012345678",
         phoneVerified: true,
-      }),
+      },
     });
   });
 
   await page.route(new RegExp(`/api/v1/me/reviews/(?:bookings|classes)/${bookingId}(?:/creation-state)?$`), async (route) => {
     const creationState = new URL(route.request().url()).pathname.endsWith("/creation-state");
     await route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify(creationState ? { status: "NOT_REVIEWABLE" } : []),
+      json: creationState ? { status: "NOT_REVIEWABLE" } : [],
     });
   });
 
@@ -230,8 +226,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
       canceled = true;
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
+        json: {
           bookingId,
           status: "CANCELED",
           participantCount: 1,
@@ -239,15 +234,14 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
           refundAmount: 0,
           refund: null,
           manualCompensationRequired: false,
-        }),
+        },
       });
       return;
     }
 
     await route.fulfill({
       status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
+      json: {
         bookingId,
         classId: 1,
         slotId: 88,
@@ -271,7 +265,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
             : null,
         },
         refund: null,
-      }),
+      },
     });
   });
 

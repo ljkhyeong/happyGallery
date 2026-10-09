@@ -1,4 +1,4 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
 
 import {
@@ -6,20 +6,13 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 [
   { path: "/cart", name: "장바구니", button: "결제하기", cartCheckout: true },

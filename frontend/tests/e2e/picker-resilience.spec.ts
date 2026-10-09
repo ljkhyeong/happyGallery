@@ -1,4 +1,5 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "picker-resilience-admin-token";
@@ -27,14 +28,6 @@ const adminClass = {
   targetAudience: null,
   situationTags: [],
 };
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 async function openAuthenticatedAdmin(page: Page, view: "today" | "bookings" | "classes") {
   await page.addInitScript(([key, token]) => {

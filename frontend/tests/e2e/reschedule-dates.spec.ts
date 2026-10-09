@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import type { MyBookingDetail, PublicSlotResponse } from "../../src/generated/api/booking";
+import { fulfillJson } from "./mock-support";
 
 function slot(id: number, date: string, remainingCapacity: number, hour = "10"): PublicSlotResponse {
   return { id, classId: 27, capacity: 6, bookedCount: 6 - remainingCapacity, remainingCapacity,
@@ -26,11 +27,8 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
   const changes: number[] = [];
   await page.route("**/api/v1/**", async (route) => {
     const { pathname, searchParams } = new URL(route.request().url());
-    const json = (body: unknown, status = 200) => route.fulfill({
-      status, contentType: "application/json", body: JSON.stringify(body),
-    });
     if (pathname === "/api/v1/auth/csrf") return route.fulfill({
-      contentType: "application/json", headers: { "Set-Cookie": "XSRF-TOKEN=reschedule-test; Path=/" }, body: "{}",
+      headers: { "Set-Cookie": "XSRF-TOKEN=reschedule-test; Path=/" }, json: {},
     });
     if (pathname.endsWith("/reschedule")) {
       expect(route.request().method()).toBe("PATCH");
@@ -39,33 +37,33 @@ async function openBooking(page: Page, member: boolean, options = { upcomingFail
       changes.push(newSlotId);
       const target = slots.find((value) => value.id === newSlotId)!;
       Object.assign(booking, { slotId: target.id, startAt: target.startAt, endAt: target.endAt });
-      return json({ ...booking, bookingNumber: "HG-7" });
+      return fulfillJson(route, { ...booking, bookingNumber: "HG-7" });
     }
     switch (pathname) {
       case "/api/v1/me": return member
-        ? json({ id: 501, name: "회원", email: "reschedule@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-        : json({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      case "/api/v1/workshop": return json({
+        ? fulfillJson(route, { id: 501, name: "회원", email: "reschedule@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
+        : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      case "/api/v1/workshop": return fulfillJson(route, {
         name: "해피갤러리", addressLine1: "충주시 계명대로 161", addressLine2: "2층", phone: "043-123-4567",
       });
-      case "/api/v1/me/cart": return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      case "/api/v1/me/notifications/unread-count": return json({ count: 0 });
-      case "/api/v1/me/bookings/7": return json(booking);
-      case "/api/v1/bookings/7": return json({
+      case "/api/v1/me/cart": return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      case "/api/v1/me/notifications/unread-count": return fulfillJson(route, { count: 0 });
+      case "/api/v1/me/bookings/7": return fulfillJson(route, booking);
+      case "/api/v1/bookings/7": return fulfillJson(route, {
         ...booking, bookingNumber: "HG-7", guestName: "비회원", guestPhone: "01087654321",
       });
-      case "/api/v1/me/reviews/bookings/7": return json([]);
-      case "/api/v1/me/reviews/classes/7/creation-state": return json({
+      case "/api/v1/me/reviews/bookings/7": return fulfillJson(route, []);
+      case "/api/v1/me/reviews/classes/7/creation-state": return fulfillJson(route, {
         sourceId: 7, sourceType: "BOOKING", targetType: "CLASS", status: "NOT_REVIEWABLE",
       });
       case "/api/v1/slots/upcoming":
         expect(searchParams.get("classId")).toBe("27");
         expect(searchParams.get("days")).toBe("14");
-        if (options.upcomingFailure) return json({ code: "INTERNAL_ERROR" }, 503);
-        return json(options.noUpcoming ? slots.slice(0, 2) : slots.slice(0, 5));
+        if (options.upcomingFailure) return fulfillJson(route, { code: "INTERNAL_ERROR" }, 503);
+        return fulfillJson(route, options.noUpcoming ? slots.slice(0, 2) : slots.slice(0, 5));
       case "/api/v1/slots":
-        if (options.dateFailure && searchParams.get("date") === "2099-01-14") return json({ code: "INTERNAL_ERROR" }, 503);
-        return json(slots.filter((value) => value.startAt.startsWith(searchParams.get("date")!)));
+        if (options.dateFailure && searchParams.get("date") === "2099-01-14") return fulfillJson(route, { code: "INTERNAL_ERROR" }, 503);
+        return fulfillJson(route, slots.filter((value) => value.startAt.startsWith(searchParams.get("date")!)));
       default: throw new Error(`정의하지 않은 예약 변경 테스트 요청: ${pathname}`);
     }
   });

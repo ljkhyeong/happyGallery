@@ -1,9 +1,10 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   homeSsrFixtures,
   replaceSsrUpstreamFixtures,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const workshop = {
@@ -15,14 +16,6 @@ const workshop = {
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 async function navigateInApp(page: Page, path: string) {
   await page.evaluate((nextPath) => {

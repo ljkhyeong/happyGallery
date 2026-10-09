@@ -1,9 +1,10 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "event-coupon-admin-token";
@@ -11,14 +12,6 @@ const ADMIN_TOKEN = "event-coupon-admin-token";
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 async function openAuthenticatedAdmin(page: Page, view: "events" | "coupons") {
   await page.addInitScript(([key, token]) => {

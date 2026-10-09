@@ -4,18 +4,11 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 async function installCsrfCookie(context: BrowserContext, baseURL: string | undefined) {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");

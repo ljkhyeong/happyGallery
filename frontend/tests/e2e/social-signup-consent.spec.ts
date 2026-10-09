@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { TERMS_POLICY_VERSION, PRIVACY_POLICY_VERSION } from "../../src/features/policy-consent/policyVersions";
 import { clearSsrUpstreamFixtures, homeSsrFixtures, replaceSsrUpstreamFixtures } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 test.afterEach(async () => { await clearSsrUpstreamFixtures(); });
 
@@ -15,7 +16,6 @@ for (const provider of ["naver", "kakao", "google"] as const) {
       let completions = 0;
       await page.route("**/api/v1/**", async (route) => {
         const { pathname } = new URL(route.request().url());
-        const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
         if (pathname === `/api/v1/auth/social/authorization/${provider}`) {
           authorizations++;
           return route.fulfill({ status: 302, headers: { location: "/auth/callback?signupAttempt=verified-naver-attempt" } });
@@ -28,17 +28,17 @@ for (const provider of ["naver", "kakao", "google"] as const) {
           });
           expect(route.request().headers()["x-xsrf-token"]).toBe("social-consent");
           signedUp = true;
-          return json({ id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false });
+          return fulfillJson(route, { id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false });
         }
         if (pathname === "/api/v1/me") return signedUp
-          ? json({ id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false })
-          : json({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-        if (pathname === "/api/v1/policies/current") return json({
+          ? fulfillJson(route, { id: 91, name: "소셜 신규 회원", email: null, phone: provider === "google" ? null : "01081234567", phoneVerified: false, localPasswordEnabled: false })
+          : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+        if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
           terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
           privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
         });
-        if (pathname === "/api/v1/workshop") return json({ name: "해피갤러리" });
-        return json([]);
+        if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+        return fulfillJson(route, []);
       });
       await page.goto(`/login?${new URLSearchParams({ redirect: "/?from=social" })}`);
       await page.getByRole("button", { name: `${provider === "naver" ? "네이버" : provider === "kakao" ? "카카오" : "Google"}로 로그인`, exact: true }).click();
@@ -69,15 +69,14 @@ for (const errorCode of ["SOCIAL_LOGIN_FAILED", "SOCIAL_PHONE_REQUIRED", "SOCIAL
     await context.addCookies([{ name: "XSRF-TOKEN", value: "social-expired", url: baseURL! }]);
     await page.route("**/api/v1/**", async (route) => {
       const { pathname } = new URL(route.request().url());
-      const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-      if (pathname === "/api/v1/auth/social/signup-completion") return json({ code: errorCode, message: "다시 로그인해 주세요." }, errorCode === "SOCIAL_LOGIN_FAILED" ? 401 : errorCode === "SOCIAL_ACCOUNT_LINK_REQUIRED" ? 409 : 422);
-      if (pathname === "/api/v1/me") return json({ code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
-      if (pathname === "/api/v1/policies/current") return json({
+      if (pathname === "/api/v1/auth/social/signup-completion") return fulfillJson(route, { code: errorCode, message: "다시 로그인해 주세요." }, errorCode === "SOCIAL_LOGIN_FAILED" ? 401 : errorCode === "SOCIAL_ACCOUNT_LINK_REQUIRED" ? 409 : 422);
+      if (pathname === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인이 필요합니다." }, 401);
+      if (pathname === "/api/v1/policies/current") return fulfillJson(route, {
         terms: { version: TERMS_POLICY_VERSION, documentPath: `/terms/${TERMS_POLICY_VERSION}` },
         privacy: { version: PRIVACY_POLICY_VERSION, documentPath: `/privacy/${PRIVACY_POLICY_VERSION}` },
       });
-      if (pathname === "/api/v1/workshop") return json({ name: "해피갤러리" });
-      return json([]);
+      if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+      return fulfillJson(route, []);
     });
     await page.goto("/auth/callback?signupAttempt=expired-attempt");
     await page.getByRole("checkbox").check();

@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
+import { fulfillJson } from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
   headcount: 20, preferredSchedule: "10월 평일 오전", location: "기관 강당", classInterest: "레진아트", message: null };
@@ -25,25 +26,24 @@ for (const member of [false, true]) {
     let submitted = false;
     await page.route("**/api/v1/**", async (route) => {
       const path = new URL(route.request().url()).pathname;
-      const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
       if (path === "/api/v1/workshop") return route.fallback();
       if (path === "/api/v1/me") return member
-        ? json({ id: 501, name: "회원", email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
-        : json({ code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-      if (path === "/api/v1/me/favorites") return json({ content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
-      if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
+        ? fulfillJson(route, { id: 501, name: "회원", email: "group@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true })
+        : fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+      if (path === "/api/v1/me/favorites") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), items: [], totalAmount: 0 });
+      if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
       if (path.endsWith("/group-inquiries")) {
         if (route.request().method() === "POST") {
           expect(path).toBe(member ? "/api/v1/me/group-inquiries" : "/api/v1/group-inquiries");
           expect(route.request().postDataJSON()).toMatchObject({ ...details, email: member ? "group@example.com" : null });
           submitted = true;
-          return json({ id: 51, status: "RECEIVED" }, 201);
+          return fulfillJson(route, { id: 51, status: "RECEIVED" }, 201);
         }
-        return json({ content: submitted ? [summary] : [], hasMore: false, nextCursor: null });
+        return fulfillJson(route, { content: submitted ? [summary] : [], hasMore: false, nextCursor: null });
       }
-      if (path.endsWith("/page")) return json({ content: [], hasMore: false, nextCursor: null });
-      return json([]);
+      if (path.endsWith("/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+      return fulfillJson(route, []);
     });
     await page.goto("/group-classes");
     await page.getByRole("button", { name: "단체 수업 문의 접수", exact: true }).click();
@@ -70,25 +70,24 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
   const detail = () => ({ summary: { ...summary, source: "EXTERNAL", status }, details, version, nextContactOn, activities });
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown, responseStatus = 200) => route.fulfill({ status: responseStatus, contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/me") return json({ code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
+    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
     if (path === "/api/v1/admin/group-inquiries") {
       if (route.request().method() === "POST") {
         expect(route.request().postDataJSON()).toEqual(details);
         created = true;
-        return json(detail(), 201);
+        return fulfillJson(route, detail(), 201);
       }
-      return json({ content: created ? [detail().summary] : [], hasMore: false, nextCursor: null });
+      return fulfillJson(route, { content: created ? [detail().summary] : [], hasMore: false, nextCursor: null });
     }
-    if (path === "/api/v1/admin/group-inquiries/follow-ups") return json({
+    if (path === "/api/v1/admin/group-inquiries/follow-ups") return fulfillJson(route, {
       content: nextContactOn ? [{ id: 51, organization: details.organization, status, nextContactOn }] : [], nextCursor: null, hasMore: false,
     });
     if (path === "/api/v1/admin/group-inquiries/51/next-contact") {
       const request = route.request().postDataJSON();
       expect(request.version).toBe(version);
       version += 1; nextContactOn = request.nextContactOn;
-      return json(detail());
+      return fulfillJson(route, detail());
     }
     if (path === "/api/v1/admin/group-inquiries/51") {
       if (route.request().method() === "PUT") {
@@ -99,9 +98,9 @@ test("관리자가 외부 문의를 등록하고 상담 상태와 메모를 저�
         version += 1; status = request.status;
         activities.unshift({ id: version, adminId: 99, fromStatus: previous, toStatus: status, note: request.note, createdAt: "2026-09-05T10:01:00" });
       }
-      return json(detail());
+      return fulfillJson(route, detail());
     }
-    return json({ code: "SERVICE_UNAVAILABLE", message: "이 테스트의 대상이 아닌 운영 항목입니다." }, 503);
+    return fulfillJson(route, { code: "SERVICE_UNAVAILABLE", message: "이 테스트의 대상이 아닌 운영 항목입니다." }, 503);
   });
   await page.goto("/admin?view=support");
   const section = page.locator("#admin-group-inquiries");

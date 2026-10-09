@@ -1,15 +1,8 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
+import { fulfillJson } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에도 선택을 유지해 수동 재결제한다", async ({
   baseURL,

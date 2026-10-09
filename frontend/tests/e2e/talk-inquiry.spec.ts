@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
+import { fulfillJson } from "./mock-support";
 
 declare global {
   interface Window {
@@ -34,29 +35,26 @@ async function prepare(page: Page, clipboardAvailable = true) {
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/80", product));
   await page.route("**/api/v1/**", (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown, status = 200) => route.fulfill({
-      status, contentType: "application/json", body: JSON.stringify(body),
-    });
-    if (path === "/api/v1/me") return json({ code: "UNAUTHORIZED" }, 401);
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리", naverTalkUrl: "https://talk.naver.com/example" });
-    if (path === "/api/v1/policies/current") return json({
+    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", naverTalkUrl: "https://talk.naver.com/example" });
+    if (path === "/api/v1/policies/current") return fulfillJson(route, {
       terms: { version: "2026-09", documentPath: "/terms" },
       privacy: { version: "2026-09", documentPath: "/privacy" },
     });
-    if (path === "/api/v1/classes") return json([{
+    if (path === "/api/v1/classes") return fulfillJson(route, [{
       id: 27, name: "가죽 공예", category: "LEATHER", durationMin: 60, price: 30000,
       bufferMin: 30, capacity: 6, passEligible: true, status: "ACTIVE", situationTags: [],
     }]);
     if (path === "/api/v1/products/80") return route.fallback();
-    if (path === "/api/v1/orders/policy") return json({
+    if (path === "/api/v1/orders/policy") return fulfillJson(route, {
       shippingFee: 3000, madeToOrderConsentVersion: "2026-09", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
     });
-    if (path === "/api/v1/products/80/qna/page") return json({ content: [], hasMore: false, nextCursor: null });
-    if (path === "/api/v1/products/80/reviews") return json({
+    if (path === "/api/v1/products/80/qna/page") return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (path === "/api/v1/products/80/reviews") return fulfillJson(route, {
       content: [], filteredCount: 0, hasMore: false, nextCursor: null,
       summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } },
     });
-    return json([]);
+    return fulfillJson(route, []);
   });
 }
 

@@ -1,15 +1,12 @@
-import { expect, test, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
+import { fulfillJson } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
 test.beforeEach(skipExternalFonts);
-
-async function json(route: Route, body: unknown, status = 200) {
-  await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-}
 
 async function openOptionProduct(page: Page, quantity: number, { member = false, readyStock = false, defaultVariant = false } = {}) {
   const product: ProductDetailResponse = {
@@ -42,22 +39,22 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
     if (pathname === "/api/v1/me") return member
-      ? json(route, { id: 7, name: "장바구니 고객", email: "cart@example.com", phone: "01012345678", phoneVerified: true })
-      : json(route, { code: "UNAUTHORIZED" }, 401);
-    if (pathname === "/api/v1/me/cart") return json(route, { items: [], totalAmount: 0, cartVersion: "empty" });
-    if (pathname === "/api/v1/me/rewards") return json(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
-    if (pathname === "/api/v1/products/80") return json(route, product);
-    if (pathname === "/api/v1/products") return json(route, [product]);
-    if (pathname === "/api/v1/orders/policy") return json(route, {
+      ? fulfillJson(route, { id: 7, name: "장바구니 고객", email: "cart@example.com", phone: "01012345678", phoneVerified: true })
+      : fulfillJson(route, { code: "UNAUTHORIZED" }, 401);
+    if (pathname === "/api/v1/me/cart") return fulfillJson(route, { items: [], totalAmount: 0, cartVersion: "empty" });
+    if (pathname === "/api/v1/me/rewards") return fulfillJson(route, { availableBalance: 0, reservedBalance: 0, debtBalance: 0, history: [] });
+    if (pathname === "/api/v1/products/80") return fulfillJson(route, product);
+    if (pathname === "/api/v1/products") return fulfillJson(route, [product]);
+    if (pathname === "/api/v1/orders/policy") return fulfillJson(route, {
       shippingFee: 3000, madeToOrderConsentVersion: "2026-08", madeToOrderConsentText: "주문제작 조건에 동의합니다.",
     });
-    if (pathname.endsWith("/qna/page")) return json(route, { content: [], hasMore: false, nextCursor: null });
-    if (pathname.endsWith("/reviews")) return json(route, {
+    if (pathname.endsWith("/qna/page")) return fulfillJson(route, { content: [], hasMore: false, nextCursor: null });
+    if (pathname.endsWith("/reviews")) return fulfillJson(route, {
       content: [], filteredCount: 0, hasMore: false, nextCursor: null,
       summary: { averageRating: 0, reviewCount: 0, histogram: { rating1: 0, rating2: 0, rating3: 0, rating4: 0, rating5: 0 } },
     });
-    if (pathname === "/api/v1/workshop") return json(route, { name: "해피갤러리", version: 1 });
-    return json(route, []);
+    if (pathname === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리", version: 1 });
+    return fulfillJson(route, []);
   });
   await page.goto("/products/80");
   await expect(page.getByRole("button", { name: "장바구니 담기", exact: true })).toBeVisible();
@@ -67,14 +64,14 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
 async function mockGuestCheckout(page: Page) {
   const prepared: unknown[] = [];
   await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-order-xsrf", url: new URL("/", page.url()).href }]);
-  await page.route("**/api/v1/bookings/phone-verifications", (route) => json(route, { verificationId: 1 }));
-  await page.route("**/api/v1/policies/current", (route) => json(route, {
+  await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
+  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
     terms: { version: "2026-07", documentPath: "/terms/2026-07" },
     privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
   }));
   await page.route("**/api/v1/payments/prepare", async (route) => {
     prepared.push(route.request().postDataJSON());
-    return json(route, { code: "INVALID_INPUT", message: "요청 확인용 응답" }, 400);
+    return fulfillJson(route, { code: "INVALID_INPUT", message: "요청 확인용 응답" }, 400);
   });
   return prepared;
 }
@@ -200,10 +197,10 @@ test("@payment 주문서의 수량 수정·상품 추가·삭제는 결제 실�
   const product = await openOptionProduct(page, 5);
   const prepared = await mockGuestCheckout(page);
   const extra: ProductDetailResponse = { ...product, id: 81, name: "추가 작품", type: "READY_STOCK", optionGroups: [], variants: [] };
-  await page.route("**/api/v1/products", (route) => json(route, [product, extra]));
+  await page.route("**/api/v1/products", (route) => fulfillJson(route, [product, extra]));
   await page.route("**/api/v1/payments/prepare", (route) => {
     prepared.push(route.request().postDataJSON());
-    return json(route, { orderId: "draft-return", amount: 56000, context: "ORDER", statusToken: "draft-return-token" });
+    return fulfillJson(route, { orderId: "draft-return", amount: 56000, context: "ORDER", statusToken: "draft-return-token" });
   });
   await page.route("**/api/v1/payments/draft-return/abandon", (route) => route.fulfill({ status: 204 }));
   await page.evaluate(() => {
@@ -321,14 +318,14 @@ test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 �
   await openOptionProduct(page, 2);
   const prepared: unknown[] = [];
   await page.context().addCookies([{ name: "XSRF-TOKEN", value: "option-order-xsrf", url: new URL("/", page.url()).href }]);
-  await page.route("**/api/v1/bookings/phone-verifications", (route) => json(route, { verificationId: 1 }));
-  await page.route("**/api/v1/policies/current", (route) => json(route, {
+  await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
+  await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
     terms: { version: "2026-07", documentPath: "/terms/2026-07" },
     privacy: { version: "2026-07", documentPath: "/privacy/2026-07" },
   }));
   await page.route("**/api/v1/payments/prepare", async (route) => {
     prepared.push(route.request().postDataJSON());
-    return json(route, { orderId: "option-order", amount: 27000, context: "ORDER", statusToken: "option-status" });
+    return fulfillJson(route, { orderId: "option-order", amount: 27000, context: "ORDER", statusToken: "option-status" });
   });
   await page.evaluate(() => {
     (window as unknown as { TossPayments: unknown }).TossPayments = () => ({
@@ -444,7 +441,7 @@ test("@payment 회원 다건 담기는 한 요청을 보내고 응답 실패 뒤
   await page.route("**/api/v1/me/cart/merge", async (route) => {
     requests.push(route.request().postDataJSON());
     return requests.length === 1
-      ? json(route, { code: "SERVICE_UNAVAILABLE" }, 503)
+      ? fulfillJson(route, { code: "SERVICE_UNAVAILABLE" }, 503)
       : route.fulfill({ status: 204 });
   });
   const color = page.getByRole("combobox", { name: /색상/ });

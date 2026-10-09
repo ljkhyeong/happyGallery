@@ -1,14 +1,7 @@
-import { expect, test, type Route } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
-
-async function fulfillJson(route: Route, body: unknown, status = 200) {
-  await route.fulfill({
-    status,
-    contentType: "application/json",
-    body: JSON.stringify(body),
-  });
-}
 
 test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저장한 capability를 되돌린다", async ({
   baseURL,

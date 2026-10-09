@@ -6,9 +6,8 @@ async function mockAccount(page: Page, signedIn = false) {
     if (pathname === "/api/v1/auth/csrf") {
       await route.fulfill({
         status: 200,
-        contentType: "application/json",
         headers: { "set-cookie": "XSRF-TOKEN=account-guidance; Path=/; SameSite=Lax" },
-        body: JSON.stringify({ cookieName: "XSRF-TOKEN", headerName: "X-XSRF-TOKEN" }),
+        json: { cookieName: "XSRF-TOKEN", headerName: "X-XSRF-TOKEN" },
       });
       return;
     }
@@ -40,7 +39,7 @@ async function mockAccount(page: Page, signedIn = false) {
     } else if (pathname.endsWith("/page")) {
       body = { content: [], hasMore: false, nextCursor: null };
     }
-    await route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    await route.fulfill({ status, json: body });
   });
 }
 

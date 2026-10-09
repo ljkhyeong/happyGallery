@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { fulfillJson } from "./mock-support";
 
 const item = (id: number, name: string, options: { type: string; groupName: string; value: string; priceAdjustment: number }[] = []) => ({
   orderItemId: id, productId: id, productName: name, productType: id === 42 ? "READY_STOCK" : "MADE_TO_ORDER",
@@ -15,22 +16,21 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
   let cartQty = 0;
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/me") return json({ id: 501, name: "회원", email: "reorder@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
-    if (path === "/api/v1/me/notifications/unread-count") return json({ count: 0 });
-    if (path === "/api/v1/me/cart") return json({ cartVersion: "0".repeat(64), totalAmount: cartQty * 15000,
+    if (path === "/api/v1/me") return fulfillJson(route, { id: 501, name: "회원", email: "reorder@example.com", phone: "01012345678", phoneVerified: true, localPasswordEnabled: true });
+    if (path === "/api/v1/me/notifications/unread-count") return fulfillJson(route, { count: 0 });
+    if (path === "/api/v1/me/cart") return fulfillJson(route, { cartVersion: "0".repeat(64), totalAmount: cartQty * 15000,
       items: cartQty ? [{ productId: 42, productVariantId: null, qty: cartQty, available: true }] : [] });
     if (path === "/api/v1/me/cart/merge") {
       requests.push(route.request().postDataJSON());
-      if (requests.length === 1) return json({ code: "SERVICE_UNAVAILABLE", message: "잠시 후 재시도" }, 503);
+      if (requests.length === 1) return fulfillJson(route, { code: "SERVICE_UNAVAILABLE", message: "잠시 후 재시도" }, 503);
       cartQty = 2; return route.fulfill({ status: 204 });
     }
-    if (path === "/api/v1/me/orders/200") return json({ orderId: 200, orderNumber: "다시 담기 주문", status: "DELIVERED", items,
+    if (path === "/api/v1/me/orders/200") return fulfillJson(route, { orderId: 200, orderNumber: "다시 담기 주문", status: "DELIVERED", items,
       productAmount: 50000, shippingFee: 0, totalAmount: 50000, pgPaidAmount: 50000, couponDiscountAmount: 0, rewardUsedAmount: 0,
       refund: null, receiptUrl: null, paidAt: "2026-09-05T10:00:00", approvalDeadlineAt: null, fulfillment: null });
     if (path.startsWith("/api/v1/products/")) {
       const id = Number(path.split("/").at(-1));
-      return json({ id, name: "현재 상품명", category: "공예", type: id === 42 ? "READY_STOCK" : "MADE_TO_ORDER", price: 15000,
+      return fulfillJson(route, { id, name: "현재 상품명", category: "공예", type: id === 42 ? "READY_STOCK" : "MADE_TO_ORDER", price: 15000,
         imageUrl: null, available: true, stockQuantity: 2, specification: null, careInstructions: null, productionLeadDays: 5,
         optionGroups: id === 43 ? [{ key: "color", name: "색상", type: "SELECT", required: true, sortOrder: 0, values: [{ key: "red", name: "빨강", sortOrder: 0 }] }]
           : id === 44 ? [{ key: "engraving", name: "각인", type: "TEXT", required: false, sortOrder: 0, values: [], inputMaxLength: 20, inputPriceAdjustment: 0 }] : [],
@@ -38,8 +38,8 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
           selections: id === 43 ? [{ groupKey: "color", valueKey: "red" }] : [] }],
       });
     }
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
-    return json([]);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    return fulfillJson(route, []);
   });
   await page.goto("/my/orders/200");
   await page.getByRole("button", { name: "이전 주문 머그 다시 담기" }).click();
@@ -68,19 +68,18 @@ test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 
 test("비회원은 조회한 주문의 상품을 현재 가격으로 이 기기의 장바구니에 다시 담는다 @payment", async ({ page }) => {
   await page.route("**/api/v1/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
-    const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
-    if (path === "/api/v1/me") return json({ code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
+    if (path === "/api/v1/me") return fulfillJson(route, { code: "UNAUTHORIZED", message: "로그인 필요" }, 401);
     if (path === "/api/v1/orders/200") {
       expect(route.request().headers()["x-access-token"]).toBe("reorder-guest");
-      return json({ orderId: 200, orderNumber: "비회원 주문", status: "DELIVERED", items: [{ ...item(42, "비회원 머그"), qty: 1 }],
+      return fulfillJson(route, { orderId: 200, orderNumber: "비회원 주문", status: "DELIVERED", items: [{ ...item(42, "비회원 머그"), qty: 1 }],
         productAmount: 10000, shippingFee: 0, totalAmount: 10000, pgPaidAmount: 10000, couponDiscountAmount: 0, rewardUsedAmount: 0,
         refund: null, receiptUrl: null, paidAt: "2026-09-05T10:00:00", approvalDeadlineAt: null, fulfillment: null });
     }
-    if (path === "/api/v1/products/42") return json({ id: 42, name: "현재 머그", category: "공예", type: "READY_STOCK", price: 15000,
+    if (path === "/api/v1/products/42") return fulfillJson(route, { id: 42, name: "현재 머그", category: "공예", type: "READY_STOCK", price: 15000,
       imageUrl: null, available: true, stockQuantity: 5, specification: null, careInstructions: null, productionLeadDays: null,
       optionGroups: [], variants: [] });
-    if (path === "/api/v1/workshop") return json({ name: "해피갤러리" });
-    return json([]);
+    if (path === "/api/v1/workshop") return fulfillJson(route, { name: "해피갤러리" });
+    return fulfillJson(route, []);
   });
   await page.goto("/guest/orders");
   await page.getByLabel("주문 번호", { exact: true }).fill("200");
