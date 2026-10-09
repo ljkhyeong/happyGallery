@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 for (const member of [true, false]) {
   test(`${member ? "회원" : "비회원"}은 배송지를 수정하고 배송 준비 후에는 수정할 수 없다`, async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "XSRF-TOKEN", value: "address-csrf", url: baseURL! }]);
+    await installCsrfCookie(context, baseURL);
     let status = "PAID_APPROVAL_PENDING";
     let version = 0;
     let address = { recipientName: "수령인", phone: "01012345678", postalCode: "12345", addressLine1: "이전 기본 주소", addressLine2: "101호" };

@@ -9,7 +9,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
@@ -35,11 +35,7 @@ test("@smoke @payment 결제 복구 저장소 쓰기가 실패해도 현재 세�
   let paymentStatusToken: string | undefined;
 
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "frontend-resilience-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.addInitScript(() => {
     const originalSetItem = Storage.prototype.setItem;
@@ -134,11 +130,7 @@ test("@payment 결제 복구 저장 직후 계정 경계가 바뀌면 복구값�
   page,
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "payment-recovery-boundary-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const originalSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function setItem(key: string, value: string) {
@@ -762,11 +754,7 @@ test("@smoke @order 주문 취소 실패는 확인 모달 안에서 사유를 �
   page,
 }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "order-cancel-resilience-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
@@ -874,11 +862,7 @@ test("@smoke @identity 인증과 회원 장바구니 오류를 비회원·빈 �
   });
 
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "frontend-resilience-csrf",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

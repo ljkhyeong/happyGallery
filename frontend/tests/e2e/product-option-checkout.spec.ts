@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { ProductDetailResponse } from "../../src/generated/api/product";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
@@ -63,7 +63,7 @@ async function openOptionProduct(page: Page, quantity: number, { member = false,
 
 async function mockGuestCheckout(page: Page) {
   const prepared: unknown[] = [];
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-order-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
   await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
     terms: { version: "2026-07", documentPath: "/terms/2026-07" },
@@ -317,7 +317,7 @@ for (const { quantity, limit, name } of [
 test("@payment 비회원은 주문서에서 선택 옵션과 각인 문구를 확인하고 같은 내용으로 결제를 준비한다", async ({ page }) => {
   await openOptionProduct(page, 2);
   const prepared: unknown[] = [];
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "option-order-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.route("**/api/v1/bookings/phone-verifications", (route) => fulfillJson(route, { verificationId: 1 }));
   await page.route("**/api/v1/policies/current", (route) => fulfillJson(route, {
     terms: { version: "2026-07", documentPath: "/terms/2026-07" },
@@ -436,7 +436,7 @@ for (const { stock, quantity, name, message } of [
 
 test("@payment 회원 다건 담기는 한 요청을 보내고 응답 실패 뒤 같은 멱등키로 재시도한다", async ({ page }) => {
   await openOptionProduct(page, 5, { member: true });
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "cart-batch-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   const requests: Array<{ idempotencyKey: string; items: unknown[] }> = [];
   await page.route("**/api/v1/me/cart/merge", async (route) => {
     requests.push(route.request().postDataJSON());

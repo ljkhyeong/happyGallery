@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const sdk = `
 (() => {
@@ -65,7 +65,7 @@ async function reconnectAfter(page: Page, minutes: number) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "bot-test-csrf", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   await replaceSsrUpstreamFixtures(ssrApiFixture("/workshop", { name: "해피갤러리" }));
 });
 test.afterEach(clearSsrUpstreamFixtures);

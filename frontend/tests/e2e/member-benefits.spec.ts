@@ -6,7 +6,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -47,11 +47,7 @@ test.afterEach(async () => {
     await replaceSsrUpstreamFixtures(ssrApiFixture("/products/52", product));
   }
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "member-benefits-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       TossPayments: () => {

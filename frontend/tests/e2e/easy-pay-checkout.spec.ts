@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 async function openCheckout(page: Page, amount = 12000) {
   const prepares: unknown[] = [];
@@ -49,7 +49,7 @@ async function openCheckout(page: Page, amount = 12000) {
     }
   });
   await page.goto("/cart");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "easy-pay-test-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   await page.getByRole("button", { name: "매장 수령" }).click();
   return { prepares, confirms, abandoned };
 }
@@ -168,7 +168,7 @@ test("@payment 비회원 유료 결제 완료를 새로고침하면 같은 소�
   const statusTokens: Array<string | undefined> = [];
   const result = { context: "BOOKING", domainId: 702, accessToken: "guest-booking-access",
     accessRecoveryRequired: false, receiptUrl: "https://receipt.example/702" };
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "completion-test", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     if (localStorage.getItem("hg_customer_session_boundary")) return;
     localStorage.setItem("hg_customer_session_boundary", JSON.stringify({ epoch: "guest-completion", customerId: null }));

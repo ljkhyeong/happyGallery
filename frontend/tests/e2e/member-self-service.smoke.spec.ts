@@ -11,6 +11,7 @@ import {
   makeUniqueLabel,
   signupCustomer,
 } from "./support";
+import { installCsrfCookie } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
@@ -176,11 +177,7 @@ test("P8-10 @payment 취소 마감 후 이용권 미복구와 예약금 환불 �
   const bookingId = 990001;
   let canceled = false;
   let passBooking = true;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "pass-cancel-warning-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.setViewportSize({ width: 390, height: 844 });
 
   await page.route(/\/api\/v1\/me\/cart$/, async (route) => {

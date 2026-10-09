@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
 test("기본 배송지를 저장한 뒤 주문서에 불러오고 삭제한다", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "saved-address-csrf", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   const product = { id: 42, name: "주소 확인 작품", description: null, category: "공예", type: "READY_STOCK", price: 12000,
     imageUrl: null, available: true, stockQuantity: 10, specification: null, careInstructions: null,
     productionLeadDays: null, optionGroups: [], variants: [] };

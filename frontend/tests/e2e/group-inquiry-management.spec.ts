@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const initialSummary = { id: 51, source: "WEBSITE", status: "CONSULTING", organization: "일정 변경 기관", headcount: 20,
   preferredSchedule: "10월 오전", location: "기관 강당", classInterest: "레진아트", createdAt: "2026-09-05T10:00:00" };
 
 test("회원은 최신 문의 버전으로 일정과 인원을 수정하고 변경 이력을 확인한 뒤 취소한다 @identity", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "inquiry-test", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   const detail = { summary: { ...initialSummary }, version: 1, changes: [] as { id: number; note: string; createdAt: string }[] };
   let stale = true;
   await page.route("**/api/v1/**", async (route) => {

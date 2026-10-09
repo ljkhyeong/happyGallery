@@ -1,23 +1,14 @@
-import { expect, test, type BrowserContext, type Route } from "@playwright/test";
+import { expect, test, type Route } from "@playwright/test";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function installCsrfCookie(context: BrowserContext, baseURL: string | undefined) {
-  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "history-pagination-csrf",
-    url: baseURL,
-  }]);
-}
 
 const member = {
   id: 501,

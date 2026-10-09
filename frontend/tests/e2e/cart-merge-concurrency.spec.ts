@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { installCsrfCookie } from "./mock-support";
 
 const GUEST_CART_STORAGE_KEY = "hg_guest_cart";
 const MERGE_REQUEST_STORAGE_KEY = "hg_guest_cart_merge_request";
@@ -26,11 +27,7 @@ test("여러 탭의 로그인 병합과 잠금 대기 장바구니 수정은 순
   if (!baseURL) {
     throw new Error("Playwright baseURL이 필요합니다.");
   }
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-merge-test-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route(/\/api\/v1\/me$/, async (route) => {
     if (!authenticated) {
       await route.fulfill({
@@ -181,11 +178,7 @@ test("@identity 병합 응답 전에 계정이 바뀌면 이전 요청과 비회
   });
   const mergeRequests: MergeRequest[] = [];
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-account-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(([storageKey, items]) => {
     localStorage.setItem(storageKey, JSON.stringify(items));
   }, [

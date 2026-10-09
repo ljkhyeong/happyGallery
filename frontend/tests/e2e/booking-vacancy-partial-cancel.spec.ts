@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
@@ -11,11 +11,7 @@ test("@smoke 비회원 빈자리 알림 신청 상태는 새로고침 후 복원
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
   let canceled = false;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "vacancy-alert-restore-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     sessionStorage.setItem("guest_vacancy_alerts", JSON.stringify({
       owner: { boundaryEpoch: null, boundaryCustomerId: null },
@@ -122,11 +118,7 @@ test("@smoke 회원은 예약 화면에서 사라진 빈자리 알림을 마이�
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
 
   let cancelCount = 0;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "member-vacancy-alert-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -213,11 +205,7 @@ test("@smoke 회원은 예약 인원을 부분취소하고 환불 접수 결과�
   const bookingId = 990002;
   let participantCount = 3;
   let requestedParticipantCount: number | null = null;
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "booking-partial-cancel-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

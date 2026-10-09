@@ -1,11 +1,11 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { OrderDetailResponse } from "../../src/generated/api/customerStore";
 import {
   clearSsrUpstreamFixtures,
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const EMPTY_CART_VERSION = "0".repeat(64);
@@ -17,15 +17,6 @@ const ONE_PIXEL_PNG = Buffer.from(
 test.afterEach(async () => {
   await clearSsrUpstreamFixtures();
 });
-
-async function installCsrfCookie(context: BrowserContext, baseURL: string | undefined) {
-  if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "review-hardening-csrf",
-    url: baseURL,
-  }]);
-}
 
 test("@smoke @admin 후기 신고의 되돌릴 수 없는 판단은 확인 뒤 한 번만 전송한다", async ({ page }) => {
   const reportStatuses = new Map<number, "PENDING" | "ACCEPTED" | "REJECTED">([

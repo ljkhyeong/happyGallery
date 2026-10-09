@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const item = (id: number, name: string, options: { type: string; groupName: string; value: string; priceAdjustment: number }[] = []) => ({
   orderItemId: id, productId: id, productName: name, productType: id === 42 ? "READY_STOCK" : "MADE_TO_ORDER",
@@ -9,7 +9,7 @@ const item = (id: number, name: string, options: { type: string; groupName: stri
 });
 
 test("다시 담기는 현재 가격과 재고를 확인하고 재시도 키를 유지하며 변경 옵션과 각인은 재선택을 안내한다 @payment", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "reorder-csrf", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   const items = [item(42, "이전 주문 머그"), item(43, "옵션 변경 상품", [{ type: "SELECT", groupName: "색상", value: "파랑", priceAdjustment: 0 }]),
     item(44, "각인 상품", [{ type: "TEXT", groupName: "각인", value: "홍길동", priceAdjustment: 0 }])];
   const requests: { idempotencyKey: string; items: unknown[]; expectedCustomerId: number }[] = [];

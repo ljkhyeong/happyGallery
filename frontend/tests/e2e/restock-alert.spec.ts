@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.afterEach(clearSsrUpstreamFixtures);
 
 test("품절 상품의 재입고 알림을 신청하고 내 정보에서 해지한다", async ({ page, context, baseURL }) => {
-  await context.addCookies([{ name: "XSRF-TOKEN", value: "restock-csrf", url: baseURL! }]);
+  await installCsrfCookie(context, baseURL);
   const product = { id: 42, name: "재입고 확인 작품", description: null, category: "공예", type: "READY_STOCK", price: 12000,
     imageUrl: null, available: false, stockQuantity: 0, specification: null, careInstructions: null,
     productionLeadDays: null, optionGroups: [], variants: [] };

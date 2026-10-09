@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from "@playwright/test";
 import { clearSsrUpstreamFixtures, replaceSsrUpstreamFixtures, ssrApiFixture } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const details = { organization: "단체 수업 기관", contactName: "김담당", phone: "01012345678", email: null,
   headcount: 20, preferredSchedule: "10월 평일 오전", location: "기관 강당", classInterest: "레진아트", message: null };
@@ -21,7 +21,7 @@ test.afterEach(clearSsrUpstreamFixtures);
 
 for (const member of [false, true]) {
   test(`${member ? "회원" : "비회원"}이 단체 수업 문의를 접수한다`, async ({ page, context, baseURL }) => {
-    await context.addCookies([{ name: "XSRF-TOKEN", value: "group-csrf", url: baseURL! }]);
+    await installCsrfCookie(context, baseURL);
     await replaceSsrUpstreamFixtures(ssrApiFixture("/workshop", { name: "해피갤러리" }));
     let submitted = false;
     await page.route("**/api/v1/**", async (route) => {

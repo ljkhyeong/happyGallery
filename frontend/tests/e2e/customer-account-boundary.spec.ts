@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 interface Customer {
   id: number;
@@ -221,11 +221,7 @@ test("@identity 이전 회원의 지연된 결제 준비 응답은 새 계정에
     releasePrepare = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-payment-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       accountBoundaryTossRequests: unknown[];
@@ -375,11 +371,7 @@ test("@identity 비회원의 지연된 결제 준비 응답은 로그인한 계�
     releasePrepare = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-payment-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       accountBoundaryTossRequests: unknown[];
@@ -557,11 +549,7 @@ test("@identity 이전 세대의 me 요청 중에도 새 계정 refresh는 별�
     releaseFirstMe = resolve;
   });
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-refresh-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -680,11 +668,7 @@ test("@identity 다른 탭의 계정 전환과 로그아웃이 이전 탭의 폼
     releasePrepare = resolve;
   });
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cross-tab-customer-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       accountBoundaryTossRequests: unknown[];
@@ -860,11 +844,7 @@ test("@identity 다른 탭에서 계정이 바뀌면 이전 비회원 복구 토
   const context = page.context();
   let currentCustomer: Customer = customerA;
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-recovery-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -984,11 +964,7 @@ test("@identity 계정 전환 뒤 이전 결제 확정 결과와 정리가 새 �
     releaseConfirm = resolve;
   });
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "payment-result-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await context.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());
@@ -1153,11 +1129,7 @@ test("@identity 소셜 재인증 뒤 실제 연결 callback에도 같은 회원 
     throw new Error("Playwright baseURL이 필요합니다.");
   }
 
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-social-boundary-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
   await page.addInitScript((customerId) => {
     if (sessionStorage.getItem("account_boundary_social_initialized")) return;
     sessionStorage.setItem("account_boundary_social_initialized", "true");
@@ -1225,11 +1197,7 @@ test("@identity 계정이 바뀌면 비밀 Q&A와 주문 배송 정보가 이전
   let currentCustomer: Customer | null = customerA;
   const product = productFixture("계정 경계 테스트 작품");
   await replaceSsrUpstreamFixtures(ssrApiFixture("/products/42", product));
-  await page.context().addCookies([{
-    name: "XSRF-TOKEN",
-    value: "customer-boundary-test-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(page.context(), baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();

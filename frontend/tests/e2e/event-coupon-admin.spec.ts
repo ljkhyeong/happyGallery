@@ -4,7 +4,7 @@ import {
   replaceSsrUpstreamFixtures,
   ssrApiFixture,
 } from "./ssr-upstream-fixture";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const ADMIN_TOKEN_KEY = "hg_admin_token";
 const ADMIN_TOKEN = "event-coupon-admin-token";
@@ -136,11 +136,7 @@ test("이벤트 쿠폰은 비회원에게 로그인 후 돌아올 경로를 제�
 
 test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", async ({ baseURL, context, page }) => {
   if (!baseURL) throw new Error("Playwright baseURL이 필요합니다.");
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "event-coupon-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   let claimed = false;
   const event = {
     id: 26,

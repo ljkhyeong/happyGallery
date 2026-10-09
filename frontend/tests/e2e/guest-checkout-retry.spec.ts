@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -45,7 +45,7 @@ async function openCheckout(page: Page, kind: "ORDER" | "BOOKING") {
     return fulfillJson(route, []);
   });
   await page.goto(kind === "ORDER" ? "/orders/new?productId=42" : "/bookings/new");
-  await page.context().addCookies([{ name: "XSRF-TOKEN", value: "guest-retry-xsrf", url: new URL("/", page.url()).href }]);
+  await installCsrfCookie(page.context(), new URL("/", page.url()).href);
   if (kind === "BOOKING") {
     await page.getByLabel("클래스").selectOption("42");
     await page.locator('[data-slot-id="77"]').click();

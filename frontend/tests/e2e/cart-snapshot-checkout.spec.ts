@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { skipExternalFonts } from "./external-fonts";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 test.beforeEach(skipExternalFonts);
 
@@ -16,11 +16,7 @@ test("@payment 선택 구매는 미선택 상품을 제외하고 충돌 뒤에�
   let cartReads = 0;
   const preparePayloads: Array<Record<string, unknown>> = [];
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-snapshot-checkout-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       cartSnapshotTossRequests: unknown[];
@@ -200,11 +196,7 @@ test("@payment 장바구니 버전과 무관한 409는 원래 오류를 표시�
   const cartVersion = "c".repeat(64);
   let cartReads = 0;
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "cart-generic-conflict-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
 
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -303,9 +295,7 @@ test("@payment 각인 두 항목의 합계가 재고를 넘으면 한 항목만 
   const cartVersion = "d".repeat(64);
   const preparePayloads: Array<Record<string, unknown>> = [];
   const cartWrites: string[] = [];
-  await context.addCookies([{
-    name: "XSRF-TOKEN", value: "cart-selected-stock-token", url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       selectedStockPayments: unknown[];

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
@@ -22,11 +22,7 @@ test("@identity 예약 중 로그인하면 이전 컴포넌트가 결제하지 �
   let slotReads = 0;
   const preparePayloads: Array<Record<string, unknown>> = [];
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "booking-login-resume-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(() => {
     const browserGlobal = globalThis as unknown as {
       TossPayments: () => {
@@ -189,11 +185,7 @@ test("@identity 로그인 재개 초안은 이를 만든 회원과 다른 계정
   let currentMember: typeof memberA | typeof memberB | null = null;
   const preparePayloads: Array<Record<string, unknown>> = [];
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "booking-resume-owner-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const { pathname } = new URL(request.url());

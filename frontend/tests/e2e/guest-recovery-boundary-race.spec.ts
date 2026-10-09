@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { fulfillJson } from "./mock-support";
+import { fulfillJson, installCsrfCookie } from "./mock-support";
 
 const EMPTY_CART_VERSION = "0".repeat(64);
 
@@ -21,11 +21,7 @@ test("@identity 복구 토큰 저장 중 회원 세션이 바뀌면 방금 저�
   let currentMember: typeof nextMember | null = null;
   let recoveredPageReads = 0;
 
-  await context.addCookies([{
-    name: "XSRF-TOKEN",
-    value: "guest-recovery-race-token",
-    url: baseURL,
-  }]);
+  await installCsrfCookie(context, baseURL);
   await page.addInitScript(({ customerId }) => {
     const originalSetItem = Storage.prototype.setItem;
     let boundaryInjected = false;
