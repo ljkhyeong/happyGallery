@@ -4,7 +4,6 @@ import {
   isCustomerSessionStorageOwner,
   sameCustomerSessionStorageOwner,
   type CustomerSessionStorageHandle,
-  type CustomerSessionStorageOwner,
 } from "@/shared/storage/customerSessionOwner";
 import type { CustomerSessionSnapshot } from "@/shared/api/customerSession";
 
@@ -14,8 +13,8 @@ import type { CustomerSessionSnapshot } from "@/shared/api/customerSession";
  * <p>도메인 access token은 confirm 응답에 포함되며, 비회원 success 페이지가 그 token을
  * 다음 화면으로 react-router history state로 전달해 URL 노출 없이 자동 조회한다.
  */
-export const PAYMENT_RETURN_KEY = "hg_payment_return_hint";
-export const PAYMENT_CONFIRM_REQUEST_KEY = "hg_payment_confirm_request";
+const PAYMENT_RETURN_KEY = "hg_payment_return_hint";
+const PAYMENT_CONFIRM_REQUEST_KEY = "hg_payment_confirm_request";
 const PAYMENT_STATUS_TOKEN_PREFIX = "hg_payment_status_token:";
 
 export interface PaymentReturnHint {
@@ -31,7 +30,6 @@ export interface PaymentConfirmRequest {
   amount: number;
 }
 
-export type PaymentSessionOwner = CustomerSessionStorageOwner;
 export type PaymentSessionHandle<T> = CustomerSessionStorageHandle<T>;
 
 function ownedPaymentSessionValue<T>(
@@ -140,12 +138,6 @@ export function readPaymentConfirmSession(
   } catch {
     return null;
   }
-}
-
-export function readPaymentConfirmRequest(
-  expectedSnapshot?: CustomerSessionSnapshot,
-): PaymentConfirmRequest | null {
-  return readPaymentConfirmSession(expectedSnapshot)?.value ?? null;
 }
 
 export function removePaymentConfirmRequest(

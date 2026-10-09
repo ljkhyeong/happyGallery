@@ -75,13 +75,11 @@ export interface RequestTossPaymentArgs {
   customerKey?: string;
   customerName?: string;
   customerMobilePhone?: string;
-  successPath?: string;
-  failPath?: string;
 }
 
 export async function requestTossPayment(
   args: RequestTossPaymentArgs,
-  requireAllowed: () => void = () => undefined,
+  requireAllowed: () => void,
 ): Promise<void> {
   const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY;
   if (!clientKey) {
@@ -90,7 +88,7 @@ export async function requestTossPayment(
   const TossPaymentsCtorFn = await loadTossSdk();
   requireAllowed();
   const tossPayments = TossPaymentsCtorFn(clientKey);
-  const customerKey = args.customerKey ?? generateAnonymousCustomerKey();
+  const customerKey = args.customerKey ?? `anon_${crypto.randomUUID()}`;
   const payment = tossPayments.payment({ customerKey });
   requireAllowed();
   await payment.requestPayment({
@@ -99,16 +97,9 @@ export async function requestTossPayment(
     amount: { currency: "KRW", value: args.amount },
     orderId: args.orderId,
     orderName: args.orderName,
-    successUrl: `${window.location.origin}${args.successPath ?? "/payments/success"}`,
-    failUrl: `${window.location.origin}${args.failPath ?? "/payments/fail"}`,
+    successUrl: `${window.location.origin}/payments/success`,
+    failUrl: `${window.location.origin}/payments/fail`,
     customerName: args.customerName,
     customerMobilePhone: args.customerMobilePhone,
   });
-}
-
-function generateAnonymousCustomerKey(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `anon_${crypto.randomUUID()}`;
-  }
-  return `anon_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 }

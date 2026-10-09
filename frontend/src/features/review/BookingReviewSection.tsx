@@ -84,7 +84,6 @@ export function BookingReviewSection({ bookingId, className }: Props) {
         <Card className="review-card">
           <Card.Body>
             <ReviewForm
-              autoFocusFirstInput
               pending={createMutation.isPending}
               error={createMutation.error}
               onCancel={() => {

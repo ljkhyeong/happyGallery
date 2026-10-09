@@ -47,7 +47,7 @@ export function Layout() {
   const { pathname, search } = useLocation();
   const searchParams = new URLSearchParams(search);
   const onProducts = pathname === "/products";
-  const activeCategory = onProducts ? searchParams.get("category")?.toUpperCase() : undefined;
+  const activeCategory = onProducts ? searchParams.get("category") : undefined;
   const madeToOrderOnly = onProducts && searchParams.get("type") === "MADE_TO_ORDER";
   const matches = useMatches();
   const {

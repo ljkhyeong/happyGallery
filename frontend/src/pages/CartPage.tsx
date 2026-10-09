@@ -114,7 +114,7 @@ function CartContent() {
         }),
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,
-        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        issuedCouponId,
         rewardAmount,
         ...fulfillmentPayload(fulfillment),
       };

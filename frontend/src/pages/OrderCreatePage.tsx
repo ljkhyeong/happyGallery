@@ -144,7 +144,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
             cartCheckout: false,
             madeToOrderConsent: consent.agreed,
             madeToOrderConsentVersion: consent.version,
-            ...(issuedCouponId === null ? {} : { issuedCouponId }),
+            issuedCouponId,
             rewardAmount,
             ...fulfillmentPayload(fulfillment),
           }

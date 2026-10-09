@@ -119,7 +119,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
         name: user.name,
         items,
         cartCheckout: false,
-        ...(issuedCouponId === null ? {} : { issuedCouponId }),
+        issuedCouponId,
         rewardAmount,
         madeToOrderConsent: consent.agreed,
         madeToOrderConsentVersion: consent.version,

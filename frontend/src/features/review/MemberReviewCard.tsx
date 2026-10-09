@@ -83,7 +83,6 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
               initialRating={review.rating}
               initialContent={review.content}
               submitLabel="수정 저장"
-              autoFocusFirstInput
               pending={updateMutation.isPending}
               error={revisionConflict ? undefined : updateMutation.error}
               hiddenNotice={review.status === "HIDDEN"}

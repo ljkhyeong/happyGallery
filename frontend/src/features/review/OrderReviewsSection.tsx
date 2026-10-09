@@ -110,7 +110,6 @@ export function OrderReviewsSection({ orderId, items }: Props) {
                 {writing && creationStatus === "AVAILABLE" && (
                   <div className="mt-3 pt-3 border-top">
                     <ReviewForm
-                      autoFocusFirstInput
                       pending={createMutation.isPending}
                       error={createMutation.error}
                       onCancel={() => {
