@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { adminProductsQuery, updateProductStatus } from "./api";
+import { invalidateProductQueries } from "./productFormRules";
 import { InventoryAdjustmentModal } from "./InventoryAdjustmentModal";
 import { ProductEditModal } from "./ProductEditModal";
 import { SmartStoreInventoryModal } from "./SmartStoreInventoryModal";
@@ -30,11 +31,7 @@ export function ProductListSection({ adminKey, onAuthError, focusProductId, focu
     mutationFn: ({ id, active }: { id: number; active: boolean }) =>
       updateProductStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
     onMutate: ({ id }) => setPendingStatusId(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product-categories"] });
-    },
+    onSuccess: () => invalidateProductQueries(queryClient),
     onSettled: () => setPendingStatusId(null),
   });
 

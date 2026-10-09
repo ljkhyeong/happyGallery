@@ -2,14 +2,18 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Row } from "react-bootstrap";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
-import { queryKeys } from "@/shared/api";
-import { type ClassSituationTagCode, isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { createClass } from "./api";
-import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { ClassCategoryField } from "./ClassCategoryField";
-import { ClassSituationTagField } from "./ClassSituationTagField";
-import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
+import { ClassDetailFields, ClassPassEligibleField } from "./ClassDetailFields";
+import { createClassCategoryValue } from "./classCategories";
+import {
+  classCategoryChangeHandler,
+  classDetailPayload,
+  EMPTY_CLASS_DETAILS,
+  invalidateClassQueries,
+  type ClassDetailValues,
+} from "./classFormRules";
 
 interface Props {
   adminKey: string;
@@ -26,18 +30,9 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
   const [bufferMin, setBufferMin] = useState("30");
   const [capacity, setCapacity] = useState("8");
   const [passEligible, setPassEligible] = useState(true);
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [preparationInfo, setPreparationInfo] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [situationTags, setSituationTags] = useState<ClassSituationTagCode[]>([]);
+  const [details, setDetails] = useState<ClassDetailValues>(EMPTY_CLASS_DETAILS);
 
-  const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
-    setCategoryValue(nextCategoryValue);
-    if (isPerfumeClassCategory(nextCategoryValue.category)) {
-      setPassEligible(false);
-    }
-  };
+  const handleCategoryChange = classCategoryChangeHandler(setCategoryValue, setPassEligible);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => createClass(adminKey, {
@@ -48,15 +43,10 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       bufferMin: Number(bufferMin),
       capacity: Number(capacity),
       passEligible,
-      description: description.trim() || undefined,
-      imageUrl: imageUrl.trim() || undefined,
-      preparationInfo: preparationInfo.trim() || undefined,
-      targetAudience: targetAudience.trim() || undefined,
-      situationTags,
+      ...classDetailPayload(details),
     }),
     onSuccess: (bookingClass) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
-      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
+      invalidateClassQueries(queryClient);
       toast.show(`클래스 #${bookingClass.id} 생성 완료`);
       setName("");
       setCategoryValue(createClassCategoryValue());
@@ -65,11 +55,7 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
       setBufferMin("30");
       setCapacity("8");
       setPassEligible(true);
-      setDescription("");
-      setImageUrl("");
-      setPreparationInfo("");
-      setTargetAudience("");
-      setSituationTags([]);
+      setDetails(EMPTY_CLASS_DETAILS);
     },
   });
 
@@ -158,69 +144,21 @@ export function CreateClassForm({ adminKey, onAuthError }: Props) {
             <Form.Text muted>이 클래스의 예약 회차마다 적용됩니다.</Form.Text>
           </Form.Group>
         </Col>
-        <Col xs={12}>
-          <AdminImageField
-            adminKey={adminKey}
-            value={imageUrl}
-            onChange={setImageUrl}
-            onAuthError={onAuthError}
-            controlId="admin-class-image"
-            previewAlt="등록할 클래스 대표 이미지 미리보기"
-          />
-        </Col>
-        <Col xs={12}>
-          <Form.Group controlId="admin-class-description">
-            <Form.Label>상세 설명</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={4}
-              value={description}
-              maxLength={5000}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Group controlId="admin-class-preparation-info">
-            <Form.Label>준비물 안내</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={preparationInfo}
-              maxLength={2000}
-              onChange={(e) => setPreparationInfo(e.target.value)}
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12} md={6}>
-          <Form.Group controlId="admin-class-target-audience">
-            <Form.Label>추천 대상</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={targetAudience}
-              maxLength={1000}
-              onChange={(e) => setTargetAudience(e.target.value)}
-            />
-          </Form.Group>
-        </Col>
-        <Col xs={12}>
-          <ClassSituationTagField idPrefix="admin-class-tag" value={situationTags} onChange={setSituationTags} />
-        </Col>
+        <ClassDetailFields
+          adminKey={adminKey}
+          onAuthError={onAuthError}
+          idPrefix="admin-class"
+          imagePreviewAlt="등록할 클래스 대표 이미지 미리보기"
+          values={details}
+          onChange={(change) => setDetails((current) => ({ ...current, ...change }))}
+        />
         <Col xs={12} className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-          <div>
-            <Form.Check
-              id="admin-class-pass-eligible"
-              type="checkbox"
-              label="정규 이용권 사용 가능"
-              checked={passEligible}
-              disabled={isPerfumeClassCategory(categoryValue.category)}
-              onChange={(e) => setPassEligible(e.target.checked)}
-            />
-            {isPerfumeClassCategory(categoryValue.category) && (
-              <Form.Text muted>향수 수업에는 이용권을 적용할 수 없습니다.</Form.Text>
-            )}
-          </div>
+          <ClassPassEligibleField
+            id="admin-class-pass-eligible"
+            category={categoryValue.category}
+            checked={passEligible}
+            onChange={setPassEligible}
+          />
           <Button type="submit" variant="primary" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? "생성 중..." : "클래스 생성"}
           </Button>

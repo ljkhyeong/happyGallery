@@ -12,6 +12,7 @@ import {
   type OptionGroupDraft,
   type VariantDraft,
 } from "./ProductOptionEditor";
+import { invalidateProductQueries, isProductFormValid } from "./productFormRules";
 
 interface Props {
   adminKey: string;
@@ -72,37 +73,27 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
       variants: product!.type === "MADE_TO_ORDER" ? variants : [],
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["product-categories"] });
+      invalidateProductQueries(queryClient);
       toast.show("상품 정보가 수정되었습니다.");
       onClose();
     },
   });
 
-  const leadDays = Number(productionLeadDays);
-  const purchaseTermsValid = product?.type !== "MADE_TO_ORDER"
-    || (specification.trim().length > 0
-      && Number.isInteger(leadDays)
-      && leadDays >= 1
-      && leadDays <= 180);
   const hasSelectOptions = optionGroups.some((group) => group.type === "SELECT");
   const defaultVariant = !hasSelectOptions && product?.optionGroups.every((group) => group.type !== "SELECT")
     ? product.variants.find((variant) => variant.selections.length === 0)
     : undefined;
-  const optionsValid = product?.type !== "MADE_TO_ORDER" || (
-    optionGroups.every((group) => group.name.trim().length > 0
-      && (group.type !== "SELECT"
-        || group.values.every((value) => value.name.trim().length > 0)))
-    && variants.length <= 500
-    && variants.every((variant) => Number(variant.quantity ?? 0) >= 0
-      && Number(price) + Number(variant.priceAdjustment ?? 0) > 0)
-  );
-  const valid = name.trim().length > 0
-    && Number(price) > 0
-    && Number(quantity) >= 0
-    && purchaseTermsValid
-    && optionsValid;
+  const valid = product !== null && isProductFormValid({
+    type: product.type,
+    name,
+    price,
+    quantity,
+    minimumQuantity: 0,
+    specification,
+    productionLeadDays,
+    optionGroups,
+    variants,
+  });
 
   return (
     <Modal

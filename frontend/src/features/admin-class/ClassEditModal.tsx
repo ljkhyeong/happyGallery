@@ -2,15 +2,21 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, Col, Form, Modal, Row } from "react-bootstrap";
 import { updateClass } from "./api";
-import { queryKeys } from "@/shared/api";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
-import { type ClassSituationTagCode, isClassSituationTag, isPerfumeClassCategory } from "@/shared/lib";
+import { isPerfumeClassCategory } from "@/shared/lib";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { ClassResponse } from "@/shared/types";
-import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { ClassCategoryField } from "./ClassCategoryField";
-import { ClassSituationTagField } from "./ClassSituationTagField";
-import { type ClassCategoryValue, createClassCategoryValue } from "./classCategories";
+import { ClassDetailFields, ClassPassEligibleField } from "./ClassDetailFields";
+import { createClassCategoryValue } from "./classCategories";
+import {
+  classCategoryChangeHandler,
+  classDetailPayload,
+  classDetailsFrom,
+  EMPTY_CLASS_DETAILS,
+  invalidateClassQueries,
+  type ClassDetailValues,
+} from "./classFormRules";
 
 interface Props {
   adminKey: string;
@@ -26,11 +32,7 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
   const [categoryValue, setCategoryValue] = useState(createClassCategoryValue);
   const [price, setPrice] = useState("");
   const [passEligible, setPassEligible] = useState(false);
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [preparationInfo, setPreparationInfo] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [situationTags, setSituationTags] = useState<ClassSituationTagCode[]>([]);
+  const [details, setDetails] = useState<ClassDetailValues>(EMPTY_CLASS_DETAILS);
 
   useEffect(() => {
     if (!bookingClass) return;
@@ -41,19 +43,10 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
     setPassEligible(
       bookingClass.passEligible && !isPerfumeClassCategory(nextCategoryValue.category),
     );
-    setDescription(bookingClass.description ?? "");
-    setImageUrl(bookingClass.imageUrl ?? "");
-    setPreparationInfo(bookingClass.preparationInfo ?? "");
-    setTargetAudience(bookingClass.targetAudience ?? "");
-    setSituationTags(bookingClass.situationTags.filter(isClassSituationTag));
+    setDetails(classDetailsFrom(bookingClass));
   }, [bookingClass]);
 
-  const handleCategoryChange = (nextCategoryValue: ClassCategoryValue) => {
-    setCategoryValue(nextCategoryValue);
-    if (isPerfumeClassCategory(nextCategoryValue.category)) {
-      setPassEligible(false);
-    }
-  };
+  const handleCategoryChange = classCategoryChangeHandler(setCategoryValue, setPassEligible);
 
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: () => updateClass(adminKey, bookingClass!.id, {
@@ -61,15 +54,10 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
       category: categoryValue.category,
       price: Number(price),
       passEligible,
-      description: description.trim() || undefined,
-      imageUrl: imageUrl.trim() || undefined,
-      preparationInfo: preparationInfo.trim() || undefined,
-      targetAudience: targetAudience.trim() || undefined,
-      situationTags,
+      ...classDetailPayload(details),
     }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
-      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
+      invalidateClassQueries(queryClient);
       toast.show("클래스 정보가 수정되었습니다.");
       onClose();
     },
@@ -118,51 +106,21 @@ export function ClassEditModal({ adminKey, bookingClass, onClose, onAuthError }:
               />
             </Col>
             <Col xs={12} md={6} className="d-flex align-items-end pb-2">
-              <div>
-                <Form.Check
-                  id="admin-edit-class-pass-eligible"
-                  type="checkbox"
-                  label="정규 이용권 사용 가능"
-                  checked={passEligible}
-                  disabled={isPerfumeClassCategory(categoryValue.category)}
-                  onChange={(e) => setPassEligible(e.target.checked)}
-                />
-                {isPerfumeClassCategory(categoryValue.category) && (
-                  <Form.Text muted>향수 수업에는 이용권을 적용할 수 없습니다.</Form.Text>
-                )}
-              </div>
-            </Col>
-            <Col xs={12}>
-              <AdminImageField
-                adminKey={adminKey}
-                value={imageUrl}
-                onChange={setImageUrl}
-                onAuthError={onAuthError}
-                controlId="admin-edit-class-image"
-                previewAlt="수정할 클래스 대표 이미지 미리보기"
+              <ClassPassEligibleField
+                id="admin-edit-class-pass-eligible"
+                category={categoryValue.category}
+                checked={passEligible}
+                onChange={setPassEligible}
               />
             </Col>
-            <Col xs={12}>
-              <Form.Group controlId="admin-edit-class-description">
-                <Form.Label>상세 설명</Form.Label>
-                <Form.Control as="textarea" rows={4} value={description} maxLength={5000} onChange={(e) => setDescription(e.target.value)} />
-              </Form.Group>
-            </Col>
-            <Col xs={12} md={6}>
-              <Form.Group controlId="admin-edit-class-preparation">
-                <Form.Label>준비물 안내</Form.Label>
-                <Form.Control as="textarea" rows={3} value={preparationInfo} maxLength={2000} onChange={(e) => setPreparationInfo(e.target.value)} />
-              </Form.Group>
-            </Col>
-            <Col xs={12} md={6}>
-              <Form.Group controlId="admin-edit-class-audience">
-                <Form.Label>추천 대상</Form.Label>
-                <Form.Control as="textarea" rows={3} value={targetAudience} maxLength={1000} onChange={(e) => setTargetAudience(e.target.value)} />
-              </Form.Group>
-            </Col>
-            <Col xs={12}>
-              <ClassSituationTagField idPrefix="admin-edit-class-tag" value={situationTags} onChange={setSituationTags} />
-            </Col>
+            <ClassDetailFields
+              adminKey={adminKey}
+              onAuthError={onAuthError}
+              idPrefix="admin-edit-class"
+              imagePreviewAlt="수정할 클래스 대표 이미지 미리보기"
+              values={details}
+              onChange={(change) => setDetails((current) => ({ ...current, ...change }))}
+            />
           </Row>
         </Modal.Body>
         <Modal.Footer>

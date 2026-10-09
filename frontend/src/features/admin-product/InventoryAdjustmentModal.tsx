@@ -4,6 +4,7 @@ import { Alert, Badge, Button, ButtonGroup, Form, Modal, Table } from "react-boo
 import { adjustInventory, fetchInventoryAdjustments } from "./api";
 import { productVariantLabel } from "./productVariantLabel";
 import { StockThresholdForm } from "./StockThresholdForm";
+import { queryKeys } from "@/shared/api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -61,7 +62,7 @@ export function InventoryAdjustmentModal({
       setShowImpactConfirm(false);
       setQuantity("1");
       setReason("");
-      queryClient.invalidateQueries({ queryKey: ["admin", "products"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.products });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({
         queryKey: ["admin", "products", product?.id, "inventory-adjustments"],

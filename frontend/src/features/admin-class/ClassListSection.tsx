@@ -3,10 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Table } from "react-bootstrap";
 import { ClassEditModal } from "./ClassEditModal";
 import { adminClassesQuery, updateClassStatus } from "./api";
-import {
-  invalidateSlotAvailability,
-  queryKeys,
-} from "@/shared/api";
+import { invalidateClassQueries } from "./classFormRules";
+import { invalidateSlotAvailability } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -33,8 +31,7 @@ export function ClassListSection({ adminKey, onAuthError }: Props) {
       updateClassStatus(adminKey, id, active ? "ACTIVE" : "INACTIVE"),
     onMutate: ({ id }) => setPendingStatusId(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.classes });
-      queryClient.invalidateQueries({ queryKey: queryKeys.catalog.classes });
+      invalidateClassQueries(queryClient);
       void invalidateSlotAvailability(queryClient);
     },
     onSettled: () => setPendingStatusId(null),
