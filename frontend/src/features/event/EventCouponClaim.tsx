@@ -1,16 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button, Card } from "react-bootstrap";
-import {
-  claimCoupon,
-  fetchClaimableCoupons,
-  fetchMyCoupons,
-} from "@/features/coupon/api";
-import { couponDiscountLabel } from "@/features/coupon/presentation";
+import { CouponSummary } from "@/features/coupon/CouponSummary";
+import { claimableCouponsQuery, myCouponsQuery, useClaimCoupon } from "@/features/coupon/queries";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { formatDateTime, formatKRW } from "@/shared/lib";
-import { ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
+import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 
 interface Props {
   eventId: number;
@@ -18,8 +12,6 @@ interface Props {
 }
 
 export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const {
     error: authError,
     isAuthenticated,
@@ -28,29 +20,9 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
     refresh,
     status,
   } = useCustomerAuth();
-  const couponsQuery = useQuery({
-    queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }) => fetchMyCoupons(signal),
-    enabled: isAuthenticated,
-  });
-  const claimableQuery = useQuery({
-    queryKey: queryKeys.member.claimableCoupons,
-    queryFn: ({ signal }) => fetchClaimableCoupons(signal),
-    enabled: isAuthenticated,
-  });
-  const claimMutation = useMutation({
-    mutationFn: () => runForCurrentCustomer(
-      () => claimCoupon(couponDefinitionId),
-      async (claimed, requireCurrent) => {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.claimableCoupons }),
-        ]);
-        requireCurrent();
-        toast.show(`${claimed.name} 쿠폰을 받았습니다.`, "success");
-      },
-    ),
-  });
+  const couponsQuery = useQuery({ ...myCouponsQuery(), enabled: isAuthenticated });
+  const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
+  const claimMutation = useClaimCoupon();
 
   const loginHref = buildAuthPageHref("/login", {
     redirectTo: `/events/${eventId}`,
@@ -96,16 +68,7 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
             )}
             {ownedCoupon && (
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                <div>
-                  <strong className="d-block mb-1">{ownedCoupon.name}</strong>
-                  <div>{couponDiscountLabel(ownedCoupon)}</div>
-                  <small className="text-muted-soft">
-                    {ownedCoupon.minOrderAmount > 0
-                      ? `${formatKRW(ownedCoupon.minOrderAmount)} 이상 · `
-                      : ""}
-                    {formatDateTime(ownedCoupon.validUntil)}까지
-                  </small>
-                </div>
+                <CouponSummary coupon={ownedCoupon} />
                 <LinkButton variant="outline-dark" to="/my/benefits">
                   받은 쿠폰 확인
                 </LinkButton>
@@ -113,20 +76,11 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
             )}
             {!ownedCoupon && claimableCoupon && (
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
-                <div>
-                  <strong className="d-block mb-1">{claimableCoupon.name}</strong>
-                  <div>{couponDiscountLabel(claimableCoupon)}</div>
-                  <small className="text-muted-soft">
-                    {claimableCoupon.minOrderAmount > 0
-                      ? `${formatKRW(claimableCoupon.minOrderAmount)} 이상 · `
-                      : ""}
-                    {formatDateTime(claimableCoupon.validUntil)}까지
-                  </small>
-                </div>
+                <CouponSummary coupon={claimableCoupon} />
                 <Button
                   type="button"
                   disabled={claimMutation.isPending}
-                  onClick={() => claimMutation.mutate()}
+                  onClick={() => claimMutation.mutate(couponDefinitionId)}
                 >
                   {claimMutation.isPending ? "쿠폰 받는 중..." : "쿠폰 받기"}
                 </Button>

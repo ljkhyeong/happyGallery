@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button, Form } from "react-bootstrap";
-import { fetchMyCoupons, type MyCouponResponse } from "@/features/coupon/api";
+import type { MyCouponResponse } from "@/features/coupon/api";
+import { couponDiscountLabel } from "@/features/coupon/presentation";
+import { myCouponsQuery } from "@/features/coupon/queries";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
@@ -25,9 +27,7 @@ interface Props {
 }
 
 function couponLabel(coupon: MyCouponResponse): string {
-  const discount = coupon.discountType === "FIXED"
-    ? `${formatKRW(coupon.discountValue)} 할인`
-    : `${coupon.discountValue}% 할인 (최대 ${formatKRW(coupon.maxDiscountAmount ?? 0)})`;
+  const discount = couponDiscountLabel(coupon);
   const minimum = coupon.minOrderAmount > 0
     ? ` · ${formatKRW(coupon.minOrderAmount)} 이상`
     : "";
@@ -43,10 +43,7 @@ export function MemberOrderBenefits({
   onCouponChange,
   onRewardPointsChange,
 }: Props) {
-  const couponsQuery = useQuery({
-    queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }) => fetchMyCoupons(signal),
-  });
+  const couponsQuery = useQuery(myCouponsQuery());
   const rewardQuery = useQuery({
     queryKey: queryKeys.member.rewards,
     queryFn: ({ signal }) => fetchMyRewardWallet(signal),

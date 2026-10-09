@@ -1,21 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, Col, Row } from "react-bootstrap";
-import {
-  claimCoupon,
-  fetchClaimableCoupons,
-  fetchMyCoupons,
-  type MyCouponResponse,
-} from "@/features/coupon/api";
-import { couponDiscountLabel } from "@/features/coupon/presentation";
+import type { MyCouponResponse } from "@/features/coupon/api";
+import { couponConditionLabel, couponDiscountLabel } from "@/features/coupon/presentation";
+import { claimableCouponsQuery, myCouponsQuery, useClaimCoupon } from "@/features/coupon/queries";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { MySectionPage } from "@/features/my/MySectionPage";
 import {
   fetchMyRewardWallet,
   type RewardHistoryResponse,
 } from "@/features/reward/api";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { queryKeys } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
-import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
 const COUPON_STATUS: Record<MyCouponResponse["status"], { label: string; bg: string }> = {
   AVAILABLE: { label: "사용 가능", bg: "success" },
@@ -36,37 +32,15 @@ const REWARD_HISTORY_LABEL: Record<RewardHistoryResponse["type"], string> = {
 };
 
 export function MyBenefitsPage() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
   const { isAuthenticated } = useCustomerAuth();
-  const couponsQuery = useQuery({
-    queryKey: queryKeys.member.coupons,
-    queryFn: ({ signal }) => fetchMyCoupons(signal),
-    enabled: isAuthenticated,
-  });
-  const claimableQuery = useQuery({
-    queryKey: queryKeys.member.claimableCoupons,
-    queryFn: ({ signal }) => fetchClaimableCoupons(signal),
-    enabled: isAuthenticated,
-  });
+  const couponsQuery = useQuery({ ...myCouponsQuery(), enabled: isAuthenticated });
+  const claimableQuery = useQuery({ ...claimableCouponsQuery(), enabled: isAuthenticated });
   const rewardsQuery = useQuery({
     queryKey: queryKeys.member.rewards,
     queryFn: ({ signal }) => fetchMyRewardWallet(signal),
     enabled: isAuthenticated,
   });
-  const claimMutation = useMutation({
-    mutationFn: (definitionId: number) => runForCurrentCustomer(
-      () => claimCoupon(definitionId),
-      async (claimed, requireCurrent) => {
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.coupons }),
-          queryClient.invalidateQueries({ queryKey: queryKeys.member.claimableCoupons }),
-        ]);
-        requireCurrent();
-        toast.show(`${claimed.name} 쿠폰을 받았습니다.`, "success");
-      },
-    ),
-  });
+  const claimMutation = useClaimCoupon();
 
   const coupons = couponsQuery.data ?? [];
   const availableCoupons = coupons.filter((coupon) => coupon.status === "AVAILABLE");
@@ -164,10 +138,7 @@ export function MyBenefitsPage() {
               <div>
                 <strong>{coupon.name}</strong>
                 <div className="small mt-1">{couponDiscountLabel(coupon)}</div>
-                <small className="text-muted-soft">
-                  {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
-                  {formatDateTime(coupon.validUntil)}까지
-                </small>
+                <small className="text-muted-soft">{couponConditionLabel(coupon)}</small>
               </div>
               <Button
                 type="button"
@@ -209,10 +180,7 @@ export function MyBenefitsPage() {
                     <Badge bg={status.bg}>{status.label}</Badge>
                   </div>
                   <div className="small">{couponDiscountLabel(coupon)}</div>
-                  <small className="text-muted-soft">
-                    {coupon.minOrderAmount > 0 ? `${formatKRW(coupon.minOrderAmount)} 이상 · ` : ""}
-                    {formatDateTime(coupon.validUntil)}까지
-                  </small>
+                  <small className="text-muted-soft">{couponConditionLabel(coupon)}</small>
                 </div>
                 <small className="text-muted-soft">쿠폰 #{coupon.id}</small>
               </Card.Body>
