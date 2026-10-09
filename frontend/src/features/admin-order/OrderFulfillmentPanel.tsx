@@ -21,7 +21,7 @@ export function OrderFulfillmentDetails({
     return (
       <Alert variant="light" className="border">
         <strong>매장 수령</strong>
-        {fulfillment.pickupDeadlineAt && <div>수령 마감: {fulfillment.pickupDeadlineAt}</div>}
+        {fulfillment.pickupDeadlineAt && <div>수령 마감: {formatDateTime(fulfillment.pickupDeadlineAt)}</div>}
       </Alert>
     );
   }
