@@ -99,10 +99,12 @@ public final class TestFixtures {
     public static SmartStoreProductOrder smartStoreProductOrder(
             String productOrderId, String orderId, String productName, String productOrderStatus,
             int quantity, LocalDateTime paymentDate, LocalDateTime lastChangedAt) {
-        return new SmartStoreProductOrder(
-                productOrderId, orderId, 123L, null, productName, null, null,
+        SmartStoreProductOrder order = SmartStoreProductOrder.create(productOrderId);
+        order.refresh(
+                orderId, 123L, null, productName, null, null,
                 productOrderStatus, null, null, null, quantity, quantity, productOrderStatus,
                 paymentDate, lastChangedAt, null, null, null, null, null, null, null, null, null, null, 0);
+        return order;
     }
 
     /** 할인 없는 기성품 주문 상품 라인. */

@@ -124,41 +124,11 @@ public class SmartStoreProductOrder {
 
     protected SmartStoreProductOrder() {}
 
-    public SmartStoreProductOrder(
-            String productOrderId,
-            String orderId,
-            Long originProductNo,
-            Long itemNo,
-            String productName,
-            String productOption,
-            String deliveryInfoEnc,
-            String productOrderStatus,
-            String placeOrderStatus,
-            String claimType,
-            String claimStatus,
-            int initialQuantity,
-            int remainQuantity,
-            String lastChangedType,
-            LocalDateTime paymentDate,
-            LocalDateTime lastChangedAt,
-            LocalDateTime shippingDueDate,
-            String expectedDeliveryMethod,
-            String deliveryCompany,
-            String trackingNumber,
-            Long unitPrice,
-            Long paymentAmount,
-            Long paymentCommission,
-            Long saleCommission,
-            Long channelCommission,
-            Long expectedSettlementAmount,
-            int completedReturnQuantity) {
-        this.productOrderId = requireText(productOrderId, "상품 주문 번호");
-        refresh(orderId, originProductNo, itemNo, productName, productOption, deliveryInfoEnc,
-                productOrderStatus, placeOrderStatus, claimType, claimStatus, initialQuantity,
-                remainQuantity, lastChangedType, paymentDate, lastChangedAt, shippingDueDate,
-                expectedDeliveryMethod, deliveryCompany, trackingNumber, unitPrice, paymentAmount,
-                paymentCommission, saleCommission, channelCommission, expectedSettlementAmount,
-                completedReturnQuantity);
+    /** 처음 받은 상품 주문의 빈 원장을 만든다. 주문 내용은 이어서 {@link #refresh}로 채운다. */
+    public static SmartStoreProductOrder create(String productOrderId) {
+        SmartStoreProductOrder order = new SmartStoreProductOrder();
+        order.productOrderId = requireText(productOrderId, "상품 주문 번호");
+        return order;
     }
 
     public boolean refresh(

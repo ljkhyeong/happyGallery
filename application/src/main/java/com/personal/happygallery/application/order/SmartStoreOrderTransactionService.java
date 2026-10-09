@@ -77,20 +77,10 @@ class SmartStoreOrderTransactionService {
 
     @Transactional
     public SmartStoreProductOrder synchronize(ProductOrderDetail detail, ProductOrderChange change) {
-        Optional<SmartStoreProductOrder> existing = orderPort
-                .findByProductOrderIdWithLock(detail.productOrderId());
-        SmartStoreProductOrder order = existing.orElseGet(() -> new SmartStoreProductOrder(
-                detail.productOrderId(), detail.orderId(), detail.originProductNo(), detail.itemNo(),
-                detail.productName(), detail.productOption(),
-                deliveryInfoProtector.encrypt(detail.deliveryInfo()), detail.productOrderStatus(),
-                detail.placeOrderStatus(), detail.claimType(), detail.claimStatus(),
-                detail.initialQuantity(), detail.remainQuantity(), change.lastChangedType(),
-                detail.paymentDate(), change.lastChangedAt(), detail.shippingDueDate(),
-                detail.expectedDeliveryMethod(), detail.deliveryCompany(), detail.trackingNumber(),
-                detail.unitPrice(), detail.paymentAmount(), detail.paymentCommission(),
-                detail.saleCommission(), detail.channelCommission(), detail.expectedSettlementAmount(),
-                detail.completedReturnQuantity()));
-        if (existing.isPresent() && !order.refresh(
+        // 새 원장은 최종 변경 일시가 없어 refresh가 항상 내용을 채운다.
+        SmartStoreProductOrder order = orderPort.findByProductOrderIdWithLock(detail.productOrderId())
+                .orElseGet(() -> SmartStoreProductOrder.create(detail.productOrderId()));
+        if (!order.refresh(
                 detail.orderId(), detail.originProductNo(), detail.itemNo(), detail.productName(),
                 detail.productOption(), deliveryInfoProtector.encrypt(detail.deliveryInfo()),
                 detail.productOrderStatus(), detail.placeOrderStatus(), detail.claimType(),
