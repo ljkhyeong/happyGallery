@@ -1,9 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ArrowRight, CalendarCheck, PackageCheck } from "lucide-react";
-import { Button, Card } from "react-bootstrap";
+import { Card } from "react-bootstrap";
 import { Link } from "react-router";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
-import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
+import { ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { fetchMyReviewOpportunities } from "./api";
 
@@ -13,12 +13,9 @@ export function ReviewOpportunityList() {
     queryFn: ({ pageParam, signal }) => runForCurrentCustomer(
       () => fetchMyReviewOpportunities(pageParam, signal),
     ),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore
-      ? lastPage.nextCursor ?? undefined
-      : undefined,
+    ...cursorPageParams,
   });
-  const opportunities = query.data?.pages.flatMap((page) => page.content) ?? [];
+  const opportunities = flattenCursorPages(query.data);
 
   if (query.isLoading) {
     return <LoadingSpinner text="작성할 수 있는 후기를 확인하는 중입니다" />;
@@ -37,7 +34,7 @@ export function ReviewOpportunityList() {
   if (query.data !== undefined && opportunities.length === 0) {
     return query.error ? (
       <ErrorAlert
-        error={query.data !== undefined && !query.isFetchNextPageError ? query.error : null}
+        error={query.isFetchNextPageError ? null : query.error}
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}
       />
@@ -47,7 +44,7 @@ export function ReviewOpportunityList() {
   return (
     <>
       <ErrorAlert
-        error={query.error}
+        error={query.isFetchNextPageError ? null : query.error}
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}
       />
@@ -94,25 +91,12 @@ export function ReviewOpportunityList() {
             );
           })}
         </div>
-        {query.isFetchNextPageError && (
-          <ErrorAlert
-            error={query.error}
-            onRetry={() => void query.fetchNextPage()}
-            retrying={query.isFetchingNextPage}
-          />
-        )}
-        {query.hasNextPage && (
-          <div className="text-center mt-3">
-            <Button
-              type="button"
-              variant="outline-dark"
-              disabled={query.isFetchingNextPage}
-              onClick={() => void query.fetchNextPage()}
-            >
-              {query.isFetchingNextPage ? "불러오는 중..." : "작성 가능한 이용 내역 더 보기"}
-            </Button>
-          </div>
-        )}
+        <CursorLoadMore
+          query={query}
+          label="작성 가능한 이용 내역 더 보기"
+          variant="outline-dark"
+          wrapperClassName="text-center mt-3"
+        />
       </section>
     </>
   );

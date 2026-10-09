@@ -4,7 +4,7 @@ import { fetchMyProductQnaPage, fetchProductQnaPage } from "./api";
 import { QnaItem } from "./QnaItem";
 import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys } from "@/shared/api";
+import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
 interface Props {
@@ -32,9 +32,7 @@ function ProductQnaContent({ productId }: Props) {
     queryKey: queryKeys.productQna.history(productId),
     queryFn: ({ pageParam, signal }) =>
       fetchProductQnaPage(productId, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    ...cursorPageParams,
   });
   const {
     data: myQnaData,
@@ -48,15 +46,13 @@ function ProductQnaContent({ productId }: Props) {
     queryKey: queryKeys.member.productQna.history(productId),
     queryFn: ({ pageParam, signal }) =>
       fetchMyProductQnaPage(productId, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
+    ...cursorPageParams,
     enabled: isAuthenticated,
   });
   const qnaPages = qnaData?.pages ?? [];
   const myQnaPages = myQnaData?.pages ?? [];
-  const qnaList = qnaPages.flatMap((page) => page.content);
-  const myQnaList = myQnaPages.flatMap((page) => page.content);
+  const qnaList = flattenCursorPages(qnaData);
+  const myQnaList = flattenCursorPages(myQnaData);
   const ownedQnaIds = new Set(myQnaList.map((qna) => qna.id));
   const ownershipBehind = isAuthenticated
     && myQnaData !== undefined

@@ -24,6 +24,7 @@ export {
   clearCustomerQueryCache,
   invalidateSlotAvailability,
 } from "./queryCache";
+export { cursorPageParams, flattenCursorPages } from "./cursorPages";
 export { createQueryClient } from "./queryClient";
 export { queryKeys } from "./queryKeys";
 export { useLoaderBackedQuery } from "./useLoaderBackedQuery";

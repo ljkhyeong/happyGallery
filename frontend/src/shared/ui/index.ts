@@ -1,6 +1,7 @@
 export { Layout } from "./Layout";
 export { LoadingSpinner } from "./LoadingSpinner";
 export { ErrorAlert } from "./ErrorAlert";
+export { CursorLoadMore } from "./CursorLoadMore";
 export { ErrorBoundary } from "./ErrorBoundary";
 export { SectionErrorBoundary } from "./SectionErrorBoundary";
 export { EmptyState } from "./EmptyState";

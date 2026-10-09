@@ -1,11 +1,10 @@
 import { useMemo, useState } from "react";
 import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
-import { Button } from "react-bootstrap";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import {
   fetchClassReviews,
   fetchMyReviewReactions,
@@ -38,17 +37,11 @@ function PublicReviewContent({ targetType, targetId }: Props) {
     queryFn: ({ pageParam, signal }) => targetType === "PRODUCT"
       ? fetchProductReviews(targetId, { rating, sort }, pageParam, signal)
       : fetchClassReviews(targetId, { rating, sort }, pageParam, signal),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.hasMore
-      ? lastPage.nextCursor ?? undefined
-      : undefined,
+    ...cursorPageParams,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
 
-  const reviews = useMemo(
-    () => query.data?.pages.flatMap((page) => page.content) ?? [],
-    [query.data?.pages],
-  );
+  const reviews = useMemo(() => flattenCursorPages(query.data), [query.data]);
   // 후기가 하나도 없으면 0점 분포·필터 대신 빈 상태 안내만 보여 준다.
   const firstPageSummary = query.data?.pages[0]?.summary;
   const summary = firstPageSummary && firstPageSummary.reviewCount > 0 ? firstPageSummary : undefined;
@@ -119,12 +112,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
 
       {query.isLoading && <LoadingSpinner text="후기를 불러오는 중입니다" />}
       <ErrorAlert
-        error={query.data === undefined ? query.error : null}
-        onRetry={() => void query.refetch()}
-        retrying={query.isFetching}
-      />
-      <ErrorAlert
-        error={query.data !== undefined && !query.isFetchNextPageError ? query.error : null}
+        error={query.isFetchNextPageError ? null : query.error}
         onRetry={() => void query.refetch()}
         retrying={query.isFetching}
       />
@@ -158,26 +146,12 @@ function PublicReviewContent({ targetType, targetId }: Props) {
         ))}
       </div>
 
-      {query.isFetchNextPageError && (
-        <ErrorAlert
-          error={query.error}
-          onRetry={() => void query.fetchNextPage()}
-          retrying={query.isFetchingNextPage}
-        />
-      )}
-
-      {query.hasNextPage && (
-        <div className="text-center mt-3">
-          <Button
-            type="button"
-            variant="outline-dark"
-            disabled={query.isFetchingNextPage}
-            onClick={() => void query.fetchNextPage()}
-          >
-            {query.isFetchingNextPage ? "불러오는 중..." : "후기 더 보기"}
-          </Button>
-        </div>
-      )}
+      <CursorLoadMore
+        query={query}
+        label="후기 더 보기"
+        variant="outline-dark"
+        wrapperClassName="text-center mt-3"
+      />
     </section>
   );
 }
