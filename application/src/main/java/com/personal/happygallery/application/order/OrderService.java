@@ -6,9 +6,7 @@ import com.personal.happygallery.application.order.port.out.OrderStorePort;
 import com.personal.happygallery.application.order.port.out.FulfillmentPort;
 import com.personal.happygallery.application.order.OrderStockService.StockAdjustment;
 import com.personal.happygallery.application.token.GuestTokenService;
-import com.personal.happygallery.domain.notification.NotificationAggregateType;
 import com.personal.happygallery.domain.notification.NotificationEventType;
-import com.personal.happygallery.domain.notification.NotificationRequestedEvent;
 import com.personal.happygallery.domain.order.Order;
 import com.personal.happygallery.domain.order.OrderAmountCalculator;
 import com.personal.happygallery.domain.order.OrderItem;
@@ -24,7 +22,6 @@ import com.personal.happygallery.domain.product.ProductType;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +39,7 @@ public class OrderService {
     private final OrderItemPort orderItemPort;
     private final FulfillmentPort fulfillmentPort;
     private final OrderStockService orderStockService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderNotificationSupport notificationSupport;
     private final GuestTokenService guestTokenService;
     private final ShippingAddressProtector shippingAddressProtector;
     private final MemberAccountGuard memberAccountGuard;
@@ -52,7 +49,7 @@ public class OrderService {
                         OrderItemPort orderItemPort,
                         FulfillmentPort fulfillmentPort,
                         OrderStockService orderStockService,
-                        ApplicationEventPublisher eventPublisher,
+                        OrderNotificationSupport notificationSupport,
                         GuestTokenService guestTokenService,
                         ShippingAddressProtector shippingAddressProtector,
                         MemberAccountGuard memberAccountGuard,
@@ -61,7 +58,7 @@ public class OrderService {
         this.orderItemPort = orderItemPort;
         this.fulfillmentPort = fulfillmentPort;
         this.orderStockService = orderStockService;
-        this.eventPublisher = eventPublisher;
+        this.notificationSupport = notificationSupport;
         this.guestTokenService = guestTokenService;
         this.shippingAddressProtector = shippingAddressProtector;
         this.memberAccountGuard = memberAccountGuard;
@@ -102,11 +99,7 @@ public class OrderService {
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
 
-        eventPublisher.publishEvent(NotificationRequestedEvent.forGuest(
-                guestId,
-                NotificationEventType.ORDER_PAID,
-                NotificationAggregateType.ORDER,
-                order.getId()));
+        notificationSupport.notifyCustomer(order, NotificationEventType.ORDER_PAID);
 
         return new OrderCreationResult(order, rawToken);
     }
@@ -132,11 +125,7 @@ public class OrderService {
         saveItemsAndDeductInventory(order, items);
         saveFulfillment(order, fulfillmentType, shippingAddress);
 
-        eventPublisher.publishEvent(NotificationRequestedEvent.forUser(
-                userId,
-                NotificationEventType.ORDER_PAID,
-                NotificationAggregateType.ORDER,
-                order.getId()));
+        notificationSupport.notifyCustomer(order, NotificationEventType.ORDER_PAID);
 
         return order;
     }
