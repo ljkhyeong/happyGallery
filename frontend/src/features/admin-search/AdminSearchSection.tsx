@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
 import { ArrowRight } from "lucide-react";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
   AdminBookingSearchRow,
   AdminOrderSearchRow,
@@ -83,7 +84,7 @@ function OrderSearchResults({ page }: { page: OffsetPage<AdminOrderSearchRow> })
               <LinkButton
                 size="sm"
                 variant="outline-primary"
-                to={`/admin?view=orders&orderId=${order.orderId}&orderStatus=${encodeURIComponent(order.status)}`}
+                to={adminOrderHref(order.orderId, order.status)}
               >
                 주문 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>
@@ -141,7 +142,7 @@ function BookingSearchResults({ page }: { page: OffsetPage<AdminBookingSearchRow
               <LinkButton
                 size="sm"
                 variant="outline-primary"
-                to={`/admin?view=bookings&bookingId=${booking.bookingId}&bookingDate=${booking.startAt.slice(0, 10)}&bookingStatus=${encodeURIComponent(booking.status)}`}
+                to={adminBookingHref(booking.bookingId, booking.startAt.slice(0, 10), booking.status)}
               >
                 예약 열기 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>

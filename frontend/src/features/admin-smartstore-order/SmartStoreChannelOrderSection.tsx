@@ -25,6 +25,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime, formatDateTimeInput, formatKRW } from "@/shared/lib";
+import { adminProductHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
 import { ConfirmModal } from "@/shared/ui/ConfirmModal";
 import { CursorPager } from "@/shared/ui/CursorPager";
@@ -673,8 +674,7 @@ function actions(
       {order.productId && <LinkButton
         size="sm"
         variant="outline-warning"
-        to={`/admin?view=products&productId=${order.productId}${order.productVariantId
-          ? `&variantId=${order.productVariantId}` : ""}`}
+        to={adminProductHref(order.productId, order.productVariantId)}
       >
         재고 조정
       </LinkButton>}

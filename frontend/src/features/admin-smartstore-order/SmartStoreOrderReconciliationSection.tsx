@@ -11,6 +11,7 @@ import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { formatDateTime } from "@/shared/lib";
+import { adminSmartStoreOrderHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { CursorPager } from "@/shared/ui/CursorPager";
 import {
@@ -142,11 +143,7 @@ function ReconciliationModal({
         ? "네이버에 반영된 요청으로 확인했습니다."
         : "네이버에 반영되지 않은 요청으로 확인했습니다.");
       if (request.openOrderAfterSave && action) {
-        const params = new URLSearchParams({
-          view: "orders",
-          smartstoreOrderId: action.productOrderId,
-        });
-        navigate(`/admin?${params.toString()}`);
+        navigate(adminSmartStoreOrderHref(action.productOrderId));
       } else {
         onClose();
       }

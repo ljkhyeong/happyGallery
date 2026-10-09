@@ -5,6 +5,7 @@ import { listAdminStockLevels } from "@/generated/api/adminCatalog";
 import { adminHeaders } from "@/shared/api";
 import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { adminProductHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { adminProductsQuery } from "./api";
 import { productVariantLabel } from "./productVariantLabel";
@@ -65,7 +66,7 @@ export function OutOfStockProductSection({ adminKey, onAuthError }: Props) {
               <LinkButton
                 size="sm"
                 variant="outline-primary"
-                to={`/admin?view=products&productId=${product.id}${variant ? `&variantId=${variant.id}` : ""}`}
+                to={adminProductHref(product.id, variant?.id)}
               >
                 재고 조정 <ArrowRight size={14} aria-hidden="true" />
               </LinkButton>

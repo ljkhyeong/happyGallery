@@ -43,6 +43,7 @@ import { AdminSearchSection } from "@/features/admin-search/AdminSearchSection";
 import { WorkshopProfileForm } from "@/features/admin-workshop/WorkshopProfileForm";
 import { AdminReviewSection } from "@/features/admin-review/AdminReviewSection";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
+import { ADMIN_FOCUS_PARAMS, type AdminFocusParam } from "@/shared/lib/adminLinks";
 import { ErrorAlert, LoadingSpinner, SectionErrorBoundary, useToast } from "@/shared/ui";
 import type { BookingStatus, OrderStatus } from "@/shared/types";
 
@@ -197,15 +198,17 @@ export function AdminPage() {
   const requestedView = searchParams.get("view");
   const activeView: AdminView = isAdminView(requestedView) ? requestedView : "today";
   const activeViewInfo = ADMIN_VIEWS.find((view) => view.value === activeView)!;
-  const focusedOrderId = parsePositiveId(searchParams.get("orderId"));
-  const focusedOrderStatus = parseOrderStatus(searchParams.get("orderStatus"));
-  const focusedBookingId = parsePositiveId(searchParams.get("bookingId"));
-  const focusedBookingStatus = parseBookingStatus(searchParams.get("bookingStatus"));
-  const focusedBookingDate = searchParams.get("bookingDate") ?? undefined;
-  const focusedReviewId = parsePositiveId(searchParams.get("reviewId"));
-  const focusedProductId = parsePositiveId(searchParams.get("productId"));
-  const focusedVariantId = parsePositiveId(searchParams.get("variantId"));
-  const focusedSmartStoreOrderId = searchParams.get("smartstoreOrderId")?.trim() || undefined;
+  // 메뉴를 바꿀 때 지울 값과 같은 목록에서 이름을 고르게 해 새 값이 지우기 목록에서 빠지지 않게 한다.
+  const focusParam = (name: AdminFocusParam) => searchParams.get(name);
+  const focusedOrderId = parsePositiveId(focusParam("orderId"));
+  const focusedOrderStatus = parseOrderStatus(focusParam("orderStatus"));
+  const focusedBookingId = parsePositiveId(focusParam("bookingId"));
+  const focusedBookingStatus = parseBookingStatus(focusParam("bookingStatus"));
+  const focusedBookingDate = focusParam("bookingDate") ?? undefined;
+  const focusedReviewId = parsePositiveId(focusParam("reviewId"));
+  const focusedProductId = parsePositiveId(focusParam("productId"));
+  const focusedVariantId = parsePositiveId(focusParam("variantId"));
+  const focusedSmartStoreOrderId = focusParam("smartstoreOrderId")?.trim() || undefined;
 
   const handleAuthError = useCallback(() => {
     if (handledExpiredKey.current === adminKey) return;
@@ -247,11 +250,7 @@ export function AdminPage() {
   function selectView(view: AdminView) {
     const next = new URLSearchParams(searchParams);
     next.set("view", view);
-    [
-      "orderId", "orderStatus", "bookingId", "bookingDate", "bookingStatus", "reviewId",
-      "productId", "variantId", "smartstoreOrderId",
-    ]
-      .forEach((name) => next.delete(name));
+    ADMIN_FOCUS_PARAMS.forEach((name) => next.delete(name));
     setSearchParams(next);
   }
 

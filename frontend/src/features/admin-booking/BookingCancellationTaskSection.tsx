@@ -13,6 +13,7 @@ import { isAdminSessionUnauthorized } from "@/shared/hooks/adminSessionUnauthori
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
 import { formatDateTime, formatKRW } from "@/shared/lib";
+import { adminBookingHref } from "@/shared/lib/adminLinks";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 
 interface Props {
@@ -76,8 +77,7 @@ export function BookingCancellationTaskSection({ adminKey, onAuthError }: Props)
               <td>
                 <Link
                   className="fw-semibold"
-                  to={`/admin?view=bookings&bookingId=${task.bookingId}`
-                    + `&bookingDate=${task.startAt.slice(0, 10)}&bookingStatus=CANCELED`}
+                  to={adminBookingHref(task.bookingId, task.startAt.slice(0, 10), "CANCELED")}
                 >
                   {task.bookingNumber}
                 </Link>
