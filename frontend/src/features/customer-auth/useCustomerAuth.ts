@@ -76,7 +76,6 @@ const CustomerAuthContext = createContext<CustomerAuthContextValue | null>(null)
 export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<CustomerUser | null>(null);
-  const userIdRef = useRef<number | null>(null);
   const authStatusRef = useRef<CustomerAuthStatus>("unknown");
   const fetchMeRequestRef = useRef<FetchMeRequest | null>(null);
   const [sessionVersion, setSessionVersion] = useState(currentCustomerSessionVersion);
@@ -94,16 +93,19 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     clearCustomerQueryCache(queryClient);
   }, [queryClient]);
 
-  const expireCustomerSession = useCallback(() => {
-    clearCustomerQueries();
-    userIdRef.current = null;
-    setSessionVersion(currentCustomerSessionVersion());
+  const resetSignedOutState = useCallback(() => {
     setUser(null);
     setError(null);
     updateStatus("unauthenticated");
     setIsLoading(false);
     setIsRefreshing(false);
-  }, [clearCustomerQueries, updateStatus]);
+  }, [updateStatus]);
+
+  const expireCustomerSession = useCallback(() => {
+    clearCustomerQueries();
+    setSessionVersion(currentCustomerSessionVersion());
+    resetSignedOutState();
+  }, [clearCustomerQueries, resetSignedOutState]);
 
   const publishSessionBoundary = useCallback((customerId: number | null) => {
     publishCustomerSessionBoundary(customerId);
@@ -145,7 +147,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           setSessionVersion(currentCustomerSessionVersion());
           activeSnapshot = captureCustomerSession();
         }
-        userIdRef.current = me.id;
         setUser(me);
         setError(null);
         updateStatus("authenticated");
@@ -158,7 +159,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
           && error.code === "UNAUTHORIZED"
         ) {
           markCustomerSessionInactive();
-          userIdRef.current = null;
           setUser(null);
           setError(null);
           updateStatus("unauthenticated");
@@ -196,7 +196,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       const boundaryChanged = synchronizeCustomerSessionBoundary();
       if (boundaryChanged) {
         clearCustomerQueries();
-        userIdRef.current = null;
         setSessionVersion(currentCustomerSessionVersion());
         setUser(null);
         setError(null);
@@ -229,7 +228,6 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const acceptAuthenticatedCustomer = useCallback((me: CustomerUser) => {
     publishSessionBoundary(me.id);
     clearCustomerQueries();
-    userIdRef.current = me.id;
     setUser(me);
     setError(null);
     updateStatus("authenticated");
@@ -278,29 +276,22 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     [acceptAuthenticatedCustomer],
   );
 
-  const logout = useCallback(async () => {
-    await runForCurrentCustomer(() => logoutCustomer());
+  const endSession = useCallback(async (request: () => Promise<void>) => {
+    await runForCurrentCustomer(request);
     publishSessionBoundary(null);
     clearCustomerQueries();
-    userIdRef.current = null;
-    setUser(null);
-    setError(null);
-    updateStatus("unauthenticated");
-    setIsLoading(false);
-    setIsRefreshing(false);
-  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
+    resetSignedOutState();
+  }, [clearCustomerQueries, publishSessionBoundary, resetSignedOutState]);
 
-  const withdraw = useCallback(async () => {
-    await runForCurrentCustomer(() => withdrawMyAccount());
-    publishSessionBoundary(null);
-    clearCustomerQueries();
-    userIdRef.current = null;
-    setUser(null);
-    setError(null);
-    updateStatus("unauthenticated");
-    setIsLoading(false);
-    setIsRefreshing(false);
-  }, [clearCustomerQueries, publishSessionBoundary, updateStatus]);
+  const logout = useCallback(
+    () => endSession(() => logoutCustomer()),
+    [endSession],
+  );
+
+  const withdraw = useCallback(
+    () => endSession(() => withdrawMyAccount()),
+    [endSession],
+  );
 
   return createElement(
     CustomerAuthContext,
