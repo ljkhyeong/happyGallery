@@ -1,34 +1,26 @@
 import { Form } from "react-bootstrap";
 import { Link } from "react-router";
 import { ErrorAlert } from "@/shared/ui";
-import type { CurrentPolicyConsent } from "./types";
+import type { usePolicyAcceptance } from "./usePolicyAcceptance";
 
 interface Props {
   id: string;
-  policy?: CurrentPolicyConsent;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  isLoading: boolean;
-  error: unknown;
+  consent: Pick<ReturnType<typeof usePolicyAcceptance>, "policyQuery" | "accepted" | "setAccepted">;
+  /** 제출 중처럼 화면이 동의 변경을 막아야 할 때 쓴다. */
+  disabled?: boolean;
 }
 
-export function PolicyConsentFields({
-  id,
-  policy,
-  checked,
-  onChange,
-  isLoading,
-  error,
-}: Props) {
+export function PolicyConsentFields({ id, consent, disabled = false }: Props) {
+  const { data: policy, isLoading, error } = consent.policyQuery;
   return (
     <div className="mb-3">
       <ErrorAlert error={error} />
       <Form.Check
         id={id}
         type="checkbox"
-        checked={checked}
-        disabled={!policy || isLoading}
-        onChange={(event) => onChange(event.target.checked)}
+        checked={consent.accepted}
+        disabled={!policy || isLoading || disabled}
+        onChange={(event) => consent.setAccepted(event.target.checked)}
         label={(
           <span className="small">
             [필수]{" "}

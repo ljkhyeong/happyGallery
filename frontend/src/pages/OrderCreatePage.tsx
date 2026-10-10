@@ -32,10 +32,7 @@ import {
 } from "@/features/order/FulfillmentForm";
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
@@ -182,7 +179,6 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
       }
     },
   });
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(mutation.error);
 
   useEffect(() => {
     if (!moveToNameAfterVerify || step !== "items") return;
@@ -322,7 +318,7 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
                 fulfillmentType={fulfillment.fulfillmentType}
               />
             )}
-            <PaymentErrorAlert error={consentVersionMismatch ? null : mutation.error} />
+            <PaymentErrorAlert error={consent.paymentError(mutation.error)} />
           </CheckoutSummary>
         ) : undefined}
       >
@@ -397,26 +393,9 @@ function OrderCreateForm({ productId }: { productId: number | null }) {
 
             {showConsentPanel && (
               <CheckoutPanel step={5 + stepOffset} title="동의">
-                <MadeToOrderConsent
-                  required={requiresMadeToOrderConsent}
-                  policy={consent.policyQuery.data}
-                  isLoading={consent.policyQuery.isLoading}
-                  isFetching={consent.policyQuery.isFetching}
-                  error={consent.policyQuery.error}
-                  checked={consent.checked}
-                  onChange={consent.setChecked}
-                  versionMismatch={consent.versionMismatch}
-                  refreshRequired={consent.refreshRequired}
-                />
+                <MadeToOrderConsent consent={consent} />
                 {!user && (
-                  <PolicyConsentFields
-                    id="guest-order-policy-consent"
-                    policy={guestPolicyConsent.policyQuery.data}
-                    checked={guestPolicyConsent.accepted}
-                    onChange={guestPolicyConsent.setAccepted}
-                    isLoading={guestPolicyConsent.policyQuery.isLoading}
-                    error={guestPolicyConsent.policyQuery.error}
-                  />
+                  <PolicyConsentFields id="guest-order-policy-consent" consent={guestPolicyConsent} />
                 )}
               </CheckoutPanel>
             )}

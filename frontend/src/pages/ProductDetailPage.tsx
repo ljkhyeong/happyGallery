@@ -33,10 +33,7 @@ import {
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { queryKeys, runForCurrentCustomer, useLoaderBackedQuery } from "@/shared/api";
 import { ProductMediaPlaceholder } from "@/features/product/ProductMediaPlaceholder";
 import { ProductPurchaseGuide } from "@/features/product/ProductPurchaseGuide";
@@ -162,7 +159,6 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
       },
     ),
   });
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(orderMutation.error);
 
   useEffect(() => {
     const purchasePanel = purchasePanelRef.current;
@@ -379,7 +375,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
               )}
 
               <div className="store-order-sheet-actions">
-                <PaymentErrorAlert error={consentVersionMismatch ? null : orderMutation.error} />
+                <PaymentErrorAlert error={consent.paymentError(orderMutation.error)} />
                 {cartMutation.error instanceof CartQuantityError ? (
                   <Alert variant="danger">{cartMutation.error.message}</Alert>
                 ) : (
@@ -389,17 +385,7 @@ function ProductDetailContent({ initialProduct, variantId }: { initialProduct: P
                 {!authLoading && isAuthenticated ? (
                   <>
                     <PaymentMethodFields value={checkoutSelection} onChange={setCheckoutSelection} disabled={orderMutation.isPending} />
-                    <MadeToOrderConsent
-                      required={requiresMadeToOrderConsent}
-                      policy={consent.policyQuery.data}
-                      isLoading={consent.policyQuery.isLoading}
-                      isFetching={consent.policyQuery.isFetching}
-                      error={consent.policyQuery.error}
-                      checked={consent.checked}
-                      onChange={consent.setChecked}
-                      versionMismatch={consent.versionMismatch}
-                      refreshRequired={consent.refreshRequired}
-                    />
+                    <MadeToOrderConsent consent={consent} />
                     <Button
                       variant="dark"
                       size="lg"

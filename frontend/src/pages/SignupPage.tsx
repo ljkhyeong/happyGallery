@@ -114,14 +114,7 @@ export function SignupPage() {
                     onReset={() => setVerificationCode("")}
                   />
                 </div>
-                <PolicyConsentFields
-                  id="signup-policy-consent"
-                  policy={policyConsent.policyQuery.data}
-                  checked={policyConsent.accepted}
-                  onChange={policyConsent.setAccepted}
-                  isLoading={policyConsent.policyQuery.isLoading}
-                  error={policyConsent.policyQuery.error}
-                />
+                <PolicyConsentFields id="signup-policy-consent" consent={policyConsent} />
                 <Button
                   type="submit"
                   className="w-100"

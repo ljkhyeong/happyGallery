@@ -221,14 +221,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                 onReset={() => setSignupVerificationCode("")}
               />
             </div>
-            <PolicyConsentFields
-              id="gate-signup-policy-consent"
-              policy={policyConsent.policyQuery.data}
-              checked={policyConsent.accepted}
-              onChange={policyConsent.setAccepted}
-              isLoading={policyConsent.policyQuery.isLoading}
-              error={policyConsent.policyQuery.error}
-            />
+            <PolicyConsentFields id="gate-signup-policy-consent" consent={policyConsent} />
             <Button
               type="submit"
               className="w-100"
@@ -283,14 +276,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
                     이름을 입력해 주세요.
                   </Form.Control.Feedback>
                 </Form.Group>
-                <PolicyConsentFields
-                  id="gate-guest-policy-consent"
-                  policy={policyConsent.policyQuery.data}
-                  checked={policyConsent.accepted}
-                  onChange={policyConsent.setAccepted}
-                  isLoading={policyConsent.policyQuery.isLoading}
-                  error={policyConsent.policyQuery.error}
-                />
+                <PolicyConsentFields id="gate-guest-policy-consent" consent={policyConsent} />
                 <Button
                   variant="primary" className="w-100" size="sm"
                   disabled={!normalizedGuestName || !policyConsent.ready}

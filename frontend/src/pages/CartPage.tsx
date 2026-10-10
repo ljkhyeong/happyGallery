@@ -21,10 +21,7 @@ import {
 import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import { OrderOptionList } from "@/features/order/OrderOptionList";
 import { MadeToOrderConsent } from "@/features/order/MadeToOrderConsent";
-import {
-  isMadeToOrderConsentVersionMismatch,
-  useMadeToOrderConsent,
-} from "@/features/order/useMadeToOrderConsent";
+import { useMadeToOrderConsent } from "@/features/order/useMadeToOrderConsent";
 import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { ProductPurchaseTerms } from "@/features/product/ProductPurchaseTerms";
@@ -144,7 +141,6 @@ function CartContent() {
     checkout.reset();
   };
   const selectionDisabled = checkout.isPending || isItemMutationPending || isRefetching;
-  const consentVersionMismatch = isMadeToOrderConsentVersionMismatch(checkout.error);
   const cartSnapshotConflict = isCartSnapshotConflict(checkout.error);
   const mergeRecovery = guestCartMergeIssue && (
     <Alert variant="warning" className="mb-4">
@@ -336,7 +332,7 @@ function CartContent() {
                   onRewardPointsChange={setRewardAmount}
                 />
                 <PaymentErrorAlert
-                  error={consentVersionMismatch || cartSnapshotConflict ? null : checkout.error}
+                  error={cartSnapshotConflict ? null : consent.paymentError(checkout.error)}
                 />
                 {cartSnapshotConflict && (
                   <Alert variant="warning" role="alert" className="mb-3">
@@ -489,17 +485,7 @@ function CartContent() {
             </CheckoutPanel>
             {requiresMadeToOrderConsent && (
               <CheckoutPanel step={4} title="동의">
-                <MadeToOrderConsent
-                  required={requiresMadeToOrderConsent}
-                  policy={consent.policyQuery.data}
-                  isLoading={consent.policyQuery.isLoading}
-                  isFetching={consent.policyQuery.isFetching}
-                  error={consent.policyQuery.error}
-                  checked={consent.checked}
-                  onChange={consent.setChecked}
-                  versionMismatch={consent.versionMismatch}
-                  refreshRequired={consent.refreshRequired}
-                />
+                <MadeToOrderConsent consent={consent} />
               </CheckoutPanel>
             )}
           </>
