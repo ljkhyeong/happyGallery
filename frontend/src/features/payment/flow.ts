@@ -17,6 +17,7 @@ import {
   captureCustomerSession,
   CustomerSessionChangedError,
   requireCurrentCustomerSession,
+  runForCustomerSession,
 } from "@/shared/api";
 import type { PreparePaymentResponse } from "@/generated/api/payment";
 import type { PaymentContext, PaymentPayload } from "./types";
@@ -55,19 +56,6 @@ export async function executePaymentFlow<T extends PaymentPayload>(
   requireCheckoutTerms(args.checkoutSelection);
   const requireCurrentCustomer = () =>
     requireCurrentCustomerSession(customerSession);
-  const runCustomerStep = async <R>(
-    operation: () => R | Promise<R>,
-  ): Promise<R> => {
-    requireCurrentCustomer();
-    try {
-      const result = await operation();
-      requireCurrentCustomer();
-      return result;
-    } catch (error) {
-      requireCurrentCustomer();
-      throw error;
-    }
-  };
   const runCustomerEffect = <R>(
     effect: () => R,
     rollback?: (result: R) => void,
@@ -90,7 +78,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
   let storedReturnHint: PaymentSessionHandle<PaymentReturnHint> | null = null;
   let storedConfirmRequest: PaymentSessionHandle<PaymentConfirmRequest> | null = null;
   try {
-    const prep = await runCustomerStep(() =>
+    const prep = await runForCustomerSession(customerSession, () =>
       preparePayment(args.context, args.payload));
     runCustomerEffect(() => args.onPrepared?.());
     const statusTokenHandle = runCustomerEffect(
@@ -125,7 +113,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
         (handle) => { if (handle) removePaymentConfirmRequest(handle); },
       );
       if (!storedConfirmRequest) {
-        await runCustomerStep(() => abandonPayment(prep.orderId, prep.statusToken));
+        await runForCustomerSession(customerSession, () => abandonPayment(prep.orderId, prep.statusToken));
         throw new PaymentRecoveryStorageError();
       }
       runCustomerEffect(() => window.location.assign("/payments/success"));
@@ -134,7 +122,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
     const orderName = runCustomerEffect(() =>
       typeof args.orderName === "function" ? args.orderName(prep) : args.orderName);
     try {
-      await runCustomerStep(() => requestTossPayment({
+      await runForCustomerSession(customerSession, () => requestTossPayment({
         checkoutMethod: args.checkoutSelection?.method,
         orderId: prep.orderId,
         amount: prep.amount,
@@ -146,7 +134,7 @@ export async function executePaymentFlow<T extends PaymentPayload>(
     } catch (error) {
       requireCurrentCustomer();
       try {
-        await runCustomerStep(() => abandonPayment(prep.orderId, prep.statusToken));
+        await runForCustomerSession(customerSession, () => abandonPayment(prep.orderId, prep.statusToken));
       } catch {
         requireCurrentCustomer();
         // 승인 진행·종료 응답 유실 시 조회 자격을 남기고 기존 오류를 표시한다.
