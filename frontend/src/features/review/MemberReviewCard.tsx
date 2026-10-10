@@ -11,6 +11,7 @@ import { ReviewTrustBadges } from "./ReviewTrustBadges";
 import { isReviewContentChangedError } from "./reviewMutationConflict";
 import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useDeleteReview, useUpdateReview } from "./useReviewMutations";
+import { reviewTargetHref } from "./reviewTarget";
 
 export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const [editing, setEditing] = useState(false);
@@ -19,9 +20,7 @@ export function MemberReviewCard({ review }: { review: MemberReviewResponse }) {
   const rememberEditingTrigger = useReviewFormTriggerFocus(editing);
   const deleteMutation = useDeleteReview();
   const revisionConflict = isReviewContentChangedError(updateMutation.error);
-  const targetHref = review.targetType === "PRODUCT"
-    ? `/products/${review.targetId}`
-    : `/classes/${review.targetId}`;
+  const targetHref = reviewTargetHref(review.targetType, review.targetId);
 
   return (
     <Card className="review-card member-review-card">

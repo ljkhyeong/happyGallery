@@ -6,15 +6,15 @@ import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages 
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
 import { EmptyState, ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import {
-  fetchClassReviews,
   fetchMyReviewReactions,
-  fetchProductReviews,
+  fetchTargetReviews,
   type ReviewSort,
 } from "./api";
 import { PublicReviewCard } from "./PublicReviewCard";
 import { ReviewFilters } from "./ReviewFilters";
 import { ReviewHistogram } from "./ReviewHistogram";
 import { chunkReviewIdsByPage } from "./reviewUiPolicy";
+import { reviewTargetHref } from "./reviewTarget";
 
 interface Props {
   targetType: "PRODUCT" | "CLASS";
@@ -31,12 +31,9 @@ function PublicReviewContent({ targetType, targetId }: Props) {
   const [rating, setRating] = useState<number | undefined>();
   const [sort, setSort] = useState<ReviewSort>("LATEST");
   const query = useInfiniteQuery({
-    queryKey: targetType === "PRODUCT"
-      ? queryKeys.reviews.products.history(targetId, rating, sort)
-      : queryKeys.reviews.classes.history(targetId, rating, sort),
-    queryFn: ({ pageParam, signal }) => targetType === "PRODUCT"
-      ? fetchProductReviews(targetId, { rating, sort }, pageParam, signal)
-      : fetchClassReviews(targetId, { rating, sort }, pageParam, signal),
+    queryKey: queryKeys.reviews.historyByTarget(targetType, targetId, rating, sort),
+    queryFn: ({ pageParam, signal }) =>
+      fetchTargetReviews(targetType, targetId, { rating, sort }, pageParam, signal),
     ...cursorPageParams,
     staleTime: PUBLIC_DATA_STALE_TIME,
   });
@@ -73,7 +70,7 @@ function PublicReviewContent({ targetType, targetId }: Props) {
   });
   const reactionErrorQuery = reactionQueries.find(({ error }) => error);
   const loginHref = buildAuthPageHref("/login", {
-    redirectTo: targetType === "PRODUCT" ? `/products/${targetId}` : `/classes/${targetId}`,
+    redirectTo: reviewTargetHref(targetType, targetId),
   });
 
   return (

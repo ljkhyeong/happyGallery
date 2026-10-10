@@ -5,7 +5,7 @@ import { Alert, Button, Form, Modal } from "react-bootstrap";
 import type { MemberReviewResponse } from "@/generated/api/review";
 import {
   captureCustomerSession,
-  queryKeys,
+  invalidateReviewTarget,
   requireCurrentCustomerSession,
   runForCurrentCustomer,
   runForCustomerSession,
@@ -37,16 +37,7 @@ export function ReviewImageUploader({ review }: { review: MemberReviewResponse }
     [previews],
   );
 
-  const invalidateReviewQueries = async () => {
-    const publicKey = review.targetType === "PRODUCT"
-      ? queryKeys.reviews.products.byProduct(review.targetId)
-      : queryKeys.reviews.classes.byClass(review.targetId);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: publicKey }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-    ]);
-  };
+  const invalidateReviewQueries = () => invalidateReviewTarget(queryClient, review);
 
   const uploadMutation = useMutation({
     mutationFn: async (selectedFiles: File[]) => {

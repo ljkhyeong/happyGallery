@@ -6,6 +6,7 @@ import { queryKeys, runForCurrentCustomer, cursorPageParams, flattenCursorPages 
 import { ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { fetchMyReviewOpportunities } from "./api";
+import { reviewTargetHref } from "./reviewTarget";
 
 export function ReviewOpportunityList() {
   const query = useInfiniteQuery({
@@ -59,16 +60,12 @@ export function ReviewOpportunityList() {
         </div>
         <div className="review-opportunity-list">
           {opportunities.map((opportunity) => {
+            const targetHref = reviewTargetHref(opportunity.targetType, opportunity.targetId);
             const sourceHref = opportunity.sourceType === "ORDER_ITEM" && opportunity.orderId
               ? `/my/orders/${opportunity.orderId}`
               : opportunity.bookingId
                 ? `/my/bookings/${opportunity.bookingId}`
-                : opportunity.targetType === "PRODUCT"
-                  ? `/products/${opportunity.targetId}`
-                  : `/classes/${opportunity.targetId}`;
-            const targetHref = opportunity.targetType === "PRODUCT"
-              ? `/products/${opportunity.targetId}`
-              : `/classes/${opportunity.targetId}`;
+                : targetHref;
             const Icon = opportunity.targetType === "PRODUCT" ? PackageCheck : CalendarCheck;
 
             return (

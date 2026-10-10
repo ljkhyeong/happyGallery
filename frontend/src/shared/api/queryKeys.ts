@@ -1,5 +1,10 @@
 import type { QueryKey } from "@tanstack/react-query";
 
+type ReviewTargetType = "PRODUCT" | "CLASS";
+
+const reviewTargetSegment = (targetType: ReviewTargetType) =>
+  targetType === "PRODUCT" ? "products" : "classes";
+
 export const queryKeys = {
   admin: {
     all: ["admin"] as const,
@@ -78,6 +83,11 @@ export const queryKeys = {
       history: (classId: number, rating?: number, sort = "LATEST") =>
         ["reviews", "classes", classId, "history", rating, sort] as const,
     },
+    /** 작품·클래스 후기를 대상 종류와 무관하게 다룰 때 쓴다. products·classes 키와 값이 같다. */
+    byTarget: (targetType: ReviewTargetType, targetId: number) =>
+      ["reviews", reviewTargetSegment(targetType), targetId] as const,
+    historyByTarget: (targetType: ReviewTargetType, targetId: number, rating?: number, sort = "LATEST") =>
+      ["reviews", reviewTargetSegment(targetType), targetId, "history", rating, sort] as const,
   },
   member: {
     all: ["me"] as const,

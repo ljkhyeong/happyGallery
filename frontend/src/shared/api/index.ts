@@ -22,6 +22,7 @@ export { ApiError } from "./error";
 export {
   clearAdminQueryCache,
   clearCustomerQueryCache,
+  invalidateReviewTarget,
   invalidateSlotAvailability,
 } from "./queryCache";
 export { cursorPageParams, flattenCursorPages } from "./cursorPages";

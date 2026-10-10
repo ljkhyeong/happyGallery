@@ -54,22 +54,17 @@ interface PublicReviewFilters {
   sort: ReviewSort;
 }
 
-export function fetchProductReviews(
-  productId: number,
+export function fetchTargetReviews(
+  targetType: "PRODUCT" | "CLASS",
+  targetId: number,
   filters: PublicReviewFilters,
   cursor?: string,
   signal?: AbortSignal,
 ): Promise<PublicReviewPageResponse> {
-  return listProductReviews(productId, { ...filters, cursor, size: PAGE_SIZE }, { signal });
-}
-
-export function fetchClassReviews(
-  classId: number,
-  filters: PublicReviewFilters,
-  cursor?: string,
-  signal?: AbortSignal,
-): Promise<PublicReviewPageResponse> {
-  return listClassReviews(classId, { ...filters, cursor, size: PAGE_SIZE }, { signal });
+  const params = { ...filters, cursor, size: PAGE_SIZE };
+  return targetType === "PRODUCT"
+    ? listProductReviews(targetId, params, { signal })
+    : listClassReviews(targetId, params, { signal });
 }
 
 export function fetchMyReviews(

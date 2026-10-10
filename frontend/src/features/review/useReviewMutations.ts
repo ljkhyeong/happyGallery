@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { MemberReviewResponse } from "@/generated/api/review";
-import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { invalidateReviewTarget, queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useToast } from "@/shared/ui";
 import {
   editMyReview,
@@ -21,15 +21,7 @@ function useReviewMutationSuccess() {
     onApplied?: () => void,
   ) => {
     requireCurrent();
-    const publicKey = review.targetType === "PRODUCT"
-      ? queryKeys.reviews.products.byProduct(review.targetId)
-      : queryKeys.reviews.classes.byClass(review.targetId);
-
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: publicKey }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-    ]);
+    await invalidateReviewTarget(queryClient, review);
     requireCurrent();
     toast.show(message);
     requireCurrent();
