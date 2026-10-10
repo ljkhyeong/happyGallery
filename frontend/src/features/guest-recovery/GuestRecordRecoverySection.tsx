@@ -1,16 +1,12 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Card, Col, ListGroup, Row } from "react-bootstrap";
 import { Link } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import {
-  captureCustomerSession,
   queryKeys,
   runForCustomerSession,
-  runForCurrentCustomer,
   cursorPageParams,
   flattenCursorPages,
-  type CustomerSessionSnapshot,
 } from "@/shared/api";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner, StatusBadge, CursorLoadMore } from "@/shared/ui";
@@ -25,18 +21,9 @@ import {
   saveGuestRecordRecovery,
   type GuestRecordRecoverySession,
 } from "./session";
+import { useOwnedRecoveryResult, type OwnedRecoveryView } from "./useOwnedRecoveryResult";
 
-interface RecoveryView {
-  customerSession: CustomerSessionSnapshot;
-  storage: GuestRecordRecoverySession;
-}
-
-function loadRecoveryView(): RecoveryView | null {
-  const storage = loadGuestRecordRecovery();
-  return storage
-    ? { customerSession: captureCustomerSession(), storage }
-    : null;
-}
+type RecoveryView = OwnedRecoveryView<GuestRecordRecoverySession>;
 
 interface RecoveredPage {
   content: unknown[];
@@ -75,40 +62,20 @@ function useRecoveredRecords<TPage extends RecoveredPage>(
 
 export function GuestRecordRecoverySection() {
   const queryClient = useQueryClient();
-  const [recoveryView, setRecoveryView] = useState(loadRecoveryView);
-  const recovery = useMutation({
-    mutationFn: async ({ phone, code }: { phone: string; code: string }) => {
-      let storedRecovery: GuestRecordRecoverySession | null = null;
-      try {
-        return await runForCurrentCustomer(
-          () => recoverGuestRecords(phone, code),
-          async (result, requireCurrent) => {
-            requireCurrent();
-            const customerSession = captureCustomerSession();
-            storedRecovery = saveGuestRecordRecovery(result, customerSession);
-            requireCurrent();
-            if (storedRecovery) {
-              await queryClient.cancelQueries({
-                queryKey: queryKeys.member.guestRecovery.all,
-              });
-              queryClient.removeQueries({
-                queryKey: queryKeys.member.guestRecovery.all,
-              });
-              requireCurrent();
-              setRecoveryView({ customerSession, storage: storedRecovery });
-            }
-            return result;
-          },
-        );
-      } catch (error) {
-        if (storedRecovery) {
-          const expectedRecovery = storedRecovery;
-          clearGuestRecordRecovery(expectedRecovery);
-          setRecoveryView((current) =>
-            current?.storage === expectedRecovery ? null : current);
-        }
-        throw error;
-      }
+  // 새 조회 코드를 보이기 전·지운 뒤에는 이전 코드로 받은 이력 캐시를 남기지 않는다.
+  const recoveredRecords = { queryKey: queryKeys.member.guestRecovery.all };
+  const { view: recoveryView, mutation: recovery, reset } = useOwnedRecoveryResult({
+    load: loadGuestRecordRecovery,
+    save: saveGuestRecordRecovery,
+    clear: clearGuestRecordRecovery,
+    request: recoverGuestRecords,
+    beforeShow: async () => {
+      await queryClient.cancelQueries(recoveredRecords);
+      queryClient.removeQueries(recoveredRecords);
+    },
+    afterClear: () => {
+      void queryClient.cancelQueries(recoveredRecords);
+      queryClient.removeQueries(recoveredRecords);
     },
   });
 
@@ -132,17 +99,7 @@ export function GuestRecordRecoverySection() {
           description="주문 번호나 조회 코드를 잃어버렸다면 결제·예약 때 사용한 휴대폰 번호를 인증하세요. 기존 조회 코드는 폐기되고 새 코드가 발급됩니다."
           confirmLabel="조회 코드 재발급"
           confirming={recovery.isPending}
-          onReset={() => {
-            recovery.reset();
-            clearGuestRecordRecovery(recoveryView?.storage);
-            void queryClient.cancelQueries({
-              queryKey: queryKeys.member.guestRecovery.all,
-            });
-            queryClient.removeQueries({
-              queryKey: queryKeys.member.guestRecovery.all,
-            });
-            setRecoveryView(null);
-          }}
+          onReset={reset}
           onVerified={(phone, code) => recovery.mutate({ phone, code })}
         />
 
