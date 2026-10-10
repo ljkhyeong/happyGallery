@@ -15,11 +15,10 @@ import com.personal.happygallery.adapter.in.web.review.dto.UpdateReviewRequest;
 import com.personal.happygallery.adapter.in.web.ratelimit.SubjectRateLimitGuard;
 import com.personal.happygallery.adapter.in.web.config.OpenApiSecuritySchemes;
 import com.personal.happygallery.adapter.in.web.error.ErrorResponse;
+import com.personal.happygallery.adapter.in.web.media.ImageHttp;
 import com.personal.happygallery.adapter.in.web.security.customer.CustomerPrincipal;
 import com.personal.happygallery.application.review.port.in.MemberReviewUseCase;
 import com.personal.happygallery.application.review.port.in.ReviewInteractionUseCase;
-import com.personal.happygallery.domain.error.ErrorCode;
-import com.personal.happygallery.domain.error.HappyGalleryException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -31,7 +30,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.io.IOException;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -249,12 +247,8 @@ public class MeReviewController {
             @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal CustomerPrincipal customer) {
         rateLimitGuard.checkReviewImageUpload(customer.userId());
-        try {
-            return ReviewImageResponse.from(memberReviewUseCase.addReviewImage(
-                    customer.userId(), reviewId, file.getBytes(), file.getContentType()));
-        } catch (IOException exception) {
-            throw new HappyGalleryException(ErrorCode.INVALID_INPUT, "이미지 파일을 읽을 수 없습니다.");
-        }
+        return ReviewImageResponse.from(memberReviewUseCase.addReviewImage(
+                customer.userId(), reviewId, ImageHttp.read(file), file.getContentType()));
     }
 
     @DeleteMapping("/{reviewId}/images/{imageId}")

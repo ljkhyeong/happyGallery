@@ -3,8 +3,6 @@ package com.personal.happygallery.adapter.in.web.media;
 import com.personal.happygallery.application.media.port.in.ImageMediaUseCase;
 import com.personal.happygallery.application.media.port.in.PublicImageMediaUseCase;
 import io.swagger.v3.oas.annotations.Operation;
-import org.springframework.http.CacheControl;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,9 +23,6 @@ public class ImageMediaController {
     @Operation(operationId = "getImage")
     public ResponseEntity<byte[]> get(@PathVariable String fileName) {
         ImageMediaUseCase.ImageContent image = imageMediaUseCase.get(fileName);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(image.contentType()))
-                .cacheControl(CacheControl.noStore())
-                .body(image.bytes());
+        return ImageHttp.noStore(image);
     }
 }
