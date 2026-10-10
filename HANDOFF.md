@@ -1,5 +1,49 @@
 # HANDOFF
 
+## 2차 불필요 코드 정리·리팩토링 (2026-10-10)
+
+- 시작 SHA `b1dc26c5`, 같은 브랜치(원격 푸시 안 함). 감사 7개 영역(관리자 화면·고객 화면 2·SCSS·백엔드 domain/application·백엔드 adapter/설정·E2E와 CI)의 후보를 합친 뒤, 영역별 작업 트리에서 구현해 이 브랜치로 옮겼다. 커밋 85개, 파일 454개, +6,331/−8,328줄이다.
+- 정리한 것:
+  - 프론트 공용화
+    - 관리자: 세션 만료 판정 `visibleAdminError`, `ConfirmModal`, `CursorPager`, `useVersionedEdit`, `useBlobObjectUrl`, `useAdminInfiniteQuery`, `adminLinks`, `parseEnumValue`
+    - 고객: 커서 목록 helper와 더 보기 버튼, `useMyHistoryList`, `useGuestRecordLookup`, 세션 소유 sessionStorage helper, `loadGlobalScript`, `shared/lib/contact`
+    - 공통: 라벨 맵을 한 곳에 모음
+  - 죽은 코드 삭제
+    - 미사용 타입 별칭 40여 개, `userIdRef`
+    - 만드는 곳이 사라진 가입 미리 채움·`phoneOnboarding`
+    - 중복 key 래퍼, 구형 장바구니 형식
+    - SCSS 363줄: 미사용 클래스 16개, 뒤에서 덮어쓴 규칙, 기본값과 같은 선언
+  - 백엔드 정리
+    - 보호 계정 세션 검사·이용권 예상 환불액·비회원 요약 record를 한 곳으로 모음
+    - 알림 aggregateType을 enum으로 바꿈
+    - 결제 관리 엔티티의 중복 save와 도달 불가 분기 제거
+    - 이미지 응답·소셜 인가 URL·가짜 발송기 통합
+    - 프레임워크 기본값과 같은 설정, 미사용 import 제거
+  - E2E·CI
+    - `tests/e2e/mock-support.ts`로 JSON 응답·CSRF·모의 관리자 세션·Toss 기록·fixture를 모음
+    - `ui-support.ts`, `Dockerfile.deploy`, CI의 미사용 env 삭제
+- 의도한 동작 변경:
+  - 관리자 주문 목록은 처리 뒤 펼친 더보기 페이지까지 다시 읽고, 옵션 추가 금액을 보인다.
+  - 재고 조정 뒤 고른 옵션 조합이 유지된다(버그 수정). 수령 마감 시각을 서울 형식으로 보인다.
+  - 관리자 검색 주문 상태에 지연 거절 취소가 생겼다.
+  - 실패 알림 대상 라벨이 aggregateType 11종을 모두 보인다.
+  - 고객 목록은 다음 페이지 실패 시 그 페이지만 다시 시도한다. 작성 가능한 후기의 오류가 두 번 보이던 문제를 고쳤다.
+  - 문구: 주문 쿠폰 선택지 "(최대 X)" → "· 최대 X", 주문 클레임 RETRYABLE → "자동으로 다시 처리 예정"
+  - 지표: `http.server.requests` SLO bucket(0.1·0.3·1·2·5초)과 Tomcat MBean registry를 켰다. HighResponseLatency 경보와 Tomcat 스레드 패널이 이제 값을 받는다. local E2E 뒤 bucket 시계열은 588개였다.
+  - local 프로필도 `ADMIN_API_KEY`를 읽는다.
+- 검증:
+  - `./gradlew --no-daemon check` 통과
+  - frontend build·lint·단위 81건 통과, `api:generate` 후 생성 diff 없음
+  - E2E 전체 255건: 기준선(`1df40a91`)과 단계별 병합 뒤, 최종 jar 모두 통과. 전용 컨테이너 MySQL 3317·Redis 6389와 local jar로 실행했다.
+  - 화면 비교: 변경 전후 dev 서버를 1280·390px로 픽셀 비교했다. 공개·고객 화면 21개와 관리자 화면 11개가 동일했다.
+  - `agent-feedback final b1dc26c5`: 호환성 단계만 실패한다. 이 기준에는 초기화 표식이 이미 들어 있어 OpenAPI 비교가 돌고, aggregateType enum을 "제약 추가"로 판정하기 때문이다. `ruby tools/check-working-compatibility.rb` 기준을 `main`·`origin/main`으로 하면 초기화 release로 처리돼 통과한다. 나머지 단계(diff·문법·ArchUnit·typecheck)는 따로 실행해 통과했다.
+- 남은 행동: `origin/main`(`982a88a2`)에 이 브랜치에 없는 커밋 9개(CI/CD 개선 등)가 있다. PR 전에 main을 병합하고 충돌·CI를 확인한다.
+- 결정이 필요한 것(손대지 않음):
+  - 소셜 로그인 버튼이 브랜드 배경에 먹색 글자·테두리다. 의도한 모습인지 확인이 필요하다.
+  - 결제 결과·로그인 전 내 정보·로그인 화면의 좁은 폭(600·760px) 규칙은 적용된 적 없는 죽은 규칙이라 지웠다. 좁힐지는 별도로 정한다.
+  - README 디자인 기준과 어긋나는 스타일이 남아 있다: 그림자 3곳, 왼쪽 굵은 선 2곳, 명조 800 굵기.
+- 위험·검증 부족으로 보류: Sentry ErrorBoundary 교체, 관리자 환불 polling 재작성, 백업 alert silence 스크립트 삭제(서버 unit 확인 필요), 키 회전 스크립트 공통화, 매출 SQL fragment 공유, 관리자 검색 조건 record, resilience4j·sentry 버전 ext.
+
 ## 백엔드 직접 구현·불필요 코드 정리 (2026-10-07)
 
 - 시작 SHA `a1d13803`, 브랜치 `codex/work-20261007-backend-cleanup`(원격 푸시 안 함). 18개 영역을 감사하고 반박 검증해 남긴 후보 173건을 적용했다. 후보 목록은 `output/backend-audit-20261007.json`이다(git 제외, 로컬 전용). 보류한 항목은 범위 밖이거나 남겨야 할 방어 코드였다.
