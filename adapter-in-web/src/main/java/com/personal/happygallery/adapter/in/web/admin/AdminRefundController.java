@@ -1,6 +1,5 @@
 package com.personal.happygallery.adapter.in.web.admin;
 
-import com.personal.happygallery.adapter.in.web.admin.dto.FailedRefundResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.FailedRefundPageResponse;
 import com.personal.happygallery.adapter.in.web.payment.dto.RefundStatusResponse;
 import com.personal.happygallery.application.payment.port.in.RefundQueryUseCase;

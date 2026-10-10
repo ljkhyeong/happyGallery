@@ -3,7 +3,6 @@ package com.personal.happygallery.application.product.port.in;
 import com.personal.happygallery.application.product.ProductView;
 import com.personal.happygallery.domain.product.InventoryAdjustment;
 import com.personal.happygallery.domain.product.InventoryAdjustmentType;
-import com.personal.happygallery.domain.product.Product;
 import com.personal.happygallery.domain.product.ProductOptionType;
 import com.personal.happygallery.domain.product.ProductStatus;
 import com.personal.happygallery.domain.product.ProductType;

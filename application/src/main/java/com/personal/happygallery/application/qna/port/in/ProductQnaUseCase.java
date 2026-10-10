@@ -3,7 +3,6 @@ package com.personal.happygallery.application.qna.port.in;
 import com.personal.happygallery.application.shared.page.CursorPage;
 import com.personal.happygallery.domain.qna.ProductQna;
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 상품 Q&A 유스케이스.

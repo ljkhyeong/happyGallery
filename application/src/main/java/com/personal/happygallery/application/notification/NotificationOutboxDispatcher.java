@@ -1,7 +1,6 @@
 package com.personal.happygallery.application.notification;
 
 import com.personal.happygallery.application.batch.BatchResult;
-import com.personal.happygallery.application.notification.port.out.NotificationSendResult;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;

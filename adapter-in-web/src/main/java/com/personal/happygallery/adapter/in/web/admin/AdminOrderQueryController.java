@@ -2,7 +2,6 @@ package com.personal.happygallery.adapter.in.web.admin;
 
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderFulfillmentResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderHistoryResponse;
-import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderListItemResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderPageResponse;
 import com.personal.happygallery.adapter.in.web.admin.dto.AdminOrderSearchPageResponse;
 import com.personal.happygallery.application.order.port.in.AdminOrderQueryUseCase;
