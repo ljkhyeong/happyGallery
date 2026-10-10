@@ -7,6 +7,7 @@ import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
+import { CursorPager } from "@/shared/ui/CursorPager";
 import { formatDateTime, parsePositiveId } from "@/shared/lib";
 
 export function MyGroupInquiriesSection() {
@@ -31,10 +32,9 @@ export function MyGroupInquiriesSection() {
           setSearchParams(next);
         }}>상세·변경 이력</Button>
     </Card.Body></Card>)}
-      {(paging.hasPreviousPage || query.data?.hasMore) && <div className="d-flex gap-2">
-        <Button size="sm" variant="outline-secondary" disabled={!paging.hasPreviousPage || query.isFetching} onClick={paging.showPreviousPage}>이전</Button>
-        <Button size="sm" variant="outline-primary" disabled={!query.data?.hasMore || query.isFetching} onClick={() => paging.showNextPage(query.data?.nextCursor)}>다음</Button>
-      </div>}
+      <CursorPager className="d-flex gap-2"
+        hasPreviousPage={paging.hasPreviousPage} page={query.data} busy={query.isFetching}
+        onPrevious={paging.showPreviousPage} onNext={paging.showNextPage} />
       {selectedId !== null && <MyGroupInquiryDetail key={selectedId} id={selectedId} />}
     </section>
   );

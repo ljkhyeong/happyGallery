@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Card, Form, Spinner } from "react-bootstrap";
 import { ErrorAlert } from "@/shared/ui";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 import type { AdminAuthResponse } from "./api";
 
 interface Props {
@@ -131,7 +131,7 @@ export function AdminLoginGate({ onLogin, onVerifyMfa }: Props) {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="비밀번호"
                   autoComplete="current-password"
-                  maxLength={72}
+                  maxLength={PASSWORD_MAX_UTF8_BYTES}
                   disabled={loading}
                 />
                 <PasswordLengthFeedback value={password} />

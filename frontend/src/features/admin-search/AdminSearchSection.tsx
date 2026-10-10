@@ -3,7 +3,7 @@ import { Badge, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstr
 import { ArrowRight } from "lucide-react";
 import { SearchBookingsStatus } from "@/generated/api/adminBooking";
 import { SearchOrdersStatus } from "@/generated/api/adminOrder";
-import { formatDateTime, formatKRW } from "@/shared/lib";
+import { formatDateTime, formatKRW, getStatusLabel } from "@/shared/lib";
 import { adminBookingHref, adminOrderHref } from "@/shared/lib/adminLinks";
 import type {
   AdminBookingSearchRow,
@@ -15,7 +15,6 @@ import { AdminSearchPagination } from "./AdminSearchPagination";
 import {
   EmptyState,
   ErrorAlert,
-  getStatusLabel,
   LinkButton,
   LoadingSpinner,
   StatusBadge,

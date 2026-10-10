@@ -34,6 +34,7 @@ import {
   type ReviewReactionResponse,
   type UpdateReviewRequest,
 } from "@/generated/api/review";
+import { assertImageBlob } from "@/shared/hooks/useBlobObjectUrl";
 
 const PAGE_SIZE = 10;
 
@@ -173,8 +174,5 @@ export async function fetchMyReviewImage(
     cache: "no-store",
     signal,
   });
-  if (!blob.type.startsWith("image/")) {
-    throw new Error("비공개 후기 사진을 불러오지 못했습니다. 다시 시도해 주세요.");
-  }
-  return blob;
+  return assertImageBlob(blob, "비공개 후기 사진을 불러오지 못했습니다. 다시 시도해 주세요.");
 }

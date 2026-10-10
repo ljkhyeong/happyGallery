@@ -5,7 +5,7 @@ export { CursorLoadMore } from "./CursorLoadMore";
 export { ErrorBoundary } from "./ErrorBoundary";
 export { SectionErrorBoundary } from "./SectionErrorBoundary";
 export { EmptyState } from "./EmptyState";
-export { StatusBadge, getStatusLabel } from "./StatusBadge";
+export { StatusBadge } from "./StatusBadge";
 export { ToastProvider, useToast } from "./ToastContainer";
 export { LinkButton } from "./LinkButton";
 export { PageHeader } from "./PageHeader";

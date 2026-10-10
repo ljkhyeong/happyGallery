@@ -13,7 +13,6 @@ import {
 import {
   EmptyState,
   ErrorAlert,
-  getStatusLabel,
   LoadingSpinner,
   StatusBadge,
   useToast,
@@ -23,7 +22,7 @@ import { queryKeys } from "@/shared/api";
 import { visibleAdminError } from "@/shared/hooks/adminSessionUnauthorized";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
-import { formatDateInput, formatDateTime, formatKRW, parseApiDateTime } from "@/shared/lib";
+import { formatDateInput, formatDateTime, formatKRW, getStatusLabel, parseApiDateTime } from "@/shared/lib";
 import type {
   AdminBookingCancelResponse,
   AdminBookingResponse,

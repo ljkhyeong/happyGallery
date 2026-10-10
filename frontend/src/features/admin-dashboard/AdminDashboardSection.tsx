@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { Alert, Button, ButtonGroup, Col, Form, Row, Table } from "react-bootstrap";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, getStatusLabel } from "@/shared/lib";
 import { addDaysToDateInput, formatDateInput } from "@/shared/lib/format";
-import { EmptyState, ErrorAlert, getStatusLabel, LoadingSpinner } from "@/shared/ui";
+import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
   fetchDashboardSnapshot,
   fetchSalesSummary,

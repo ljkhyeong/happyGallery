@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Alert, Badge, Button, Card, Col, Form, Row } from "react-bootstrap";
-import { queryKeys } from "@/shared/api";
+import { invalidateReviewTarget, queryKeys } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { useAdminMutation } from "@/shared/hooks/useAdminMutation";
 import { useAdminQuery } from "@/shared/hooks/useAdminQuery";
@@ -286,14 +286,7 @@ function AdminReviewCard({
   const toast = useToast();
   const synchronizeReview = async (updated: AdminReviewResponse) => {
     queryClient.setQueryData(queryKeys.admin.reviews.detail(updated.id), updated);
-    const publicKey = updated.targetType === "PRODUCT"
-      ? queryKeys.reviews.products.byProduct(updated.targetId)
-      : queryKeys.reviews.classes.byClass(updated.targetId);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.member.reviews.all }),
-      queryClient.invalidateQueries({ queryKey: publicKey }),
-    ]);
+    await invalidateReviewTarget(queryClient, updated);
   };
   const mutation = useAdminMutation(onAuthError, {
     mutationFn: (input: { status: "PUBLISHED" | "HIDDEN"; reason?: string }) =>
