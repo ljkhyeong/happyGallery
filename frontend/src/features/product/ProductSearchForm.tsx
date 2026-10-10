@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router";
 import { Search } from "lucide-react";
+import { normalizeProductKeyword } from "./productFilters";
 
 /**
  * 머리글 검색창. 작품 목록의 이름 검색(`keyword`)으로 보낸다.
@@ -12,7 +13,7 @@ export function ProductSearchForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalized = keyword.trim().slice(0, 100);
+    const normalized = normalizeProductKeyword(keyword);
     navigate(normalized ? `/products?${new URLSearchParams({ keyword: normalized })}` : "/products");
   };
 

@@ -17,7 +17,7 @@ import {
 } from "@/features/payment";
 import type { BookingPayload } from "@/generated/api/payment";
 import { ApiError, queryKeys } from "@/shared/api";
-import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel } from "@/shared/lib";
+import { classImageSrc, formatDateTime, formatKRW, getClassCategoryLabel, parsePositiveId } from "@/shared/lib";
 import {
   CheckoutAmounts,
   CheckoutLayout,
@@ -184,15 +184,12 @@ function BookingCreateContent({
     () => (passAccepted ? (passes ?? []).filter(isPassAvailableForBooking) : []),
     [passAccepted, passes],
   );
-  const requestedPassId = Number(searchParams.get("passId"));
-  const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
-  const requestedClassId = Number(searchParams.get("classId"));
-  const requestedSlotId = Number(searchParams.get("slotId"));
+  const requestedPassId = parsePositiveId(searchParams.get("passId"));
+  const hasRequestedPass = requestedPassId !== null;
+  const requestedClassId = parsePositiveId(searchParams.get("classId"));
+  const requestedSlotId = parsePositiveId(searchParams.get("slotId"));
   const selectRequestedSlot = searchParams.get("selectSlot") === "1";
-  const initialClassId = selectedClass?.id
-    ?? (Number.isSafeInteger(requestedClassId) && requestedClassId > 0
-      ? requestedClassId
-      : null);
+  const initialClassId = selectedClass?.id ?? requestedClassId;
   const requestedPassCompatible = hasRequestedPass
     && availablePasses.some((pass) => pass.passId === requestedPassId);
   const requestedPassNeedsFallback = hasRequestedPass
@@ -429,8 +426,7 @@ function BookingCreateContent({
       >
         <SlotSelectionStep
           initialClassId={initialClassId}
-          initialSlotId={initialClassId === requestedClassId
-            && Number.isSafeInteger(requestedSlotId) && requestedSlotId > 0
+          initialSlotId={requestedClassId !== null && initialClassId === requestedClassId
             ? requestedSlotId : null}
           selectInitialSlot={selectRequestedSlot}
           selectedSlot={selectedSlot}

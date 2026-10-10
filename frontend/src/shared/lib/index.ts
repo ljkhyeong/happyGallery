@@ -3,7 +3,7 @@ export {
 } from "./format";
 export { getUserMessage } from "./errorMessages";
 export { classImageSrc } from "./classImage";
-export { isPositiveSafeIntegerString } from "./number";
+export { isPositiveSafeIntegerString, parsePositiveId } from "./number";
 export {
   adminRefundPollingInterval,
   customerRefundPollingInterval,

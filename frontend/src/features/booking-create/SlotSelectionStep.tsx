@@ -14,6 +14,7 @@ import {
   CLASS_CATEGORY_OPTIONS,
   classImageSrc,
   getClassCategoryLabel,
+  formatDateInput,
 } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
@@ -240,7 +241,7 @@ export function SlotSelectionStep({
               <Form.Control
                 type="date"
                 value={inquiryDate}
-                min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+                min={formatDateInput(Date.now())}
                 onChange={(event) => setInquiryDate(event.target.value)}
               />
             </Form.Group>

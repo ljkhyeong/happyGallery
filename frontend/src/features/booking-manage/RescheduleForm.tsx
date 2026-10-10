@@ -11,6 +11,7 @@ import {
 } from "@/shared/api";
 import { EmptyState, ErrorAlert, LoadingSpinner, useToast } from "@/shared/ui";
 import { WorkshopInquiryLink } from "@/features/workshop/WorkshopInquiryLink";
+import { formatDateInput } from "@/shared/lib";
 
 interface Props {
   classId: number;
@@ -118,7 +119,7 @@ export function RescheduleForm({
         <Form.Control
           type="date"
           value={date}
-          min={new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" })}
+          min={formatDateInput(Date.now())}
           onChange={(event) => {
             setDate(event.target.value);
             setSelectedSlotId(null);

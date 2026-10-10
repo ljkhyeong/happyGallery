@@ -11,7 +11,7 @@ import { OrderDetailCard } from "@/features/order/OrderDetailCard";
 import { ShippingAddressEditPanel } from "@/features/order/ShippingAddressEditPanel";
 import { OrderCustomerActionPanel } from "@/features/order/OrderCustomerActionPanel";
 import { ErrorAlert } from "@/shared/ui";
-import { customerRefundRefetchInterval } from "@/shared/lib";
+import { customerRefundRefetchInterval, parsePositiveId } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import { OrderClaimSection } from "@/features/order-claim/OrderClaimSection";
 import {
@@ -46,9 +46,9 @@ function OrderDetailContent() {
     ? location.state as LocationState
     : null;
   const [initialCredentials] = useState(() => {
-    const queryOrderId = Number(searchParams.get("orderId"));
     const orderId = navState?.orderId
-      ?? (Number.isSafeInteger(queryOrderId) && queryOrderId > 0 ? queryOrderId : undefined);
+      ?? parsePositiveId(searchParams.get("orderId"))
+      ?? undefined;
     const token = navState?.token
       ?? loadGuestRecordRecovery()?.value.accessToken
       ?? "";

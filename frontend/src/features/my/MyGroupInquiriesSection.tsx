@@ -7,13 +7,12 @@ import { GROUP_INQUIRY_STATUS } from "@/features/group-inquiry/status";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { useCursorHistory } from "@/shared/hooks/useCursorHistory";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
-import { formatDateTime } from "@/shared/lib";
+import { formatDateTime, parsePositiveId } from "@/shared/lib";
 
 export function MyGroupInquiriesSection() {
   const paging = useCursorHistory();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedId = Number(searchParams.get("inquiryId"));
-  const selectedId = Number.isSafeInteger(requestedId) && requestedId > 0 ? requestedId : null;
+  const selectedId = parsePositiveId(searchParams.get("inquiryId"));
   const query = useQuery({ queryKey: queryKeys.member.groupInquiries.list(paging.cursor),
     queryFn: ({ signal }) => runForCurrentCustomer(() => listMyGroupInquiries({ cursor: paging.cursor, size: 20 }, { signal })) });
   return (

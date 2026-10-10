@@ -18,7 +18,7 @@ import { CancelButton } from "@/features/booking-manage/CancelButton";
 import { ReduceParticipantsForm } from "@/features/booking-manage/ReduceParticipantsForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert } from "@/shared/ui";
-import { customerRefundRefetchInterval } from "@/shared/lib";
+import { customerRefundRefetchInterval, parsePositiveId } from "@/shared/lib";
 import { loadGuestRecordRecovery } from "@/features/guest-recovery/session";
 import {
   isCurrentCustomerSessionState,
@@ -53,9 +53,9 @@ function BookingManageContent() {
     ? location.state as LocationState
     : null;
   const [initialCredentials] = useState(() => {
-    const queryBookingId = Number(searchParams.get("bookingId"));
     const bookingId = navState?.bookingId
-      ?? (Number.isSafeInteger(queryBookingId) && queryBookingId > 0 ? queryBookingId : undefined);
+      ?? parsePositiveId(searchParams.get("bookingId"))
+      ?? undefined;
     const token = navState?.token
       ?? loadGuestRecordRecovery()?.value.accessToken
       ?? "";

@@ -8,7 +8,7 @@ import { OrderPriceSummary } from "@/features/order/OrderPriceSummary";
 import type { FulfillmentType } from "@/features/payment";
 import { fetchMyRewardWallet } from "@/features/reward/api";
 import { queryKeys } from "@/shared/api";
-import { formatKRW } from "@/shared/lib";
+import { formatKRW, parsePositiveId } from "@/shared/lib";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import {
   calculateCouponDiscount,
@@ -100,10 +100,7 @@ export function MemberOrderBenefits({
           aria-label="사용할 쿠폰"
           value={selectedCouponId ?? ""}
           disabled={disabled || couponsQuery.isLoading || couponsQuery.isError}
-          onChange={(event) => {
-            const value = Number(event.target.value);
-            onCouponChange(Number.isSafeInteger(value) && value > 0 ? value : null);
-          }}
+          onChange={(event) => onCouponChange(parsePositiveId(event.target.value))}
         >
           <option value="">쿠폰을 사용하지 않음</option>
           {selectableCoupons.map((coupon) => (

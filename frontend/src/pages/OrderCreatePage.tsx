@@ -42,14 +42,14 @@ import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptan
 import { MAX_PRODUCT_QUANTITY } from "@/shared/validation/productQuantity";
 import { MemberOrderBenefits } from "@/features/order-benefit/MemberOrderBenefits";
 import { ApiError } from "@/shared/api";
+import { parsePositiveId } from "@/shared/lib";
 
 type Step = "verify" | "items";
 
 export function OrderCreatePage() {
   const { isLoading, sessionVersion } = useCustomerAuth();
   const [searchParams] = useSearchParams();
-  const requestedProductId = Number(searchParams.get("productId"));
-  const productId = Number.isSafeInteger(requestedProductId) && requestedProductId > 0 ? requestedProductId : null;
+  const productId = parsePositiveId(searchParams.get("productId"));
   if (isLoading) {
     return <Container className="page-container"><LoadingSpinner /></Container>;
   }

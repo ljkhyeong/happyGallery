@@ -1,6 +1,6 @@
 import { queryKeys } from "@/shared/api";
 import { REFERENCE_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { formatTime, isPerfumeClassCategory, parseApiDateTime } from "@/shared/lib";
+import { formatDateInput, formatTime, isPerfumeClassCategory, parseApiDateTime } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/generated/api/booking";
 import { fetchClasses, fetchUpcomingSlots } from "./api";
 
@@ -96,26 +96,16 @@ export function isSlotWhen(value: string | null): value is SlotWhen {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const seoulDateFormatter = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Seoul",
-});
 const seoulWeekdayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Seoul" });
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function seoulDate(timestamp: number): string {
-  return seoulDateFormatter.format(timestamp);
-}
-
 /** 서울 기준 오늘, 또는 이번 주말(토·일. 일요일에는 오늘만) 날짜를 `YYYY-MM-DD`로 돌려준다. */
 export function slotWhenDates(when: SlotWhen, now = Date.now()): string[] {
-  if (when === "today") return [seoulDate(now)];
+  if (when === "today") return [formatDateInput(now)];
   const weekday = WEEKDAYS.indexOf(seoulWeekdayFormatter.format(now));
-  if (weekday === 0) return [seoulDate(now)];
+  if (weekday === 0) return [formatDateInput(now)];
   const daysUntilSaturday = 6 - weekday;
-  return [seoulDate(now + daysUntilSaturday * DAY_MS), seoulDate(now + (daysUntilSaturday + 1) * DAY_MS)];
+  return [formatDateInput(now + daysUntilSaturday * DAY_MS), formatDateInput(now + (daysUntilSaturday + 1) * DAY_MS)];
 }
 
 export function hasOpenSlotOn(slots: PublicSlotResponse[] | undefined, dates: string[]): boolean {
