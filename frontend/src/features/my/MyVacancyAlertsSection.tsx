@@ -8,6 +8,7 @@ import {
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
 import { formatDateTime } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LinkButton, LoadingSpinner, useToast } from "@/shared/ui";
+import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
 export function MyVacancyAlertsSection() {
   const queryClient = useQueryClient();
@@ -75,7 +76,7 @@ export function MyVacancyAlertsSection() {
               </div>
               <div className="d-flex flex-wrap gap-2">
                 <LinkButton
-                  to={`/bookings/new?classId=${alert.classId}&slotId=${alert.slotId}`}
+                  to={bookingCreateHref(alert.classId, alert.slotId)}
                   variant="outline-primary"
                   size="sm"
                   aria-label={`${alert.className} 예약 가능 여부 확인`}

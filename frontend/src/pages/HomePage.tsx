@@ -11,7 +11,15 @@ import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import toleMaterials from "@/assets/happygallery/tole-materials.jpg";
 import acrylicPouring from "@/assets/happygallery/acrylic-pouring.jpg";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
-import { nextOpenSlot, publicClassesQuery, slotDayParts, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import {
+  classAcceptsPass,
+  nextOpenSlot,
+  publicClassesQuery,
+  SLOT_WHEN_LABEL,
+  type SlotWhen,
+  slotDayParts,
+  upcomingSlotsQuery,
+} from "@/features/booking-create/upcomingSlots";
 import { NoticeListWidget } from "@/features/notice/NoticeListWidget";
 import { FeaturedEventWidget } from "@/features/event/FeaturedEventWidget";
 import { useOrderPricePolicy } from "@/features/order/useOrderPricePolicy";
@@ -20,7 +28,7 @@ import { ProductCard } from "@/features/product/ProductCard";
 import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCategories";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { classImageSrc, formatKRW, getClassCategoryLabel, isPerfumeClassCategory } from "@/shared/lib";
+import { CLASS_SITUATION_TAG_OPTIONS, classImageSrc, formatKRW, getClassCategoryLabel } from "@/shared/lib";
 import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
@@ -31,13 +39,12 @@ import { queryKeys, useLoaderBackedQuery } from "@/shared/api";
 
 /** 클래스 상황 바로가기. 주말·오늘은 실제 일정, 나머지는 관리자가 지정한 클래스 상황 태그로 거른다. */
 const SITUATIONS = [
-  { to: "/classes?when=weekend", label: "이번 주말" },
-  { to: "/classes?when=today", label: "오늘 바로" },
-  { to: "/classes?tag=DATE", label: "데이트" },
-  { to: "/classes?tag=WITH_KIDS", label: "아이와 함께" },
-  { to: "/classes?tag=FRIENDS", label: "친구 모임" },
-  { to: "/classes?tag=GIFT", label: "선물 만들기" },
-] as const;
+  ...(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((when) => ({
+    to: `/classes?when=${when}`,
+    label: SLOT_WHEN_LABEL[when],
+  })),
+  ...CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => ({ to: `/classes?tag=${code}`, label })),
+];
 
 /** 재료별 전시실. 카테고리 이름은 머리글 카테고리 줄·상품 등록 카테고리와 같다. */
 const CATEGORY_ROOMS: ReadonlyArray<{ category: ShopCategory; label: string; image: string }> = [
@@ -225,7 +232,7 @@ export function HomePage({
                       <span className="gallery-program-body">
                         <span className="gallery-program-meta">
                           {getClassCategoryLabel(bookingClass.category)} · {bookingClass.durationMin}분
-                          {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && " · 4회권 사용 가능"}
+                          {classAcceptsPass(bookingClass) && " · 4회권 사용 가능"}
                         </span>
                         <h3>{bookingClass.name}</h3>
                         <ClassNextSlot result={classSlotResults[index]} className="gallery-program-next" />

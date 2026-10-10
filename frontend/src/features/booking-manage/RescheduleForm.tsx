@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Form, ListGroup } from "react-bootstrap";
 import { fetchRescheduleSlots } from "./api";
 import { BookingDateChips, BookingSlotTime } from "@/features/booking-create/BookingDateChips";
-import { UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
+import { isFewSeats, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "@/features/booking-create/upcomingSlots";
 import {
   invalidateSlotAvailability,
   queryKeys,
@@ -149,7 +149,7 @@ export function RescheduleForm({
               type="button"
               active={selectedSlotId === slot.id}
               onClick={() => setSelectedSlotId(slot.id)}
-              className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
+              className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
             >
               <BookingSlotTime slot={slot} />
               <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>

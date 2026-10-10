@@ -11,7 +11,9 @@ import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
 import {
   bookingCreateHref,
   bookingPaymentHint,
+  classAcceptsPass,
   formatSlotStart,
+  isFewSeats,
   nextOpenSlot,
   remainingSeatLabel,
   upcomingSlotsQuery,
@@ -49,7 +51,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
   const perfume = isPerfumeClassCategory(bookingClass.category);
-  const passEligible = bookingClass.passEligible && !perfume;
+  const passEligible = classAcceptsPass(bookingClass);
   const { depositAmount, balanceAmount } = splitBookingAmount(bookingClass.price);
   const nearestSlot = nextOpenSlot(slotsQuery.data);
   const situationTags = bookingClass.situationTags.filter(isClassSituationTag);
@@ -133,7 +135,7 @@ export function ClassDetailPage({ initialClass }: { initialClass: ClassResponse 
                 className="class-detail-nearest"
               >
                 <span>가장 가까운 회차 <strong>{formatSlotStart(nearestSlot)}</strong></span>
-                <b className={nearestSlot.remainingCapacity <= 2 ? "is-few" : undefined}>
+                <b className={isFewSeats(nearestSlot.remainingCapacity) ? "is-few" : undefined}>
                   {remainingSeatLabel(nearestSlot.remainingCapacity)}
                 </b>
               </Link>

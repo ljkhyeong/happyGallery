@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Alert, Form, ListGroup } from "react-bootstrap";
-import { publicClassesQuery, slotDayParts, UPCOMING_SLOT_DAYS, upcomingSlotsQuery } from "./upcomingSlots";
+import {
+  classAcceptsPass,
+  isFewSeats,
+  publicClassesQuery,
+  slotDayParts,
+  UPCOMING_SLOT_DAYS,
+  upcomingSlotsQuery,
+} from "./upcomingSlots";
 import { CheckoutPanel, LoadingSpinner, ErrorAlert, EmptyState } from "@/shared/ui";
 import {
   CLASS_CATEGORY_OPTIONS,
   classImageSrc,
   getClassCategoryLabel,
-  isPerfumeClassCategory,
 } from "@/shared/lib";
 import type { ClassResponse, PublicSlotResponse } from "@/shared/types";
 import { WorkshopVisitInfo } from "@/features/workshop/WorkshopVisitInfo";
@@ -18,7 +24,7 @@ import { BookingDateChips, BookingSlotTime } from "./BookingDateChips";
 interface Props {
   initialClassId?: number | null;
   initialSlotId?: number | null;
-  /** 빈자리 알림 링크는 날짜만 펼치고, 사용자가 이미 시간을 고른 홈 빠른 예약은 남은 자리가 있으면 바로 선택한다. */
+  /** 빈자리 알림 링크는 날짜만 펼치고, 클래스 상세에서 이미 시간을 고른 경우는 남은 자리가 있으면 바로 선택한다. */
   selectInitialSlot?: boolean;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
@@ -182,7 +188,7 @@ export function SlotSelectionStep({
             <div>
               <p className="booking-class-meta">
                 {getClassCategoryLabel(selectedClass.category)} · {selectedClass.durationMin}분
-                {selectedClass.passEligible && !isPerfumeClassCategory(selectedClass.category) && " · 4회권 사용 가능"}
+                {classAcceptsPass(selectedClass) && " · 4회권 사용 가능"}
               </p>
               {selectedClass.description && <p>{selectedClass.description}</p>}
               {(selectedClass.targetAudience || selectedClass.preparationInfo) && (
@@ -277,7 +283,7 @@ export function SlotSelectionStep({
                   action
                   active={selectedSlot?.id === slot.id}
                   onClick={() => onSelect(slot)}
-                  className={slot.remainingCapacity <= 2 ? "is-few" : undefined}
+                  className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
                 >
                   {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
                   <BookingSlotTime slot={slot} />

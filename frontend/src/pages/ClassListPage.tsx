@@ -3,9 +3,12 @@ import { Button, Container, Form } from "react-bootstrap";
 import { Link, useSearchParams } from "react-router";
 import { ClassNextSlot } from "@/features/booking-create/ClassNextSlot";
 import {
+  bookingCreateHref,
+  classAcceptsPass,
   hasOpenSlotOn,
   isSlotWhen,
   publicClassesQuery,
+  SLOT_WHEN_LABEL,
   type SlotWhen,
   slotWhenDates,
   upcomingSlotsQuery,
@@ -18,14 +21,12 @@ import {
   getClassCategoryLabel,
   getClassSituationTagLabel,
   isClassSituationTag,
-  isPerfumeClassCategory,
 } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { LinkButton } from "@/shared/ui/LinkButton";
 import type { ClassResponse } from "@/generated/api/booking";
 import { useLoaderBackedQuery } from "@/shared/api";
 
-const WHEN_LABEL: Record<SlotWhen, string> = { weekend: "이번 주말", today: "오늘 바로" };
 const FILTER_PARAMS = ["passEligible", "tag", "when"] as const;
 
 export function ClassListPage({ initialClasses }: { initialClasses: ClassResponse[] }) {
@@ -47,11 +48,11 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
   const whenPending = when !== null && slotResults.some((result) => result.isPending);
   const whenDates = when ? slotWhenDates(when) : [];
   const visibleClasses = whenPending ? undefined : classes.filter((bookingClass) =>
-    (!passEligibleOnly || (bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category)))
+    (!passEligibleOnly || classAcceptsPass(bookingClass))
     && (!tag || bookingClass.situationTags.includes(tag))
     && (!when || hasOpenSlotOn(slotResultByClassId.get(bookingClass.id)?.data, whenDates)));
   const emptyMessage = when
-    ? `${WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
+    ? `${SLOT_WHEN_LABEL[when]} 예약 가능한 수업이 없습니다.`
     : tag
       ? `${getClassSituationTagLabel(tag)} 수업을 준비하고 있습니다.`
       : passEligibleOnly
@@ -100,9 +101,9 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
 
       <div className="class-situation-chips" role="group" aria-label="상황으로 수업 찾기">
         <button type="button" aria-pressed={!tag && !when} onClick={() => selectSituation(null)}>전체</button>
-        {(Object.keys(WHEN_LABEL) as SlotWhen[]).map((option) => (
+        {(Object.keys(SLOT_WHEN_LABEL) as SlotWhen[]).map((option) => (
           <button key={option} type="button" aria-pressed={when === option} onClick={() => selectSituation({ when: option })}>
-            {WHEN_LABEL[option]}
+            {SLOT_WHEN_LABEL[option]}
           </button>
         ))}
         {CLASS_SITUATION_TAG_OPTIONS.map(({ code, label }) => (
@@ -122,7 +123,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
         {visibleClasses && <span className="small text-muted-soft" role="status">수업 {visibleClasses.length}개</span>}
       </div>
 
-      {whenPending && <LoadingSpinner text={`${WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
+      {whenPending && <LoadingSpinner text={`${SLOT_WHEN_LABEL[when!]} 일정을 확인하는 중입니다`} />}
       <ErrorAlert error={classesError} />
       {visibleClasses?.length === 0 && (
         <div className="text-center pb-4">
@@ -146,7 +147,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
             <div className="class-catalog-content">
               <div className="class-catalog-labels">
                 <span>{getClassCategoryLabel(bookingClass.category)}</span>
-                {bookingClass.passEligible && !isPerfumeClassCategory(bookingClass.category) && (
+                {classAcceptsPass(bookingClass) && (
                   <span>4회권 사용 가능</span>
                 )}
                 {bookingClass.situationTags.map((situationTag) => (
@@ -173,7 +174,7 @@ export function ClassListPage({ initialClasses }: { initialClasses: ClassRespons
               <ClassNextSlot result={slotResultByClassId.get(bookingClass.id)} className="class-catalog-next" />
               <div className="class-catalog-actions">
                 <LinkButton
-                  to={`/bookings/new?classId=${bookingClass.id}`}
+                  to={bookingCreateHref(bookingClass.id)}
                   variant="dark"
                   aria-label={`${bookingClass.name} 예약하기`}
                 >

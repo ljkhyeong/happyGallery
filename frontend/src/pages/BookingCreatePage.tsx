@@ -4,7 +4,7 @@ import { Alert, Container, Form, Button } from "react-bootstrap";
 import { useSearchParams } from "react-router";
 import { splitBookingAmount } from "@/features/booking-create/bookingAmounts";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
-import { formatSlotStart } from "@/features/booking-create/upcomingSlots";
+import { bookingCreateHref, classAcceptsPass, formatSlotStart } from "@/features/booking-create/upcomingSlots";
 import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
@@ -179,10 +179,10 @@ function BookingCreateContent({
     queryFn: ({ signal }) => fetchAllMyPasses(signal),
     enabled: isAuthenticated,
   });
-  const classAcceptsPass = selectedClass?.passEligible === true && selectedClass.category !== "PERFUME";
+  const passAccepted = selectedClass !== null && classAcceptsPass(selectedClass);
   const availablePasses = useMemo(
-    () => (classAcceptsPass ? (passes ?? []).filter(isPassAvailableForBooking) : []),
-    [classAcceptsPass, passes],
+    () => (passAccepted ? (passes ?? []).filter(isPassAvailableForBooking) : []),
+    [passAccepted, passes],
   );
   const requestedPassId = Number(searchParams.get("passId"));
   const hasRequestedPass = Number.isSafeInteger(requestedPassId) && requestedPassId > 0;
@@ -316,7 +316,7 @@ function BookingCreateContent({
         returnHint: {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
-          returnPath: `/bookings/new?classId=${selectedSlot!.classId}`,
+          returnPath: bookingCreateHref(selectedSlot!.classId),
         },
       });
     },

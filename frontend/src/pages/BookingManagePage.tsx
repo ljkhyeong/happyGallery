@@ -26,6 +26,7 @@ import {
   runForCurrentCustomer,
   type CustomerSessionOwnedState,
 } from "@/shared/api";
+import { bookingCreateHref } from "@/features/booking-create/upcomingSlots";
 
 interface LocationState extends CustomerSessionOwnedState {
   bookingId?: number;
@@ -158,7 +159,7 @@ function BookingManageContent() {
       {booking && (
         <>
           <BookingDetail booking={booking} />
-          <LinkButton to={`/bookings/new?classId=${booking.classId}`}
+          <LinkButton to={bookingCreateHref(booking.classId)}
             variant="outline-dark" className="mt-3">같은 수업 예약</LinkButton>
 
           {isBooked && (
