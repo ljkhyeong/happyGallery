@@ -66,7 +66,6 @@ class JdbcNotificationReminderEligibilityAdapter implements NotificationReminder
                           AND p.expires_at > :nowExclusive
                           AND p.expires_at <= :latestExpiryInclusive
                           AND p.remaining_credits > 0
-                          AND p.user_id IS NOT NULL
                         """)
                 .param("passId", passId)
                 .param("nowExclusive", nowExclusive)
