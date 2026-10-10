@@ -1,23 +1,24 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
-import { Container, Form, Button, Card, Row, Col, Badge } from "react-bootstrap";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useMutation } from "@tanstack/react-query";
+import { Form, Button } from "react-bootstrap";
+import { Link, useNavigate } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
-import { buildAuthPageHref, resolveSafeReturnTo } from "@/features/customer-auth/navigation";
+import { AuthPageShell, useAuthPageTarget } from "@/features/customer-auth/AuthPageShell";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
 import { SocialLoginButtons } from "@/features/customer-auth/SocialLoginButtons";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { PasswordInput } from "@/features/customer-auth/PasswordInput";
 import { ErrorAlert } from "@/shared/ui";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import type { PolicyAcceptance } from "@/features/policy-consent/types";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 
 export function SignupPage() {
   const { signup } = useCustomerAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const redirectTo = resolveSafeReturnTo(searchParams.get("redirect"));
-  const claimIntent = searchParams.get("claim") === "1" || redirectTo.includes("claim=1");
+  const { returnTo: redirectTo, claimIntent } = useAuthPageTarget();
   const loginHref = buildAuthPageHref("/login", {
     redirectTo,
     claim: claimIntent,
@@ -27,151 +28,115 @@ export function SignupPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [error, setError] = useState<unknown>(null);
-  const [submitting, setSubmitting] = useState(false);
   const policyConsent = usePolicyAcceptance();
+  const signupMutation = useMutation({
+    mutationFn: (acceptance: PolicyAcceptance) =>
+      signup(email, password, name, phone, verificationCode, acceptance),
+    onSuccess: () => navigate(redirectTo),
+  });
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!policyConsent.acceptance || !isPasswordWithinByteLimit(password)) {
       return;
     }
-    setError(null);
-    setSubmitting(true);
-    try {
-      await signup(
-        email,
-        password,
-        name,
-        phone,
-        verificationCode,
-        policyConsent.acceptance,
-      );
-      navigate(redirectTo);
-    } catch (requestError) {
-      setError(requestError);
-    } finally {
-      setSubmitting(false);
-    }
+    signupMutation.mutate(policyConsent.acceptance);
   }
 
   return (
-    <Container className="page-container auth-shell" style={{ maxWidth: 980 }}>
-      <Row className="g-4 align-items-stretch">
-        <Col lg={{ span: 7, order: 2 }}>
-          <Card className="auth-form-card border-0 h-100">
-            <Card.Body className="p-4 p-lg-5">
-              <h3 className="mb-3">회원가입</h3>
-              <ErrorAlert error={error} />
-              <Form onSubmit={handleSubmit}>
-                <Form.Group className="mb-3" controlId="email">
-                  <Form.Label>이메일</Form.Label>
-                  <Form.Control
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3" controlId="password">
-                  <Form.Label>비밀번호</Form.Label>
-                  <PasswordInput
-                    autoComplete="new-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    maxLength={72}
-                  />
-                  <PasswordLengthFeedback value={password} />
-                  <Form.Text className="text-muted">
-                    8자 이상 입력하세요.
-                  </Form.Text>
-                </Form.Group>
-                <Form.Group className="mb-3" controlId="name">
-                  <Form.Label>이름</Form.Label>
-                  <Form.Control
-                    type="text"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </Form.Group>
-                <div className="mb-4">
-                  <PhoneVerificationStep
-                    purpose="SIGNUP"
-                    title="휴대폰 번호 인증"
-                    initialPhone={phone}
-                    confirmLabel="입력 완료"
-                    confirmedNote="인증번호를 입력했습니다. 가입할 때 함께 확인합니다."
-                    onVerified={(verifiedPhone, code) => {
-                      setPhone(verifiedPhone);
-                      setVerificationCode(code);
-                    }}
-                    onReset={() => setVerificationCode("")}
-                  />
-                </div>
-                <PolicyConsentFields id="signup-policy-consent" consent={policyConsent} />
-                <Button
-                  type="submit"
-                  className="w-100"
-                  disabled={
-                    !verificationCode
-                    || !policyConsent.ready
-                    || !isPasswordWithinByteLimit(password)
-                    || submitting
-                  }
-                >
-                  {submitting ? "가입 중..." : "회원가입"}
-                </Button>
-              </Form>
-              <div className="d-flex align-items-center my-4">
-                <hr className="flex-grow-1" />
-                <span className="px-3 text-muted-soft small">또는</span>
-                <hr className="flex-grow-1" />
-              </div>
-              <SocialLoginButtons
-                action="회원가입"
-                returnTo={redirectTo}
-                policyAcceptance={policyConsent.acceptance}
-              />
-              <div className="auth-footer-link mt-4">
-                이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col lg={{ span: 5, order: 1 }}>
-          <Card className="auth-hero-card border-0 h-100">
-            <Card.Body className="p-4 p-lg-5 d-flex flex-column">
-              <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {claimIntent ? "비회원 주문·예약 가져오기" : "회원가입"}
-              </Badge>
-              <h2 className="mb-3">
-                {claimIntent
-                  ? "같은 휴대폰 번호로 가입한 뒤 비회원 주문·예약을 가져오세요"
-                  : "회원가입하고 주문과 예약을 한 번에 관리하세요"}
-              </h2>
-              <p className="text-muted-soft mb-4">
-                {claimIntent
-                  ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
-                  : "가입 후 내 정보에서 주문·예약·이용권을 확인하고 관리하세요."}
-              </p>
-              <div className="auth-benefit-list mb-4">
-                <div className="auth-benefit-item">주문·예약·이용권을 상태별로 조회</div>
-                <div className="auth-benefit-item">비회원 주문·예약을 가져와 내 정보에서 조회</div>
-              </div>
-              <div className="d-flex flex-wrap gap-3 mt-auto small">
-                <Link to="/products" className="auth-inline-link">스토어 둘러보기</Link>
-                <Link to="/bookings/new" className="auth-inline-link">체험 예약 보기</Link>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-    </Container>
+    <AuthPageShell
+      title="회원가입"
+      social={(
+        <SocialLoginButtons
+          action="회원가입"
+          returnTo={redirectTo}
+          policyAcceptance={policyConsent.acceptance}
+        />
+      )}
+      footer={<>이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link></>}
+      hero={{
+        kicker: claimIntent ? "비회원 주문·예약 가져오기" : "회원가입",
+        title: claimIntent
+          ? "같은 휴대폰 번호로 가입한 뒤 비회원 주문·예약을 가져오세요"
+          : "회원가입하고 주문과 예약을 한 번에 관리하세요",
+        description: claimIntent
+          ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
+          : "가입 후 내 정보에서 주문·예약·이용권을 확인하고 관리하세요.",
+        benefits: ["주문·예약·이용권을 상태별로 조회", "비회원 주문·예약을 가져와 내 정보에서 조회"],
+        links: (
+          <>
+            <Link to="/products" className="auth-inline-link">스토어 둘러보기</Link>
+            <Link to="/bookings/new" className="auth-inline-link">체험 예약 보기</Link>
+          </>
+        ),
+      }}
+    >
+      <ErrorAlert error={signupMutation.error} />
+      <Form onSubmit={handleSubmit}>
+        <Form.Group className="mb-3" controlId="email">
+          <Form.Label>이메일</Form.Label>
+          <Form.Control
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
+        </Form.Group>
+        <Form.Group className="mb-3" controlId="password">
+          <Form.Label>비밀번호</Form.Label>
+          <PasswordInput
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={8}
+            maxLength={PASSWORD_MAX_UTF8_BYTES}
+          />
+          <PasswordLengthFeedback value={password} />
+          <Form.Text className="text-muted">
+            8자 이상 입력하세요.
+          </Form.Text>
+        </Form.Group>
+        <Form.Group className="mb-3" controlId="name">
+          <Form.Label>이름</Form.Label>
+          <Form.Control
+            type="text"
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </Form.Group>
+        <div className="mb-4">
+          <PhoneVerificationStep
+            purpose="SIGNUP"
+            title="휴대폰 번호 인증"
+            initialPhone={phone}
+            confirmLabel="입력 완료"
+            confirmedNote="인증번호를 입력했습니다. 가입할 때 함께 확인합니다."
+            onVerified={(verifiedPhone, code) => {
+              setPhone(verifiedPhone);
+              setVerificationCode(code);
+            }}
+            onReset={() => setVerificationCode("")}
+          />
+        </div>
+        <PolicyConsentFields id="signup-policy-consent" consent={policyConsent} />
+        <Button
+          type="submit"
+          className="w-100"
+          disabled={
+            !verificationCode
+            || !policyConsent.ready
+            || !isPasswordWithinByteLimit(password)
+            || signupMutation.isPending
+          }
+        >
+          {signupMutation.isPending ? "가입 중..." : "회원가입"}
+        </Button>
+      </Form>
+    </AuthPageShell>
   );
 }

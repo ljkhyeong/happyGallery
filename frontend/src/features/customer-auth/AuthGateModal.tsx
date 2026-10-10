@@ -1,10 +1,11 @@
 import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Modal, Button, Form, Nav, Alert } from "react-bootstrap";
 import { useCustomerAuth, type CustomerUser } from "./useCustomerAuth";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { normalizePhone } from "@/shared/validation/phone";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
 import { ErrorAlert } from "@/shared/ui";
 import { PolicyConsentFields } from "@/features/policy-consent/PolicyConsentFields";
 import { usePolicyAcceptance } from "@/features/policy-consent/usePolicyAcceptance";
@@ -12,7 +13,8 @@ import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type AuthPath = "login" | "signup" | "guest";
 
-interface GuestInfo {
+/** 비회원으로 진행할 때 결제 요청에 넘기는 인증·동의 정보. */
+export interface GuestInfo {
   phone: string;
   verificationCode: string;
   name: string;
@@ -36,9 +38,24 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
   const [signupName, setSignupName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [signupVerificationCode, setSignupVerificationCode] = useState("");
-  const [error, setError] = useState<unknown>(null);
-  const [submitting, setSubmitting] = useState(false);
   const policyConsent = usePolicyAcceptance();
+  // 로그인·가입 탭이 오류와 진행 상태를 함께 쓰도록 요청 하나로 처리한다.
+  const authMutation = useMutation({
+    mutationFn: (request: { kind: "login" } | { kind: "signup"; acceptance: PolicyAcceptance }) =>
+      request.kind === "login"
+        ? login(email, password)
+        : signup(
+          email,
+          password,
+          signupName,
+          signupPhone,
+          signupVerificationCode,
+          request.acceptance,
+        ),
+    onSuccess: (member) => onMemberAuthenticated(member),
+  });
+  const error = authMutation.error;
+  const submitting = authMutation.isPending;
 
   // guest step
   const [guestVerified, setGuestVerified] = useState(false);
@@ -78,43 +95,18 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
     );
   }
 
-  async function handleLogin(e: React.FormEvent) {
+  function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     if (!isPasswordWithinByteLimit(password)) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      const member = await login(email, password);
-      onMemberAuthenticated(member);
-    } catch (requestError) {
-      setError(requestError);
-    } finally {
-      setSubmitting(false);
-    }
+    authMutation.mutate({ kind: "login" });
   }
 
-  async function handleSignup(e: React.FormEvent) {
+  function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     if (!policyConsent.acceptance || !isPasswordWithinByteLimit(password)) {
       return;
     }
-    setError(null);
-    setSubmitting(true);
-    try {
-      const member = await signup(
-        email,
-        password,
-        signupName,
-        signupPhone,
-        signupVerificationCode,
-        policyConsent.acceptance,
-      );
-      onMemberAuthenticated(member);
-    } catch (requestError) {
-      setError(requestError);
-    } finally {
-      setSubmitting(false);
-    }
+    authMutation.mutate({ kind: "signup", acceptance: policyConsent.acceptance });
   }
 
   function handleGuestSubmit() {
@@ -168,7 +160,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <Form.Control
                 type="password" size="sm" autoComplete="current-password" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
-                maxLength={72}
+                maxLength={PASSWORD_MAX_UTF8_BYTES}
               />
               <PasswordLengthFeedback value={password} />
             </Form.Group>
@@ -197,7 +189,7 @@ export function AuthGateModal({ show, onClose, onMemberAuthenticated, onGuestCon
               <Form.Control
                 type="password" size="sm" autoComplete="new-password" value={password}
                 onChange={(e) => setPassword(e.target.value)} required minLength={8}
-                maxLength={72}
+                maxLength={PASSWORD_MAX_UTF8_BYTES}
               />
               <PasswordLengthFeedback value={password} />
             </Form.Group>

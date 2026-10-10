@@ -4,7 +4,8 @@ import { useMutation } from "@tanstack/react-query";
 import { Button, Form, Modal } from "react-bootstrap";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { changePassword } from "./credentialApi";
-import { isPasswordWithinByteLimit } from "@/shared/validation/password";
+import { isPasswordWithinByteLimit, PASSWORD_MAX_UTF8_BYTES } from "@/shared/validation/password";
+import { NewPasswordFields } from "./NewPasswordFields";
 import { runForCurrentCustomer } from "@/shared/api";
 
 interface Props {
@@ -33,7 +34,6 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
 
   const passwordMatches = newPassword === confirmation;
   const sameAsCurrentPassword = newPassword.length >= 8 && currentPassword === newPassword;
-  const confirmationMismatch = confirmation.length > 0 && !passwordMatches;
   const canSubmit = currentPassword.length >= 8
     && newPassword.length >= 8
     && isPasswordWithinByteLimit(currentPassword)
@@ -82,57 +82,20 @@ export function PasswordChangeModal({ show, onClose, onChanged }: Props) {
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
               minLength={8}
-              maxLength={72}
+              maxLength={PASSWORD_MAX_UTF8_BYTES}
               required
               autoFocus
             />
             <PasswordLengthFeedback value={currentPassword} />
           </Form.Group>
-          <Form.Group className="mb-3" controlId="new-password">
-            <Form.Label>새 비밀번호</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              minLength={8}
-              maxLength={72}
-              isInvalid={sameAsCurrentPassword}
-              aria-invalid={sameAsCurrentPassword}
-              aria-describedby={
-                sameAsCurrentPassword ? "new-password-error" : "new-password-help"
-              }
-              required
-            />
-            <PasswordLengthFeedback value={newPassword} />
-            <Form.Control.Feedback id="new-password-error" type="invalid">
-              현재 비밀번호와 다른 값을 입력하세요.
-            </Form.Control.Feedback>
-            {!sameAsCurrentPassword && (
-              <Form.Text id="new-password-help" className="text-muted">
-                8자 이상 입력하세요.
-              </Form.Text>
-            )}
-          </Form.Group>
-          <Form.Group controlId="new-password-confirmation">
-            <Form.Label>새 비밀번호 확인</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              maxLength={72}
-              isInvalid={confirmationMismatch}
-              aria-invalid={confirmationMismatch}
-              aria-describedby={
-                confirmationMismatch ? "new-password-confirmation-error" : undefined
-              }
-              required
-            />
-            <Form.Control.Feedback id="new-password-confirmation-error" type="invalid">
-              새 비밀번호가 일치하지 않습니다.
-            </Form.Control.Feedback>
-          </Form.Group>
+          <NewPasswordFields
+            idPrefix="new-password"
+            password={newPassword}
+            confirmation={confirmation}
+            onPasswordChange={setNewPassword}
+            onConfirmationChange={setConfirmation}
+            sameAsCurrent={sameAsCurrentPassword}
+          />
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={close} disabled={mutation.isPending}>

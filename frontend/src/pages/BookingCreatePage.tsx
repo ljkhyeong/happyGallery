@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router";
 import { splitBookingAmount } from "@/features/booking-create/bookingAmounts";
 import { SlotSelectionStep } from "@/features/booking-create/SlotSelectionStep";
 import { bookingCreateHref, classAcceptsPass, formatSlotStart } from "@/features/booking-create/upcomingSlots";
-import { AuthGateModal } from "@/features/customer-auth/AuthGateModal";
+import { AuthGateModal, type GuestInfo } from "@/features/customer-auth/AuthGateModal";
 import { useCustomerAuth, type CustomerUser } from "@/features/customer-auth/useCustomerAuth";
 import { fetchAllMyPasses } from "@/features/my/api";
 import { isPassAvailableForBooking } from "@/features/my/listUtils";
@@ -27,16 +27,8 @@ import {
   PageHeader,
 } from "@/shared/ui";
 import type { ClassResponse, DepositPaymentMethod, PublicSlotResponse } from "@/shared/types";
-import type { PolicyAcceptance } from "@/features/policy-consent/types";
 
 type PaymentPath = "deposit" | "pass";
-
-interface GuestInfo {
-  phone: string;
-  verificationCode: string;
-  name: string;
-  policyAcceptance: PolicyAcceptance;
-}
 
 interface PaymentActor {
   guest?: GuestInfo;

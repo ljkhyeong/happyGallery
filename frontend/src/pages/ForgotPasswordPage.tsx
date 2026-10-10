@@ -1,10 +1,10 @@
-import { PasswordLengthFeedback } from "@/shared/ui/PasswordLengthFeedback";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Card, Container, Form } from "react-bootstrap";
 import { Link, useLocation, useNavigate } from "react-router";
 import { PhoneVerificationStep } from "@/features/booking-create/PhoneVerificationStep";
 import { resetPassword } from "@/features/customer-auth/credentialApi";
+import { NewPasswordFields } from "@/features/customer-auth/NewPasswordFields";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import { isPasswordWithinByteLimit } from "@/shared/validation/password";
@@ -58,44 +58,14 @@ export function ForgotPasswordPage() {
               autoFocus
             />
           </Form.Group>
-          <Form.Group className="mb-3" controlId="reset-password">
-            <Form.Label>새 비밀번호</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              minLength={8}
-              maxLength={72}
-              aria-describedby="reset-password-help"
-              required
-            />
-            <PasswordLengthFeedback value={newPassword} />
-            <Form.Text id="reset-password-help" className="text-muted">
-              8자 이상 입력하세요.
-            </Form.Text>
-          </Form.Group>
-          <Form.Group className="mb-4" controlId="reset-password-confirmation">
-            <Form.Label>새 비밀번호 확인</Form.Label>
-            <Form.Control
-              type="password"
-              autoComplete="new-password"
-              value={confirmation}
-              onChange={(event) => setConfirmation(event.target.value)}
-              maxLength={72}
-              isInvalid={confirmation.length > 0 && !passwordMatches}
-              aria-invalid={confirmation.length > 0 && !passwordMatches}
-              aria-describedby={
-                confirmation.length > 0 && !passwordMatches
-                  ? "reset-password-confirmation-error"
-                  : undefined
-              }
-              required
-            />
-            <Form.Control.Feedback id="reset-password-confirmation-error" type="invalid">
-              새 비밀번호가 일치하지 않습니다.
-            </Form.Control.Feedback>
-          </Form.Group>
+          <NewPasswordFields
+            idPrefix="reset-password"
+            password={newPassword}
+            confirmation={confirmation}
+            onPasswordChange={setNewPassword}
+            onConfirmationChange={setConfirmation}
+            confirmationClassName="mb-4"
+          />
 
           <PhoneVerificationStep
             purpose="PASSWORD_RESET"
