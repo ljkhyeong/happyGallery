@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,7 +25,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v1/me/social-accounts")
@@ -67,12 +65,8 @@ public class MeSocialAccountController {
         String attemptId = linkIntentStore.start(
                 request, customer.userId(), customer.credentialVersion(), socialProvider);
         return new SocialAccountAuthorizationResponse(
-                UriComponentsBuilder.fromPath(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)
-                        .pathSegment(socialProvider.name().toLowerCase(Locale.ROOT))
-                        .queryParam(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId)
-                        .build()
-                        .encode()
-                        .toUriString());
+                CustomerSecurityRoutes.socialAuthorizationUrl(
+                        socialProvider, SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId));
     }
 
     @Operation(operationId = "startMySocialReauthentication")
@@ -90,12 +84,8 @@ public class MeSocialAccountController {
         String attemptId = linkIntentStore.startReauthentication(
                 request, customer.userId(), customer.credentialVersion(), socialProvider);
         return new SocialAccountAuthorizationResponse(
-                UriComponentsBuilder.fromPath(CustomerSecurityRoutes.SOCIAL_AUTHORIZATION_BASE_URI)
-                        .pathSegment(socialProvider.name().toLowerCase(Locale.ROOT))
-                        .queryParam(SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId)
-                        .build()
-                        .encode()
-                        .toUriString());
+                CustomerSecurityRoutes.socialAuthorizationUrl(
+                        socialProvider, SocialAccountLinkIntentStore.LINK_ATTEMPT_PARAMETER, attemptId));
     }
 
     @Operation(operationId = "unlinkMySocialAccount")
