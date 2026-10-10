@@ -30,7 +30,8 @@ class ErrorResponseFormatPolicyTest {
     @DisplayName("요청 추적 ID가 없는 에러 응답은 code와 message 값만 직렬화된다")
     @Test
     void errorResponse_serializesExactlyTwoFields() {
-        ErrorResponse response = ErrorResponse.of(ErrorCode.ALREADY_REFUNDED);
+        ErrorResponse response = ErrorResponse.of(
+                ErrorCode.ALREADY_REFUNDED, ErrorCode.ALREADY_REFUNDED.message, null);
 
         JsonNode node = objectMapper.valueToTree(response);
 
@@ -62,7 +63,7 @@ class ErrorResponseFormatPolicyTest {
     @DisplayName("에러 응답에 사용자 메시지를 지정하면 기본 메시지를 대체한다")
     @Test
     void errorResponse_customMessage_overridesDefault() {
-        ErrorResponse response = ErrorResponse.of(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다.");
+        ErrorResponse response = ErrorResponse.of(ErrorCode.NOT_FOUND, "주문을 찾을 수 없습니다.", null);
 
         JsonNode node = objectMapper.valueToTree(response);
 

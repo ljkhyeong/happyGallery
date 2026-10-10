@@ -21,18 +21,6 @@ public record ErrorResponse(
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String message,
         @Schema(requiredMode = Schema.RequiredMode.NOT_REQUIRED) String requestId) {
 
-    public ErrorResponse(String code, String message) {
-        this(code, message, null);
-    }
-
-    public static ErrorResponse of(ErrorCode errorCode) {
-        return new ErrorResponse(errorCode.name(), errorCode.message);
-    }
-
-    public static ErrorResponse of(ErrorCode errorCode, String message) {
-        return new ErrorResponse(errorCode.name(), message);
-    }
-
     public static ErrorResponse of(ErrorCode errorCode, String message, String requestId) {
         return new ErrorResponse(errorCode.name(), message, requestId);
     }

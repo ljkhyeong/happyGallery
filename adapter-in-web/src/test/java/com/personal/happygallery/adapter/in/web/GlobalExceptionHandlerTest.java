@@ -55,7 +55,8 @@ class GlobalExceptionHandlerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
+            softly.assertThat(response.getBody())
+                    .isEqualTo(ErrorResponse.of(expected, expected.message, null));
         });
     }
 
@@ -85,7 +86,8 @@ class GlobalExceptionHandlerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(response.getStatusCode().value()).isEqualTo(expected.httpStatus);
-            softly.assertThat(response.getBody()).isEqualTo(ErrorResponse.of(expected));
+            softly.assertThat(response.getBody())
+                    .isEqualTo(ErrorResponse.of(expected, expected.message, null));
         });
     }
 

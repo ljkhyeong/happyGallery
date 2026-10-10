@@ -191,9 +191,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             log.warn("DB 제약 위반 [constraint={}, code={}]",
                     constraintName.orElseThrow(), errorCode);
         }
-        return ResponseEntity
-                .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
+        return error(errorCode);
     }
 
     /**
@@ -203,19 +201,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticLockingFailure(OptimisticLockingFailureException e) {
         log.warn("낙관적 락 충돌");
-        ErrorCode errorCode = resolveOptimisticLockErrorCode(e);
-        return ResponseEntity
-                .status(errorCode.httpStatus)
-                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
+        return error(resolveOptimisticLockErrorCode(e));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
         log.error("처리되지 않은 예외", e);
         Sentry.captureException(e);
+        return error(ErrorCode.INTERNAL_ERROR);
+    }
+
+    /** 오류 코드의 기본 문구와 현재 요청 추적 ID로 응답을 만든다. */
+    private static ResponseEntity<ErrorResponse> error(ErrorCode errorCode) {
         return ResponseEntity
-                .status(ErrorCode.INTERNAL_ERROR.httpStatus)
-                .body(ErrorResponse.of(ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.message, requestId()));
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode, errorCode.message, requestId()));
     }
 
     private static String requestId() {
