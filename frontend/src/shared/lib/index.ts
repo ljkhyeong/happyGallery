@@ -3,6 +3,7 @@ export {
 } from "./format";
 export { getUserMessage } from "./errorMessages";
 export { classImageSrc } from "./classImage";
+export { telHref, workshopAddress } from "./contact";
 export { isPositiveSafeIntegerString, parsePositiveId } from "./number";
 export {
   adminRefundPollingInterval,

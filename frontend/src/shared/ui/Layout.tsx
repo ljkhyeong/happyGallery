@@ -12,6 +12,7 @@ import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { CustomerSessionChangedError } from "@/shared/api";
 import { ErrorAlert } from "./ErrorAlert";
 import type { WorkshopProfile } from "@/shared/types";
+import { telHref, workshopAddress } from "@/shared/lib";
 
 const CLASS_NAV_ITEMS = [
   { path: "/classes", label: "원데이 클래스" },
@@ -129,7 +130,7 @@ export function Layout() {
               비회원 조회
             </Link>
             {workshop?.phone && (
-              <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-utility-link">
+              <a href={telHref(workshop.phone)} className="app-utility-link">
                 고객센터 {workshop.phone}
               </a>
             )}
@@ -250,7 +251,7 @@ export function Layout() {
             <div className="app-footer-cs">
               <strong>고객센터</strong>
               {workshop?.phone && (
-                <a href={`tel:${workshop.phone.replace(/\D/g, "")}`} className="app-footer-phone">{workshop.phone}</a>
+                <a href={telHref(workshop.phone)} className="app-footer-phone">{workshop.phone}</a>
               )}
               <div className="app-footer-contact">
                 {workshop?.kakaoTalkId && <span>카카오톡 {workshop.kakaoTalkId}</span>}
@@ -265,7 +266,7 @@ export function Layout() {
               <span>
                 {[
                   workshop?.representativeName && `대표자 ${workshop.representativeName}`,
-                  workshop?.addressLine1 && [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" "),
+                  workshop?.addressLine1 && workshopAddress(workshop),
                 ].filter(Boolean).join(" · ")}
               </span>
               <span>

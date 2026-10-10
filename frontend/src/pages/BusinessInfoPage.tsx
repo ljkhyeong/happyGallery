@@ -2,6 +2,7 @@ import { Container } from "react-bootstrap";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { ErrorAlert } from "@/shared/ui";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
+import { telHref, workshopAddress } from "@/shared/lib";
 
 export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: WorkshopProfileResponse }) {
   const { data: workshop, error } = useWorkshopProfile(initialWorkshop);
@@ -10,7 +11,7 @@ export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: Worksho
     return <Container className="page-container"><ErrorAlert error={error} /></Container>;
   }
 
-  const address = [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ");
+  const address = workshopAddress(workshop);
 
   return (
     <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
@@ -36,7 +37,7 @@ export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: Worksho
         {workshop.phone && (
           <div>
             <dt>전화</dt>
-            <dd><a href={`tel:${workshop.phone.replace(/\D/g, "")}`}>{workshop.phone}</a></dd>
+            <dd><a href={telHref(workshop.phone)}>{workshop.phone}</a></dd>
           </div>
         )}
         {workshop.email && (

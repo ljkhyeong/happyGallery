@@ -1,5 +1,6 @@
 import { useWorkshopProfile } from "./useWorkshopProfile";
 import { ErrorAlert } from "@/shared/ui";
+import { telHref, workshopAddress } from "@/shared/lib";
 
 /** 예약·주문·상세 화면의 간단 방문 안내. 소개 문단과 블로그 링크 없이 찾아오는 정보만 보여 준다. */
 export function WorkshopVisitInfo() {
@@ -19,7 +20,7 @@ export function WorkshopVisitInfo() {
   }
   if (!profile) return null;
 
-  const address = [profile.addressLine1, profile.addressLine2].filter(Boolean).join(" ");
+  const address = workshopAddress(profile);
   const hasDetails = address || profile.phone || profile.businessHours || profile.parkingInfo
     || profile.introduction || profile.kakaoTalkId || profile.naverTalkUrl
     || profile.mapUrl || profile.naverBlogUrl;
@@ -47,7 +48,7 @@ export function WorkshopVisitInfo() {
         </div>
         <dl className="workshop-visit-details mb-0">
           {address && <><dt>주소</dt><dd>{address}</dd></>}
-          {profile.phone && <><dt>전화</dt><dd><a href={`tel:${profile.phone.replace(/\D/g, "")}`}>{profile.phone}</a></dd></>}
+          {profile.phone && <><dt>전화</dt><dd><a href={telHref(profile.phone)}>{profile.phone}</a></dd></>}
           {profile.kakaoTalkId && <><dt>카카오톡</dt><dd>{profile.kakaoTalkId}</dd></>}
           {profile.naverTalkUrl && (
             <>

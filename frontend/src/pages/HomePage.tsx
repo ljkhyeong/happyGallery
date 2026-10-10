@@ -28,7 +28,7 @@ import { ProductCard } from "@/features/product/ProductCard";
 import { SHOP_CATEGORIES, type ShopCategory } from "@/features/product/shopCategories";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { PUBLIC_DATA_STALE_TIME } from "@/shared/api/staleTimes";
-import { CLASS_SITUATION_TAG_OPTIONS, classImageSrc, formatKRW, getClassCategoryLabel } from "@/shared/lib";
+import { CLASS_SITUATION_TAG_OPTIONS, classImageSrc, formatKRW, getClassCategoryLabel, telHref, workshopAddress } from "@/shared/lib";
 import { ErrorAlert, LinkButton } from "@/shared/ui";
 import type { ClassResponse } from "@/generated/api/booking";
 import type { EventResponse } from "@/generated/api/event";
@@ -121,9 +121,9 @@ export function HomePage({
   const classSlotResults = useQueries({
     queries: featuredClasses.map((bookingClass) => upcomingSlotsQuery(bookingClass.id)),
   });
-  const address = [workshop.addressLine1, workshop.addressLine2].filter(Boolean).join(" ");
+  const address = workshopAddress(workshop);
   const consultHref = workshop.naverTalkUrl
-    ?? (workshop.phone ? `tel:${workshop.phone.replace(/\D/g, "")}` : undefined);
+    ?? (workshop.phone ? telHref(workshop.phone) : undefined);
   const shippingFee = pricePolicy?.shippingFee;
   const shippingText = typeof shippingFee !== "number"
     ? "매장 수령은 무료이며, 택배 배송비는 주문서에서 확인할 수 있습니다."

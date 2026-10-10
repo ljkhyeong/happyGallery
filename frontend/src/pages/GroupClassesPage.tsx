@@ -6,6 +6,7 @@ import upcyclingClass from "@/assets/happygallery/upcycling-class.jpg";
 import { useWorkshopProfile } from "@/features/workshop/useWorkshopProfile";
 import { ErrorAlert, useToast } from "@/shared/ui";
 import type { WorkshopProfileResponse } from "@/generated/api/workshop";
+import { telHref } from "@/shared/lib";
 
 const PROCESS = [
   ["01", "수업 문의", "참여 인원과 장소, 희망 일정과 관심 공예를 알려주세요."],
@@ -97,7 +98,7 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
               </a>
             )}
             {phone && (
-              <a className="btn btn-outline-dark btn-lg" href={`tel:${phone.replace(/\D/g, "")}`}>
+              <a className="btn btn-outline-dark btn-lg" href={telHref(phone)}>
                 전화 문의 {phone}
               </a>
             )}
