@@ -16,11 +16,7 @@ import type {
 } from "@/generated/api/adminBooking";
 import { adminHeaders } from "@/shared/api";
 
-export type {
-  BookingCancellationTaskCompletionResponse as BookingCancellationTaskCompletion,
-  BookingCancellationTaskResponse as BookingCancellationTask,
-  BookingCancellationTaskResponseType as BookingCancellationTaskType,
-} from "@/generated/api/adminBooking";
+export type { BookingCancellationTaskResponseType as BookingCancellationTaskType } from "@/generated/api/adminBooking";
 
 export function fetchBookings(
   adminKey: string,

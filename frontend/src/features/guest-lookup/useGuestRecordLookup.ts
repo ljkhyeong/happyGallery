@@ -97,5 +97,3 @@ export function useGuestRecordLookup<TRecord extends { refund: { status: RefundS
     lookupRecord,
   };
 }
-
-export type GuestRecordLookup = ReturnType<typeof useGuestRecordLookup>;
