@@ -20,11 +20,8 @@ spring:
     port: ${EMAIL_VERIFICATION_SMTP_PORT:587}
     username: ${EMAIL_VERIFICATION_SMTP_USERNAME:}
     password: ${EMAIL_VERIFICATION_SMTP_PASSWORD:}
-    protocol: smtp
-    default-encoding: UTF-8
     ssl:
       enabled: ${EMAIL_VERIFICATION_SSL_ENABLED:false}
-      verify-hostname: true
     properties:
       "[mail.smtp.auth]": true
       "[mail.smtp.connectiontimeout]": ${EMAIL_VERIFICATION_CONNECTION_TIMEOUT_MILLIS:1000}
@@ -402,13 +399,7 @@ management:
     health:
       show-details: ${ACTUATOR_HEALTH_SHOW_DETAILS:never}
   info:
-    env:
-      enabled: false
     git:
-      enabled: false
-    java:
-      enabled: false
-    os:
       enabled: false
   metrics:
     tags:
@@ -427,8 +418,3 @@ sentry:
     - requestId
   send-default-pii: false
   exception-resolver-order: 2147483647
-
-logging:
-  level:
-    root: INFO
-    com.personal.happygallery: INFO
