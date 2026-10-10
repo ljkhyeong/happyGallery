@@ -1,7 +1,13 @@
 import { useEffect } from "react";
 import { skipToken, useMutation, useQuery } from "@tanstack/react-query";
 import { abandonPayment, fetchPaymentStatus } from "@/features/payment/api";
-import { PaymentResultCard, PaymentStatusNotice, PaymentCompletionNext, shouldPollPaymentStatus } from "@/features/payment";
+import {
+  isCompletedPayment,
+  PaymentCompletionNext,
+  PaymentResultCard,
+  paymentStatusPollingInterval,
+  PaymentStatusNotice,
+} from "@/features/payment";
 import { paymentFailureMessage } from "@/features/payment/paymentFailure";
 import { consumePaymentReturnHint, readPaymentReturnHint, readPaymentStatusToken } from "@/features/payment/session";
 import { resolveSafeReturnTo } from "@/features/customer-auth/navigation";
@@ -46,7 +52,7 @@ export function PaymentFailPage() {
         () => fetchPaymentStatus(orderId, readPaymentStatusToken(orderId, customerSession)))
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) => shouldPollPaymentStatus(state.data?.status) ? 3000 : false,
+    refetchInterval: ({ state }) => paymentStatusPollingInterval(state.data?.status),
   });
 
   useEffect(() => {
@@ -80,8 +86,8 @@ export function PaymentFailPage() {
         {returnHint && statusQuery.data && (
           <div className="mb-3">
             <PaymentStatusNotice status={statusQuery.data} />
-            {statusQuery.data.status === "COMPLETED" && statusQuery.data.domainId != null && (
-              <div className="mt-2"><PaymentCompletionNext result={{ ...statusQuery.data, domainId: statusQuery.data.domainId }} /></div>
+            {isCompletedPayment(statusQuery.data) && (
+              <div className="mt-2"><PaymentCompletionNext result={statusQuery.data} /></div>
             )}
           </div>
         )}

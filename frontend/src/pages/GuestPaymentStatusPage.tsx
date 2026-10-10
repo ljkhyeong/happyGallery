@@ -9,7 +9,8 @@ import {
   PaymentResultCard,
   PaymentStatusNotice,
   readPaymentStatusToken,
-  shouldPollPaymentStatus,
+  isCompletedPayment,
+  paymentStatusPollingInterval,
 } from "@/features/payment";
 import { PaymentReceiptLink } from "@/features/payment/PaymentReceiptLink";
 import {
@@ -22,8 +23,6 @@ import {
 } from "@/shared/api";
 import { ErrorAlert, LinkButton, LoadingSpinner } from "@/shared/ui";
 import { NotFoundPage } from "@/pages/NotFoundPage";
-
-const POLL_INTERVAL_MS = 3_000;
 
 interface LocationState extends CustomerSessionOwnedState {
   orderId?: string;
@@ -75,8 +74,7 @@ export function GuestPaymentStatusPage() {
         )
       : skipToken,
     gcTime: 0,
-    refetchInterval: ({ state }) =>
-      shouldPollPaymentStatus(state.data?.status) ? POLL_INTERVAL_MS : false,
+    refetchInterval: ({ state }) => paymentStatusPollingInterval(state.data?.status),
   });
 
   if (!validOrderId) return <NotFoundPage />;
@@ -131,15 +129,7 @@ export function GuestPaymentStatusPage() {
 
   if (!status) return null;
 
-  const completedResult = status.status === "COMPLETED" && status.domainId != null
-    ? {
-        context: status.context,
-        domainId: status.domainId,
-        accessToken: status.accessToken,
-        accessRecoveryRequired: status.accessRecoveryRequired,
-        receiptUrl: status.receiptUrl,
-      }
-    : null;
+  const completedResult = isCompletedPayment(status) ? status : null;
 
   return (
     <Container className="page-container payment-result-page">

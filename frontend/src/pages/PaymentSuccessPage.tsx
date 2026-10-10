@@ -15,6 +15,8 @@ import {
   removePaymentConfirmRequest,
   shouldPollPaymentStatus,
   storePaymentConfirmRequest,
+  isCompletedPayment,
+  PAYMENT_STATUS_POLL_INTERVAL_MS,
   type PaymentConfirmRequest,
   type PaymentSessionHandle,
 } from "@/features/payment";
@@ -153,14 +155,8 @@ export function PaymentSuccessPage() {
     if (isTerminalPaymentStatus(status.status) && confirmSession?.handle) {
       removePaymentConfirmRequest(confirmSession.handle);
     }
-    if (status.status === "COMPLETED" && status.domainId != null) {
-      completePayment({
-        context: status.context,
-        domainId: status.domainId,
-        accessToken: status.accessToken,
-        accessRecoveryRequired: status.accessRecoveryRequired,
-        receiptUrl: status.receiptUrl,
-      });
+    if (isCompletedPayment(status)) {
+      completePayment(status);
     }
     return status;
   }, [
@@ -278,7 +274,7 @@ export function PaymentSuccessPage() {
         const status = await checkStatus();
         const shouldContinue = shouldPollPaymentStatus(status.status);
         if (active && shouldContinue) {
-          timer = window.setTimeout(() => void poll(), 3_000);
+          timer = window.setTimeout(() => void poll(), PAYMENT_STATUS_POLL_INTERVAL_MS);
         }
       } catch {
         if (
@@ -286,14 +282,14 @@ export function PaymentSuccessPage() {
           && isCurrentCustomerSession(customerSession)
         ) {
           setStatusError("상태를 새로 확인하지 못했습니다. 잠시 후 자동으로 다시 확인합니다.");
-          timer = window.setTimeout(() => void poll(), 3_000);
+          timer = window.setTimeout(() => void poll(), PAYMENT_STATUS_POLL_INTERVAL_MS);
         } else if (active) {
           abandonChangedSession();
         }
       }
     };
 
-    timer = window.setTimeout(() => void poll(), 3_000);
+    timer = window.setTimeout(() => void poll(), PAYMENT_STATUS_POLL_INTERVAL_MS);
     return () => {
       active = false;
       if (timer !== undefined) window.clearTimeout(timer);

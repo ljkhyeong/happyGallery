@@ -10,7 +10,13 @@ export { useCheckoutSelection } from "./useCheckoutSelection";
 export { PaymentCompletionNext } from "./PaymentCompletionNext";
 export { PaymentResultCard } from "./PaymentResultCard";
 export { PaymentStatusNotice } from "./PaymentStatusNotice";
-export { isTerminalPaymentStatus, shouldPollPaymentStatus } from "./status";
+export {
+  isCompletedPayment,
+  isTerminalPaymentStatus,
+  PAYMENT_STATUS_POLL_INTERVAL_MS,
+  paymentStatusPollingInterval,
+  shouldPollPaymentStatus,
+} from "./status";
 export type { OrderPayload, FulfillmentType, ShippingAddress } from "./types";
 export {
   storePaymentConfirmRequest,
