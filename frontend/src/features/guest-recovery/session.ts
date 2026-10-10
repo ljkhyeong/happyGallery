@@ -1,9 +1,8 @@
 import { parseApiDateTime } from "@/shared/lib";
 import {
-  currentCustomerSessionStorageOwner,
-  isCurrentCustomerSessionStorageOwner,
-  isCustomerSessionStorageOwner,
-  sameCustomerSessionStorageOwner,
+  ownedSessionValue,
+  readOwnedSessionValue,
+  removeOwnedSessionValue,
   type CustomerSessionStorageHandle,
 } from "@/shared/storage/customerSessionOwner";
 import { SESSION_KEYS } from "@/shared/storage/sessionKeys";
@@ -13,41 +12,27 @@ import type { GuestRecordRecoveryResponse } from "./api";
 export type GuestRecordRecoverySession =
   CustomerSessionStorageHandle<GuestRecordRecoveryResponse>;
 
-function readGuestRecordRecovery(
-  raw: string,
-): GuestRecordRecoverySession | null {
-  const parsed = JSON.parse(raw) as Partial<CustomerSessionStorageHandle<unknown>>;
-  const result = parsed.value as Partial<GuestRecordRecoveryResponse> | undefined;
-  if (
-    !isCustomerSessionStorageOwner(parsed.owner)
-    || !result
-    || typeof result.accessToken !== "string"
-    || result.accessToken.length === 0
-    || typeof result.expiresAt !== "string"
-  ) {
-    return null;
-  }
-  return {
-    owner: parsed.owner,
-    value: result as GuestRecordRecoveryResponse,
-  };
+function isGuestRecordRecovery(value: unknown): value is GuestRecordRecoveryResponse {
+  const result = value as Partial<GuestRecordRecoveryResponse> | undefined;
+  return Boolean(result)
+    && typeof result?.accessToken === "string"
+    && result.accessToken.length > 0
+    && typeof result.expiresAt === "string";
 }
 
 function sameGuestRecordRecovery(
-  left: GuestRecordRecoverySession,
-  right: GuestRecordRecoverySession,
+  left: GuestRecordRecoveryResponse,
+  right: GuestRecordRecoveryResponse,
 ): boolean {
-  return sameCustomerSessionStorageOwner(left.owner, right.owner)
-    && JSON.stringify(left.value) === JSON.stringify(right.value);
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function saveGuestRecordRecovery(
   result: GuestRecordRecoveryResponse,
   expectedSnapshot?: CustomerSessionSnapshot,
 ): GuestRecordRecoverySession | null {
-  const owner = currentCustomerSessionStorageOwner(expectedSnapshot);
-  if (!owner) return null;
-  const recovery = { owner, value: result };
+  const recovery = ownedSessionValue(result, expectedSnapshot);
+  if (!recovery) return null;
   try {
     sessionStorage.setItem(
       SESSION_KEYS.guestRecordRecovery,
@@ -62,43 +47,29 @@ export function saveGuestRecordRecovery(
 export function loadGuestRecordRecovery(
   expectedSnapshot?: CustomerSessionSnapshot,
 ): GuestRecordRecoverySession | null {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEYS.guestRecordRecovery);
-    if (!raw) return null;
-
-    const recovery = readGuestRecordRecovery(raw);
-    if (
-      !recovery
-      || !isCurrentCustomerSessionStorageOwner(
-        recovery.owner,
-        expectedSnapshot,
-      )
-    ) {
-      return null;
-    }
-    const expiresAt = parseApiDateTime(recovery.value.expiresAt);
-    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      clearGuestRecordRecovery(recovery);
-      return null;
-    }
-    return recovery;
-  } catch {
+  const recovery = readOwnedSessionValue(
+    SESSION_KEYS.guestRecordRecovery,
+    isGuestRecordRecovery,
+    expectedSnapshot,
+  );
+  if (!recovery) return null;
+  const expiresAt = parseApiDateTime(recovery.value.expiresAt);
+  if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+    clearGuestRecordRecovery(recovery);
     return null;
   }
+  return recovery;
 }
 
 export function clearGuestRecordRecovery(
   expected?: GuestRecordRecoverySession,
 ): void {
-  try {
-    const recovery = expected ?? loadGuestRecordRecovery();
-    if (!recovery) return;
-    const raw = sessionStorage.getItem(SESSION_KEYS.guestRecordRecovery);
-    if (!raw) return;
-    const stored = readGuestRecordRecovery(raw);
-    if (!stored || !sameGuestRecordRecovery(stored, recovery)) return;
-    sessionStorage.removeItem(SESSION_KEYS.guestRecordRecovery);
-  } catch {
-    // 세션 저장소를 사용할 수 없는 환경에서는 정리할 값도 없다.
-  }
+  const recovery = expected ?? loadGuestRecordRecovery();
+  if (!recovery) return;
+  removeOwnedSessionValue(
+    SESSION_KEYS.guestRecordRecovery,
+    isGuestRecordRecovery,
+    recovery,
+    sameGuestRecordRecovery,
+  );
 }
