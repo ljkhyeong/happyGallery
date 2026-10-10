@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react";
 import { Button, Modal, Spinner } from "react-bootstrap";
+import { loadGlobalScript } from "@/shared/lib/loadScript";
 import { ErrorAlert } from "./ErrorAlert";
 
 interface SelectedAddress {
@@ -25,31 +26,12 @@ declare global {
   }
 }
 
-let postcodeLoader: Promise<PostcodeConstructor> | undefined;
-
 function loadPostcode(): Promise<PostcodeConstructor> {
-  if (window.kakao?.Postcode) return Promise.resolve(window.kakao.Postcode);
-  return postcodeLoader ??= new Promise<PostcodeConstructor>((resolve, reject) => {
-    const script = document.createElement("script");
-    const fail = () => {
-      window.clearTimeout(timeout);
-      script.remove();
-      reject(new Error("주소 검색을 불러오지 못했습니다."));
-    };
-    const timeout = window.setTimeout(fail, 10_000);
-    script.src = "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-    script.async = true;
-    script.onload = () => {
-      window.clearTimeout(timeout);
-      if (window.kakao?.Postcode) resolve(window.kakao.Postcode);
-      else fail();
-    };
-    script.onerror = fail;
-    document.head.appendChild(script);
-  }).catch((error: unknown) => {
-    postcodeLoader = undefined;
-    throw error;
-  });
+  return loadGlobalScript(
+    "https://t1.kakaocdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js",
+    () => window.kakao?.Postcode,
+    { timeoutMs: 10_000, errorMessage: "주소 검색을 불러오지 못했습니다." },
+  );
 }
 
 interface Props {
