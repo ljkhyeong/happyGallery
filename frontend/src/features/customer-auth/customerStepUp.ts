@@ -21,6 +21,9 @@ export type CustomerStepUpContinuation =
   | { kind: "social-link"; provider: SocialProvider }
   | { kind: "social-unlink"; provider: SocialProvider };
 
+export const CONTINUATION_STORAGE_ERROR_MESSAGE =
+  "인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.";
+
 export function clearCustomerStepUpContinuation() {
   removeSessionValues(
     SESSION_KEYS.socialAccountLink,
@@ -32,6 +35,38 @@ export function clearCustomerStepUpContinuation() {
   );
 }
 
+/**
+ * 외부 인증 화면에서 돌아와 이어 할 작업을 회원 ID와 함께 저장한 뒤 그 화면으로 이동한다.
+ * 회원을 확인할 수 없으면 세션 변경으로 보고, 저장하지 못하면 이동하지 않고 false를 돌려준다.
+ */
+export function storeContinuationAndRedirect(
+  url: string,
+  entries: ReadonlyArray<readonly [key: string, value: string]>,
+  customerId: number | null = currentCustomerSessionUserId(),
+): boolean {
+  if (customerId === null) throw new CustomerSessionChangedError();
+  clearCustomerStepUpContinuation();
+  if (!writeSessionValues([
+    [SESSION_KEYS.customerContinuationOwner, String(customerId)],
+    ...entries,
+  ])) {
+    return false;
+  }
+  window.location.assign(url);
+  return true;
+}
+
+function continuationEntry(continuation: CustomerStepUpContinuation): readonly [string, string] {
+  switch (continuation.kind) {
+    case "return":
+      return [SESSION_KEYS.stepUpReturnAction, continuation.action];
+    case "social-link":
+      return [SESSION_KEYS.socialAccountLinkTarget, continuation.provider];
+    case "social-unlink":
+      return [SESSION_KEYS.socialAccountUnlinkTarget, continuation.provider];
+  }
+}
+
 export async function redirectToSocialStepUp(
   reauthenticationProvider: SocialProvider,
   continuation: CustomerStepUpContinuation,
@@ -39,34 +74,11 @@ export async function redirectToSocialStepUp(
   await runForCurrentCustomer(
     () => startSocialReauthentication(reauthenticationProvider),
     ({ authorizationUrl }) => {
-      const customerId = currentCustomerSessionUserId();
-      if (customerId === null) throw new CustomerSessionChangedError();
-      clearCustomerStepUpContinuation();
-      const entries: Array<readonly [string, string]> = [
-        [SESSION_KEYS.customerContinuationOwner, String(customerId)],
+      const stored = storeContinuationAndRedirect(authorizationUrl, [
         [SESSION_KEYS.socialReauthentication, reauthenticationProvider],
-      ];
-      switch (continuation.kind) {
-        case "return":
-          entries.push([SESSION_KEYS.stepUpReturnAction, continuation.action]);
-          break;
-        case "social-link":
-          entries.push([
-            SESSION_KEYS.socialAccountLinkTarget,
-            continuation.provider,
-          ]);
-          break;
-        case "social-unlink":
-          entries.push([
-            SESSION_KEYS.socialAccountUnlinkTarget,
-            continuation.provider,
-          ]);
-          break;
-      }
-      if (!writeSessionValues(entries)) {
-        throw new Error("인증 정보를 저장하지 못했습니다. 브라우저 저장소 설정을 확인해 주세요.");
-      }
-      window.location.assign(authorizationUrl);
+        continuationEntry(continuation),
+      ]);
+      if (!stored) throw new Error(CONTINUATION_STORAGE_ERROR_MESSAGE);
     },
   );
 }

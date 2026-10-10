@@ -9,27 +9,34 @@ interface Props {
   retryLabel?: string;
 }
 
-export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도" }: Props) {
-  if (!error || error instanceof CustomerSessionChangedError) return null;
-
-  let message: string;
-
+/**
+ * 오류를 사용자 문구로 바꾼다. 서버 오류 코드 문구가 있으면 그 문구를 쓰고,
+ * fallback을 넘기면 나머지 경우에 그 문구를, 넘기지 않으면 오류 종류별 기본 문구를 쓴다.
+ */
+export function describeError(error: unknown, fallback?: string): string {
   if (error instanceof ApiError) {
-    message = getUserMessage(error.code)
+    return getUserMessage(error.code)
+      ?? fallback
       ?? (error.status >= 500
         ? "서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
         : "요청을 완료할 수 없습니다. 화면의 안내를 확인해 주세요.");
-  } else if (error instanceof Error && error.name === "AbortError") {
-    message = "요청 시간이 초과되었습니다. 네트워크 상태를 확인하고 다시 시도해 주세요.";
-  } else if (error instanceof TypeError && error.message === "Failed to fetch") {
-    message = "서비스에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.";
-  } else {
-    message = "요청 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
   }
+  if (fallback !== undefined) return fallback;
+  if (error instanceof Error && error.name === "AbortError") {
+    return "요청 시간이 초과되었습니다. 네트워크 상태를 확인하고 다시 시도해 주세요.";
+  }
+  if (error instanceof TypeError && error.message === "Failed to fetch") {
+    return "서비스에 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.";
+  }
+  return "요청 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+}
+
+export function ErrorAlert({ error, onRetry, retrying = false, retryLabel = "다시 시도" }: Props) {
+  if (!error || error instanceof CustomerSessionChangedError) return null;
 
   return (
     <Alert variant="danger" className="mb-3" role="alert">
-      <div>{message}</div>
+      <div>{describeError(error)}</div>
       {onRetry && (
         <Button
           type="button"
