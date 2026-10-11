@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 남은 링크·문구 정리와 알림 대상·스마트스토어 오류 코드 (2026-10-11)
+
+- 시작 SHA `6cc1a792`, 같은 브랜치. 사용자가 "남은 게 더 있는지 확인해서 진행하고, 백엔드 변경이 필요하면 바꾸라"고 해 아래 절의 남긴 항목과 이전 절들의 미결 항목을 처리했다.
+- 알림 대상(백엔드·API 계약): `NotificationResponse.target`(orderId·bookingId·productId·productVariantId·classId·slotId, 모두 nullable, 객체는 항상 반환)을 더했다. `JdbcNotificationContextAdapter`가 클레임·환불을 원래 주문·예약으로 잇고, 빈자리·상품 문의도 본인 소유일 때만 붙인다. 맥락 제목에 빈자리·상품 문의를 더했고, 빈자리 알림의 `scheduledAt`은 신청 회차 시각(화면 "회차")이다. 예약 일정 변경·주문 제작 지연처럼 반복 발송하는 알림도 대상 종류·ID를 남긴다(`forUserRepeatable`·`forGuestRepeatable`, 멱등 키는 요청마다 새로). 화면은 주문·예약 상세, 빈자리 회차의 예약 화면, 재입고 작품(옵션), 작품 문의 칸(`#product-qna`)으로 바로 가고, 후기 요청은 상세의 후기 칸(`#review`)을 연다. 앱·화면 교체 중 이전 응답에 `target`이 없어도 목록으로 보낸다.
+- 스마트스토어: 연동이 꺼진 요청 5곳(상품 반영·채널 주문·문의·상품 공지·정산 회계)이 일반 `CONFLICT` 대신 `409 SMARTSTORE_DISABLED`를 반환하고, 관리자 화면은 전용 안내를 보인다.
+- 확인 중 찾은 버그: 관리자 공지 등록은 저장은 되지만 응답에서 DB 기본값 `createdAt`이 비어 `NoticeDetailResponse`가 500을 냈다(다시 누르면 중복 공지). 컨트롤러가 저장 뒤 `getForEdit`로 다시 읽어 응답한다(`open-in-view: false`라 새로 읽힌다). `NoticeAdminUseCaseIT`가 수정 전 500·수정 뒤 201을 확인한다.
+- 링크: 후기 작성 바로가기 `#review`(`useHashScroll`), 이벤트 "받은 쿠폰 확인" `#owned-coupons`, 내 이용권 "이 이용권으로 예약"은 "이용권으로 예약" 제목과 이용권 대상 수업만, 내 정보 이용권 칸은 사용 가능 목록, 주문 상세 작품 이름·예약 상세 수업 이름·빈자리 알림 수업 이름은 상세로 이어진다. 예약 결제를 마치지 못하고 돌아오면 고른 회차를 다시 선택한다. 공지사항 목록(`/notices`, SSR·sitemap·IndexNow)을 새로 두고 공지 상세 돌아가기·홈 공지 칸·404에서 잇는다.
+- 클래스 목록: 일정·상황·4회권 조건이면 제목·문서 제목·경로가 조건을 따르고(`classListHeading`, canonical `/classes`), 카드의 4회권·상황 표시는 같은 조건 목록 링크다. 소개 글이 없는 수업에 지어 넣던 문장을 지웠다.
+- 문구·디자인: 남은 이름표(kicker)를 지웠다(내 정보·쿠폰·이벤트·비회원 조회·사업자 정보·로그인·회원가입·404·4회권·후기). 링크 화살표(→·↗), 제목을 되풀이하던 "~확인하세요" 설명, "다시 오셨네요"·"곧 시작해요" 같은 말투를 정리했다. 로그인 옆 안내는 비회원 조회 안내로, 회원가입 옆 안내는 회원 전용 기능으로 바꿨다. 기본 검색 설명도 사실 위주로 바꿨다. README 기준과 어긋나던 그림자 3곳·왼쪽 굵은 선 2곳·명조 800 굵기와 굵기를 정하지 않아 700을 물려받던 명조 제목을 500으로 고쳤고(내 정보 메뉴 선택은 먹색 채움), 소셜 로그인 버튼은 공용 outline 색에 덮이던 것을 고쳐 각 제공자 지침 색을 쓴다. 로그인·회원가입 폼 제목을 h1로 바꿨다(보이는 크기는 그대로).
+- 남긴 것: 재입고 알림의 "휴대폰 인증 후 재입고 알림 받기"는 `/my`로 간다. 번호가 있는 회원의 재인증은 비밀번호 재확인·재로그인을 거쳐 작품 화면으로 돌아오는 흐름이 필요해 이번에는 바꾸지 않았다. 머리글 "원데이 클래스"(정규 수업도 포함)·"정규반·4회권"(구매 화면) 이름은 승인된 시안대로 두었다.
+- 검증: 백엔드 `NotificationContextUseCaseIT`·`BookingRescheduleUseCaseIT`·`OrderProductionUseCaseIT` 35건, `CustomerApiRestDocsTest` 65건·`AdminDashboardContentApiRestDocsTest` 33건, `DefaultSmartStore{Settlement,ChannelOrder}ServiceTest` 12건, `NoticeAdminUseCaseIT` 통과, `openapi3`·`api:generate`(알림 응답만 바뀜). frontend build·lint·단위 81건, IndexNow 테스트 14건. E2E 전체(`--project=app`) 254건 통과(첫 실행의 실패 3건은 쿠폰 링크 기대값 변경 1건과, 실행 중 프론트 소스 수정(HMR)·Gradle 재컴파일로 실행 중 백엔드 클래스가 바뀐 환경 문제 2건이라 백엔드를 다시 띄워 전체를 재실행), 이후 로그인 h1·스타일 수정 뒤 관련 11개 spec 51건 재통과. SSR: `/notices`·조건별 `/classes` 제목과 canonical(`/notices`·`/classes`), sitemap의 `/notices` 확인. 실제 서버로 공지 등록 201·`SMARTSTORE_DISABLED` 409 확인. 1280·390px 캡처(`output/playwright/remaining/capture.mjs`) 가로 넘침·콘솔 오류 없음. `agent-feedback final 6cc1a792` 통과.
+- 실행 조건: 이전 절과 같다(백엔드 8081·`happygallery_g`·`frontend-review` 3030). 확인용 공지 3개를 `output/playwright/remaining/seed-notices.mjs`로 넣었다. E2E 중에는 프론트 소스를 고치거나 Gradle을 돌리지 않는다(HMR·클래스 교체로 엉뚱한 실패가 난다). 원격 푸시는 하지 않았다.
+
 ## 상세 화면 AI 느낌 정리·카테고리 이동 수정 (2026-10-11)
 
 - 시작 SHA `34bc61b0`, 같은 브랜치. 사용자가 "상세 화면에 AI 티가 남았고, 카테고리를 누르면 카테고리 화면이 아니라 전체 검색 화면으로 간다"고 해 상세 화면 문구·디자인과 사이트 링크를 점검했다. 링크 점검은 탐색 에이전트로 전 경로를 대조했다(라우트 누락은 없고, 도착 화면이 덜 구체적인 곳이 문제).
@@ -8,7 +21,7 @@
 - 홈·단체수업: 전시 비유를 줄였다(No. 01 —·제N전시실·관람·상설전 이름표·구역 번호 제거, "새로 올라온 작품"·"공방 클래스"·"재료별로 보기"). 재료별 사진 칸은 판매 중인 작품이 있는 카테고리만 보인다. 단체수업 화면의 홍보 문구를 사실 위주로 바꿨다.
 - 공통: 금액 표기를 `30,000원`(`formatKRW`)으로 바꿨고, 수령 방법 전 결제 예정 금액은 `상품 금액 + 배송비`로 보인다. 배송·교환 안내 문구를 다시 썼다(`PRODUCT_FULFILLMENT_LABEL` 삭제).
 - 링크: 클래스 상세에서 고른 회차에 붙던 "알림 신청한 일정" 표시는 빈자리 알림 링크에서만 보인다. 모바일 "예약 조회" 탭은 `/guest?kind=bookings`, 결제 결과·결제 상태 화면의 휴대폰 인증·목록 링크는 `#lookup-help`·`#payment-help`로 해당 도움말을 펼친다. 장바구니 작품 링크는 고른 옵션을 유지하고, 상품 문의 안내에 로그인 링크, 클래스 목록 "단체수업 문의"는 문의 칸(`#group-inquiry`)으로 간다.
-- 남긴 것(백엔드 필드 필요): 상품 문의 답변 알림은 링크가 없고, 클레임·환불·재입고·빈자리 알림은 목록으로 간다. `NotificationResponse`에 대상(orderId·productId·classId+slotId 등)이 있어야 한다. 그 밖에 후기 작성 바로가기 위치, 이용권 예약 화면의 수업 좁히기, 내 정보 통계 칸 필터는 손대지 않았다.
+- 남긴 것(백엔드 필드 필요, 위 절에서 처리): 상품 문의 답변 알림은 링크가 없고, 클레임·환불·재입고·빈자리 알림은 목록으로 간다. `NotificationResponse`에 대상(orderId·productId·classId+slotId 등)이 있어야 한다. 그 밖에 후기 작성 바로가기 위치, 이용권 예약 화면의 수업 좁히기, 내 정보 통계 칸 필터는 손대지 않았다.
 - 캔버스: "해피갤러리 새 시안"의 G 홈·작품 상세·클래스 상세 보드에도 같은 정리(번호·이름표·전시 비유·줄표 제거, 탭·배송·교환 구역)를 반영했다.
 - 검증: `npm run build`(tsc)·변경 파일 ESLint·단위 81건, `agent-feedback final 34bc61b0` 통과. E2E 전체(`--project=app`) 254건 중 251건 통과, 실패 3건은 카테고리 선택 상자를 찾던 테스트 선택자(탭으로 수정)와 옵션 구역 이름(`aria-labelledby`) 누락(코드 복원)이었고 수정 뒤 관련 6개 spec 34건 재실행 통과. 1280·390px 캡처 가로 넘침·콘솔 오류 없음, SSR 카테고리 제목("가죽 작품 | 해피갤러리")·canonical `/products`·홈 H1 확인.
 - 실행 조건: Docker를 켜고 `hg-design-mysql`(3307)에 새 DB `happygallery_g`를 만들어 백엔드 8081(`RATE_LIMIT_ENABLED=false`)로 띄웠고, `output/playwright/redesign/d/register-products.mjs`로 작품 12개를 넣었다. 확인 캡처는 `output/playwright/g-review/capture.mjs`. E2E는 `PLAYWRIGHT_FRONTEND_PORT=3020 PLAYWRIGHT_BACKEND_URL=http://127.0.0.1:8081/api/v1 PLAYWRIGHT_SKIP_MFA_WEB_SERVER=1`. 원격 푸시는 하지 않았다.
@@ -52,9 +65,9 @@
   - `agent-feedback final b1dc26c5`: 호환성 단계만 실패한다. 이 기준에는 초기화 표식이 이미 들어 있어 OpenAPI 비교가 돌고, aggregateType enum을 "제약 추가"로 판정하기 때문이다. `ruby tools/check-working-compatibility.rb` 기준을 `main`·`origin/main`으로 하면 초기화 release로 처리돼 통과한다. 나머지 단계(diff·문법·ArchUnit·typecheck)는 따로 실행해 통과했다.
 - 남은 행동: `origin/main`(`982a88a2`)에 이 브랜치에 없는 커밋 9개(CI/CD 개선 등)가 있다. PR 전에 main을 병합하고 충돌·CI를 확인한다.
 - 결정이 필요한 것(손대지 않음):
-  - 소셜 로그인 버튼이 브랜드 배경에 먹색 글자·테두리다. 의도한 모습인지 확인이 필요하다.
+  - 소셜 로그인 버튼이 브랜드 배경에 먹색 글자·테두리다. 의도한 모습인지 확인이 필요하다. → 2026-10-11 제공자 지침 색으로 고침.
   - 결제 결과·로그인 전 내 정보·로그인 화면의 좁은 폭(600·760px) 규칙은 적용된 적 없는 죽은 규칙이라 지웠다. 좁힐지는 별도로 정한다.
-  - README 디자인 기준과 어긋나는 스타일이 남아 있다: 그림자 3곳, 왼쪽 굵은 선 2곳, 명조 800 굵기.
+  - README 디자인 기준과 어긋나는 스타일이 남아 있다: 그림자 3곳, 왼쪽 굵은 선 2곳, 명조 800 굵기. → 2026-10-11 고침.
 - 위험·검증 부족으로 보류: Sentry ErrorBoundary 교체, 관리자 환불 polling 재작성, 백업 alert silence 스크립트 삭제(서버 unit 확인 필요), 키 회전 스크립트 공통화, 매출 SQL fragment 공유, 관리자 검색 조건 record, resilience4j·sentry 버전 ext.
 
 ## 백엔드 직접 구현·불필요 코드 정리 (2026-10-07)
@@ -163,7 +176,7 @@
 - 작품 상세: `ProductPurchaseGuide`가 수령 방법·배송비(0원이면 "모두 무료")·교환·반품(주문제작 제한)·적립 기준을 표로 보여 준다.
 - 관리자: 표는 한글 단어 단위 줄바꿈·제목 줄 고정(모바일은 가로 스크롤), 빈 상태(`EmptyState` → `.empty-state`)는 관리자에서 한 줄로 축소, 주문 메뉴는 자사 주문 목록·교환·환불 요청을 스마트스토어 섹션보다 위에 둔다. 상품 목록 `재고 있음`은 중립, `품절`은 경고색. 캡처 `output/playwright/admin-1005/`(`shoot.mjs`는 E2E 지원 파일의 로컬 기본 관리자 계정으로 로그인, 값은 출력하지 않음).
 - 검증: build·typecheck·lint, `restDocsTest`(공지), 영향 E2E 23개 파일 121건 중 118건 통과 → 실패 3건 중 공지 2건은 변경 전 HEAD(stash)에서도 실패(관리자 고객 응대의 `group-inquiries`·스마트스토어 문의 mock 누락)해 mock을 보완하고 통과, `history-pagination` 346은 기존 실패. @smoke 20건 통과.
-- 스마트스토어 연동이 꺼진 환경에서는 관련 관리자 섹션이 서버 안내(연동 비활성화) 대신 일반 `CONFLICT` 문구로 보인다. 화면에서 구분하려면 전용 오류 코드(API 계약 변경)가 필요해 이번에는 고치지 않았다.
+- 스마트스토어 연동이 꺼진 환경에서는 관련 관리자 섹션이 서버 안내(연동 비활성화) 대신 일반 `CONFLICT` 문구로 보인다. 화면에서 구분하려면 전용 오류 코드(API 계약 변경)가 필요해 이번에는 고치지 않았다. → 2026-10-11 `SMARTSTORE_DISABLED`로 처리.
 
 ## 상세 화면 전수 점검·개편 (2026-10-05)
 
