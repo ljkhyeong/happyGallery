@@ -477,12 +477,8 @@ public class DefaultSmartStoreChannelOrderService implements SmartStoreChannelOr
 
     private void requireEnabled() {
         if (!orderProvider.isEnabled()) {
-            throw conflict("스마트스토어 연동이 비활성화되어 있습니다.");
+            throw new HappyGalleryException(ErrorCode.SMARTSTORE_DISABLED);
         }
-    }
-
-    private static HappyGalleryException conflict(String message) {
-        return new HappyGalleryException(ErrorCode.CONFLICT, message);
     }
 
     private ChannelOrderResult result(SmartStoreProductOrder order) {

@@ -185,8 +185,7 @@ public class DefaultSmartStoreInventoryService implements SmartStoreInventoryUse
 
     private void requireProviderEnabled() {
         if (!inventoryProvider.isEnabled()) {
-            throw new HappyGalleryException(
-                    ErrorCode.CONFLICT, "스마트스토어 연동이 비활성화되어 있습니다.");
+            throw new HappyGalleryException(ErrorCode.SMARTSTORE_DISABLED);
         }
     }
 

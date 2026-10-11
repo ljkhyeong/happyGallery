@@ -21,7 +21,7 @@
 - 외부 HTTP 호출 구간에는 DB 트랜잭션을 열지 않는다.
 - 네이버 성공 응답 뒤 로컬 상태를 추측해 갱신하지 않는다. 다음 변경 주문 피드가 확정 상태를 원장에 반영한다.
 - 인증 토큰을 준비하지 못해 주문 API를 호출하지 않은 경우는 `NOT_SENT`, 네이버의 명시적 거절은 `REJECTED`, 요청 전송 뒤 응답을 확정할 수 없는 경우는 `RESULT_UNKNOWN`으로 기록한다. 분류되지 않은 런타임 실패는 중복 실행 위험을 피하기 위해 `RESULT_UNKNOWN`으로 보수적으로 기록한다.
-- 관리자 API는 `NOT_SENT`를 재시도 가능한 `503 SMARTSTORE_OPERATION_NOT_SENT`, `REJECTED`를 상태·입력 확인이 필요한 `409 SMARTSTORE_OPERATION_REJECTED`, `RESULT_UNKNOWN`을 자동 재시도하면 안 되는 `409 SMARTSTORE_OPERATION_RESULT_UNKNOWN`으로 구분해 반환한다.
+- 관리자 API는 `NOT_SENT`를 재시도 가능한 `503 SMARTSTORE_OPERATION_NOT_SENT`, `REJECTED`를 상태·입력 확인이 필요한 `409 SMARTSTORE_OPERATION_REJECTED`, `RESULT_UNKNOWN`을 자동 재시도하면 안 되는 `409 SMARTSTORE_OPERATION_RESULT_UNKNOWN`으로 구분해 반환한다. 연동 설정이 꺼진 환경의 요청은 일반 충돌과 구분해 `409 SMARTSTORE_DISABLED`로 반환한다.
 - `RESULT_UNKNOWN`과 5분 넘게 완료되지 않은 `REQUESTED` 이력은 같은 DB 쿼리로 관리자 작업 목록·Prometheus 메트릭·경보에 노출한다. 자동 재전송은 하지 않으며 관리자가 네이버 현재 상태 또는 판매자센터를 확인한다.
 - 수동 확인은 원래 처리 상태를 덮어쓰지 않고 `APPLIED | NOT_APPLIED`, 확인 근거, 관리자 ID·이름과 시각을 별도 필드에 남긴다. 이미 대사했거나 아직 5분이 지나지 않은 요청은 행 잠금 안에서 거절한다.
 - 대사 화면의 네이버 현재 상태 조회는 감사 이력만 남고 로컬 주문 원장이 삭제됐거나 아직 수집되지 않은 경우에도 상품 주문 번호로 실행하는 읽기 전용 호출이다. 로컬 주문 원장을 조회하거나 갱신하지 않으며 확정 원장 상태와 변경 시각은 계속 변경 주문 피드만 갱신한다.

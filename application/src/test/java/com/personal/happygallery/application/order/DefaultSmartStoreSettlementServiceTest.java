@@ -4,6 +4,7 @@ import com.personal.happygallery.application.order.SmartStoreSettlementSyncState
 import com.personal.happygallery.application.order.port.out.SmartStoreSettlementPort;
 import com.personal.happygallery.application.order.port.out.SmartStoreSettlementProvider;
 import com.personal.happygallery.application.order.port.out.SmartStoreSettlementProvider.SettlementItem;
+import com.personal.happygallery.domain.error.ErrorCode;
 import com.personal.happygallery.domain.error.HappyGalleryException;
 import com.personal.happygallery.domain.order.SmartStoreSettlementStatus;
 import java.time.Clock;
@@ -92,5 +93,22 @@ class DefaultSmartStoreSettlementServiceTest {
 
         assertThat(report.vatAvailableThrough()).isEqualTo(LocalDate.of(2026, 7, 31));
         verify(provider).findDailyVat(from, LocalDate.of(2026, 7, 31));
+    }
+
+    @Test
+    @DisplayName("연동이 꺼져 있으면 관리자 화면이 구분할 수 있는 전용 오류 코드로 거절한다")
+    void accounting_disabledIntegration_rejectsWithDedicatedCode() {
+        SmartStoreSettlementProvider provider = mock(SmartStoreSettlementProvider.class);
+        when(provider.isEnabled()).thenReturn(false);
+        var service = new DefaultSmartStoreSettlementService(
+                provider,
+                mock(SmartStoreSettlementTransactionService.class),
+                mock(SmartStoreSettlementPort.class),
+                mock(SmartStoreSettlementSyncStateService.class),
+                CLOCK);
+
+        assertThatThrownBy(() -> service.accounting(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 10)))
+                .isInstanceOfSatisfying(HappyGalleryException.class,
+                        exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.SMARTSTORE_DISABLED));
     }
 }

@@ -901,7 +901,7 @@ Authorization: Bearer {token}
 
 - 목록은 `products`, 1부터 시작하는 `page`, `size`, `totalElements`, `totalPages`를 반환한다. 상품 항목은 `originProductNo`, `channelProductNo`, 상품명, 판매 상태·판매가·재고와 nullable 대표 이미지 주소를 포함한다.
 - 원상품 상세는 판매가·판매 상태와 옵션별 `optionId`, 조합명, 재고, 옵션가, 사용 여부를 반환한다. 관리자는 이 정보를 보고 내부 주문제작 옵션 조합마다 네이버 옵션을 하나씩 선택한다.
-- `page`는 1 이상, `size`는 1~100이다. 스마트스토어 연동이 비활성화됐으면 `409 CONFLICT`를 반환한다.
+- `page`는 1 이상, `size`는 1~100이다. 스마트스토어 연동이 비활성화됐으면 `409 SMARTSTORE_DISABLED`를 반환한다.
 
 ```http
 PUT /api/v1/admin/products/{id}/smartstore-inventory
@@ -980,7 +980,7 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `200 OK` — 네이버에 등록된 반품·교환 택배사 계약을 `[{id, name, priorityType}]`로 반환한다. 계약이 없으면 빈 배열이며 우선순위가 없으면 `priorityType`은 `null`이다. 우선순위는 `PRIMARY`, `SECONDARY_1`~`SECONDARY_9` 등 네이버 문자열을 그대로 전달한다.
-- `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 CONFLICT`를 반환한다.
+- `id`는 반품 택배사 계약번호이며 주문 발송·수거용 택배사 코드가 아니다. 연동이 비활성화되어 있으면 `409 SMARTSTORE_DISABLED`를 반환한다.
 
 ```http
 GET /api/v1/admin/smartstore-orders?attentionOnly=true&attentionReason=STOCK_SHORTAGE&cursor={cursor}&size=50
@@ -1070,7 +1070,7 @@ Authorization: Bearer {token}
 ```
 
 - 성공: `200 OK` — 네이버에서 현재 주문·발주·클레임 상태, 잔여 수량, 발송 기한·배송수단·택배사·운송장과 nullable 클레임 상세를 실시간 조회한다.
-- 조회는 로컬 주문 원장의 존재 여부와 관계없이 경로의 상품 주문 번호로 네이버에 요청하며 로컬 주문 원장과 마지막 변경 시각을 조회하거나 갱신하지 않는다. 연동 비활성은 `409 CONFLICT`, 네이버 주문 미존재는 `404 NOT_FOUND`다.
+- 조회는 로컬 주문 원장의 존재 여부와 관계없이 경로의 상품 주문 번호로 네이버에 요청하며 로컬 주문 원장과 마지막 변경 시각을 조회하거나 갱신하지 않는다. 연동 비활성은 `409 SMARTSTORE_DISABLED`, 네이버 주문 미존재는 `404 NOT_FOUND`다.
 
 ```http
 POST /api/v1/admin/smartstore-orders/actions/{historyId}/reconciliation
@@ -1126,7 +1126,7 @@ Authorization: Bearer {token}
 - 페이지 요청은 `page` 0~999999(기본 0), `size` 10~100(기본 50), `unansweredOnly` 기본 `true`다. 네이버에는 페이지 번호를 1부터 전달하고, 미답변 조회일 때만 `answered=false`를 보낸다. 응답은 `{content, page, size, totalCount, totalPages}`이며 `content`는 문의 DTO 배열이다. 합계는 네이버 응답을 사용하고 선택한 한 페이지만 요청한다.
 - 템플릿 조회는 네이버가 제공한 단일 상품 문의 템플릿의 `questionType`, `subject`, `content`를 반환한다. 답변 요청은 모두 `{ "content": "..." }`를 받고 성공 시 `204`를 반환한다.
 - 상품 문의의 `PUT /{questionId}/answer`는 신규 답변 등록과 기존 답변 수정에 함께 사용한다. 관리자 화면은 기존 본문을 편집하고, 취소 시 요청을 보내지 않으며 저장 실패 시 초안을 유지한다. 조회 실패는 목록·템플릿 영역의 재시도로 처리하고 문의 유형 탭과 조회 조건은 계속 표시한다.
-- 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 CONFLICT`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
+- 고객 문의 목록의 `answerContentId`는 최근 답변번호이며 답변이 없으면 `null`이다. 수정은 문의번호와 답변번호(각각 1 이상)를 경로에 지정하고 기존 답변과 같은 본문 계약을 사용한다. 연동 비활성화는 `409 SMARTSTORE_DISABLED`, 빈 답변이나 잘못된 번호는 `400 INVALID_INPUT`이다. 수정 가능 상태는 네이버가 최종 판정한다.
 - 네이버 커머스 API는 후기 조회를 제공하지 않으므로 후기 연동은 포함하지 않는다.
 
 #### 2.3.8 상품 표시 정보 수정
@@ -4238,6 +4238,7 @@ file={JPEG|PNG|WebP binary}
 | 409 | `REVIEW_CONTENT_CHANGED` | 회원 또는 관리자가 불러온 뒤 후기 본문·평점·사진이 변경됨 |
 | 409 | `SMARTSTORE_OPERATION_REJECTED` | 네이버가 주문 처리 요청을 명시적으로 거절해 주문 상태 또는 입력 확인이 필요함 |
 | 409 | `SMARTSTORE_OPERATION_RESULT_UNKNOWN` | 네이버에 보낸 주문 처리 요청의 실제 반영 여부가 불명확해 자동 재시도 없이 대사가 필요함 |
+| 409 | `SMARTSTORE_DISABLED` | 스마트스토어 연동이 꺼진 환경에서 상품 연결·반영, 채널 주문, 문의, 상품 공지, 정산 회계 조회를 요청 |
 | 409 | `CONFLICT` | 주문 승인/픽업/배치, 문의·Q&A 중복 답변 등 현재 상태와 충돌하는 요청 |
 | 409 | `LOCAL_PASSWORD_NOT_SET` | 소셜 전용 회원이 현재 비밀번호 변경을 요청 |
 | 409 | `PHONE_ALREADY_IN_USE` | 회원가입 또는 휴대폰 변경 번호를 다른 회원이 이미 사용 중 |
