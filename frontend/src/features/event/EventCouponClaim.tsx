@@ -69,7 +69,7 @@ export function EventCouponClaim({ eventId, couponDefinitionId }: Props) {
             {ownedCoupon && (
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3">
                 <CouponSummary coupon={ownedCoupon} />
-                <LinkButton variant="outline-dark" to="/my/benefits">
+                <LinkButton variant="outline-dark" to="/my/benefits#owned-coupons">
                   받은 쿠폰 확인
                 </LinkButton>
               </div>

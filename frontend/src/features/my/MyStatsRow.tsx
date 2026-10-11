@@ -34,7 +34,8 @@ export function MyStatsRow({
       hint: latestOrder ? `최근 주문 ${formatDate(latestOrder.createdAt)}` : "주문 내역 없음",
     },
     {
-      to: "/my/passes",
+      // 남은 횟수는 사용 가능한 이용권 합계이므로 사용 가능 목록으로 연다.
+      to: "/my/passes?status=ACTIVE",
       label: "이용권 잔여",
       value: `${remainingCredits}회`,
       hint: activePassCount > 0 ? `사용 가능한 이용권 ${activePassCount}건` : "사용 가능한 이용권 없음",

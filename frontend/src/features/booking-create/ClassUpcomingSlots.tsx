@@ -32,7 +32,8 @@ export function ClassUpcomingSlots({ bookingClass }: { bookingClass: Pick<ClassR
       )}
       {query.isSuccess && slots.length === 0 && (
         <p className="class-detail-muted">
-          지금 예약할 수 있는 일정이 없습니다. 만석인 날은 예약 화면에서 빈자리 알림을 신청할 수 있어요.
+          지금 예약할 수 있는 일정이 없습니다. 만석인 날은{" "}
+          <Link to={bookingCreateHref(bookingClass.id)}>예약 화면</Link>에서 빈자리 알림을 신청할 수 있습니다.
         </p>
       )}
       {slots.length > 0 && (

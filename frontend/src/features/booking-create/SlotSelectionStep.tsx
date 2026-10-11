@@ -27,6 +27,8 @@ interface Props {
   initialSlotId?: number | null;
   /** 빈자리 알림 링크는 날짜만 펼치고, 클래스 상세에서 이미 시간을 고른 경우는 남은 자리가 있으면 바로 선택한다. */
   selectInitialSlot?: boolean;
+  /** 이용권으로 예약하러 들어온 경우 이용권을 쓸 수 있는 수업만 고르게 한다. */
+  passOnly?: boolean;
   selectedSlot: PublicSlotResponse | null;
   onSelect: (slot: PublicSlotResponse) => void;
   onDeselect?: () => void;
@@ -38,6 +40,7 @@ export function SlotSelectionStep({
   initialClassId,
   initialSlotId,
   selectInitialSlot = false,
+  passOnly = false,
   selectedSlot,
   onSelect,
   onDeselect,
@@ -62,6 +65,10 @@ export function SlotSelectionStep({
 
   const classIdNum = Number(classId);
   const selectedClass = classes?.find((bookingClass) => bookingClass.id === classIdNum) ?? null;
+  // 주소로 이미 고른 수업은 이용권 대상이 아니어도 목록에 남겨 아래 안내와 함께 보여 준다.
+  const classOptions = passOnly
+    ? classes?.filter((bookingClass) => classAcceptsPass(bookingClass) || bookingClass.id === classIdNum)
+    : classes;
 
   useEffect(() => {
     if (classes === undefined) return;
@@ -170,8 +177,8 @@ export function SlotSelectionStep({
               onClassChange?.(classes?.find((bookingClass) => bookingClass.id === nextId) ?? null);
               onDeselect?.();
             }}>
-              <option value="">수업을 선택하세요</option>
-              {classes?.map((c) => {
+              <option value="">{passOnly ? "이용권으로 들을 수업을 선택하세요" : "수업을 선택하세요"}</option>
+              {classOptions?.map((c) => {
                 const categoryLabel = CLASS_CATEGORY_OPTIONS.find(
                   ({ code }) => code === c.category.trim().toUpperCase(),
                 )?.label;

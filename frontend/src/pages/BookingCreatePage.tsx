@@ -305,7 +305,8 @@ function BookingCreateContent({
         returnHint: {
           customerName: guest?.name ?? member?.name,
           customerPhone: guest?.phone ?? member?.phone ?? undefined,
-          returnPath: bookingCreateHref(selectedSlot!.classId),
+          // 결제를 마치지 못하고 돌아오면 고른 일정을 다시 선택해 둔다.
+          returnPath: bookingCreateHref(selectedSlot!.classId, selectedSlot!.id, { selectSlot: true }),
         },
       });
     },
@@ -355,8 +356,10 @@ function BookingCreateContent({
   return (
     <Container className="page-container checkout-page">
       <PageHeader
-        title="체험 예약"
-        description="수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."
+        title={hasRequestedPass ? "이용권으로 예약" : "체험 예약"}
+        description={hasRequestedPass
+          ? "이용권을 쓸 수 있는 수업만 보여 드립니다. 예약하면 이용권 1회가 차감됩니다."
+          : "수업과 시간을 고르고 예약금을 결제하면 자리가 확정됩니다."}
       />
 
       <CheckoutLayout
@@ -421,6 +424,7 @@ function BookingCreateContent({
           initialSlotId={requestedClassId !== null && initialClassId === requestedClassId
             ? requestedSlotId : null}
           selectInitialSlot={selectRequestedSlot}
+          passOnly={hasRequestedPass}
           selectedSlot={selectedSlot}
           onSelect={(slot) => setSelectedSlot(slot)}
           onDeselect={() => setSelectedSlot(null)}

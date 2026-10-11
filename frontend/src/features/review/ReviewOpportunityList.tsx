@@ -7,6 +7,7 @@ import { ErrorAlert, LoadingSpinner, CursorLoadMore } from "@/shared/ui";
 import { formatDateTime } from "@/shared/lib";
 import { fetchMyReviewOpportunities } from "./api";
 import { reviewTargetHref } from "./reviewTarget";
+import { reviewSectionHref } from "./reviewSection";
 
 export function ReviewOpportunityList() {
   const query = useInfiniteQuery({
@@ -51,20 +52,17 @@ export function ReviewOpportunityList() {
       />
       <section className="review-opportunity-section" aria-labelledby="review-opportunity-heading">
         <div className="review-opportunity-heading">
-          <div>
-            <p className="my-section-kicker mb-1">후기 쓸 수 있는 내역</p>
-            <h3 id="review-opportunity-heading" className="h5 mb-1">후기를 기다리는 이용 내역</h3>
-            <p className="text-muted-soft small mb-0">완료된 이용 경험을 다른 고객과 나눠주세요.</p>
-          </div>
+          <h3 id="review-opportunity-heading" className="h5 mb-0">후기를 쓸 수 있는 내역</h3>
           <strong>불러온 {opportunities.length.toLocaleString("ko-KR")}건</strong>
         </div>
         <div className="review-opportunity-list">
           {opportunities.map((opportunity) => {
             const targetHref = reviewTargetHref(opportunity.targetType, opportunity.targetId);
+            // 주문·예약 상세의 후기 칸으로 바로 연다.
             const sourceHref = opportunity.sourceType === "ORDER_ITEM" && opportunity.orderId
-              ? `/my/orders/${opportunity.orderId}`
+              ? reviewSectionHref(`/my/orders/${opportunity.orderId}`)
               : opportunity.bookingId
-                ? `/my/bookings/${opportunity.bookingId}`
+                ? reviewSectionHref(`/my/bookings/${opportunity.bookingId}`)
                 : targetHref;
             const Icon = opportunity.targetType === "PRODUCT" ? PackageCheck : CalendarCheck;
 

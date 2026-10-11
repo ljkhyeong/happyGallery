@@ -3,12 +3,14 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Alert, Button, Card } from "react-bootstrap";
 import type { ItemDto } from "@/generated/api/customerStore";
 import { queryKeys, runForCurrentCustomer } from "@/shared/api";
+import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { ErrorAlert, LoadingSpinner } from "@/shared/ui";
 import { fetchMyOrderReviews, fetchProductReviewCreationState } from "./api";
 import { MemberReviewCard } from "./MemberReviewCard";
 import { ReviewForm } from "./ReviewForm";
 import { useReviewFormTriggerFocus } from "./useReviewFormFocus";
 import { useCreateProductReview } from "./useReviewMutations";
+import { REVIEW_SECTION_ID } from "./reviewSection";
 
 interface Props {
   orderId: number;
@@ -33,15 +35,15 @@ export function OrderReviewsSection({ orderId, items }: Props) {
   const rememberWritingTrigger = useReviewFormTriggerFocus(activeOrderItemId !== null);
   const reviewStateAvailable = reviewsQuery.data !== undefined;
   const creationStateError = creationStateQueries.find(({ error }) => error);
+  useHashScroll(REVIEW_SECTION_ID);
 
   return (
-    <section className="review-section member-source-reviews" aria-labelledby="order-reviews-heading">
+    <section id={REVIEW_SECTION_ID} className="review-section member-source-reviews" aria-labelledby="order-reviews-heading">
       <header className="review-section-header">
         <div>
-          <p className="my-section-kicker mb-1">후기</p>
-          <h5 id="order-reviews-heading" className="mb-1">상품 후기</h5>
+          <h5 id="order-reviews-heading" className="mb-1">작품 후기</h5>
           <p className="text-muted-soft small mb-0">
-            배송·수령이 완료된 상품마다 후기를 한 번씩 남길 수 있습니다.
+            받은 작품마다 후기를 한 번 쓸 수 있습니다.
           </p>
         </div>
       </header>

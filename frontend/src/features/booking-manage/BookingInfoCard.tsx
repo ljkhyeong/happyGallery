@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { StatusBadge } from "@/shared/ui";
 import { formatDateTime, formatTime } from "@/shared/lib";
 import { RefundProgressAlert } from "@/features/refund/RefundProgressAlert";
@@ -14,6 +15,7 @@ export interface BookingInfoRow {
 interface Props {
   label: string;
   status: BookingDetailResponse["status"];
+  classId: number;
   className: string;
   startAt: string;
   endAt: string;
@@ -22,7 +24,7 @@ interface Props {
 }
 
 /** 회원·비회원 예약 상세가 함께 쓰는 예약 정보 카드. 같은 날 끝나는 수업은 종료 날짜를 반복하지 않는다. */
-export function BookingInfoCard({ label, status, className, startAt, endAt, rows, refund }: Props) {
+export function BookingInfoCard({ label, status, classId, className, startAt, endAt, rows, refund }: Props) {
   const sameDay = endAt.slice(0, 10) === startAt.slice(0, 10);
   return (
     <article className="my-detail-card">
@@ -31,7 +33,7 @@ export function BookingInfoCard({ label, status, className, startAt, endAt, rows
         <StatusBadge status={status} />
       </header>
       <div className="my-detail-card-hero">
-        <h2>{className}</h2>
+        <h2><Link to={`/classes/${classId}`}>{className}</Link></h2>
         <p>{formatDateTime(startAt)} ~ {sameDay ? formatTime(endAt) : formatDateTime(endAt)}</p>
       </div>
       <dl className="my-detail-rows">

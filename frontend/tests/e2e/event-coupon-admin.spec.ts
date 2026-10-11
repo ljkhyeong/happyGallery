@@ -212,7 +212,7 @@ test("회원은 이벤트 상세에서 연결된 쿠폰을 받을 수 있다", a
   await expect(page.getByText("오픈데이 쿠폰 쿠폰을 받았습니다.")).toBeVisible();
   await expect(page.getByRole("link", { name: "받은 쿠폰 확인" })).toHaveAttribute(
     "href",
-    "/my/benefits",
+    "/my/benefits#owned-coupons",
   );
 });
 

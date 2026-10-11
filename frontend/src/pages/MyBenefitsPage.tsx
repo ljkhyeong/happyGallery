@@ -10,6 +10,7 @@ import {
   type RewardHistoryResponse,
 } from "@/features/reward/api";
 import { queryKeys } from "@/shared/api";
+import { useHashScroll } from "@/shared/hooks/useHashScroll";
 import { formatDateTime, formatKRW } from "@/shared/lib";
 import { EmptyState, ErrorAlert, LoadingSpinner } from "@/shared/ui";
 
@@ -41,6 +42,8 @@ export function MyBenefitsPage() {
     enabled: isAuthenticated,
   });
   const claimMutation = useClaimCoupon();
+  // 이벤트의 "받은 쿠폰 확인"은 #owned-coupons로 보유 쿠폰 칸을 연다.
+  useHashScroll("owned-coupons");
 
   const coupons = couponsQuery.data ?? [];
   const availableCoupons = coupons.filter((coupon) => coupon.status === "AVAILABLE");
@@ -153,7 +156,7 @@ export function MyBenefitsPage() {
         ))}
       </section>
 
-      <section aria-labelledby="owned-coupons-heading">
+      <section id="owned-coupons" className="my-anchor-section" aria-labelledby="owned-coupons-heading">
         <div className="d-flex flex-wrap justify-content-between gap-2 align-items-end mb-3">
           <div>
             <h5 id="owned-coupons-heading" className="mb-0">보유 쿠폰</h5>

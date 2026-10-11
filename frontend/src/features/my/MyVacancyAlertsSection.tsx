@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button, Card } from "react-bootstrap";
+import { Link } from "react-router";
 import {
   cancelMyVacancyAlert,
   myVacancyAlertsQuery,
@@ -65,7 +66,7 @@ export function MyVacancyAlertsSection() {
             <Card.Body className="d-flex flex-wrap justify-content-between align-items-center gap-3 py-3 px-3">
               <div>
                 <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                  <span className="fw-semibold small">{alert.className}</span>
+                  <Link to={`/classes/${alert.classId}`} className="fw-semibold small">{alert.className}</Link>
                   <Badge bg={alert.status === "WAITING" ? "secondary" : "info"} className="badge-sm">
                     {alert.status === "WAITING" ? "알림 대기" : "빈자리 발생"}
                   </Badge>

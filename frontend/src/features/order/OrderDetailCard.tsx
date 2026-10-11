@@ -1,4 +1,6 @@
 import { Card, Table, Row, Col, Badge } from "react-bootstrap";
+import { Link } from "react-router";
+import { productDetailHref } from "@/features/product/navigation";
 import { StatusBadge } from "@/shared/ui";
 import { formatKRW, formatDateTime, formatDate, FULFILLMENT_TYPE_LABEL } from "@/shared/lib";
 import type { OrderDetailResponse } from "@/shared/types";
@@ -49,7 +51,9 @@ export function OrderDetailCard({ order }: Props) {
             {order.items.map((item, i) => (
               <tr key={i}>
                 <td>
-                  <div>{item.productName}</div>
+                  <Link to={productDetailHref(item.productId, item.productVariantId)} className="order-item-name">
+                    {item.productName}
+                  </Link>
                   <OrderOptionList options={item.options} />
                   <div className="mt-2">
                     <ProductPurchaseTerms
