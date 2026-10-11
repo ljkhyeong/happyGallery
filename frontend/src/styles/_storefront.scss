@@ -452,6 +452,7 @@
   text-align: center;
 }
 
+// 소셜 버튼은 각 제공자의 로그인 버튼 지침 색을 쓴다. 공용 outline 버튼 색보다 우선하도록 두 클래스로 고른다.
 .social-login-button {
   display: flex;
   align-items: center;
@@ -461,7 +462,7 @@
   font-size: 0.875rem;
 }
 
-.social-login-button-google {
+.social-login-button.social-login-button-google {
   --bs-btn-color: #1F1F1F;
   --bs-btn-bg: #FFFFFF;
   --bs-btn-border-color: #747775;
@@ -476,7 +477,7 @@
   --bs-btn-disabled-border-color: #747775;
 }
 
-.social-login-button-naver {
+.social-login-button.social-login-button-naver {
   --bs-btn-color: #FFFFFF;
   --bs-btn-bg: #03A94D;
   --bs-btn-border-color: #03A94D;
@@ -491,7 +492,7 @@
   --bs-btn-disabled-border-color: #03A94D;
 }
 
-.social-login-button-kakao {
+.social-login-button.social-login-button-kakao {
   --bs-btn-color: rgba(0, 0, 0, 0.85);
   --bs-btn-bg: #FEE500;
   --bs-btn-border-color: #FEE500;
@@ -560,9 +561,7 @@
 
   &:hover,
   &:focus-visible {
-    transform: translateY(-2px);
     border-color: var(--hg-dark);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   }
 }
 
@@ -935,7 +934,7 @@
 .review-official-reply {
   margin-top: 1rem;
   padding: 1rem;
-  border-left: 3px solid var(--hg-accent);
+  border: 1px solid var(--hg-border);
   background: var(--hg-surface-alt);
 }
 
@@ -1156,9 +1155,10 @@
     width: min(calc(100vw - 2rem), 20rem);
     transform: translateX(-50%);
 
+    // 사진 위에 떠도 버튼 모양이 보이도록 흰 테두리를 둔다(그림자는 쓰지 않는다).
     .btn {
       min-height: 44px;
-      box-shadow: 0 8px 24px rgba(34, 34, 34, 0.22);
+      border-color: #FFFFFF;
     }
   }
 }
@@ -1727,8 +1727,7 @@
     flex-wrap: wrap;
     padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
     background: rgba(255, 255, 255, 0.97);
-    border-top: 1px solid var(--hg-border);
-    box-shadow: 0 -10px 30px rgba(34, 34, 34, 0.06);
+    border-top: 1px solid var(--hg-dark);
   }
 
   .checkout-summary-hint {
@@ -1814,10 +1813,10 @@
       background: var(--hg-surface-alt);
     }
 
+    // 지금 화면은 먹색 채움으로 표시한다(강조용 왼쪽 선은 쓰지 않는다).
     &.active {
-      color: var(--hg-dark);
-      background: var(--hg-leaf-tint);
-      box-shadow: inset 3px 0 0 var(--hg-leaf);
+      color: #FFFFFF;
+      background: var(--hg-dark);
     }
   }
 
@@ -1918,7 +1917,7 @@
   strong {
     font-family: var(--hg-font-display);
     font-size: 1.3rem;
-    font-weight: 800;
+    font-weight: 500;
     line-height: 1.35;
   }
 
@@ -2243,7 +2242,6 @@
           color: #FFFFFF;
           background: var(--hg-leaf-deep);
           border-color: var(--hg-leaf-deep);
-          box-shadow: none;
         }
       }
     }
