@@ -22,7 +22,6 @@ export function MyReviewsPage() {
   return (
     <MySectionPage
       path="/my/reviews"
-      description="작성한 상품·클래스 후기를 확인하고 수정하거나 삭제할 수 있습니다."
     >
       <ReviewOpportunityList />
 

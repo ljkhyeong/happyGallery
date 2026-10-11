@@ -93,7 +93,6 @@ export function MyPassesPage() {
   return (
     <MySectionPage
       path="/my/passes"
-      description="남은 횟수와 만료일을 확인하고 이용권으로 예약하세요."
       actions={(
         <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
       )}

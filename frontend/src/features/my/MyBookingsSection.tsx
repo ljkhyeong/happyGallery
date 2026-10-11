@@ -19,7 +19,7 @@ export function MyBookingsSection({ bookings, isLoading, error, isFetching, onRe
     <section id="my-bookings" className="my-recent" aria-labelledby="my-bookings-title">
       <div className="my-recent-head">
         <h2 id="my-bookings-title">최근 예약</h2>
-        <Link to="/my/bookings">전체 보기 →</Link>
+        <Link to="/my/bookings">전체 보기</Link>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />

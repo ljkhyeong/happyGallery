@@ -53,7 +53,7 @@ function OrderDetailContent() {
       <GuestRecordDetailHeader
         lookup={orderLookup}
         found={Boolean(order)}
-        description="주문 상태와 수령 정보를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요."
+        description="조회 코드는 다른 사람과 공유하지 마세요."
         submitLabel="조회"
       />
 

@@ -16,7 +16,6 @@ export function BusinessInfoPage({ initialWorkshop }: { initialWorkshop: Worksho
   return (
     <Container className="page-container legal-page" style={{ maxWidth: 860 }}>
       <header className="legal-page-header">
-        <p className="store-section-kicker">사업자 정보</p>
         <h1>사업자 정보</h1>
       </header>
 

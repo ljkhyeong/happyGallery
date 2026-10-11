@@ -23,7 +23,6 @@ export function MyInquiriesPage() {
   return (
     <MySectionPage
       path="/my/inquiries"
-      description="상품·예약·이용 관련 문의를 남기고 공방의 답변을 확인하세요."
       actions={(
         <LinkButton to="/my/inquiries/new" variant="primary" size="sm">
           문의 작성

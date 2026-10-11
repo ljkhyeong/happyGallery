@@ -40,7 +40,6 @@ export function MyBookingsPage() {
   return (
     <MySectionPage
       path="/my/bookings"
-      description="예약 일정과 변경·취소 가능 여부를 확인하세요."
       actions={(
         <LinkButton to="/bookings/new" variant="outline-dark" size="sm">새 예약 만들기</LinkButton>
       )}

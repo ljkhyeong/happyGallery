@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Badge, Card, Col, Container, Row } from "react-bootstrap";
+import { Card, Col, Container, Row } from "react-bootstrap";
 import { useSearchParams } from "react-router";
 import { resolveSafeReturnTo } from "./navigation";
 
@@ -19,10 +19,9 @@ interface Props {
   social: ReactNode;
   footer: ReactNode;
   hero: {
-    kicker: string;
     title: string;
-    description: string;
-    benefits: readonly string[];
+    description?: string;
+    benefits?: readonly string[];
     links: ReactNode;
   };
 }
@@ -35,7 +34,7 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
         <Col lg={{ span: 7, order: 2 }}>
           <Card className="auth-form-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5">
-              <h3 className="mb-3">{title}</h3>
+              <h1 className="h3 mb-3">{title}</h1>
               {children}
               <div className="d-flex align-items-center my-4">
                 <hr className="flex-grow-1" />
@@ -50,16 +49,15 @@ export function AuthPageShell({ title, children, social, footer, hero }: Props) 
         <Col lg={{ span: 5, order: 1 }}>
           <Card className="auth-hero-card border-0 h-100">
             <Card.Body className="p-4 p-lg-5 d-flex flex-column">
-              <Badge bg="light" text="dark" className="auth-kicker mb-3">
-                {hero.kicker}
-              </Badge>
               <h2 className="mb-3">{hero.title}</h2>
-              <p className="text-muted-soft mb-4">{hero.description}</p>
-              <div className="auth-benefit-list mb-4">
-                {hero.benefits.map((benefit) => (
-                  <div key={benefit} className="auth-benefit-item">{benefit}</div>
-                ))}
-              </div>
+              {hero.description && <p className="text-muted-soft mb-4">{hero.description}</p>}
+              {hero.benefits && (
+                <ul className="auth-benefit-list mb-4">
+                  {hero.benefits.map((benefit) => (
+                    <li key={benefit} className="auth-benefit-item">{benefit}</li>
+                  ))}
+                </ul>
+              )}
               <div className="d-flex flex-wrap gap-3 mt-auto small">{hero.links}</div>
             </Card.Body>
           </Card>

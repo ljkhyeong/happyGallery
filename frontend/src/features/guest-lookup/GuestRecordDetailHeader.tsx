@@ -29,7 +29,6 @@ export function GuestRecordDetailHeader({ lookup, found, description, submitLabe
       {found && (
         <header className="guest-detail-header">
           <div>
-            <p className="store-section-kicker mb-1">{`비회원 ${label}`}</p>
             <h1>{`비회원 ${label} 조회`}</h1>
             <p>{description}</p>
           </div>

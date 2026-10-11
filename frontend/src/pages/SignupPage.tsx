@@ -55,18 +55,19 @@ export function SignupPage() {
       )}
       footer={<>이미 계정이 있으신가요? <Link to={loginHref}>로그인</Link></>}
       hero={{
-        kicker: claimIntent ? "비회원 주문·예약 가져오기" : "회원가입",
-        title: claimIntent
-          ? "같은 휴대폰 번호로 가입한 뒤 비회원 주문·예약을 가져오세요"
-          : "회원가입하고 주문과 예약을 한 번에 관리하세요",
+        title: claimIntent ? "비회원 주문·예약 가져오기" : "회원만 쓸 수 있는 기능",
         description: claimIntent
-          ? "가입 후 내 정보에서 가져올 주문·예약을 선택하세요."
-          : "가입 후 내 정보에서 주문·예약·이용권을 확인하고 관리하세요.",
-        benefits: ["주문·예약·이용권을 상태별로 조회", "비회원 주문·예약을 가져와 내 정보에서 조회"],
+          ? "주문·예약 때 쓴 휴대폰 번호로 가입하면 내 정보에서 골라 가져올 수 있습니다."
+          : undefined,
+        benefits: claimIntent ? undefined : [
+          "주문·예약·이용권 내역을 한곳에서 확인",
+          "정규반 4회권 구매와 이용권 예약",
+          "이벤트 쿠폰과 적립금 사용",
+        ],
         links: (
           <>
-            <Link to="/products" className="auth-inline-link">스토어 둘러보기</Link>
-            <Link to="/bookings/new" className="auth-inline-link">체험 예약 보기</Link>
+            <Link to="/products" className="auth-inline-link">작품 보기</Link>
+            <Link to="/classes" className="auth-inline-link">클래스 보기</Link>
           </>
         ),
       }}

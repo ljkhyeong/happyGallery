@@ -21,7 +21,7 @@ export function MyAccountCard({
   return (
     <Card className="mb-4 my-action-card border-0">
       <Card.Body>
-        <div className="my-section-kicker mb-3">계정 관리</div>
+        <h2 className="my-account-title">계정 관리</h2>
         <div className="d-flex justify-content-between align-items-start gap-3">
           <div>
             <h6 className="mb-1">로그인 비밀번호</h6>

@@ -3,7 +3,7 @@ import type { MetaDescriptor } from "react-router";
 export const SITE_ORIGIN = "https://happy-gallery.com";
 export const SITE_NAME = "해피갤러리";
 export const DEFAULT_SEO_DESCRIPTION =
-  "충주 해피갤러리의 공예 원데이클래스, 정규 과정, 단체수업과 공방 작품을 만나보세요.";
+  "충주 공예 공방 해피갤러리입니다. 원데이클래스·정규 과정·단체수업을 예약하고 공방에서 만든 작품을 살 수 있습니다.";
 
 type JsonLd = Record<string, unknown>;
 

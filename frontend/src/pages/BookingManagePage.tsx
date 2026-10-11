@@ -38,7 +38,7 @@ function BookingManageContent() {
       <GuestRecordDetailHeader
         lookup={bookingLookup}
         found={Boolean(booking)}
-        description="예약 일정과 변경·취소 가능 여부를 확인하세요. 조회 코드는 다른 사람과 공유하지 마세요."
+        description="조회 코드는 다른 사람과 공유하지 마세요."
       />
 
       <ErrorAlert error={booking ? null : error} />

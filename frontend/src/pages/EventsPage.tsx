@@ -18,7 +18,7 @@ export function EventsPage({ initialEvents }: { initialEvents: EventResponse[] }
     <Container className="page-container" style={{ maxWidth: 1100 }}>
       <PageHeader
         title="이벤트"
-        description="지금 참여할 수 있는 행사와 앞으로 열릴 소식을 확인하세요."
+        description="진행 중이거나 시작 예정인 이벤트입니다."
       />
 
       <ErrorAlert

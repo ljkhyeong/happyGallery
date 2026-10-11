@@ -38,14 +38,10 @@ export function LoginPage() {
       social={<SocialLoginButtons action="로그인" returnTo={returnTo} />}
       footer={<>계정이 없으신가요? <Link to={signupHref}>회원가입</Link></>}
       hero={{
-        kicker: claimIntent ? "비회원 주문·예약 가져오기" : "회원 로그인",
-        title: claimIntent
-          ? "비회원 주문·예약을 내 정보로 가져오세요"
-          : "로그인하고 내 주문·예약·이용권을 확인하세요",
+        title: claimIntent ? "비회원 주문·예약 가져오기" : "비회원으로 주문·예약하셨나요?",
         description: claimIntent
-          ? "로그인 후 내 정보에서 가져올 주문·예약을 선택하세요."
-          : "로그인하면 추가 인증 없이 이용 내역을 확인할 수 있습니다.",
-        benefits: ["주문, 예약, 이용권을 한 화면에서 관리", "같은 번호의 비회원 주문·예약 가져오기"],
+          ? "로그인한 뒤 내 정보에서 같은 휴대폰 번호로 한 주문·예약을 골라 가져옵니다."
+          : "주문·예약 번호와 조회 코드로 로그인 없이 확인할 수 있습니다.",
         links: (
           <>
             <Link to="/guest/orders" className="auth-inline-link">비회원 주문 조회</Link>

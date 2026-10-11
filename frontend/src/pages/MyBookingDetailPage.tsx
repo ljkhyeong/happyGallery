@@ -54,7 +54,6 @@ export function MyBookingDetailPage() {
       </Link>
       <PageHeader
         title="예약 상세"
-        description="예약 상태를 확인하고, 가능한 경우 날짜·시간을 변경하거나 취소할 수 있습니다."
         actions={(
           <LinkButton
             to={booking ? bookingCreateHref(booking.classId) : "/bookings/new"}

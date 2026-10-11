@@ -298,7 +298,7 @@ function BookingCreateContent({
         onPrepared: guest ? () => resetGuestVerification(
           "이미 사용한 인증번호입니다. 다시 결제하려면 새 인증번호를 받아 주세요.",
         ) : undefined,
-        orderName: `예약 — ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
+        orderName: `${selectedClass?.name ?? "클래스"} 예약 ${selectedSlot!.startAt.slice(0, 16).replace("T", " ")}`,
         customerKey: member ? `member_${member.id}` : undefined,
         customerName: guest?.name ?? member?.name,
         customerPhone: guest?.phone ?? member?.phone ?? undefined,

@@ -19,7 +19,7 @@ export function MyOrdersSection({ orders, isLoading, error, isFetching, onRetry 
     <section id="my-orders" className="my-recent" aria-labelledby="my-orders-title">
       <div className="my-recent-head">
         <h2 id="my-orders-title">최근 주문</h2>
-        <Link to="/my/orders">전체 보기 →</Link>
+        <Link to="/my/orders">전체 보기</Link>
       </div>
       {isLoading && <LoadingSpinner />}
       <ErrorAlert error={error} onRetry={onRetry} retrying={isFetching} />

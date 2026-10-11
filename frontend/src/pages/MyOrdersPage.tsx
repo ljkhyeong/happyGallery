@@ -42,7 +42,6 @@ export function MyOrdersPage() {
   return (
     <MySectionPage
       path="/my/orders"
-      description="주문 상태와 결제 금액을 확인하고 주문을 검색하세요."
       actions={(
         <LinkButton to="/products" variant="outline-dark" size="sm">작품 보러가기</LinkButton>
       )}

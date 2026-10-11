@@ -33,10 +33,9 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       )}
       {!error && !featured && (
         <div className="home-event-copy home-event-empty">
-          <p className="store-section-kicker">이벤트</p>
-          <h2 id="home-event-title">새로운 이벤트를 준비하고 있습니다</h2>
-          <p>진행 예정인 공방 소식은 이벤트 목록에서 확인할 수 있습니다.</p>
-          <LinkButton to="/events" variant="outline-light">전체 이벤트</LinkButton>
+          <h2 id="home-event-title">이벤트</h2>
+          <p>지금 소개할 추천 이벤트가 없습니다.</p>
+          <LinkButton to="/events" variant="outline-light">이벤트 목록</LinkButton>
         </div>
       )}
       {featured?.imageUrl && (
@@ -47,9 +46,8 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
       {featured && (
         <div className="home-event-copy">
           <div className="home-event-labels">
-            <p className="store-section-kicker">추천 이벤트</p>
             <Badge bg={isEventOngoing(featured) ? "success" : "light"} text={isEventOngoing(featured) ? undefined : "dark"}>
-              {isEventOngoing(featured) ? "지금 진행 중" : "곧 시작해요"}
+              {isEventOngoing(featured) ? "진행 중" : "시작 예정"}
             </Badge>
           </div>
           <h2 id="home-event-title">{featured.title}</h2>
@@ -57,7 +55,7 @@ export function FeaturedEventWidget({ initialEvents }: { initialEvents: EventRes
           <EventPeriodText event={featured} className="home-event-period" />
           <div className="home-event-actions">
             <LinkButton to={`/events/${featured.id}`} variant="light">이벤트 보기</LinkButton>
-            <LinkButton to="/events" variant="outline-light">전체 이벤트</LinkButton>
+            <LinkButton to="/events" variant="outline-light">이벤트 목록</LinkButton>
           </div>
         </div>
       )}

@@ -52,14 +52,10 @@ export function MyBenefitsPage() {
   return (
     <MySectionPage
       path="/my/benefits"
-      description="보유 쿠폰과 적립금 내역을 확인하세요."
     >
       <section className="mb-5" aria-labelledby="reward-wallet-heading">
         <div className="d-flex justify-content-between align-items-end gap-3 mb-3">
-          <div>
-            <div className="my-section-kicker mb-1">적립금</div>
-            <h5 id="reward-wallet-heading" className="mb-0">적립금 잔액</h5>
-          </div>
+          <h5 id="reward-wallet-heading" className="mb-0">적립금</h5>
           <small className="text-muted-soft">1원 단위로 상품 금액 내에서 사용</small>
         </div>
         {rewardsQuery.isLoading && <LoadingSpinner text="적립금 조회 중..." />}
@@ -123,7 +119,6 @@ export function MyBenefitsPage() {
       </section>
 
       <section className="mb-5" aria-labelledby="claimable-coupons-heading">
-        <div className="my-section-kicker mb-1">쿠폰 발급</div>
         <h5 id="claimable-coupons-heading" className="mb-3">받을 수 있는 쿠폰</h5>
         <ErrorAlert error={claimMutation.error} />
         {claimableQuery.isLoading && <LoadingSpinner text="발급 가능 쿠폰 조회 중..." />}

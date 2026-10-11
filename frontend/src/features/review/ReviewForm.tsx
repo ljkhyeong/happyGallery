@@ -96,7 +96,7 @@ export function ReviewForm({
           aria-describedby={contentInvalid
             ? `${inputId}-content-error ${inputId}-count`
             : `${inputId}-count`}
-          placeholder="이용 경험을 들려주세요."
+          placeholder="좋았던 점이나 아쉬웠던 점을 적어 주세요."
         />
         {contentInvalid && (
           <div id={`${inputId}-content-error`} className="invalid-feedback d-block">

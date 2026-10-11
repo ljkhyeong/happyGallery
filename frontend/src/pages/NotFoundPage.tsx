@@ -52,7 +52,6 @@ export function NotFoundPage() {
   const copy = NOT_FOUND_BY_SECTION.get(pathname.split("/")[1] ?? "") ?? DEFAULT_NOT_FOUND;
   return (
     <StatusPage
-      kicker="404"
       title={copy.title}
       description={copy.description}
       actions={(

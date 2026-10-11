@@ -111,7 +111,7 @@ export function GroupClassesPage({ initialWorkshop }: { initialWorkshop: Worksho
             {!error && !inquiryHref && !phone && !kakaoTalkId && (
               <span>수업 문의 채널을 준비하고 있습니다.</span>
             )}
-            <Link to="/classes" className="store-section-link">개인 클래스 보기 →</Link>
+            <Link to="/classes" className="store-section-link">개인 클래스 보기</Link>
           </div>
         </section>
       </Container>

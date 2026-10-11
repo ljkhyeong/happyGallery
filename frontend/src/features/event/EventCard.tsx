@@ -28,7 +28,7 @@ export function EventCard({ event }: { event: EventResponse }) {
         </div>
         <EventPeriodText event={event} className="small text-muted-soft mb-0" />
         <Link to={`/events/${event.id}`} className="stretched-link mt-auto text-decoration-none">
-          자세히 보기 <span aria-hidden="true">→</span>
+          자세히 보기
         </Link>
       </Card.Body>
     </Card>

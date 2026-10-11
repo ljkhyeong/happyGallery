@@ -15,8 +15,7 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
   return (
     <section className="my-dashboard-hero" aria-labelledby="my-dashboard-title">
       <div className="my-dashboard-hello">
-        <p className="store-section-kicker">내 정보</p>
-        <h1 id="my-dashboard-title">{user.name}님, 다시 오셨네요</h1>
+        <h1 id="my-dashboard-title">{user.name}님</h1>
         <div className="my-dashboard-meta">
           <Badge bg={user.phoneVerified ? "success" : "secondary"}>
             {user.phoneVerified
@@ -29,7 +28,7 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
           {user.phone && <span>{user.phone}</span>}
         </div>
         <div className="my-dashboard-actions">
-          <LinkButton to="/bookings/new" variant="primary" size="sm">체험 예약</LinkButton>
+          <LinkButton to="/classes" variant="primary" size="sm">클래스 예약</LinkButton>
           <LinkButton to="/passes/purchase" variant="outline-dark" size="sm">4회권 구매</LinkButton>
         </div>
       </div>
@@ -39,13 +38,13 @@ export function MyDashboardHero({ user, nextBooking }: Props) {
           <span className="my-next-booking-label">다음 예약</span>
           <strong>{nextBooking.className}</strong>
           <span>{formatDateTime(nextBooking.startAt)} · {nextBooking.participantCount}명</span>
-          <span className="my-next-booking-link">예약 상세 보기 →</span>
+          <span className="my-next-booking-link">예약 상세 보기</span>
         </Link>
       ) : (
         <div className="my-next-booking is-empty">
           <span className="my-next-booking-label">다음 예약</span>
-          <strong>예정된 수업이 없어요</strong>
-          <Link to="/classes" className="my-next-booking-link">수업 둘러보기 →</Link>
+          <strong>예정된 수업이 없습니다</strong>
+          <Link to="/classes" className="my-next-booking-link">클래스 보기</Link>
         </div>
       )}
     </section>

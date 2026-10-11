@@ -27,7 +27,7 @@ export function ClassUpcomingSlots({ bookingClass }: { bookingClass: Pick<ClassR
       {query.isPending && <p className="class-detail-muted">일정을 불러오는 중입니다.</p>}
       {query.isError && (
         <p className="class-detail-muted">
-          일정을 불러오지 못했습니다. <Link to={bookingCreateHref(bookingClass.id)}>예약 화면에서 날짜 보기 →</Link>
+          일정을 불러오지 못했습니다. <Link to={bookingCreateHref(bookingClass.id)}>예약 화면에서 날짜 보기</Link>
         </p>
       )}
       {query.isSuccess && slots.length === 0 && (
@@ -55,7 +55,7 @@ export function ClassUpcomingSlots({ bookingClass }: { bookingClass: Pick<ClassR
       )}
       {slots.length > SLOT_LIMIT && (
         <Link className="class-detail-more" to={bookingCreateHref(bookingClass.id)}>
-          다른 날짜 더 보기 →
+          다른 날짜 더 보기
         </Link>
       )}
     </section>
