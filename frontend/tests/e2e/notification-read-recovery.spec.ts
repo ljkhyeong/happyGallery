@@ -3,11 +3,14 @@ import type { NotificationResponse } from "../../src/generated/api/notification"
 import { fulfillJson } from "./mock-support";
 
 const FAILURE_NOTICE = "알림을 읽음 처리하지 못했습니다. 알림 목록에서 다시 시도해 주세요.";
+// 신청 내역을 찾을 수 없는 재입고 알림은 재입고 알림 목록으로 간다.
+const NO_TARGET = { orderId: null, bookingId: null, productId: null, productVariantId: null, classId: null, slotId: null };
 
 async function mockNotifications(page: Page) {
   const createRow = (id: number, title: string): NotificationResponse => ({
     id, contextTitle: title, eventType: "PRODUCT_RESTOCK_AVAILABLE", aggregateType: "RESTOCK_ALERT",
     aggregateId: id, read: false, readAt: null, scheduledAt: null, deliveredAt: "2026-09-12T10:00:00",
+    target: NO_TARGET,
   });
   const accounts = new Map([
     [501, [createRow(1, "가죽 지갑"), createRow(2, "위빙 작품")]],

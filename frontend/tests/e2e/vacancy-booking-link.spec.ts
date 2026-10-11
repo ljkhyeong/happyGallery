@@ -34,7 +34,9 @@ async function mockVacancyFlow(page: Page) {
   };
   const notification: NotificationResponse = {
     id: 901, eventType: "BOOKING_VACANCY_AVAILABLE", aggregateType: "VACANCY_ALERT", aggregateId: 701,
-    contextTitle: null, scheduledAt: null, deliveredAt: "2026-09-12T10:00:00", readAt: null, read: false,
+    contextTitle: `빈자리 · ${bookingClass.name}`, scheduledAt: notified.startAt,
+    target: { orderId: null, bookingId: null, productId: null, productVariantId: null, classId: 42, slotId: 78 },
+    deliveredAt: "2026-09-12T10:00:00", readAt: null, read: false,
   };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -91,11 +93,14 @@ async function mockVacancyFlow(page: Page) {
   return state;
 }
 
-test("빈자리 알림에서 해당 날짜로 이동하고 재방문 시 최신 잔여 좌석을 확인한다", async ({ page }, testInfo) => {
+test("빈자리 알림에서 해당 회차로 이동하고 재방문 시 최신 잔여 좌석을 확인한다", async ({ page }, testInfo) => {
   const state = await mockVacancyFlow(page);
   await page.goto("/my/notifications");
+  await expect(page.getByText(/회차:/)).toContainText("2099. 01. 03.");
   await page.getByRole("link", { name: "예약 빈자리 안내", exact: true }).click();
-  await expect(page).toHaveURL(/\/my\/vacancy-alerts$/);
+  await expect(page).toHaveURL(/\/bookings\/new\?classId=42&slotId=78$/);
+  await expect(page.locator('[data-slot-id="78"]')).toContainText("알림 신청한 일정");
+  await page.goto("/my/vacancy-alerts");
   await expect(page.getByText("빈자리 발생", { exact: true })).toBeVisible();
   await expect(page.getByText("대기 중 0건", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /빈자리 알림 취소/ })).toHaveCount(0);
@@ -135,9 +140,7 @@ test("다시 만석이 되면 알림을 재신청하고 취소 후에도 이전 
   await page.getByRole("button", { name: "빈자리 알림 취소", exact: true }).click();
   await expect.poll(() => state.cancellations).toBe(1);
   await expect(page.getByRole("button", { name: "빈자리 알림", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "알림", exact: true }).click();
-  await page.getByRole("dialog", { name: "알림 목록" }).getByRole("button", { name: /예약 빈자리 안내/ }).click();
-  await expect(page).toHaveURL(/\/my\/vacancy-alerts$/);
+  await page.goto("/my/vacancy-alerts");
   await expect(page.getByText("빈자리 발생", { exact: true })).toBeVisible();
   await expect(page.getByText("대기 중 0건", { exact: true })).toBeVisible();
   expect(state.unexpectedWrites).toEqual([]);

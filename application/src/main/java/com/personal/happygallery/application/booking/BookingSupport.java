@@ -82,9 +82,11 @@ class BookingSupport {
         }
     }
 
+    // 일정 변경은 같은 예약에 여러 번 보낼 수 있다.
     private NotificationRequestedEvent bookerEventForUser(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forUser(booking.getUserId(), eventType);
+            return NotificationRequestedEvent.forUserRepeatable(
+                    booking.getUserId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
         }
         return NotificationRequestedEvent.forUser(
                 booking.getUserId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
@@ -92,7 +94,8 @@ class BookingSupport {
 
     private NotificationRequestedEvent bookerEventForGuest(Booking booking, NotificationEventType eventType) {
         if (eventType == NotificationEventType.BOOKING_RESCHEDULED) {
-            return NotificationRequestedEvent.forGuest(booking.getGuest().getId(), eventType);
+            return NotificationRequestedEvent.forGuestRepeatable(
+                    booking.getGuest().getId(), eventType, NotificationAggregateType.BOOKING, booking.getId());
         }
         return NotificationRequestedEvent.forGuest(
                 booking.getGuest().getId(),

@@ -99,7 +99,7 @@
 - NHN SMS v3 계약에는 클라이언트 멱등키 필드나 헤더가 없다. 일반 SMS 요청에는 outbox 멱등키에서 만든
   불투명 상관관계 ID를 제공자 `userId`에 전달해 운영 대사에 사용하되, 이를 중복 차단 계약으로 해석하지 않는다.
   인증 SMS는 outbox를 사용하지 않으므로 이 상관관계 ID를 보내지 않는다.
-- 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`는 요청 단위 idempotency key를 사용해 기존 반복 발송 의미를 보존한다.
+- 같은 예약에서 여러 번 발생할 수 있는 `BOOKING_RESCHEDULED`와 같은 주문의 `ORDER_DELAY_REQUESTED`는 요청 단위 idempotency key를 사용해 반복 발송 의미를 보존한다. 알림함에서 해당 예약·주문을 열 수 있도록 aggregate type·id는 함께 저장한다.
 - 자동 재시도를 모두 소진한 outbox는 `FAILED`로 종결하고 `happygallery.notification.outbox.failed` 카운터를 올린다.
 - `PENDING`·`PROCESSING`·`DELIVERY_PENDING`·`DELIVERY_CHECKING`·`FAILED`별 backlog 건수와 처리 기준 시각을 DB에서 주기적으로 집계한다. 실행 상태는 현재 선점의 `locked_at`, 대기 상태는 `next_attempt_at`, `FAILED`는 `processed_at`부터 경과 시간을 계산한다. 실행 상태가 2분, 예정 시각이 지난 대기 상태가 1분을 넘으면 경보를 울린다. 미래 예정 시각의 age는 0으로 유지한다.
 - 관리자는 실패 outbox를 최대 100건씩 조회하고, 원래 행을 `PENDING`으로 다시 열 수 있다. 새 outbox나 새 멱등키를 만들지 않으므로 동일 이벤트가 별도 요청으로 중복 발송되는 것을 막는다.

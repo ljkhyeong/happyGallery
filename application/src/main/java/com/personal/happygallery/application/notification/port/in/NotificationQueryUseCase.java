@@ -10,8 +10,15 @@ public interface NotificationQueryUseCase {
     record NotificationView(Long id, NotificationEventType eventType,
                             NotificationAggregateType aggregateType, Long aggregateId,
                             LocalDateTime deliveredAt, LocalDateTime readAt,
-                            String contextTitle, LocalDateTime scheduledAt) {
+                            String contextTitle, LocalDateTime scheduledAt,
+                            NotificationTarget target) {
         public boolean isRead() { return readAt != null; }
+    }
+
+    /** 알림을 눌렀을 때 열 본인 기록. 원본이 없거나 타인 소유이면 값을 비운다. */
+    record NotificationTarget(Long orderId, Long bookingId, Long productId, Long productVariantId,
+                              Long classId, Long slotId) {
+        public static final NotificationTarget NONE = new NotificationTarget(null, null, null, null, null, null);
     }
 
     List<NotificationView> listNotifications(Long userId, int page, int size, boolean unreadOnly);

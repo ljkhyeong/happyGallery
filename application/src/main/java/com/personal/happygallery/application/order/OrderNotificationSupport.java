@@ -24,12 +24,14 @@ class OrderNotificationSupport {
         NotificationRequestedEvent event;
         if (order.getUserId() != null) {
             event = repeatable
-                    ? NotificationRequestedEvent.forUser(order.getUserId(), eventType)
+                    ? NotificationRequestedEvent.forUserRepeatable(
+                            order.getUserId(), eventType, NotificationAggregateType.ORDER, order.getId())
                     : NotificationRequestedEvent.forUser(
                             order.getUserId(), eventType, NotificationAggregateType.ORDER, order.getId());
         } else {
             event = repeatable
-                    ? NotificationRequestedEvent.forGuest(order.getGuestId(), eventType)
+                    ? NotificationRequestedEvent.forGuestRepeatable(
+                            order.getGuestId(), eventType, NotificationAggregateType.ORDER, order.getId())
                     : NotificationRequestedEvent.forGuest(
                             order.getGuestId(), eventType, NotificationAggregateType.ORDER, order.getId());
         }

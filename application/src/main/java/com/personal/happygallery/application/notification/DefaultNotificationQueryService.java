@@ -44,19 +44,30 @@ public class DefaultNotificationQueryService implements NotificationQueryUseCase
             return new NotificationView(outbox.getId(), outbox.getEventType(),
                     outbox.getAggregateType(), outbox.getAggregateId(),
                     outbox.getProcessedAt(), outbox.getReadAt(), contextTitle(outbox, context),
-                    context == null ? null : context.scheduledAt());
+                    context == null ? null : context.scheduledAt(), target(context));
         }).toList();
     }
 
+    // 클레임·환불 알림도 원래 주문·예약 번호로 보여 준다.
     private String contextTitle(NotificationOutbox outbox, Context context) {
         if (context == null || context.name() == null) return null;
-        return switch (outbox.getAggregateType()) {
-            case ORDER -> "주문 #" + outbox.getAggregateId() + " · " + context.name()
+        if (context.orderId() != null) {
+            return "주문 #" + context.orderId() + " · " + context.name()
                     + (context.itemCount() > 1 ? " 외 " + (context.itemCount() - 1) + "건" : "");
-            case BOOKING -> "예약 #" + outbox.getAggregateId() + " · " + context.name();
+        }
+        if (context.bookingId() != null) return "예약 #" + context.bookingId() + " · " + context.name();
+        return switch (outbox.getAggregateType()) {
+            case VACANCY_ALERT -> "빈자리 · " + context.name();
             case RESTOCK_ALERT -> "재입고 · " + context.name();
-            default -> null;
+            case PRODUCT_QNA -> "상품 문의 · " + context.name();
+            case null, default -> null;
         };
+    }
+
+    private static NotificationTarget target(Context context) {
+        if (context == null) return NotificationTarget.NONE;
+        return new NotificationTarget(context.orderId(), context.bookingId(), context.productId(),
+                context.productVariantId(), context.classId(), context.slotId());
     }
 
     @Override

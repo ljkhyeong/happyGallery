@@ -4,9 +4,14 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
-/** 회원 알림 수신자와 원본 소유자가 일치하는 주문·예약·재입고 정보만 조회한다. */
+/**
+ * 회원 알림 원본에서 수신자 본인 소유의 주문·예약·빈자리·재입고·상품 문의 정보만 조회한다.
+ * 클레임·환불 알림은 원래 주문·예약으로 이어 준다.
+ */
 public interface NotificationContextPort {
-    record Context(Long notificationId, String name, int itemCount, LocalDateTime scheduledAt) {}
+    record Context(Long notificationId, String name, int itemCount, LocalDateTime scheduledAt,
+                   Long orderId, Long bookingId, Long productId, Long productVariantId,
+                   Long classId, Long slotId) {}
 
     List<Context> findContexts(Collection<Long> notificationIds, Long userId);
 }

@@ -226,7 +226,8 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                         NotificationAggregateType.ORDER,
                         200L,
                         LocalDateTime.of(2026, 3, 28, 9, 15),
-                        null, "주문 #200 · 가죽 지갑", null)));
+                        null, "주문 #200 · 가죽 지갑", null,
+                        new NotificationQueryUseCase.NotificationTarget(200L, null, null, null, null, null))));
         when(notificationQueryUseCase.countUnread(CUSTOMER_USER_ID)).thenReturn(3L);
         when(guestClaimUseCase.preview(CUSTOMER_USER_ID)).thenReturn(claimPreview(false));
         when(guestClaimUseCase.verifyPhoneAndPreview(CUSTOMER_USER_ID, "123456")).thenReturn(claimPreview(true));
@@ -835,7 +836,10 @@ class CustomerApiRestDocsTest extends RestDocsTestSupport {
                 .andExpect(jsonPath("$[0].readAt").doesNotExist())
                 .andExpect(jsonPath("$[0].read").value(false))
                 .andExpect(jsonPath("$[0].contextTitle").value("주문 #200 · 가죽 지갑"))
-                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()));
+                .andExpect(jsonPath("$[0].scheduledAt").value(nullValue()))
+                .andExpect(jsonPath("$[0].target.orderId").value(200))
+                .andExpect(jsonPath("$[0].target.bookingId").value(nullValue()))
+                .andExpect(jsonPath("$[0].target.slotId").value(nullValue()));
     }
 
     @Test

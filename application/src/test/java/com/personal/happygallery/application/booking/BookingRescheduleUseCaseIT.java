@@ -1,6 +1,7 @@
 package com.personal.happygallery.application.booking;
 
 import com.personal.happygallery.adapter.in.web.booking.dto.RescheduleRequest;
+import com.personal.happygallery.adapter.out.persistence.notification.NotificationOutboxRepository;
 import com.personal.happygallery.application.booking.port.in.MemberBookingUseCase;
 import com.personal.happygallery.application.booking.port.in.SlotManagementUseCase;
 import com.personal.happygallery.application.booking.port.out.ClassStorePort;
@@ -10,6 +11,8 @@ import com.personal.happygallery.application.customer.port.out.UserStorePort;
 import com.personal.happygallery.domain.booking.BookingClass;
 import com.personal.happygallery.domain.booking.DepositPaymentMethod;
 import com.personal.happygallery.domain.booking.Slot;
+import com.personal.happygallery.domain.notification.NotificationAggregateType;
+import com.personal.happygallery.domain.notification.NotificationEventType;
 import com.personal.happygallery.domain.user.User;
 import com.personal.happygallery.support.BookingTestHelper;
 import com.personal.happygallery.support.BookingStateProbe;
@@ -54,6 +57,7 @@ class BookingRescheduleUseCaseIT {
     @Autowired Clock clock;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired ObjectMapper objectMapper;
+    @Autowired NotificationOutboxRepository notificationOutboxRepository;
 
     BookingClass cls;
     BookingTestHelper helper;
@@ -109,6 +113,9 @@ class BookingRescheduleUseCaseIT {
         // Proof: booking_history 6건 (BOOKED×1 + RESCHEDULED×5)
         long historyCount = bookingStateProbe.bookingHistoryCountByBookingId(booking.bookingId());
         int finalSlotBookedCount = bookingStateProbe.getSlot(slots[5].getId()).getBookedCount();
+        var rescheduleNotices = notificationOutboxRepository.findAll().stream()
+                .filter(outbox -> outbox.getEventType() == NotificationEventType.BOOKING_RESCHEDULED)
+                .toList();
         assertSoftly(softly -> {
             softly.assertThat(savedBooking.getSlot().getId()).isEqualTo(slots[5].getId());
             softly.assertThat(savedBooking.getStatus().name()).isEqualTo("BOOKED");
@@ -118,6 +125,11 @@ class BookingRescheduleUseCaseIT {
             softly.assertThat(bookingStateProbe.bookingCount()).isEqualTo(1L);
             softly.assertThat(historyCount).isEqualTo(6L);
             softly.assertThat(finalSlotBookedCount).isEqualTo(3);
+            // 같은 예약에 여러 번 보내도 알림마다 남고, 알림함에서 해당 예약을 열 수 있다.
+            softly.assertThat(rescheduleNotices).hasSize(5).allSatisfy(outbox -> {
+                assertThat(outbox.getAggregateType()).isEqualTo(NotificationAggregateType.BOOKING);
+                assertThat(outbox.getAggregateId()).isEqualTo(booking.bookingId());
+            });
         });
 
         // 슬롯 정원 상태 확인: 나머지는 0

@@ -215,8 +215,12 @@ class OrderProductionUseCaseIT {
                     .containsExactly(OrderApprovalDecision.APPROVE, OrderApprovalDecision.DELAY);
             softly.assertThat(histories.get(1).getDecidedByAdminId()).isEqualTo(ADMIN_ID);
             softly.assertThat(notificationOutboxRepository.findAll())
-                    .extracting("eventType")
-                    .contains(NotificationEventType.ORDER_DELAY_REQUESTED);
+                    .filteredOn(outbox -> outbox.getEventType() == NotificationEventType.ORDER_DELAY_REQUESTED)
+                    .singleElement()
+                    .satisfies(outbox -> {
+                        assertThat(outbox.getAggregateType()).isEqualTo(NotificationAggregateType.ORDER);
+                        assertThat(outbox.getAggregateId()).isEqualTo(order.getId());
+                    });
         });
     }
 

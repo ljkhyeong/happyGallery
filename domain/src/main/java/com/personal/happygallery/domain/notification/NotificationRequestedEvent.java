@@ -25,8 +25,10 @@ public sealed interface NotificationRequestedEvent {
                    NotificationAggregateType aggregateType, Long aggregateId, String idempotencyKey)
             implements NotificationRequestedEvent {}
 
-    static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType) {
-        return new ForGuest(guestId, eventType, null, null, requestKey("GUEST", guestId, eventType));
+    /** 같은 대상에 여러 번 보내는 알림. 대상은 남기고 중복 방지 키만 요청마다 새로 만든다. */
+    static NotificationRequestedEvent forGuestRepeatable(Long guestId, NotificationEventType eventType,
+                                                         NotificationAggregateType aggregateType, Long aggregateId) {
+        return new ForGuest(guestId, eventType, aggregateType, aggregateId, requestKey("GUEST", guestId, eventType));
     }
 
     static NotificationRequestedEvent forGuest(Long guestId, NotificationEventType eventType,
@@ -48,8 +50,10 @@ public sealed interface NotificationRequestedEvent {
                 oncePerAggregateKeyPrefix(eventType, aggregateType) + aggregateId);
     }
 
-    static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType) {
-        return new ForUser(userId, eventType, null, null, requestKey("USER", userId, eventType));
+    /** 같은 대상에 여러 번 보내는 알림. 대상은 남기고 중복 방지 키만 요청마다 새로 만든다. */
+    static NotificationRequestedEvent forUserRepeatable(Long userId, NotificationEventType eventType,
+                                                        NotificationAggregateType aggregateType, Long aggregateId) {
+        return new ForUser(userId, eventType, aggregateType, aggregateId, requestKey("USER", userId, eventType));
     }
 
     static NotificationRequestedEvent forUser(Long userId, NotificationEventType eventType,

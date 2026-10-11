@@ -3362,7 +3362,15 @@ Cookie: HG_SESSION={sessionToken}
     "readAt": null,
     "read": false,
     "contextTitle": "주문 #42 · 가죽 지갑 외 1건",
-    "scheduledAt": null
+    "scheduledAt": null,
+    "target": {
+      "orderId": 42,
+      "bookingId": null,
+      "productId": null,
+      "productVariantId": null,
+      "classId": null,
+      "slotId": null
+    }
   }
 ]
 ```
@@ -3379,11 +3387,12 @@ Cookie: HG_SESSION={sessionToken}
 - `page`는 0 이상, `size`는 1~100이어야 하며 표현 가능한 OFFSET 범위를 넘으면 `400 INVALID_INPUT`으로 거절한다.
 - `unreadOnly`는 기본 `false`다. `true`이면 읽지 않은 알림만 추린 뒤 페이지를 나눈다.
 - 본인 알림만 조회/읽음 처리할 수 있고, 타인 알림 ID는 찾을 수 없는 것처럼 거절한다.
-- `contextTitle`과 `scheduledAt`은 항상 반환하며 값이 없으면 null이다. 주문은 주문 번호·첫 상품의 구매 당시 이름·나머지 주문 행 수, 예약은 예약 번호·현재 클래스명, 재입고는 현재 상품명·신청 옵션을 표시한다. 다른 알림 종류나 원본 삭제·소유권 불일치는 관련 정보를 비운다.
-- `scheduledAt`은 조회 시점의 현재 예약 시작 시각(서울 현지 시각)이며 알림 발생 당시 일정이 아니다. 화면에 “현재 예약일”이라고 표시한다. 주문·재입고 알림에서는 null이다. 목록과 상단 알림 팝오버가 같은 정보를 사용한다.
+- `contextTitle`과 `scheduledAt`은 항상 반환하며 값이 없으면 null이다. 주문·주문 클레임·주문 환불은 주문 번호·첫 상품의 구매 당시 이름·나머지 주문 행 수, 예약·예약금 환불은 예약 번호·현재 클래스명, 빈자리는 클래스명, 재입고는 현재 상품명·신청 옵션, 상품 문의 답변은 현재 상품명을 표시한다. 다른 알림 종류나 원본 삭제·소유권 불일치는 관련 정보를 비운다.
+- `scheduledAt`은 조회 시점의 서울 현지 시각이며 알림 발생 당시 일정이 아니다. 예약·예약금 환불 알림은 현재 예약 시작 시각(화면 “현재 예약일”), 빈자리 알림은 신청한 회차 시작 시각(화면 “회차”)이다. 그 밖의 알림에서는 null이다. 목록과 상단 알림 팝오버가 같은 정보를 사용한다.
+- `target`은 항상 반환하는 객체이며 알림을 눌렀을 때 열 본인 기록의 ID를 담는다. `orderId`는 주문·주문 클레임·주문 환불, `bookingId`는 예약·예약금 환불, `productId`는 재입고·상품 문의 답변(`productVariantId`는 옵션 조합으로 신청한 재입고), `classId`·`slotId`는 빈자리 알림의 회차다. 해당하지 않거나 원본 삭제·소유권 불일치면 각 값은 null이다. 이용권·1:1 문의·후기 알림은 모두 null이고 화면은 해당 목록으로 보낸다.
 - 목록은 발송 완료된 논리 알림을 `deliveredAt DESC` 기준으로 페이지네이션하며, 카카오톡 실패 후 SMS 성공처럼 채널 로그가 여러 건이어도 한 건만 반환한다.
 - `readAt != null`이면 `read=true`로 본다.
-- `aggregateType`은 알림이 가리키는 대상 종류이며 `ORDER`, `ORDER_CLAIM`, `BOOKING`, `VACANCY_ALERT`, `PASS_PURCHASE`, `REFUND`, `INQUIRY`, `PRODUCT_QNA`, `RESTOCK_ALERT`, `REVIEW`, `REVIEW_MODERATION_ACTION` 중 하나다. `aggregateId`는 그 대상의 ID다. 예약 일정 변경·주문 제작 지연 요청처럼 같은 대상에 반복 발송하는 알림은 두 값이 모두 null이다. 관리자 실패 알림 목록도 같은 값을 사용한다.
+- `aggregateType`은 알림이 가리키는 대상 종류이며 `ORDER`, `ORDER_CLAIM`, `BOOKING`, `VACANCY_ALERT`, `PASS_PURCHASE`, `REFUND`, `INQUIRY`, `PRODUCT_QNA`, `RESTOCK_ALERT`, `REVIEW`, `REVIEW_MODERATION_ACTION` 중 하나다. `aggregateId`는 그 대상의 ID다. 예약 일정 변경·주문 제작 지연 요청처럼 같은 대상에 반복 발송하는 알림도 대상 예약·주문을 채우며, 중복 방지 키만 요청마다 새로 만든다. 관리자 실패 알림 목록도 같은 값을 사용한다.
 - 알림 목록의 최초 로딩과 실패를 빈 목록으로 표시하지 않는다. 실패 시 재시도를 제공하고, 재조회 실패 때는 이미 받은 목록을 유지한다.
 - 알림 팝오버는 모바일 화면 폭을 넘지 않으며 trigger의 펼침 상태·연결 대상을 노출하고 Escape로 닫은 뒤 trigger로 포커스를 돌린다.
 - 발송 완료, 발송 조건을 충족하지 않아 발송 없이 종료된 `OBSOLETE` 리마인드와 최종 실패 outbox는 각각 `processed_at`부터 180일 뒤 채널 감사 로그와 함께 보존 배치에서 삭제한다. 재시도 가능한 `PENDING`과 실행 중인 `PROCESSING` outbox는 이 정책으로 삭제하지 않는다.
