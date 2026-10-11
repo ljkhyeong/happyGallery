@@ -2,6 +2,7 @@ import { LinkButton } from "@/shared/ui/LinkButton";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link } from "react-router";
+import { productDetailHref } from "@/features/product/navigation";
 import { Alert, Container, Button, Modal, Table, Form } from "react-bootstrap";
 import { ShoppingBag } from "lucide-react";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
@@ -397,7 +398,7 @@ function CartContent() {
                           changeSelection(next);
                         }} />}
                       <div>
-                        <Link to={`/products/${item.productId}`}>
+                        <Link to={productDetailHref(item.productId, item.productVariantId)}>
                           {item.productName || `상품 #${item.productId}`}
                         </Link>
                         <div className="small text-muted-soft">{formatKRW(item.price)}</div>

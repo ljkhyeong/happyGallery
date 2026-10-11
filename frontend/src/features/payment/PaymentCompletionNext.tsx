@@ -25,7 +25,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
 
   if (result.domainId == null) {
     const nextAction = (
-      <LinkButton to={result.accessRecoveryRequired ? "/guest" : "/"} variant="primary">
+      <LinkButton to={result.accessRecoveryRequired ? "/guest#lookup-help" : "/"} variant="primary">
         {result.accessRecoveryRequired ? "휴대폰 인증으로 조회하기" : "홈으로"}
       </LinkButton>
     );
@@ -61,7 +61,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
     if (result.accessRecoveryRequired) {
       return (
         <GuestCompletionActions>
-          <LinkButton to="/guest" variant="primary">
+          <LinkButton to="/guest#lookup-help" variant="primary">
             휴대폰 인증으로 주문 확인하기
           </LinkButton>
         </GuestCompletionActions>
@@ -93,7 +93,7 @@ export function PaymentCompletionNext({ result }: { result: ConfirmPaymentRespon
   if (result.accessRecoveryRequired) {
     return (
       <GuestCompletionActions>
-        <LinkButton to="/guest" variant="primary">
+        <LinkButton to="/guest?kind=bookings#lookup-help" variant="primary">
           휴대폰 인증으로 예약 확인하기
         </LinkButton>
       </GuestCompletionActions>

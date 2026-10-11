@@ -12,6 +12,7 @@ import {
   type VariantDraft,
 } from "./ProductOptionEditor";
 import { invalidateProductQueries, isProductFormValid } from "./productFormRules";
+import { ProductCategoryField } from "./ProductCategoryField";
 
 interface Props {
   adminKey: string;
@@ -126,15 +127,7 @@ export function CreateProductForm({ adminKey, onAuthError }: Props) {
           </Form.Group>
         </Col>
         <Col xs={12} sm={6} md={2}>
-          <Form.Group controlId="admin-product-category">
-            <Form.Label>카테고리</Form.Label>
-            <Form.Control
-              value={category}
-              maxLength={50}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="예: 목공 소품"
-            />
-          </Form.Group>
+          <ProductCategoryField controlId="admin-product-category" value={category} onChange={setCategory} />
         </Col>
         <Col xs={12} sm={6} md={2}>
           <Form.Group controlId="admin-product-price">

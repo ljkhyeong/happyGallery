@@ -1,9 +1,12 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Button, Card } from "react-bootstrap";
+import { Link } from "react-router";
 import { fetchMyProductQnaPage, fetchProductQnaPage } from "./api";
 import { QnaItem } from "./QnaItem";
 import { QnaCreateForm } from "./QnaCreateForm";
 import { useCustomerAuth } from "@/features/customer-auth/useCustomerAuth";
+import { buildAuthPageHref } from "@/features/customer-auth/navigation";
+import { productDetailHref } from "@/features/product/navigation";
 import { queryKeys, cursorPageParams, flattenCursorPages } from "@/shared/api";
 import { LoadingSpinner, EmptyState, ErrorAlert } from "@/shared/ui";
 
@@ -148,7 +151,8 @@ function ProductQnaContent({ productId }: Props) {
 
         {!isAuthenticated && (
           <p className="text-muted-soft small mt-2 mb-0">
-            로그인 후 상품 문의를 작성할 수 있습니다.
+            상품 문의는 회원만 남길 수 있습니다.{" "}
+            <Link to={buildAuthPageHref("/login", { redirectTo: productDetailHref(productId) })}>로그인하고 문의하기</Link>
           </p>
         )}
       </Card.Body>

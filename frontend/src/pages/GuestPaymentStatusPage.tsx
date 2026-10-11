@@ -99,7 +99,7 @@ export function GuestPaymentStatusPage() {
           tone="notice"
           title="휴대폰 인증 후 결제 결과를 확인해 주세요"
           lead="결제 때 사용한 휴대폰 번호를 인증하면 결제 상태를 볼 수 있습니다."
-          actions={<LinkButton to="/guest" variant="primary">휴대폰 인증하기</LinkButton>}
+          actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증하기</LinkButton>}
         />
       </Container>
     );
@@ -119,7 +119,7 @@ export function GuestPaymentStatusPage() {
         <PaymentResultCard
           tone="danger"
           title="결제 상태를 불러오지 못했습니다"
-          actions={<LinkButton to="/guest" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
+          actions={<LinkButton to="/guest#payment-help" variant="primary">휴대폰 인증으로 다시 조회</LinkButton>}
         >
           <ErrorAlert error={error} />
         </PaymentResultCard>
@@ -133,7 +133,7 @@ export function GuestPaymentStatusPage() {
 
   return (
     <Container className="page-container payment-result-page">
-      <Link to="/guest" className="page-back-link">&larr; 조회한 결제 목록</Link>
+      <Link to="/guest#payment-help" className="page-back-link">&larr; 조회한 결제 목록</Link>
       <PaymentResultCard
         tone={completedResult ? "success" : "notice"}
         title="결제 상태"
@@ -151,7 +151,7 @@ export function GuestPaymentStatusPage() {
             >
               {isFetching ? "확인 중..." : "상태 새로고침"}
             </Button>
-            <LinkButton to="/guest" variant="outline-secondary">목록으로</LinkButton>
+            <LinkButton to="/guest#payment-help" variant="outline-secondary">목록으로</LinkButton>
           </>
         )}
       >

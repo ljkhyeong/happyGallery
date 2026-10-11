@@ -43,6 +43,8 @@ export function SlotSelectionStep({
   onDeselect,
   onClassChange,
 }: Props) {
+  // "알림 신청한 일정" 표시는 빈자리 알림 링크로 들어온 경우만이다. 상세에서 고른 시간은 선택 상태로 보인다.
+  const vacancyFlagSlotId = selectInitialSlot ? null : initialSlotId;
   const appliedInitialClassId = useRef<number | null | undefined>(undefined);
   const appliedInitialClass = useRef<ClassResponse | null | undefined>(undefined);
   const appliedInitialSlotId = useRef<number | null | undefined>(undefined);
@@ -272,7 +274,7 @@ export function SlotSelectionStep({
             <ListGroup className="booking-slot-list">
               {slots.map((slot) => slot.remainingCapacity === 0 ? (
                 <ListGroup.Item key={slot.id} data-slot-id={slot.id} className="is-full">
-                  {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
+                  {slot.id === vacancyFlagSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
                   <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">만석</span>
                   <VacancyAlertButton slotId={slot.id} />
@@ -286,7 +288,7 @@ export function SlotSelectionStep({
                   onClick={() => onSelect(slot)}
                   className={isFewSeats(slot.remainingCapacity) ? "is-few" : undefined}
                 >
-                  {slot.id === initialSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
+                  {slot.id === vacancyFlagSlotId && <small className="booking-slot-flag">알림 신청한 일정</small>}
                   <BookingSlotTime slot={slot} />
                   <span className="booking-slot-seats">{slot.remainingCapacity}명 예약 가능</span>
                 </ListGroup.Item>

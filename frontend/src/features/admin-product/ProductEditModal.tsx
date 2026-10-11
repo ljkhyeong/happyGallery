@@ -8,6 +8,7 @@ import type { ProductResponse } from "@/shared/types";
 import { AdminImageField } from "@/features/admin-media/AdminImageField";
 import { optionDraftsFromProduct, ProductOptionEditor } from "./ProductOptionEditor";
 import { invalidateProductQueries, isProductFormValid } from "./productFormRules";
+import { ProductCategoryField } from "./ProductCategoryField";
 
 interface Props {
   adminKey: string;
@@ -108,10 +109,7 @@ export function ProductEditModal({ adminKey, product, onClose, onAuthError }: Pr
               </Form.Group>
             </Col>
             <Col xs={12}>
-              <Form.Group controlId="admin-edit-product-category">
-                <Form.Label>카테고리</Form.Label>
-                <Form.Control value={category} maxLength={50} onChange={(e) => setCategory(e.target.value)} />
-              </Form.Group>
+              <ProductCategoryField controlId="admin-edit-product-category" value={category} onChange={setCategory} />
             </Col>
             <Col xs={12}>
               <Form.Group controlId="admin-edit-product-specification">

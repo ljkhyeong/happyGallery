@@ -93,7 +93,7 @@ export function Layout() {
     { to: "/classes", label: "클래스", icon: CalendarDays, active: isMainNavActive(pathname, "/classes") },
     { to: "/products", label: "작품", icon: Palette, active: isActive(pathname, "/products") },
     {
-      to: isAuthenticated ? "/my/bookings" : "/guest",
+      to: isAuthenticated ? "/my/bookings" : "/guest?kind=bookings",
       label: "예약 조회",
       icon: ClipboardList,
       active: pathname === "/guest" || isActive(pathname, "/my/bookings"),

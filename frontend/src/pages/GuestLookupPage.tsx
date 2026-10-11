@@ -15,13 +15,20 @@ export function GuestLookupPage() {
   return <GuestLookupContent key={sessionVersion} />;
 }
 
+/** 다른 화면에서 도움말 칸을 바로 열어 보낼 때 쓰는 주소 해시. */
+const HELP_BY_HASH: Record<string, string> = {
+  "#lookup-help": "records",
+  "#payment-help": "payments",
+};
+
 function GuestLookupContent() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [activeHelp, setActiveHelp] = useState<string | null>(
-    location.hash === "#lookup-help" ? "records" : null,
+  const [activeHelp, setActiveHelp] = useState<string | null>(HELP_BY_HASH[location.hash] ?? null);
+  // 모바일 하단 "예약 조회"처럼 예약으로 들어오면 예약 조회 칸을 먼저 연다.
+  const [kind, setKind] = useState<GuestLookupKind>(
+    new URLSearchParams(location.search).get("kind") === "bookings" ? "bookings" : "orders",
   );
-  const [kind, setKind] = useState<GuestLookupKind>("orders");
 
   useEffect(() => {
     trackClientEvent("GUEST_LOOKUP_HUB_VIEWED");
@@ -47,7 +54,7 @@ function GuestLookupContent() {
             <Accordion.Header>주문·예약 번호나 조회 코드를 잊었어요</Accordion.Header>
             <Accordion.Body><GuestRecordRecoverySection /></Accordion.Body>
           </Accordion.Item>
-          <Accordion.Item eventKey="payments">
+          <Accordion.Item eventKey="payments" id="payment-help">
             <Accordion.Header>결제는 했는데 완료 여부를 모르겠어요</Accordion.Header>
             <Accordion.Body><GuestPaymentStatusRecoverySection /></Accordion.Body>
           </Accordion.Item>
