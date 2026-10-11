@@ -19,7 +19,7 @@ export function NoticeListWidget({ initialNotices }: { initialNotices: NoticeLis
     <section className="home-update-panel home-notice-panel" aria-labelledby="home-notice-title">
       <header className="home-update-heading">
         <h2 id="home-notice-title">공지사항</h2>
-        <p>공방 이용 전 꼭 확인할 안내를 모았습니다.</p>
+        <Link to="/notices" className="gallery-section-more">전체 공지 보기</Link>
       </header>
       <ErrorAlert
         error={error}

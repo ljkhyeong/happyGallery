@@ -1024,6 +1024,52 @@ textarea {
   line-height: 1.9;
 }
 
+// 공지 목록: 상세와 같은 읽기 폭에 제목과 날짜를 한 줄씩 둔다.
+.notice-list-page {
+  max-width: 760px;
+}
+
+.notice-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--hg-border);
+  }
+
+  a {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    color: var(--hg-dark);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &:hover span,
+    &:focus-visible span {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+  }
+
+  .badge {
+    flex: none;
+  }
+
+  time {
+    flex: none;
+    color: var(--hg-ink-soft);
+    font-size: 0.85rem;
+  }
+}
+
 .notice-others {
   padding: 1.25rem 1.4rem;
   background: var(--hg-surface);

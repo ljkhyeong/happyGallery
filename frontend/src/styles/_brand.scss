@@ -511,20 +511,19 @@
   min-width: 0;
 }
 
+// 공지 칸 머리: 제목과 전체 공지 링크를 한 줄에 둔다.
 .home-update-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
   margin-bottom: 1.5rem;
 
   h2 {
-    margin-bottom: 0.45rem;
+    margin: 0;
     font-family: var(--hg-font-display);
     font-size: clamp(1.6rem, 2.6vw, 2.1rem);
-    font-weight: 800;
-  }
-
-  > p:last-child {
-    margin: 0;
-    color: var(--hg-ink-soft);
-    font-size: 0.9rem;
+    font-weight: 500;
   }
 }
 

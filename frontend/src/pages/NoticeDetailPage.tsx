@@ -25,17 +25,15 @@ export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetai
 
   return (
     <Container className="page-container notice-detail-page">
-      <Link to="/" className="page-back-link">&larr; 홈으로</Link>
+      <Link to="/notices" className="page-back-link">&larr; 공지사항</Link>
 
       <ErrorAlert error={error} />
 
       <article className="notice-article">
         <header>
-          <p className="store-section-kicker">
-            Notice{notice.pinned && <Badge bg="dark" className="ms-2">고정</Badge>}
-          </p>
           <h1>{notice.title}</h1>
           <p className="notice-meta">
+            {notice.pinned && <Badge bg="dark" className="me-2">고정</Badge>}
             <time dateTime={notice.createdAt}>{formatDateTime(notice.createdAt)}</time> · 조회 {notice.viewCount}
           </p>
         </header>
@@ -47,7 +45,7 @@ export function NoticeDetailPage({ initialNotice }: { initialNotice: NoticeDetai
   );
 }
 
-/** 공지 목록 화면이 따로 없으므로 상세 아래에서 다른 공지로 이어 간다. */
+/** 상세 아래에서 최근 공지로 이어 간다. 전체 목록은 위의 공지사항 링크로 간다. */
 function OtherNotices({ currentId }: { currentId: number }) {
   const { data: notices } = useQuery(publicNoticesQuery());
   const others = notices?.filter((notice) => notice.id !== currentId).slice(0, 4) ?? [];

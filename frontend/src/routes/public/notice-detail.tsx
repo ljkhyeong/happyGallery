@@ -45,6 +45,7 @@ export default function NoticeDetailRoute({ loaderData }: Route.ComponentProps) 
         buildWebPageJsonLd(pathname, title, description),
         buildBreadcrumbJsonLd([
           { name: "홈", pathname: "/" },
+          { name: "공지사항", pathname: "/notices" },
           { name: loaderData.notice.title, pathname },
         ]),
         buildNoticeArticleJsonLd(loaderData.notice, pathname, heroWorkshop),

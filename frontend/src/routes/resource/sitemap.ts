@@ -13,6 +13,7 @@ const STATIC_PATHS = [
   "/group-classes",
   "/products",
   "/events",
+  "/notices",
   "/terms",
   "/privacy",
   "/business-info",

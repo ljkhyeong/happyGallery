@@ -27,7 +27,8 @@ const NOT_FOUND_BY_SECTION = new Map<string, NotFoundCopy>(Object.entries({
   },
   notices: {
     title: "공지를 찾을 수 없습니다",
-    description: "삭제됐거나 주소가 바뀐 공지일 수 있습니다. 최근 공지는 홈에서 확인할 수 있습니다.",
+    description: "삭제됐거나 주소가 바뀐 공지일 수 있습니다.",
+    action: { to: "/notices", label: "공지 목록 보기" },
   },
   my: {
     title: "내역을 찾을 수 없습니다",

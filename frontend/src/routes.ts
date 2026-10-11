@@ -11,6 +11,7 @@ export default [
   route("sitemap.xml", "./routes/resource/sitemap.ts"),
 
   index("./routes/public/home.tsx"),
+  route("notices", "./routes/public/notices.tsx"),
   route("notices/:id", "./routes/public/notice-detail.tsx"),
   route("events", "./routes/public/events.tsx"),
   route("events/:id", "./routes/public/event-detail.tsx"),
